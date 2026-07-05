@@ -1,0 +1,49 @@
+---
+title: CMC EDU - Luồng tuyển sinh & sinh tài khoản học sinh (Swimlane)
+---
+flowchart TD
+
+    subgraph SALE["🧑‍💼 Sale / Tư vấn tuyển sinh"]
+        A1[Tiếp nhận Lead] --> A2["Tạo Opportunity (O1)"]
+        A2 --> A3["Tư vấn, hẹn học thử (O2–O3)"]
+        A3 --> A4{Chốt đăng ký?}
+        A4 -->|Chưa| A5["Nurture / đóng OPP"]
+        A4 -->|Rồi| A6["Lập phiếu đăng ký<br/>+ đề nghị thu học phí (O4)"]
+    end
+
+    subgraph KT["💰 Kế toán"]
+        B1[Lập phiếu thu học phí] --> B2[Ghi nhận thanh toán]
+    end
+
+    subgraph DUYET["✅ Kế toán trưởng / Giám đốc"]
+        C1{Duyệt phiếu thu?}
+        C1 -->|Từ chối| C2[Trả lại điều chỉnh]
+    end
+
+    subgraph HV["🎓 Học vụ / Admin"]
+        D1["Sinh tài khoản Học sinh<br/>trong hệ thống"] --> D2[Xếp lớp]
+        D2 --> D3["Gửi thông tin đăng nhập<br/>cho Phụ huynh (O5)"]
+    end
+
+    subgraph PH["👨‍👩‍👧 Phụ huynh / Học sinh"]
+        E1[Nhận tài khoản] --> E2[Đăng nhập Portal]
+    end
+
+    %% --- Handoff giữa các vai trò ---
+    A6 --> B1
+    B2 --> C1
+    C1 -->|Duyệt| D1
+    C2 --> B1
+    D3 --> E1
+
+    classDef sale fill:#E3F2FD,stroke:#1565C0,color:#0D47A1;
+    classDef kt fill:#FFF3E0,stroke:#EF6C00,color:#E65100;
+    classDef duyet fill:#E8F5E9,stroke:#2E7D32,color:#1B5E20;
+    classDef hv fill:#F3E5F5,stroke:#6A1B9A,color:#4A148C;
+    classDef ph fill:#FCE4EC,stroke:#AD1457,color:#880E4F;
+
+    class A1,A2,A3,A4,A5,A6 sale;
+    class B1,B2 kt;
+    class C1,C2 duyet;
+    class D1,D2,D3 hv;
+    class E1,E2 ph;

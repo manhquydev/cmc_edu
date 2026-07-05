@@ -1,0 +1,10 @@
+version: 1
+# Drive Harness Symphony runs with Claude Code (headless) instead of Codex.
+# The custom adapter runs the command below as a one-shot process inside each
+# isolated run worktree, passing HARNESS_DB_PATH / HARNESS_RUN_ID /
+# HARNESS_RUN_MODE via the environment. The wrapper launches `claude -p`.
+agent:
+  adapter: custom
+  command:
+    - bash
+    - scripts/run-agent-claude.sh

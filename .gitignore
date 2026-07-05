@@ -34,10 +34,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# package manager
+# package manager (pnpm is the workspace lockfile — commit it for reproducible installs)
 package-lock.json
 yarn.lock
-pnpm-lock.yaml
 
 # semantic-release
 .nyc_output
@@ -115,3 +114,5 @@ scripts/bin/harness-symphony.exe
 
 # Harness Symphony local runtime state (do not commit)
 .symphony/
+# Per-run artifacts (SUMMARY/RESULT/CONTRACT); only changesets are durable
+.harness/runs/

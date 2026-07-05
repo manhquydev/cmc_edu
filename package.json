@@ -1,0 +1,29 @@
+{
+  "name": "cmc-edu-v2",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.24.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "dev": "turbo run dev"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0",
+    "@types/node": "^22.10.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild"
+    ]
+  }
+}

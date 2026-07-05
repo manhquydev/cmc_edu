@@ -1,0 +1,36 @@
+/* Admin shell styling — consumes @cmc/ui tokens only (no hardcoded palette). */
+body {
+  margin: 0;
+  font-family: var(--cmc-font-sans);
+  color: var(--cmc-text);
+  background: var(--cmc-surface-2);
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.app-shell__header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cmc-space-2);
+  padding: var(--cmc-space-3) var(--cmc-space-4);
+  background: var(--cmc-surface);
+  border-bottom: 1px solid var(--cmc-border);
+}
+
+.app-shell__brand {
+  font-weight: 600;
+  color: var(--cmc-brand);
+}
+
+.app-shell__tag {
+  font-size: var(--cmc-font-size-column);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cmc-text-muted);
+}
+
+.app-shell__body {
+  padding: var(--cmc-space-4);
+}

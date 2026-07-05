@@ -1,0 +1,19 @@
+// @cmc/db — minimal Prisma schema for P0 scaffolding.
+// No domain schema yet; a single Facility model exists so `prisma generate`
+// produces a client and RLS-by-facility conventions have an anchor. Domain
+// models arrive with their owning stories.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Facility {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+}

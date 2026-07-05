@@ -1,0 +1,40 @@
+/*
+ * @cmc/ui design tokens — CSS custom properties (TL12 design system).
+ * Apple-minimal + ERP density. One interactive blue (#0071E3), flat surfaces,
+ * xs radius (4px). Consumers import this once at the app root.
+ */
+:root {
+  /* Brand */
+  --cmc-brand: #0071e3;
+  --cmc-brand-hover: #0055c6;
+  --cmc-brand-muted: #e8f1fc;
+  --cmc-brand-ink: #003d99;
+
+  /* Text */
+  --cmc-text: #1d1d1f;
+  --cmc-text-2: #3c3c43;
+  --cmc-text-muted: #6e6e73;
+  --cmc-text-faint: #aeaeb2;
+
+  /* Surface */
+  --cmc-surface: #ffffff;
+  --cmc-surface-2: #f5f5f7;
+  --cmc-border: #d2d2d7;
+
+  /* Status semantics (TL12 §3) */
+  --cmc-success: #2e7d32;
+  --cmc-warning: #b26a00;
+  --cmc-danger: #c62828;
+
+  /* Radius / spacing */
+  --cmc-radius-xs: 4px;
+  --cmc-space-1: 4px;
+  --cmc-space-2: 8px;
+  --cmc-space-3: 16px;
+  --cmc-space-4: 24px;
+
+  /* Typography */
+  --cmc-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --cmc-font-size-data: 13px;
+  --cmc-font-size-column: 11px;
+}

@@ -1,0 +1,4 @@
+{"base_schema_version":8,"op":"changeset.header","run_id":"run_1783271951541588300_12208_0","version":1}
+{"id":2,"op":"intake.add","payload":{"affected_docs":null,"input_type":"spec_slice","notes":null,"risk_flags":null,"risk_lane":"tiny","story_id":null,"summary":"US-001 P0 scaffolding: pnpm+turbo monorepo, apps/api tRPC health, apps/admin Vite shell, packages auth/ui/db"},"version":1}
+{"id":"US-001","op":"story.update","payload":{"e2e_proof":null,"evidence":null,"integration_proof":null,"platform_proof":null,"status":"in_progress","unit_proof":null,"verify_command":null},"version":1}
+{"id":"US-001","op":"story.verify","payload":{"result":"pass"},"version":1}

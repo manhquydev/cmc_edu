@@ -6,5 +6,9 @@ version: 1
 agent:
   adapter: custom
   command:
-    - bash
-    - scripts/run-agent-claude.sh
+    - powershell
+    - -NoProfile
+    - -ExecutionPolicy
+    - Bypass
+    - -File
+    - scripts/run-agent-claude.ps1

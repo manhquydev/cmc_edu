@@ -84,6 +84,16 @@ export function compareDateOnly(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+/**
+ * P3-II: Resolves the shift group type from a staff member's position string.
+ * Pure function — no DB access. Matches 'giao_vien'/'teacher' → GIAO_VIEN;
+ * everything else → KINH_DOANH (business/operations staff).
+ */
+export function resolveShiftGroup(position: string): 'KINH_DOANH' | 'GIAO_VIEN' {
+  const lower = position.toLowerCase();
+  return lower.includes('giao_vien') || lower.includes('teacher') ? 'GIAO_VIEN' : 'KINH_DOANH';
+}
+
 const MONTH_ONLY_RE = /^(\d{4})-(\d{2})$/;
 
 /**

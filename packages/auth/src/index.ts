@@ -124,6 +124,24 @@ export const PERMISSIONS: Record<string, readonly Role[]> = {
   // P3-I: manual punch approve/reject — director-level only (separation of
   // duties: the person approving their own absence record is a control risk).
   'manualPunch.approve': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
+  // P3-II: shift group/template management — directors and super_admin only.
+  'shift.manage': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
+  // P3-II: shift registration submission — all staff roles that register shifts.
+  'shift.submit': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh', 'giao_vien', 'sale', 'hr'],
+  // P3-II: shift registration approval — director-level only.
+  'shift.approve': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
+  // P3-II: salary rate upsert — directors and super_admin only (financial data).
+  'compensation.upsertRate': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
+  // P3-II: payslip assembly/finalize/reopen — directors and super_admin only.
+  'payslip.assemble': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
+  'payslip.finalize': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
+  'payslip.reopen': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
+  // P3-II: KPI score submission — all staff can submit their own KPI.
+  'kpi.submit': ['giao_vien', 'sale', 'hr', 'giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
+  // P3-II: KPI confirm (by direct manager) — directors are managers in CMC org.
+  'kpi.confirm': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
+  // P3-II: KPI approve and override — director-level only.
+  'kpi.approve': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
 };
 
 /**

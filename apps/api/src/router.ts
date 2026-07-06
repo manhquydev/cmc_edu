@@ -25,6 +25,12 @@ import { roomRouter } from './room/router.js';
 import { sessionEvidenceRouter, guardianLmsRouter } from './session-evidence/router.js';
 import { studentRouter } from './student/router.js';
 import { submissionRouter } from './submission/router.js';
+// P4: Engagement & after-sale routers.
+import { giftRouter } from './rewards/gift-router.js';
+import { rewardRouter } from './rewards/reward-router.js';
+import { parentMeetingRouter } from './meeting/router.js';
+import { testAppointmentRouter } from './appointment/router.js';
+import { afterSaleRouter } from './after-sale/router.js';
 import { mergeRouters, publicProcedure, router } from './trpc.js';
 
 const healthOutput = z.object({
@@ -73,6 +79,16 @@ export const appRouter = router({
   payslip: payslipRouter,
   // P3-II: KPI scores (submit → confirm → approve → override).
   kpi: kpiRouter,
+  // P4: Gift catalog (staff CRUD + LMS student view).
+  gift: giftRouter,
+  // P4: Reward redemption lifecycle (redeem/approve/deliver/reject).
+  rewards: rewardRouter,
+  // P4: Parent meeting lifecycle (schedule/complete/cancel).
+  parentMeeting: parentMeetingRouter,
+  // P4: Test appointment lifecycle (schedule/complete/noShow).
+  testAppointment: testAppointmentRouter,
+  // P4: After-sale case lifecycle (create/advance/resolve/close).
+  afterSale: afterSaleRouter,
 });
 
 export type AppRouter = typeof appRouter;

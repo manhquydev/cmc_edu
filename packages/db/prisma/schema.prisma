@@ -367,6 +367,8 @@ model Student {
   finalGrades           FinalGrade[]
   starTransactions      StarTransaction[]
   qualitativeAssessments QualitativeAssessment[]
+  /// P4: gift redemptions made by this student.
+  rewards               Reward[]
 
   @@index([facilityId])
 }
@@ -1231,4 +1233,99 @@ model KpiScore {
 
   @@unique([appUserId, period])
   @@index([facilityId])
+}
+
+// ---------------------------------------------------------------------------
+// P4 — Engagement & After-sale (Gift catalog, Rewards, Parent Meetings,
+// Test Appointments, After-sale Cases). All facility-scoped + RLS.
+// ---------------------------------------------------------------------------
+
+/// P4: Gift catalog item — staff-managed, student-redeemable with stars.
+/// stock = -1 means unlimited; stock >= 0 counts down on `deliver` only (not
+/// on `redeem` — redeem deducts stars; stock decrements when gift is handed
+/// over). Archive via isActive=false; no DELETE grant on cmc_app.
+model Gift {
+  id            String   @id @default(uuid())
+  facilityId    String
+  name          String   @db.VarChar(200)
+  imageUrl      String?  @db.VarChar(500)
+  starsRequired Int
+  stock         Int      @default(-1)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  rewards       Reward[]
+
+  @@index([facilityId, isActive])
+}
+
+/// P4: One gift redemption by a student. Stars are deducted on redeem;
+/// stock is decremented on deliver. `rejectionRefundedAt` guards the
+/// exactly-once star refund so double-calling reject never double-refunds.
+/// Status lifecycle: pending -> approved -> delivered | rejected.
+model Reward {
+  id                  String    @id @default(uuid())
+  facilityId          String
+  studentId           String
+  giftId              String
+  status              String    @default("pending")
+  redeemedAt          DateTime  @default(now()) @db.Timestamptz(3)
+  approvedAt          DateTime? @db.Timestamptz(3)
+  deliveredAt         DateTime? @db.Timestamptz(3)
+  rejectedAt          DateTime? @db.Timestamptz(3)
+  rejectionRefundedAt DateTime? @db.Timestamptz(3)
+  note                String?   @db.VarChar(2000)
+  gift                Gift      @relation(fields: [giftId], references: [id])
+  student             Student   @relation(fields: [studentId], references: [id])
+
+  @@index([facilityId, studentId])
+}
+
+/// P4: Scheduled parent-teacher meeting. Lifecycle: scheduled -> done | cancelled.
+/// `result` (non-empty string) is required to transition to done.
+model ParentMeeting {
+  id          String    @id @default(uuid())
+  facilityId  String
+  studentId   String
+  scheduledAt DateTime  @db.Timestamptz(3)
+  status      String    @default("scheduled")
+  result      String?   @db.VarChar(2000)
+  remindedAt  DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([facilityId, scheduledAt])
+}
+
+/// P4: Entrance or periodic test appointment. Lifecycle: scheduled -> done | no_show.
+/// `entrance` type: records only — NEVER mutates any CRM/opportunity tables.
+model TestAppointment {
+  id          String    @id @default(uuid())
+  facilityId  String
+  studentId   String
+  type        String
+  scheduledAt DateTime  @db.Timestamptz(3)
+  status      String    @default("scheduled")
+  notes       String?   @db.VarChar(2000)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([facilityId, scheduledAt])
+}
+
+/// P4: After-sale support case. Lifecycle: open -> in_progress -> resolved -> closed.
+/// `resolution` (non-empty) is required to move to resolved.
+/// Append-like: cmc_app has no DELETE grant.
+model AfterSaleCase {
+  id          String    @id @default(uuid())
+  facilityId  String
+  studentId   String
+  priority    String    @default("normal")
+  status      String    @default("open")
+  description String    @db.VarChar(2000)
+  resolution  String?   @db.VarChar(2000)
+  createdById String?
+  resolvedAt  DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([facilityId, status])
 }

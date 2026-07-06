@@ -22,7 +22,7 @@
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { InvalidPhoneError, normalizeLoginPhone } from '@cmc/domain-identity';
-import { badRequest } from '../errors.js';
+import { badRequest, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
 const studentLookupInput = z
@@ -56,6 +56,53 @@ function normalizeOrReject(rawPhone: string): string {
 }
 
 export const studentRouter = router({
+  /**
+   * P4: General student lifecycle mutation (active | blocked_lms | withdrawn).
+   * Director-only — same separation-of-duties rationale as finance.receiptApprove.
+   * Does NOT replace enrollment.blockLms, which remains the narrow K8 gate
+   * for blocking LMS access. setLifecycle is the broader lifecycle writer
+   * (e.g. marking a student as withdrawn after all refund/transfer steps complete).
+   */
+  setLifecycle: requirePermission('student', 'setLifecycle')
+    .input(
+      z.object({
+        studentId: z.string().uuid(),
+        lifecycle: z.enum(['active', 'blocked_lms', 'withdrawn']),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const student = await tx.student.findFirst({
+          where: { id: input.studentId, facilityId },
+          select: { id: true, lifecycle: true },
+        });
+        if (!student) throw notFound('Student not found.');
+
+        const updated = await tx.student.update({
+          where: { id: input.studentId },
+          data: { lifecycle: input.lifecycle },
+          select: { id: true, lifecycle: true },
+        });
+
+        // Audit the security-relevant `blocked_lms` transition; mirrors the
+        // pattern in enrollment.blockLms (enrollment/router.ts).
+        if (input.lifecycle === 'blocked_lms') {
+          await tx.auditLog.create({
+            data: {
+              actor: ctx.subject!.userId,
+              action: 'student.setLifecycle.blocked_lms',
+              entity: 'StudentAccount',
+              entityId: input.studentId,
+              data: { facilityId },
+            },
+          });
+        }
+
+        return updated;
+      });
+    }),
+
   lookup: requirePermission('student', 'lookup')
     .input(studentLookupInput)
     .query(async ({ ctx, input }): Promise<StudentLookupResultDto[]> => {

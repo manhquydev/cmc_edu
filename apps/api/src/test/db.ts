@@ -67,6 +67,15 @@ export async function createTestFacility(name: string, code?: string): Promise<{
 /** Deletes every row scoped to `facilityId`, then the Facility itself. */
 export async function cleanupFacility(facilityId: string): Promise<void> {
   const db = testDb();
+  // P4: All new tables grant only SELECT/INSERT/UPDATE to cmc_app — use
+  // privileged connection for teardown (same pattern as Attendance/StarTransaction).
+  // FK order: AfterSaleCase, ParentMeeting, TestAppointment are independent;
+  // Reward must precede Gift (FK Reward.giftId → Gift.id RESTRICT).
+  await privilegedDb().afterSaleCase.deleteMany({ where: { facilityId } });
+  await privilegedDb().parentMeeting.deleteMany({ where: { facilityId } });
+  await privilegedDb().testAppointment.deleteMany({ where: { facilityId } });
+  await privilegedDb().reward.deleteMany({ where: { facilityId } });
+  await privilegedDb().gift.deleteMany({ where: { facilityId } });
   // P3-II: KpiScore and Payslip are append-like (cmc_app has no DELETE grant).
   // SalaryRate, ShiftRegistrationEntry, ShiftRegistration, ShiftTemplate,
   // ShiftGroup must be deleted before AppUser (FK RESTRICT chains).
@@ -162,6 +171,13 @@ export async function cleanupParentAccountsByPhone(...phones: string[]): Promise
   });
   if (parents.length > 0) {
     const parentIds = parents.map((p) => p.id);
+    // Guardian has FK Guardian.parentAccountId → ParentAccount (RESTRICT). Delete
+    // Guardian rows first so the ParentAccount delete below does not violate the
+    // constraint. Guardian carries no RLS policy, so testDb() works here.
+    // (cleanupFacility normally handles this, but if a previous test run crashed
+    // before its afterEach completed, orphaned Guardian rows survive and block
+    // this delete — this defensive call ensures we clean them up regardless.)
+    await testDb().guardian.deleteMany({ where: { parentAccountId: { in: parentIds } } });
     await privilegedDb().studentAccount.deleteMany({ where: { parentAccountId: { in: parentIds } } });
   }
   await testDb().parentAccount.deleteMany({ where: { phone: { in: phones } } });
@@ -266,6 +282,24 @@ export function buildLmsContext(opts: TestLmsContextOptions): Context {
  * pass an already-normalized `84xxxxxxxxx` phone). */
 export async function seedParentAccount(phone: string): Promise<{ id: string; phone: string }> {
   return testDb().parentAccount.create({ data: { phone } });
+}
+
+/**
+ * P4: Seeds a StudentAccount for a test student — required for the
+ * `rewards.redeem` SELECT FOR UPDATE serialization lock to have a row to lock.
+ * In production, StudentAccount is created by `finance.receiptApprove`; in
+ * tests that don't exercise the full provisioning flow, seed it directly.
+ */
+export async function seedStudentAccount(
+  studentId: string,
+  parentAccountId: string,
+): Promise<{ id: string }> {
+  return testDbBypass((tx) =>
+    tx.studentAccount.create({
+      data: { studentId, parentAccountId },
+      select: { id: true },
+    }),
+  );
 }
 
 export interface SeedGuardianLinkOptions {

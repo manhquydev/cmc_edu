@@ -1,0 +1,27 @@
+{
+  "name": "@cmc/mcp-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CMC EDU MCP server — read-only tool surface for AI agents (CRM, finance, reconciliation).",
+  "bin": {
+    "cmc-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  },
+  "notes": [
+    "@modelcontextprotocol/sdk is NOT yet installed in this monorepo.",
+    "Add it via: pnpm --filter @cmc/mcp-server add @modelcontextprotocol/sdk",
+    "Then remove this 'notes' field and wire the real tRPC client in src/tools.ts."
+  ]
+}

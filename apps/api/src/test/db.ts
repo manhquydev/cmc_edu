@@ -67,6 +67,9 @@ export async function createTestFacility(name: string, code?: string): Promise<{
 /** Deletes every row scoped to `facilityId`, then the Facility itself. */
 export async function cleanupFacility(facilityId: string): Promise<void> {
   const db = testDb();
+  // P5: ReconciliationFlag is append-only (no DELETE grant to cmc_app).
+  // Delete before receipts (no FK, but deleting orphaned flags first is clean).
+  await privilegedDb().reconciliationFlag.deleteMany({ where: { facilityId } });
   // P4: All new tables grant only SELECT/INSERT/UPDATE to cmc_app — use
   // privileged connection for teardown (same pattern as Attendance/StarTransaction).
   // FK order: AfterSaleCase, ParentMeeting, TestAppointment are independent;

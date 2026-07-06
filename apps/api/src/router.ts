@@ -31,6 +31,8 @@ import { rewardRouter } from './rewards/reward-router.js';
 import { parentMeetingRouter } from './meeting/router.js';
 import { testAppointmentRouter } from './appointment/router.js';
 import { afterSaleRouter } from './after-sale/router.js';
+// P5: Reconciliation flag review surface.
+import { reconciliationRouter } from './reconciliation/router.js';
 import { mergeRouters, publicProcedure, router } from './trpc.js';
 
 const healthOutput = z.object({
@@ -89,6 +91,8 @@ export const appRouter = router({
   testAppointment: testAppointmentRouter,
   // P4: After-sale case lifecycle (create/advance/resolve/close).
   afterSale: afterSaleRouter,
+  // P5: Reconciliation flag review (list/dismiss/action).
+  reconciliation: reconciliationRouter,
 });
 
 export type AppRouter = typeof appRouter;

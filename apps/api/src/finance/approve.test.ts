@@ -13,6 +13,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedClassBatch,
   testDb,
   testDbBypass,
 } from '../test/db.js';
@@ -25,10 +26,12 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
   let gdkd: Caller;
   let gddt: Caller;
   let teacher: Caller;
+  let classBatch: { id: string };
   const phonesToClean: string[] = [];
 
   beforeEach(async () => {
     facility = await createTestFacility('Approve Facility');
+    classBatch = await seedClassBatch({ facilityId: facility.id });
     sale = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'sale-approve-1', roles: ['sale'] }),
     );
@@ -65,7 +68,7 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
       studentName: 'Student for ' + opts.parentPhone,
       parentPhone: opts.parentPhone,
       amount: opts.amount ?? 5_000_000,
-      classBatchId: opts.classBatchId ?? 'class-batch-approve-1',
+      classBatchId: opts.classBatchId ?? classBatch.id,
     });
     // A repeat parentPhone (e.g. the renewal-kind test) legitimately returns
     // `status: 'warning'` (soft dup-phone warning, docs/24 WF-P1-02) — both
@@ -231,7 +234,7 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     const second = await draftReceipt(sale, {
       contactPhone: '0930000007',
       parentPhone,
-      classBatchId: 'class-batch-approve-2',
+      classBatchId: classBatch.id,
     });
     const secondApproved = await gdkd.finance.receiptApprove({ receiptId: second.receipt.id });
     expect(secondApproved.receipt.kind).toBe('renewal');

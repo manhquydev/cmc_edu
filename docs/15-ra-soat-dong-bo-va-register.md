@@ -96,3 +96,39 @@ bất biến tiền (TL1/TL10/TL11), URL↔query↔API list input (TL6/TL11).
 4. Thêm 1 bảng IA gốc (module chuẩn) rồi TL2/TL05/TL06 trỏ về (F).
 
 > Liên kết: TL00 (index) · TL14 (vai trò) · toàn bộ set.
+
+---
+
+## 7. Implementation Status (2026-07-06 Build Report)
+
+**P1 Backend:** ✅ **Complete & Merged** (commit 32147df)
+
+| Story | Title | Phase | Status | Notes |
+|-------|-------|-------|--------|-------|
+| US-002 | Lead CRM Pipeline | P1 | ✅ Done | WF-P1-01: `crm.opportunity*` (5 procedures) |
+| US-003 | Receipt & Money Gate | P1 | ✅ Done | WF-P1-02/03: `finance.receipt*` (5 procedures) |
+| US-004 | Guardian Linking | P1 | ✅ Done | WF-P1-04/06: `guardian.*` (4 procedures) |
+| US-005 | Enrollment Lifecycle | P1 | ✅ Done | WF-P1-05: `enrollment.enroll/blockLms` (3 procedures) |
+| US-006 | Provisioning Engine | P1 | ✅ Done | `provisionFromReceipt` idempotent + Guardian creation (K1 remediation) |
+| US-007 | LMS Parent Auth | P1 | ✅ Done | WF-P1-07: `lmsAuth.*` + `enrollment.mine` (2 procedures) |
+| US-008 | Data Integrity & RLS | P1 | ✅ Done | 6 tables RLS-protected; ledger append-only (K5 remediation) |
+| US-009 | Test Coverage P1 | P1 | ✅ Done | 137/137 tests; 95%+ coverage; all gates passed |
+| US-010 | Student Lookup | P2 | ⏳ Deferred | K4: requires enrollment→name→UUID query (P2 scope) |
+| **P2+** | **Class Ops / HR / Payroll / Redemption** | P2–P4 | ⏳ Pending | TL26–TL28 designed, not built |
+
+**Test & Build:**
+- ✅ All 137 tests passing (vitest)  
+- ✅ TypeScript & ESM green  
+- ✅ 5 migrations applied (initial + 4 remediation waves A–C)  
+- ✅ Schema up-to-date  
+
+**Remediation Summary (Deep Review Findings Fixed):**
+- K1 ✅ Guardian creation in provisioning  
+- K3 ✅ receiptList + pendingLinks queries added  
+- K5 ✅ Ledger append-only enforcement  
+- K2 ⚠️ Partial (reconciler ready; scheduler deferred)  
+- K4, K6, K7, K12 ⏳ Deferred to P2+ as designed
+
+**Design Frozen:** TL00–TL31 remain authoritative; P1 implementation strictly follows.
+
+For detailed build report, see `docs/codebase-summary.md`, `docs/system-architecture.md`, `docs/project-changelog.md`.

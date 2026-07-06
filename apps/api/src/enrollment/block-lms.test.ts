@@ -15,6 +15,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedClassBatch,
   seedGuardianLink,
   seedParentAccount,
   testDbBypass,
@@ -48,9 +49,10 @@ describe('enrollment.blockLms (K8)', () => {
     const student = await testDbBypass((tx) =>
       tx.student.create({ data: { facilityId: facility.id, fullName: 'Blockable Student' } }),
     );
+    const classBatch = await seedClassBatch({ facilityId: facility.id });
     await testDbBypass((tx) =>
       tx.enrollment.create({
-        data: { facilityId: facility.id, studentId: student.id, classBatchId: 'class-batch-block-1' },
+        data: { facilityId: facility.id, studentId: student.id, classBatchId: classBatch.id },
       }),
     );
     const phone = normalizeLoginPhone('0999000001');

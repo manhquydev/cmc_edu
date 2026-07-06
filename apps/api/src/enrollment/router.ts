@@ -52,6 +52,16 @@ export const enrollmentRouter = router({
           throw notFound('Student not found.');
         }
 
+        // P2-Foundation seam: classBatchId must point at a real ClassBatch in
+        // the caller's facility — the reserved-hold this creates must
+        // reference an operable class, not an opaque free-text id (P1).
+        const classBatch = await tx.classBatch.findFirst({
+          where: { id: input.classBatchId, facilityId },
+        });
+        if (!classBatch) {
+          throw notFound('ClassBatch not found.');
+        }
+
         return tx.enrollment.create({
           data: {
             facilityId,

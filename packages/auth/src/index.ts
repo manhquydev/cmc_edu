@@ -78,6 +78,14 @@ export const PERMISSIONS: Record<string, readonly Role[]> = {
   // falls through to the empty array and is FORBIDDEN.
   'facility.create': [],
   'facility.list': [],
+  // P2-Foundation (docs/26 WF-P2-01, TL19 §1-2): class operations. GDDT owns
+  // curriculum/room/class setup; `class.create`/`schedule.generate` also gate
+  // `classBatch.list`/`classBatch.get` (no separate read-only permission is
+  // named by the spec, so they reuse `class.create`).
+  'course.manage': ['giam_doc_dao_tao'],
+  'room.manage': ['giam_doc_dao_tao'],
+  'class.create': ['giam_doc_dao_tao'],
+  'schedule.generate': ['giam_doc_dao_tao'],
 };
 
 /**

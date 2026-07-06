@@ -12,6 +12,7 @@
 // one facility's session — they need `testDbBypass()` (sets `app.bypass_rls`)
 // to see across facilities, same escape hatch a super_admin/director read uses.
 
+import { randomUUID } from 'node:crypto';
 import { createPrismaClient, PrismaClient, withFacility, type Prisma } from '@cmc/db';
 import type { Role } from '@cmc/auth';
 import type { Context } from '../trpc.js';
@@ -55,9 +56,12 @@ export function testDbBypass<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>
   return withFacility(testDb(), null, fn, { bypass: true });
 }
 
-/** Seeds a throwaway Facility for one test's RLS scope. */
-export async function createTestFacility(name: string): Promise<{ id: string }> {
-  return testDb().facility.create({ data: { name } });
+/** Seeds a throwaway Facility for one test's RLS scope. `code` (P2-Foundation:
+ * the class-code prefix, QĐ 0036) is auto-generated when omitted -- unique
+ * per call, so parallel/serial test files never collide on it. */
+export async function createTestFacility(name: string, code?: string): Promise<{ id: string; code: string }> {
+  const facilityCode = code ?? `T${randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+  return testDb().facility.create({ data: { name, code: facilityCode } });
 }
 
 /** Deletes every row scoped to `facilityId`, then the Facility itself. */
@@ -84,6 +88,17 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
     await tx.receipt.deleteMany({ where: { facilityId } });
     await tx.opportunity.deleteMany({ where: { facilityId } });
     await tx.contact.deleteMany({ where: { facilityId } });
+    // P2-Foundation: ClassSession/ScheduleSlot must be deleted before
+    // ClassBatch (both carry a RESTRICT FK to it); ClassBatch before Course
+    // (RESTRICT FK). `ClassBatchCodeCounter` carries a real (non-sentinel)
+    // RLS policy — unlike `ReceiptCodeCounter` below — so its cleanup delete
+    // needs the bypass GUC too, not a plain `db.*` call.
+    await tx.classSession.deleteMany({ where: { facilityId } });
+    await tx.scheduleSlot.deleteMany({ where: { facilityId } });
+    await tx.classBatch.deleteMany({ where: { facilityId } });
+    await tx.course.deleteMany({ where: { facilityId } });
+    await tx.room.deleteMany({ where: { facilityId } });
+    await tx.classBatchCodeCounter.deleteMany({ where: { facilityId } });
   });
   await db.receiptCodeCounter.deleteMany({ where: { facilityId } });
   await db.facility.deleteMany({ where: { id: facilityId } });
@@ -177,4 +192,66 @@ export async function seedGuardianLink(
     });
   }
   return request;
+}
+
+export interface SeedClassBatchOptions {
+  facilityId: string;
+  program?: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE';
+  /** Reuses an existing Course instead of creating one. */
+  courseId?: string;
+  /** `YYYY-MM-DD`, defaults to a fixed fixture range. */
+  startDate?: string;
+  endDate?: string;
+}
+
+/**
+ * P2-Foundation: seeds a real Course + ClassBatch (with the same code-format/
+ * atomic-counter shape `classBatch.create` uses) for tests that only need a
+ * valid `classBatchId` to exercise the P1<->P2 seam (`finance.receiptCreate`/
+ * `enrollment.enroll` now validate it points at a real, same-facility
+ * ClassBatch) — not the full auto-session-generation flow, which
+ * `class/generate-sessions.test.ts` covers via the real `classBatch.create`
+ * procedure instead of this shortcut.
+ */
+export async function seedClassBatch(
+  opts: SeedClassBatchOptions,
+): Promise<{ id: string; code: string; courseId: string }> {
+  const program = opts.program ?? 'UCREA';
+  const startDate = opts.startDate ?? '2026-08-01';
+  const endDate = opts.endDate ?? '2026-08-31';
+  const year = Number(startDate.slice(0, 4));
+
+  return testDbBypass(async (tx) => {
+    const facility = await tx.facility.findUniqueOrThrow({ where: { id: opts.facilityId } });
+    const course = opts.courseId
+      ? await tx.course.findUniqueOrThrow({ where: { id: opts.courseId } })
+      : await tx.course.create({
+          data: {
+            facilityId: opts.facilityId,
+            program,
+            name: `Seed Course ${randomUUID().slice(0, 8)}`,
+          },
+        });
+
+    const counter = await tx.classBatchCodeCounter.upsert({
+      where: { facilityId_program_year: { facilityId: opts.facilityId, program, year } },
+      create: { facilityId: opts.facilityId, program, year, value: 1 },
+      update: { value: { increment: 1 } },
+    });
+    const code = `${facility.code}-${program}-${year}-${String(counter.value).padStart(3, '0')}`;
+
+    const classBatch = await tx.classBatch.create({
+      data: {
+        facilityId: opts.facilityId,
+        code,
+        courseId: course.id,
+        program,
+        startDate: new Date(`${startDate}T00:00:00.000Z`),
+        endDate: new Date(`${endDate}T00:00:00.000Z`),
+        createdById: 'test-seed',
+      },
+    });
+
+    return { id: classBatch.id, code: classBatch.code, courseId: course.id };
+  });
 }

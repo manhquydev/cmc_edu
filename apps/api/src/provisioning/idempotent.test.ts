@@ -14,6 +14,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedClassBatch,
   testDb,
   testDbBypass,
 } from '../test/db.js';
@@ -24,10 +25,12 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
   let facility: { id: string };
   let sale: Caller;
   let gdkd: Caller;
+  let classBatch: { id: string };
   const phonesToClean: string[] = [];
 
   beforeEach(async () => {
     facility = await createTestFacility('Provisioning Facility');
+    classBatch = await seedClassBatch({ facilityId: facility.id });
     sale = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'sale-prov-1', roles: ['sale'] }),
     );
@@ -59,7 +62,7 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
       studentName: opts.studentName,
       parentPhone: opts.parentPhone,
       amount: 5_000_000,
-      classBatchId: opts.classBatchId ?? 'class-batch-prov-1',
+      classBatchId: opts.classBatchId ?? classBatch.id,
     });
     if (result.status !== 'success') throw new Error('expected draft creation to succeed: ' + result.message);
     return result.receipt;
@@ -116,7 +119,7 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
     expect(studentAccount!.parentAccountId).toBe(parentAccount!.id);
 
     const enrollment = await testDbBypass((tx) =>
-      tx.enrollment.findFirst({ where: { studentId: student!.id, classBatchId: 'class-batch-prov-1' } }),
+      tx.enrollment.findFirst({ where: { studentId: student!.id, classBatchId: classBatch.id } }),
     );
     expect(enrollment).not.toBeNull();
     expect(enrollment!.status).toBe('active');
@@ -156,14 +159,14 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
     expect(parentAccountBeforeRetry).not.toBeNull();
 
     await testDbBypass((tx) =>
-      tx.receipt.update({ where: { id: receipt.id }, data: { classBatchId: 'class-batch-prov-retry' } }),
+      tx.receipt.update({ where: { id: receipt.id }, data: { classBatchId: classBatch.id } }),
     );
     const retried = await provisionFromReceipt(testDb(), {
       id: receipt.id,
       facilityId: facility.id,
       parentPhone: receipt.parentPhone,
       studentName: receipt.studentName,
-      classBatchId: 'class-batch-prov-retry',
+      classBatchId: classBatch.id,
     });
     expect(retried.parentAccountId).toBe(parentAccountBeforeRetry!.id);
 
@@ -184,7 +187,7 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
     const receipt = await createRawApprovedReceipt({
       parentPhone,
       studentName: 'Replay Student',
-      classBatchId: 'class-batch-prov-replay',
+      classBatchId: classBatch.id,
     });
 
     const receiptForProvisioning = {
@@ -208,7 +211,7 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
     expect(await testDb().studentAccount.count({ where: { studentId: first.studentId } })).toBe(1);
     expect(
       await testDbBypass((tx) =>
-        tx.enrollment.count({ where: { studentId: first.studentId, classBatchId: 'class-batch-prov-replay' } }),
+        tx.enrollment.count({ where: { studentId: first.studentId, classBatchId: classBatch.id } }),
       ),
     ).toBe(1);
   });
@@ -218,8 +221,8 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
     phonesToClean.push(parentPhone);
 
     const [receiptA, receiptB] = await Promise.all([
-      createRawApprovedReceipt({ parentPhone, studentName: 'Sibling A', classBatchId: 'class-batch-prov-sib' }),
-      createRawApprovedReceipt({ parentPhone, studentName: 'Sibling B', classBatchId: 'class-batch-prov-sib' }),
+      createRawApprovedReceipt({ parentPhone, studentName: 'Sibling A', classBatchId: classBatch.id }),
+      createRawApprovedReceipt({ parentPhone, studentName: 'Sibling B', classBatchId: classBatch.id }),
     ]);
 
     const [resultA, resultB] = await Promise.all([
@@ -254,7 +257,7 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
     const receipt = await createRawApprovedReceipt({
       parentPhone,
       studentName: 'Concurrent Same-Receipt Student',
-      classBatchId: 'class-batch-prov-same-receipt',
+      classBatchId: classBatch.id,
     });
 
     const receiptForProvisioning = {

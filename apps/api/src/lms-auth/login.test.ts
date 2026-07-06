@@ -19,6 +19,7 @@ import {
   cleanupLoginOtpsByPhone,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedClassBatch,
   seedGuardianLink,
   seedParentAccount,
   testDb,
@@ -189,9 +190,10 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
         status: 'approved',
       });
     }
+    const classBatch = await seedClassBatch({ facilityId: facility.id });
     await testDbBypass((tx) =>
       tx.enrollment.create({
-        data: { facilityId: facility.id, studentId: blockedChild.id, classBatchId: 'class-batch-blocked-1' },
+        data: { facilityId: facility.id, studentId: blockedChild.id, classBatchId: classBatch.id },
       }),
     );
 

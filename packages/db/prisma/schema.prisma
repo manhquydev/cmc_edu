@@ -8,14 +8,21 @@
 //
 // Scope notes (P1 substrate, not yet modeled):
 // - `AppUser`/staff identity arrives with the HR/identity phase. Until then,
-//   `Receipt.createdById`/`approvedById` are plain uuid scalars (no FK) —
-//   they reference the dev-session `userId` from `apps/api/src/context.ts`.
-// - `ClassBatch` arrives with the academic domain phase. Until then,
-//   `Enrollment.classBatchId`/`Receipt.classBatchId` are plain uuid scalars
-//   (no FK).
+//   `Receipt.createdById`/`approvedById` and `ClassBatch.createdById`/
+//   `ClassBatch.teacherId` are plain uuid scalars (no FK) — they reference the
+//   dev-session `userId` from `apps/api/src/context.ts`.
 // - `ParentAccount`/`StudentAccount`/`LoginOtp` are identity models whose
 //   uniqueness (`phone`) spans the whole system, not one facility — they are
 //   intentionally NOT facility-scoped (TL10 §4 invariant #3).
+//
+// P2-Foundation (class operations, docs/26 WF-P2-01, QĐ 0036, ADR 0042):
+// - `Course`/`Room`/`ClassBatch`/`ScheduleSlot`/`ClassSession` are the class
+//   data model. `Receipt.classBatchId` is now a real (nullable) FK;
+//   `Enrollment.classBatchId` is now a real (required) FK — both were plain
+//   scalars in P1.
+// - `Facility.code` (added this phase) is the `{facility.code}` component of
+//   the class-code format (QĐ 0036, e.g. `HN-UCREA-2026-001`) — P1 had no
+//   such field.
 
 generator client {
   provider = "prisma-client-js"
@@ -101,6 +108,23 @@ enum EmailTransport {
   brevo
 }
 
+/// Curriculum program catalog (docs/19 §1). Fixed 3-value set — no ADR to add
+/// a 4th without a decision doc.
+enum Program {
+  UCREA
+  BRIGHT_IG
+  BLACK_HOLE
+}
+
+/// ClassSession lifecycle (docs/26 WF-P2-01). `cancelled` sessions are
+/// excluded from attendance (docs/19 §5) — enforced in the P2-Teaching phase,
+/// not here.
+enum SessionStatus {
+  planned
+  confirmed
+  cancelled
+}
+
 enum EmailOutboxStatus {
   pending
   /// R3 remediation (deep-review adversarial verification): a transient claim
@@ -120,6 +144,11 @@ enum EmailOutboxStatus {
 model Facility {
   id        String   @id @default(uuid())
   name      String
+  /// P2-Foundation addition (QĐ 0036): the `{facility.code}` component of the
+  /// class-code format (e.g. `HN` in `HN-UCREA-2026-001`). Unique system-wide.
+  /// `facility.create` auto-derives one from `name` when the caller omits it
+  /// (see apps/api/src/facility/router.ts), so no P1 caller needs updating.
+  code      String   @unique
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 }
 
@@ -190,7 +219,10 @@ model Receipt {
   studentId     String?
   parentPhone   String
   studentName   String
-  /// Plain scalar — ClassBatch model arrives with the academic domain phase.
+  /// P2-Foundation: real (nullable) FK — WF-P2-05 "seam", `finance.receiptCreate`
+  /// validates this points at a ClassBatch in the caller's facility (app-level
+  /// NOT_FOUND check); nullable at the schema level only because `Receipt`
+  /// predates `ClassBatch` (migration safety), not because the app allows it.
   classBatchId  String?
   /// Plain scalar — references AppUser.id (arrives with the HR/identity phase).
   approvedById  String?
@@ -200,12 +232,14 @@ model Receipt {
   updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
 
   opportunity Opportunity?   @relation(fields: [opportunityId], references: [id])
+  classBatch  ClassBatch?    @relation(fields: [classBatchId], references: [id])
   refunds     RefundRecord[]
   student     Student?
 
   @@index([facilityId])
   @@index([facilityId, parentPhone])
   @@index([opportunityId])
+  @@index([classBatchId])
 }
 
 /// Append-only ledger: corrections are new rows, never edits (TL10 §4).
@@ -338,16 +372,166 @@ model Enrollment {
   id         String           @id @default(uuid())
   facilityId String
   studentId  String
-  /// Plain scalar — ClassBatch model arrives with the academic domain phase.
+  /// P2-Foundation: real (required) FK — the WF-P2-05 "seam", `enrollment.enroll`
+  /// validates this points at a ClassBatch in the caller's facility
+  /// (app-level NOT_FOUND check) before the DB FK constraint is even reached.
   classBatchId String
   status       EnrollmentStatus @default(reserved)
   createdAt    DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime         @updatedAt @db.Timestamptz(3)
 
-  student Student @relation(fields: [studentId], references: [id])
+  student    Student    @relation(fields: [studentId], references: [id])
+  classBatch ClassBatch @relation(fields: [classBatchId], references: [id])
 
   @@index([facilityId])
   @@index([studentId])
+  @@index([classBatchId])
+}
+
+// ---------------------------------------------------------------------------
+// P2-Foundation — class operations (docs/26 WF-P2-01, TL19 §1-2, QĐ 0036).
+// ---------------------------------------------------------------------------
+
+/// Curriculum "khoá học" catalog (minimal — TL19 §1 defers the full
+/// level×month structure to a later curriculum phase). Facility-scoped, RLS.
+model Course {
+  id         String   @id @default(uuid())
+  facilityId String
+  program    Program
+  name       String
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  classBatches ClassBatch[]
+
+  @@index([facilityId])
+}
+
+/// Physical room, used for the room+time double-booking check
+/// (`classBatch.create` CONFLICT). Facility-scoped, RLS.
+model Room {
+  id         String   @id @default(uuid())
+  facilityId String
+  code       String
+  name       String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  classBatches ClassBatch[]
+
+  @@unique([facilityId, code])
+  @@index([facilityId])
+}
+
+/// A running class ("lớp"). `code` is unique per facility (QĐ 0036:
+/// `{facility.code}-{program}-{year}-{seq}`, atomic per facility+program+year
+/// via `ClassBatchCodeCounter`). Facility-scoped, RLS.
+model ClassBatch {
+  id         String   @id @default(uuid())
+  facilityId String
+  code       String
+  courseId   String
+  program    Program
+  startDate  DateTime @db.Timestamptz(3)
+  endDate    DateTime @db.Timestamptz(3)
+  roomId     String?
+  /// Plain scalar — references AppUser.id (arrives with the HR/identity phase).
+  teacherId  String?
+  /// No dedicated enum (YAGNI — the spec names only `Program`/`SessionStatus`
+  /// as new enums this phase): `active` while the batch is running, `closed`
+  /// once it ends. Not exercised by any P2-Foundation procedure yet.
+  status      String   @default("active")
+  /// Plain scalar — references AppUser.id (dev-session `userId`).
+  createdById String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  course        Course         @relation(fields: [courseId], references: [id])
+  room          Room?          @relation(fields: [roomId], references: [id])
+  scheduleSlots ScheduleSlot[]
+  classSessions ClassSession[]
+  enrollments   Enrollment[]
+  receipts      Receipt[]
+
+  @@unique([facilityId, code])
+  @@index([facilityId])
+  @@index([courseId])
+  @@index([roomId])
+}
+
+/// The weekly recurring schedule pattern a `ClassBatch` is generated from
+/// (e.g. "Mon/Wed/Fri 18:00-19:30"). `startTime`/`endTime` are wall-clock
+/// `HH:mm` (ICT) — there is no single calendar date to attach a timestamptz
+/// to for a recurring weekly slot; `ClassSession` (below) carries the actual
+/// dated instants. Facility-scoped (denormalized from `ClassBatch`), RLS.
+model ScheduleSlot {
+  id           String   @id @default(uuid())
+  facilityId   String
+  classBatchId String
+  /// 0 = Sunday .. 6 = Saturday (JS `Date#getDay()` convention).
+  weekday      Int
+  /// `HH:mm`, 24h, ICT wall-clock.
+  startTime    String
+  /// `HH:mm`, 24h, ICT wall-clock.
+  endTime      String
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  classBatch    ClassBatch     @relation(fields: [classBatchId], references: [id])
+  classSessions ClassSession[]
+
+  @@index([facilityId])
+  @@index([classBatchId])
+}
+
+/// One scheduled class meeting, auto-generated (WF-P2-01) for every date in
+/// `[ClassBatch.startDate, endDate]` whose weekday matches a `ScheduleSlot`.
+/// `startTime`/`endTime` are real dated instants (timestamptz, ICT) — unlike
+/// `ScheduleSlot`'s wall-clock-only pattern — so room/time-conflict and
+/// attendance-gate (later phase) checks can compare instants directly.
+/// Facility-scoped (denormalized from `ClassBatch`), RLS.
+model ClassSession {
+  id             String        @id @default(uuid())
+  facilityId     String
+  classBatchId   String
+  scheduleSlotId String?
+  /// The session's calendar day, stored as ICT midnight (so `re-generate`
+  /// idempotency and the docs/19 §5 "bucket by ICT month" gate compare a
+  /// stable instant, not a naive date string).
+  sessionDate    DateTime      @db.Timestamptz(3)
+  startTime      DateTime      @db.Timestamptz(3)
+  endTime        DateTime      @db.Timestamptz(3)
+  status         SessionStatus @default(planned)
+  isMakeup       Boolean       @default(false)
+  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @db.Timestamptz(3)
+
+  classBatch   ClassBatch    @relation(fields: [classBatchId], references: [id])
+  scheduleSlot ScheduleSlot? @relation(fields: [scheduleSlotId], references: [id])
+
+  // Re-generate idempotency (WF-P2-01 acceptance: "re-generate không nhân
+  // đôi"): at most one session per (classBatch, slot, calendar day).
+  @@unique([classBatchId, scheduleSlotId, sessionDate])
+  @@index([facilityId])
+  @@index([classBatchId])
+  @@index([scheduleSlotId])
+  @@index([facilityId, sessionDate])
+}
+
+/// Atomic per-(facility, program, year) sequence for the class-code format
+/// (QĐ 0036) — unlike `ReceiptCodeCounter`, `facilityId` here is a REAL
+/// facility id (not a global sentinel), so Postgres RLS applies normally (the
+/// upsert runs inside `withFacility`, whose GUC matches the row being written).
+model ClassBatchCodeCounter {
+  id         String   @id @default(uuid())
+  facilityId String
+  program    Program
+  year       Int
+  value      Int      @default(0)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([facilityId, program, year])
+  @@index([facilityId])
 }
 
 /// Phone-based OTP login for the LMS (parent/student). System-wide, not

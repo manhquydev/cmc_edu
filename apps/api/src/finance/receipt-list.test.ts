@@ -11,6 +11,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedClassBatch,
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
@@ -21,11 +22,13 @@ describe('finance.receiptList / finance.receiptGet (K3)', () => {
   let saleA: Caller;
   let gdkdA: Caller;
   let gdkdB: Caller;
+  let classBatchA: { id: string };
   const phonesToClean: string[] = [];
 
   beforeEach(async () => {
     facilityA = await createTestFacility('Receipt List Facility A');
     facilityB = await createTestFacility('Receipt List Facility B');
+    classBatchA = await seedClassBatch({ facilityId: facilityA.id });
     saleA = appRouter.createCaller(
       buildStaffContext({ facilityId: facilityA.id, userId: 'sale-list-a', roles: ['sale'] }),
     );
@@ -55,7 +58,7 @@ describe('finance.receiptList / finance.receiptGet (K3)', () => {
   }
 
   it('an approver (GĐKD) can list draft receipts awaiting approval, facility-scoped', async () => {
-    const draft = await draftReceipt(saleA, '0970000101', 'class-batch-list-1');
+    const draft = await draftReceipt(saleA, '0970000101', classBatchA.id);
 
     const { items, total, page, pageSize } = await gdkdA.finance.receiptList({ status: 'draft' });
     expect(page).toBe(1);
@@ -66,14 +69,14 @@ describe('finance.receiptList / finance.receiptGet (K3)', () => {
   });
 
   it('lists all statuses when no status filter is given', async () => {
-    const draft = await draftReceipt(saleA, '0970000105', 'class-batch-list-5');
+    const draft = await draftReceipt(saleA, '0970000105', classBatchA.id);
 
     const { items } = await gdkdA.finance.receiptList({});
     expect(items.some((r) => r.id === draft.receipt.id)).toBe(true);
   });
 
   it('receiptGet returns the single receipt for an approver', async () => {
-    const draft = await draftReceipt(saleA, '0970000102', 'class-batch-list-2');
+    const draft = await draftReceipt(saleA, '0970000102', classBatchA.id);
 
     const fetched = await gdkdA.finance.receiptGet({ receiptId: draft.receipt.id });
     expect(fetched.id).toBe(draft.receipt.id);
@@ -88,7 +91,7 @@ describe('finance.receiptList / finance.receiptGet (K3)', () => {
   });
 
   it('RLS: facility B sees none of facility A drafts, and cannot receiptGet by id', async () => {
-    const draft = await draftReceipt(saleA, '0970000103', 'class-batch-list-3');
+    const draft = await draftReceipt(saleA, '0970000103', classBatchA.id);
 
     const listB = await gdkdB.finance.receiptList({ status: 'draft' });
     expect(listB.items.some((r) => r.id === draft.receipt.id)).toBe(false);
@@ -99,7 +102,7 @@ describe('finance.receiptList / finance.receiptGet (K3)', () => {
   });
 
   it('status filter narrows to approved after receiptApprove', async () => {
-    const draft = await draftReceipt(saleA, '0970000104', 'class-batch-list-4');
+    const draft = await draftReceipt(saleA, '0970000104', classBatchA.id);
     await gdkdA.finance.receiptApprove({ receiptId: draft.receipt.id });
 
     const approvedList = await gdkdA.finance.receiptList({ status: 'approved' });

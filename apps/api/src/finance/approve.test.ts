@@ -7,13 +7,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { normalizeLoginPhone } from '@cmc/domain-identity';
 import { appRouter } from '../router.js';
-import { SELF_APPROVE_THRESHOLD } from './router.js';
+import { APPROVAL_SECOND_EYE_THRESHOLD, enqueueReceiptEmail } from './router.js';
 import {
   buildStaffContext,
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
   testDb,
+  testDbBypass,
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
@@ -22,6 +23,7 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
   let facility: { id: string };
   let sale: Caller;
   let gdkd: Caller;
+  let gddt: Caller;
   let teacher: Caller;
   const phonesToClean: string[] = [];
 
@@ -32,6 +34,9 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     );
     gdkd = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'gdkd-approve-1', roles: ['giam_doc_kinh_doanh'] }),
+    );
+    gddt = appRouter.createCaller(
+      buildStaffContext({ facilityId: facility.id, userId: 'gddt-approve-1', roles: ['giam_doc_dao_tao'] }),
     );
     teacher = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'teacher-approve-1', roles: ['giao_vien'] }),
@@ -90,7 +95,9 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     expect(result.opportunityStage).toBe('O5_ENROLLED');
     expect(result.provisioning).toBe('ok');
 
-    const opportunity = await testDb().opportunity.findUniqueOrThrow({ where: { id: opportunityId } });
+    const opportunity = await testDbBypass((tx) =>
+      tx.opportunity.findUniqueOrThrow({ where: { id: opportunityId } }),
+    );
     expect(opportunity.stage).toBe('O5_ENROLLED');
     expect(opportunity.closedAt).not.toBeNull();
   });
@@ -125,12 +132,16 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     expect((rejected[0] as PromiseRejectedResult).reason.code).toMatch(/CONFLICT|BAD_REQUEST/);
 
     // The receipt is approved exactly once and the opportunity reached O5 once.
-    const finalReceipt = await testDb().receipt.findUniqueOrThrow({ where: { id: receipt.id } });
+    const finalReceipt = await testDbBypass((tx) => tx.receipt.findUniqueOrThrow({ where: { id: receipt.id } }));
     expect(finalReceipt.status).toBe('approved');
-    const opportunity = await testDb().opportunity.findUniqueOrThrow({ where: { id: opportunityId } });
+    const opportunity = await testDbBypass((tx) =>
+      tx.opportunity.findUniqueOrThrow({ where: { id: opportunityId } }),
+    );
     expect(opportunity.stage).toBe('O5_ENROLLED');
     // Exactly one Student was provisioned (no double-provision).
-    const students = await testDb().student.findMany({ where: { createdByReceiptId: receipt.id } });
+    const students = await testDbBypass((tx) =>
+      tx.student.findMany({ where: { createdByReceiptId: receipt.id } }),
+    );
     expect(students).toHaveLength(1);
   });
 
@@ -162,15 +173,53 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     const { receipt } = await draftReceipt(soloGdkd, {
       contactPhone: '0930000005',
       parentPhone: '0940000005',
-      amount: SELF_APPROVE_THRESHOLD + 1,
+      amount: APPROVAL_SECOND_EYE_THRESHOLD + 1,
     });
 
     await expect(soloGdkd.finance.receiptApprove({ receiptId: receipt.id })).rejects.toMatchObject({
       code: 'FORBIDDEN',
     });
 
-    const stillDraft = await testDb().receipt.findUniqueOrThrow({ where: { id: receipt.id } });
+    const stillDraft = await testDbBypass((tx) => tx.receipt.findUniqueOrThrow({ where: { id: receipt.id } }));
     expect(stillDraft.status).toBe('draft');
+  });
+
+  it('forbids a GĐKD-only approver over threshold even when NOT self-approved — H1 general second-eye rule', async () => {
+    const { receipt } = await draftReceipt(sale, {
+      contactPhone: '0930000011',
+      parentPhone: '0940000011',
+      amount: APPROVAL_SECOND_EYE_THRESHOLD + 1,
+    });
+
+    await expect(gdkd.finance.receiptApprove({ receiptId: receipt.id })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+
+    const stillDraft = await testDbBypass((tx) => tx.receipt.findUniqueOrThrow({ where: { id: receipt.id } }));
+    expect(stillDraft.status).toBe('draft');
+  });
+
+  it('allows an over-threshold approval by GĐĐT (independent second eye satisfied) — H1', async () => {
+    const { receipt } = await draftReceipt(sale, {
+      contactPhone: '0930000012',
+      parentPhone: '0940000012',
+      amount: APPROVAL_SECOND_EYE_THRESHOLD + 1,
+    });
+
+    const result = await gddt.finance.receiptApprove({ receiptId: receipt.id });
+    expect(result.receipt.status).toBe('approved');
+    expect(result.receipt.netAmount).toBe(APPROVAL_SECOND_EYE_THRESHOLD + 1);
+  });
+
+  it('allows a GĐKD approval under threshold (no second eye required) — H1', async () => {
+    const { receipt } = await draftReceipt(sale, {
+      contactPhone: '0930000013',
+      parentPhone: '0940000013',
+      amount: APPROVAL_SECOND_EYE_THRESHOLD - 1,
+    });
+
+    const result = await gdkd.finance.receiptApprove({ receiptId: receipt.id });
+    expect(result.receipt.status).toBe('approved');
   });
 
   it('computes kind=renewal for a second approved receipt on the same parent phone, kind=new for the first', async () => {
@@ -194,5 +243,24 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     await expect(teacher.finance.receiptApprove({ receiptId: receipt.id })).rejects.toMatchObject({
       code: 'FORBIDDEN',
     });
+  });
+
+  it('is idempotent: replaying the outbox enqueue for the same receipt never creates a duplicate row — F8', async () => {
+    const { receipt } = await draftReceipt(sale, { contactPhone: '0930000014', parentPhone: '0940000014' });
+    const approved = await gdkd.finance.receiptApprove({ receiptId: receipt.id });
+
+    await enqueueReceiptEmail(testDb(), {
+      id: approved.receipt.id,
+      parentPhone: approved.receipt.parentPhone,
+      studentName: approved.receipt.studentName,
+      kind: approved.receipt.kind,
+    });
+
+    const rows = await testDb().$queryRaw<{ id: string }[]>`
+      SELECT id FROM "EmailOutbox" WHERE payload->>'receiptId' = ${receipt.id}
+    `;
+    expect(rows).toHaveLength(1);
+
+    await testDb().$executeRaw`DELETE FROM "EmailOutbox" WHERE payload->>'receiptId' = ${receipt.id}`;
   });
 });

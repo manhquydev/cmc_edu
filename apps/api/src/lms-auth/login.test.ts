@@ -1,9 +1,16 @@
 // WF-P1-07 integration tests: parent LMS login (phone + OTP, profile
 // picker). Covers OTP issuance/expiry/replay without account-enumeration
-// leakage, the 1-child-auto vs ≥2-children-picker split, and the
-// `blocked_lms` lifecycle exclusion from LMS reads (docs/19 §2).
+// leakage, the 1-child-auto vs ≥2-children-picker split, the `blocked_lms`
+// lifecycle exclusion from LMS reads (docs/19 §2), and the H5 remediation:
+// hashed storage (no plaintext code persisted), brute-force lockout, and the
+// request cooldown. Also covers the M3 child-data-read audit trail.
+//
+// `node:crypto`'s `randomInt` is mocked to a fixed value so every OTP issued
+// in this file is deterministic and the test can submit the correct code
+// without ever reading it back from the DB (which is now impossible — the
+// code is hashed, not stored plaintext).
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { normalizeLoginPhone } from '@cmc/domain-identity';
 import { appRouter } from '../router.js';
 import {
@@ -15,7 +22,22 @@ import {
   seedGuardianLink,
   seedParentAccount,
   testDb,
+  testDbBypass,
 } from '../test/db.js';
+
+// Hoisted by vitest above every import in this file, so `../router.js` (and
+// its transitive `lms-auth/router.ts` import of `randomInt`) always sees the
+// mock — every OTP issued in this file is deterministic, which is the only
+// way a test can know the correct code to submit now that H5 hashes it (no
+// more reading the plaintext back from the DB). The literal below MUST stay
+// in sync with `MOCKED_OTP_CODE` further down — vitest's hoisting forbids
+// referencing an outer non-`mock`-prefixed const from inside the factory.
+vi.mock('node:crypto', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:crypto')>();
+  return { ...actual, randomInt: () => 654321 };
+});
+
+const MOCKED_OTP_CODE = '654321';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
 
@@ -41,15 +63,7 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
     phonesToClean.length = 0;
   });
 
-  async function issuedCode(phone: string): Promise<string> {
-    const otp = await testDb().loginOtp.findFirstOrThrow({
-      where: { phone },
-      orderBy: { createdAt: 'desc' },
-    });
-    return otp.code;
-  }
-
-  it('requestOtp issues a 6-digit OTP readable from the DB (never returned in the response)', async () => {
+  it('requestOtp issues an OTP whose codeHash is a salted hash, never the plaintext code', async () => {
     const phone = '0992000001';
     phonesToClean.push(normalizeLoginPhone(phone));
 
@@ -57,7 +71,9 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
     expect(result).toEqual({ ok: true });
 
     const otp = await testDb().loginOtp.findFirstOrThrow({ where: { phone: normalizeLoginPhone(phone) } });
-    expect(otp.code).toMatch(/^\d{6}$/);
+    expect(otp.codeHash).toMatch(/^[0-9a-f]{32}:[0-9a-f]{64}$/);
+    expect(otp.codeHash).not.toContain(MOCKED_OTP_CODE);
+    expect(otp.attempts).toBe(0);
     expect(otp.status).toBe('pending');
     expect(otp.expiresAt.getTime()).toBeGreaterThan(Date.now());
   });
@@ -67,9 +83,9 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
     const normalized = normalizeLoginPhone(phone);
     phonesToClean.push(normalized);
     const parentAccount = await seedParentAccount(normalized);
-    const student = await testDb().student.create({
-      data: { facilityId: facility.id, fullName: 'LMS Login Student 1' },
-    });
+    const student = await testDbBypass((tx) =>
+      tx.student.create({ data: { facilityId: facility.id, fullName: 'LMS Login Student 1' } }),
+    );
     await seedGuardianLink({
       facilityId: facility.id,
       parentAccountId: parentAccount.id,
@@ -78,9 +94,8 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
     });
 
     await anon.lmsAuth.requestOtp({ phone });
-    const code = await issuedCode(normalized);
 
-    const result = await anon.lmsAuth.verifyOtp({ phone, code });
+    const result = await anon.lmsAuth.verifyOtp({ phone, code: MOCKED_OTP_CODE });
     expect(result.sessionToken).toEqual(expect.any(String));
     expect(result.needsPicker).toBe(false);
     expect(result.children).toEqual([{ studentId: student.id, fullName: student.fullName }]);
@@ -91,8 +106,16 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
     const normalized = normalizeLoginPhone(phone);
     phonesToClean.push(normalized);
 
+    // Backdated `createdAt` (not just `expiresAt`) so the real `requestOtp`
+    // call below is outside the H5 cooldown window against this row.
     await testDb().loginOtp.create({
-      data: { phone: normalized, code: '111111', status: 'pending', expiresAt: new Date(Date.now() - 1000) },
+      data: {
+        phone: normalized,
+        codeHash: 'deadbeefdeadbeefdeadbeefdeadbeef:deadbeef',
+        status: 'pending',
+        expiresAt: new Date(Date.now() - 1000),
+        createdAt: new Date(Date.now() - 60_000),
+      },
     });
 
     let expiredError: unknown;
@@ -122,9 +145,10 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
     phonesToClean.push(normalized);
 
     await anon.lmsAuth.requestOtp({ phone });
-    const code = await issuedCode(normalized);
 
-    await expect(anon.lmsAuth.verifyOtp({ phone, code })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(anon.lmsAuth.verifyOtp({ phone, code: MOCKED_OTP_CODE })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
   });
 
   it('a verified OTP cannot be replayed', async () => {
@@ -134,10 +158,11 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
     await seedParentAccount(normalized);
 
     await anon.lmsAuth.requestOtp({ phone });
-    const code = await issuedCode(normalized);
 
-    await anon.lmsAuth.verifyOtp({ phone, code });
-    await expect(anon.lmsAuth.verifyOtp({ phone, code })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await anon.lmsAuth.verifyOtp({ phone, code: MOCKED_OTP_CODE });
+    await expect(anon.lmsAuth.verifyOtp({ phone, code: MOCKED_OTP_CODE })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
   });
 
   it('2+ children triggers the profile picker; blocked-lifecycle children are excluded from the picker AND enrollment.mine', async () => {
@@ -146,15 +171,15 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
     phonesToClean.push(normalized);
     const parentAccount = await seedParentAccount(normalized);
 
-    const childA = await testDb().student.create({
-      data: { facilityId: facility.id, fullName: 'LMS Login Student A' },
-    });
-    const childB = await testDb().student.create({
-      data: { facilityId: facility.id, fullName: 'LMS Login Student B' },
-    });
-    const blockedChild = await testDb().student.create({
-      data: { facilityId: facility.id, fullName: 'LMS Login Student Blocked', lifecycle: 'blocked_lms' },
-    });
+    const [childA, childB, blockedChild] = await testDbBypass((tx) =>
+      Promise.all([
+        tx.student.create({ data: { facilityId: facility.id, fullName: 'LMS Login Student A' } }),
+        tx.student.create({ data: { facilityId: facility.id, fullName: 'LMS Login Student B' } }),
+        tx.student.create({
+          data: { facilityId: facility.id, fullName: 'LMS Login Student Blocked', lifecycle: 'blocked_lms' },
+        }),
+      ]),
+    );
 
     for (const student of [childA, childB, blockedChild]) {
       await seedGuardianLink({
@@ -164,13 +189,14 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
         status: 'approved',
       });
     }
-    await testDb().enrollment.create({
-      data: { facilityId: facility.id, studentId: blockedChild.id, classBatchId: 'class-batch-blocked-1' },
-    });
+    await testDbBypass((tx) =>
+      tx.enrollment.create({
+        data: { facilityId: facility.id, studentId: blockedChild.id, classBatchId: 'class-batch-blocked-1' },
+      }),
+    );
 
     await anon.lmsAuth.requestOtp({ phone });
-    const code = await issuedCode(normalized);
-    const result = await anon.lmsAuth.verifyOtp({ phone, code });
+    const result = await anon.lmsAuth.verifyOtp({ phone, code: MOCKED_OTP_CODE });
 
     expect(result.needsPicker).toBe(true);
     const returnedIds = result.children.map((c) => c.studentId).sort();
@@ -179,5 +205,88 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
     const parentCaller = appRouter.createCaller(buildLmsContext({ parentAccountId: parentAccount.id }));
     const mine = await parentCaller.enrollment.mine();
     expect(mine.find((e) => e.studentId === blockedChild.id)).toBeUndefined();
+  });
+
+  it('writes an AuditLog row when verifyOtp returns child data — M3', async () => {
+    const phone = '0992000010';
+    const normalized = normalizeLoginPhone(phone);
+    phonesToClean.push(normalized);
+    const parentAccount = await seedParentAccount(normalized);
+    const student = await testDbBypass((tx) =>
+      tx.student.create({ data: { facilityId: facility.id, fullName: 'Audit Child' } }),
+    );
+    await seedGuardianLink({
+      facilityId: facility.id,
+      parentAccountId: parentAccount.id,
+      studentId: student.id,
+      status: 'approved',
+    });
+
+    await anon.lmsAuth.requestOtp({ phone });
+    await anon.lmsAuth.verifyOtp({ phone, code: MOCKED_OTP_CODE });
+
+    const audit = await testDb().auditLog.findFirst({
+      where: { entity: 'Student', entityId: student.id, action: 'guardian.childDataRead' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(audit).not.toBeNull();
+    expect((audit!.data as { via: string }).via).toBe('lmsAuth.verifyOtp');
+  });
+
+  it('locks the OTP after MAX failed verify attempts (brute-force cap) — H5', async () => {
+    const phone = '0992000007';
+    const normalized = normalizeLoginPhone(phone);
+    phonesToClean.push(normalized);
+
+    await anon.lmsAuth.requestOtp({ phone });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await expect(anon.lmsAuth.verifyOtp({ phone, code: '000000' })).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+      });
+    }
+
+    // Locked: even the correct code now fails.
+    await expect(anon.lmsAuth.verifyOtp({ phone, code: MOCKED_OTP_CODE })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+
+    const otp = await testDb().loginOtp.findFirstOrThrow({
+      where: { phone: normalized },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(otp.status).toBe('expired');
+    expect(otp.attempts).toBeGreaterThanOrEqual(5);
+  });
+
+  it('requestOtp enforces a cooldown: a second request for the same phone immediately after the first is rejected — H5', async () => {
+    const phone = '0992000008';
+    const normalized = normalizeLoginPhone(phone);
+    phonesToClean.push(normalized);
+
+    await anon.lmsAuth.requestOtp({ phone });
+    await expect(anon.lmsAuth.requestOtp({ phone })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    const otpCount = await testDb().loginOtp.count({ where: { phone: normalized } });
+    expect(otpCount).toBe(1);
+  });
+
+  it('issuing a new code invalidates the prior pending code for the same phone — H5', async () => {
+    const phone = '0992000009';
+    const normalized = normalizeLoginPhone(phone);
+    phonesToClean.push(normalized);
+
+    await anon.lmsAuth.requestOtp({ phone });
+    const firstOtp = await testDb().loginOtp.findFirstOrThrow({ where: { phone: normalized } });
+
+    // Backdate so the cooldown does not block this second request.
+    await testDb().loginOtp.update({
+      where: { id: firstOtp.id },
+      data: { createdAt: new Date(Date.now() - 60_000) },
+    });
+    await anon.lmsAuth.requestOtp({ phone });
+
+    const priorRow = await testDb().loginOtp.findUniqueOrThrow({ where: { id: firstOtp.id } });
+    expect(priorRow.status).toBe('expired');
   });
 });

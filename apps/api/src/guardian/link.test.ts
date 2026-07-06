@@ -14,6 +14,7 @@ import {
   createTestFacility,
   seedParentAccount,
   testDb,
+  testDbBypass,
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
@@ -35,9 +36,9 @@ describe('guardian.requestLink / approveLink / rejectLink (WF-P1-06)', () => {
     hr = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'hr-link-1', roles: ['hr'] }),
     );
-    student = await testDb().student.create({
-      data: { facilityId: facility.id, fullName: 'Guardian Link Student' },
-    });
+    student = await testDbBypass((tx) =>
+      tx.student.create({ data: { facilityId: facility.id, fullName: 'Guardian Link Student' } }),
+    );
 
     const phone = normalizeLoginPhone('0991000001');
     phonesToClean.push(phone);
@@ -136,6 +137,22 @@ describe('guardian.requestLink / approveLink / rejectLink (WF-P1-06)', () => {
       where: { parentAccountId: parentAccount.id, studentId: student.id },
     });
     expect(guardianCount).toBe(1);
+  });
+
+  it('writes an AuditLog row when the parent reads child data via enrollment.mine — M3', async () => {
+    await sale.enrollment.enroll({ studentId: student.id, classBatchId: 'class-batch-link-4' });
+    const requested = await parent.guardian.requestLink({ studentRef: student.id });
+    const requestId = requested.status === 'created' ? requested.requestId : undefined;
+    await sale.guardian.approveLink({ requestId: requestId!, relation: 'mother' });
+
+    await parent.enrollment.mine();
+
+    const audit = await testDb().auditLog.findFirst({
+      where: { entity: 'Student', entityId: student.id, action: 'guardian.childDataRead' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(audit).not.toBeNull();
+    expect((audit!.data as { via: string }).via).toBe('enrollment.mine');
   });
 
   it('a duplicate pending requestLink is a no-op (reuses the existing pending request)', async () => {

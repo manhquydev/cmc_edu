@@ -11,22 +11,33 @@ import {
   nextReceiptCode,
   RefundCapExceededError,
 } from '@cmc/domain-finance';
-import type { PrismaClient } from '@cmc/db';
+import { withFacility, type Prisma, type PrismaClient } from '@cmc/db';
+import type { Role } from '@cmc/auth';
 import { badRequest, conflict, forbidden, notFound } from '../errors.js';
 import { provisionFromReceipt } from '../provisioning/provision-from-receipt.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
 /**
- * Compensating control (ADR-B, docs/16): when the same person both created
- * and approves a receipt ("multi-hat" staff), self-approval is still
- * allowed — but only up to this amount. Above it, an independent second
- * approver (a different userId with `finance.receiptApprove`) is required.
+ * H1 remediation (ADR-B, docs/16): a general "independent second eye"
+ * control, not just a self-approval guard. Any receipt with `netAmount`
+ * above this threshold requires an approver holding `giam_doc_dao_tao` or
+ * `super_admin` — a `giam_doc_kinh_doanh`-only approval over threshold is
+ * FORBIDDEN even when the drafter and approver are different people (the
+ * prior version only checked self-approval, so a `sale`-drafted, GĐKD-approved
+ * receipt of any size passed unchecked). The self-approve audit flag below
+ * is kept for every self-approval regardless of amount.
  *
  * ASSUMPTION: docs/16 ADR-B and docs/23 WF-P1-03 name this control
  * ("nguong tien X") without pinning a concrete VND figure — no decision doc
- * fixes the number. 20,000,000 VND is a placeholder or default value.
+ * fixes the number. 20,000,000 VND is a placeholder/default value.
  */
-export const SELF_APPROVE_THRESHOLD = 20_000_000;
+export const APPROVAL_SECOND_EYE_THRESHOLD = 20_000_000;
+
+/** ADR-B: roles that satisfy the independent-second-eye requirement above
+ * the threshold. `super_admin` bypasses `can()` entirely elsewhere in the
+ * stack, but is listed here too so this check reads as a complete rule on
+ * its own. */
+const SECOND_EYE_ROLES: readonly Role[] = ['giam_doc_dao_tao', 'super_admin'];
 
 /**
  * `ReceiptCodeCounter` row key shared by every facility. `Receipt.code` is a
@@ -42,11 +53,24 @@ export const SELF_APPROVE_THRESHOLD = 20_000_000;
  */
 const GLOBAL_RECEIPT_CODE_COUNTER_KEY = 'GLOBAL_RECEIPT_CODE';
 
+/**
+ * F7 remediation: VND has no sub-unit (no cents) — an `amount` with decimals
+ * is a caller/UI bug, not a valid fractional payment. `max` guards against
+ * overflow/fat-finger inputs (1 trillion VND is already an absurd single
+ * receipt); `int` rejects sub-VND amounts. Shared by `receiptCreate` and
+ * `refundCreate` (both are VND money fields).
+ */
+const vndAmountSchema = z.number().int().positive().max(1_000_000_000_000);
+
 const receiptCreateInput = z.object({
   opportunityId: z.string().uuid().optional(),
+  /** H3 remediation: the existing Student being renewed, when this receipt
+   * is a renewal for a known child — provisioning reuses this Student
+   * instead of creating a new one (see ../provisioning/provision-from-receipt.ts). */
+  studentId: z.string().uuid().optional(),
   studentName: z.string().min(1),
   parentPhone: z.string().min(1),
-  amount: z.number().positive(),
+  amount: vndAmountSchema,
   classBatchId: z.string().min(1).optional(),
 });
 
@@ -74,6 +98,8 @@ interface ReceiptRow {
   status: string;
   kind: string;
   opportunityId: string | null;
+  /** H3 remediation: the Student this receipt renews, when known. */
+  studentId: string | null;
   parentPhone: string;
   studentName: string;
   classBatchId: string | null;
@@ -117,90 +143,97 @@ export interface ReceiptApproveResult {
  * try/catch.
  */
 async function runMoneyTransaction(
-  db: PrismaClient,
+  tx: Prisma.TransactionClient,
   facilityId: string,
   approverId: string,
+  approverRoles: readonly Role[],
   receiptId: string,
 ): Promise<{ receipt: ReceiptRow; opportunityStage: string | null }> {
-  return db.$transaction(async (tx) => {
-    const receipt = await tx.receipt.findFirst({ where: { id: receiptId, facilityId } });
-    if (!receipt) {
-      throw notFound('Receipt not found.');
-    }
-    if (receipt.status !== 'draft') {
-      throw badRequest(`Receipt is "${receipt.status}", not "draft"; it cannot be approved again.`);
-    }
+  const receipt = await tx.receipt.findFirst({ where: { id: receiptId, facilityId } });
+  if (!receipt) {
+    throw notFound('Receipt not found.');
+  }
+  if (receipt.status !== 'draft') {
+    throw badRequest(`Receipt is "${receipt.status}", not "draft"; it cannot be approved again.`);
+  }
 
-    const selfApproved = receipt.createdById === approverId;
-    const netAmount = receipt.netAmount.toNumber();
-    if (selfApproved && netAmount > SELF_APPROVE_THRESHOLD) {
+  const selfApproved = receipt.createdById === approverId;
+  const netAmount = receipt.netAmount.toNumber();
+
+  // H1: general over-threshold second-eye rule (not just self-approval). A
+  // giam_doc_kinh_doanh-only approver over threshold is FORBIDDEN regardless
+  // of who drafted the receipt.
+  if (netAmount > APPROVAL_SECOND_EYE_THRESHOLD) {
+    const hasSecondEye = approverRoles.some((role) => SECOND_EYE_ROLES.includes(role));
+    if (!hasSecondEye) {
       throw forbidden(
-        `Receipt exceeds the self-approval threshold (${SELF_APPROVE_THRESHOLD} VND); an independent second approver is required (ADR-B).`,
+        `Receipt exceeds the second-eye approval threshold (${APPROVAL_SECOND_EYE_THRESHOLD} VND); ` +
+          `an approver with giam_doc_dao_tao or super_admin is required (ADR-B).`,
       );
     }
+  }
 
-    // Kind MUST be computed before the stage/status mutation below.
-    const priorApprovedReceipt = await tx.receipt.findFirst({
-      where: {
-        facilityId,
-        parentPhone: receipt.parentPhone,
-        status: 'approved',
-        id: { not: receipt.id },
-      },
-      select: { id: true },
-    });
-    const kind = computeReceiptKind(priorApprovedReceipt !== null);
-
-    // Atomic claim: the `status: 'draft'` predicate in the WHERE means only one
-    // concurrent transaction can flip draft -> approved. Under a concurrent
-    // double-approve the loser matches 0 rows and is rejected with CONFLICT,
-    // instead of the plain `update({where:{id}})` which would re-approve and
-    // double-provision on a stale read (HIGH-2). The row lock also serialises
-    // the two calls so the winner's commit is visible to the loser's predicate.
-    const claim = await tx.receipt.updateMany({
-      where: { id: receipt.id, facilityId, status: 'draft' },
-      data: { status: 'approved', approvedById: approverId, kind },
-    });
-    if (claim.count !== 1) {
-      throw conflict('Receipt was already approved by a concurrent request.');
-    }
-    const approved = await tx.receipt.findFirstOrThrow({
-      where: { id: receipt.id, facilityId },
-    });
-
-    let opportunityStage: string | null = null;
-    if (approved.opportunityId) {
-      const opportunity = await tx.opportunity.findFirst({
-        where: { id: approved.opportunityId, facilityId },
-      });
-      if (!opportunity) {
-        throw notFound('Linked opportunity not found.');
-      }
-      const advanced = await tx.opportunity.update({
-        where: { id: opportunity.id },
-        data: { stage: 'O5_ENROLLED', closedAt: new Date() },
-      });
-      opportunityStage = advanced.stage;
-    }
-
-    await tx.auditLog.create({
-      data: {
-        actor: approverId,
-        action: 'finance.receiptApprove',
-        entity: 'Receipt',
-        entityId: approved.id,
-        data: {
-          createdById: approved.createdById,
-          approvedById: approverId,
-          netAmount,
-          selfApproved,
-          kind,
-        },
-      },
-    });
-
-    return { receipt: approved, opportunityStage };
+  // Kind MUST be computed before the stage/status mutation below.
+  const priorApprovedReceipt = await tx.receipt.findFirst({
+    where: {
+      facilityId,
+      parentPhone: receipt.parentPhone,
+      status: 'approved',
+      id: { not: receipt.id },
+    },
+    select: { id: true },
   });
+  const kind = computeReceiptKind(priorApprovedReceipt !== null);
+
+  // Atomic claim: the `status: 'draft'` predicate in the WHERE means only one
+  // concurrent transaction can flip draft -> approved. Under a concurrent
+  // double-approve the loser matches 0 rows and is rejected with CONFLICT,
+  // instead of the plain `update({where:{id}})` which would re-approve and
+  // double-provision on a stale read (HIGH-2). The row lock also serialises
+  // the two calls so the winner's commit is visible to the loser's predicate.
+  const claim = await tx.receipt.updateMany({
+    where: { id: receipt.id, facilityId, status: 'draft' },
+    data: { status: 'approved', approvedById: approverId, kind },
+  });
+  if (claim.count !== 1) {
+    throw conflict('Receipt was already approved by a concurrent request.');
+  }
+  const approved = await tx.receipt.findFirstOrThrow({
+    where: { id: receipt.id, facilityId },
+  });
+
+  let opportunityStage: string | null = null;
+  if (approved.opportunityId) {
+    const opportunity = await tx.opportunity.findFirst({
+      where: { id: approved.opportunityId, facilityId },
+    });
+    if (!opportunity) {
+      throw notFound('Linked opportunity not found.');
+    }
+    const advanced = await tx.opportunity.update({
+      where: { id: opportunity.id },
+      data: { stage: 'O5_ENROLLED', closedAt: new Date() },
+    });
+    opportunityStage = advanced.stage;
+  }
+
+  await tx.auditLog.create({
+    data: {
+      actor: approverId,
+      action: 'finance.receiptApprove',
+      entity: 'Receipt',
+      entityId: approved.id,
+      data: {
+        createdById: approved.createdById,
+        approvedById: approverId,
+        netAmount,
+        selfApproved,
+        kind,
+      },
+    },
+  });
+
+  return { receipt: approved, opportunityStage };
 }
 
 const receiptCancelInput = z.object({
@@ -242,97 +275,126 @@ export interface ReceiptCancelResult {
  * lifecycle only archived when `void: true`).
  */
 async function runCancelTransaction(
-  db: PrismaClient,
+  tx: Prisma.TransactionClient,
   facilityId: string,
   actorId: string,
   receiptId: string,
   reason: string,
   voidFlag: boolean,
 ): Promise<{ receipt: ReceiptRow; opportunityReverted: boolean; studentLifecycle: string | null }> {
-  return db.$transaction(async (tx) => {
-    const receipt = await tx.receipt.findFirst({ where: { id: receiptId, facilityId } });
-    if (!receipt) {
-      throw notFound('Receipt not found.');
-    }
-    if (receipt.status !== 'approved') {
-      throw badRequest(`Receipt is "${receipt.status}", not "approved"; it cannot be cancelled.`);
-    }
+  const receipt = await tx.receipt.findFirst({ where: { id: receiptId, facilityId } });
+  if (!receipt) {
+    throw notFound('Receipt not found.');
+  }
+  if (receipt.status !== 'approved') {
+    throw badRequest(`Receipt is "${receipt.status}", not "approved"; it cannot be cancelled.`);
+  }
 
-    // Atomic claim (same shape as receiptApprove's): only one concurrent
-    // cancel of the same receipt can flip approved -> cancelled.
-    const claim = await tx.receipt.updateMany({
-      where: { id: receipt.id, facilityId, status: 'approved' },
-      data: { status: 'cancelled' },
-    });
-    if (claim.count !== 1) {
-      throw conflict('Receipt was already cancelled by a concurrent request.');
-    }
-    const cancelled = await tx.receipt.findFirstOrThrow({ where: { id: receipt.id, facilityId } });
+  // Atomic claim (same shape as receiptApprove's): only one concurrent
+  // cancel of the same receipt can flip approved -> cancelled.
+  const claim = await tx.receipt.updateMany({
+    where: { id: receipt.id, facilityId, status: 'approved' },
+    data: { status: 'cancelled' },
+  });
+  if (claim.count !== 1) {
+    throw conflict('Receipt was already cancelled by a concurrent request.');
+  }
+  const cancelled = await tx.receipt.findFirstOrThrow({ where: { id: receipt.id, facilityId } });
 
-    // I3: revert O5 -> O4 + clear closedAt only when this cancelled receipt
-    // was the SOLE approved receipt on the linked opportunity. `cancelled` is
-    // already flipped away from 'approved' above, so a plain status='approved'
-    // lookup on the opportunity naturally excludes this receipt.
-    let opportunityReverted = false;
-    if (cancelled.opportunityId) {
-      const opportunity = await tx.opportunity.findFirst({
-        where: { id: cancelled.opportunityId, facilityId },
+  // I3 + H6: lock the linked Opportunity row for the rest of this
+  // transaction BEFORE deciding whether to revert. Two concurrent cancels of
+  // the two approved receipts on the SAME opportunity both try to acquire
+  // this lock; the loser blocks until the winner commits, then re-reads the
+  // now-committed stage/receipt state under READ COMMITTED — so the two
+  // decisions can never both observe "another approved receipt exists" and
+  // both skip the revert, which would otherwise strand the opportunity at
+  // O5 with zero approved receipts.
+  let opportunityReverted = false;
+  if (cancelled.opportunityId) {
+    const lockedRows = await tx.$queryRaw<{ id: string; stage: string }[]>`
+      SELECT "id", "stage" FROM "Opportunity"
+      WHERE "id" = ${cancelled.opportunityId} AND "facilityId" = ${facilityId}
+      FOR UPDATE
+    `;
+    const opportunity = lockedRows[0];
+    if (opportunity && opportunity.stage === 'O5_ENROLLED') {
+      const otherApprovedReceipt = await tx.receipt.findFirst({
+        where: { opportunityId: opportunity.id, status: 'approved' },
+        select: { id: true },
       });
-      if (opportunity && opportunity.stage === 'O5_ENROLLED') {
-        const otherApprovedReceipt = await tx.receipt.findFirst({
-          where: { opportunityId: opportunity.id, status: 'approved' },
-          select: { id: true },
+      if (!otherApprovedReceipt) {
+        await tx.opportunity.update({
+          where: { id: opportunity.id },
+          data: { stage: 'O4_TESTED', closedAt: null },
         });
-        if (!otherApprovedReceipt) {
-          await tx.opportunity.update({
-            where: { id: opportunity.id },
-            data: { stage: 'O4_TESTED', closedAt: null },
-          });
-          opportunityReverted = true;
-        }
+        opportunityReverted = true;
       }
     }
+  }
 
-    // Rollback provisioning (QĐ 0024). Student is 1:1 with the receipt via
-    // `createdByReceiptId`; if provisioning never ran (or is still pending),
-    // there is nothing to roll back.
-    let studentLifecycle: string | null = null;
-    const student = await tx.student.findUnique({ where: { createdByReceiptId: cancelled.id } });
-    if (student) {
-      if (cancelled.classBatchId) {
+  // Rollback provisioning (QĐ 0024). Resolve the Student via `studentId`
+  // (H3 renewal reuse) when the cancelled receipt set one, falling back to
+  // `createdByReceiptId` (the receipt that originally provisioned a NEW
+  // Student) otherwise — a renewal receipt never carries its own
+  // `createdByReceiptId` link, since it reused an existing Student.
+  let studentLifecycle: string | null = null;
+  const student = cancelled.studentId
+    ? await tx.student.findFirst({ where: { id: cancelled.studentId, facilityId } })
+    : await tx.student.findFirst({ where: { createdByReceiptId: cancelled.id, facilityId } });
+  if (student) {
+    // M9: only withdraw the enrollment when NO OTHER approved receipt still
+    // covers this exact student+class (e.g. a duplicate/renewal receipt paid
+    // into the same class) — cancelling one receipt must not strand a seat
+    // that another still-approved receipt legitimately paid for.
+    if (cancelled.classBatchId) {
+      const otherApprovedReceiptForClass = await tx.receipt.findFirst({
+        where: {
+          facilityId,
+          classBatchId: cancelled.classBatchId,
+          status: 'approved',
+          id: { not: cancelled.id },
+          OR: [{ studentId: student.id }, { id: student.createdByReceiptId ?? '' }],
+        },
+        select: { id: true },
+      });
+      if (!otherApprovedReceiptForClass) {
         await tx.enrollment.updateMany({
           where: { facilityId, studentId: student.id, classBatchId: cancelled.classBatchId },
           data: { status: 'withdrawn' },
         });
       }
-      if (voidFlag) {
-        const archived = await tx.student.update({
-          where: { id: student.id },
-          data: { lifecycle: 'withdrawn' },
-        });
-        studentLifecycle = archived.lifecycle;
-      } else {
-        studentLifecycle = student.lifecycle;
-      }
     }
+    if (voidFlag) {
+      const archived = await tx.student.update({
+        where: { id: student.id },
+        data: { lifecycle: 'withdrawn' },
+      });
+      studentLifecycle = archived.lifecycle;
+    } else {
+      studentLifecycle = student.lifecycle;
+    }
+  }
 
-    await tx.auditLog.create({
-      data: {
-        actor: actorId,
-        action: 'finance.receiptCancel',
-        entity: 'Receipt',
-        entityId: cancelled.id,
-        data: { reason, void: voidFlag, opportunityReverted, studentId: student?.id ?? null },
-      },
-    });
-
-    return { receipt: cancelled, opportunityReverted, studentLifecycle };
+  await tx.auditLog.create({
+    data: {
+      actor: actorId,
+      action: 'finance.receiptCancel',
+      entity: 'Receipt',
+      entityId: cancelled.id,
+      data: { reason, void: voidFlag, opportunityReverted, studentId: student?.id ?? null },
+    },
   });
+
+  return { receipt: cancelled, opportunityReverted, studentLifecycle };
 }
 
 const refundCreateInput = z.object({
   receiptId: z.string().uuid(),
-  amount: z.number().positive(),
+  amount: vndAmountSchema,
+  /** M4 remediation (docs/11 §4 idempotency): a repeat call with the same
+   * key returns the existing RefundRecord instead of appending a duplicate —
+   * for an agent/outbox retry after a network timeout, not a normal UI flow. */
+  idempotencyKey: z.string().min(1).optional(),
 });
 
 export interface RefundDto {
@@ -364,56 +426,83 @@ interface LockedReceiptRow {
  * ever have exactly one succeed.
  */
 async function runRefundTransaction(
-  db: PrismaClient,
+  tx: Prisma.TransactionClient,
   facilityId: string,
   receiptId: string,
   amount: number,
+  idempotencyKey?: string,
 ): Promise<RefundCreateResult> {
-  return db.$transaction(async (tx) => {
-    const rows = await tx.$queryRaw<LockedReceiptRow[]>`
-      SELECT "id", "netAmount", "status" FROM "Receipt"
-      WHERE "id" = ${receiptId} AND "facilityId" = ${facilityId}
-      FOR UPDATE
-    `;
-    const locked = rows[0];
-    if (!locked) {
-      throw notFound('Receipt not found.');
-    }
-    if (locked.status !== 'approved') {
-      throw badRequest(`Receipt is "${locked.status}", not "approved"; refunds require an approved receipt.`);
-    }
-    const netAmount = Number(locked.netAmount);
+  const rows = await tx.$queryRaw<LockedReceiptRow[]>`
+    SELECT "id", "netAmount", "status" FROM "Receipt"
+    WHERE "id" = ${receiptId} AND "facilityId" = ${facilityId}
+    FOR UPDATE
+  `;
+  const locked = rows[0];
+  if (!locked) {
+    throw notFound('Receipt not found.');
+  }
+  if (locked.status !== 'approved') {
+    throw badRequest(`Receipt is "${locked.status}", not "approved"; refunds require an approved receipt.`);
+  }
+  const netAmount = Number(locked.netAmount);
 
-    const aggregate = await tx.refundRecord.aggregate({
-      where: { receiptId: locked.id },
-      _sum: { amount: true },
+  // M4: idempotent replay — a repeat call with the same (receiptId,
+  // idempotencyKey) returns the existing row rather than appending a
+  // duplicate (also enforced at the DB layer by a unique index, so a
+  // concurrent replay can never race past this check either).
+  if (idempotencyKey) {
+    const existingRefund = await tx.refundRecord.findFirst({
+      where: { receiptId: locked.id, idempotencyKey },
     });
-    const existingSum = aggregate._sum.amount?.toNumber() ?? 0;
-
-    try {
-      assertRefundWithinCap(existingSum, amount, netAmount);
-    } catch (error) {
-      if (error instanceof RefundCapExceededError) {
-        throw badRequest(error.message);
-      }
-      throw error;
+    if (existingRefund) {
+      const aggregate = await tx.refundRecord.aggregate({
+        where: { receiptId: locked.id },
+        _sum: { amount: true },
+      });
+      const sum = aggregate._sum.amount?.toNumber() ?? 0;
+      return {
+        refund: {
+          id: existingRefund.id,
+          receiptId: existingRefund.receiptId,
+          amount: existingRefund.amount.toNumber(),
+          createdAt: existingRefund.createdAt,
+        },
+        remainingBalance: netAmount - sum,
+      };
     }
+  }
 
-    // Append-only: a new RefundRecord row, never an update/delete of a prior one.
-    const refund = await tx.refundRecord.create({
-      data: { receiptId: locked.id, amount },
-    });
-
-    return {
-      refund: {
-        id: refund.id,
-        receiptId: refund.receiptId,
-        amount: refund.amount.toNumber(),
-        createdAt: refund.createdAt,
-      },
-      remainingBalance: netAmount - (existingSum + amount),
-    };
+  const aggregate = await tx.refundRecord.aggregate({
+    where: { receiptId: locked.id },
+    _sum: { amount: true },
   });
+  const existingSum = aggregate._sum.amount?.toNumber() ?? 0;
+
+  try {
+    assertRefundWithinCap(existingSum, amount, netAmount);
+  } catch (error) {
+    if (error instanceof RefundCapExceededError) {
+      throw badRequest(error.message);
+    }
+    throw error;
+  }
+
+  // Append-only: a new RefundRecord row, never an update/delete of a prior one.
+  // `facilityId` denormalized from the locked Receipt (M5 remediation — the
+  // money ledger must be facility-scoped for RLS, ADR 0042).
+  const refund = await tx.refundRecord.create({
+    data: { receiptId: locked.id, facilityId, amount, idempotencyKey: idempotencyKey ?? null },
+  });
+
+  return {
+    refund: {
+      id: refund.id,
+      receiptId: refund.receiptId,
+      amount: refund.amount.toNumber(),
+      createdAt: refund.createdAt,
+    },
+    remainingBalance: netAmount - (existingSum + amount),
+  };
 }
 
 export const financeRouter = router({
@@ -429,59 +518,82 @@ export const financeRouter = router({
         throw badRequest('classBatchId is required to create a receipt.');
       }
 
-      let opportunityNotAtO4Warning: string | null = null;
-      if (input.opportunityId) {
-        const opportunity = await ctx.db.opportunity.findFirst({
-          where: { id: input.opportunityId, facilityId },
-        });
-        if (!opportunity) {
-          throw notFound('Opportunity not found.');
-        }
-        if (opportunity.stage !== 'O4_TESTED') {
-          // Allowed but flagged (WF-P1-02 exceptions: "Opp chua O4 -> canh bao").
-          opportunityNotAtO4Warning =
-            'Cơ hội chưa ở giai đoạn O4_TESTED — phiếu vẫn được tạo, vui lòng rà lại.';
-        }
-      }
+      const { created, dupWarning, opportunityNotAtO4Warning } = await withFacility(
+        ctx.db,
+        facilityId,
+        async (tx) => {
+          let opportunityNotAtO4Warning: string | null = null;
+          if (input.opportunityId) {
+            const opportunity = await tx.opportunity.findFirst({
+              where: { id: input.opportunityId, facilityId },
+            });
+            if (!opportunity) {
+              throw notFound('Opportunity not found.');
+            }
+            if (opportunity.stage !== 'O4_TESTED') {
+              // Allowed but flagged (WF-P1-02 exceptions: "Opp chua O4 -> canh bao").
+              opportunityNotAtO4Warning =
+                'Cơ hội chưa ở giai đoạn O4_TESTED — phiếu vẫn được tạo, vui lòng rà lại.';
+            }
+          }
 
-      const [existingParentAccount, existingReceiptForPhone] = await Promise.all([
-        ctx.db.parentAccount.findUnique({ where: { phone: input.parentPhone } }),
-        ctx.db.receipt.findFirst({ where: { facilityId, parentPhone: input.parentPhone } }),
-      ]);
-      const dupWarning = duplicatePhoneWarning(
-        existingParentAccount !== null,
-        existingReceiptForPhone !== null,
+          // H3 remediation: validate a caller-supplied renewal `studentId`
+          // exists in this facility BEFORE creating the receipt (RLS/app-level
+          // scoped) — an out-of-facility or nonexistent id looks identical to
+          // a nonexistent one, same as every other facility-scoped lookup.
+          if (input.studentId) {
+            const student = await tx.student.findFirst({
+              where: { id: input.studentId, facilityId },
+            });
+            if (!student) {
+              throw notFound('Student not found for renewal.');
+            }
+          }
+
+          const [existingParentAccount, existingReceiptForPhone] = await Promise.all([
+            tx.parentAccount.findUnique({ where: { phone: input.parentPhone } }),
+            tx.receipt.findFirst({ where: { facilityId, parentPhone: input.parentPhone } }),
+          ]);
+          const dupWarning = duplicatePhoneWarning(
+            existingParentAccount !== null,
+            existingReceiptForPhone !== null,
+          );
+
+          // Atomic code assignment: a single upsert/increment avoids a
+          // read-then-write race on `ReceiptCodeCounter.value` (docs/11 §4).
+          // Global key (see GLOBAL_RECEIPT_CODE_COUNTER_KEY) — `Receipt.code`
+          // is unique system-wide, not per facility. `ReceiptCodeCounter` has
+          // no Postgres RLS (its `facilityId` column is a global sentinel,
+          // not real per-facility data — see schema.prisma) but is upserted
+          // on the same `tx` for atomicity with the receipt insert below.
+          const counter = await tx.receiptCodeCounter.upsert({
+            where: { facilityId: GLOBAL_RECEIPT_CODE_COUNTER_KEY },
+            create: { facilityId: GLOBAL_RECEIPT_CODE_COUNTER_KEY, value: 1 },
+            update: { value: { increment: 1 } },
+          });
+          const code = nextReceiptCode(counter.value - 1);
+
+          const created = await tx.receipt.create({
+            data: {
+              facilityId,
+              code,
+              netAmount: input.amount,
+              status: 'draft',
+              kind: 'new',
+              opportunityId: input.opportunityId,
+              studentId: input.studentId,
+              parentPhone: input.parentPhone,
+              studentName: input.studentName,
+              classBatchId: input.classBatchId,
+              createdById: ctx.subject.userId,
+            },
+          });
+
+          return { created, dupWarning, opportunityNotAtO4Warning };
+        },
       );
 
-      const receipt = await ctx.db.$transaction(async (tx) => {
-        // Atomic code assignment: a single upsert/increment avoids a
-        // read-then-write race on `ReceiptCodeCounter.value` (docs/11 §4).
-        // Global key (see GLOBAL_RECEIPT_CODE_COUNTER_KEY) — `Receipt.code`
-        // is unique system-wide, not per facility.
-        const counter = await tx.receiptCodeCounter.upsert({
-          where: { facilityId: GLOBAL_RECEIPT_CODE_COUNTER_KEY },
-          create: { facilityId: GLOBAL_RECEIPT_CODE_COUNTER_KEY, value: 1 },
-          update: { value: { increment: 1 } },
-        });
-        const code = nextReceiptCode(counter.value - 1);
-
-        return tx.receipt.create({
-          data: {
-            facilityId,
-            code,
-            netAmount: input.amount,
-            status: 'draft',
-            kind: 'new',
-            opportunityId: input.opportunityId,
-            parentPhone: input.parentPhone,
-            studentName: input.studentName,
-            classBatchId: input.classBatchId,
-            createdById: ctx.subject.userId,
-          },
-        });
-      });
-
-      const dto = toReceiptDto(receipt);
+      const dto = toReceiptDto(created);
 
       const warnings = [dupWarning, opportunityNotAtO4Warning].filter(
         (warning): warning is string => warning !== null,
@@ -499,17 +611,17 @@ export const financeRouter = router({
     .mutation(async ({ ctx, input }): Promise<ReceiptApproveResult> => {
       const { facilityId } = scoped(ctx);
 
-      const { receipt, opportunityStage } = await runMoneyTransaction(
-        ctx.db,
-        facilityId,
-        ctx.subject.userId,
-        input.receiptId,
+      const { receipt, opportunityStage } = await withFacility(ctx.db, facilityId, (tx) =>
+        runMoneyTransaction(tx, facilityId, ctx.subject.userId, ctx.subject.roles, input.receiptId),
       );
 
       // Provisioning runs AFTER the money transaction has committed, in its
       // own try/catch — a provisioning failure must NOT roll back the
       // approved status or netAmount (ADR 0041). Failure is recorded as a
-      // retry marker instead of being swallowed.
+      // retry marker instead of being swallowed. `provisionFromReceipt`
+      // manages its own per-step RLS scoping internally (see that file) —
+      // its find-or-create steps must NOT share one transaction, so partial
+      // progress survives a later mid-provisioning failure (ADR 0041 replay).
       let provisioning: 'ok' | 'pending' = 'ok';
       try {
         await provisionFromReceipt(ctx.db, {
@@ -518,18 +630,10 @@ export const financeRouter = router({
           parentPhone: receipt.parentPhone,
           studentName: receipt.studentName,
           classBatchId: receipt.classBatchId,
+          studentId: receipt.studentId,
         });
 
-        // Outbox uses the existing `EmailOutboxStatus` enum (pending -> sent
-        // | failed); there is no separate "queued" status in the schema.
-        await ctx.db.emailOutbox.create({
-          data: {
-            to: receipt.parentPhone,
-            transport: 'brevo',
-            status: 'pending',
-            payload: { receiptId: receipt.id, studentName: receipt.studentName, kind: receipt.kind },
-          },
-        });
+        await enqueueReceiptEmail(ctx.db, receipt);
       } catch (error) {
         provisioning = 'pending';
         await ctx.db.auditLog.create({
@@ -554,13 +658,10 @@ export const financeRouter = router({
     .mutation(async ({ ctx, input }): Promise<ReceiptCancelResult> => {
       const { facilityId } = scoped(ctx);
 
-      const { receipt, opportunityReverted, studentLifecycle } = await runCancelTransaction(
+      const { receipt, opportunityReverted, studentLifecycle } = await withFacility(
         ctx.db,
         facilityId,
-        ctx.subject.userId,
-        input.receiptId,
-        input.reason,
-        input.void,
+        (tx) => runCancelTransaction(tx, facilityId, ctx.subject.userId, input.receiptId, input.reason, input.void),
       );
 
       return { receipt: toReceiptDto(receipt), opportunityReverted, studentLifecycle };
@@ -572,6 +673,39 @@ export const financeRouter = router({
     .mutation(async ({ ctx, input }): Promise<RefundCreateResult> => {
       const { facilityId } = scoped(ctx);
 
-      return runRefundTransaction(ctx.db, facilityId, input.receiptId, input.amount);
+      return withFacility(ctx.db, facilityId, (tx) =>
+        runRefundTransaction(tx, facilityId, input.receiptId, input.amount, input.idempotencyKey),
+      );
     }),
 });
+
+/**
+ * F8 remediation: dedupe the outbox enqueue by `receiptId`. `EmailOutbox` has
+ * no dedicated `receiptId` column (schema stores it inside the JSON
+ * `payload`), so the existence check reads the JSON payload via a raw query.
+ * A retried `receiptApprove` provisioning step (ADR 0041 replay) must not
+ * enqueue a second notification email for the same receipt — there is only
+ * ever one "kind" of notification enqueued per receipt approval today, so
+ * `receiptId` alone is a sufficient dedupe key (no separate `type` column
+ * needed yet).
+ */
+export async function enqueueReceiptEmail(
+  db: PrismaClient,
+  receipt: { id: string; parentPhone: string; studentName: string; kind: string },
+): Promise<void> {
+  const existing = await db.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM "EmailOutbox" WHERE "payload"->>'receiptId' = ${receipt.id} LIMIT 1
+  `;
+  if (existing.length > 0) return;
+
+  // Outbox uses the existing `EmailOutboxStatus` enum (pending -> sent |
+  // failed); there is no separate "queued" status in the schema.
+  await db.emailOutbox.create({
+    data: {
+      to: receipt.parentPhone,
+      transport: 'brevo',
+      status: 'pending',
+      payload: { receiptId: receipt.id, studentName: receipt.studentName, kind: receipt.kind },
+    },
+  });
+}

@@ -27,8 +27,14 @@ export interface Context {
   facilityId: string | null;
   /** Authenticated LMS (parent/student) subject, or null. */
   lmsSubject: LmsSubject | null;
-  /** Prisma client. RLS is enforced by convention: filter every domain query
-   * by `facilityId` (see `scoped()` below) — never trust a client-supplied
+  /** Prisma client, connected as the unprivileged `cmc_app` role (see
+   * `createPrismaClient()`). Facility isolation is defense-in-depth (ADR
+   * 0042): layer 1 is the app-level `scoped(ctx)` filter below (primary,
+   * ergonomic, index-friendly); layer 2 is Postgres RLS, which requires every
+   * facility-scoped query to run through `withFacility()` (@cmc/db) so the
+   * `app.current_facility_id` GUC is set — a plain `ctx.db.model.find(...)`
+   * outside that helper has no GUC set and RLS rejects it (0 rows), it does
+   * NOT fall back to unrestricted access. Never trust a client-supplied
    * facilityId over the session's. */
   db: PrismaClient;
   /** Caller IP (from `x-forwarded-for` when behind a proxy), or null. */

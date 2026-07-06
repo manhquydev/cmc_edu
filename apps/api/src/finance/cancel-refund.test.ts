@@ -14,7 +14,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
-  testDb,
+  testDbBypass,
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
@@ -85,11 +85,13 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       const result = await gdkd.finance.receiptCancel({ receiptId: receipt.id, reason: 'test cancel' });
 
       expect(result.opportunityReverted).toBe(true);
-      const opportunity = await testDb().opportunity.findUniqueOrThrow({ where: { id: opportunityId } });
+      const opportunity = await testDbBypass((tx) =>
+        tx.opportunity.findUniqueOrThrow({ where: { id: opportunityId } }),
+      );
       expect(opportunity.stage).toBe('O4_TESTED');
       expect(opportunity.closedAt).toBeNull();
 
-      const cancelled = await testDb().receipt.findUniqueOrThrow({ where: { id: receipt.id } });
+      const cancelled = await testDbBypass((tx) => tx.receipt.findUniqueOrThrow({ where: { id: receipt.id } }));
       expect(cancelled.status).toBe('cancelled');
     });
 
@@ -108,7 +110,9 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       const result = await gdkd.finance.receiptCancel({ receiptId: firstReceipt.id, reason: 'test cancel' });
 
       expect(result.opportunityReverted).toBe(false);
-      const opportunity = await testDb().opportunity.findUniqueOrThrow({ where: { id: opportunityId } });
+      const opportunity = await testDbBypass((tx) =>
+        tx.opportunity.findUniqueOrThrow({ where: { id: opportunityId } }),
+      );
       expect(opportunity.stage).toBe('O5_ENROLLED');
       expect(opportunity.closedAt).not.toBeNull();
     });
@@ -131,7 +135,9 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
 
     it('void:true archives/withdraws Student + Enrollment', async () => {
       const { receipt } = await draftAndApprove({ contactPhone: '0970000005', parentPhone: '0980000005' });
-      const student = await testDb().student.findUniqueOrThrow({ where: { createdByReceiptId: receipt.id } });
+      const student = await testDbBypass((tx) =>
+        tx.student.findUniqueOrThrow({ where: { createdByReceiptId: receipt.id } }),
+      );
 
       const result = await gdkd.finance.receiptCancel({
         receiptId: receipt.id,
@@ -140,25 +146,103 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       });
 
       expect(result.studentLifecycle).toBe('withdrawn');
-      const updatedStudent = await testDb().student.findUniqueOrThrow({ where: { id: student.id } });
+      const updatedStudent = await testDbBypass((tx) => tx.student.findUniqueOrThrow({ where: { id: student.id } }));
       expect(updatedStudent.lifecycle).toBe('withdrawn');
-      const enrollment = await testDb().enrollment.findFirstOrThrow({ where: { studentId: student.id } });
+      const enrollment = await testDbBypass((tx) => tx.enrollment.findFirstOrThrow({ where: { studentId: student.id } }));
       expect(enrollment.status).toBe('withdrawn');
+    });
+
+    it('keeps a shared enrollment active when cancelling one of two approved receipts covering it — M9', async () => {
+      const parentPhone = '0980000020';
+      phonesToClean.push(parentPhone);
+
+      const first = await sale.finance.receiptCreate({
+        studentName: 'Shared Enrollment Student',
+        parentPhone,
+        amount: 5_000_000,
+        classBatchId: 'class-batch-shared-1',
+      });
+      const firstApproved = await gdkd.finance.receiptApprove({ receiptId: first.receipt.id });
+      const student = await testDbBypass((tx) =>
+        tx.student.findUniqueOrThrow({ where: { createdByReceiptId: first.receipt.id } }),
+      );
+
+      // Second receipt: same student (renewal-style reuse) + the SAME class —
+      // models a duplicate/erroneous double payment into one class, both approved.
+      const second = await sale.finance.receiptCreate({
+        studentId: student.id,
+        studentName: 'Shared Enrollment Student',
+        parentPhone,
+        amount: 5_000_000,
+        classBatchId: 'class-batch-shared-1',
+      });
+      const secondApproved = await gdkd.finance.receiptApprove({ receiptId: second.receipt.id });
+
+      const enrollment = await testDbBypass((tx) =>
+        tx.enrollment.findFirstOrThrow({ where: { studentId: student.id, classBatchId: 'class-batch-shared-1' } }),
+      );
+      expect(enrollment.status).toBe('active');
+
+      // Cancel the FIRST receipt: the second is still approved and covers the
+      // same student+class, so the enrollment must stay active.
+      await gdkd.finance.receiptCancel({ receiptId: firstApproved.receipt.id, reason: 'duplicate payment' });
+      const afterFirstCancel = await testDbBypass((tx) =>
+        tx.enrollment.findUniqueOrThrow({ where: { id: enrollment.id } }),
+      );
+      expect(afterFirstCancel.status).toBe('active');
+
+      // Cancel the SECOND (last remaining approved) receipt: now nothing
+      // covers the enrollment, so it withdraws.
+      await gdkd.finance.receiptCancel({ receiptId: secondApproved.receipt.id, reason: 'duplicate payment' });
+      const afterSecondCancel = await testDbBypass((tx) =>
+        tx.enrollment.findUniqueOrThrow({ where: { id: enrollment.id } }),
+      );
+      expect(afterSecondCancel.status).toBe('withdrawn');
+    });
+
+    it('serialises concurrent cancels of the two approved receipts on one opportunity: ends at O4 (reverted exactly once), never stuck at O5 — H6', async () => {
+      const { opportunityId, receipt: receiptA } = await draftAndApprove({
+        contactPhone: '0970000030',
+        parentPhone: '0980000030',
+        classBatchId: 'class-batch-h6-a',
+      });
+      const { receipt: receiptB } = await draftAndApprove({
+        contactPhone: '0970000030',
+        parentPhone: '0980000031',
+        classBatchId: 'class-batch-h6-b',
+        opportunityId,
+      });
+
+      const results = await Promise.allSettled([
+        gdkd.finance.receiptCancel({ receiptId: receiptA.id, reason: 'concurrent cancel A' }),
+        gdkd.finance.receiptCancel({ receiptId: receiptB.id, reason: 'concurrent cancel B' }),
+      ]);
+      expect(results.every((r) => r.status === 'fulfilled')).toBe(true);
+
+      const fulfilled = results as PromiseFulfilledResult<{ opportunityReverted: boolean }>[];
+      const reverts = fulfilled.filter((r) => r.value.opportunityReverted);
+      expect(reverts).toHaveLength(1);
+
+      const opportunity = await testDbBypass((tx) => tx.opportunity.findUniqueOrThrow({ where: { id: opportunityId } }));
+      expect(opportunity.stage).toBe('O4_TESTED');
+      expect(opportunity.closedAt).toBeNull();
     });
 
     it('non-void (genuine refund/cancel) keeps the Student lifecycle', async () => {
       const { receipt } = await draftAndApprove({ contactPhone: '0970000006', parentPhone: '0980000006' });
-      const student = await testDb().student.findUniqueOrThrow({ where: { createdByReceiptId: receipt.id } });
+      const student = await testDbBypass((tx) =>
+        tx.student.findUniqueOrThrow({ where: { createdByReceiptId: receipt.id } }),
+      );
       expect(student.lifecycle).toBe('active');
 
       const result = await gdkd.finance.receiptCancel({ receiptId: receipt.id, reason: 'genuine refund' });
 
       expect(result.studentLifecycle).toBe('active');
-      const updatedStudent = await testDb().student.findUniqueOrThrow({ where: { id: student.id } });
+      const updatedStudent = await testDbBypass((tx) => tx.student.findUniqueOrThrow({ where: { id: student.id } }));
       expect(updatedStudent.lifecycle).toBe('active');
       // Enrollment still ends per the explicit WF-P1-05 transition
       // ("active --> withdrawn: rút (WF-P1-08)") regardless of the void flag.
-      const enrollment = await testDb().enrollment.findFirstOrThrow({ where: { studentId: student.id } });
+      const enrollment = await testDbBypass((tx) => tx.enrollment.findFirstOrThrow({ where: { studentId: student.id } }));
       expect(enrollment.status).toBe('withdrawn');
     });
   });
@@ -175,7 +259,7 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
 
       expect(result.refund.amount).toBe(4_000_000);
       expect(result.remainingBalance).toBe(6_000_000);
-      const records = await testDb().refundRecord.findMany({ where: { receiptId: receipt.id } });
+      const records = await testDbBypass((tx) => tx.refundRecord.findMany({ where: { receiptId: receipt.id } }));
       expect(records).toHaveLength(1);
     });
 
@@ -191,7 +275,7 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
         gdkd.finance.refundCreate({ receiptId: receipt.id, amount: 3_000_000 }),
       ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
 
-      const records = await testDb().refundRecord.findMany({ where: { receiptId: receipt.id } });
+      const records = await testDbBypass((tx) => tx.refundRecord.findMany({ where: { receiptId: receipt.id } }));
       expect(records).toHaveLength(1); // the rejected call never appended a row
     });
 
@@ -213,12 +297,37 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       await gdkd.finance.refundCreate({ receiptId: receipt.id, amount: 2_000_000 });
       await gdkd.finance.refundCreate({ receiptId: receipt.id, amount: 3_000_000 });
 
-      const records = await testDb().refundRecord.findMany({
-        where: { receiptId: receipt.id },
-        orderBy: { amount: 'asc' },
-      });
+      const records = await testDbBypass((tx) =>
+        tx.refundRecord.findMany({
+          where: { receiptId: receipt.id },
+          orderBy: { amount: 'asc' },
+        }),
+      );
       expect(records).toHaveLength(2);
       expect(records.map((r) => r.amount.toNumber())).toEqual([2_000_000, 3_000_000]);
+    });
+
+    it('is idempotent: a repeat refundCreate with the same idempotencyKey returns the same RefundRecord — M4', async () => {
+      const { receipt } = await draftAndApprove({
+        contactPhone: '0970000012',
+        parentPhone: '0980000014',
+        amount: 10_000_000,
+      });
+
+      const first = await gdkd.finance.refundCreate({
+        receiptId: receipt.id,
+        amount: 3_000_000,
+        idempotencyKey: 'refund-key-1',
+      });
+      const second = await gdkd.finance.refundCreate({
+        receiptId: receipt.id,
+        amount: 3_000_000,
+        idempotencyKey: 'refund-key-1',
+      });
+
+      expect(second.refund.id).toBe(first.refund.id);
+      const records = await testDbBypass((tx) => tx.refundRecord.findMany({ where: { receiptId: receipt.id } }));
+      expect(records).toHaveLength(1);
     });
 
     it('two concurrent refunds that together exceed netAmount: exactly one succeeds — FOR UPDATE serialisation', async () => {
@@ -238,7 +347,7 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       expect(rejected).toHaveLength(1);
       expect((rejected[0] as PromiseRejectedResult).reason.code).toBe('BAD_REQUEST');
 
-      const records = await testDb().refundRecord.findMany({ where: { receiptId: receipt.id } });
+      const records = await testDbBypass((tx) => tx.refundRecord.findMany({ where: { receiptId: receipt.id } }));
       const sum = records.reduce((total, r) => total + r.amount.toNumber(), 0);
       expect(sum).toBeLessThanOrEqual(10_000_000);
       expect(records).toHaveLength(1);

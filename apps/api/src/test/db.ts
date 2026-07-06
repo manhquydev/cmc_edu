@@ -5,8 +5,14 @@
 // deletion order follows the FK graph (children before parents). System-wide
 // identity rows (`ParentAccount`, unique by `phone`) are not facility-scoped
 // (TL10 §4 invariant #3) and must be cleaned up separately by phone.
+//
+// `testDb()` connects as the same unprivileged `cmc_app` role the app uses
+// (via `createPrismaClient()`), so Postgres RLS (ADR 0042) applies to it too.
+// Test setup/teardown and out-of-band DB-truth assertions are not simulating
+// one facility's session — they need `testDbBypass()` (sets `app.bypass_rls`)
+// to see across facilities, same escape hatch a super_admin/director read uses.
 
-import { PrismaClient } from '@cmc/db';
+import { createPrismaClient, PrismaClient, withFacility, type Prisma } from '@cmc/db';
 import type { Role } from '@cmc/auth';
 import type { Context } from '../trpc.js';
 
@@ -14,8 +20,18 @@ let dbSingleton: PrismaClient | undefined;
 
 /** Shared Prisma client for integration tests (lazy — no connection until used). */
 export function testDb(): PrismaClient {
-  dbSingleton ??= new PrismaClient();
+  dbSingleton ??= createPrismaClient();
   return dbSingleton;
+}
+
+/**
+ * Bypass-scoped access for test arrangement/assertions against
+ * RLS-protected tables (Contact, Opportunity, Receipt, RefundRecord, Student,
+ * Enrollment) — out-of-band DB-truth verification, not a simulated facility
+ * session, so it uses the same audited bypass a real cross-facility read does.
+ */
+export function testDbBypass<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  return withFacility(testDb(), null, fn, { bypass: true });
 }
 
 /** Seeds a throwaway Facility for one test's RLS scope. */
@@ -26,15 +42,25 @@ export async function createTestFacility(name: string): Promise<{ id: string }> 
 /** Deletes every row scoped to `facilityId`, then the Facility itself. */
 export async function cleanupFacility(facilityId: string): Promise<void> {
   const db = testDb();
-  await db.refundRecord.deleteMany({ where: { receipt: { facilityId } } });
-  await db.studentAccount.deleteMany({ where: { student: { facilityId } } });
+  // Guardian has FK constraints on both Student and ParentAccount — it must
+  // be deleted before Student (below) and before `cleanupParentAccountsByPhone`
+  // runs (called separately, after this function returns). Guardian itself
+  // carries no RLS policy, so no bypass is needed for this delete.
   await db.guardian.deleteMany({ where: { facilityId } });
   await db.guardianLinkRequest.deleteMany({ where: { facilityId } });
-  await db.enrollment.deleteMany({ where: { facilityId } });
-  await db.student.deleteMany({ where: { facilityId } });
-  await db.receipt.deleteMany({ where: { facilityId } });
-  await db.opportunity.deleteMany({ where: { facilityId } });
-  await db.contact.deleteMany({ where: { facilityId } });
+  await testDbBypass(async (tx) => {
+    // `studentAccount` has no facilityId of its own — the relational filter
+    // joins through `student` (RLS-protected), so this delete also needs the
+    // bypass GUC even though StudentAccount itself carries no RLS policy. It
+    // also has an FK to Student, so it must run before `student.deleteMany`.
+    await tx.studentAccount.deleteMany({ where: { student: { facilityId } } });
+    await tx.refundRecord.deleteMany({ where: { facilityId } });
+    await tx.enrollment.deleteMany({ where: { facilityId } });
+    await tx.student.deleteMany({ where: { facilityId } });
+    await tx.receipt.deleteMany({ where: { facilityId } });
+    await tx.opportunity.deleteMany({ where: { facilityId } });
+    await tx.contact.deleteMany({ where: { facilityId } });
+  });
   await db.receiptCodeCounter.deleteMany({ where: { facilityId } });
   await db.facility.deleteMany({ where: { id: facilityId } });
 }

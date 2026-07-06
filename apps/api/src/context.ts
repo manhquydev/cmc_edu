@@ -7,12 +7,15 @@
 // / lmsProcedure) are what reject unauthenticated calls, not context creation.
 //
 // TODO(P0-debt): real staff auth is Microsoft Entra SSO (`@azure/msal-node`,
-// docs/18 §1); this header stub MUST NOT ship to production. Gate this at the
-// deploy pipeline until SSO middleware replaces it.
+// docs/18 §1). Until SSO middleware replaces it, the header stub is FAIL-CLOSED:
+// `DEV_AUTH_ENABLED` is false in production, so the `x-dev-user` / `x-dev-lms-user`
+// impersonation headers are ignored and every request degrades to anonymous
+// (all protected/lms procedures then reject). A missing runtime guard here would
+// let any caller impersonate any staff/parent in prod — this constant is that guard.
 
 import type { IncomingMessage } from 'node:http';
 import { z } from 'zod';
-import { PrismaClient } from '@cmc/db';
+import { createPrismaClient, PrismaClient } from '@cmc/db';
 import { ROLES, type AuthSubject } from '@cmc/auth';
 import type { Context, LmsSubject } from './trpc.js';
 
@@ -27,13 +30,26 @@ const devLmsUserHeaderSchema = z.object({
   studentId: z.string().min(1).optional(),
 });
 
+/**
+ * The dev-header auth stub is enabled everywhere EXCEPT production. In
+ * production the headers are ignored (fail-closed) until Entra SSO lands, so a
+ * deploy that forgets to wire SSO refuses all authenticated calls rather than
+ * silently accepting forged identities. An explicit opt-in escape hatch
+ * (`ALLOW_DEV_AUTH=1`) exists only for non-prod integration environments.
+ */
+const DEV_AUTH_ENABLED =
+  process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEV_AUTH === '1';
+
 // Lazily constructed so importing/creating a context never opens a DB
 // connection unless a caller actually reads `ctx.db` (keeps the health smoke
 // test and any DB-less unit test independent of DATABASE_URL/Postgres).
 let dbSingleton: PrismaClient | undefined;
 
 function getDb(): PrismaClient {
-  dbSingleton ??= new PrismaClient();
+  // `createPrismaClient()` connects via `APP_DATABASE_URL` (the unprivileged
+  // `cmc_app` role) when set, which Postgres RLS (ADR 0042) requires — the
+  // migration-owner role in `DATABASE_URL` bypasses RLS unconditionally.
+  dbSingleton ??= createPrismaClient();
   return dbSingleton;
 }
 
@@ -82,8 +98,14 @@ export interface CreateContextOptions {
 }
 
 export function createContext(opts: CreateContextOptions = {}): Context {
-  const devUser = parseDevUser(readHeader(opts.req?.headers, 'x-dev-user'));
-  const lmsUser = parseDevLmsUser(readHeader(opts.req?.headers, 'x-dev-lms-user'));
+  // Fail-closed: outside dev/test the impersonation headers are never read, so
+  // production without SSO yields an anonymous context (rejected downstream).
+  const devUser = DEV_AUTH_ENABLED
+    ? parseDevUser(readHeader(opts.req?.headers, 'x-dev-user'))
+    : null;
+  const lmsUser = DEV_AUTH_ENABLED
+    ? parseDevLmsUser(readHeader(opts.req?.headers, 'x-dev-lms-user'))
+    : null;
 
   return {
     subject: devUser?.subject ?? null,

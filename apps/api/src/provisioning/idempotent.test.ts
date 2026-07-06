@@ -15,6 +15,7 @@ import {
   cleanupParentAccountsByPhone,
   createTestFacility,
   testDb,
+  testDbBypass,
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
@@ -72,19 +73,21 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
     studentName: string;
     classBatchId: string | null;
   }) {
-    return testDb().receipt.create({
-      data: {
-        facilityId: facility.id,
-        code: `PT-TEST-${Math.random().toString(36).slice(2, 10)}`,
-        netAmount: 1_000_000,
-        status: 'approved',
-        kind: 'new',
-        parentPhone: opts.parentPhone,
-        studentName: opts.studentName,
-        classBatchId: opts.classBatchId,
-        createdById: 'test-creator',
-      },
-    });
+    return testDbBypass((tx) =>
+      tx.receipt.create({
+        data: {
+          facilityId: facility.id,
+          code: `PT-TEST-${Math.random().toString(36).slice(2, 10)}`,
+          netAmount: 1_000_000,
+          status: 'approved',
+          kind: 'new',
+          parentPhone: opts.parentPhone,
+          studentName: opts.studentName,
+          classBatchId: opts.classBatchId,
+          createdById: 'test-creator',
+        },
+      }),
+    );
   }
 
   it('provisions ParentAccount + Student(createdByReceiptId) + StudentAccount + active Enrollment on approve', async () => {
@@ -97,7 +100,9 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
     const approveResult = await gdkd.finance.receiptApprove({ receiptId: receipt.id });
     expect(approveResult.provisioning).toBe('ok');
 
-    const student = await testDb().student.findUnique({ where: { createdByReceiptId: receipt.id } });
+    const student = await testDbBypass((tx) =>
+      tx.student.findUnique({ where: { createdByReceiptId: receipt.id } }),
+    );
     expect(student).not.toBeNull();
     expect(student!.facilityId).toBe(facility.id);
 
@@ -110,9 +115,9 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
     expect(studentAccount).not.toBeNull();
     expect(studentAccount!.parentAccountId).toBe(parentAccount!.id);
 
-    const enrollment = await testDb().enrollment.findFirst({
-      where: { studentId: student!.id, classBatchId: 'class-batch-prov-1' },
-    });
+    const enrollment = await testDbBypass((tx) =>
+      tx.enrollment.findFirst({ where: { studentId: student!.id, classBatchId: 'class-batch-prov-1' } }),
+    );
     expect(enrollment).not.toBeNull();
     expect(enrollment!.status).toBe('active');
   });
@@ -127,14 +132,14 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
     // Force a provisioning failure by stripping classBatchId directly
     // (bypassing the receiptCreate business rule) — provisioning cannot
     // activate an enrollment without knowing the class.
-    await testDb().receipt.update({ where: { id: receipt.id }, data: { classBatchId: null } });
+    await testDbBypass((tx) => tx.receipt.update({ where: { id: receipt.id }, data: { classBatchId: null } }));
 
     const approveResult = await gdkd.finance.receiptApprove({ receiptId: receipt.id });
     expect(approveResult.provisioning).toBe('pending');
     expect(approveResult.receipt.status).toBe('approved');
     expect(approveResult.receipt.netAmount).toBe(5_000_000);
 
-    const persisted = await testDb().receipt.findUniqueOrThrow({ where: { id: receipt.id } });
+    const persisted = await testDbBypass((tx) => tx.receipt.findUniqueOrThrow({ where: { id: receipt.id } }));
     expect(persisted.status).toBe('approved');
     expect(persisted.netAmount.toNumber()).toBe(5_000_000);
 
@@ -150,7 +155,9 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
     });
     expect(parentAccountBeforeRetry).not.toBeNull();
 
-    await testDb().receipt.update({ where: { id: receipt.id }, data: { classBatchId: 'class-batch-prov-retry' } });
+    await testDbBypass((tx) =>
+      tx.receipt.update({ where: { id: receipt.id }, data: { classBatchId: 'class-batch-prov-retry' } }),
+    );
     const retried = await provisionFromReceipt(testDb(), {
       id: receipt.id,
       facilityId: facility.id,
@@ -160,10 +167,14 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
     });
     expect(retried.parentAccountId).toBe(parentAccountBeforeRetry!.id);
 
-    const enrollment = await testDb().enrollment.findUniqueOrThrow({ where: { id: retried.enrollmentId } });
+    const enrollment = await testDbBypass((tx) =>
+      tx.enrollment.findUniqueOrThrow({ where: { id: retried.enrollmentId } }),
+    );
     expect(enrollment.status).toBe('active');
 
-    const studentCount = await testDb().student.count({ where: { createdByReceiptId: receipt.id } });
+    const studentCount = await testDbBypass((tx) =>
+      tx.student.count({ where: { createdByReceiptId: receipt.id } }),
+    );
     expect(studentCount).toBe(1);
   });
 
@@ -193,10 +204,12 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
     expect(second.enrollmentId).toBe(first.enrollmentId);
 
     expect(await testDb().parentAccount.count({ where: { phone: normalizeLoginPhone(parentPhone) } })).toBe(1);
-    expect(await testDb().student.count({ where: { createdByReceiptId: receipt.id } })).toBe(1);
+    expect(await testDbBypass((tx) => tx.student.count({ where: { createdByReceiptId: receipt.id } }))).toBe(1);
     expect(await testDb().studentAccount.count({ where: { studentId: first.studentId } })).toBe(1);
     expect(
-      await testDb().enrollment.count({ where: { studentId: first.studentId, classBatchId: 'class-batch-prov-replay' } }),
+      await testDbBypass((tx) =>
+        tx.enrollment.count({ where: { studentId: first.studentId, classBatchId: 'class-batch-prov-replay' } }),
+      ),
     ).toBe(1);
   });
 
@@ -233,5 +246,38 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
       where: { phone: normalizeLoginPhone(parentPhone) },
     });
     expect(parentAccountCount).toBe(1);
+  });
+
+  it('resolves a race when the SAME receipt is provisioned concurrently (Student + StudentAccount P2002 recovery)', async () => {
+    const parentPhone = '0960000005';
+    phonesToClean.push(parentPhone);
+    const receipt = await createRawApprovedReceipt({
+      parentPhone,
+      studentName: 'Concurrent Same-Receipt Student',
+      classBatchId: 'class-batch-prov-same-receipt',
+    });
+
+    const receiptForProvisioning = {
+      id: receipt.id,
+      facilityId: facility.id,
+      parentPhone,
+      studentName: receipt.studentName,
+      classBatchId: receipt.classBatchId,
+    };
+
+    // Both calls target the same receipt -> same `createdByReceiptId` (Student)
+    // and same `studentId` (StudentAccount): exercises the P2002-and-refetch
+    // recovery paths on both, not just the ParentAccount race above.
+    const [first, second] = await Promise.all([
+      provisionFromReceipt(testDb(), receiptForProvisioning),
+      provisionFromReceipt(testDb(), receiptForProvisioning),
+    ]);
+
+    expect(first.studentId).toBe(second.studentId);
+    expect(first.studentAccountId).toBe(second.studentAccountId);
+    expect(
+      await testDbBypass((tx) => tx.student.count({ where: { createdByReceiptId: receipt.id } })),
+    ).toBe(1);
+    expect(await testDb().studentAccount.count({ where: { studentId: first.studentId } })).toBe(1);
   });
 });

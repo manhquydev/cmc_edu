@@ -8,8 +8,9 @@
 // and ./activate-enrollment.ts), per ADR-A: `active` <=> an approved Receipt.
 
 import { z } from 'zod';
+import { withFacility } from '@cmc/db';
 import { notFound } from '../errors.js';
-import { getApprovedChildren } from '../guardian/approved-children.js';
+import { auditChildDataAccess, getApprovedChildren } from '../guardian/approved-children.js';
 import { lmsProcedure, requirePermission, router, scoped } from '../trpc.js';
 
 const enrollInput = z.object({
@@ -33,35 +34,58 @@ export const enrollmentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
 
-      // Out-of-facility student ids look identical to non-existent ones (RLS).
-      const student = await ctx.db.student.findFirst({
-        where: { id: input.studentId, facilityId },
-      });
-      if (!student) {
-        throw notFound('Student not found.');
-      }
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        // Out-of-facility student ids look identical to non-existent ones (RLS).
+        const student = await tx.student.findFirst({
+          where: { id: input.studentId, facilityId },
+        });
+        if (!student) {
+          throw notFound('Student not found.');
+        }
 
-      return ctx.db.enrollment.create({
-        data: {
-          facilityId,
-          studentId: input.studentId,
-          classBatchId: input.classBatchId,
-          status: 'reserved',
-        },
+        return tx.enrollment.create({
+          data: {
+            facilityId,
+            studentId: input.studentId,
+            classBatchId: input.classBatchId,
+            status: 'reserved',
+          },
+        });
       });
     }),
 
   // WF-P1-07: the caller-parent's children's enrollments — filtered to
   // approved-guardian children only, excluding any `blocked_lms` child
   // (docs/19 §2), via the shared gate in ../guardian/approved-children.ts.
+  //
+  // Runs with the RLS bypass GUC (not a facility scope): a parent session has
+  // no single facilityId, and a parent's children may legitimately be
+  // enrolled across different facilities (franchise branches) — the real
+  // access boundary here is `getApprovedChildren`'s approved-Guardian gate,
+  // not facility membership (same rationale as the Guardian/GuardianLinkRequest
+  // RLS exemption, schema.prisma).
   mine: lmsProcedure.query(async ({ ctx }): Promise<EnrollmentMineDto[]> => {
     const children = await getApprovedChildren(ctx.db, ctx.lmsSubject.parentAccountId);
     if (children.length === 0) return [];
 
     const nameByStudentId = new Map(children.map((c) => [c.studentId, c.fullName]));
-    const enrollments = await ctx.db.enrollment.findMany({
-      where: { studentId: { in: children.map((c) => c.studentId) } },
-      orderBy: { createdAt: 'desc' },
+    const enrollments = await withFacility(
+      ctx.db,
+      null,
+      (tx) =>
+        tx.enrollment.findMany({
+          where: { studentId: { in: children.map((c) => c.studentId) } },
+          orderBy: { createdAt: 'desc' },
+        }),
+      { bypass: true },
+    );
+
+    // M3 remediation (docs/08 §7): this is a real child-data disclosure to
+    // the parent — audit it (one row per student actually returned).
+    await auditChildDataAccess(ctx.db, {
+      parentAccountId: ctx.lmsSubject.parentAccountId,
+      studentIds: children.map((c) => c.studentId),
+      via: 'enrollment.mine',
     });
 
     return enrollments.map((e) => ({

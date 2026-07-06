@@ -93,6 +93,28 @@ describe('finance.receiptCreate from opportunity (WF-P1-02)', () => {
     });
   });
 
+  it('rejects an amount exceeding the VND cap — F7', async () => {
+    await expect(
+      sale.finance.receiptCreate({
+        studentName: 'Overflow',
+        parentPhone: '0922000006',
+        amount: 1_000_000_000_001,
+        classBatchId: 'class-batch-overflow-1',
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('rejects a non-integer (sub-unit) amount — F7', async () => {
+    await expect(
+      sale.finance.receiptCreate({
+        studentName: 'SubCent',
+        parentPhone: '0922000007',
+        amount: 1_000_000.5,
+        classBatchId: 'class-batch-subcent-1',
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
   it('rejects a receipt with a missing classBatchId', async () => {
     await expect(
       sale.finance.receiptCreate({

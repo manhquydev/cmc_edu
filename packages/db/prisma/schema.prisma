@@ -114,7 +114,7 @@ enum EmailOutboxStatus {
 model Facility {
   id        String   @id @default(uuid())
   name      String
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 }
 
 model Contact {
@@ -123,8 +123,8 @@ model Contact {
   name          String
   phone         String
   email         String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
   opportunities Opportunity[]
 
   @@index([facilityId])
@@ -136,9 +136,9 @@ model Opportunity {
   contactId  String
   stage      OpportunityStage @default(O1_LEAD)
   lostReason LostReason?
-  closedAt   DateTime?
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+  closedAt   DateTime?        @db.Timestamptz(3)
+  createdAt  DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime         @updatedAt @db.Timestamptz(3)
 
   contact  Contact   @relation(fields: [contactId], references: [id])
   receipts Receipt[]
@@ -149,11 +149,20 @@ model Opportunity {
 
 /// One row per facility; `value` is the last-issued sequence number.
 /// `nextReceiptCode` (packages/domain-finance) formats `value + 1`.
+///
+/// NOTE (RLS, ADR 0042): despite the `facilityId` column name, the current
+/// implementation (apps/api/src/finance/router.ts) keys every row by a
+/// GLOBAL sentinel constant (`GLOBAL_RECEIPT_CODE_COUNTER_KEY`), never a real
+/// facility id — `Receipt.code` is unique system-wide, not per facility.
+/// Postgres RLS is intentionally NOT enabled on this table: a per-facility
+/// `current_setting('app.current_facility_id')` policy would reject the
+/// sentinel-keyed row and break every receipt creation. Treat this table as
+/// global infrastructure, like `AuditLog`/`ParentAccount`.
 model ReceiptCodeCounter {
   id         String   @id @default(uuid())
   facilityId String   @unique
   value      Int      @default(0)
-  updatedAt  DateTime @updatedAt
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([facilityId])
 }
@@ -167,6 +176,12 @@ model Receipt {
   status        ReceiptStatus @default(draft)
   kind          ReceiptKind   @default(new)
   opportunityId String?
+  /// Provenance for renewal reuse (H3 remediation): the Student this receipt
+  /// belongs to, when known at creation time. Nullable — the renewal-reuse
+  /// write path (reusing an existing Student instead of provisioning a new
+  /// one) lands in the next remediation wave; this column only holds the
+  /// shape for it.
+  studentId     String?
   parentPhone   String
   studentName   String
   /// Plain scalar — ClassBatch model arrives with the academic domain phase.
@@ -175,27 +190,40 @@ model Receipt {
   approvedById  String?
   /// Plain scalar — references AppUser.id (arrives with the HR/identity phase).
   createdById   String
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
 
   opportunity Opportunity?   @relation(fields: [opportunityId], references: [id])
   refunds     RefundRecord[]
   student     Student?
 
   @@index([facilityId])
+  @@index([facilityId, parentPhone])
   @@index([opportunityId])
 }
 
 /// Append-only ledger: corrections are new rows, never edits (TL10 §4).
 model RefundRecord {
-  id        String   @id @default(uuid())
-  receiptId String
-  amount    Decimal  @db.Decimal(14, 2)
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  receiptId  String
+  /// M5 remediation: the money ledger must be facility-scoped for RLS
+  /// (defense-in-depth, ADR 0042) — denormalized from `Receipt.facilityId` at
+  /// write time (see finance/router.ts `runRefundTransaction`).
+  facilityId String
+  amount     Decimal  @db.Decimal(14, 2)
+  /// M4 remediation (docs/11 §4 idempotency): caller-supplied key. A repeat
+  /// `refundCreate` call with the same (receiptId, idempotencyKey) returns
+  /// the existing row instead of appending a duplicate. Nullable — refunds
+  /// created without a key are never deduped against each other (Postgres
+  /// unique indexes treat each NULL as distinct).
+  idempotencyKey String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
 
   receipt Receipt @relation(fields: [receiptId], references: [id])
 
+  @@unique([receiptId, idempotencyKey])
   @@index([receiptId])
+  @@index([facilityId])
 }
 
 model Student {
@@ -207,8 +235,8 @@ model Student {
   /// application logic must not create "orphan" students outside that path.
   createdByReceiptId String?  @unique
   lifecycle           StudentLifecycle @default(active)
-  createdAt           DateTime         @default(now())
-  updatedAt            DateTime        @updatedAt
+  createdAt           DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime        @updatedAt @db.Timestamptz(3)
 
   createdByReceipt Receipt?        @relation(fields: [createdByReceiptId], references: [id])
   enrollments      Enrollment[]
@@ -224,8 +252,8 @@ model ParentAccount {
   id                   String                @id @default(uuid())
   phone                String                @unique
   passwordHash         String?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  createdAt            DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime              @updatedAt @db.Timestamptz(3)
   studentAccounts      StudentAccount[]
   guardians            Guardian[]
   guardianLinkRequests GuardianLinkRequest[]
@@ -237,7 +265,7 @@ model StudentAccount {
   id              String   @id @default(uuid())
   studentId       String   @unique
   parentAccountId String
-  createdAt       DateTime @default(now())
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
 
   student       Student       @relation(fields: [studentId], references: [id])
   parentAccount ParentAccount @relation(fields: [parentAccountId], references: [id])
@@ -246,13 +274,21 @@ model StudentAccount {
 }
 
 /// Approved guardian↔student relationship (staff-approved, see GuardianLinkRequest).
+///
+/// NOTE (RLS, ADR 0042): carries `facilityId` (used by the staff-side
+/// `guardian.approveLink`/`rejectLink` app-level `scoped()` filter) but
+/// Postgres RLS is intentionally NOT enabled here. The LMS parent-facing read
+/// path (`getApprovedChildren`) legitimately spans facilities — a parent's
+/// children may be enrolled at different branches — and is gated by
+/// `parentAccountId` ownership (an approved Guardian row), not by facility,
+/// mirroring the ParentAccount/StudentAccount identity exemption.
 model Guardian {
   id              String           @id @default(uuid())
   facilityId      String
   parentAccountId String
   studentId       String
   relation        GuardianRelation
-  createdAt       DateTime         @default(now())
+  createdAt       DateTime         @default(now()) @db.Timestamptz(3)
 
   parentAccount ParentAccount @relation(fields: [parentAccountId], references: [id])
   student       Student       @relation(fields: [studentId], references: [id])
@@ -264,14 +300,18 @@ model Guardian {
 /// A parent's self-service request to link to a student, pending staff review
 /// (`guardian.approveLink`). `studentRef` is the raw input the parent supplied
 /// (e.g. student code) — resolved to a `Guardian` row only on approval.
+///
+/// NOTE (RLS, ADR 0042): same exemption as `Guardian` above — the parent
+/// creates this row before any facility session exists (`requestLink` is an
+/// `lmsProcedure`), so it cannot be gated by a single facility GUC.
 model GuardianLinkRequest {
   id              String             @id @default(uuid())
   facilityId      String
   parentAccountId String
   studentRef      String
   status          GuardianLinkStatus @default(pending)
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  createdAt       DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @db.Timestamptz(3)
 
   parentAccount ParentAccount @relation(fields: [parentAccountId], references: [id])
 
@@ -281,6 +321,13 @@ model GuardianLinkRequest {
 
 /// Two-step lifecycle, Receipt-driven (ADR-A): `enrollment.enroll` creates
 /// `reserved`; `finance.receiptApprove` flips it to `active`. Never set by hand.
+///
+/// H2 remediation: a hand-edited partial unique index
+/// (`enrollment_active_reserved_unique` — see the migration SQL, not
+/// representable as a Prisma `@@unique` because Postgres partial indexes take
+/// a `WHERE` clause) enforces at most one `reserved`/`active` row per
+/// (facilityId, studentId, classBatchId), while still allowing re-enrollment
+/// after `withdrawn`/`completed`.
 model Enrollment {
   id         String           @id @default(uuid())
   facilityId String
@@ -288,8 +335,8 @@ model Enrollment {
   /// Plain scalar — ClassBatch model arrives with the academic domain phase.
   classBatchId String
   status       EnrollmentStatus @default(reserved)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt    DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime         @updatedAt @db.Timestamptz(3)
 
   student Student @relation(fields: [studentId], references: [id])
 
@@ -302,10 +349,17 @@ model Enrollment {
 model LoginOtp {
   id        String         @id @default(uuid())
   phone     String
-  code      String
+  /// Hashed OTP (M11/H5 remediation): `${salt}:${sha256Hex}` — see
+  /// apps/api/src/lms-auth/otp-hash.ts. The plaintext code is never
+  /// persisted.
+  codeHash  String
+  /// H5 remediation: count of failed verify attempts against this row.
+  /// Reaching MAX_OTP_VERIFY_ATTEMPTS (lms-auth/router.ts) locks it
+  /// (status -> expired) so it can never be retried further, even within TTL.
+  attempts  Int            @default(0)
   status    LoginOtpStatus @default(pending)
-  expiresAt DateTime
-  createdAt DateTime       @default(now())
+  expiresAt DateTime       @db.Timestamptz(3)
+  createdAt DateTime       @default(now()) @db.Timestamptz(3)
 
   @@index([phone])
 }
@@ -316,8 +370,8 @@ model EmailOutbox {
   transport EmailTransport
   status    EmailOutboxStatus @default(pending)
   payload   Json
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  createdAt DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime          @updatedAt @db.Timestamptz(3)
 }
 
 model AuditLog {
@@ -327,7 +381,7 @@ model AuditLog {
   entity    String
   entityId  String
   data      Json?
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([entity, entityId])
 }

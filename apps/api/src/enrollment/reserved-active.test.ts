@@ -7,7 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { appRouter } from '../router.js';
 import { activateEnrollmentForReceipt } from './activate-enrollment.js';
-import { buildStaffContext, cleanupFacility, createTestFacility, testDb } from '../test/db.js';
+import { buildStaffContext, cleanupFacility, createTestFacility, testDb, testDbBypass } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
 
@@ -23,7 +23,9 @@ describe('enrollment reserved -> active (WF-P1-05, ADR-A)', () => {
     );
     // Provisioning normally creates Student rows; here we only need a
     // facility-scoped student to exercise the enrollment state machine.
-    student = await testDb().student.create({ data: { facilityId: facility.id, fullName: 'Existing Student' } });
+    student = await testDbBypass((tx) =>
+      tx.student.create({ data: { facilityId: facility.id, fullName: 'Existing Student' } }),
+    );
   });
 
   afterEach(async () => {
@@ -38,7 +40,9 @@ describe('enrollment reserved -> active (WF-P1-05, ADR-A)', () => {
   it('never auto-flips to active on its own — stays reserved until provisioning activates it', async () => {
     const enrollment = await gdkd.enrollment.enroll({ studentId: student.id, classBatchId: 'class-batch-enr-2' });
 
-    const stillReserved = await testDb().enrollment.findUniqueOrThrow({ where: { id: enrollment.id } });
+    const stillReserved = await testDbBypass((tx) =>
+      tx.enrollment.findUniqueOrThrow({ where: { id: enrollment.id } }),
+    );
     expect(stillReserved.status).toBe('reserved');
   });
 
@@ -54,7 +58,9 @@ describe('enrollment reserved -> active (WF-P1-05, ADR-A)', () => {
     expect(activated.id).toBe(enrollment.id);
     expect(activated.status).toBe('active');
 
-    const persisted = await testDb().enrollment.findUniqueOrThrow({ where: { id: enrollment.id } });
+    const persisted = await testDbBypass((tx) =>
+      tx.enrollment.findUniqueOrThrow({ where: { id: enrollment.id } }),
+    );
     expect(persisted.status).toBe('active');
   });
 
@@ -66,9 +72,9 @@ describe('enrollment reserved -> active (WF-P1-05, ADR-A)', () => {
     });
     expect(activated.status).toBe('active');
 
-    const count = await testDb().enrollment.count({
-      where: { studentId: student.id, classBatchId: 'class-batch-enr-4' },
-    });
+    const count = await testDbBypass((tx) =>
+      tx.enrollment.count({ where: { studentId: student.id, classBatchId: 'class-batch-enr-4' } }),
+    );
     expect(count).toBe(1);
   });
 
@@ -86,10 +92,44 @@ describe('enrollment reserved -> active (WF-P1-05, ADR-A)', () => {
 
     expect(second.id).toBe(first.id);
     expect(second.status).toBe('active');
-    const count = await testDb().enrollment.count({
-      where: { studentId: student.id, classBatchId: 'class-batch-enr-5' },
-    });
+    const count = await testDbBypass((tx) =>
+      tx.enrollment.count({ where: { studentId: student.id, classBatchId: 'class-batch-enr-5' } }),
+    );
     expect(count).toBe(1);
+  });
+
+  it('activates a fresh Enrollment after withdraw -> re-pay, never returning the stale withdrawn row — M8', async () => {
+    const activated = await activateEnrollmentForReceipt(testDb(), {
+      facilityId: facility.id,
+      studentId: student.id,
+      classBatchId: 'class-batch-enr-m8',
+    });
+    expect(activated.status).toBe('active');
+
+    await testDbBypass((tx) =>
+      tx.enrollment.update({ where: { id: activated.id }, data: { status: 'withdrawn' } }),
+    );
+
+    const reactivated = await activateEnrollmentForReceipt(testDb(), {
+      facilityId: facility.id,
+      studentId: student.id,
+      classBatchId: 'class-batch-enr-m8',
+    });
+
+    expect(reactivated.id).not.toBe(activated.id);
+    expect(reactivated.status).toBe('active');
+
+    const withdrawnRow = await testDbBypass((tx) =>
+      tx.enrollment.findUniqueOrThrow({ where: { id: activated.id } }),
+    );
+    expect(withdrawnRow.status).toBe('withdrawn');
+
+    const activeCount = await testDbBypass((tx) =>
+      tx.enrollment.count({
+        where: { studentId: student.id, classBatchId: 'class-batch-enr-m8', status: 'active' },
+      }),
+    );
+    expect(activeCount).toBe(1);
   });
 
   it('exposes no direct mutation to set an enrollment active — only enroll() (reserved) is on the router', async () => {

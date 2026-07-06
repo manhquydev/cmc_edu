@@ -19,6 +19,7 @@
 // through any other path until approved.
 
 import { z } from 'zod';
+import { withFacility } from '@cmc/db';
 import { badRequest, conflict, notFound } from '../errors.js';
 import { lmsProcedure, requirePermission, router, scoped } from '../trpc.js';
 
@@ -48,13 +49,23 @@ export const guardianRouter = router({
     .mutation(async ({ ctx, input }): Promise<RequestLinkResult> => {
       const { parentAccountId } = ctx.lmsSubject;
 
+      // A parent session has no single facilityId (a parent's children may
+      // be at different facilities) and the target student's facility is not
+      // known until it is looked up — so this Student read runs under the
+      // RLS bypass GUC, same as `getApprovedChildren` (ADR 0042).
       // Server-derived facilityId (never trust a client-supplied one). This
       // lookup only ever reads `facilityId` internally — nothing about the
       // student is returned to the caller in any branch below.
-      const student = await ctx.db.student.findUnique({
-        where: { id: input.studentRef },
-        select: { id: true, facilityId: true },
-      });
+      const student = await withFacility(
+        ctx.db,
+        null,
+        (tx) =>
+          tx.student.findUnique({
+            where: { id: input.studentRef },
+            select: { id: true, facilityId: true },
+          }),
+        { bypass: true },
+      );
       if (!student) {
         throw notFound('Student reference not found.');
       }
@@ -92,7 +103,7 @@ export const guardianRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
 
-      return ctx.db.$transaction(async (tx) => {
+      return withFacility(ctx.db, facilityId, async (tx) => {
         const request = await tx.guardianLinkRequest.findFirst({
           where: { id: input.requestId, facilityId },
         });
@@ -141,24 +152,26 @@ export const guardianRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
 
-      const request = await ctx.db.guardianLinkRequest.findFirst({
-        where: { id: input.requestId, facilityId },
-      });
-      if (!request) {
-        throw notFound('Guardian link request not found.');
-      }
-      if (request.status !== 'pending') {
-        throw badRequest(`Request is "${request.status}", not "pending"; it cannot be rejected.`);
-      }
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const request = await tx.guardianLinkRequest.findFirst({
+          where: { id: input.requestId, facilityId },
+        });
+        if (!request) {
+          throw notFound('Guardian link request not found.');
+        }
+        if (request.status !== 'pending') {
+          throw badRequest(`Request is "${request.status}", not "pending"; it cannot be rejected.`);
+        }
 
-      const claim = await ctx.db.guardianLinkRequest.updateMany({
-        where: { id: request.id, facilityId, status: 'pending' },
-        data: { status: 'rejected' },
-      });
-      if (claim.count !== 1) {
-        throw conflict('Request was already reviewed by a concurrent call.');
-      }
+        const claim = await tx.guardianLinkRequest.updateMany({
+          where: { id: request.id, facilityId, status: 'pending' },
+          data: { status: 'rejected' },
+        });
+        if (claim.count !== 1) {
+          throw conflict('Request was already reviewed by a concurrent call.');
+        }
 
-      return { requestId: request.id, status: 'rejected' as const };
+        return { requestId: request.id, status: 'rejected' as const };
+      });
     }),
 });

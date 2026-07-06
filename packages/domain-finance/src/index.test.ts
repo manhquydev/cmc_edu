@@ -4,7 +4,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertRefundWithinCap,
-  computeNetAmount,
   computeReceiptKind,
   nextReceiptCode,
   RefundCapExceededError,
@@ -13,7 +12,6 @@ import {
 describe('@cmc/domain-finance barrel', () => {
   it('re-exports the pure functions and error class', () => {
     expect(typeof assertRefundWithinCap).toBe('function');
-    expect(typeof computeNetAmount).toBe('function');
     expect(typeof nextReceiptCode).toBe('function');
     expect(typeof computeReceiptKind).toBe('function');
     expect(RefundCapExceededError.prototype).toBeInstanceOf(Error);

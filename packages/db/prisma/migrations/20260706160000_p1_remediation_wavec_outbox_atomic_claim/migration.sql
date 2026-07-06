@@ -1,0 +1,18 @@
+-- P1 remediation Wave C (R3, deep-review adversarial verification) — atomic
+-- claim state for `EmailOutbox` so `relayEmailOutbox` is safe to run from
+-- multiple worker replicas concurrently. Hand-written (like every prior
+-- remediation-wave migration — `prisma migrate dev` is non-interactive here).
+--
+-- Before this migration, `relayEmailOutbox` read every pending/failed row,
+-- sent it, then marked it sent/failed with no claim in between — two
+-- concurrent replicas draining the same outbox would both read the same
+-- `pending` row and both send it (a double-send). `sending` is a transient
+-- claim state: an `updateMany WHERE status IN ('pending','failed')` (the same
+-- atomic-claim shape as `finance.receiptApprove`'s `status: 'draft'`
+-- predicate) lets exactly one replica transition a row to `sending` before it
+-- attempts delivery.
+--
+-- `ALTER TYPE ... ADD VALUE` runs fine inside Prisma's per-migration
+-- transaction on Postgres 12+ as long as the new value is not used in the
+-- same transaction (it is not, here) .
+ALTER TYPE "EmailOutboxStatus" ADD VALUE 'sending';

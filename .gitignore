@@ -116,3 +116,7 @@ scripts/bin/harness-symphony.exe
 .symphony/
 # Per-run artifacts (SUMMARY/RESULT/CONTRACT); only changesets are durable
 .harness/runs/
+
+# Test coverage artifacts
+coverage/
+**/coverage/

@@ -2,8 +2,8 @@ name: CI
 
 on:
   pull_request:
-  push:
     branches: [main]
+  push:
 
 env:
   # Ephemeral, CI-only credentials for the postgres service below — never a
@@ -72,6 +72,9 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Coverage threshold — domain-payroll (≥90% lines + functions)
+        run: pnpm --filter @cmc/domain-payroll run test:coverage
 
   # Follow-up per docs/26 phase-02: wired so it is easy to promote to a
   # blocking gate once the shared-DB e2e run has proven stable in CI.

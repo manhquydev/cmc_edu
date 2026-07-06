@@ -261,3 +261,6 @@
 - attendance.mark/markAll/listBySession (5 gates, upsert+audit, RLS); classSession.cancel/confirm/addMakeup.
 - apps/e2e Playwright API-driven skeleton (2 critical paths); GitHub Actions CI (typecheck+test on Postgres service).
 - T1 gate: 0 Crit/High; M1+L2 backlogged (#11). 176 api tests + e2e 2/2.
+
+## 2026-07-06 — T2-I: exercise foundation (PR #4)
+- @cmc/storage blob seam (local-disk); global CurriculumUnit/Exercise (no-RLS QĐ0021/0022); classSession.assignUnit; exercise create/publish/close; raw-PDF upload route (auth+mime+10MB). 192 api tests + storage 7.

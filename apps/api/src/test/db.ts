@@ -82,6 +82,13 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
   // teardown as RefundRecord/AuditLog. Must run before the ClassSession/
   // Enrollment/Student deletes below (all RESTRICT FKs from Attendance).
   await privilegedDb().attendance.deleteMany({ where: { facilityId } });
+  // T2-II: `cmc_app` has no DELETE grant on Submission/FinalGrade/
+  // StarTransaction either (same wave-A least-privilege default new tables
+  // get — see the T2-II migration). Must run before the Student/ClassBatch
+  // deletes below (RESTRICT FKs from all three).
+  await privilegedDb().submission.deleteMany({ where: { facilityId } });
+  await privilegedDb().finalGrade.deleteMany({ where: { facilityId } });
+  await privilegedDb().starTransaction.deleteMany({ where: { facilityId } });
   await testDbBypass(async (tx) => {
     // `studentAccount` has no facilityId of its own — the relational filter
     // joins through `student` (RLS-protected), so this delete also needs the
@@ -199,6 +206,36 @@ export async function seedGuardianLink(
   return request;
 }
 
+/**
+ * T2-II (F1 remediation): seeds an active Enrollment AND an approved Guardian
+ * link in one call. `parentAccountId` MUST be a real `ParentAccount.id` (FK
+ * constraint on Guardian). Use `seedParentAccount` first if you need to create
+ * the account, or seed one in the test's `beforeEach` and pass its id here.
+ *
+ * This is the recommended helper for any T2-II test that calls an LMS
+ * procedure that resolves a student (`loadLmsStudent`) — after the F1 fix
+ * those procedures verify the parent→student Guardian link every time.
+ */
+export async function seedEnrolledStudentWithGuardian(opts: {
+  facilityId: string;
+  classBatchId: string;
+  parentAccountId: string;
+  studentName?: string;
+}): Promise<{ id: string; studentId: string; classBatchId: string }> {
+  const enrollment = await seedActiveEnrollment({
+    facilityId: opts.facilityId,
+    classBatchId: opts.classBatchId,
+    studentName: opts.studentName,
+  });
+  await seedGuardianLink({
+    facilityId: opts.facilityId,
+    parentAccountId: opts.parentAccountId,
+    studentId: enrollment.studentId,
+    status: 'approved',
+  });
+  return enrollment;
+}
+
 export interface SeedClassBatchOptions {
   facilityId: string;
   program?: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE';
@@ -301,6 +338,40 @@ export async function cleanupCurriculumUnits(...curriculumUnitIds: string[]): Pr
   if (curriculumUnitIds.length === 0) return;
   await privilegedDb().exercise.deleteMany({ where: { curriculumUnitId: { in: curriculumUnitIds } } });
   await privilegedDb().curriculumUnit.deleteMany({ where: { id: { in: curriculumUnitIds } } });
+}
+
+export interface SeedClassSessionOptions {
+  facilityId: string;
+  classBatchId: string;
+  curriculumUnitId?: string | null;
+  isMakeup?: boolean;
+  status?: 'planned' | 'confirmed' | 'cancelled';
+  sessionDate?: Date;
+  startTime?: Date;
+  endTime?: Date;
+}
+
+/** T2-II (open-tier / grading tests): seeds a plain `ClassSession` directly
+ * (bypasses generation), with the extra knobs (`curriculumUnitId`,
+ * `isMakeup`, `endTime`) ADR 0038's Tier A/B gate reads. */
+export async function seedClassSession(
+  opts: SeedClassSessionOptions,
+): Promise<{ id: string; classBatchId: string; curriculumUnitId: string | null; isMakeup: boolean; status: string }> {
+  return testDbBypass((tx) =>
+    tx.classSession.create({
+      data: {
+        facilityId: opts.facilityId,
+        classBatchId: opts.classBatchId,
+        sessionDate: opts.sessionDate ?? new Date('2026-08-03T00:00:00.000Z'),
+        startTime: opts.startTime ?? new Date('2026-08-03T11:00:00.000Z'),
+        endTime: opts.endTime ?? new Date('2026-08-03T12:30:00.000Z'),
+        status: opts.status ?? 'planned',
+        isMakeup: opts.isMakeup ?? false,
+        curriculumUnitId: opts.curriculumUnitId ?? null,
+      },
+      select: { id: true, classBatchId: true, curriculumUnitId: true, isMakeup: true, status: true },
+    }),
+  );
 }
 
 export interface SeedActiveEnrollmentOptions {

@@ -97,6 +97,12 @@ export const PERMISSIONS: Record<string, readonly Role[]> = {
   // permission key for create/publish/close/upload + `curriculumUnit.list`
   // (documented deviation, phase-03 spec §Procedures).
   'exercise.manage': ['giam_doc_dao_tao'],
+  // T2-II (docs/26 WF-P2-06, TL19 §6): grading a Submission (score + Grade +
+  // star award) is a teacher-facing action, unlike `exercise.manage`'s
+  // director-only scope above — the spec names `giao_vien/GĐĐT/super_admin`
+  // (super_admin bypasses via can()'s registry-independent check, so it is
+  // never listed in a row here, matching every other entry's convention).
+  'submission.grade': ['giao_vien', 'giam_doc_dao_tao'],
 };
 
 /**

@@ -85,3 +85,25 @@ export function addDaysToDateOnly(dateOnly: string, days: number): string {
 export function compareDateOnly(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
+
+const MONTH_ONLY_RE = /^(\d{4})-(\d{2})$/;
+
+/**
+ * The `[inclusive start, exclusive end)` UTC instants bounding an ICT
+ * calendar month (`YYYY-MM`, the shape `ictMonthOf` returns). Used by T2-II's
+ * `FinalGrade` recompute (`submission.grade`) to bucket graded submissions
+ * and attendance rows into the same monthly window `ictMonthOf` already
+ * assigns them to.
+ */
+export function ictMonthBounds(period: string): [Date, Date] {
+  const match = MONTH_ONLY_RE.exec(period);
+  if (!match) throw new RangeError(`Expected YYYY-MM, got "${period}".`);
+  const [, y, m] = match as unknown as [string, string, string];
+  const year = Number(y);
+  const month = Number(m);
+  const start = ictToUtc(`${y}-${m}-01`, '00:00');
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  const end = ictToUtc(`${String(nextYear).padStart(4, '0')}-${String(nextMonth).padStart(2, '0')}-01`, '00:00');
+  return [start, end];
+}

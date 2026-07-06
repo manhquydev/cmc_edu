@@ -153,6 +153,27 @@ enum ExerciseStatus {
   closed
 }
 
+/// Submission lifecycle (docs/19 §3, WF-P2-05, T2-II). `draft` = student is
+/// still editing (re-saves increment `version`); `submitted` = immutable,
+/// awaiting grading; `graded` = GV has scored it (may be re-graded, but never
+/// reverts to `submitted`/`draft`).
+enum SubmissionStatus {
+  draft
+  submitted
+  graded
+}
+
+/// Star ledger entry kind (docs/19 §6, WF-P2-06, T2-II). Fixed 4-value set per
+/// phase-03 spec — `gift_redeemed`/`gift_rejected_refund`/`manual` are not
+/// exercised by this phase's procedures (no gift-catalog story yet) but are
+/// part of the documented enum contract for the later rewards phase.
+enum StarTxnType {
+  homework_completed
+  gift_redeemed
+  gift_rejected_refund
+  manual
+}
+
 enum EmailOutboxStatus {
   pending
   /// R3 remediation (deep-review adversarial verification): a transient claim
@@ -311,6 +332,9 @@ model Student {
   guardians        Guardian[]
   studentAccount   StudentAccount?
   attendances      Attendance[]
+  submissions      Submission[]
+  finalGrades      FinalGrade[]
+  starTransactions StarTransaction[]
 
   @@index([facilityId])
 }
@@ -483,6 +507,7 @@ model ClassBatch {
   classSessions ClassSession[]
   enrollments   Enrollment[]
   receipts      Receipt[]
+  finalGrades   FinalGrade[]
 
   @@unique([facilityId, code])
   @@index([facilityId])
@@ -598,10 +623,104 @@ model Exercise {
   updatedAt        DateTime       @updatedAt @db.Timestamptz(3)
 
   curriculumUnit CurriculumUnit @relation(fields: [curriculumUnitId], references: [id])
+  submissions    Submission[]
 
   // One exercise per (unit, type) — TL19 §3 "unique [curriculumUnitId, type]".
   @@unique([curriculumUnitId, type])
   @@index([curriculumUnitId])
+}
+
+// ---------------------------------------------------------------------------
+// T2-II — Submission + grading + stars (docs/26 WF-P2-03/05/06, TL19 §3/§6,
+// ADR 0038, docs/decisions/0042). Unlike Exercise/CurriculumUnit (global
+// catalogs above), Submission/FinalGrade/StarTransaction are child-produced
+// or child-attributed data tied to one facility — **facilityId + RLS** on
+// all three (docs/decisions/0042).
+// ---------------------------------------------------------------------------
+
+/// Student's PDF-annotation submission for one Exercise (docs/19 §3,
+/// WF-P2-05). One row per (exerciseId, studentId) — re-drafting updates the
+/// SAME row (`version` increments), it never creates a second Submission.
+model Submission {
+  id              String           @id @default(uuid())
+  facilityId      String
+  exerciseId      String
+  studentId       String
+  /// The student's PDF annotation overlay (docs/19 §3) — capped at 1MB by the
+  /// application (`submission.saveDraft`), not enforced at the DB layer.
+  annotationLayer Json
+  answerText      String?
+  version         Int              @default(1)
+  status          SubmissionStatus @default(draft)
+  submittedAt     DateTime?        @db.Timestamptz(3)
+  /// Addition beyond the phase-03 field list: the instant `submission.grade`
+  /// last scored this row. Needed to bucket a (re)grade into the correct
+  /// `FinalGrade.period` (ICT month) without conflating it with
+  /// `submittedAt` — a regrade must re-bucket by WHEN IT WAS GRADED, not by
+  /// the original submission time.
+  gradedAt        DateTime?        @db.Timestamptz(3)
+  score           Int?
+  gradedById      String?
+  createdAt       DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @db.Timestamptz(3)
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id])
+  student  Student  @relation(fields: [studentId], references: [id])
+
+  @@unique([exerciseId, studentId])
+  @@index([facilityId])
+  @@index([studentId])
+  @@index([exerciseId])
+}
+
+/// Per-(student, class, ICT-month) grade aggregate — the phase-03 spec's
+/// `Grade`/`FinalGrade` collapsed into the single-table option it names
+/// ("or a single FinalGrade keyed (studentId, classBatchId, period)").
+/// `period` = ICT calendar month (`YYYY-MM`, `ictMonthOf`) of the triggering
+/// grade — the SAME monthly bucket `Attendance`'s rate uses (docs/19 §5/§6),
+/// so one `computeFinalGrade` call combines a student's exercise scores and
+/// attendance rate for the same calendar month. **Documented assumption**
+/// (TL19 §6 does not pin an exact period grain or weighting — see
+/// `@cmc/domain-grading`).
+model FinalGrade {
+  id           String   @id @default(uuid())
+  facilityId   String
+  studentId    String
+  classBatchId String
+  /// ICT calendar month, `YYYY-MM`.
+  period       String
+  score        Float
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  student    Student    @relation(fields: [studentId], references: [id])
+  classBatch ClassBatch @relation(fields: [classBatchId], references: [id])
+
+  @@unique([studentId, classBatchId, period])
+  @@index([facilityId])
+  @@index([classBatchId])
+}
+
+/// Append-mindset star ledger (docs/19 §6, WF-P2-06): `homework_completed`
+/// awards `Exercise.starReward` exactly once per graded Submission —
+/// idempotent across regrades. `submission.grade` checks
+/// `(refType='submission', refId=submissionId, type='homework_completed')`
+/// before inserting; a hand-added partial unique index in this phase's
+/// migration backstops the same invariant at the DB layer (same pattern as
+/// the hand-added `enrollment_active_reserved_unique` index, H2 remediation).
+model StarTransaction {
+  id         String      @id @default(uuid())
+  facilityId String
+  studentId  String
+  type       StarTxnType
+  amount     Int
+  refType    String?
+  refId      String?
+  createdAt  DateTime    @default(now()) @db.Timestamptz(3)
+
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@index([facilityId])
+  @@index([studentId])
 }
 
 /// T1 attendance (docs/19 §5, WF-P2-02): one row per (ClassSession,

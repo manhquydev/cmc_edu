@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@cmc/auth': fileURLToPath(new URL('../../packages/auth/src/index.ts', import.meta.url)),
+      '@cmc/storage': fileURLToPath(new URL('../../packages/storage/src/index.ts', import.meta.url)),
     },
   },
   test: {

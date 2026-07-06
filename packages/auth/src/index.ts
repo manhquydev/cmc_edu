@@ -91,6 +91,12 @@ export const PERMISSIONS: Record<string, readonly Role[]> = {
   // `classSession.cancel`/`confirm`/`addMakeup` via `schedule.generate`
   // (unchanged, GĐĐT-only — session lifecycle stays a training-ops action).
   'attendance.mark': ['giao_vien', 'giam_doc_dao_tao'],
+  // T2-I (docs/26 WF-P2-04, TL19 §3): Exercise/CurriculumUnit management is a
+  // director-only action, like `course.manage`/`room.manage` above — the spec
+  // names `assessment.*`/`exercise.*` (TL25) but this repo's registry uses one
+  // permission key for create/publish/close/upload + `curriculumUnit.list`
+  // (documented deviation, phase-03 spec §Procedures).
+  'exercise.manage': ['giam_doc_dao_tao'],
 };
 
 /**

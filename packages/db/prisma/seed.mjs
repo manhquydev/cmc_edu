@@ -19,13 +19,36 @@ async function main() {
     const existing = await db.facility.findFirst({ where: { name: DEV_SEED_FACILITY_NAME } });
     if (existing) {
       console.log(`Seed facility already exists: ${existing.id}`);
-      return;
+    } else {
+      const created = await db.facility.create({ data: { name: DEV_SEED_FACILITY_NAME } });
+      console.log(`Seeded facility: ${created.id}`);
     }
-    const created = await db.facility.create({ data: { name: DEV_SEED_FACILITY_NAME } });
-    console.log(`Seeded facility: ${created.id}`);
+
+    await seedCurriculumUnits(db);
   } finally {
     await db.$disconnect();
   }
+}
+
+// T2-I (docs/19 §1, QĐ 0021): a minimal UCREA unit set so
+// `classSession.assignUnit`/`exercise.create` have something real to
+// reference in dev/manual smoke-testing. CurriculumUnit is a GLOBAL catalog
+// (no facilityId) — idempotent by "does any row already exist" (unlike the
+// facility seed above, there is no natural unique field to find-or-create by).
+async function seedCurriculumUnits(db) {
+  const existingCount = await db.curriculumUnit.count();
+  if (existingCount > 0) {
+    console.log(`CurriculumUnit already seeded (${existingCount} rows).`);
+    return;
+  }
+
+  const units = await db.curriculumUnit.createMany({
+    data: [
+      { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'Bài 1: Làm quen' },
+      { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'REVIEW', title: 'Ôn tập tháng 1' },
+    ],
+  });
+  console.log(`Seeded ${units.count} CurriculumUnit rows.`);
 }
 
 main().catch((error) => {

@@ -20,6 +20,11 @@ const timeOfDaySchema = z.string().refine(isValidTimeOfDay, { message: 'Expected
 
 const sessionIdInput = z.object({ sessionId: z.string().uuid() });
 
+const assignUnitInput = z.object({
+  sessionId: z.string().uuid(),
+  curriculumUnitId: z.string().uuid(),
+});
+
 const addMakeupInput = z
   .object({
     classBatchId: z.string().uuid(),
@@ -41,6 +46,7 @@ export interface ClassSessionDto {
   endTime: Date;
   status: string;
   isMakeup: boolean;
+  curriculumUnitId: string | null;
 }
 
 function toClassSessionDto(row: {
@@ -52,6 +58,7 @@ function toClassSessionDto(row: {
   endTime: Date;
   status: string;
   isMakeup: boolean;
+  curriculumUnitId: string | null;
 }): ClassSessionDto {
   return {
     id: row.id,
@@ -62,6 +69,7 @@ function toClassSessionDto(row: {
     endTime: row.endTime,
     status: row.status,
     isMakeup: row.isMakeup,
+    curriculumUnitId: row.curriculumUnitId,
   };
 }
 
@@ -170,6 +178,39 @@ export const classSessionRouter = router({
         });
 
         return toClassSessionDto(session);
+      });
+    }),
+
+  // T2-I (docs/26 WF-P2-01 remainder, phase-03 §Schema): sets the curriculum
+  // unit a session teaches — the Tier A open-tier gate (ADR 0038, T2-II)
+  // reads this to know which unit's exercises to open once the session ends.
+  // `CurriculumUnit` is a GLOBAL table (no facilityId, no RLS — QĐ 0021), so
+  // only the session lookup is facility-scoped; the unit lookup is a plain
+  // `ctx.db` call, same pattern as ../exercise/router.ts.
+  assignUnit: requirePermission('schedule', 'generate')
+    .input(assignUnitInput)
+    .mutation(async ({ ctx, input }): Promise<ClassSessionDto> => {
+      const { facilityId } = scoped(ctx);
+
+      const unit = await ctx.db.curriculumUnit.findUnique({ where: { id: input.curriculumUnitId } });
+      if (!unit) {
+        throw notFound('CurriculumUnit not found.');
+      }
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const session = await tx.classSession.findFirst({
+          where: { id: input.sessionId, facilityId },
+        });
+        if (!session) {
+          throw notFound('ClassSession not found.');
+        }
+
+        const updated = await tx.classSession.update({
+          where: { id: session.id },
+          data: { curriculumUnitId: input.curriculumUnitId },
+        });
+
+        return toClassSessionDto(updated);
       });
     }),
 });

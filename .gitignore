@@ -12,6 +12,9 @@ node_modules/
 !.yarn/releases
 !.yarn/versions
 
+# @cmc/storage local-disk dev blobs (LocalDiskBlobStorage default dir)
+.data/
+
 # testing
 /coverage
 

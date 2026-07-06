@@ -103,6 +103,15 @@ export const PERMISSIONS: Record<string, readonly Role[]> = {
   // (super_admin bypasses via can()'s registry-independent check, so it is
   // never listed in a row here, matching every other entry's convention).
   'submission.grade': ['giao_vien', 'giam_doc_dao_tao'],
+  // T3 (docs/26 WF-P2-07): AI-draft is also accessible to GĐĐT (training
+  // director) who may need to trigger batch drafts; confirm/discard is
+  // teacher-only (GV is the one accountable for what goes to parents).
+  'assessment.draft': ['giao_vien', 'giam_doc_dao_tao'],
+  'assessment.confirm': ['giao_vien'],
+  // T3 (docs/26 WF-P2-08): session evidence is teacher-authored; publish
+  // gates what parents can see so it shares the same teacher-only roster.
+  'sessionEvidence.upsert': ['giao_vien'],
+  'sessionEvidence.publish': ['giao_vien'],
 };
 
 /**

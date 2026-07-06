@@ -327,14 +327,15 @@ model Student {
   createdAt           DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime        @updatedAt @db.Timestamptz(3)
 
-  createdByReceipt Receipt?        @relation(fields: [createdByReceiptId], references: [id])
-  enrollments      Enrollment[]
-  guardians        Guardian[]
-  studentAccount   StudentAccount?
-  attendances      Attendance[]
-  submissions      Submission[]
-  finalGrades      FinalGrade[]
-  starTransactions StarTransaction[]
+  createdByReceipt      Receipt?               @relation(fields: [createdByReceiptId], references: [id])
+  enrollments           Enrollment[]
+  guardians             Guardian[]
+  studentAccount        StudentAccount?
+  attendances           Attendance[]
+  submissions           Submission[]
+  finalGrades           FinalGrade[]
+  starTransactions      StarTransaction[]
+  qualitativeAssessments QualitativeAssessment[]
 
   @@index([facilityId])
 }
@@ -375,13 +376,27 @@ model StudentAccount {
 /// children may be enrolled at different branches — and is gated by
 /// `parentAccountId` ownership (an approved Guardian row), not by facility,
 /// mirroring the ParentAccount/StudentAccount identity exemption.
+///
+/// T3 (C2, TL08 §7): `photoConsent` = whether this parent has consented to
+/// photos of their child being shared via session evidence. Revocation is
+/// captured by `photoConsentRevokedAt` — consent is active only when
+/// `photoConsent = true AND photoConsentRevokedAt IS NULL`. UI-level tagging
+/// of which children appear in which photo is a deferred concern (decision
+/// note in phase-04 spec); this gate is the mandatory data-minimisation floor.
 model Guardian {
-  id              String           @id @default(uuid())
-  facilityId      String
-  parentAccountId String
-  studentId       String
-  relation        GuardianRelation
-  createdAt       DateTime         @default(now()) @db.Timestamptz(3)
+  id                     String           @id @default(uuid())
+  facilityId             String
+  parentAccountId        String
+  studentId              String
+  relation               GuardianRelation
+  /// C2 (TL08 §7): has this parent consented to photos of their child being
+  /// shared in session evidence? Default false — opt-in, not opt-out.
+  photoConsent           Boolean          @default(false)
+  /// Set when photoConsent is granted (the instant, not just the date).
+  photoConsentAt         DateTime?        @db.Timestamptz(3)
+  /// Set when consent is revoked; photos are hidden immediately on revocation.
+  photoConsentRevokedAt  DateTime?        @db.Timestamptz(3)
+  createdAt              DateTime         @default(now()) @db.Timestamptz(3)
 
   parentAccount ParentAccount @relation(fields: [parentAccountId], references: [id])
   student       Student       @relation(fields: [studentId], references: [id])
@@ -566,10 +581,12 @@ model ClassSession {
   createdAt      DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime      @updatedAt @db.Timestamptz(3)
 
-  classBatch     ClassBatch      @relation(fields: [classBatchId], references: [id])
-  scheduleSlot   ScheduleSlot?   @relation(fields: [scheduleSlotId], references: [id])
-  curriculumUnit CurriculumUnit? @relation(fields: [curriculumUnitId], references: [id])
-  attendances    Attendance[]
+  classBatch             ClassBatch             @relation(fields: [classBatchId], references: [id])
+  scheduleSlot           ScheduleSlot?          @relation(fields: [scheduleSlotId], references: [id])
+  curriculumUnit         CurriculumUnit?        @relation(fields: [curriculumUnitId], references: [id])
+  attendances            Attendance[]
+  qualitativeAssessments QualitativeAssessment[]
+  sessionEvidence        SessionEvidence?
 
   // Re-generate idempotency (WF-P2-01 acceptance: "re-generate không nhân
   // đôi"): at most one session per (classBatch, slot, calendar day).
@@ -808,4 +825,83 @@ model AuditLog {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([entity, entityId])
+}
+
+// ---------------------------------------------------------------------------
+// T3 — Assessment (WF-P2-07) + Session evidence + Consent (WF-P2-08 + C2).
+// All three are facility-scoped + RLS (ADR 0042). Guardian.photoConsent
+// columns are added via ALTER TABLE in the T3 migration (no new model there).
+// ---------------------------------------------------------------------------
+
+/// AI-drafted or teacher-authored qualitative assessment for a student.
+/// `status`: draft (AI produced, awaiting teacher review) → confirmed (teacher
+/// approved and optionally edited) | discarded (teacher rejected outright).
+/// `draftedBy`: 'ai' when `assessment.draftComment` generated it, 'teacher'
+/// if a teacher wrote it directly without the LLM path.
+/// One assessment can be session-scoped (`classSessionId`) OR period-scoped
+/// (`period = 'YYYY-MM'`) for monthly report cards — at least one must be set
+/// (enforced at the application layer, not the DB).
+/// Facility-scoped, RLS.
+model QualitativeAssessment {
+  id             String    @id @default(uuid())
+  facilityId     String
+  studentId      String
+  classSessionId String?
+  /// ICT calendar month `YYYY-MM` for monthly report-card assessments.
+  period         String?
+  content        String    @default("")
+  /// draft | confirmed | discarded
+  status         String    @default("draft")
+  /// ai | teacher
+  draftedBy      String    @default("ai")
+  confidence     Float?
+  confirmedById  String?
+  confirmedAt    DateTime? @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+
+  student       Student       @relation(fields: [studentId], references: [id])
+  classSession  ClassSession? @relation(fields: [classSessionId], references: [id])
+
+  @@index([facilityId])
+  @@index([studentId, period])
+}
+
+/// Teacher-authored evidence record for one class session (summary + optional
+/// photos). One row per `classSessionId` (UNIQUE). `internalNote` is
+/// staff-only — it MUST NEVER appear in any LMS-facing response (enforced
+/// in `session-evidence/router.ts`). Facility-scoped, RLS.
+model SessionEvidence {
+  id             String    @id @default(uuid())
+  facilityId     String
+  classSessionId String    @unique
+  summary        String    @default("")
+  /// Staff-only field. NEVER serialize to LMS responses.
+  internalNote   String    @default("")
+  /// draft | published
+  status         String    @default("draft")
+  publishedById  String?
+  publishedAt    DateTime? @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+
+  classSession ClassSession        @relation(fields: [classSessionId], references: [id])
+  photos       SessionEvidencePhoto[]
+
+  @@index([facilityId])
+}
+
+/// One photo attached to a SessionEvidence record. `blobRef` is a @cmc/storage
+/// blob key (not a DB-stored file). Photo visibility to parents is gated by
+/// `Guardian.photoConsent` (C2). Facility-scoped, RLS.
+model SessionEvidencePhoto {
+  id                String   @id @default(uuid())
+  facilityId        String
+  sessionEvidenceId String
+  blobRef           String
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+
+  sessionEvidence SessionEvidence @relation(fields: [sessionEvidenceId], references: [id])
+
+  @@index([sessionEvidenceId])
 }

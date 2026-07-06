@@ -8,7 +8,7 @@
 // mechanism -- this function does not need to know which sessions already
 // exist).
 
-import { addDaysToDateOnly, compareDateOnly, ictToUtc, weekdayOf } from './ict-time.js';
+import { addDaysToDateOnly, compareDateOnly, ictToUtc, weekdayOf } from '@cmc/domain-time';
 
 export interface SlotForPlanning {
   id?: string;

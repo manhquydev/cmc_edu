@@ -8,7 +8,7 @@ import { requirePermission, router, scoped } from '../trpc.js';
 import { nextClassBatchCode } from './class-code.js';
 import { MAX_CLASS_SPAN_DAYS, planClassSessions, spanDaysInclusive } from './generate-sessions.js';
 import { assertNoRoomConflict } from './room-conflict.js';
-import { compareDateOnly, ictToUtc, isValidDateOnly, isValidTimeOfDay } from './ict-time.js';
+import { compareDateOnly, ictToUtc, isValidDateOnly, isValidTimeOfDay } from '@cmc/domain-time';
 
 const dateOnlySchema = z.string().refine(isValidDateOnly, { message: 'Expected YYYY-MM-DD.' });
 const timeOfDaySchema = z.string().refine(isValidTimeOfDay, { message: 'Expected HH:mm (24h).' });

@@ -199,6 +199,13 @@ model Facility {
   /// (see apps/api/src/facility/router.ts), so no P1 caller needs updating.
   code      String   @unique
   createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  /// P3-I back-relations — added when AppUser/FacilityNetwork/TimePunch/
+  /// ManualAttendanceTicket were introduced (P3-I HR/identity phase).
+  appUsers        AppUser[]
+  facilityNetworks FacilityNetwork[]
+  timePunches     TimePunch[]
+  manualTickets   ManualAttendanceTicket[]
 }
 
 model Contact {
@@ -277,13 +284,18 @@ model Receipt {
   approvedById  String?
   /// Plain scalar — references AppUser.id (arrives with the HR/identity phase).
   createdById   String
+  /// P3-I: real FK to AppUser (nullable — backfill; old rows keep plain scalar).
+  createdByAppUserId  String?
+  approvedByAppUserId String?
   createdAt     DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
 
-  opportunity Opportunity?   @relation(fields: [opportunityId], references: [id])
-  classBatch  ClassBatch?    @relation(fields: [classBatchId], references: [id])
-  refunds     RefundRecord[]
-  student     Student?
+  opportunity       Opportunity?   @relation(fields: [opportunityId], references: [id])
+  classBatch        ClassBatch?    @relation(fields: [classBatchId], references: [id])
+  refunds           RefundRecord[]
+  student           Student?
+  createdByAppUser  AppUser?       @relation("ReceiptCreatedBy", fields: [createdByAppUserId], references: [id])
+  approvedByAppUser AppUser?       @relation("ReceiptApprovedBy", fields: [approvedByAppUserId], references: [id])
 
   @@index([facilityId])
   @@index([facilityId, parentPhone])
@@ -513,16 +525,21 @@ model ClassBatch {
   status      String   @default("active")
   /// Plain scalar — references AppUser.id (dev-session `userId`).
   createdById String
+  /// P3-I: real FK to AppUser (nullable — backfill; old rows keep plain scalar).
+  teacherAppUserId    String?
+  createdByAppUserId  String?
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 
-  course        Course         @relation(fields: [courseId], references: [id])
-  room          Room?          @relation(fields: [roomId], references: [id])
-  scheduleSlots ScheduleSlot[]
-  classSessions ClassSession[]
-  enrollments   Enrollment[]
-  receipts      Receipt[]
-  finalGrades   FinalGrade[]
+  course           Course         @relation(fields: [courseId], references: [id])
+  room             Room?          @relation(fields: [roomId], references: [id])
+  scheduleSlots    ScheduleSlot[]
+  classSessions    ClassSession[]
+  enrollments      Enrollment[]
+  receipts         Receipt[]
+  finalGrades      FinalGrade[]
+  teacherAppUser   AppUser?       @relation("ClassBatchTeacher", fields: [teacherAppUserId], references: [id])
+  createdByAppUser AppUser?       @relation("ClassBatchCreatedBy", fields: [createdByAppUserId], references: [id])
 
   @@unique([facilityId, code])
   @@index([facilityId])
@@ -759,10 +776,13 @@ model Attendance {
   status       AttendanceStatus
   markedById   String
   markedAt     DateTime         @db.Timestamptz(3)
+  /// P3-I: real FK to AppUser (nullable — backfill; old rows keep plain scalar).
+  markedByAppUserId String?
 
-  classSession ClassSession @relation(fields: [classSessionId], references: [id])
-  enrollment   Enrollment   @relation(fields: [enrollmentId], references: [id])
-  student      Student      @relation(fields: [studentId], references: [id])
+  classSession     ClassSession @relation(fields: [classSessionId], references: [id])
+  enrollment       Enrollment   @relation(fields: [enrollmentId], references: [id])
+  student          Student      @relation(fields: [studentId], references: [id])
+  markedByAppUser  AppUser?     @relation(fields: [markedByAppUserId], references: [id])
 
   @@unique([classSessionId, enrollmentId])
   @@index([facilityId])
@@ -904,4 +924,106 @@ model SessionEvidencePhoto {
   sessionEvidence SessionEvidence @relation(fields: [sessionEvidenceId], references: [id])
 
   @@index([sessionEvidenceId])
+}
+
+// ---------------------------------------------------------------------------
+// P3-I — HR/identity: AppUser (staff), FacilityNetwork (IP ranges),
+// EmployeeCodeCounter (global sequence), TimePunch (clock-in/out, append-only),
+// ManualAttendanceTicket (pending|approved|rejected|resubmitted).
+// All facility-scoped + RLS except EmployeeCodeCounter (global).
+// ---------------------------------------------------------------------------
+
+/// Staff member in a facility, linked to an auth userId. `employeeCode` is
+/// auto-generated as `CMC####` via `EmployeeCodeCounter`. Facility-scoped, RLS.
+model AppUser {
+  id           String   @id @default(uuid())
+  facilityId   String
+  userId       String   @unique
+  email        String   @default("")
+  fullName     String   @default("")
+  position     String   @default("")
+  managerId    String?
+  employeeCode String   @unique
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  facility         Facility               @relation(fields: [facilityId], references: [id])
+  manager          AppUser?               @relation("AppUserManager", fields: [managerId], references: [id])
+  subordinates     AppUser[]              @relation("AppUserManager")
+  timePunches      TimePunch[]
+  tickets          ManualAttendanceTicket[] @relation("AppUserTickets")
+  reviewedTickets  ManualAttendanceTicket[] @relation("AppUserReviewer")
+  markedAttendances    Attendance[]
+  createdReceipts      Receipt[]  @relation("ReceiptCreatedBy")
+  approvedReceipts     Receipt[]  @relation("ReceiptApprovedBy")
+  taughtBatches        ClassBatch[] @relation("ClassBatchTeacher")
+  createdBatches       ClassBatch[] @relation("ClassBatchCreatedBy")
+
+  @@index([facilityId])
+}
+
+/// IP ranges (CIDR or single IP) that are allowed for clock-in at a facility.
+/// If a facility has active FacilityNetwork rows, callers MUST match one to
+/// use `checkInOut.punch`; if there are none, the punch is allowed from any IP
+/// (dev-mode open). Facility-scoped, RLS.
+model FacilityNetwork {
+  id         String   @id @default(uuid())
+  facilityId String
+  cidr       String
+  label      String   @default("")
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  facility Facility @relation(fields: [facilityId], references: [id])
+
+  @@index([facilityId])
+}
+
+/// Single-row global sequence for `CMC####` employee codes. Row id=1 is
+/// inserted once in the migration; `next` is incremented atomically on each
+/// `user.create` call.
+model EmployeeCodeCounter {
+  id   Int @id @default(1)
+  next Int @default(1)
+}
+
+/// Clock-in/out record for one staff member at one facility. Append-only:
+/// `cmc_app` has no DELETE/UPDATE grant (see migration). Facility-scoped, RLS.
+model TimePunch {
+  id         String   @id @default(uuid())
+  facilityId String
+  appUserId  String
+  punchAt    DateTime @default(now()) @db.Timestamptz(3)
+  method     String
+  ip         String?
+
+  facility Facility @relation(fields: [facilityId], references: [id])
+  appUser  AppUser  @relation(fields: [appUserId], references: [id])
+
+  @@index([facilityId, appUserId])
+}
+
+/// Manual attendance correction ticket. `status` lifecycle:
+/// `pending` → `approved` | `rejected` → `resubmitted` (then re-enters the
+/// `pending`/`approved`/`rejected` cycle). Approved by the ticket owner's
+/// direct manager (anti-self-approve, `manualPunch.approve`).
+/// Facility-scoped, RLS.
+model ManualAttendanceTicket {
+  id           String    @id @default(uuid())
+  facilityId   String
+  appUserId    String
+  ticketDate   DateTime  @db.Timestamptz(3)
+  status       String    @default("pending")
+  note         String    @default("")
+  reviewedById String?
+  reviewedAt   DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+
+  facility   Facility @relation(fields: [facilityId], references: [id])
+  appUser    AppUser  @relation("AppUserTickets", fields: [appUserId], references: [id])
+  reviewedBy AppUser? @relation("AppUserReviewer", fields: [reviewedById], references: [id])
+
+  @@index([facilityId, appUserId])
 }

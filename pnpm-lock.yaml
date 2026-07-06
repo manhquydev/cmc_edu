@@ -66,6 +66,9 @@ importers:
       '@cmc/domain-identity':
         specifier: workspace:*
         version: link:../../packages/domain-identity
+      '@cmc/domain-time':
+        specifier: workspace:*
+        version: link:../../packages/domain-time
       '@cmc/llm':
         specifier: workspace:*
         version: link:../../packages/llm
@@ -176,6 +179,18 @@ importers:
         version: 2.1.9(@types/node@22.20.0)
 
   packages/domain-identity:
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: ^2.1.0
+        version: 2.1.9(vitest@2.1.9(@types/node@22.20.0))
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.20.0)
+
+  packages/domain-time:
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^2.1.0

@@ -4,6 +4,8 @@
 import { z } from 'zod';
 import { attendanceRouter } from './attendance/router.js';
 import { assessmentRouter, reportCardRouter } from './assessment/router.js';
+import { checkInOutRouter, manualPunchRouter } from './checkin/router.js';
+import { userRouter } from './user/router.js';
 import { classBatchRouter } from './class/class-batch-router.js';
 import { classSessionRouter } from './class/class-session-router.js';
 import { scheduleRouter } from './class/schedule-router.js';
@@ -56,6 +58,11 @@ export const appRouter = router({
   reportCard: reportCardRouter,
   // T3: session evidence (teacher-authored, photo-gated for parents).
   sessionEvidence: sessionEvidenceRouter,
+  // P3-I: HR/identity — AppUser CRUD and facility network management.
+  user: userRouter,
+  // P3-I: time-punch (clock-in/out) and manual punch tickets.
+  checkInOut: checkInOutRouter,
+  manualPunch: manualPunchRouter,
 });
 
 export type AppRouter = typeof appRouter;

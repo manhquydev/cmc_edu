@@ -11,7 +11,7 @@
 import { z } from 'zod';
 import { computeFinalGrade } from '@cmc/domain-grading';
 import { withFacility, type Prisma } from '@cmc/db';
-import { ictMonthOf, ictMonthBounds } from '../class/ict-time.js';
+import { ictMonthOf, ictMonthBounds } from '@cmc/domain-time';
 import { badRequest, notFound } from '../errors.js';
 import { lmsProcedure, requirePermission, requireLmsStudent, router, scoped } from '../trpc.js';
 import { assertExerciseOpenForStudent, loadLmsStudent } from '../exercise/open-tier.js';

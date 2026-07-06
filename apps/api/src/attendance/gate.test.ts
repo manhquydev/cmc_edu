@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { appRouter } from '../router.js';
-import { ictMonthOf } from '../class/ict-time.js';
+import { ictMonthOf } from '@cmc/domain-time';
 import {
   buildStaffContext,
   cleanupFacility,

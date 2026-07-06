@@ -17,7 +17,7 @@
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { createLLMClient } from '@cmc/llm';
-import { ictMonthBounds } from '../class/ict-time.js';
+import { ictMonthBounds } from '@cmc/domain-time';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { lmsProcedure, requirePermission, router, scoped } from '../trpc.js';
 import {

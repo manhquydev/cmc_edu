@@ -9,6 +9,7 @@ import { scheduleRouter } from './class/schedule-router.js';
 import { courseRouter } from './course/router.js';
 import { crmRouter } from './crm/router.js';
 import { enrollmentRouter } from './enrollment/router.js';
+import { curriculumUnitRouter, exerciseRouter } from './exercise/router.js';
 import { facilityRouter } from './facility/router.js';
 import { financeRouter } from './finance/router.js';
 import { guardianRouter } from './guardian/router.js';
@@ -41,6 +42,8 @@ export const appRouter = router({
   classSession: classSessionRouter,
   schedule: scheduleRouter,
   attendance: attendanceRouter,
+  curriculumUnit: curriculumUnitRouter,
+  exercise: exerciseRouter,
 });
 
 export type AppRouter = typeof appRouter;

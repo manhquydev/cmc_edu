@@ -261,6 +261,48 @@ export async function seedClassBatch(
   });
 }
 
+export interface SeedCurriculumUnitOptions {
+  program?: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE';
+  level?: number;
+  monthIndex?: number;
+  unitType?: 'LESSON' | 'REVIEW';
+  title?: string;
+}
+
+/**
+ * T2-I: `CurriculumUnit` is a GLOBAL table (no facilityId, no RLS — QĐ 0021),
+ * so it is NOT covered by `cleanupFacility()`'s per-facility teardown; every
+ * test that seeds one must delete it (and any `Exercise` rows pointing at it,
+ * which RESTRICT-block the delete) itself, via `cleanupCurriculumUnits()`.
+ */
+export async function seedCurriculumUnit(
+  opts: SeedCurriculumUnitOptions = {},
+): Promise<{ id: string }> {
+  return testDb().curriculumUnit.create({
+    data: {
+      program: opts.program ?? 'UCREA',
+      level: opts.level ?? 1,
+      monthIndex: opts.monthIndex ?? 1,
+      unitType: opts.unitType ?? 'LESSON',
+      title: opts.title ?? `Seed Unit ${randomUUID().slice(0, 8)}`,
+    },
+  });
+}
+
+/**
+ * Deletes `Exercise` rows for each unit (RESTRICT FK), then the units
+ * themselves — via the PRIVILEGED connection, like `Attendance`/`RefundRecord`
+ * teardown above. Wave-A privilege hardening's default-privilege template
+ * grants new tables only SELECT/INSERT for `cmc_app`; neither `CurriculumUnit`
+ * nor `Exercise` has a production delete path (no `exercise.delete`
+ * procedure), so this is teardown-only, same rationale as those two.
+ */
+export async function cleanupCurriculumUnits(...curriculumUnitIds: string[]): Promise<void> {
+  if (curriculumUnitIds.length === 0) return;
+  await privilegedDb().exercise.deleteMany({ where: { curriculumUnitId: { in: curriculumUnitIds } } });
+  await privilegedDb().curriculumUnit.deleteMany({ where: { id: { in: curriculumUnitIds } } });
+}
+
 export interface SeedActiveEnrollmentOptions {
   facilityId: string;
   classBatchId: string;

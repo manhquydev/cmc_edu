@@ -132,6 +132,27 @@ enum AttendanceStatus {
   late
 }
 
+/// Curriculum unit type (docs/19 §1, T2-I). Fixed 2-value set per spec.
+enum UnitType {
+  LESSON
+  REVIEW
+}
+
+/// Exercise kind (docs/19 §3, T2-I). Fixed 3-value set per spec.
+enum ExerciseType {
+  homework
+  test_entrance
+  test_periodic
+}
+
+/// Exercise lifecycle (docs/19 §3, WF-P2-04). `published` = visible to
+/// students per the ADR 0038 open-tier gate (T2-II, not this phase).
+enum ExerciseStatus {
+  draft
+  published
+  closed
+}
+
 enum EmailOutboxStatus {
   pending
   /// R3 remediation (deep-review adversarial verification): a transient claim
@@ -512,12 +533,18 @@ model ClassSession {
   endTime        DateTime      @db.Timestamptz(3)
   status         SessionStatus @default(planned)
   isMakeup       Boolean       @default(false)
+  /// T2-I (`classSession.assignUnit`, docs/26 WF-P2-01 remainder): the
+  /// curriculum unit taught in this session. Nullable — not every session has
+  /// a unit assigned yet. References the GLOBAL `CurriculumUnit` catalog (no
+  /// facilityId on that side), so no RLS cross-check applies to this FK.
+  curriculumUnitId String?
   createdAt      DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime      @updatedAt @db.Timestamptz(3)
 
-  classBatch   ClassBatch    @relation(fields: [classBatchId], references: [id])
-  scheduleSlot ScheduleSlot? @relation(fields: [scheduleSlotId], references: [id])
-  attendances  Attendance[]
+  classBatch     ClassBatch      @relation(fields: [classBatchId], references: [id])
+  scheduleSlot   ScheduleSlot?   @relation(fields: [scheduleSlotId], references: [id])
+  curriculumUnit CurriculumUnit? @relation(fields: [curriculumUnitId], references: [id])
+  attendances    Attendance[]
 
   // Re-generate idempotency (WF-P2-01 acceptance: "re-generate không nhân
   // đôi"): at most one session per (classBatch, slot, calendar day).
@@ -526,6 +553,55 @@ model ClassSession {
   @@index([classBatchId])
   @@index([scheduleSlotId])
   @@index([facilityId, sessionDate])
+  @@index([curriculumUnitId])
+}
+
+// ---------------------------------------------------------------------------
+// T2-I — Exercise foundation (docs/26 WF-P2-04, TL19 §1/§3, QĐ 0021/0022).
+// ---------------------------------------------------------------------------
+
+/// Curriculum "bài học" catalog (docs/19 §1). **GLOBAL, no `facilityId`, no
+/// RLS** (QĐ 0021) — the curriculum is shared system-wide across every
+/// facility, unlike `Course`/`Room`/`ClassBatch` above.
+model CurriculumUnit {
+  id         String   @id @default(uuid())
+  program    Program
+  level      Int
+  monthIndex Int
+  unitType   UnitType
+  title      String
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  classSessions ClassSession[]
+  exercises     Exercise[]
+
+  @@index([program, level, monthIndex])
+}
+
+/// PDF-based exercise (docs/19 §3, WF-P2-04): `basePdfRef` is a `BlobStorage`
+/// key (@cmc/storage), not a DB-stored file. **GLOBAL, no `facilityId`, no
+/// RLS** (QĐ 0022) — one catalog of exercises per curriculum unit, shared
+/// system-wide like `CurriculumUnit` above (open-tier gating per-student
+/// happens in T2-II, not here). `createdById` is a plain scalar (references
+/// AppUser.id, arriving with the HR/identity phase — same deferral as
+/// `ClassBatch.teacherId`).
+model Exercise {
+  id               String         @id @default(uuid())
+  curriculumUnitId String
+  type             ExerciseType
+  basePdfRef       String
+  maxScore         Int            @default(10)
+  starReward       Int            @default(10)
+  status           ExerciseStatus @default(draft)
+  createdById      String
+  createdAt        DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @db.Timestamptz(3)
+
+  curriculumUnit CurriculumUnit @relation(fields: [curriculumUnitId], references: [id])
+
+  // One exercise per (unit, type) — TL19 §3 "unique [curriculumUnitId, type]".
+  @@unique([curriculumUnitId, type])
+  @@index([curriculumUnitId])
 }
 
 /// T1 attendance (docs/19 §5, WF-P2-02): one row per (ClassSession,

@@ -108,6 +108,18 @@ enum EmailTransport {
   brevo
 }
 
+/// P3-II: shift group type determines which director role approves registrations.
+enum ShiftGroupType {
+  KINH_DOANH
+  GIAO_VIEN
+}
+
+/// P3-II: SINGLE = at most 1 shift entry per day; MULTIPLE = many allowed.
+enum ShiftSelectionMode {
+  SINGLE
+  MULTIPLE
+}
+
 /// Curriculum program catalog (docs/19 §1). Fixed 3-value set — no ADR to add
 /// a 4th without a decision doc.
 enum Program {
@@ -206,6 +218,13 @@ model Facility {
   facilityNetworks FacilityNetwork[]
   timePunches     TimePunch[]
   manualTickets   ManualAttendanceTicket[]
+  /// P3-II back-relations — HR shifts, payroll, and KPI.
+  shiftGroups          ShiftGroup[]
+  shiftTemplates       ShiftTemplate[]
+  shiftRegistrations   ShiftRegistration[]
+  salaryRates          SalaryRate[]
+  payslips             Payslip[]
+  kpiScores            KpiScore[]
 }
 
 model Contact {
@@ -959,6 +978,11 @@ model AppUser {
   approvedReceipts     Receipt[]  @relation("ReceiptApprovedBy")
   taughtBatches        ClassBatch[] @relation("ClassBatchTeacher")
   createdBatches       ClassBatch[] @relation("ClassBatchCreatedBy")
+  /// P3-II back-relations
+  shiftRegistrations ShiftRegistration[]
+  salaryRate         SalaryRate?
+  payslips           Payslip[]
+  kpiScores          KpiScore[]
 
   @@index([facilityId])
 }
@@ -1026,4 +1050,185 @@ model ManualAttendanceTicket {
   reviewedBy AppUser? @relation("AppUserReviewer", fields: [reviewedById], references: [id])
 
   @@index([facilityId, appUserId])
+}
+
+// ---------------------------------------------------------------------------
+// P3-II — HR Shifts, Payroll, and KPI (WF-P3-03/04/05/06, QĐ0025/0012/0011).
+// All facility-scoped + RLS.
+// ---------------------------------------------------------------------------
+
+/// Shift group catalog: groups shift templates by staff type (KINH_DOANH or
+/// GIAO_VIEN) and controls whether an employee may register multiple templates
+/// per day (MULTIPLE) or only one (SINGLE). Facility-scoped, RLS.
+model ShiftGroup {
+  id            String            @id @default(uuid())
+  facilityId    String
+  name          String
+  type          ShiftGroupType
+  selectionMode ShiftSelectionMode
+  createdAt     DateTime          @default(now()) @db.Timestamptz(3)
+
+  facility      Facility            @relation(fields: [facilityId], references: [id])
+  templates     ShiftTemplate[]
+  registrations ShiftRegistration[]
+
+  @@index([facilityId])
+}
+
+/// One shift schedule template within a ShiftGroup (e.g. "Ca sáng 09:00–17:00").
+/// `startTime`/`endTime` are ICT wall-clock `HH:mm` — same convention as
+/// `ScheduleSlot`. Facility-scoped, RLS.
+model ShiftTemplate {
+  id           String   @id @default(uuid())
+  facilityId   String
+  shiftGroupId String
+  name         String
+  /// ICT wall-clock `HH:mm`, 24h.
+  startTime    String
+  /// ICT wall-clock `HH:mm`, 24h.
+  endTime      String
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  facility   Facility                 @relation(fields: [facilityId], references: [id])
+  shiftGroup ShiftGroup               @relation(fields: [shiftGroupId], references: [id])
+  entries    ShiftRegistrationEntry[]
+
+  @@index([facilityId])
+  @@index([shiftGroupId])
+}
+
+/// One shift registration request (a "phiếu đăng ký ca"). Lifecycle:
+/// draft → submitted → approved | cancelled (cancelled is terminal).
+/// `selectionMode` is copied from the ShiftGroup at submit time.
+/// Ticket-lock: at most one `submitted` registration per appUser at a time.
+/// This invariant is enforced at DB level by a partial unique index
+/// (migration 20260707020000): UNIQUE ON appUserId WHERE status='submitted'.
+/// Facility-scoped, RLS.
+model ShiftRegistration {
+  id            String   @id @default(uuid())
+  facilityId    String
+  appUserId     String
+  shiftGroupId  String
+  fromDate      DateTime @db.Timestamptz(3)
+  toDate        DateTime @db.Timestamptz(3)
+  /// draft | submitted | approved | cancelled
+  status        String   @default("draft")
+  /// SINGLE | MULTIPLE — copied from ShiftGroup.selectionMode at submit time.
+  selectionMode String
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  facility   Facility                 @relation(fields: [facilityId], references: [id])
+  appUser    AppUser                  @relation(fields: [appUserId], references: [id])
+  shiftGroup ShiftGroup               @relation(fields: [shiftGroupId], references: [id])
+  entries    ShiftRegistrationEntry[]
+
+  @@index([facilityId])
+  @@index([appUserId])
+}
+
+/// One calendar-day entry within a ShiftRegistration. References the
+/// ShiftTemplate for start/end times. `date` is ICT midnight (Timestamptz).
+/// SINGLE-mode uniqueness (at most 1 entry per date per registration) is
+/// enforced at the application layer in `shift.submit` — not as a DB unique
+/// index, because MULTIPLE-mode registrations legitimately allow several
+/// templates per day. Facility-scoped, RLS.
+model ShiftRegistrationEntry {
+  id                  String   @id @default(uuid())
+  facilityId          String
+  shiftRegistrationId String
+  /// ICT midnight of the calendar day this entry covers.
+  date                DateTime @db.Timestamptz(3)
+  shiftTemplateId     String
+
+  shiftRegistration ShiftRegistration @relation(fields: [shiftRegistrationId], references: [id])
+  shiftTemplate     ShiftTemplate     @relation(fields: [shiftTemplateId], references: [id])
+
+  @@index([facilityId])
+  @@index([shiftRegistrationId])
+  @@index([shiftTemplateId])
+}
+
+/// Per-employee salary configuration. `appUserId` is UNIQUE (one rate per
+/// employee). Upserted by `compensation.upsertRate` (GĐKD/GĐĐT/super_admin).
+/// Facility-scoped, RLS.
+model SalaryRate {
+  id              String   @id @default(uuid())
+  facilityId      String
+  appUserId       String   @unique
+  baseSalary      Decimal  @db.Decimal(14, 2)
+  /// Variable pay multiplier, 0–1. variablePay = baseSalary × variablePayRate.
+  variablePayRate Decimal  @db.Decimal(5, 4)
+  /// KPI bonus ceiling for this employee.
+  kpiMax          Decimal  @db.Decimal(14, 2)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+
+  facility Facility @relation(fields: [facilityId], references: [id])
+  appUser  AppUser  @relation(fields: [appUserId], references: [id])
+
+  @@index([facilityId])
+}
+
+/// Monthly payslip for one employee. Lifecycle: draft → finalized (append-like:
+/// `cmc_app` has no DELETE grant). `penaltyAmount` is ALWAYS an independent
+/// deduction line — never merged into variablePay, baseSalary, or kpiBonus.
+/// `flaggedPunches` = punches without an approved shift (NOT penalized, only
+/// flagged for manager review). Facility-scoped, RLS.
+model Payslip {
+  id             String   @id @default(uuid())
+  facilityId     String
+  appUserId      String
+  /// ICT calendar month `YYYY-MM`.
+  period         String
+  /// draft | finalized
+  status         String   @default("draft")
+  baseSalary     Decimal  @db.Decimal(14, 2)
+  variablePay    Decimal  @db.Decimal(14, 2)
+  kpiBonus       Decimal  @db.Decimal(14, 2)
+  /// Independent deduction: lateMinutes×500 + earlyMinutes×1000. Never added to other components.
+  penaltyAmount  Decimal  @db.Decimal(14, 2)
+  /// baseSalary + variablePay + kpiBonus − penaltyAmount, clamped ≥ 0.
+  totalNet       Decimal  @db.Decimal(14, 2)
+  lateMinutes    Int      @default(0)
+  earlyMinutes   Int      @default(0)
+  unpunchedDays  Int      @default(0)
+  flaggedPunches Int      @default(0)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  facility Facility @relation(fields: [facilityId], references: [id])
+  appUser  AppUser  @relation(fields: [appUserId], references: [id])
+
+  @@unique([appUserId, period])
+  @@index([facilityId])
+}
+
+/// KPI score per employee per period. Lifecycle:
+/// draft → submitted → confirmed → approved; `override` can be applied from
+/// any state by GĐKD/GĐĐT (audit: override=true + overrideReason recorded).
+/// Append-like: `cmc_app` has no DELETE grant. Facility-scoped, RLS.
+model KpiScore {
+  id             String   @id @default(uuid())
+  facilityId     String
+  appUserId      String
+  /// ICT calendar month `YYYY-MM`.
+  period         String
+  value          Decimal  @db.Decimal(14, 2)
+  kpiMax         Decimal  @db.Decimal(14, 2)
+  /// draft | submitted | confirmed | approved
+  status         String   @default("draft")
+  submittedBy    String?
+  confirmedBy    String?
+  approvedBy     String?
+  override       Boolean  @default(false)
+  overrideReason String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  facility Facility @relation(fields: [facilityId], references: [id])
+  appUser  AppUser  @relation(fields: [appUserId], references: [id])
+
+  @@unique([appUserId, period])
+  @@index([facilityId])
 }

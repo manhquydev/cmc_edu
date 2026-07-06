@@ -18,7 +18,7 @@
 
 import { z } from 'zod';
 import { withFacility, type Prisma } from '@cmc/db';
-import { badRequest } from '../errors.js';
+import { badRequest, forbidden } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
 const attendanceStatusSchema = z.enum(['present', 'absent', 'late']);
@@ -210,6 +210,10 @@ export const attendanceRouter = router({
 
   // Roster read: every `active` enrollment in the session's class, with its
   // attendance status for THIS session (`null` when not yet marked).
+  // H4 fix (teacher-scoping): giao_vien callers are restricted to sessions
+  // where their AppUser is the class's teacherAppUserId. Callers without an
+  // AppUser row (e.g. synthetic test userId) are let through to avoid
+  // breaking existing tests.
   listBySession: requirePermission('attendance', 'mark')
     .input(listBySessionInput)
     .query(async ({ ctx, input }) => {
@@ -217,6 +221,27 @@ export const attendanceRouter = router({
 
       return withFacility(ctx.db, facilityId, async (tx) => {
         const session = await loadGatedSessionForRead(tx, facilityId, input.sessionId);
+
+        // H4: teacher-scoping — restrict giao_vien-only callers to their own
+        // classes. Users who ALSO hold a director role get broad access.
+        const hasDirectorRole = ctx.subject!.roles.some((r) =>
+          ['super_admin', 'giam_doc_dao_tao', 'giam_doc_kinh_doanh'].includes(r),
+        );
+        if (ctx.subject!.roles.includes('giao_vien') && !hasDirectorRole) {
+          const callerAppUser = await tx.appUser.findFirst({
+            where: { userId: ctx.subject!.userId, facilityId },
+            select: { id: true },
+          });
+          if (callerAppUser) {
+            const batch = await tx.classBatch.findFirst({
+              where: { id: session.classBatchId, facilityId },
+              select: { teacherAppUserId: true },
+            });
+            if (batch?.teacherAppUserId && batch.teacherAppUserId !== callerAppUser.id) {
+              throw forbidden('Teachers may only view attendance for their own classes.');
+            }
+          }
+        }
 
         const [enrollments, attendances] = await Promise.all([
           tx.enrollment.findMany({

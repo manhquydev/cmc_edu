@@ -19,6 +19,7 @@
     "@cmc/domain-finance": "workspace:*",
     "@cmc/domain-grading": "workspace:*",
     "@cmc/domain-identity": "workspace:*",
+    "@cmc/domain-payroll": "workspace:*",
     "@cmc/domain-time": "workspace:*",
     "@cmc/llm": "workspace:*",
     "@cmc/storage": "workspace:*",

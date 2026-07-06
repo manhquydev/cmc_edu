@@ -67,6 +67,16 @@ export async function createTestFacility(name: string, code?: string): Promise<{
 /** Deletes every row scoped to `facilityId`, then the Facility itself. */
 export async function cleanupFacility(facilityId: string): Promise<void> {
   const db = testDb();
+  // P3-II: KpiScore and Payslip are append-like (cmc_app has no DELETE grant).
+  // SalaryRate, ShiftRegistrationEntry, ShiftRegistration, ShiftTemplate,
+  // ShiftGroup must be deleted before AppUser (FK RESTRICT chains).
+  await privilegedDb().kpiScore.deleteMany({ where: { facilityId } });
+  await privilegedDb().payslip.deleteMany({ where: { facilityId } });
+  await privilegedDb().salaryRate.deleteMany({ where: { facilityId } });
+  await privilegedDb().shiftRegistrationEntry.deleteMany({ where: { facilityId } });
+  await privilegedDb().shiftRegistration.deleteMany({ where: { facilityId } });
+  await privilegedDb().shiftTemplate.deleteMany({ where: { facilityId } });
+  await privilegedDb().shiftGroup.deleteMany({ where: { facilityId } });
   // P3-I: ManualAttendanceTicket / TimePunch are append-only (cmc_app has no
   // DELETE grant — same policy as Attendance/RefundRecord above). AppUser and
   // FacilityNetwork have RLS but the privileged connection bypasses that.

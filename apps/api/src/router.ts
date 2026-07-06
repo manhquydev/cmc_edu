@@ -5,6 +5,9 @@ import { z } from 'zod';
 import { attendanceRouter } from './attendance/router.js';
 import { assessmentRouter, reportCardRouter } from './assessment/router.js';
 import { checkInOutRouter, manualPunchRouter } from './checkin/router.js';
+import { kpiRouter } from './kpi/router.js';
+import { compensationRouter, payslipRouter } from './payroll/router.js';
+import { shiftRouter } from './shift/router.js';
 import { userRouter } from './user/router.js';
 import { classBatchRouter } from './class/class-batch-router.js';
 import { classSessionRouter } from './class/class-session-router.js';
@@ -63,6 +66,13 @@ export const appRouter = router({
   // P3-I: time-punch (clock-in/out) and manual punch tickets.
   checkInOut: checkInOutRouter,
   manualPunch: manualPunchRouter,
+  // P3-II: HR shifts (registration + approval).
+  shift: shiftRouter,
+  // P3-II: compensation (salary rates) and payslip lifecycle.
+  compensation: compensationRouter,
+  payslip: payslipRouter,
+  // P3-II: KPI scores (submit → confirm → approve → override).
+  kpi: kpiRouter,
 });
 
 export type AppRouter = typeof appRouter;

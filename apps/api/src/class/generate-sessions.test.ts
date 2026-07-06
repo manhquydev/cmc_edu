@@ -207,6 +207,41 @@ describe('classBatch.create / schedule.generateSessions (WF-P2-01, US-011)', () 
     expect(second.sessionsCreated).toBe(1);
   });
 
+  it('schedule.generateSessions enforces the room conflict on extend -- G1 review M1', async () => {
+    const room = await gddt.room.create({ code: 'R201', name: 'Room 201' });
+    // Class A holds the room on 2026-08-10 (Mon) 18:00-19:30.
+    await gddt.classBatch.create({
+      courseId,
+      startDate: '2026-08-10',
+      endDate: '2026-08-10',
+      roomId: room.id,
+      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+    });
+    // Class B initially only 2026-08-03 (Mon) -- no conflict at create time.
+    const b = await gddt.classBatch.create({
+      courseId,
+      startDate: '2026-08-03',
+      endDate: '2026-08-03',
+      roomId: room.id,
+      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+    });
+    // Extending B to 2026-08-10 collides with class A in the same room.
+    await expect(
+      gddt.schedule.generateSessions({ classBatchId: b.classBatch.id, endDate: '2026-08-10' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('rejects a class span beyond the day limit with BAD_REQUEST -- G1 review M2', async () => {
+    await expect(
+      gddt.classBatch.create({
+        courseId,
+        startDate: '2026-01-01',
+        endDate: '2030-01-01', // ~4 years > MAX_CLASS_SPAN_DAYS
+        slots: [{ weekday: 1, startTime: '18:00', endTime: '19:00' }],
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
   // ---- Edge case 5: seam validation (receiptCreate / enroll) ----
 
   it('seam: receiptCreate rejects an unknown classBatchId with NOT_FOUND -- edge case 5', async () => {

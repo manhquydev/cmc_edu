@@ -24,6 +24,19 @@ export interface PlannedSession {
   endTime: Date;
 }
 
+/** Upper bound on a class batch's [startDate,endDate] span (~2 years). Guards
+ * against an unbounded range materializing millions of sessions in one request
+ * (G1 review M2); real programs run <=12 months (docs/19 §1). */
+export const MAX_CLASS_SPAN_DAYS = 730;
+
+/** Inclusive day count between two YYYY-MM-DD dates (>=1 for a valid range;
+ * 0 or negative for an inverted range). Pure — callers throw BAD_REQUEST. */
+export function spanDaysInclusive(startDate: string, endDate: string): number {
+  const start = Date.parse(`${startDate}T00:00:00Z`);
+  const end = Date.parse(`${endDate}T00:00:00Z`);
+  return Math.floor((end - start) / 86_400_000) + 1;
+}
+
 /**
  * Computes every (date, slot) pair in `[startDate, endDate]` (inclusive)
  * whose weekday matches a slot's weekday -- one planned `ClassSession` per

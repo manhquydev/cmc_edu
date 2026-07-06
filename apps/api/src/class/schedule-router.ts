@@ -7,7 +7,9 @@ import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
-import { planClassSessions } from './generate-sessions.js';
+import { MAX_CLASS_SPAN_DAYS, planClassSessions, spanDaysInclusive } from './generate-sessions.js';
+import { assertNoRoomConflict } from './room-conflict.js';
+import { badRequest } from '../errors.js';
 import { compareDateOnly, ictDateOnlyOf, ictToUtc, isValidDateOnly } from './ict-time.js';
 
 const generateSessionsInput = z.object({
@@ -52,7 +54,17 @@ export const scheduleRouter = router({
           });
         }
 
+        if (spanDaysInclusive(startDateOnly, endDateOnly) > MAX_CLASS_SPAN_DAYS) {
+          throw badRequest(`Class span exceeds the ${MAX_CLASS_SPAN_DAYS}-day limit.`);
+        }
+
         const planned = planClassSessions(startDateOnly, endDateOnly, classBatch.scheduleSlots);
+
+        // Same room-conflict invariant as create (G1 review M1), excluding this
+        // batch's own sessions so a regenerate never conflicts with itself.
+        if (classBatch.roomId) {
+          await assertNoRoomConflict(tx, facilityId, classBatch.roomId, planned, classBatch.id);
+        }
 
         const before = await tx.classSession.count({ where: { classBatchId: classBatch.id } });
         if (planned.length > 0) {

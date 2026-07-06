@@ -3,10 +3,11 @@
 
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
-import { badRequest, conflict, notFound } from '../errors.js';
+import { badRequest, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 import { nextClassBatchCode } from './class-code.js';
-import { planClassSessions } from './generate-sessions.js';
+import { MAX_CLASS_SPAN_DAYS, planClassSessions, spanDaysInclusive } from './generate-sessions.js';
+import { assertNoRoomConflict } from './room-conflict.js';
 import { compareDateOnly, ictToUtc, isValidDateOnly, isValidTimeOfDay } from './ict-time.js';
 
 const dateOnlySchema = z.string().refine(isValidDateOnly, { message: 'Expected YYYY-MM-DD.' });
@@ -99,6 +100,9 @@ export const classBatchRouter = router({
       if (compareDateOnly(input.startDate, input.endDate) > 0) {
         throw badRequest('startDate must not be after endDate.');
       }
+      if (spanDaysInclusive(input.startDate, input.endDate) > MAX_CLASS_SPAN_DAYS) {
+        throw badRequest(`Class span exceeds the ${MAX_CLASS_SPAN_DAYS}-day limit.`);
+      }
 
       return withFacility(ctx.db, facilityId, async (tx) => {
         const course = await tx.course.findFirst({ where: { id: input.courseId, facilityId } });
@@ -157,27 +161,12 @@ export const classBatchRouter = router({
 
         const planned = planClassSessions(input.startDate, input.endDate, slots);
 
-        // Room+time conflict (WF-P2-01 exceptions: "trung phong/GV -> CONFLICT").
-        // Checked against every OTHER class's sessions in the same room --
-        // throwing here rolls back the ClassBatch/ScheduleSlot rows created
-        // above too, since everything runs in this one transaction.
-        if (input.roomId && planned.length > 0) {
-          const existingRoomSessions = await tx.classSession.findMany({
-            where: {
-              facilityId,
-              status: { not: 'cancelled' },
-              classBatch: { roomId: input.roomId },
-            },
-            select: { startTime: true, endTime: true },
-          });
-          const hasConflict = planned.some((p) =>
-            existingRoomSessions.some(
-              (existing) => p.startTime < existing.endTime && existing.startTime < p.endTime,
-            ),
-          );
-          if (hasConflict) {
-            throw conflict('Room is already booked for an overlapping time on this schedule.');
-          }
+        // Room+time conflict (WF-P2-01: "trung phong -> CONFLICT"). Throwing
+        // here rolls back the ClassBatch/ScheduleSlot rows created above too
+        // (one transaction). Excludes the batch's own (as-yet-uncreated)
+        // sessions; shared with schedule.generateSessions (G1 review M1).
+        if (input.roomId) {
+          await assertNoRoomConflict(tx, facilityId, input.roomId, planned, classBatch.id);
         }
 
         if (planned.length > 0) {

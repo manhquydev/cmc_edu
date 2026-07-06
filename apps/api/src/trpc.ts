@@ -8,7 +8,7 @@
 import { initTRPC } from '@trpc/server';
 import { can, type AuthSubject } from '@cmc/auth';
 import type { PrismaClient } from '@cmc/db';
-import { forbidden, unauthorized } from './errors.js';
+import { badRequest, forbidden, unauthorized } from './errors.js';
 
 /**
  * LMS session subject (parent/student, TL11 §1). A distinct identity space
@@ -45,6 +45,9 @@ const t = initTRPC.context<Context>().create();
 
 export const router = t.router;
 export const createCallerFactory = t.createCallerFactory;
+/** Combines two routers under one key (../router.ts merges `exercise.*`
+ * CRUD, T2-I, with `exercise.openForStudent`/`listForStudent`, T2-II). */
+export const mergeRouters = t.mergeRouters;
 
 /** Public procedures need no session. Reserved for health / public intake. */
 export const publicProcedure = t.procedure;
@@ -138,4 +141,22 @@ export function scoped(ctx: Context): { facilityId: string } {
     throw unauthorized('Facility context is required.');
   }
   return { facilityId: ctx.facilityId };
+}
+
+/**
+ * T2-II: the LMS analogue of `scoped(ctx)` — every exercise-open/submission
+ * procedure needs a resolved `studentId`, not just a parent session
+ * (`LmsSubject.studentId` is optional because a parent with multiple
+ * children has no single "current student" until they pick one in the
+ * profile picker, TL19 §2). `lmsProcedure` only guarantees `ctx.lmsSubject`
+ * is non-null, not that a student was selected — this is that second gate.
+ */
+export function requireLmsStudent(ctx: Context): { parentAccountId: string; studentId: string } {
+  if (!ctx.lmsSubject) {
+    throw unauthorized('LMS session required.');
+  }
+  if (!ctx.lmsSubject.studentId) {
+    throw badRequest('A student profile must be selected first.');
+  }
+  return { parentAccountId: ctx.lmsSubject.parentAccountId, studentId: ctx.lmsSubject.studentId };
 }

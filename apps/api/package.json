@@ -17,6 +17,7 @@
     "@cmc/auth": "workspace:*",
     "@cmc/db": "workspace:*",
     "@cmc/domain-finance": "workspace:*",
+    "@cmc/domain-grading": "workspace:*",
     "@cmc/domain-identity": "workspace:*",
     "@cmc/storage": "workspace:*",
     "@trpc/server": "^11.0.0",

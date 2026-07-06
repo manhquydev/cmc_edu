@@ -10,13 +10,15 @@ import { courseRouter } from './course/router.js';
 import { crmRouter } from './crm/router.js';
 import { enrollmentRouter } from './enrollment/router.js';
 import { curriculumUnitRouter, exerciseRouter } from './exercise/router.js';
+import { exerciseOpenTierRouter } from './exercise/open-tier.js';
 import { facilityRouter } from './facility/router.js';
 import { financeRouter } from './finance/router.js';
 import { guardianRouter } from './guardian/router.js';
 import { lmsAuthRouter } from './lms-auth/router.js';
 import { roomRouter } from './room/router.js';
 import { studentRouter } from './student/router.js';
-import { publicProcedure, router } from './trpc.js';
+import { submissionRouter } from './submission/router.js';
+import { mergeRouters, publicProcedure, router } from './trpc.js';
 
 const healthOutput = z.object({
   status: z.literal('ok'),
@@ -43,7 +45,9 @@ export const appRouter = router({
   schedule: scheduleRouter,
   attendance: attendanceRouter,
   curriculumUnit: curriculumUnitRouter,
-  exercise: exerciseRouter,
+  // T2-I (CRUD) merged with T2-II (ADR 0038 open-tier reads) under one key.
+  exercise: mergeRouters(exerciseRouter, exerciseOpenTierRouter),
+  submission: submissionRouter,
 });
 
 export type AppRouter = typeof appRouter;

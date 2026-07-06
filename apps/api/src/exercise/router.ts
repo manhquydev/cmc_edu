@@ -10,8 +10,10 @@
 // — the spec names no separate read-only permission (phase-03 §Procedures).
 //
 // Scope: create/publish/close + the read lists only (US-014). Open-tier
-// visibility to students (ADR 0038) and submission/grading are T2-II
-// (US-015..017) — a distinct router, not added here.
+// visibility to students (ADR 0038) lives in ./open-tier.ts
+// (`exerciseOpenTierRouter`, T2-II US-015) — merged with this router under
+// the `exercise` key in ../router.ts (`mergeRouters`). Submission/grading
+// (US-016/017) live in ../submission/router.ts.
 
 import { z } from 'zod';
 import type { PrismaClient } from '@cmc/db';
@@ -58,7 +60,7 @@ export interface ExerciseDto {
   createdById: string;
 }
 
-function toExerciseDto(row: {
+export function toExerciseDto(row: {
   id: string;
   curriculumUnitId: string;
   type: string;

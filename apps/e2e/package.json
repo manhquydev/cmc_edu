@@ -1,0 +1,24 @@
+{
+  "name": "@cmc/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@cmc/auth": "workspace:*",
+    "@cmc/db": "workspace:*",
+    "@cmc/domain-identity": "workspace:*"
+  },
+  "devDependencies": {
+    "@cmc/domain-finance": "workspace:*",
+    "@playwright/test": "^1.49.0",
+    "@trpc/client": "^11.0.0",
+    "@trpc/server": "^11.0.0",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

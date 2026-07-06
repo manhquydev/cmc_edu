@@ -251,3 +251,8 @@
 **Compiled:** 2026-07-06 by docs-manager  
 **Branch:** main (HEAD: 32147df)  
 **Status:** P1 implementation complete, all gates passed, ready for P2 planning
+
+## 2026-07-06 — P2-Foundation (class operations) merged to main (PR #2)
+- Class-ops data model (Course/Room/ClassBatch/ScheduleSlot/ClassSession) behind RLS; class-code + atomic counter; auto-session generation (idempotent); room double-booking enforced on create AND regenerate; class-span capped.
+- P1↔P2 seam closed: receipt/enrollment require a real same-facility ClassBatch (FK + validation).
+- G1 merge-gate: 0 Critical/High; M1/M2 fixed, M3/L1/L2 backlogged (#10). 159 api tests pass.

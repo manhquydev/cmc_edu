@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  # Ephemeral, CI-only credentials for the postgres service below — never a
+  # real secret, scoped to this job's throwaway container only.
+  PGDATABASE: cmc_ci
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  CMC_APP_PASSWORD: cmc_app_ci_password
+
+jobs:
+  # The blocking gate (docs/26 phase-02 "CI-lite"): typecheck + unit/
+  # integration test suite. e2e is wired as its own non-blocking job below —
+  # deliberately NOT part of this gate yet (docs/26 phase-02: "e2e vao CI o
+  # PD"), so a flaky e2e run never blocks a merge before that follow-up phase
+  # hardens it.
+  typecheck-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cmc_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cmc_ci?schema=public
+      APP_DATABASE_URL: postgresql://cmc_app:cmc_app_ci_password@localhost:5432/cmc_ci?schema=public
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.24.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `prisma migrate deploy` runs as the superuser role (DATABASE_URL) and
+      # is what CREATEs the unprivileged `cmc_app` role (see the
+      # p1_remediation_wave1_schema_rls migration) — it is created with no
+      # password (that migration is committed to git), so every environment
+      # must set one out-of-band before the app can connect as it. This is a
+      # throwaway CI-only credential, not a real secret.
+      - name: Run database migrations
+        run: pnpm --filter @cmc/db exec prisma migrate deploy
+
+      - name: Set cmc_app role password (CI-only, throwaway)
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d cmc_ci \
+            -c "ALTER ROLE cmc_app WITH PASSWORD '${CMC_APP_PASSWORD}';"
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+  # Follow-up per docs/26 phase-02: wired so it is easy to promote to a
+  # blocking gate once the shared-DB e2e run has proven stable in CI.
+  # `continue-on-error` keeps a flaky/slow e2e run from blocking a merge.
+  e2e:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cmc_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cmc_ci?schema=public
+      APP_DATABASE_URL: postgresql://cmc_app:cmc_app_ci_password@localhost:5432/cmc_ci?schema=public
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.24.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run database migrations
+        run: pnpm --filter @cmc/db exec prisma migrate deploy
+
+      - name: Set cmc_app role password (CI-only, throwaway)
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d cmc_ci \
+            -c "ALTER ROLE cmc_app WITH PASSWORD '${CMC_APP_PASSWORD}';"
+
+      - name: Run e2e
+        run: pnpm --filter @cmc/e2e test

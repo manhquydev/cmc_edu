@@ -77,6 +77,11 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
   // this teardown-only delete now runs via the privileged migration-role
   // connection instead (see `privilegedDb()` above).
   await privilegedDb().refundRecord.deleteMany({ where: { facilityId } });
+  // T1: `cmc_app` has no DELETE grant on Attendance either (append-only-ish
+  // write model, ../attendance/router.ts) — same privileged-connection
+  // teardown as RefundRecord/AuditLog. Must run before the ClassSession/
+  // Enrollment/Student deletes below (all RESTRICT FKs from Attendance).
+  await privilegedDb().attendance.deleteMany({ where: { facilityId } });
   await testDbBypass(async (tx) => {
     // `studentAccount` has no facilityId of its own — the relational filter
     // joins through `student` (RLS-protected), so this delete also needs the
@@ -253,5 +258,37 @@ export async function seedClassBatch(
     });
 
     return { id: classBatch.id, code: classBatch.code, courseId: course.id };
+  });
+}
+
+export interface SeedActiveEnrollmentOptions {
+  facilityId: string;
+  classBatchId: string;
+  studentName?: string;
+}
+
+/**
+ * T1 (attendance gate tests): seeds a Student + an already-`active`
+ * Enrollment directly (bypassing `enrollment.enroll`'s `reserved` seat-hold
+ * and the Receipt-driven activation path, ADR-A) — attendance gate 3 only
+ * needs a real active enrollment to exist, not the full P1 provisioning
+ * flow already covered by ../enrollment/reserved-active.test.ts.
+ */
+export async function seedActiveEnrollment(
+  opts: SeedActiveEnrollmentOptions,
+): Promise<{ id: string; studentId: string; classBatchId: string }> {
+  return testDbBypass(async (tx) => {
+    const student = await tx.student.create({
+      data: { facilityId: opts.facilityId, fullName: opts.studentName ?? `Seed Student ${randomUUID().slice(0, 8)}` },
+    });
+    const enrollment = await tx.enrollment.create({
+      data: {
+        facilityId: opts.facilityId,
+        studentId: student.id,
+        classBatchId: opts.classBatchId,
+        status: 'active',
+      },
+    });
+    return { id: enrollment.id, studentId: student.id, classBatchId: enrollment.classBatchId };
   });
 }

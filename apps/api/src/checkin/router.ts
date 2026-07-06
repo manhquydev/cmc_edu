@@ -61,6 +61,12 @@ export const checkInOutRouter = router({
         // ticket flow (manualPunch.create), not a punch method.
         const method = 'ip';
 
+        // Serialize concurrent punches per user: lock the AppUser row so two
+        // concurrent requests for the same user both see the same state and
+        // the second one waits until the first commits (READ COMMITTED default
+        // would otherwise let both read "no recent punch" before either writes).
+        await tx.$executeRaw`SELECT 1 FROM "AppUser" WHERE id = ${appUser.id} FOR UPDATE`;
+
         // Cooldown: prevent double-punching within 5 minutes
         const recentCutoff = new Date(Date.now() - PUNCH_COOLDOWN_MS);
         const recent = await tx.timePunch.findFirst({
@@ -139,7 +145,7 @@ export const manualPunchRouter = router({
           where: { userId: ctx.subject!.userId, facilityId },
         });
         if (!reviewer) throw forbidden('Staff profile not found.');
-        const owner = await tx.appUser.findFirst({ where: { id: ticket.appUserId } });
+        const owner = await tx.appUser.findFirst({ where: { id: ticket.appUserId, facilityId } });
         if (!owner) throw notFound('Ticket owner not found.');
         if (owner.managerId !== reviewer.id) {
           throw forbidden('Only the direct manager can approve this ticket.');
@@ -174,7 +180,7 @@ export const manualPunchRouter = router({
           where: { userId: ctx.subject!.userId, facilityId },
         });
         if (!reviewer) throw forbidden('Staff profile not found.');
-        const owner = await tx.appUser.findFirst({ where: { id: ticket.appUserId } });
+        const owner = await tx.appUser.findFirst({ where: { id: ticket.appUserId, facilityId } });
         if (!owner) throw notFound('Ticket owner not found.');
         if (owner.managerId !== reviewer.id) {
           throw forbidden('Only the direct manager can reject this ticket.');

@@ -7,9 +7,11 @@
 
 import { createServer } from 'node:http';
 import { createHTTPHandler } from '@trpc/server/adapters/standalone';
+import { createPrismaClient } from '@cmc/db';
 import { appRouter } from './router.js';
 import { createContext } from './context.js';
 import { EXERCISE_PDF_UPLOAD_PATH, handleExercisePdfUpload } from './exercise/upload-route.js';
+import { assertCmcAppNotSuperuser } from './boot-checks.js';
 
 const port = Number(process.env.PORT ?? 3000);
 
@@ -33,6 +35,18 @@ const server = createServer((req, res) => {
   trpcHandler(req, res);
 });
 
-server.listen(port);
-// eslint-disable-next-line no-console
-console.log(`[api] tRPC server listening on http://localhost:${port}`);
+// Boot-check: verify cmc_app is not a superuser before accepting requests
+// (ADR 0042 — superuser bypasses RLS unconditionally). Uses a throw-away
+// client scoped to APP_DATABASE_URL; the shared lazy singleton in context.ts
+// is not used here to keep startup sequencing independent.
+assertCmcAppNotSuperuser(createPrismaClient())
+  .then(() => {
+    server.listen(port);
+    // eslint-disable-next-line no-console
+    console.log(`[api] tRPC server listening on http://localhost:${port}`);
+  })
+  .catch((err: unknown) => {
+    // eslint-disable-next-line no-console
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
+  });

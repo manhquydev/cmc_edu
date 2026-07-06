@@ -47,6 +47,11 @@ export interface ProvisionResult {
   studentId: string;
   studentAccountId: string;
   enrollmentId: string;
+  /** K1 remediation: the Guardian row linking the paying parent to the
+   * student, so the parent sees the child immediately (`getApprovedChildren`)
+   * without waiting on a separate `guardian.requestLink`/`approveLink` round
+   * trip. */
+  guardianId: string;
 }
 
 /** Duck-types a Prisma `P2002` (unique constraint violation) without importing
@@ -165,13 +170,64 @@ async function findOrCreateStudentAccount(
 }
 
 /**
+ * find-or-create the Guardian row linking the paying parent to the student
+ * (K1 remediation, docs/08 §7 read gate: `getApprovedChildren` grants access
+ * ONLY through an approved `Guardian` row). Before this fix, `Guardian` rows
+ * were created exclusively by the staff-reviewed `guardian.approveLink` flow —
+ * a parent who simply paid for their child's first receipt had no such row
+ * and saw an empty children list forever. Provisioning now creates it
+ * directly for the paying parent, using `guardian` (no stronger claim than
+ * "the person who paid") as the default relation — a parent can still request
+ * a stronger relation (father/mother) via `guardian.requestLink` for
+ * additional children later, or staff can correct it out of band; there is no
+ * schema-level "update relation" surface yet (out of scope for this fix).
+ *
+ * `Guardian` carries no RLS policy (schema.prisma) — plain client calls, same
+ * as `guardian.approveLink`'s upsert. The `parentAccountId_studentId` unique
+ * index makes this safe to replay (ADR 0041) and race-safe (P2002 recovery,
+ * same pattern as every other find-or-create step in this file).
+ */
+async function findOrCreateGuardian(
+  db: PrismaClient,
+  facilityId: string,
+  parentAccountId: string,
+  studentId: string,
+) {
+  const existing = await db.guardian.findUnique({
+    where: { parentAccountId_studentId: { parentAccountId, studentId } },
+  });
+  if (existing) return existing;
+
+  try {
+    return await db.guardian.create({
+      data: { facilityId, parentAccountId, studentId, relation: 'guardian' },
+    });
+  } catch (error) {
+    /* v8 ignore start -- same timing-fragile P2002 race category as the
+     * other find-or-create catches in this file (vitest.config.ts's
+     * provisioning branch-threshold comment): exercised by
+     * guardian-provisioning.test.ts's concurrent-provision test, but whether
+     * the race actually lands on THIS catch (vs. both calls' existence-check
+     * seeing the already-committed row) is non-deterministic run to run. */
+    if (!isUniqueConstraintViolation(error)) throw error;
+    const refetched = await db.guardian.findUnique({
+      where: { parentAccountId_studentId: { parentAccountId, studentId } },
+    });
+    if (!refetched) throw error;
+    return refetched;
+    /* v8 ignore stop */
+  }
+}
+
+/**
  * Idempotent provisioning: ParentAccount (find-or-create by phone) -> Student
  * (find-or-create by `createdByReceiptId`, so no orphan student is ever
- * created outside this path) -> Enrollment `active` -> StudentAccount (LMS
- * login link). Throws if `receipt.classBatchId` is missing — provisioning
- * cannot activate an enrollment without knowing which class, and the caller
- * (`finance.receiptApprove`) treats that as a provisioning failure that does
- * NOT roll back the money transaction.
+ * created outside this path) -> Guardian (find-or-create, K1 — the paying
+ * parent sees the child immediately) -> Enrollment `active` -> StudentAccount
+ * (LMS login link). Throws if `receipt.classBatchId` is missing —
+ * provisioning cannot activate an enrollment without knowing which class, and
+ * the caller (`finance.receiptApprove`) treats that as a provisioning failure
+ * that does NOT roll back the money transaction.
  */
 export async function provisionFromReceipt(
   db: PrismaClient,
@@ -179,6 +235,7 @@ export async function provisionFromReceipt(
 ): Promise<ProvisionResult> {
   const parentAccount = await findOrCreateParentAccount(db, receipt.parentPhone);
   const student = await findOrCreateStudent(db, receipt);
+  const guardian = await findOrCreateGuardian(db, receipt.facilityId, parentAccount.id, student.id);
 
   if (!receipt.classBatchId) {
     throw new Error(
@@ -203,5 +260,6 @@ export async function provisionFromReceipt(
     studentId: student.id,
     studentAccountId: studentAccount.id,
     enrollmentId: enrollment.id,
+    guardianId: guardian.id,
   };
 }

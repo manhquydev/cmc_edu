@@ -9,7 +9,9 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "dev": "tsx watch src/server.ts",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "worker:dev": "tsx watch src/worker/index.ts",
+    "worker:start": "node dist/worker/index.js"
   },
   "dependencies": {
     "@cmc/auth": "workspace:*",

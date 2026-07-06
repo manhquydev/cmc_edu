@@ -56,8 +56,32 @@ const requireSession = t.middleware(({ ctx, next }) => {
   return next({ ctx: { ...ctx, subject: ctx.subject } });
 });
 
-/** Requires a valid staff session. */
-export const protectedProcedure = t.procedure.use(requireSession);
+/**
+ * K7 remediation (deep-review consolidated report): reject a staff request
+ * whose resolved `facilityId` does not correspond to a real `Facility` row.
+ * Without this, a forged/typo'd `x-dev-user.facilityId` header (or, later, a
+ * bad SSO claim) silently "minted" an invisible tenant — every
+ * facility-scoped query still ran and happily partitioned by whatever string
+ * it was given (RLS treats an unknown facilityId as just another value), but
+ * no admin surface could ever see or reconcile it. `Facility` carries no RLS
+ * policy (it is the platform-level catalog, not itself facility-scoped — see
+ * schema.prisma), so this is a plain lookup, not a `withFacility` call.
+ */
+const requireValidFacility = t.middleware(async ({ ctx, next }) => {
+  if (ctx.facilityId) {
+    const facility = await ctx.db.facility.findUnique({
+      where: { id: ctx.facilityId },
+      select: { id: true },
+    });
+    if (!facility) {
+      throw unauthorized('Session references an unknown facility.');
+    }
+  }
+  return next();
+});
+
+/** Requires a valid staff session AND a facilityId that resolves to a real Facility. */
+export const protectedProcedure = t.procedure.use(requireSession).use(requireValidFacility);
 
 const requireLmsSession = t.middleware(({ ctx, next }) => {
   if (!ctx.lmsSubject) {

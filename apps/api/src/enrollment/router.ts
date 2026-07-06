@@ -19,6 +19,15 @@ const enrollInput = z.object({
   opportunityId: z.string().uuid().optional(),
 });
 
+const blockLmsInput = z.object({
+  studentId: z.string().uuid(),
+});
+
+export interface BlockLmsResult {
+  studentId: string;
+  lifecycle: string;
+}
+
 export interface EnrollmentMineDto {
   id: string;
   studentId: string;
@@ -51,6 +60,45 @@ export const enrollmentRouter = router({
             status: 'reserved',
           },
         });
+      });
+    }),
+
+  // K8 remediation: writer for `StudentLifecycle.blocked_lms` (docs/19 §2).
+  // The read-side gate (`getApprovedChildren` excluding `blocked_lms`) already
+  // existed; this is the missing mutation that actually reaches it. A
+  // separate guarded procedure rather than reusing `finance.receiptCancel`'s
+  // `void: true` path — that path is documented (QĐ 0024) to map "void nhầm"
+  // onto `withdrawn`, a distinct outcome from "block this student's LMS
+  // access" (e.g. a discipline/compliance hold unrelated to any receipt).
+  blockLms: requirePermission('enrollment', 'blockLms')
+    .input(blockLmsInput)
+    .mutation(async ({ ctx, input }): Promise<BlockLmsResult> => {
+      const { facilityId } = scoped(ctx);
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const student = await tx.student.findFirst({
+          where: { id: input.studentId, facilityId },
+        });
+        if (!student) {
+          throw notFound('Student not found.');
+        }
+
+        const updated = await tx.student.update({
+          where: { id: student.id },
+          data: { lifecycle: 'blocked_lms' },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'enrollment.blockLms',
+            entity: 'Student',
+            entityId: updated.id,
+            data: { facilityId },
+          },
+        });
+
+        return { studentId: updated.id, lifecycle: updated.lifecycle };
       });
     }),
 

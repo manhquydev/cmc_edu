@@ -20,13 +20,25 @@ export interface ApprovedChild {
  * Returns the students a parent may access via the LMS right now: an
  * approved `Guardian` link AND the student is not `blocked_lms` (docs/19 §2
  * — a blocked lifecycle is excluded from LMS reads entirely, not merely
- * gated at the UI).
+ * gated at the UI) AND the student has not had every one of its enrollments
+ * withdrawn (K9 remediation, WF-P1-08 cancel).
+ *
+ * K9: `finance.receiptCancel` withdraws the Enrollment it rolled back, but
+ * never deletes the Guardian row provisioning created (K1) — without this
+ * check, a cancelled/refunded child would keep showing up for the parent
+ * forever. The rule is deliberately NOT "student needs an ACTIVE enrollment":
+ * a Guardian can legitimately be approved before any Enrollment exists yet
+ * (e.g. `guardian.approveLink` for a child who only has a seat hold, or none
+ * at all — see guardian/link.test.ts, lms-auth/login.test.ts) and must still
+ * be visible. So a student with ZERO enrollment rows stays visible; a student
+ * whose enrollment rows exist but are ALL `withdrawn` (the cancel outcome) is
+ * hidden.
  *
  * Runs with the RLS bypass GUC (ADR 0042): `Guardian` carries no RLS policy,
- * but this query joins into `Student` (RLS-protected) across potentially
- * many facilities — a parent's children may be enrolled at different
- * branches. The real access boundary is `parentAccountId` ownership (an
- * approved Guardian row), not facility membership.
+ * but this query joins into `Student`/`Enrollment` (RLS-protected) across
+ * potentially many facilities — a parent's children may be enrolled at
+ * different branches. The real access boundary is `parentAccountId`
+ * ownership (an approved Guardian row), not facility membership.
  */
 export async function getApprovedChildren(
   db: PrismaClient,
@@ -45,8 +57,33 @@ export async function getApprovedChildren(
       }),
     { bypass: true },
   );
+  if (guardians.length === 0) return [];
 
-  return guardians.map((g) => ({ studentId: g.student.id, fullName: g.student.fullName }));
+  const studentIds = guardians.map((g) => g.student.id);
+  const enrollments = await withFacility(
+    db,
+    null,
+    (tx) =>
+      tx.enrollment.findMany({
+        where: { studentId: { in: studentIds } },
+        select: { studentId: true, status: true },
+      }),
+    { bypass: true },
+  );
+  const statusesByStudent = new Map<string, string[]>();
+  for (const enrollment of enrollments) {
+    const statuses = statusesByStudent.get(enrollment.studentId) ?? [];
+    statuses.push(enrollment.status);
+    statusesByStudent.set(enrollment.studentId, statuses);
+  }
+
+  return guardians
+    .filter((g) => {
+      const statuses = statusesByStudent.get(g.student.id);
+      if (!statuses || statuses.length === 0) return true; // never enrolled yet — still visible
+      return statuses.some((status) => status !== 'withdrawn');
+    })
+    .map((g) => ({ studentId: g.student.id, fullName: g.student.fullName }));
 }
 
 export interface AuditChildDataAccessOptions {

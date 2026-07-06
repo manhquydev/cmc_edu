@@ -43,6 +43,29 @@ const rejectLinkInput = z.object({
   requestId: z.string().uuid(),
 });
 
+/**
+ * K3 remediation (deep-review consolidated report): the pending-review queue
+ * for guardian link requests. Before this, `approveLink`/`rejectLink` existed
+ * but nothing let staff discover WHICH requests were waiting — `requestId`
+ * was only ever handed back to the parent that created it (grep: zero list
+ * procedures existed).
+ */
+const listPendingLinksInput = z.object({
+  status: z.enum(['pending', 'approved', 'rejected']).optional().default('pending'),
+  page: z.number().int().positive().default(1),
+  pageSize: z.number().int().positive().max(100).default(20),
+});
+
+export interface GuardianLinkRequestDto {
+  id: string;
+  studentId: string;
+  studentName: string;
+  parentAccountId: string;
+  parentPhone: string;
+  status: string;
+  createdAt: Date;
+}
+
 export const guardianRouter = router({
   requestLink: lmsProcedure
     .input(requestLinkInput)
@@ -144,6 +167,58 @@ export const guardianRouter = router({
         });
 
         return { requestId: request.id, status: 'approved' as const, guardianId: guardian.id };
+      });
+    }),
+
+  // K3 remediation: staff's HITL work queue — defaults to `pending` (the
+  // actionable set for approveLink/rejectLink), joins in the child's name and
+  // the requesting parent's phone so staff have enough to actually
+  // "đối chiếu" (cross-check identity) per WF-P1-06, without granting any
+  // broader child-data read than this queue already implies.
+  listPendingLinks: requirePermission('guardian', 'listPendingLinks')
+    .input(listPendingLinksInput)
+    .query(async ({ ctx, input }): Promise<{
+      items: GuardianLinkRequestDto[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }> => {
+      const { facilityId } = scoped(ctx);
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const where = { facilityId, status: input.status };
+        const [requests, total] = await Promise.all([
+          tx.guardianLinkRequest.findMany({
+            where,
+            include: { parentAccount: { select: { phone: true } } },
+            orderBy: { createdAt: 'asc' },
+            skip: (input.page - 1) * input.pageSize,
+            take: input.pageSize,
+          }),
+          tx.guardianLinkRequest.count({ where }),
+        ]);
+
+        const studentIds = [...new Set(requests.map((r) => r.studentRef))];
+        const students =
+          studentIds.length > 0
+            ? await tx.student.findMany({
+                where: { id: { in: studentIds }, facilityId },
+                select: { id: true, fullName: true },
+              })
+            : [];
+        const nameByStudentId = new Map(students.map((s) => [s.id, s.fullName]));
+
+        const items: GuardianLinkRequestDto[] = requests.map((r) => ({
+          id: r.id,
+          studentId: r.studentRef,
+          studentName: nameByStudentId.get(r.studentRef) ?? '',
+          parentAccountId: r.parentAccountId,
+          parentPhone: r.parentAccount.phone,
+          status: r.status,
+          createdAt: r.createdAt,
+        }));
+
+        return { items, total, page: input.page, pageSize: input.pageSize };
       });
     }),
 

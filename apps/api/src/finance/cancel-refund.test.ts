@@ -10,10 +10,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { normalizeLoginPhone } from '@cmc/domain-identity';
 import { appRouter } from '../router.js';
 import {
+  buildLmsContext,
   buildStaffContext,
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  testDb,
   testDbBypass,
 } from '../test/db.js';
 
@@ -244,6 +246,37 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       // ("active --> withdrawn: rút (WF-P1-08)") regardless of the void flag.
       const enrollment = await testDbBypass((tx) => tx.enrollment.findFirstOrThrow({ where: { studentId: student.id } }));
       expect(enrollment.status).toBe('withdrawn');
+    });
+
+    it('revokes LMS visibility: after cancel, the paying parent no longer sees the child via enrollment.mine — K9', async () => {
+      const parentPhone = '0980000021';
+      const { receipt } = await draftAndApprove({ contactPhone: '0970000021', parentPhone });
+
+      const parentAccount = await testDb().parentAccount.findUniqueOrThrow({
+        where: { phone: normalizeLoginPhone(parentPhone) },
+      });
+      const student = await testDbBypass((tx) =>
+        tx.student.findUniqueOrThrow({ where: { createdByReceiptId: receipt.id } }),
+      );
+      const parent = appRouter.createCaller(buildLmsContext({ parentAccountId: parentAccount.id }));
+
+      // Before cancel: provisioning (K1) already created a Guardian row for
+      // the paying parent, so the child is visible.
+      const mineBeforeCancel = await parent.enrollment.mine();
+      expect(mineBeforeCancel.some((e) => e.studentId === student.id)).toBe(true);
+
+      await gdkd.finance.receiptCancel({ receiptId: receipt.id, reason: 'refund, revoke access' });
+
+      // The Guardian row still exists (cancel does not delete it), but the
+      // student's only Enrollment is now withdrawn — the read gate must hide
+      // the child, not just the withdrawn enrollment row.
+      const guardianStillExists = await testDb().guardian.findUnique({
+        where: { parentAccountId_studentId: { parentAccountId: parentAccount.id, studentId: student.id } },
+      });
+      expect(guardianStillExists).not.toBeNull();
+
+      const mineAfterCancel = await parent.enrollment.mine();
+      expect(mineAfterCancel.some((e) => e.studentId === student.id)).toBe(false);
     });
   });
 

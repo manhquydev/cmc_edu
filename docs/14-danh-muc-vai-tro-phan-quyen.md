@@ -59,6 +59,10 @@ Plan `erp-rebuild-f0-f4` từng nhắc `quan_ly` + `head_teacher`, nhưng enum R
 | `finance.receiptCreate` | ✓ | ✓ | | ✓(nháp) | ✓ | | | | |
 | `finance.receiptApprove` (cổng tiền) | ✓ | ✓ | ✓ | | ✓ | | | | |
 | `finance.refundCreate` | ✓ | ✓ | | | ✓ | | | | |
+| `finance.receiptList` / `receiptGet` (K3, hàng đợi duyệt) | ✓ | ✓ | ✓ | | ✓ | | | | |
+| `guardian.listPendingLinks` (K3, hàng đợi duyệt link) | ✓ | ✓ | ✓ | ✓ | | ✓ | ✓ | | |
+| `student.lookup` (K4, staff-only) | ✓ | ✓ | ✓ | ✓ | ✓ | | | | |
+| `facility.create` / `facility.list` (K7) | ✓ | | | | | | | | |
 | `enrollment.enroll` | ✓ | ✓ | ✓ | ✓ | | | | | |
 | `class.create` / `schedule.generate` | ✓ | | ✓ | | | | | | |
 | `attendance.mark` | ✓ | | ✓ | | | ✓ | | | |

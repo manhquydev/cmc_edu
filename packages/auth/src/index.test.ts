@@ -44,4 +44,36 @@ describe('can()', () => {
     const multi = { userId: 'u-multi', roles: ['cskh', 'sale'] as const };
     expect(can(multi, 'finance', 'receiptCreate')).toBe(true);
   });
+
+  it('finance.receiptList/receiptGet: sale (drafter) is excluded, same SoD roster as receiptApprove (K3)', () => {
+    const sale = { userId: 'u-sale', roles: ['sale'] as const };
+    const gdkd = { userId: 'u-gdkd', roles: ['giam_doc_kinh_doanh'] as const };
+    expect(can(sale, 'finance', 'receiptList')).toBe(false);
+    expect(can(sale, 'finance', 'receiptGet')).toBe(false);
+    expect(can(gdkd, 'finance', 'receiptList')).toBe(true);
+    expect(can(gdkd, 'finance', 'receiptGet')).toBe(true);
+  });
+
+  it('guardian.listPendingLinks shares the approveLink roster (K3)', () => {
+    const giaoVien = { userId: 'u-gv', roles: ['giao_vien'] as const };
+    const hr = { userId: 'u-hr', roles: ['hr'] as const };
+    expect(can(giaoVien, 'guardian', 'listPendingLinks')).toBe(true);
+    expect(can(hr, 'guardian', 'listPendingLinks')).toBe(false);
+  });
+
+  it('student.lookup is staff-only, restricted to the roles that need a studentId (K4)', () => {
+    const sale = { userId: 'u-sale', roles: ['sale'] as const };
+    const giaoVien = { userId: 'u-gv', roles: ['giao_vien'] as const };
+    expect(can(sale, 'student', 'lookup')).toBe(true);
+    expect(can(giaoVien, 'student', 'lookup')).toBe(false);
+  });
+
+  it('facility.create/list is super_admin only — every registered role is FORBIDDEN (K7)', () => {
+    const gdkd = { userId: 'u-gdkd', roles: ['giam_doc_kinh_doanh'] as const };
+    const admin = { userId: 'u-admin', roles: ['super_admin'] as const };
+    expect(can(gdkd, 'facility', 'create')).toBe(false);
+    expect(can(gdkd, 'facility', 'list')).toBe(false);
+    expect(can(admin, 'facility', 'create')).toBe(true);
+    expect(can(admin, 'facility', 'list')).toBe(true);
+  });
 });

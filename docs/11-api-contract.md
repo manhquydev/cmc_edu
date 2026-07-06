@@ -64,6 +64,8 @@ narrow `status==='success'`** trước khi đọc payload. Đây là hợp đồ
 | `finance.receiptApprove` | mutation | `finance.receiptApprove` (v2: GĐKD — ke_toan deferred) | `{ receiptId }` | **Cổng tiền**: auto-O5 + provisioning + outbox email |
 | `finance.receiptCancel` | mutation | `finance.receiptApprove` | `{ receiptId, reason }` | revert O4, rollback provisioning |
 | `finance.refundCreate` | mutation | `finance.refundCreate` | `{ receiptId, amount }` | append RefundRecord (cap FOR UPDATE) |
+| `finance.receiptList` | query | `finance.receiptList` (roster = `receiptApprove`, K3) | `{ status?, page?, pageSize? }` | `{items,total,page,pageSize}` — hàng đợi duyệt phiếu |
+| `finance.receiptGet` | query | `finance.receiptGet` (roster = `receiptApprove`, K3) | `{ receiptId }` | 1 receipt (facility-scoped) |
 | `crm.opportunityLookup` | query | `crm.opportunityLookup` | `{ phone }` | tồn tại opp? (hẹp, không mở CRM) |
 
 ### Enrollment / Academic
@@ -89,9 +91,17 @@ narrow `status==='success'`** trước khi đọc payload. Đây là hợp đồ
 | Procedure | Loại | Quyền | Ghi chú |
 |---|---|---|---|
 | `auth.*` / `lmsAuth.*` | — | — | SSO staff / OTP-phone PH |
-| `student.*` · `guardian.*` | mutation/query | role-gate | không có UI tạo student mồ côi |
+| `student.lookup` | query | `student.lookup` (staff-only, K4) | `{ phone?, name? }` → `{id, fullName, lifecycle}[]`; facility-scoped, mỗi kết quả không rỗng được audit (docs/08 §7). Nguồn `studentId` hợp lệ cho renewal (`receiptCreate.studentId`) / `enrollment.enroll.studentId`. |
+| `guardian.listPendingLinks` | query | `guardian.listPendingLinks` (roster = `approveLink`, K3) | `{ status?='pending', page?, pageSize? }` | hàng đợi `GuardianLinkRequest` cho staff duyệt |
+| `student.*` (khác) · `guardian.*` (khác) | mutation/query | role-gate | không có UI tạo student mồ côi |
+| `facility.create` | mutation | `facility.create` (super_admin only, K7) | `{ name }` | tạo `Facility` — chỉ super_admin (registry không có role nào khác) |
+| `facility.list` | query | `facility.list` (super_admin only, K7) | `{ page?, pageSize? }` | `{items,total,page,pageSize}` |
 | `audit.*` | query | giám sát | nền SoD + agent oversight |
 | `search.*` · `dashboard.*` | query | protected | tìm kiếm, tổng quan |
+
+> **K7 boundary note:** mọi request qua `protectedProcedure` (staff) giờ bị chặn nếu `facilityId` đã
+> resolve không khớp một `Facility` thật (`requireValidFacility`, apps/api/src/trpc.ts) — một
+> facilityId giả/gõ sai không còn âm thầm tạo "tenant vô hình". Dev seed: `pnpm --filter @cmc/db run db:seed`.
 
 ## 6. Agent tiêu thụ API qua MCP
 

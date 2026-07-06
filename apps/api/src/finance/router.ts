@@ -122,6 +122,27 @@ function toReceiptDto(receipt: ReceiptRow): ReceiptDto {
   };
 }
 
+/** Full ReceiptStatus catalog (schema.prisma). */
+const RECEIPT_STATUS_VALUES = ['draft', 'approved', 'sent', 'cancelled'] as const;
+
+/**
+ * K3 remediation (deep-review consolidated report): the HITL work-queue for
+ * the money gate. Before this, an approver (≠ the drafting `sale`) had no
+ * way to find receipts awaiting approval — `receiptId` was only ever handed
+ * back to the caller that created it (grep: zero list/get procedures
+ * existed). `status: 'draft'` is the primary filter an approver uses; other
+ * statuses remain queryable for history/audit.
+ */
+const receiptListInput = z.object({
+  status: z.enum(RECEIPT_STATUS_VALUES).optional(),
+  page: z.number().int().positive().default(1),
+  pageSize: z.number().int().positive().max(100).default(20),
+});
+
+const receiptGetInput = z.object({
+  receiptId: z.string().uuid(),
+});
+
 const receiptApproveInput = z.object({
   receiptId: z.string().uuid(),
 });
@@ -506,6 +527,52 @@ async function runRefundTransaction(
 }
 
 export const financeRouter = router({
+  // K3 remediation: paginated, facility-scoped, filterable by status — the
+  // work queue an approver (GĐKD/GĐĐT/ke_toan, same roster as receiptApprove)
+  // actually needs to find drafts awaiting a decision.
+  receiptList: requirePermission('finance', 'receiptList')
+    .input(receiptListInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      const where = { facilityId, ...(input.status ? { status: input.status } : {}) };
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const [rows, total] = await Promise.all([
+          tx.receipt.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            skip: (input.page - 1) * input.pageSize,
+            take: input.pageSize,
+          }),
+          tx.receipt.count({ where }),
+        ]);
+
+        return {
+          items: rows.map(toReceiptDto),
+          total,
+          page: input.page,
+          pageSize: input.pageSize,
+        };
+      });
+    }),
+
+  // K3 remediation: the single-receipt companion to receiptList (e.g. an
+  // approver opening one item from the queue).
+  receiptGet: requirePermission('finance', 'receiptGet')
+    .input(receiptGetInput)
+    .query(async ({ ctx, input }): Promise<ReceiptDto> => {
+      const { facilityId } = scoped(ctx);
+
+      const receipt = await withFacility(ctx.db, facilityId, (tx) =>
+        tx.receipt.findFirst({ where: { id: input.receiptId, facilityId } }),
+      );
+      // Out-of-facility ids look identical to non-existent ones (RLS — TL11 §2).
+      if (!receipt) {
+        throw notFound('Receipt not found.');
+      }
+      return toReceiptDto(receipt);
+    }),
+
   receiptCreate: requirePermission('finance', 'receiptCreate')
     .input(receiptCreateInput)
     .mutation(async ({ ctx, input }): Promise<ReceiptCreateResult> => {

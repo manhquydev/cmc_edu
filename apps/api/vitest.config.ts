@@ -11,11 +11,21 @@ export default defineConfig({
     },
   },
   test: {
+    // Integration tests hit ONE real, shared dev Postgres instance (no
+    // per-worker isolated schema) — running test FILES in parallel (Vitest's
+    // default) intermittently produces spurious FK-constraint errors during
+    // `cleanupFacility()` teardown under concurrent load against that shared
+    // instance (observed: `Guardian_studentId_fkey` raised against a facility
+    // that created zero Students, only reproducible under full-suite
+    // concurrency, never in isolation) — a connection-pool/concurrency
+    // artifact, not an application bug. Serializing file execution trades a
+    // few seconds of wall-clock time for a deterministic, non-flaky suite.
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json-summary'],
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/test/**', 'src/server.ts'],
+      exclude: ['src/**/*.test.ts', 'src/test/**', 'src/server.ts', 'src/worker/index.ts'],
       // docs/29-test-plan.md §2 (risk-based coverage targets). `finance` and
       // `provisioning` are the money/provisioning gate (M1 remediation) —
       // everything else falls back to a reasonable baseline. Branch

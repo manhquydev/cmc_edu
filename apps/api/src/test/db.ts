@@ -24,6 +24,27 @@ export function testDb(): PrismaClient {
   return dbSingleton;
 }
 
+let privilegedDbSingleton: PrismaClient | undefined;
+
+/**
+ * K5 remediation: a SEPARATE connection using the migration/owner role
+ * (`DATABASE_URL`, not `APP_DATABASE_URL`) — test-teardown-only. `RefundRecord`
+ * and `AuditLog` have UPDATE/DELETE revoked from `cmc_app` (append-only
+ * ledgers, see the `p1_remediation_wavea_privilege_hardening` migration), so
+ * this test harness's own row cleanup for those two tables can no longer run
+ * through the same connection the app uses — it must use the privileged role,
+ * exactly like a real DBA doing manual data remediation would. Never use this
+ * for a test's arrange/act/assert phases (it also bypasses RLS entirely, same
+ * caveat as the migration role everywhere else in this codebase) — only for
+ * teardown of the two now-restricted ledgers.
+ */
+function privilegedDb(): PrismaClient {
+  privilegedDbSingleton ??= new PrismaClient({
+    datasources: { db: { url: process.env.DATABASE_URL } },
+  });
+  return privilegedDbSingleton;
+}
+
 /**
  * Bypass-scoped access for test arrangement/assertions against
  * RLS-protected tables (Contact, Opportunity, Receipt, RefundRecord, Student,
@@ -48,13 +69,16 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
   // carries no RLS policy, so no bypass is needed for this delete.
   await db.guardian.deleteMany({ where: { facilityId } });
   await db.guardianLinkRequest.deleteMany({ where: { facilityId } });
+  // K5: `cmc_app` no longer has DELETE on RefundRecord (append-only ledger) —
+  // this teardown-only delete now runs via the privileged migration-role
+  // connection instead (see `privilegedDb()` above).
+  await privilegedDb().refundRecord.deleteMany({ where: { facilityId } });
   await testDbBypass(async (tx) => {
     // `studentAccount` has no facilityId of its own — the relational filter
     // joins through `student` (RLS-protected), so this delete also needs the
     // bypass GUC even though StudentAccount itself carries no RLS policy. It
     // also has an FK to Student, so it must run before `student.deleteMany`.
     await tx.studentAccount.deleteMany({ where: { student: { facilityId } } });
-    await tx.refundRecord.deleteMany({ where: { facilityId } });
     await tx.enrollment.deleteMany({ where: { facilityId } });
     await tx.student.deleteMany({ where: { facilityId } });
     await tx.receipt.deleteMany({ where: { facilityId } });

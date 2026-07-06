@@ -4,9 +4,11 @@
 import { z } from 'zod';
 import { crmRouter } from './crm/router.js';
 import { enrollmentRouter } from './enrollment/router.js';
+import { facilityRouter } from './facility/router.js';
 import { financeRouter } from './finance/router.js';
 import { guardianRouter } from './guardian/router.js';
 import { lmsAuthRouter } from './lms-auth/router.js';
+import { studentRouter } from './student/router.js';
 import { publicProcedure, router } from './trpc.js';
 
 const healthOutput = z.object({
@@ -25,6 +27,8 @@ export const appRouter = router({
   enrollment: enrollmentRouter,
   guardian: guardianRouter,
   lmsAuth: lmsAuthRouter,
+  student: studentRouter,
+  facility: facilityRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -86,6 +86,11 @@ export const PERMISSIONS: Record<string, readonly Role[]> = {
   'room.manage': ['giam_doc_dao_tao'],
   'class.create': ['giam_doc_dao_tao'],
   'schedule.generate': ['giam_doc_dao_tao'],
+  // T1 (docs/26 phase-02, TL19 §5, WF-P2-02): attendance is a teacher-facing
+  // action, unlike the GĐĐT-only class-setup perms above. Also gates
+  // `classSession.cancel`/`confirm`/`addMakeup` via `schedule.generate`
+  // (unchanged, GĐĐT-only — session lifecycle stays a training-ops action).
+  'attendance.mark': ['giao_vien', 'giam_doc_dao_tao'],
 };
 
 /**

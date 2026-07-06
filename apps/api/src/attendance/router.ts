@@ -1,0 +1,258 @@
+// attendance router — T1 (docs/26 phase-02, TL19 §5, WF-P2-02). `mark`/`markAll`
+// are the teacher-facing writers; `listBySession` is the roster read. All
+// three enforce the same 5 gates (TL19 §5):
+//   1. ClassSession exists (in the caller's facility) & not `cancelled`.
+//   2. `enrollment.classBatchId === session.classBatchId`.
+//   3. Enrollment is `active` (ADR-A: reserved/withdrawn/etc. blocked).
+//   4. `facilityId` is derived server-side from the session lookup itself
+//      (never a client-supplied value) — a cross-facility sessionId/
+//      enrollmentId simply resolves to "not found" under RLS.
+//   5. Attendance is reported by the ICT month of the session's END time
+//      (`ictMonthOf`, ../class/ict-time.ts) — exposed for later monthly
+//      attendance-rate reporting (`computeFinalGrade`), not enforced as a
+//      write-time check.
+//
+// Every gate failure is BAD_REQUEST (not NOT_FOUND) — the 5 gates are
+// business-rule violations on an otherwise-addressable write, not "resource
+// missing" in the REST sense (TL19 §5 wording).
+
+import { z } from 'zod';
+import { withFacility, type Prisma } from '@cmc/db';
+import { badRequest } from '../errors.js';
+import { requirePermission, router, scoped } from '../trpc.js';
+
+const attendanceStatusSchema = z.enum(['present', 'absent', 'late']);
+
+const markInput = z.object({
+  sessionId: z.string().uuid(),
+  enrollmentId: z.string().uuid(),
+  status: attendanceStatusSchema,
+});
+
+const markAllInput = z.object({
+  sessionId: z.string().uuid(),
+  entries: z
+    .array(z.object({ enrollmentId: z.string().uuid(), status: attendanceStatusSchema }))
+    .min(1)
+    // Bound the write transaction (one class session's roster is small); G1-style
+    // resource guard so a single call can't materialise an unbounded batch.
+    .max(200),
+});
+
+const listBySessionInput = z.object({ sessionId: z.string().uuid() });
+
+export interface AttendanceDto {
+  id: string;
+  classSessionId: string;
+  enrollmentId: string;
+  studentId: string;
+  status: string;
+  markedById: string;
+  markedAt: Date;
+}
+
+function toAttendanceDto(row: {
+  id: string;
+  classSessionId: string;
+  enrollmentId: string;
+  studentId: string;
+  status: string;
+  markedById: string;
+  markedAt: Date;
+}): AttendanceDto {
+  return {
+    id: row.id,
+    classSessionId: row.classSessionId,
+    enrollmentId: row.enrollmentId,
+    studentId: row.studentId,
+    status: row.status,
+    markedById: row.markedById,
+    markedAt: row.markedAt,
+  };
+}
+
+/** Gate 1: session exists (in `facilityId`) and is not cancelled. */
+async function loadGatedSession(
+  tx: Prisma.TransactionClient,
+  facilityId: string,
+  sessionId: string,
+) {
+  const session = await tx.classSession.findFirst({ where: { id: sessionId, facilityId } });
+  if (!session || session.status === 'cancelled') {
+    throw badRequest('ClassSession not found or cancelled.');
+  }
+  return session;
+}
+
+/** Gates 2-3: the enrollment resolves (in `facilityId`), matches the
+ * session's class, and is `active`. */
+async function loadGatedEnrollment(
+  tx: Prisma.TransactionClient,
+  facilityId: string,
+  enrollmentId: string,
+  session: { classBatchId: string },
+) {
+  const enrollment = await tx.enrollment.findFirst({ where: { id: enrollmentId, facilityId } });
+  if (!enrollment) {
+    throw badRequest('Enrollment not found.');
+  }
+  if (enrollment.classBatchId !== session.classBatchId) {
+    throw badRequest("Enrollment does not belong to this session's class.");
+  }
+  if (enrollment.status !== 'active') {
+    throw badRequest('Enrollment is not active.');
+  }
+  return enrollment;
+}
+
+export const attendanceRouter = router({
+  // UPSERT — re-mark allowed, last-write-wins; every write is audited.
+  mark: requirePermission('attendance', 'mark')
+    .input(markInput)
+    .mutation(async ({ ctx, input }): Promise<AttendanceDto> => {
+      const { facilityId } = scoped(ctx);
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const session = await loadGatedSession(tx, facilityId, input.sessionId);
+        const enrollment = await loadGatedEnrollment(tx, facilityId, input.enrollmentId, session);
+
+        const markedAt = new Date();
+        const attendance = await tx.attendance.upsert({
+          where: {
+            classSessionId_enrollmentId: {
+              classSessionId: session.id,
+              enrollmentId: enrollment.id,
+            },
+          },
+          create: {
+            facilityId,
+            classSessionId: session.id,
+            enrollmentId: enrollment.id,
+            studentId: enrollment.studentId,
+            status: input.status,
+            markedById: ctx.subject.userId,
+            markedAt,
+          },
+          update: {
+            status: input.status,
+            markedById: ctx.subject.userId,
+            markedAt,
+          },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'attendance.mark',
+            entity: 'Attendance',
+            entityId: attendance.id,
+            data: { facilityId, sessionId: session.id, enrollmentId: enrollment.id, status: input.status },
+          },
+        });
+
+        return toAttendanceDto(attendance);
+      });
+    }),
+
+  // Same gates + upsert semantics as `mark`, applied to a whole roster in one
+  // transaction (atomic: any entry failing a gate rolls back the batch).
+  markAll: requirePermission('attendance', 'mark')
+    .input(markAllInput)
+    .mutation(async ({ ctx, input }): Promise<{ items: AttendanceDto[] }> => {
+      const { facilityId } = scoped(ctx);
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const session = await loadGatedSession(tx, facilityId, input.sessionId);
+
+        const items: AttendanceDto[] = [];
+        for (const entry of input.entries) {
+          const enrollment = await loadGatedEnrollment(tx, facilityId, entry.enrollmentId, session);
+          const markedAt = new Date();
+          const attendance = await tx.attendance.upsert({
+            where: {
+              classSessionId_enrollmentId: {
+                classSessionId: session.id,
+                enrollmentId: enrollment.id,
+              },
+            },
+            create: {
+              facilityId,
+              classSessionId: session.id,
+              enrollmentId: enrollment.id,
+              studentId: enrollment.studentId,
+              status: entry.status,
+              markedById: ctx.subject.userId,
+              markedAt,
+            },
+            update: {
+              status: entry.status,
+              markedById: ctx.subject.userId,
+              markedAt,
+            },
+          });
+
+          await tx.auditLog.create({
+            data: {
+              actor: ctx.subject.userId,
+              action: 'attendance.mark',
+              entity: 'Attendance',
+              entityId: attendance.id,
+              data: { facilityId, sessionId: session.id, enrollmentId: enrollment.id, status: entry.status },
+            },
+          });
+
+          items.push(toAttendanceDto(attendance));
+        }
+
+        return { items };
+      });
+    }),
+
+  // Roster read: every `active` enrollment in the session's class, with its
+  // attendance status for THIS session (`null` when not yet marked).
+  listBySession: requirePermission('attendance', 'mark')
+    .input(listBySessionInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const session = await loadGatedSessionForRead(tx, facilityId, input.sessionId);
+
+        const [enrollments, attendances] = await Promise.all([
+          tx.enrollment.findMany({
+            where: { facilityId, classBatchId: session.classBatchId, status: 'active' },
+          }),
+          tx.attendance.findMany({ where: { facilityId, classSessionId: session.id } }),
+        ]);
+
+        const byEnrollmentId = new Map(attendances.map((a) => [a.enrollmentId, a]));
+        const items = enrollments.map((enrollment) => {
+          const attendance = byEnrollmentId.get(enrollment.id);
+          return {
+            enrollmentId: enrollment.id,
+            studentId: enrollment.studentId,
+            status: attendance?.status ?? null,
+            markedAt: attendance?.markedAt ?? null,
+          };
+        });
+
+        return { items, total: items.length };
+      });
+    }),
+});
+
+/** `listBySession` is a read, not a write — it still must resolve the session
+ * server-side (gate 4) but a cancelled session's roster remains readable
+ * (e.g. to show why nothing was marked), unlike `mark`/`markAll` which block
+ * writes against it (gate 1). */
+async function loadGatedSessionForRead(
+  tx: Prisma.TransactionClient,
+  facilityId: string,
+  sessionId: string,
+) {
+  const session = await tx.classSession.findFirst({ where: { id: sessionId, facilityId } });
+  if (!session) {
+    throw badRequest('ClassSession not found.');
+  }
+  return session;
+}

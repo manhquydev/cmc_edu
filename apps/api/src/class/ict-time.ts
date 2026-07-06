@@ -58,6 +58,17 @@ export function ictDateOnlyOf(instant: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+/**
+ * The `YYYY-MM` ICT calendar month an instant falls in (TL19 §5: "điểm danh
+ * bucket theo tháng ICT của thời điểm kết thúc buổi" — attendance's reporting
+ * bucket is the ICT month of the session's END time, a stable UTC+7 month
+ * boundary rather than the naive UTC month, which can disagree near
+ * midnight). Reuses the same ICT shift as `ictDateOnlyOf`, truncated to month.
+ */
+export function ictMonthOf(instant: Date): string {
+  return ictDateOnlyOf(instant).slice(0, 7);
+}
+
 /** Adds `days` calendar days to a `YYYY-MM-DD` date, returning `YYYY-MM-DD`. */
 export function addDaysToDateOnly(dateOnly: string, days: number): string {
   const match = DATE_ONLY_RE.exec(dateOnly);

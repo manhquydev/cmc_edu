@@ -125,6 +125,13 @@ enum SessionStatus {
   cancelled
 }
 
+/// T1 attendance (docs/19 §5, WF-P2-02). Fixed 3-value set per spec.
+enum AttendanceStatus {
+  present
+  absent
+  late
+}
+
 enum EmailOutboxStatus {
   pending
   /// R3 remediation (deep-review adversarial verification): a transient claim
@@ -282,6 +289,7 @@ model Student {
   enrollments      Enrollment[]
   guardians        Guardian[]
   studentAccount   StudentAccount?
+  attendances      Attendance[]
 
   @@index([facilityId])
 }
@@ -382,6 +390,7 @@ model Enrollment {
 
   student    Student    @relation(fields: [studentId], references: [id])
   classBatch ClassBatch @relation(fields: [classBatchId], references: [id])
+  attendances Attendance[]
 
   @@index([facilityId])
   @@index([studentId])
@@ -508,6 +517,7 @@ model ClassSession {
 
   classBatch   ClassBatch    @relation(fields: [classBatchId], references: [id])
   scheduleSlot ScheduleSlot? @relation(fields: [scheduleSlotId], references: [id])
+  attendances  Attendance[]
 
   // Re-generate idempotency (WF-P2-01 acceptance: "re-generate không nhân
   // đôi"): at most one session per (classBatch, slot, calendar day).
@@ -516,6 +526,35 @@ model ClassSession {
   @@index([classBatchId])
   @@index([scheduleSlotId])
   @@index([facilityId, sessionDate])
+}
+
+/// T1 attendance (docs/19 §5, WF-P2-02): one row per (ClassSession,
+/// Enrollment) — UPSERT on re-mark (last-write-wins, `attendance.mark`/
+/// `markAll` re-write `status`/`markedById`/`markedAt` on conflict rather than
+/// erroring), never deleted (append-only-ish audit trail; `cmc_app` has no
+/// DELETE grant on this table — see the migration). `studentId` is
+/// denormalized from `Enrollment.studentId` at mark-time for read
+/// convenience (attendance history stays queryable by student even if the
+/// Enrollment row's own studentId can never actually change in practice).
+/// `markedById` is a plain scalar (references AppUser.id, arriving with the
+/// HR/identity phase — same deferral as `ClassBatch.teacherId`).
+model Attendance {
+  id           String           @id @default(uuid())
+  facilityId   String
+  classSessionId String
+  enrollmentId String
+  studentId    String
+  status       AttendanceStatus
+  markedById   String
+  markedAt     DateTime         @db.Timestamptz(3)
+
+  classSession ClassSession @relation(fields: [classSessionId], references: [id])
+  enrollment   Enrollment   @relation(fields: [enrollmentId], references: [id])
+  student      Student      @relation(fields: [studentId], references: [id])
+
+  @@unique([classSessionId, enrollmentId])
+  @@index([facilityId])
+  @@index([studentId])
 }
 
 /// Atomic per-(facility, program, year) sequence for the class-code format

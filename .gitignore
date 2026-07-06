@@ -120,3 +120,8 @@ scripts/bin/harness-symphony.exe
 # Test coverage artifacts
 coverage/
 **/coverage/
+
+# Playwright e2e artifacts
+apps/e2e/test-results/
+apps/e2e/playwright-report/
+apps/e2e/playwright/.cache/

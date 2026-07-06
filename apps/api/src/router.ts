@@ -2,7 +2,9 @@
 // they are built; P0 exposes only the health check.
 
 import { z } from 'zod';
+import { attendanceRouter } from './attendance/router.js';
 import { classBatchRouter } from './class/class-batch-router.js';
+import { classSessionRouter } from './class/class-session-router.js';
 import { scheduleRouter } from './class/schedule-router.js';
 import { courseRouter } from './course/router.js';
 import { crmRouter } from './crm/router.js';
@@ -36,7 +38,9 @@ export const appRouter = router({
   course: courseRouter,
   room: roomRouter,
   classBatch: classBatchRouter,
+  classSession: classSessionRouter,
   schedule: scheduleRouter,
+  attendance: attendanceRouter,
 });
 
 export type AppRouter = typeof appRouter;

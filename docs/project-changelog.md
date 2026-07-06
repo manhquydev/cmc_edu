@@ -256,3 +256,8 @@
 - Class-ops data model (Course/Room/ClassBatch/ScheduleSlot/ClassSession) behind RLS; class-code + atomic counter; auto-session generation (idempotent); room double-booking enforced on create AND regenerate; class-span capped.
 - P1↔P2 seam closed: receipt/enrollment require a real same-facility ClassBatch (FK + validation).
 - G1 merge-gate: 0 Critical/High; M1/M2 fixed, M3/L1/L2 backlogged (#10). 159 api tests pass.
+
+## 2026-07-06 — T1: attendance + session lifecycle + e2e + CI (PR #3)
+- attendance.mark/markAll/listBySession (5 gates, upsert+audit, RLS); classSession.cancel/confirm/addMakeup.
+- apps/e2e Playwright API-driven skeleton (2 critical paths); GitHub Actions CI (typecheck+test on Postgres service).
+- T1 gate: 0 Crit/High; M1+L2 backlogged (#11). 176 api tests + e2e 2/2.

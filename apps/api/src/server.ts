@@ -8,7 +8,7 @@ const port = Number(process.env.PORT ?? 3000);
 
 const server = createHTTPServer({
   router: appRouter,
-  createContext: () => createContext(),
+  createContext: ({ req }) => createContext({ req }),
 });
 
 server.listen(port);

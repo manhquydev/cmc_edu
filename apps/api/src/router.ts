@@ -2,6 +2,11 @@
 // they are built; P0 exposes only the health check.
 
 import { z } from 'zod';
+import { crmRouter } from './crm/router.js';
+import { enrollmentRouter } from './enrollment/router.js';
+import { financeRouter } from './finance/router.js';
+import { guardianRouter } from './guardian/router.js';
+import { lmsAuthRouter } from './lms-auth/router.js';
 import { publicProcedure, router } from './trpc.js';
 
 const healthOutput = z.object({
@@ -15,6 +20,11 @@ export const appRouter = router({
     status: 'ok' as const,
     ts: new Date().toISOString(),
   })),
+  crm: crmRouter,
+  finance: financeRouter,
+  enrollment: enrollmentRouter,
+  guardian: guardianRouter,
+  lmsAuth: lmsAuthRouter,
 });
 
 export type AppRouter = typeof appRouter;

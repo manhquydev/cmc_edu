@@ -12,6 +12,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedClassBatch,
   seedParentAccount,
   testDb,
   testDbBypass,
@@ -24,12 +25,14 @@ describe('guardian.requestLink / approveLink / rejectLink (WF-P1-06)', () => {
   let sale: Caller;
   let hr: Caller;
   let student: { id: string };
+  let classBatch: { id: string };
   let parentAccount: { id: string; phone: string };
   let parent: Caller;
   const phonesToClean: string[] = [];
 
   beforeEach(async () => {
     facility = await createTestFacility('Guardian Link Facility');
+    classBatch = await seedClassBatch({ facilityId: facility.id });
     sale = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'sale-link-1', roles: ['sale'] }),
     );
@@ -64,7 +67,7 @@ describe('guardian.requestLink / approveLink / rejectLink (WF-P1-06)', () => {
   });
 
   it('parent cannot see child data while the link is pending', async () => {
-    await sale.enrollment.enroll({ studentId: student.id, classBatchId: 'class-batch-link-1' });
+    await sale.enrollment.enroll({ studentId: student.id, classBatchId: classBatch.id });
     await parent.guardian.requestLink({ studentRef: student.id });
 
     const mine = await parent.enrollment.mine();
@@ -74,7 +77,7 @@ describe('guardian.requestLink / approveLink / rejectLink (WF-P1-06)', () => {
   it('staff approve creates a Guardian row and the parent then sees the child', async () => {
     const enrollment = await sale.enrollment.enroll({
       studentId: student.id,
-      classBatchId: 'class-batch-link-2',
+      classBatchId: classBatch.id,
     });
     const requested = await parent.guardian.requestLink({ studentRef: student.id });
     const requestId = requested.status === 'created' ? requested.requestId : undefined;
@@ -94,7 +97,7 @@ describe('guardian.requestLink / approveLink / rejectLink (WF-P1-06)', () => {
   });
 
   it('reject leaves the parent with no access', async () => {
-    await sale.enrollment.enroll({ studentId: student.id, classBatchId: 'class-batch-link-3' });
+    await sale.enrollment.enroll({ studentId: student.id, classBatchId: classBatch.id });
     const requested = await parent.guardian.requestLink({ studentRef: student.id });
     const requestId = requested.status === 'created' ? requested.requestId : undefined;
 
@@ -140,7 +143,7 @@ describe('guardian.requestLink / approveLink / rejectLink (WF-P1-06)', () => {
   });
 
   it('writes an AuditLog row when the parent reads child data via enrollment.mine — M3', async () => {
-    await sale.enrollment.enroll({ studentId: student.id, classBatchId: 'class-batch-link-4' });
+    await sale.enrollment.enroll({ studentId: student.id, classBatchId: classBatch.id });
     const requested = await parent.guardian.requestLink({ studentRef: student.id });
     const requestId = requested.status === 'created' ? requested.requestId : undefined;
     await sale.guardian.approveLink({ requestId: requestId!, relation: 'mother' });

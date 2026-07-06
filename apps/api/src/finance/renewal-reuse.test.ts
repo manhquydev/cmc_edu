@@ -11,6 +11,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedClassBatch,
   testDbBypass,
 } from '../test/db.js';
 
@@ -20,10 +21,14 @@ describe('finance.receiptCreate renewal reuse (H3)', () => {
   let facility: { id: string };
   let sale: Caller;
   let gdkd: Caller;
+  let classBatchOne: { id: string };
+  let classBatchTwo: { id: string };
   const phonesToClean: string[] = [];
 
   beforeEach(async () => {
     facility = await createTestFacility('Renewal Reuse Facility');
+    classBatchOne = await seedClassBatch({ facilityId: facility.id });
+    classBatchTwo = await seedClassBatch({ facilityId: facility.id });
     sale = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'sale-renew-1', roles: ['sale'] }),
     );
@@ -47,7 +52,7 @@ describe('finance.receiptCreate renewal reuse (H3)', () => {
       studentName: 'Renewal Student',
       parentPhone,
       amount: 5_000_000,
-      classBatchId: 'class-batch-renew-1',
+      classBatchId: classBatchOne.id,
     });
     const firstApproved = await gdkd.finance.receiptApprove({ receiptId: firstReceipt.receipt.id });
     expect(firstApproved.provisioning).toBe('ok');
@@ -62,7 +67,7 @@ describe('finance.receiptCreate renewal reuse (H3)', () => {
       studentName: 'Renewal Student',
       parentPhone,
       amount: 6_000_000,
-      classBatchId: 'class-batch-renew-2',
+      classBatchId: classBatchTwo.id,
     });
     const renewalApproved = await gdkd.finance.receiptApprove({ receiptId: renewalReceipt.receipt.id });
     expect(renewalApproved.provisioning).toBe('ok');
@@ -75,13 +80,13 @@ describe('finance.receiptCreate renewal reuse (H3)', () => {
 
     // A new active Enrollment exists for the new class, for the SAME student.
     const newEnrollment = await testDbBypass((tx) =>
-      tx.enrollment.findFirstOrThrow({ where: { studentId: student.id, classBatchId: 'class-batch-renew-2' } }),
+      tx.enrollment.findFirstOrThrow({ where: { studentId: student.id, classBatchId: classBatchTwo.id } }),
     );
     expect(newEnrollment.status).toBe('active');
 
     // The original enrollment (first class) is untouched.
     const originalEnrollment = await testDbBypass((tx) =>
-      tx.enrollment.findFirstOrThrow({ where: { studentId: student.id, classBatchId: 'class-batch-renew-1' } }),
+      tx.enrollment.findFirstOrThrow({ where: { studentId: student.id, classBatchId: classBatchOne.id } }),
     );
     expect(originalEnrollment.status).toBe('active');
   });
@@ -93,7 +98,7 @@ describe('finance.receiptCreate renewal reuse (H3)', () => {
         studentName: 'Ghost Student',
         parentPhone: '0993000002',
         amount: 5_000_000,
-        classBatchId: 'class-batch-renew-3',
+        classBatchId: classBatchOne.id,
       }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });

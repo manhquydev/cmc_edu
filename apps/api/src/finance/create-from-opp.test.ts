@@ -9,6 +9,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedClassBatch,
   testDb,
 } from '../test/db.js';
 
@@ -18,10 +19,12 @@ describe('finance.receiptCreate from opportunity (WF-P1-02)', () => {
   let facility: { id: string };
   let sale: Caller;
   let teacher: Caller;
+  let classBatch: { id: string };
   const phonesToClean: string[] = [];
 
   beforeEach(async () => {
     facility = await createTestFacility('Finance Facility');
+    classBatch = await seedClassBatch({ facilityId: facility.id });
     sale = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'sale-1', roles: ['sale'] }),
     );
@@ -50,7 +53,7 @@ describe('finance.receiptCreate from opportunity (WF-P1-02)', () => {
       studentName: 'Tran Van Con',
       parentPhone,
       amount: 5000000,
-      classBatchId: 'class-batch-1',
+      classBatchId: classBatch.id,
     });
 
     expect(result.status).toBe('success');
@@ -70,7 +73,7 @@ describe('finance.receiptCreate from opportunity (WF-P1-02)', () => {
       studentName: 'Someone',
       parentPhone: dupPhone,
       amount: 3000000,
-      classBatchId: 'class-batch-2',
+      classBatchId: classBatch.id,
     });
 
     expect(result.status).toBe('warning');

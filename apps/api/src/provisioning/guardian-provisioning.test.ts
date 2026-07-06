@@ -17,6 +17,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedClassBatch,
   testDb,
   testDbBypass,
 } from '../test/db.js';
@@ -27,10 +28,12 @@ describe('provisionFromReceipt creates a Guardian link (K1)', () => {
   let facility: { id: string };
   let sale: Caller;
   let gdkd: Caller;
+  let classBatch: { id: string };
   const phonesToClean: string[] = [];
 
   beforeEach(async () => {
     facility = await createTestFacility('Guardian Provisioning Facility');
+    classBatch = await seedClassBatch({ facilityId: facility.id });
     sale = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'sale-gp-1', roles: ['sale'] }),
     );
@@ -53,7 +56,7 @@ describe('provisionFromReceipt creates a Guardian link (K1)', () => {
       studentName: 'K1 Provisioned Child',
       parentPhone,
       amount: 5_000_000,
-      classBatchId: 'class-batch-k1-1',
+      classBatchId: classBatch.id,
     });
     if (draft.status !== 'success') throw new Error('expected draft creation to succeed');
 
@@ -92,7 +95,7 @@ describe('provisionFromReceipt creates a Guardian link (K1)', () => {
           kind: 'new',
           parentPhone,
           studentName: 'K1 Replay Child',
-          classBatchId: 'class-batch-k1-replay',
+          classBatchId: classBatch.id,
           createdById: 'test-creator',
         },
       }),
@@ -131,7 +134,7 @@ describe('provisionFromReceipt creates a Guardian link (K1)', () => {
           kind: 'new',
           parentPhone,
           studentName: 'K1 Concurrent Child',
-          classBatchId: 'class-batch-k1-race',
+          classBatchId: classBatch.id,
           createdById: 'test-creator',
         },
       }),

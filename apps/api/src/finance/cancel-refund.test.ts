@@ -15,6 +15,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedClassBatch,
   testDb,
   testDbBypass,
 } from '../test/db.js';
@@ -25,10 +26,12 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
   let facility: { id: string };
   let sale: Caller;
   let gdkd: Caller;
+  let classBatch: { id: string };
   const phonesToClean: string[] = [];
 
   beforeEach(async () => {
     facility = await createTestFacility('Cancel-Refund Facility');
+    classBatch = await seedClassBatch({ facilityId: facility.id });
     sale = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'sale-cr-1', roles: ['sale'] }),
     );
@@ -63,7 +66,7 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       studentName: 'Student for ' + opts.parentPhone,
       parentPhone: opts.parentPhone,
       amount: opts.amount ?? 5_000_000,
-      classBatchId: opts.classBatchId ?? 'class-batch-cancel-1',
+      classBatchId: opts.classBatchId ?? classBatch.id,
     });
     return { opportunityId, receipt: result.receipt };
   }
@@ -105,7 +108,7 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       await draftAndApprove({
         contactPhone: '0970000002',
         parentPhone: '0980000012',
-        classBatchId: 'class-batch-cancel-2',
+        classBatchId: classBatch.id,
         opportunityId,
       });
 
@@ -162,7 +165,7 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
         studentName: 'Shared Enrollment Student',
         parentPhone,
         amount: 5_000_000,
-        classBatchId: 'class-batch-shared-1',
+        classBatchId: classBatch.id,
       });
       const firstApproved = await gdkd.finance.receiptApprove({ receiptId: first.receipt.id });
       const student = await testDbBypass((tx) =>
@@ -176,12 +179,12 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
         studentName: 'Shared Enrollment Student',
         parentPhone,
         amount: 5_000_000,
-        classBatchId: 'class-batch-shared-1',
+        classBatchId: classBatch.id,
       });
       const secondApproved = await gdkd.finance.receiptApprove({ receiptId: second.receipt.id });
 
       const enrollment = await testDbBypass((tx) =>
-        tx.enrollment.findFirstOrThrow({ where: { studentId: student.id, classBatchId: 'class-batch-shared-1' } }),
+        tx.enrollment.findFirstOrThrow({ where: { studentId: student.id, classBatchId: classBatch.id } }),
       );
       expect(enrollment.status).toBe('active');
 
@@ -206,12 +209,12 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       const { opportunityId, receipt: receiptA } = await draftAndApprove({
         contactPhone: '0970000030',
         parentPhone: '0980000030',
-        classBatchId: 'class-batch-h6-a',
+        classBatchId: classBatch.id,
       });
       const { receipt: receiptB } = await draftAndApprove({
         contactPhone: '0970000030',
         parentPhone: '0980000031',
-        classBatchId: 'class-batch-h6-b',
+        classBatchId: classBatch.id,
         opportunityId,
       });
 

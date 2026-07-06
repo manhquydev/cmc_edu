@@ -589,6 +589,17 @@ export const financeRouter = router({
         ctx.db,
         facilityId,
         async (tx) => {
+          // P2-Foundation seam: classBatchId must point at a real ClassBatch
+          // in the caller's facility — an out-of-facility or nonexistent id
+          // looks identical to a nonexistent one (RLS), same as every other
+          // facility-scoped lookup in this codebase.
+          const classBatch = await tx.classBatch.findFirst({
+            where: { id: input.classBatchId, facilityId },
+          });
+          if (!classBatch) {
+            throw notFound('ClassBatch not found.');
+          }
+
           let opportunityNotAtO4Warning: string | null = null;
           if (input.opportunityId) {
             const opportunity = await tx.opportunity.findFirst({

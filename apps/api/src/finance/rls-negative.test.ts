@@ -10,6 +10,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedClassBatch,
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
@@ -20,11 +21,13 @@ describe('finance cross-facility RLS negative tests (M10)', () => {
   let saleA: Caller;
   let gdkdA: Caller;
   let gdkdB: Caller;
+  let classBatchA: { id: string };
   const phonesToClean: string[] = [];
 
   beforeEach(async () => {
     facilityA = await createTestFacility('RLS Finance Facility A');
     facilityB = await createTestFacility('RLS Finance Facility B');
+    classBatchA = await seedClassBatch({ facilityId: facilityA.id });
     saleA = appRouter.createCaller(
       buildStaffContext({ facilityId: facilityA.id, userId: 'sale-rlsA-1', roles: ['sale'] }),
     );
@@ -67,7 +70,7 @@ describe('finance cross-facility RLS negative tests (M10)', () => {
     const created = await draftReceiptInA({
       contactPhone: '0975000001',
       parentPhone: '0985000001',
-      classBatchId: 'class-batch-rls-1',
+      classBatchId: classBatchA.id,
     });
 
     await expect(gdkdB.finance.receiptApprove({ receiptId: created.receipt.id })).rejects.toMatchObject({
@@ -79,7 +82,7 @@ describe('finance cross-facility RLS negative tests (M10)', () => {
     const approved = await draftAndApproveInA({
       contactPhone: '0975000002',
       parentPhone: '0985000002',
-      classBatchId: 'class-batch-rls-2',
+      classBatchId: classBatchA.id,
     });
 
     await expect(
@@ -91,7 +94,7 @@ describe('finance cross-facility RLS negative tests (M10)', () => {
     const approved = await draftAndApproveInA({
       contactPhone: '0975000003',
       parentPhone: '0985000003',
-      classBatchId: 'class-batch-rls-3',
+      classBatchId: classBatchA.id,
     });
 
     await expect(

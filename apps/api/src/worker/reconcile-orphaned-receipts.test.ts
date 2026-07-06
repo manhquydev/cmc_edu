@@ -18,6 +18,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedClassBatch,
   testDb,
   testDbBypass,
 } from '../test/db.js';
@@ -28,10 +29,14 @@ describe('reconcileOrphanedReceipts (K2)', () => {
   let facility: { id: string };
   let sale: Caller;
   let gdkd: Caller;
+  let classBatch: { id: string };
+  let classBatchTwo: { id: string };
   const phonesToClean: string[] = [];
 
   beforeEach(async () => {
     facility = await createTestFacility('Reconcile Facility');
+    classBatch = await seedClassBatch({ facilityId: facility.id });
+    classBatchTwo = await seedClassBatch({ facilityId: facility.id });
     sale = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'sale-reconcile-1', roles: ['sale'] }),
     );
@@ -65,7 +70,7 @@ describe('reconcileOrphanedReceipts (K2)', () => {
           kind: 'new',
           parentPhone: malformedPhone,
           studentName: 'K2 Marker Child',
-          classBatchId: 'class-batch-k2-marker',
+          classBatchId: classBatch.id,
           createdById: 'test-creator',
         },
       }),
@@ -112,7 +117,7 @@ describe('reconcileOrphanedReceipts (K2)', () => {
     });
     expect(guardian).not.toBeNull();
     const enrollment = await testDbBypass((tx) =>
-      tx.enrollment.findFirstOrThrow({ where: { studentId: student.id, classBatchId: 'class-batch-k2-marker' } }),
+      tx.enrollment.findFirstOrThrow({ where: { studentId: student.id, classBatchId: classBatch.id } }),
     );
     expect(enrollment.status).toBe('active');
 
@@ -140,7 +145,7 @@ describe('reconcileOrphanedReceipts (K2)', () => {
           kind: 'new',
           parentPhone,
           studentName: 'K2 Crash Child',
-          classBatchId: 'class-batch-k2-crash',
+          classBatchId: classBatch.id,
           createdById: 'test-creator',
         },
       }),
@@ -170,7 +175,7 @@ describe('reconcileOrphanedReceipts (K2)', () => {
   it('R1: mid-provision failure (Student committed, but Guardian/Enrollment/StudentAccount are not) is fully recovered, and re-running creates no duplicates', async () => {
     const parentPhone = '0996000005';
     phonesToClean.push(parentPhone);
-    const classBatchId = 'class-batch-k2-partial';
+    const classBatchId = classBatch.id;
 
     // Simulates a crash/error AFTER the Student commit but BEFORE
     // Guardian/Enrollment/StudentAccount (R1, deep-review adversarial
@@ -245,7 +250,7 @@ describe('reconcileOrphanedReceipts (K2)', () => {
       studentName: 'K2 Healthy Child',
       parentPhone,
       amount: 5_000_000,
-      classBatchId: 'class-batch-k2-healthy',
+      classBatchId: classBatch.id,
     });
     if (draft.status !== 'success') throw new Error('expected success');
     phonesToClean.push(parentPhone);
@@ -264,7 +269,7 @@ describe('reconcileOrphanedReceipts (K2)', () => {
       studentName: 'K2 Renewal Child',
       parentPhone,
       amount: 5_000_000,
-      classBatchId: 'class-batch-k2-renewal-1',
+      classBatchId: classBatch.id,
     });
     if (first.status !== 'success') throw new Error('expected success');
     await gdkd.finance.receiptApprove({ receiptId: first.receipt.id });
@@ -277,7 +282,7 @@ describe('reconcileOrphanedReceipts (K2)', () => {
       studentName: 'K2 Renewal Child',
       parentPhone,
       amount: 4_000_000,
-      classBatchId: 'class-batch-k2-renewal-2',
+      classBatchId: classBatchTwo.id,
     });
     if (renewal.status !== 'success' && renewal.status !== 'warning') throw new Error('expected create to succeed');
     await gdkd.finance.receiptApprove({ receiptId: renewal.receipt.id });

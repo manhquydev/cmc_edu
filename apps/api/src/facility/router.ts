@@ -12,11 +12,16 @@
 // RLS policy (it is the platform-level catalog, not itself facility-scoped —
 // schema.prisma), so these are plain `ctx.db` calls, not `withFacility`.
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { requirePermission, router } from '../trpc.js';
 
 const facilityCreateInput = z.object({
   name: z.string().min(1),
+  /** P2-Foundation addition (QĐ 0036): the class-code prefix (e.g. "HN").
+   * Optional — omitted callers (every P1 caller/test) get one auto-derived
+   * from `name` below, so no existing `facility.create` caller breaks. */
+  code: z.string().min(1).max(20).optional(),
 });
 
 const facilityListInput = z.object({
@@ -27,14 +32,26 @@ const facilityListInput = z.object({
 export interface FacilityDto {
   id: string;
   name: string;
+  code: string;
   createdAt: Date;
+}
+
+/** Derives a short, unique-enough code from `name` when the caller omits one
+ * — e.g. "Facility Created By Test" -> "FACILI-3F2A9C1B". Collision-safe via
+ * a random suffix (this is a fallback path, not the primary real-facility
+ * naming flow, which is expected to pass an explicit `code`). */
+function deriveFacilityCode(name: string): string {
+  const base = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6) || 'FAC';
+  const suffix = randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
+  return `${base}-${suffix}`;
 }
 
 export const facilityRouter = router({
   create: requirePermission('facility', 'create')
     .input(facilityCreateInput)
     .mutation(async ({ ctx, input }): Promise<FacilityDto> => {
-      const facility = await ctx.db.facility.create({ data: { name: input.name } });
+      const code = input.code ?? deriveFacilityCode(input.name);
+      const facility = await ctx.db.facility.create({ data: { name: input.name, code } });
 
       await ctx.db.auditLog.create({
         data: {
@@ -42,7 +59,7 @@ export const facilityRouter = router({
           action: 'facility.create',
           entity: 'Facility',
           entityId: facility.id,
-          data: { name: facility.name },
+          data: { name: facility.name, code: facility.code },
         },
       });
 

@@ -19,6 +19,7 @@
     "@cmc/domain-finance": "workspace:*",
     "@cmc/domain-grading": "workspace:*",
     "@cmc/domain-identity": "workspace:*",
+    "@cmc/llm": "workspace:*",
     "@cmc/storage": "workspace:*",
     "@trpc/server": "^11.0.0",
     "zod": "^3.24.0"

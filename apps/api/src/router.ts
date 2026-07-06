@@ -3,6 +3,7 @@
 
 import { z } from 'zod';
 import { attendanceRouter } from './attendance/router.js';
+import { assessmentRouter, reportCardRouter } from './assessment/router.js';
 import { classBatchRouter } from './class/class-batch-router.js';
 import { classSessionRouter } from './class/class-session-router.js';
 import { scheduleRouter } from './class/schedule-router.js';
@@ -16,6 +17,7 @@ import { financeRouter } from './finance/router.js';
 import { guardianRouter } from './guardian/router.js';
 import { lmsAuthRouter } from './lms-auth/router.js';
 import { roomRouter } from './room/router.js';
+import { sessionEvidenceRouter, guardianLmsRouter } from './session-evidence/router.js';
 import { studentRouter } from './student/router.js';
 import { submissionRouter } from './submission/router.js';
 import { mergeRouters, publicProcedure, router } from './trpc.js';
@@ -34,7 +36,8 @@ export const appRouter = router({
   crm: crmRouter,
   finance: financeRouter,
   enrollment: enrollmentRouter,
-  guardian: guardianRouter,
+  // T3: merge LMS guardian consent procedures into the existing guardian router.
+  guardian: mergeRouters(guardianRouter, guardianLmsRouter),
   lmsAuth: lmsAuthRouter,
   student: studentRouter,
   facility: facilityRouter,
@@ -48,6 +51,11 @@ export const appRouter = router({
   // T2-I (CRUD) merged with T2-II (ADR 0038 open-tier reads) under one key.
   exercise: mergeRouters(exerciseRouter, exerciseOpenTierRouter),
   submission: submissionRouter,
+  // T3: assessment (AI draft → confirm) + report card aggregation.
+  assessment: assessmentRouter,
+  reportCard: reportCardRouter,
+  // T3: session evidence (teacher-authored, photo-gated for parents).
+  sessionEvidence: sessionEvidenceRouter,
 });
 
 export type AppRouter = typeof appRouter;

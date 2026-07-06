@@ -157,6 +157,9 @@ export const PERMISSIONS: Record<string, readonly Role[]> = {
   // P4: Student lifecycle transitions (active/blocked_lms/withdrawn) — director-only,
   // same separation-of-duties rationale as finance.receiptApprove (no `sale` role).
   'student.setLifecycle': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
+  // P5: Reconciliation flag review — directors only (audit surface; flagging is
+  // done by the AI-recon worker, human review/dismiss/action is director-level).
+  'reconciliation.review': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
 };
 
 /**

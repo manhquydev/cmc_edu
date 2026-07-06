@@ -142,6 +142,21 @@ export const PERMISSIONS: Record<string, readonly Role[]> = {
   'kpi.confirm': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
   // P3-II: KPI approve and override — director-level only.
   'kpi.approve': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
+  // P4: Gift catalog management — directors manage the gift catalog.
+  'gift.upsert': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
+  // P4: Gift listing for staff — broader roster (sale/hr need to explain to parents).
+  'gift.list': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'hr'],
+  // P4: Reward management (approve/deliver/reject) — directors + sale + hr.
+  'rewards.manage': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'hr'],
+  // P4: Parent meeting lifecycle — sale/hr are the CRM-facing roles for meetings.
+  'parentMeeting.manage': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'hr'],
+  // P4: Test appointment lifecycle — same roster as parent meetings.
+  'testAppointment.manage': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'hr'],
+  // P4: After-sale case management — directors + sale (customer-success owners).
+  'afterSale.manage': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'],
+  // P4: Student lifecycle transitions (active/blocked_lms/withdrawn) — director-only,
+  // same separation-of-duties rationale as finance.receiptApprove (no `sale` role).
+  'student.setLifecycle': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
 };
 
 /**

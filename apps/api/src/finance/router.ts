@@ -699,8 +699,6 @@ export const financeRouter = router({
           classBatchId: receipt.classBatchId,
           studentId: receipt.studentId,
         });
-
-        await enqueueReceiptEmail(ctx.db, receipt);
       } catch (error) {
         provisioning = 'pending';
         await ctx.db.auditLog.create({
@@ -712,6 +710,21 @@ export const financeRouter = router({
             data: { error: error instanceof Error ? error.message : String(error) },
           },
         });
+      }
+
+      // R5 remediation (deep-review adversarial verification): email enqueue
+      // is deliberately OUTSIDE the provisioning try/catch above, isolated in
+      // its own best-effort helper (see `enqueueReceiptEmailBestEffort`
+      // below). Before this fix both calls shared one try/catch, so an
+      // outbox INSERT failure (e.g. a transient DB hiccup) flipped a
+      // fully-successful provisioning to `provisioning: 'pending'` and wrote
+      // a spurious `provisioning.retry_pending` marker even though
+      // Student/Guardian/Enrollment/StudentAccount all committed correctly —
+      // misleading the reconciler and anyone reading the audit trail. Only
+      // attempted when provisioning actually succeeded (nothing to notify
+      // about otherwise).
+      if (provisioning === 'ok') {
+        await enqueueReceiptEmailBestEffort(ctx.db, receipt);
       }
 
       return { receipt: toReceiptDto(receipt), opportunityStage, provisioning };
@@ -775,4 +788,40 @@ export async function enqueueReceiptEmail(
       payload: { receiptId: receipt.id, studentName: receipt.studentName, kind: receipt.kind },
     },
   });
+}
+
+/**
+ * R5 remediation (deep-review adversarial verification): runs the
+ * receipt-notification email enqueue best-effort, fully isolated from
+ * `receiptApprove`'s provisioning success/failure boundary — its failure must
+ * NEVER be reported as `provisioning: 'pending'` nor recorded under the
+ * `provisioning.retry_pending` marker, since the money + Student/Guardian/
+ * Enrollment/StudentAccount chain is already durably committed by the time
+ * this runs. Failure here is recorded under its own distinct audit marker and
+ * swallowed — email is a best-effort notification, not part of the
+ * money/provisioning invariant.
+ *
+ * `enqueue` is dependency-injected (defaulting to the real
+ * `enqueueReceiptEmail`) so this isolation invariant is unit-testable with a
+ * deliberately-throwing stub, without needing to force a real Postgres
+ * INSERT failure against the outbox table.
+ */
+export async function enqueueReceiptEmailBestEffort(
+  db: PrismaClient,
+  receipt: { id: string; parentPhone: string; studentName: string; kind: string },
+  enqueue: typeof enqueueReceiptEmail = enqueueReceiptEmail,
+): Promise<void> {
+  try {
+    await enqueue(db, receipt);
+  } catch (error) {
+    await db.auditLog.create({
+      data: {
+        actor: 'system',
+        action: 'email.enqueue_failed',
+        entity: 'Receipt',
+        entityId: receipt.id,
+        data: { error: error instanceof Error ? error.message : String(error) },
+      },
+    });
+  }
 }

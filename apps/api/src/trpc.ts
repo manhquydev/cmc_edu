@@ -66,8 +66,25 @@ const requireSession = t.middleware(({ ctx, next }) => {
  * no admin surface could ever see or reconcile it. `Facility` carries no RLS
  * policy (it is the platform-level catalog, not itself facility-scoped — see
  * schema.prisma), so this is a plain lookup, not a `withFacility` call.
+ *
+ * R2 remediation (deep-review adversarial verification): this check made the
+ * very FIRST facility on a clean DB impossible to create through the API —
+ * `facility.create` is itself a `protectedProcedure` (K7), so a staff session
+ * needs an already-valid `facilityId` just to reach the mutation that creates
+ * one. A `super_admin` session bypasses it: a platform admin mints tenants
+ * from OUTSIDE any single tenant (there is no facility yet to be "in"), and
+ * `super_admin` already bypasses the entire @cmc/auth permission registry
+ * (`can()`) — exempting it here does not weaken this check for any other
+ * role, which still needs a facilityId that resolves to a real row.
  */
 const requireValidFacility = t.middleware(async ({ ctx, next }) => {
+  // `protectedProcedure` always chains `.use(requireSession).use(requireValidFacility)`,
+  // so `ctx.subject` is non-null at runtime by the time this middleware runs —
+  // the optional chain here is just to satisfy this middleware's own
+  // (wider, `Context`-typed) `ctx.subject: AuthSubject | null` signature.
+  if (ctx.subject?.roles.includes('super_admin')) {
+    return next();
+  }
   if (ctx.facilityId) {
     const facility = await ctx.db.facility.findUnique({
       where: { id: ctx.facilityId },

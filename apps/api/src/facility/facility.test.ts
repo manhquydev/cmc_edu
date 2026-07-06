@@ -45,6 +45,36 @@ describe('facility.create / facility.list (K7)', () => {
     });
   });
 
+  it('R2: super_admin bootstraps the very first facility — an unknown/bootstrap facilityId does not block facility.create', async () => {
+    // No `createTestFacility` call here on purpose: this reproduces the
+    // chicken-and-egg bootstrap deadlock (R2, deep-review adversarial
+    // verification) — a super_admin session referencing a facilityId that
+    // does NOT correspond to any real Facility row (there may be none on a
+    // clean DB) must still be able to call `facility.create`, since
+    // `requireValidFacility` (../trpc.ts) now bypasses its existence check
+    // for `super_admin` sessions.
+    const bootstrapAdmin = appRouter.createCaller(
+      buildStaffContext({ facilityId: 'bootstrap-no-such-facility-yet', userId: 'admin-facility-bootstrap', roles: ['super_admin'] }),
+    );
+
+    const created = await bootstrapAdmin.facility.create({ name: 'Facility Bootstrapped By Super Admin' });
+    facilityIdsToDelete.push(created.id);
+    expect(created.name).toBe('Facility Bootstrapped By Super Admin');
+
+    const persisted = await testDb().facility.findUniqueOrThrow({ where: { id: created.id } });
+    expect(persisted.name).toBe('Facility Bootstrapped By Super Admin');
+  });
+
+  it('R2: a non-super_admin with an unknown facilityId is still rejected (the bypass is super_admin-only)', async () => {
+    const ghost = appRouter.createCaller(
+      buildStaffContext({ facilityId: 'ghost-facility-does-not-exist-r2', userId: 'gdkd-facility-bootstrap', roles: ['giam_doc_kinh_doanh'] }),
+    );
+
+    await expect(ghost.facility.create({ name: 'Should Not Be Created' })).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    });
+  });
+
   it('facility.list paginates and is super_admin only', async () => {
     const bootstrap = await createTestFacility('Facility Test Bootstrap List');
     facilityIdsToDelete.push(bootstrap.id);

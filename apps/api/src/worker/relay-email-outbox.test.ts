@@ -87,6 +87,29 @@ describe('relayEmailOutbox (K6)', () => {
     expect(unchanged.status).toBe('sent');
   });
 
+  it('R3: two concurrent drains never double-send the same row (atomic claim)', async () => {
+    const row = await seedOutbox('pending');
+    const transportA = new RecordingTransport();
+    const transportB = new RecordingTransport();
+
+    // Two "replicas" draining the same outbox concurrently — before the R3
+    // atomic-claim fix, both would read the row as `pending` and both send
+    // it. The `updateMany WHERE status IN ('pending','failed')` claim lets
+    // only one of the two transitions win per row.
+    const [resultA, resultB] = await Promise.all([
+      relayEmailOutbox(testDb(), transportA),
+      relayEmailOutbox(testDb(), transportB),
+    ]);
+
+    const totalSendsOfThisRow =
+      transportA.sent.filter((e) => e.id === row.id).length + transportB.sent.filter((e) => e.id === row.id).length;
+    expect(totalSendsOfThisRow).toBe(1);
+    expect(resultA.sent + resultB.sent).toBeGreaterThanOrEqual(1);
+
+    const updated = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
+    expect(updated.status).toBe('sent');
+  });
+
   it('writes an audit marker when a row fails to relay', async () => {
     const row = await seedOutbox('pending');
 

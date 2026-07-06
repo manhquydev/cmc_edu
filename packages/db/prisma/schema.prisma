@@ -103,6 +103,12 @@ enum EmailTransport {
 
 enum EmailOutboxStatus {
   pending
+  /// R3 remediation (deep-review adversarial verification): a transient claim
+  /// state between `pending`/`failed` and `sent`/`failed` — a row sits here
+  /// only for the duration of one `relayEmailOutbox` send attempt, so two
+  /// concurrent worker replicas draining the same outbox can never both send
+  /// the same row (see relay-email-outbox.ts's atomic `updateMany` claim).
+  sending
   sent
   failed
 }

@@ -13,6 +13,7 @@ import { normalizeLoginPhone } from '@cmc/domain-identity';
 import { appRouter } from '../router.js';
 import { reconcileOrphanedReceipts } from './reconcile-orphaned-receipts.js';
 import {
+  buildLmsContext,
   buildStaffContext,
   cleanupFacility,
   cleanupParentAccountsByPhone,
@@ -163,6 +164,78 @@ describe('reconcileOrphanedReceipts (K2)', () => {
     // Idempotent: running twice does not duplicate anything.
     await reconcileOrphanedReceipts(testDb());
     expect(await testDbBypass((tx) => tx.student.count({ where: { createdByReceiptId: orphan.id } }))).toBe(1);
+    expect(await testDb().studentAccount.count({ where: { studentId: student.id } })).toBe(1);
+  });
+
+  it('R1: mid-provision failure (Student committed, but Guardian/Enrollment/StudentAccount are not) is fully recovered, and re-running creates no duplicates', async () => {
+    const parentPhone = '0996000005';
+    phonesToClean.push(parentPhone);
+    const classBatchId = 'class-batch-k2-partial';
+
+    // Simulates a crash/error AFTER the Student commit but BEFORE
+    // Guardian/Enrollment/StudentAccount (R1, deep-review adversarial
+    // verification): an approved Receipt whose Student is already committed,
+    // but nothing downstream is — exactly the gap the ORIGINAL reconciler
+    // query (only "approved + no Student at all") could never detect, since
+    // a Student row already exists here.
+    const receipt = await testDbBypass((tx) =>
+      tx.receipt.create({
+        data: {
+          facilityId: facility.id,
+          code: `PT-TEST-K2P-${Math.random().toString(36).slice(2, 10)}`,
+          netAmount: 4_500_000,
+          status: 'approved',
+          kind: 'new',
+          parentPhone,
+          studentName: 'K2 Partial Child',
+          classBatchId,
+          createdById: 'test-creator',
+        },
+      }),
+    );
+    const student = await testDbBypass((tx) =>
+      tx.student.create({
+        data: {
+          facilityId: facility.id,
+          fullName: 'K2 Partial Child',
+          createdByReceiptId: receipt.id,
+        },
+      }),
+    );
+
+    // Pre-condition: Student exists, nothing downstream does yet.
+    expect(await testDb().guardian.count({ where: { studentId: student.id } })).toBe(0);
+    expect(await testDbBypass((tx) => tx.enrollment.count({ where: { studentId: student.id } }))).toBe(0);
+    expect(await testDb().studentAccount.count({ where: { studentId: student.id } })).toBe(0);
+
+    const outcomes = await reconcileOrphanedReceipts(testDb());
+    const mine = outcomes.find((o) => o.receiptId === receipt.id);
+    expect(mine).toMatchObject({ receiptId: receipt.id, status: 'recovered' });
+
+    const parentAccount = await testDb().parentAccount.findUniqueOrThrow({
+      where: { phone: normalizeLoginPhone(parentPhone) },
+    });
+    const guardian = await testDb().guardian.findUniqueOrThrow({
+      where: { parentAccountId_studentId: { parentAccountId: parentAccount.id, studentId: student.id } },
+    });
+    expect(guardian).not.toBeNull();
+    const enrollment = await testDbBypass((tx) =>
+      tx.enrollment.findFirstOrThrow({ where: { studentId: student.id, classBatchId } }),
+    );
+    expect(enrollment.status).toBe('active');
+    const studentAccount = await testDb().studentAccount.findUniqueOrThrow({ where: { studentId: student.id } });
+    expect(studentAccount).not.toBeNull();
+
+    // `enrollment.mine` (LMS parent-facing read) now shows the recovered child.
+    const parentCaller = appRouter.createCaller(buildLmsContext({ parentAccountId: parentAccount.id }));
+    const mineList = await parentCaller.enrollment.mine();
+    expect(mineList.some((e) => e.studentId === student.id)).toBe(true);
+
+    // Re-running the drain is a no-op (idempotent) — no duplicates anywhere.
+    const secondRun = await reconcileOrphanedReceipts(testDb());
+    expect(secondRun.find((o) => o.receiptId === receipt.id)).toBeUndefined();
+    expect(await testDb().guardian.count({ where: { studentId: student.id } })).toBe(1);
+    expect(await testDbBypass((tx) => tx.enrollment.count({ where: { studentId: student.id } }))).toBe(1);
     expect(await testDb().studentAccount.count({ where: { studentId: student.id } })).toBe(1);
   });
 

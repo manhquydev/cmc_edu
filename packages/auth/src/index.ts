@@ -112,6 +112,18 @@ export const PERMISSIONS: Record<string, readonly Role[]> = {
   // gates what parents can see so it shares the same teacher-only roster.
   'sessionEvidence.upsert': ['giao_vien'],
   'sessionEvidence.publish': ['giao_vien'],
+  // P3-I: HR/identity — AppUser (staff) CRUD and facility network management
+  // are super_admin-only actions (super_admin already bypasses via can(), so
+  // empty arrays would suffice, but we document the intent explicitly).
+  'user.manage': [],
+  'facilityNetwork.manage': [],
+  // P3-I: time-punch (clock-in/out) — all staff roles can punch in.
+  'checkIn.punch': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien', 'ke_toan', 'cskh', 'ctv_mkt', 'hr'],
+  // P3-I: manual punch ticket creation — all staff can submit.
+  'manualPunch.create': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien', 'ke_toan', 'cskh', 'ctv_mkt', 'hr'],
+  // P3-I: manual punch approve/reject — director-level only (separation of
+  // duties: the person approving their own absence record is a control risk).
+  'manualPunch.approve': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
 };
 
 /**

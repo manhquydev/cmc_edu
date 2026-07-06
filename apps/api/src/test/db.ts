@@ -67,6 +67,15 @@ export async function createTestFacility(name: string, code?: string): Promise<{
 /** Deletes every row scoped to `facilityId`, then the Facility itself. */
 export async function cleanupFacility(facilityId: string): Promise<void> {
   const db = testDb();
+  // P3-I: ManualAttendanceTicket / TimePunch are append-only (cmc_app has no
+  // DELETE grant — same policy as Attendance/RefundRecord above). AppUser and
+  // FacilityNetwork have RLS but the privileged connection bypasses that.
+  // Delete order: ManualAttendanceTicket → TimePunch → AppUser (FK RESTRICT
+  // chain), then FacilityNetwork (independent FK to Facility).
+  await privilegedDb().manualAttendanceTicket.deleteMany({ where: { facilityId } });
+  await privilegedDb().timePunch.deleteMany({ where: { facilityId } });
+  await privilegedDb().appUser.deleteMany({ where: { facilityId } });
+  await privilegedDb().facilityNetwork.deleteMany({ where: { facilityId } });
   // Guardian has FK constraints on both Student and ParentAccount — it must
   // be deleted before Student (below) and before `cleanupParentAccountsByPhone`
   // runs (called separately, after this function returns). Guardian itself
@@ -89,6 +98,14 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
   await privilegedDb().submission.deleteMany({ where: { facilityId } });
   await privilegedDb().finalGrade.deleteMany({ where: { facilityId } });
   await privilegedDb().starTransaction.deleteMany({ where: { facilityId } });
+  // T3: `cmc_app` has no DELETE grant on QualitativeAssessment, SessionEvidence,
+  // or SessionEvidencePhoto (wave-A default-privilege template for new tables).
+  // QualitativeAssessment has an FK to Student → must run before student delete.
+  // SessionEvidencePhoto has an FK to SessionEvidence → delete first.
+  // SessionEvidence has an FK to ClassSession → must run before classSession delete.
+  await privilegedDb().qualitativeAssessment.deleteMany({ where: { facilityId } });
+  await privilegedDb().sessionEvidencePhoto.deleteMany({ where: { facilityId } });
+  await privilegedDb().sessionEvidence.deleteMany({ where: { facilityId } });
   await testDbBypass(async (tx) => {
     // `studentAccount` has no facilityId of its own — the relational filter
     // joins through `student` (RLS-protected), so this delete also needs the
@@ -116,9 +133,27 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
   await db.facility.deleteMany({ where: { id: facilityId } });
 }
 
-/** Deletes ParentAccount rows created by a test (system-wide, not facility-scoped). */
+/**
+ * Deletes ParentAccount rows created by a test (system-wide, not facility-scoped).
+ *
+ * Defensively deletes any `StudentAccount` rows referencing these ParentAccounts
+ * first. Normally `cleanupFacility` handles StudentAccount cleanup, but if a
+ * test run was interrupted (crash, SIGTERM) before afterEach ran, orphaned
+ * StudentAccount rows would block the ParentAccount delete with a FK violation
+ * on `StudentAccount_parentAccountId_fkey`. The privileged role is required
+ * because cmc_app has no DELETE grant on StudentAccount when it is reached via
+ * its parentAccountId FK outside a facility-scoped transaction.
+ */
 export async function cleanupParentAccountsByPhone(...phones: string[]): Promise<void> {
   if (phones.length === 0) return;
+  const parents = await testDb().parentAccount.findMany({
+    where: { phone: { in: phones } },
+    select: { id: true },
+  });
+  if (parents.length > 0) {
+    const parentIds = parents.map((p) => p.id);
+    await privilegedDb().studentAccount.deleteMany({ where: { parentAccountId: { in: parentIds } } });
+  }
   await testDb().parentAccount.deleteMany({ where: { phone: { in: phones } } });
 }
 
@@ -128,10 +163,66 @@ export async function cleanupLoginOtpsByPhone(...phones: string[]): Promise<void
   await testDb().loginOtp.deleteMany({ where: { phone: { in: phones } } });
 }
 
+export interface SeedAppUserOptions {
+  facilityId: string;
+  userId: string;
+  fullName?: string;
+  position?: string;
+  managerId?: string;
+}
+
+/**
+ * P3-I: seeds an AppUser row for test procedures that write TimePunch /
+ * ManualAttendanceTicket FKs. Uses `testDbBypass` so the global
+ * EmployeeCodeCounter (no RLS) and the RLS-gated AppUser table are both
+ * accessible in one transaction.
+ */
+export async function seedAppUser(
+  opts: SeedAppUserOptions,
+): Promise<{ id: string; employeeCode: string }> {
+  return testDbBypass(async (tx) => {
+    const counter = await tx.employeeCodeCounter.update({
+      where: { id: 1 },
+      data: { next: { increment: 1 } },
+    });
+    const employeeCode = `CMC${String(counter.next - 1).padStart(4, '0')}`;
+    return tx.appUser.create({
+      data: {
+        facilityId: opts.facilityId,
+        userId: opts.userId,
+        email: `${opts.userId}@test.cmc`,
+        fullName: opts.fullName ?? opts.userId,
+        position: opts.position ?? 'staff',
+        managerId: opts.managerId ?? null,
+        employeeCode,
+      },
+    });
+  });
+}
+
+/**
+ * P3-I: seeds a FacilityNetwork row (active CIDR range) for checkin tests
+ * that exercise the IP-gate path. Uses the plain `testDb()` connection —
+ * FacilityNetwork has RLS (facility-scoped), so this must be called inside a
+ * `withFacility` context, OR use `testDbBypass` if called outside one.
+ */
+export async function seedFacilityNetwork(
+  facilityId: string,
+  cidr: string,
+  label = 'test-net',
+): Promise<{ id: string }> {
+  return testDbBypass(async (tx) =>
+    tx.facilityNetwork.create({ data: { facilityId, cidr, label, isActive: true } }),
+  );
+}
+
 export interface TestStaffContextOptions {
   facilityId: string;
   userId: string;
   roles: Role[];
+  /** Caller IP to inject into the context (default: null). Used by P3-I
+   *  checkin tests that exercise the FacilityNetwork IP-gate path. */
+  ip?: string | null;
 }
 
 /** Hand-builds a staff `Context` (dev session shape) against the real DB. */
@@ -141,7 +232,7 @@ export function buildStaffContext(opts: TestStaffContextOptions): Context {
     facilityId: opts.facilityId,
     lmsSubject: null,
     db: testDb(),
-    ip: null,
+    ip: opts.ip ?? null,
   };
 }
 

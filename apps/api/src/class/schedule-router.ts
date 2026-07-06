@@ -10,7 +10,7 @@ import { requirePermission, router, scoped } from '../trpc.js';
 import { MAX_CLASS_SPAN_DAYS, planClassSessions, spanDaysInclusive } from './generate-sessions.js';
 import { assertNoRoomConflict } from './room-conflict.js';
 import { badRequest } from '../errors.js';
-import { compareDateOnly, ictDateOnlyOf, ictToUtc, isValidDateOnly } from './ict-time.js';
+import { compareDateOnly, ictDateOnlyOf, ictToUtc, isValidDateOnly } from '@cmc/domain-time';
 
 const generateSessionsInput = z.object({
   classBatchId: z.string().uuid(),

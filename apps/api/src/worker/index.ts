@@ -88,11 +88,15 @@ function buildTransportMap(): Record<string, EmailTransport> {
     if (!CONSOLE_TRANSPORT_PROD_FORBIDDEN) {
       throw new Error('[worker] internal error: CONSOLE_TRANSPORT_PROD_FORBIDDEN must be true');
     }
-    // Constructors throw if required env vars are absent — worker exits before
-    // the first drain cycle rather than silently dead-lettering every row.
+    // GraphEmailTransport.send() is a stub (Entra SSO phase not yet shipped).
+    // Including it here would crash the worker at startup when Graph env vars
+    // are absent, or silently dead-letter every 'graph' outbox row when they
+    // are present. Excluded until the real implementation ships.
+    // Any 'graph' row already in the DB will dead-letter with
+    // "no transport configured for: graph" — the correct visible-failure mode.
+    void GraphEmailTransport; // imported — keep for Entra SSO phase
     return {
       brevo: new BrevoEmailTransport(),
-      graph: new GraphEmailTransport(),
     };
   }
 

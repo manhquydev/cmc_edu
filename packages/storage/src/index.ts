@@ -32,12 +32,20 @@ export function createBlobStorage(baseDir?: string): BlobStorage {
   if (!_instance) {
     const s3Endpoint = process.env['S3_ENDPOINT'];
     if (s3Endpoint) {
+      const accessKeyId = process.env['S3_ACCESS_KEY'];
+      const secretAccessKey = process.env['S3_SECRET_KEY'];
+      if (!accessKeyId || !secretAccessKey) {
+        throw new Error(
+          'FATAL: S3_ENDPOINT is set but S3_ACCESS_KEY and/or S3_SECRET_KEY are missing. ' +
+            'Set both env vars before starting the server.',
+        );
+      }
       _instance = new S3BlobStorage({
         endpoint: s3Endpoint,
         bucket: process.env['S3_BUCKET'] ?? 'cmc-blobs',
         region: process.env['S3_REGION'] ?? 'us-east-1',
-        accessKeyId: process.env['S3_ACCESS_KEY'] ?? '',
-        secretAccessKey: process.env['S3_SECRET_KEY'] ?? '',
+        accessKeyId,
+        secretAccessKey,
       });
     } else {
       _instance = new LocalDiskBlobStorage(

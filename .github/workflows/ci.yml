@@ -129,5 +129,11 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -d cmc_ci \
             -c "ALTER ROLE cmc_app WITH PASSWORD '${CMC_APP_PASSWORD}';"
 
+      - name: Write Prisma .env (CI schema validation)
+        run: printf 'DATABASE_URL=%s\nAPP_DATABASE_URL=%s\n' "$DATABASE_URL" "$APP_DATABASE_URL" > packages/db/prisma/.env
+
+      - name: Build workspace packages (required by e2e — @cmc/db/dist must exist)
+        run: pnpm build
+
       - name: Run e2e
         run: pnpm --filter @cmc/e2e test

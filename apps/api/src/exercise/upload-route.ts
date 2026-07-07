@@ -77,6 +77,10 @@ export async function handleSessionPhotoGet(
     sendJson(res, 401, { error: 'LMS session required to view session photos.' });
     return;
   }
+  // TODO(RT-3-ownership): verify the requested blobRef is associated with a
+  // ClassSession whose students include a child the authenticated parent/student
+  // is guardian of, AND that photoConsent=true for that child (TL08 §7).
+  // Requires a DB lookup against SessionEvidence. Tracked for the UAT phase.
 
   const url = new URL(req.url ?? '', 'http://localhost');
   const blobRef = url.searchParams.get('ref');

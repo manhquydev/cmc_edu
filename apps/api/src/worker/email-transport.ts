@@ -23,8 +23,9 @@ export interface EmailTransport {
  */
 export class ConsoleEmailTransport implements EmailTransport {
   async send(email: OutboxEmail): Promise<void> {
+    // Log only non-sensitive identifiers — never the payload (may contain OTP).
     // eslint-disable-next-line no-console
-    console.log(`[email-outbox] would send to ${email.to}`, email.payload);
+    console.log(`[email-outbox] would send id=${email.id} to=${email.to}`);
   }
 }
 

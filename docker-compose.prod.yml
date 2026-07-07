@@ -1,0 +1,152 @@
+# CMC EDU — Production stack (cmcv2-prod).
+# Fully isolated from any cmcnew-* resources: separate project name,
+# network, volumes, and port range.
+#
+# Usage:
+#   docker compose -p cmcv2-prod --env-file .env.prod -f docker-compose.prod.yml up -d
+#
+# Prerequisites:
+#   1. Copy .env.prod.example → .env.prod and fill all values.
+#   2. Place TLS certs at ./infra/nginx/certs/{fullchain,privkey}.pem.
+#   3. ALLOW_DEV_AUTH must NOT appear in .env.prod (RT-2).
+#   4. Backup target (BACKUP_S3_*) must be a different provider/host (RT-13).
+
+name: cmcv2-prod
+
+networks:
+  cmcv2-prod-net:
+    driver: bridge
+
+volumes:
+  cmcv2-prod-pg-data:
+  cmcv2-prod-blob-data:
+
+services:
+
+  # ── Reverse proxy ────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      lms:
+        condition: service_started
+      admin:
+        condition: service_started
+    networks:
+      - cmcv2-prod-net
+
+  # ── tRPC API ──────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # RT-5: trust nginx container IP range for X-Forwarded-For
+      TRUSTED_PROXY_CIDRS: "172.16.0.0/12,10.0.0.0/8,127.0.0.1/32"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cmcv2-prod-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  # ── Background worker ─────────────────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.worker
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      NODE_ENV: production
+      WORKER_HEALTH_PORT: "3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cmcv2-prod-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  # ── LMS parent portal (SPA) ───────────────────────────────────────────────────
+  lms:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.lms
+      args:
+        VITE_API_BASE_URL: /trpc
+    restart: unless-stopped
+    networks:
+      - cmcv2-prod-net
+
+  # ── Admin ERP (SPA) ───────────────────────────────────────────────────────────
+  admin:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.admin
+      args:
+        VITE_API_BASE_URL: /trpc
+    restart: unless-stopped
+    networks:
+      - cmcv2-prod-net
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      POSTGRES_DB: cmc_prod
+      # POSTGRES_USER / POSTGRES_PASSWORD loaded from .env.prod
+    volumes:
+      - cmcv2-prod-pg-data:/var/lib/postgresql/data
+    networks:
+      - cmcv2-prod-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── MinIO (optional — only when S3_ENDPOINT is not an external provider) ──────
+  # Comment out this service when using Cloudflare R2, AWS S3, or any external
+  # object store. The backup rule (RT-13) requires the backup target to be on a
+  # DIFFERENT host — MinIO here does NOT satisfy that requirement for backups.
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    env_file: .env.prod
+    # MINIO_ROOT_USER / MINIO_ROOT_PASSWORD from .env.prod
+    volumes:
+      - cmcv2-prod-blob-data:/data
+    networks:
+      - cmcv2-prod-net
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - minio   # opt-in: docker compose --profile minio up

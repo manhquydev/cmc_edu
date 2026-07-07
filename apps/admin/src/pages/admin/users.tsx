@@ -1,9 +1,21 @@
 import { useState } from 'react';
-import { Badge, Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
+import { Badge, Button, Group, Modal, MultiSelect, Stack, Text, TextInput } from '@mantine/core';
 import { DataTable, EmptyState, PageHeader } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
+
+const ROLE_OPTIONS = [
+  { value: 'super_admin', label: 'Super Admin' },
+  { value: 'giam_doc_kinh_doanh', label: 'GĐ Kinh doanh' },
+  { value: 'giam_doc_dao_tao', label: 'GĐ Đào tạo' },
+  { value: 'sale', label: 'Sale' },
+  { value: 'giao_vien', label: 'Giáo viên' },
+  { value: 'ke_toan', label: 'Kế toán' },
+  { value: 'cskh', label: 'CSKH' },
+  { value: 'ctv_mkt', label: 'CTV MKT' },
+  { value: 'hr', label: 'HR' },
+];
 
 interface UserRow {
   id: string;
@@ -11,6 +23,7 @@ interface UserRow {
   fullName: string;
   position: string;
   email: string;
+  roles: string[];
   isActive: boolean;
   [key: string]: unknown;
 }
@@ -20,6 +33,23 @@ const COLUMNS: TableColumn<UserRow>[] = [
   { key: 'fullName', label: 'Họ tên' },
   { key: 'position', label: 'Vị trí', width: 160 },
   { key: 'email', label: 'Email' },
+  {
+    key: 'roles',
+    label: 'Roles',
+    render: (v) => {
+      const roles = v as string[];
+      if (!roles || roles.length === 0) return <Text fz="xs" c="dimmed">—</Text>;
+      return (
+        <Group gap={4}>
+          {roles.map((r) => (
+            <Badge key={r} size="xs" variant="outline" color="blue">
+              {r}
+            </Badge>
+          ))}
+        </Group>
+      );
+    },
+  },
   {
     key: 'isActive',
     label: 'Trạng thái',
@@ -43,6 +73,8 @@ const EMPTY_FORM: CreateForm = { userId: '', email: '', fullName: '', position: 
 
 function UsersContent() {
   const [modalOpen, setModalOpen] = useState(false);
+  const [rolesModalUser, setRolesModalUser] = useState<UserRow | null>(null);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [form, setForm] = useState<CreateForm>(EMPTY_FORM);
 
   const utils = trpc.useUtils();
@@ -56,6 +88,13 @@ function UsersContent() {
     },
   });
 
+  const updateRolesMut = trpc.user.updateRoles.useMutation({
+    onSuccess: () => {
+      setRolesModalUser(null);
+      void utils.user.list.invalidate();
+    },
+  });
+
   function handleCreate() {
     createMut.mutate({
       userId: form.userId.trim(),
@@ -63,6 +102,16 @@ function UsersContent() {
       fullName: form.fullName.trim(),
       position: form.position.trim(),
     });
+  }
+
+  function openRolesModal(user: UserRow) {
+    setRolesModalUser(user);
+    setSelectedRoles(user.roles ?? []);
+  }
+
+  function handleSaveRoles() {
+    if (!rolesModalUser) return;
+    updateRolesMut.mutate({ appUserId: rolesModalUser.id, roles: selectedRoles });
   }
 
   const isFormValid =
@@ -75,6 +124,8 @@ function UsersContent() {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((f) => ({ ...f, [field]: e.currentTarget.value }));
   }
+
+  const rows = (data?.items as UserRow[] | undefined) ?? [];
 
   return (
     <>
@@ -91,12 +142,14 @@ function UsersContent() {
 
       <DataTable<UserRow>
         columns={COLUMNS}
-        data={(data?.items as UserRow[] | undefined) ?? []}
+        data={rows}
         loading={isLoading}
         error={error?.message}
         empty="Chưa có nhân viên nào"
+        onRowClick={(row) => openRolesModal(row)}
       />
 
+      {/* Create modal */}
       <Modal
         opened={modalOpen}
         onClose={() => { setModalOpen(false); setForm(EMPTY_FORM); }}
@@ -155,6 +208,51 @@ function UsersContent() {
               disabled={!isFormValid}
             >
               Tạo
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Assign roles modal */}
+      <Modal
+        opened={rolesModalUser !== null}
+        onClose={() => setRolesModalUser(null)}
+        title={rolesModalUser ? `Phân quyền — ${rolesModalUser.fullName}` : ''}
+        size="sm"
+        radius="xs"
+        centered
+        closeOnClickOutside={!updateRolesMut.isPending}
+      >
+        <Stack gap="sm">
+          <MultiSelect
+            label="Roles"
+            data={ROLE_OPTIONS}
+            value={selectedRoles}
+            onChange={setSelectedRoles}
+            searchable
+            clearable
+            placeholder="Chọn vai trò…"
+          />
+          {updateRolesMut.error && (
+            <Text fz="sm" c="red">
+              {updateRolesMut.error.message}
+            </Text>
+          )}
+          <Group justify="flex-end" mt="xs" gap="xs">
+            <Button
+              variant="default"
+              radius="xs"
+              onClick={() => setRolesModalUser(null)}
+              disabled={updateRolesMut.isPending}
+            >
+              Hủy
+            </Button>
+            <Button
+              radius="xs"
+              onClick={handleSaveRoles}
+              loading={updateRolesMut.isPending}
+            >
+              Lưu
             </Button>
           </Group>
         </Stack>

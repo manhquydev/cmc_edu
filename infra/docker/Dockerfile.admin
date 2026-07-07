@@ -18,6 +18,12 @@ FROM deps AS build
 COPY apps/admin/ apps/admin/
 ARG VITE_API_BASE_URL=/api
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+# SSO UI flag: VITE_SSO_ENABLED=true shows the Microsoft login button.
+# VITE_API_URL overrides the API base for the /auth/* redirect target.
+ARG VITE_SSO_ENABLED=false
+ENV VITE_SSO_ENABLED=${VITE_SSO_ENABLED}
+ARG VITE_API_URL=
+ENV VITE_API_URL=${VITE_API_URL}
 RUN pnpm --filter @cmc/admin run build
 
 FROM nginx:1.27-alpine AS runtime

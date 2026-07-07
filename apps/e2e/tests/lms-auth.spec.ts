@@ -12,7 +12,7 @@ import { TRPCClientError } from '@trpc/client';
 import type { AppRouter } from '../../api/src/router.js';
 import { cleanupParentAccountsByPhone } from '../src/db.js';
 import { randomVnPhone } from '../src/random-vn-phone.js';
-import { createAnonClient, createLmsClient } from '../src/trpc-client.js';
+import { createAnonClient } from '../src/trpc-client.js';
 
 const baseUrl = process.env.E2E_BASE_URL!;
 const facilityId = process.env.E2E_FACILITY_ID!;

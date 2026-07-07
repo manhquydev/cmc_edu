@@ -417,3 +417,10 @@
 - e2e-green fixes: boot-checks queries `pg_class.relrowsecurity` (was non-existent `rowsecurity`); new migration `20260707190000_force_rls_on_rls_tables` FORCE-enables RLS on all RLS tables (API boot-check requires it); e2e teardown moved no-DELETE-grant tables (Attendance/FinalGrade/StarTransaction/Submission/Exercise) to privileged connection; specs decode signed LMS tokens via `decodeLmsClaims`.
 - Dev tooling: GitLab Knowledge Graph (gkg) indexed + MCP registered (`.mcp.json`).
 - **Known gaps (not yet done):** staff Entra SSO not implemented (msal not installed) — staff ERP login non-functional in production; LLM/S3/Graph-email still stub. Tracked in `plans/260707-1830-golive-coordination-land-stack` (P2/P3).
+
+## 2026-07-07 — P3 integrations: env contract, LLM, boot-check, RT-3, email (PRs #17–#22)
+- **Env contract (#18):** `.env.example` documents every var the code reads (grouped); `scripts/env-check.sh` fail-closed guard (CI/shell); `assertRequiredEnvForProd` runtime twin in boot-checks (#20) for the alpine image.
+- **LLM real (#19):** `@cmc/llm` calls OpenAI-compatible `/chat/completions` (router.clawcmc, `stream:false`); assertNoPii before network; stub kept offline. Verified live (real VN draft).
+- **RT-3 photo authz (#21):** GET /upload/session-photo verifies the caller is entitled to the specific child photo (published evidence for an enrolled approved child + active guardian consent); student confined to own id; 404 on denial. Closes the TODO.
+- **Email cả-hai (#22):** shared `renderOutboxEmail` (payload→subject/html/text); `GraphEmailTransport.send` implemented (client-credentials → /sendMail); Brevo fixed to send rendered content; worker registers graph only when GRAPH_* configured.
+- **Remaining P3 — Entra SSO (BLOCKED):** AppUser has no roles field + no staff-session infra + placeholder Entra creds. Needs a staff role-assignment model (product/schema decision) before implementation. Tracked as its own task.

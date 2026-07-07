@@ -25,7 +25,7 @@ import {
   seedPublishedExercise,
   seedSubmittedSubmission,
 } from '../src/db.js';
-import { createStaffClient, createAnonClient } from '../src/trpc-client.js';
+import { createE2eStaffClient, createAnonClient } from '../src/trpc-client.js';
 import { randomVnPhone } from '../src/random-vn-phone.js';
 
 const baseUrl = process.env.E2E_BASE_URL!;
@@ -66,17 +66,17 @@ async function provisionStudentForGrading(): Promise<{
   classBatchId: string;
 }> {
   const parentPhone = randomVnPhone();
-  const gddt = createStaffClient(baseUrl, {
+  const gddt = createE2eStaffClient(baseUrl, {
     userId: 'e2e-grade-gddt',
     roles: ['giam_doc_dao_tao'],
     facilityId,
   });
-  const sale = createStaffClient(baseUrl, {
+  const sale = createE2eStaffClient(baseUrl, {
     userId: 'e2e-grade-sale',
     roles: ['sale'],
     facilityId,
   });
-  const gdkd = createStaffClient(baseUrl, {
+  const gdkd = createE2eStaffClient(baseUrl, {
     userId: 'e2e-grade-gdkd',
     roles: ['giam_doc_kinh_doanh'],
     facilityId,
@@ -176,12 +176,12 @@ test.describe('attendance + grading + star balance', () => {
   // -------------------------------------------------------------------------
 
   test('mark attendance for a valid planned session', async () => {
-    const gddt = createStaffClient(baseUrl, {
+    const gddt = createE2eStaffClient(baseUrl, {
       userId: 'e2e-grade-gddt-attendance',
       roles: ['giam_doc_dao_tao'],
       facilityId,
     });
-    const teacher = createStaffClient(baseUrl, {
+    const teacher = createE2eStaffClient(baseUrl, {
       userId: 'e2e-grade-teacher-attendance',
       roles: ['giao_vien'],
       facilityId,
@@ -210,7 +210,7 @@ test.describe('attendance + grading + star balance', () => {
   // -------------------------------------------------------------------------
 
   test('grade a submission: sets grade and creates StarTransaction', async () => {
-    const teacher = createStaffClient(baseUrl, {
+    const teacher = createE2eStaffClient(baseUrl, {
       userId: 'e2e-grade-teacher',
       roles: ['giao_vien'],
       facilityId,
@@ -250,12 +250,12 @@ test.describe('attendance + grading + star balance', () => {
   // -------------------------------------------------------------------------
 
   test('mark attendance on cancelled session throws BAD_REQUEST', async () => {
-    const gddt = createStaffClient(baseUrl, {
+    const gddt = createE2eStaffClient(baseUrl, {
       userId: 'e2e-grade-gddt-cancel',
       roles: ['giam_doc_dao_tao'],
       facilityId,
     });
-    const teacher = createStaffClient(baseUrl, {
+    const teacher = createE2eStaffClient(baseUrl, {
       userId: 'e2e-grade-teacher-cancel',
       roles: ['giao_vien'],
       facilityId,

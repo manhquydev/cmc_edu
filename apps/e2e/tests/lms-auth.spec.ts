@@ -12,7 +12,7 @@ import { TRPCClientError } from '@trpc/client';
 import type { AppRouter } from '../../api/src/router.js';
 import { cleanupParentAccountsByPhone } from '../src/db.js';
 import { randomVnPhone } from '../src/random-vn-phone.js';
-import { createAnonClient } from '../src/trpc-client.js';
+import { createAnonClient, createE2eStaffClient } from '../src/trpc-client.js';
 
 const baseUrl = process.env.E2E_BASE_URL!;
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -34,8 +34,6 @@ async function hashDefaultPassword(): Promise<string> {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 void hashDefaultPassword; // suppress lint — intentionally not called
 
-import { createStaffClient } from '../src/trpc-client.js';
-
 /** Seeds a ParentAccount + StudentAccount (via full provisioning pipeline)
  * and returns useful IDs. `mustChangePassword` will be `true` because
  * provisioning uses the default Cmc2026@ password. */
@@ -43,17 +41,17 @@ async function seedStudentViaProvisioning(opts: {
   parentPhone: string;
   studentName: string;
 }): Promise<{ parentAccountId: string; studentId: string }> {
-  const gddt = createStaffClient(baseUrl, {
+  const gddt = createE2eStaffClient(baseUrl, {
     userId: 'e2e-lmsauth-gddt',
     roles: ['giam_doc_dao_tao'],
     facilityId,
   });
-  const sale = createStaffClient(baseUrl, {
+  const sale = createE2eStaffClient(baseUrl, {
     userId: 'e2e-lmsauth-sale',
     roles: ['sale'],
     facilityId,
   });
-  const gdkd = createStaffClient(baseUrl, {
+  const gdkd = createE2eStaffClient(baseUrl, {
     userId: 'e2e-lmsauth-gdkd',
     roles: ['giam_doc_kinh_doanh'],
     facilityId,

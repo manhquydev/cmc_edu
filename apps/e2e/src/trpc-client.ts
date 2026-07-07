@@ -8,6 +8,7 @@
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import type { Role } from '@cmc/auth';
 import type { AppRouter } from '../../api/src/router.js';
+import { mintStaffCookie } from './session-injection.js';
 
 export interface DevStaffIdentity {
   userId: string;
@@ -51,6 +52,22 @@ export function createLmsClient(baseUrl: string, lms: DevLmsIdentity) {
 }
 
 /**
+ * Mode B (V3): Staff client using a properly HMAC-SHA256 signed HttpOnly cookie.
+ * Works in both dev and production-mode API servers — no DEV_AUTH_ENABLED required.
+ * Pass a cookie token from `mintStaffCookie()` in session-injection.ts.
+ */
+export function createSignedStaffClient(baseUrl: string, cookieToken: string) {
+  return createTRPCClient<AppRouter>({
+    links: [
+      httpBatchLink({
+        url: baseUrl,
+        headers: () => ({ cookie: `cmc_staff_session=${cookieToken}` }),
+      }),
+    ],
+  });
+}
+
+/**
  * Mode B (V3): LMS client using a properly HMAC-SHA256 signed Bearer token.
  * Works in both dev and production-mode API servers — no DEV_AUTH_ENABLED required.
  * Pass a token from `mintParentToken()` or `mintStudentToken()` in session-injection.ts.
@@ -70,4 +87,25 @@ export function createSignedLmsClient(baseUrl: string, bearerToken: string) {
  * design, docs/11 §1). */
 export function createAnonClient(baseUrl: string) {
   return createTRPCClient<AppRouter>({ links: [httpBatchLink({ url: baseUrl })] });
+}
+
+/**
+ * Mode-aware staff client for e2e specs.
+ * Mode-A (NODE_ENV !== 'production'): x-dev-user header (no secret needed).
+ * Mode-B (NODE_ENV = 'production'): signed HMAC cookie — same auth path as
+ * production staff. Uses STAFF_SESSION_SECRET from env (or dev default).
+ *
+ * Use this in every e2e spec instead of createStaffClient directly, so specs
+ * run correctly in both dev and prod-config environments.
+ */
+export function createE2eStaffClient(baseUrl: string, staff: DevStaffIdentity) {
+  if (process.env['NODE_ENV'] === 'production') {
+    const cookie = mintStaffCookie({
+      userId: staff.userId,
+      roles: staff.roles as string[],
+      facilityId: staff.facilityId,
+    });
+    return createSignedStaffClient(baseUrl, cookie);
+  }
+  return createStaffClient(baseUrl, staff);
 }

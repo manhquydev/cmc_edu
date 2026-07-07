@@ -9,7 +9,7 @@
 import { test, expect } from '@playwright/test';
 import { TRPCClientError } from '@trpc/client';
 import type { AppRouter } from '../../api/src/router.js';
-import { createStaffClient } from '../src/trpc-client.js';
+import { createE2eStaffClient } from '../src/trpc-client.js';
 import { randomVnPhone } from '../src/random-vn-phone.js';
 
 const baseUrl = process.env.E2E_BASE_URL!;
@@ -21,7 +21,7 @@ const facilityId = process.env.E2E_FACILITY_ID!;
 
 /** Creates the shared course + classBatch used across tests in this suite. */
 async function setupCourseAndBatch() {
-  const gddt = createStaffClient(baseUrl, {
+  const gddt = createE2eStaffClient(baseUrl, {
     userId: 'e2e-finance-gddt',
     roles: ['giam_doc_dao_tao'],
     facilityId,
@@ -45,7 +45,7 @@ async function createDraftReceipt(opts: {
   amount: number;
   saleUserId?: string;
 }) {
-  const sale = createStaffClient(baseUrl, {
+  const sale = createE2eStaffClient(baseUrl, {
     userId: opts.saleUserId ?? 'e2e-finance-sale',
     roles: ['sale'],
     facilityId,
@@ -84,7 +84,7 @@ test.describe('finance — canApprove gate + over-threshold second-eye', () => {
   });
 
   test('canApprove=false for creator (self-approval guard)', async () => {
-    const sale = createStaffClient(baseUrl, {
+    const sale = createE2eStaffClient(baseUrl, {
       userId: 'e2e-finance-sale-selfcheck',
       roles: ['sale'],
       facilityId,
@@ -116,7 +116,7 @@ test.describe('finance — canApprove gate + over-threshold second-eye', () => {
     const receipt = await createDraftReceipt({ classBatchId, amount: 5_000_000 });
 
     // A different sale user (not the drafter) tries to approve — still blocked by permission.
-    const saleApprover = createStaffClient(baseUrl, {
+    const saleApprover = createE2eStaffClient(baseUrl, {
       userId: 'e2e-finance-sale-approver',
       roles: ['sale'],
       facilityId,
@@ -136,7 +136,7 @@ test.describe('finance — canApprove gate + over-threshold second-eye', () => {
     // 20_000_001 VND > APPROVAL_SECOND_EYE_THRESHOLD — ke_toan cannot approve.
     const receipt = await createDraftReceipt({ classBatchId, amount: 20_000_001 });
 
-    const keToan = createStaffClient(baseUrl, {
+    const keToan = createE2eStaffClient(baseUrl, {
       userId: 'e2e-finance-ketoan',
       roles: ['ke_toan'],
       facilityId,
@@ -160,7 +160,7 @@ test.describe('finance — canApprove gate + over-threshold second-eye', () => {
       saleUserId: 'e2e-finance-sale-threshold',
     });
 
-    const gddt = createStaffClient(baseUrl, {
+    const gddt = createE2eStaffClient(baseUrl, {
       userId: 'e2e-finance-gddt-approver',
       roles: ['giam_doc_dao_tao'],
       facilityId,

@@ -4,10 +4,10 @@
 **/dist
 **/.turbo
 
-# Secrets must never enter the build context.
-.env*
-!.env.example
-!.env.prod.example
+# Secrets must never enter the build context (recursive — catch nested app envs).
+**/.env*
+!**/.env.example
+!**/.env.prod.example
 
 # VCS, tooling, local artifacts
 .git

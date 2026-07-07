@@ -411,3 +411,9 @@
 
 ## 2026-07-07 — PD: CI hardening, threat checklist, worker runtime, boot checks (PR #11)
 - GitHub Actions CI pipeline hardening; STRIDE threat checklist validation; worker runtime bootstrap; boot-time integrity checks (schema, RLS, append-only enforcement).
+
+## 2026-07-07 — Land 4-PR stack to main (PR #16 merge) + e2e green
+- Merged linear stack (pd1⊂pd2⊂env⊂uat) to main via #16 merge-commit; #13/#14/#15 auto-marked merged; child branches deleted. main green (typecheck 26/26, unit+e2e).
+- e2e-green fixes: boot-checks queries `pg_class.relrowsecurity` (was non-existent `rowsecurity`); new migration `20260707190000_force_rls_on_rls_tables` FORCE-enables RLS on all RLS tables (API boot-check requires it); e2e teardown moved no-DELETE-grant tables (Attendance/FinalGrade/StarTransaction/Submission/Exercise) to privileged connection; specs decode signed LMS tokens via `decodeLmsClaims`.
+- Dev tooling: GitLab Knowledge Graph (gkg) indexed + MCP registered (`.mcp.json`).
+- **Known gaps (not yet done):** staff Entra SSO not implemented (msal not installed) — staff ERP login non-functional in production; LLM/S3/Graph-email still stub. Tracked in `plans/260707-1830-golive-coordination-land-stack` (P2/P3).

@@ -20,6 +20,7 @@
     "worker:start": "node dist/worker/index.js"
   },
   "dependencies": {
+    "@azure/msal-node": "^5.3.1",
     "@cmc/auth": "workspace:*",
     "@cmc/db": "workspace:*",
     "@cmc/domain-finance": "workspace:*",

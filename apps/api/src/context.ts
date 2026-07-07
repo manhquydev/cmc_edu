@@ -21,6 +21,11 @@ import { z } from 'zod';
 import { createPrismaClient, PrismaClient } from '@cmc/db';
 import { ROLES, type AuthSubject } from '@cmc/auth';
 import { LMS_SESSION_SECRET_DEV_DEFAULT, verifyLmsToken } from './lms-auth/session-token.js';
+import {
+  getStaffSessionSecret,
+  parseStaffCookie,
+  verifyStaffToken,
+} from './auth/staff-session.js';
 import type { Context, LmsSubject } from './trpc.js';
 
 const devUserHeaderSchema = z.object({
@@ -177,23 +182,70 @@ export interface CreateContextOptions {
   req?: IncomingMessage;
 }
 
+/**
+ * Resolves facilityId for a staff context, applying the x-facility-id header
+ * override (RT-α): super_admin may switch to any facilityId; non-super_admin
+ * is restricted to their own facilityId (mismatch → request is rejected by
+ * `scoped()` / `requirePermission` which calls `can()` with the wrong facility).
+ *
+ * Returns the override facilityId when the caller is super_admin, otherwise
+ * the cookie-snapshot facilityId (ignores the header for non-super_admin so
+ * that a forged header cannot escalate privilege).
+ */
+function resolveStaffFacilityId(
+  cookieFacilityId: string,
+  roles: readonly string[],
+  facilityIdHeader: string | undefined,
+): string {
+  if (!facilityIdHeader) return cookieFacilityId;
+  const isSuper = roles.includes('super_admin');
+  // Non-super_admin: silently ignore the override header (never escalate).
+  if (!isSuper) return cookieFacilityId;
+  return facilityIdHeader;
+}
+
 export function createContext(opts: CreateContextOptions = {}): Context {
-  // Staff identity: dev-header (non-prod only) — Entra SSO replaces this in PD-1.
-  const devUser = DEV_AUTH_ENABLED
-    ? parseDevUser(readHeader(opts.req?.headers, 'x-dev-user'))
-    : null;
+  const headers = opts.req?.headers;
+
+  // Staff identity resolution order (S2):
+  // 1. Staff session cookie (all envs — produced by Entra SSO callback)
+  // 2. x-dev-user header (non-prod only — kept for local dev and e2e mode-A)
+  const cookieHeader = readHeader(headers, 'cookie');
+  const staffToken = parseStaffCookie(cookieHeader);
+  const staffClaims = staffToken ? verifyStaffToken(staffToken, getStaffSessionSecret()) : null;
+
+  let staffSubject: { subject: AuthSubject; facilityId: string } | null = null;
+  if (staffClaims) {
+    const facilityIdOverride = readHeader(headers, 'x-facility-id');
+    const facilityId = resolveStaffFacilityId(
+      staffClaims.facilityId,
+      staffClaims.roles,
+      facilityIdOverride,
+    );
+    staffSubject = {
+      subject: { userId: staffClaims.userId, roles: staffClaims.roles },
+      facilityId,
+    };
+  }
+
+  const devUser =
+    !staffSubject && DEV_AUTH_ENABLED
+      ? parseDevUser(readHeader(headers, 'x-dev-user'))
+      : null;
+
+  const resolvedStaff = staffSubject ?? devUser;
 
   // LMS identity: bearer token (all envs) takes precedence over dev-header fallback.
   // In production only the bearer path is active (DEV_AUTH_ENABLED = false).
   const lmsUser =
-    parseBearerLmsToken(opts.req?.headers) ??
+    parseBearerLmsToken(headers) ??
     (DEV_AUTH_ENABLED
-      ? parseDevLmsUser(readHeader(opts.req?.headers, 'x-dev-lms-user'))
+      ? parseDevLmsUser(readHeader(headers, 'x-dev-lms-user'))
       : null);
 
   return {
-    subject: devUser?.subject ?? null,
-    facilityId: devUser?.facilityId ?? null,
+    subject: resolvedStaff?.subject ?? null,
+    facilityId: resolvedStaff?.facilityId ?? null,
     lmsSubject: lmsUser,
     get db() {
       return getDb();

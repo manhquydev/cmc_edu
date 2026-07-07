@@ -1,8 +1,9 @@
 // P3-I integration tests — AppUser CRUD (US-020, WF-P3-01).
 //
 // Covers: create (employeeCode sequence, managerId validation), list, update
-// (field mutation, A-B cycle detection, self-manager rejection), and
-// permission guard (only super_admin via user.manage).
+// (field mutation, A-B cycle detection, self-manager rejection),
+// updateRoles (super_admin gate, self-demotion guard, audit skip on no-op),
+// and permission guard (only super_admin via user.manage).
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { appRouter } from '../router.js';
@@ -153,5 +154,58 @@ describe('user — AppUser CRUD (P3-I)', () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
 
     await expect(caller(saleCtx).user.list()).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('user.updateRoles — assigns roles and returns updated user', async () => {
+    const user = await seedAppUser({ facilityId, userId: 'u-roles-1' });
+    const result = await caller(superAdminCtx).user.updateRoles({
+      appUserId: user.id,
+      roles: ['sale', 'cskh'],
+    });
+    expect(result.roles).toEqual(expect.arrayContaining(['sale', 'cskh']));
+    expect(result.roles).toHaveLength(2);
+  });
+
+  it('user.updateRoles — deduplicates duplicate role entries', async () => {
+    const user = await seedAppUser({ facilityId, userId: 'u-roles-dedup' });
+    const result = await caller(superAdminCtx).user.updateRoles({
+      appUserId: user.id,
+      roles: ['sale', 'sale'],
+    });
+    expect(result.roles).toEqual(['sale']);
+  });
+
+  it('user.updateRoles — rejects unknown role string', async () => {
+    const user = await seedAppUser({ facilityId, userId: 'u-roles-bad' });
+    await expect(
+      caller(superAdminCtx).user.updateRoles({
+        appUserId: user.id,
+        roles: ['not_a_real_role' as never],
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('user.updateRoles — forbidden for sale role', async () => {
+    const user = await seedAppUser({ facilityId, userId: 'u-roles-forbidden' });
+    await expect(
+      caller(saleCtx).user.updateRoles({ appUserId: user.id, roles: ['sale'] }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('user.updateRoles — blocks self-demotion of super_admin', async () => {
+    // Seed a user whose userId matches the super_admin context caller.
+    const superUser = await seedAppUser({ facilityId, userId: 'super-admin-user' });
+    // Give them the super_admin role first.
+    await caller(superAdminCtx).user.updateRoles({
+      appUserId: superUser.id,
+      roles: ['super_admin'],
+    });
+    // Now try to remove super_admin from themselves.
+    await expect(
+      caller(superAdminCtx).user.updateRoles({
+        appUserId: superUser.id,
+        roles: ['sale'],
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 });

@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@cmc/db';
 import { LMS_SESSION_SECRET_DEV_DEFAULT } from './lms-auth/session-token.js';
+import { STAFF_SESSION_SECRET_DEV_DEFAULT } from './auth/staff-session.js';
 
 /**
  * RT-7: Asserts the connected DB role is exactly 'cmc_app'.
@@ -118,6 +119,47 @@ export function assertLmsSecretConfiguredForProd(): void {
 }
 
 /**
+ * S2: Refuses to start in production if STAFF_SESSION_SECRET is unset or
+ * still the hard-coded dev default. A missing/default secret means staff
+ * session cookies can be forged by anyone who reads the source.
+ */
+export function assertStaffSecretConfiguredForProd(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+  const secret = process.env['STAFF_SESSION_SECRET'];
+  if (!secret) {
+    throw new Error(
+      'FATAL: STAFF_SESSION_SECRET must be set in production. ' +
+        'Set a cryptographically random secret of at least 32 characters.',
+    );
+  }
+  if (secret === STAFF_SESSION_SECRET_DEV_DEFAULT) {
+    throw new Error(
+      'FATAL: STAFF_SESSION_SECRET is using the insecure dev default. ' +
+        'Replace it with a unique cryptographically random secret in production.',
+    );
+  }
+}
+
+/**
+ * G10: Refuses to start in production if STAFF_SESSION_SECRET equals
+ * LMS_SESSION_SECRET. Equal secrets allow LMS bearer tokens and staff cookies
+ * to cross-verify — a staff cookie forged with a leaked LMS secret would grant
+ * staff access, or vice versa. The two secrets must always be distinct.
+ */
+export function assertStaffLmsSecretsDistinct(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+  const staff = process.env['STAFF_SESSION_SECRET'];
+  const lms = process.env['LMS_SESSION_SECRET'];
+  if (staff && lms && staff === lms) {
+    throw new Error(
+      'FATAL: STAFF_SESSION_SECRET and LMS_SESSION_SECRET must be different in production. ' +
+        'Using the same secret allows cross-verification between staff cookies and LMS tokens. ' +
+        'Generate two independent cryptographically random secrets and restart.',
+    );
+  }
+}
+
+/**
  * Runtime twin of `scripts/env-check.sh` (which guards CI / shell pre-boot).
  * Runs inside the app at startup so the production image (alpine, no bash)
  * still fails closed on a missing env-var contract. Reports only variable
@@ -146,7 +188,9 @@ export function assertRequiredEnvForProd(): void {
   if (process.env['SSO_ENABLED'] === 'true') {
     required.push(
       'ENTRA_TENANT_ID', 'ENTRA_CLIENT_ID', 'ENTRA_CLIENT_SECRET', 'ERP_SSO_REDIRECT_URI',
+      'ADMIN_APP_ORIGIN',
       'GRAPH_TENANT_ID', 'GRAPH_CLIENT_ID', 'GRAPH_CLIENT_SECRET', 'GRAPH_SENDER_EMAIL',
+      'STAFF_EMAIL_DOMAIN',
     );
   }
 

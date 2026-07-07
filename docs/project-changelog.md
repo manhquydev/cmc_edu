@@ -6,9 +6,9 @@
 
 ---
 
-## [2026-07-08] Phase 1 — Staff Entra SSO land + CSRF fix + RBAC hardening (PR #24)
+## [2026-07-08] Phase 1 — Staff Entra SSO land + CSRF fix + RBAC hardening (PR #24, MERGED)
 
-**Branch:** `feat/staff-sso-golive` — 5 commits, awaiting CI + merge
+**Branch:** `feat/staff-sso-golive` — 5 commits, CI green (typecheck-and-test ×2, e2e ×2), merged to main `00ca207`, branch deleted. Task #10 completed. Roadmap vision M0–M4 chốt cùng ngày: `docs/project-roadmap.md`.
 
 **CSRF protection (CRITICAL-C1 closed)**
 - `sso-routes.ts`: `/auth/login` generates `randomBytes(16)` state, HMAC-SHA256-signs it with `STAFF_SESSION_SECRET`, stores in HttpOnly `oauth_state` cookie (TTL 300s, SameSite=Lax). `/auth/callback` validates signature + constant-time state comparison before proceeding to token exchange. Old incorrect comment removed.

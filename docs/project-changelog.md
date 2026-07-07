@@ -1,8 +1,48 @@
 # CMC EDU v2 — Project Changelog
 
 **Scope:** P1 Identity & Enrollment backend build, security hardening, and remediation  
-**Period:** 2026-07-05 to 2026-07-06  
-**Status:** Complete, merged to main
+**Period:** 2026-07-05 to ongoing  
+**Status:** Active
+
+---
+
+## [2026-07-08] Phase 1 — Staff Entra SSO land + CSRF fix + RBAC hardening (PR #24)
+
+**Branch:** `feat/staff-sso-golive` — 5 commits, awaiting CI + merge
+
+**CSRF protection (CRITICAL-C1 closed)**
+- `sso-routes.ts`: `/auth/login` generates `randomBytes(16)` state, HMAC-SHA256-signs it with `STAFF_SESSION_SECRET`, stores in HttpOnly `oauth_state` cookie (TTL 300s, SameSite=Lax). `/auth/callback` validates signature + constant-time state comparison before proceeding to token exchange. Old incorrect comment removed.
+- Test: `sso-routes.test.ts` — 5 CSRF callback tests covering state_missing/state_invalid/state_mismatch/valid paths.
+
+**Boot-checks hardening (H2 + G10 closed)**
+- `assertStaffLmsSecretsDistinct()` (G10): refuses prod boot when `STAFF_SESSION_SECRET === LMS_SESSION_SECRET`.
+- `assertRequiredEnvForProd` SSO block: `STAFF_EMAIL_DOMAIN` now required when `SSO_ENABLED=true` (fail-closed); previously only `console.warn`.
+- Both called in `server.ts` synchronous boot sequence.
+
+**e2e mode-switching (CRITICAL-C2 closed)**
+- `createE2eStaffClient` in `trpc-client.ts`: Mode-A (x-dev-user header) in non-prod, Mode-B (signed cookie via `mintStaffCookie`) in `NODE_ENV=production`.
+- All 31 call sites in 6 spec files migrated from deprecated `createStaffClient`. Phase-3 prod-config e2e gate is now achievable.
+
+**Super_admin seed script (H4 closed)**
+- `scripts/seed-super-admin.ts`: idempotent upsert Facility + `AppUser{roles:[super_admin]}` for pilot bootstrap (resolves bootstrap-paradox — only super_admin can assign roles via `user.manage`).
+
+**DB migration**
+- `20260707200000_staff_role_enum_and_assignment`: adds 9-value `Role` enum (ADR-D) + `AppUser.roles Role[]`.
+- Pre-flight query required before deploy: `SELECT email, count(*) FROM "AppUser" GROUP BY email HAVING count(*)>1` must return 0 rows.
+
+**Role-drift test**
+- `user/role-drift.test.ts`: asserts Postgres `Role` enum exactly matches `@cmc/auth ROLES` (9 values). Fails immediately on drift.
+
+**Adversarial auth review result:** APPROVE_WITH_CONCERNS — all 25 security checklist items PASS; 5 non-blocking concerns (phantom login test, multi-pod sticky-session note, silent MSAL warning).
+
+**Gates:** typecheck 26/26 · tests 473 passed/13 skipped · build 26/26
+
+**Drift fixes:** `260707-2128` phase-03/04 → `superseded`; `260707-1830` plan → `superseded`.
+
+**Remaining open (unblocked after merge):**
+- Task #8: Phase 2 (WSL2 + docker compose stack + SSO smoke)
+- Task #9: Phase 3 (UAT e2e 2× + go/no-go)
+- lms-auth-two-tier 13 skipped tests → un-skip before Phase 3 Run 1
 
 ---
 

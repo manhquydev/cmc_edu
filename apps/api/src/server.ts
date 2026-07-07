@@ -17,6 +17,8 @@ import {
 import {
   assertAllowDevAuthNotInProd,
   assertCmcAppNotSuperuser,
+  assertCmcAppRole,
+  assertForceRlsOnAllRlsTables,
   assertLmsSecretConfiguredForProd,
 } from './boot-checks.js';
 
@@ -78,7 +80,10 @@ assertLmsSecretConfiguredForProd();
 // (ADR 0042 — superuser bypasses RLS unconditionally). Uses a throw-away
 // client scoped to APP_DATABASE_URL; the shared lazy singleton in context.ts
 // is not used here to keep startup sequencing independent.
-assertCmcAppNotSuperuser(createPrismaClient())
+const bootDb = createPrismaClient();
+assertCmcAppNotSuperuser(bootDb)
+  .then(() => assertCmcAppRole(bootDb))
+  .then(() => assertForceRlsOnAllRlsTables(bootDb))
   .then(() => {
     server.listen(port);
     // eslint-disable-next-line no-console

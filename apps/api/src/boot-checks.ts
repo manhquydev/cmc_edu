@@ -2,6 +2,55 @@ import type { PrismaClient } from '@cmc/db';
 import { LMS_SESSION_SECRET_DEV_DEFAULT } from './lms-auth/session-token.js';
 
 /**
+ * RT-7: Asserts the connected DB role is exactly 'cmc_app'.
+ *
+ * Superuser is rejected by assertCmcAppNotSuperuser; this check also rejects
+ * the owner/migration role (e.g. 'postgres' or the role in DATABASE_URL).
+ * Table owners bypass RLS unconditionally even without superuser, so
+ * connecting as owner neutralises cross-facility isolation (ADR 0042).
+ *
+ * Expected in production: APP_DATABASE_URL connects as cmc_app.
+ */
+export async function assertCmcAppRole(db: PrismaClient): Promise<void> {
+  const rows = await db.$queryRaw<Array<{ current_user: string }>>`
+    SELECT current_user::text AS current_user
+  `;
+  const role = rows[0]?.current_user;
+  if (role !== 'cmc_app') {
+    throw new Error(
+      `FATAL: Database role is '${role ?? 'unknown'}', expected 'cmc_app'. ` +
+        'Connecting as the table owner bypasses RLS unconditionally (ADR 0042). ' +
+        'Ensure APP_DATABASE_URL connects as cmc_app and restart.',
+    );
+  }
+}
+
+/**
+ * RT-7: Asserts every RLS-enabled table also has FORCE ROW LEVEL SECURITY.
+ *
+ * Without FORCE RLS the table owner can read/write across all facilities even
+ * when RLS policies are defined. A table with rowsecurity=true but
+ * relforcerowsecurity=false is silently unsafe for owner connections.
+ */
+export async function assertForceRlsOnAllRlsTables(db: PrismaClient): Promise<void> {
+  const tables = await db.$queryRaw<
+    Array<{ relname: string; relforcerowsecurity: boolean }>
+  >`
+    SELECT c.relname, c.relforcerowsecurity
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.rowsecurity = true
+  `;
+  const missing = tables.filter((t) => !t.relforcerowsecurity).map((t) => t.relname);
+  if (missing.length > 0) {
+    throw new Error(
+      `FATAL: FORCE ROW LEVEL SECURITY missing on RLS table(s): ${missing.join(', ')}. ` +
+        'Run: ALTER TABLE <table> FORCE ROW LEVEL SECURITY; for each and restart.',
+    );
+  }
+}
+
+/**
  * Verifies the connected DB user is NOT a PostgreSQL superuser (ADR 0042).
  *
  * A superuser bypasses all Row-Level Security policies unconditionally, which

@@ -109,13 +109,68 @@ function parseBearerLmsToken(
   return verifyLmsToken(token, getLmsSecret());
 }
 
+// Trusted-proxy CIDR list (RT-5). Only trust X-Forwarded-For from addresses
+// in this list. Format: comma-separated IPv4 CIDR or IPv6 exact-match strings.
+// Default = loopback only (safe for direct deployments; set TRUSTED_PROXY_CIDRS
+// when the API sits behind an nginx/LB whose address is known).
+const TRUSTED_PROXY_CIDRS: string[] = (
+  process.env['TRUSTED_PROXY_CIDRS'] ?? '127.0.0.1/32,::1/128'
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+function ipv4ToUint32(ip: string): number | null {
+  const parts = ip.split('.');
+  if (parts.length !== 4) return null;
+  let n = 0;
+  for (const p of parts) {
+    const byte = parseInt(p, 10);
+    if (Number.isNaN(byte) || byte < 0 || byte > 255) return null;
+    n = (n << 8) | byte;
+  }
+  return n >>> 0;
+}
+
+function isTrustedProxy(ip: string): boolean {
+  for (const entry of TRUSTED_PROXY_CIDRS) {
+    const slash = entry.indexOf('/');
+    if (slash === -1) {
+      if (entry === ip) return true;
+      continue;
+    }
+    const base = entry.slice(0, slash);
+    const bits = parseInt(entry.slice(slash + 1), 10);
+    if (Number.isNaN(bits) || bits < 0 || bits > 32) continue;
+    const ipInt = ipv4ToUint32(ip);
+    const baseInt = ipv4ToUint32(base);
+    if (ipInt === null || baseInt === null) continue;
+    const mask = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0;
+    if ((ipInt & mask) === (baseInt & mask)) return true;
+  }
+  return false;
+}
+
 function resolveIp(req: IncomingMessage | undefined): string | null {
   if (!req) return null;
+  const remoteAddr = req.socket?.remoteAddress ?? null;
   const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.length > 0) {
-    return forwarded.split(',')[0]!.trim();
+  if (
+    typeof forwarded === 'string' &&
+    forwarded.length > 0 &&
+    remoteAddr !== null &&
+    isTrustedProxy(remoteAddr)
+  ) {
+    // XFF is appended left-to-right; rightmost hop = nearest to us and least
+    // attacker-controlled. Take the rightmost hop NOT in our trusted list.
+    const hops = forwarded.split(',').map((h) => h.trim());
+    for (let i = hops.length - 1; i >= 0; i--) {
+      if (!isTrustedProxy(hops[i]!)) return hops[i]!;
+    }
+    // All hops are trusted — return remoteAddr (all hops are our own proxies).
+    return remoteAddr;
   }
-  return req.socket?.remoteAddress ?? null;
+  return remoteAddr;
 }
 
 export interface CreateContextOptions {

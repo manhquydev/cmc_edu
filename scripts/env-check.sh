@@ -29,9 +29,12 @@ if [ "$NODE_ENV" = "production" ]; then
   else
     REQUIRED+=(S3_ENDPOINT S3_BUCKET S3_REGION S3_ACCESS_KEY S3_SECRET_KEY)
   fi
+  # Staff session cookie secret (always required in prod — guards cookie forgery).
+  REQUIRED+=(STAFF_SESSION_SECRET)
   # Staff SSO only enforced once enabled (Entra shares its app with Graph email).
   if [ "${SSO_ENABLED:-false}" = "true" ]; then
     REQUIRED+=(ENTRA_TENANT_ID ENTRA_CLIENT_ID ENTRA_CLIENT_SECRET ERP_SSO_REDIRECT_URI)
+    REQUIRED+=(ADMIN_APP_ORIGIN)
     REQUIRED+=(GRAPH_TENANT_ID GRAPH_CLIENT_ID GRAPH_CLIENT_SECRET GRAPH_SENDER_EMAIL)
   fi
 fi

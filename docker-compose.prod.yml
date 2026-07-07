@@ -107,6 +107,11 @@ services:
       dockerfile: infra/docker/Dockerfile.admin
       args:
         VITE_API_BASE_URL: /trpc
+        # Set VITE_SSO_ENABLED=true (via --build-arg or .env.prod) when SSO is live.
+        # VITE_API_URL is the full API origin for /auth/login redirect; defaults to
+        # empty (relative /auth/login works when admin and API share an nginx origin).
+        VITE_SSO_ENABLED: ${VITE_SSO_ENABLED:-false}
+        VITE_API_URL: ${VITE_API_URL:-}
     restart: unless-stopped
     networks:
       - cmcv2-prod-net

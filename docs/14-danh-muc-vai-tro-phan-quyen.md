@@ -3,6 +3,9 @@
 > Nguồn sự thật DUY NHẤT về vai trò. Trước đây thông tin vai trò nằm rải ở TL1/TL05/TL07/"liên kết
 > vai trò" (mồ côi — được nhắc khắp nơi, không định nghĩa một chỗ). Tài liệu này gom lại, bám thẳng
 > `enum Role` trong `packages/db/prisma/schema.prisma` và permission registry `@cmc/auth`.
+>
+> **[2026-07-07 S1]** `enum Role` đã vào schema (migration `20260707200000`); `AppUser.roles Role[]`
+> thêm vào; drift-assertion test `apps/api/src/user/role-drift.test.ts` khoá 2 nguồn không lệch.
 
 ---
 

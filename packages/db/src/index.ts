@@ -5,7 +5,7 @@
 // connection is opened at import time). A single shared connection strategy
 // lands with the first data story.
 
-export { PrismaClient } from '@prisma/client';
+export { PrismaClient, Role } from '@prisma/client';
 export type { Prisma } from '@prisma/client';
 
 import { PrismaClient, type Prisma } from '@prisma/client';

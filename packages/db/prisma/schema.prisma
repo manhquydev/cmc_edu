@@ -203,6 +203,21 @@ enum EmailOutboxStatus {
   dead
 }
 
+/// Staff role catalog (docs/14 §1, ADR-D). 9 fixed values — do NOT add roles
+/// without an ADR. Enum in schema stays in sync with @cmc/auth ROLES via the
+/// drift-assertion test in apps/api/src/user/role-drift.test.ts.
+enum Role {
+  super_admin
+  giam_doc_kinh_doanh
+  giam_doc_dao_tao
+  sale
+  giao_vien
+  ke_toan
+  cskh
+  ctv_mkt
+  hr
+}
+
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
@@ -1013,6 +1028,7 @@ model AppUser {
   position     String   @default("")
   managerId    String?
   employeeCode String   @unique
+  roles        Role[]   @default([])
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)

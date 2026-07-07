@@ -18,6 +18,7 @@ import { randomUUID } from 'node:crypto';
 import { can } from '@cmc/auth';
 import { createBlobStorage } from '@cmc/storage';
 import { createContext } from '../context.js';
+import { canAccessSessionPhoto } from '../session-evidence/photo-access.js';
 
 export const EXERCISE_PDF_UPLOAD_PATH = '/upload/exercise-pdf';
 export const SESSION_PHOTO_UPLOAD_PATH = '/upload/session-photo';
@@ -77,10 +78,6 @@ export async function handleSessionPhotoGet(
     sendJson(res, 401, { error: 'LMS session required to view session photos.' });
     return;
   }
-  // TODO(RT-3-ownership): verify the requested blobRef is associated with a
-  // ClassSession whose students include a child the authenticated parent/student
-  // is guardian of, AND that photoConsent=true for that child (TL08 §7).
-  // Requires a DB lookup against SessionEvidence. Tracked for the UAT phase.
 
   const url = new URL(req.url ?? '', 'http://localhost');
   const blobRef = url.searchParams.get('ref');
@@ -90,6 +87,15 @@ export async function handleSessionPhotoGet(
   }
   if (!blobRef.startsWith('session-photos/') || blobRef.includes('..')) {
     sendJson(res, 400, { error: 'Invalid blobRef.' });
+    return;
+  }
+
+  // RT-3: a valid LMS session is not enough — the caller must be entitled to
+  // THIS child photo (published evidence for an enrolled approved child + active
+  // photo consent). 404 (not 403) so a non-owner cannot probe which refs exist.
+  const allowed = await canAccessSessionPhoto(ctx.db, ctx.lmsSubject, blobRef);
+  if (!allowed) {
+    sendJson(res, 404, { error: 'Photo not found.' });
     return;
   }
 

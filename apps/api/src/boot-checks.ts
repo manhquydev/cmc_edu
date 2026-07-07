@@ -39,7 +39,7 @@ export async function assertForceRlsOnAllRlsTables(db: PrismaClient): Promise<vo
     SELECT c.relname, c.relforcerowsecurity
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.rowsecurity = true
+    WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity = true
   `;
   const missing = tables.filter((t) => !t.relforcerowsecurity).map((t) => t.relname);
   if (missing.length > 0) {

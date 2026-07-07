@@ -113,10 +113,9 @@ async function seedStudentViaProvisioning(opts: {
   expect(verifyResult.children).toHaveLength(1);
   const child = verifyResult.children[0]!;
 
-  // Decode parentAccountId from session token.
-  const session = JSON.parse(
-    Buffer.from(verifyResult.sessionToken, 'base64url').toString('utf8'),
-  ) as { parentAccountId: string };
+  // Decode parentAccountId from the signed session token's claims payload.
+  const { decodeLmsClaims } = await import('../src/session-injection.js');
+  const session = decodeLmsClaims(verifyResult.sessionToken);
 
   return { parentAccountId: session.parentAccountId, studentId: child.studentId };
 }
@@ -205,8 +204,14 @@ test.describe('lmsAuth — 2-tier student login + kind gate', () => {
       studentName: 'E2E KindGate Student',
     });
 
-    // Construct a student-kind session header manually
-    const studentSession = createLmsClient(baseUrl, { parentAccountId, studentId });
+    // Mint a signed student-kind session (mode B) — the dev-header fallback
+    // defaults kind to 'parent', which would slip past the gate under test.
+    const { mintStudentToken } = await import('../src/session-injection.js');
+    const { createSignedLmsClient } = await import('../src/trpc-client.js');
+    const studentSession = createSignedLmsClient(
+      baseUrl,
+      mintStudentToken(parentAccountId, studentId),
+    );
 
     let caughtError: unknown;
     try {

@@ -75,6 +75,21 @@ export function mintStudentToken(
 }
 
 /**
+ * Decodes the claims payload of a signed LMS session token
+ * (`header.payload.sig` — same shape signLmsToken produces). Signature is NOT
+ * verified — specs only need to read ids the API already vouched for.
+ */
+export function decodeLmsClaims<T = { parentAccountId: string; kind: string }>(
+  sessionToken: string,
+): T {
+  const payload = sessionToken.split('.')[1];
+  if (!payload) {
+    throw new Error('Malformed LMS session token: expected header.payload.sig.');
+  }
+  return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as T;
+}
+
+/**
  * Verifies that x-dev-lms-user is IGNORED by the server in production mode.
  * Used by the cutover probe (RT-2) to assert the dev-header backdoor is gone.
  *

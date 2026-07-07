@@ -121,9 +121,8 @@ async function provisionStudentForGrading(): Promise<{
   const code = await readOtpCode(normalizeLoginPhone(parentPhone));
 
   const verifyResult = await anon.lmsAuth.verifyOtp.mutate({ phone: parentPhone, code });
-  const session = JSON.parse(
-    Buffer.from(verifyResult.sessionToken, 'base64url').toString('utf8'),
-  ) as { parentAccountId: string };
+  const { decodeLmsClaims } = await import('../src/session-injection.js');
+  const session = decodeLmsClaims(verifyResult.sessionToken);
 
   return {
     parentPhone,

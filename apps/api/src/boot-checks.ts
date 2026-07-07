@@ -116,3 +116,45 @@ export function assertLmsSecretConfiguredForProd(): void {
     );
   }
 }
+
+/**
+ * Runtime twin of `scripts/env-check.sh` (which guards CI / shell pre-boot).
+ * Runs inside the app at startup so the production image (alpine, no bash)
+ * still fails closed on a missing env-var contract. Reports only variable
+ * NAMES, never values.
+ *
+ * Storage: either the full S3_* set OR the local-disk fallback (BLOB_STORAGE_DIR).
+ * SSO/Graph vars are enforced only when SSO_ENABLED=true (Entra app is shared
+ * between staff SSO and Graph email). LMS_SESSION_SECRET is covered separately
+ * by assertLmsSecretConfiguredForProd (kept for its dev-default check).
+ */
+export function assertRequiredEnvForProd(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+
+  if (process.env['TEST_OTP_SEAM']) {
+    throw new Error('FATAL: TEST_OTP_SEAM must not be set in production.');
+  }
+
+  const required = ['APP_DATABASE_URL', 'DATABASE_URL', 'BREVO_API_KEY', 'TRUSTED_PROXY_CIDRS', 'CORS_ORIGINS'];
+
+  if (process.env['S3_ENDPOINT']) {
+    required.push('S3_BUCKET', 'S3_REGION', 'S3_ACCESS_KEY', 'S3_SECRET_KEY');
+  } else {
+    required.push('BLOB_STORAGE_DIR');
+  }
+
+  if (process.env['SSO_ENABLED'] === 'true') {
+    required.push(
+      'ENTRA_TENANT_ID', 'ENTRA_CLIENT_ID', 'ENTRA_CLIENT_SECRET', 'ERP_SSO_REDIRECT_URI',
+      'GRAPH_TENANT_ID', 'GRAPH_CLIENT_ID', 'GRAPH_CLIENT_SECRET', 'GRAPH_SENDER_EMAIL',
+    );
+  }
+
+  const missing = required.filter((name) => !process.env[name]);
+  if (missing.length > 0) {
+    throw new Error(
+      `FATAL: missing required env var(s) in production: ${missing.join(', ')}. ` +
+        'See .env.example / scripts/env-check.sh. Set them and restart.',
+    );
+  }
+}

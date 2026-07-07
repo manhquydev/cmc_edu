@@ -20,6 +20,7 @@ import {
   assertCmcAppRole,
   assertForceRlsOnAllRlsTables,
   assertLmsSecretConfiguredForProd,
+  assertRequiredEnvForProd,
 } from './boot-checks.js';
 
 const port = Number(process.env.PORT ?? 3000);
@@ -75,6 +76,7 @@ const server = createServer((req, res) => {
 // Synchronous boot assertions (no I/O required).
 assertAllowDevAuthNotInProd();
 assertLmsSecretConfiguredForProd();
+assertRequiredEnvForProd();
 
 // Async boot-check: verify cmc_app is not a superuser before accepting requests
 // (ADR 0042 — superuser bypasses RLS unconditionally). Uses a throw-away

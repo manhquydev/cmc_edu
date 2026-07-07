@@ -1,22 +1,26 @@
 // Request context factory.
 //
-// Dev-only session stub: staff identity comes from the `x-dev-user` header
-// (JSON `{ userId, roles, facilityId }`), LMS identity from `x-dev-lms-user`
-// (JSON `{ parentAccountId, studentId? }`). Malformed/missing headers degrade
-// to an anonymous context rather than throwing — auth gates (protectedProcedure
-// / lmsProcedure) are what reject unauthenticated calls, not context creation.
+// Auth strategy (PD-1):
+//   Staff identity  — Microsoft Entra SSO session (TODO: msal-node, docs/18 §1);
+//                     dev/test: `x-dev-user` header (JSON {userId,roles,facilityId})
+//                     enabled only when NODE_ENV !== 'production'.
+//   LMS identity    — HMAC-signed bearer token (see lms-auth/session-token.ts);
+//                     dev/test: `x-dev-lms-user` header as fallback when
+//                     NODE_ENV !== 'production'.
 //
-// TODO(P0-debt): real staff auth is Microsoft Entra SSO (`@azure/msal-node`,
-// docs/18 §1). Until SSO middleware replaces it, the header stub is FAIL-CLOSED:
-// `DEV_AUTH_ENABLED` is false in production, so the `x-dev-user` / `x-dev-lms-user`
-// impersonation headers are ignored and every request degrades to anonymous
-// (all protected/lms procedures then reject). A missing runtime guard here would
-// let any caller impersonate any staff/parent in prod — this constant is that guard.
+// Fail-closed: in production, impersonation headers are never read (RT-2).
+// The `ALLOW_DEV_AUTH` escape hatch has been removed — it was a backdoor that
+// allowed re-enabling impersonation in production via an env var. The gate is
+// now strictly NODE_ENV !== 'production', with no opt-out.
+//
+// Malformed/missing session degrades to anonymous context — auth gates
+// (protectedProcedure / lmsProcedure) reject the unauthenticated call.
 
 import type { IncomingMessage } from 'node:http';
 import { z } from 'zod';
 import { createPrismaClient, PrismaClient } from '@cmc/db';
 import { ROLES, type AuthSubject } from '@cmc/auth';
+import { LMS_SESSION_SECRET_DEV_DEFAULT, verifyLmsToken } from './lms-auth/session-token.js';
 import type { Context, LmsSubject } from './trpc.js';
 
 const devUserHeaderSchema = z.object({
@@ -33,14 +37,11 @@ const devLmsUserHeaderSchema = z.object({
 });
 
 /**
- * The dev-header auth stub is enabled everywhere EXCEPT production. In
- * production the headers are ignored (fail-closed) until Entra SSO lands, so a
- * deploy that forgets to wire SSO refuses all authenticated calls rather than
- * silently accepting forged identities. An explicit opt-in escape hatch
- * (`ALLOW_DEV_AUTH=1`) exists only for non-prod integration environments.
+ * Dev-header impersonation is strictly limited to non-production environments.
+ * RT-2: the `ALLOW_DEV_AUTH=1` escape hatch has been removed — there is no
+ * way to re-enable impersonation headers in NODE_ENV=production.
  */
-const DEV_AUTH_ENABLED =
-  process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEV_AUTH === '1';
+const DEV_AUTH_ENABLED = process.env.NODE_ENV !== 'production';
 
 // Lazily constructed so importing/creating a context never opens a DB
 // connection unless a caller actually reads `ctx.db` (keeps the health smoke
@@ -86,13 +87,90 @@ function parseDevLmsUser(raw: string | undefined): LmsSubject | null {
   }
 }
 
+/**
+ * Parses an LMS bearer token from the Authorization header and verifies its
+ * HMAC-SHA256 signature. Returns the decoded claims or null on any failure.
+ *
+ * Secret resolution order:
+ *   1. LMS_SESSION_SECRET env var (required in production — boot-check enforces)
+ *   2. Hard-coded dev default (safe only because boot-check refuses prod start
+ *      when the default is in use)
+ */
+function getLmsSecret(): string {
+  return process.env['LMS_SESSION_SECRET'] ?? LMS_SESSION_SECRET_DEV_DEFAULT;
+}
+
+function parseBearerLmsToken(
+  headers: IncomingMessage['headers'] | undefined,
+): LmsSubject | null {
+  const auth = headers?.['authorization'];
+  if (typeof auth !== 'string' || !auth.startsWith('Bearer ')) return null;
+  const token = auth.slice('Bearer '.length).trim();
+  return verifyLmsToken(token, getLmsSecret());
+}
+
+// Trusted-proxy CIDR list (RT-5). Only trust X-Forwarded-For from addresses
+// in this list. Format: comma-separated IPv4 CIDR or IPv6 exact-match strings.
+// Default = loopback only (safe for direct deployments; set TRUSTED_PROXY_CIDRS
+// when the API sits behind an nginx/LB whose address is known).
+const TRUSTED_PROXY_CIDRS: string[] = (
+  process.env['TRUSTED_PROXY_CIDRS'] ?? '127.0.0.1/32,::1/128'
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+function ipv4ToUint32(ip: string): number | null {
+  const parts = ip.split('.');
+  if (parts.length !== 4) return null;
+  let n = 0;
+  for (const p of parts) {
+    const byte = parseInt(p, 10);
+    if (Number.isNaN(byte) || byte < 0 || byte > 255) return null;
+    n = (n << 8) | byte;
+  }
+  return n >>> 0;
+}
+
+function isTrustedProxy(ip: string): boolean {
+  for (const entry of TRUSTED_PROXY_CIDRS) {
+    const slash = entry.indexOf('/');
+    if (slash === -1) {
+      if (entry === ip) return true;
+      continue;
+    }
+    const base = entry.slice(0, slash);
+    const bits = parseInt(entry.slice(slash + 1), 10);
+    if (Number.isNaN(bits) || bits < 0 || bits > 32) continue;
+    const ipInt = ipv4ToUint32(ip);
+    const baseInt = ipv4ToUint32(base);
+    if (ipInt === null || baseInt === null) continue;
+    const mask = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0;
+    if ((ipInt & mask) === (baseInt & mask)) return true;
+  }
+  return false;
+}
+
 function resolveIp(req: IncomingMessage | undefined): string | null {
   if (!req) return null;
+  const remoteAddr = req.socket?.remoteAddress ?? null;
   const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.length > 0) {
-    return forwarded.split(',')[0]!.trim();
+  if (
+    typeof forwarded === 'string' &&
+    forwarded.length > 0 &&
+    remoteAddr !== null &&
+    isTrustedProxy(remoteAddr)
+  ) {
+    // XFF is appended left-to-right; rightmost hop = nearest to us and least
+    // attacker-controlled. Take the rightmost hop NOT in our trusted list.
+    const hops = forwarded.split(',').map((h) => h.trim());
+    for (let i = hops.length - 1; i >= 0; i--) {
+      if (!isTrustedProxy(hops[i]!)) return hops[i]!;
+    }
+    // All hops are trusted — return remoteAddr (all hops are our own proxies).
+    return remoteAddr;
   }
-  return req.socket?.remoteAddress ?? null;
+  return remoteAddr;
 }
 
 export interface CreateContextOptions {
@@ -100,14 +178,18 @@ export interface CreateContextOptions {
 }
 
 export function createContext(opts: CreateContextOptions = {}): Context {
-  // Fail-closed: outside dev/test the impersonation headers are never read, so
-  // production without SSO yields an anonymous context (rejected downstream).
+  // Staff identity: dev-header (non-prod only) — Entra SSO replaces this in PD-1.
   const devUser = DEV_AUTH_ENABLED
     ? parseDevUser(readHeader(opts.req?.headers, 'x-dev-user'))
     : null;
-  const lmsUser = DEV_AUTH_ENABLED
-    ? parseDevLmsUser(readHeader(opts.req?.headers, 'x-dev-lms-user'))
-    : null;
+
+  // LMS identity: bearer token (all envs) takes precedence over dev-header fallback.
+  // In production only the bearer path is active (DEV_AUTH_ENABLED = false).
+  const lmsUser =
+    parseBearerLmsToken(opts.req?.headers) ??
+    (DEV_AUTH_ENABLED
+      ? parseDevLmsUser(readHeader(opts.req?.headers, 'x-dev-lms-user'))
+      : null);
 
   return {
     subject: devUser?.subject ?? null,

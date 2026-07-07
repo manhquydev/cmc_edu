@@ -118,8 +118,15 @@ export async function seedActiveEnrollment(
 export async function cleanupFacility(facilityId: string): Promise<void> {
   const db = getDb();
 
-  // Append-only ledger — no DELETE grant for cmc_app (ADR 0042 hardening).
-  await getPrivilegedDb().attendance.deleteMany({ where: { facilityId } });
+  // Tables with no DELETE grant for cmc_app (append-only / in-place-only by
+  // design — see the t2ii migration's grant rationale): teardown must run on
+  // the privileged migration-role connection. FK order: FinalGrade/
+  // StarTransaction/Submission before the Enrollment/Student deletes below.
+  const privileged = getPrivilegedDb();
+  await privileged.attendance.deleteMany({ where: { facilityId } });
+  await privileged.finalGrade.deleteMany({ where: { facilityId } });
+  await privileged.starTransaction.deleteMany({ where: { facilityId } });
+  await privileged.submission.deleteMany({ where: { facilityId } });
 
   await db.guardian.deleteMany({ where: { facilityId } });
   await db.guardianLinkRequest.deleteMany({ where: { facilityId } });
@@ -128,11 +135,6 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
     db,
     null,
     async (tx) => {
-      // Phase-08 additions: Submission-derived tables before Submission, then
-      // StarTransaction/FinalGrade before Enrollment/Student.
-      await tx.finalGrade.deleteMany({ where: { facilityId } });
-      await tx.starTransaction.deleteMany({ where: { facilityId } });
-      await tx.submission.deleteMany({ where: { facilityId } });
       await tx.studentAccount.deleteMany({ where: { student: { facilityId } } });
       await tx.enrollment.deleteMany({ where: { facilityId } });
       await tx.student.deleteMany({ where: { facilityId } });
@@ -221,11 +223,19 @@ export async function seedSubmittedSubmission(opts: {
  * facility-scoped Submission rows that reference these exercises). */
 export async function cleanupExercises(...exerciseIds: string[]): Promise<void> {
   if (exerciseIds.length === 0) return;
-  const db = getDb();
+  // cmc_app has no DELETE grant on Exercise/CurriculumUnit — teardown runs on
+  // the privileged migration-role connection, same as cleanupFacility's
+  // append-only tables.
+  const db = getPrivilegedDb();
   const exercises = await db.exercise.findMany({
     where: { id: { in: exerciseIds } },
     select: { id: true, curriculumUnitId: true },
   });
+  // Submissions FK-reference these exercises. This runs in a spec's afterAll,
+  // which fires before the global teardown's cleanupFacility — so the rows are
+  // still present here and must be cleared first or the Exercise delete trips
+  // Submission_exerciseId_fkey.
+  await db.submission.deleteMany({ where: { exerciseId: { in: exerciseIds } } });
   await db.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
   const unitIds = [...new Set(exercises.map((e) => e.curriculumUnitId))];
   if (unitIds.length > 0) {

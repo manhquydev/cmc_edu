@@ -1,9 +1,8 @@
-// LMS tRPC client — uses x-dev-lms-user header (JSON) from localStorage.
-// The header shape { parentAccountId, studentId?, kind } is read on every
-// request so post-login navigation picks up the new session automatically.
-//
-// IMPORTANT: This is a dev-header stub. In production, a real session
-// (JWT/cookie) must replace it before launch.
+// LMS tRPC client — sends the HMAC-signed session token (RT-1 / PD-1) as a
+// standard Authorization: Bearer header. The token is stored in localStorage
+// after a successful lmsAuth.verifyOtp / verifyOtpEmail / loginStudent call
+// and is read on every request so post-login navigation picks up the active
+// session automatically.
 
 import { createTRPCReact } from '@trpc/react-query';
 import { httpBatchLink } from '@trpc/client';
@@ -62,16 +61,12 @@ export function makeTrpcClient() {
         url: `${API_URL}/trpc`,
         headers() {
           const session = getStoredSession();
-          if (!session) return {};
-          // Build the x-dev-lms-user header; only include studentId when present.
-          const lmsUser: Record<string, string> = {
-            parentAccountId: session.parentAccountId,
-            kind: session.kind,
-          };
-          if (session.studentId) {
-            lmsUser['studentId'] = session.studentId;
-          }
-          return { 'x-dev-lms-user': JSON.stringify(lmsUser) };
+          if (!session?.sessionToken) return {};
+          // RT-1 / PD-1: send HMAC-signed bearer token instead of the
+          // unsigned x-dev-lms-user JSON header. The token already encodes
+          // parentAccountId, studentId, and kind — the server decodes it via
+          // verifyLmsToken in context.ts.
+          return { authorization: `Bearer ${session.sessionToken}` };
         },
       }),
     ],

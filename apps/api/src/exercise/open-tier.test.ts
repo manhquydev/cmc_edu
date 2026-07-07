@@ -78,7 +78,7 @@ describe('exercise.openForStudent / listForStudent (US-015, ADR 0038 Tier A/B)',
 
   /** Builds an LMS caller using the test's real ParentAccount. */
   function studentCaller(studentId: string): Caller {
-    return appRouter.createCaller(buildLmsContext({ parentAccountId: parent.id, studentId }));
+    return appRouter.createCaller(buildLmsContext({ parentAccountId: parent.id, studentId, kind: 'student' }));
   }
 
   /** Enrolls a student AND creates an approved Guardian link for `parent`. */
@@ -286,7 +286,7 @@ describe('exercise.openForStudent / listForStudent (US-015, ADR 0038 Tier A/B)',
   // ---- LMS session shape ----
 
   it('rejects a call with no selected student profile', async () => {
-    const noStudent = appRouter.createCaller(buildLmsContext({ parentAccountId: parent.id }));
+    const noStudent = appRouter.createCaller(buildLmsContext({ parentAccountId: parent.id, kind: 'student' }));
     await expect(noStudent.exercise.openForStudent()).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 

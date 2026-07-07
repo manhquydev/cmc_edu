@@ -1,0 +1,85 @@
+/* LMS mobile-first shell — consumes @cmc/ui tokens only (no hardcoded palette). */
+body {
+  margin: 0;
+  font-family: var(--cmc-font-sans);
+  color: var(--cmc-text);
+  background: var(--cmc-surface-2);
+  /* Prevent horizontal scroll on mobile */
+  overflow-x: hidden;
+}
+
+.lms-shell {
+  min-height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--cmc-surface);
+}
+
+.lms-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--cmc-space-3) var(--cmc-space-4);
+  background: var(--cmc-surface);
+  border-bottom: 1px solid var(--cmc-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.lms-topbar__brand {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--cmc-brand);
+}
+
+.lms-page {
+  padding: var(--cmc-space-4);
+}
+
+.lms-page__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--cmc-text);
+  margin: 0 0 var(--cmc-space-4);
+}
+
+.lms-star-hero {
+  background: var(--cmc-brand);
+  color: var(--cmc-brand-ink);
+  border-radius: var(--cmc-radius-xs);
+  padding: var(--cmc-space-4);
+  text-align: center;
+  margin-bottom: var(--cmc-space-4);
+}
+
+.lms-star-hero__value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lms-star-hero__label {
+  font-size: 0.85rem;
+  opacity: 0.85;
+  margin-top: var(--cmc-space-1);
+}
+
+.lms-child-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cmc-space-2);
+  padding: var(--cmc-space-2) var(--cmc-space-3);
+  background: var(--cmc-brand-muted);
+  color: var(--cmc-brand);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.lms-child-chip--active {
+  border-color: var(--cmc-brand);
+}

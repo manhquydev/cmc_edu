@@ -55,7 +55,7 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
   /** Draft a receipt through the full O1..O4 -> receiptCreate flow. */
   async function draftReceipt(
     creator: Caller,
-    opts: { contactPhone: string; parentPhone: string; amount?: number; classBatchId?: string },
+    opts: { contactPhone: string; parentPhone: string; parentEmail?: string; amount?: number; classBatchId?: string },
   ) {
     const opp = await creator.crm.opportunityCreate({ contactName: 'Contact ' + opts.contactPhone, phone: opts.contactPhone });
     await creator.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O2_CONTACTED' });
@@ -67,6 +67,7 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
       opportunityId: opp.id,
       studentName: 'Student for ' + opts.parentPhone,
       parentPhone: opts.parentPhone,
+      parentEmail: opts.parentEmail,
       amount: opts.amount ?? 5_000_000,
       classBatchId: opts.classBatchId ?? classBatch.id,
     });
@@ -249,12 +250,19 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
   });
 
   it('is idempotent: replaying the outbox enqueue for the same receipt never creates a duplicate row — F8', async () => {
-    const { receipt } = await draftReceipt(sale, { contactPhone: '0930000014', parentPhone: '0940000014' });
+    const parentEmail = 'f8test@example.com';
+    const { receipt } = await draftReceipt(sale, {
+      contactPhone: '0930000014',
+      parentPhone: '0940000014',
+      parentEmail,
+    });
     const approved = await gdkd.finance.receiptApprove({ receiptId: receipt.id });
 
+    // First call was made internally by receiptApprove; replay it — must not
+    // create a second EmailOutbox row (dedup by receiptId in payload).
     await enqueueReceiptEmail(testDb(), {
       id: approved.receipt.id,
-      parentPhone: approved.receipt.parentPhone,
+      parentEmail,
       studentName: approved.receipt.studentName,
       kind: approved.receipt.kind,
     });

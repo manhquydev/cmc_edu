@@ -19,7 +19,7 @@ import { testDb } from '../test/db.js';
 describe('enqueueReceiptEmailBestEffort (R5)', () => {
   it('a throwing enqueue dependency does not propagate and is recorded under its own marker, never provisioning.retry_pending', async () => {
     const receiptId = `test-r5-fail-${Math.random().toString(36).slice(2, 10)}`;
-    const receipt = { id: receiptId, parentPhone: '0990000000', studentName: 'R5 Test Child', kind: 'new' };
+    const receipt = { id: receiptId, parentEmail: 'r5test@example.com', studentName: 'R5 Test Child', kind: 'new' };
 
     await expect(
       enqueueReceiptEmailBestEffort(testDb(), receipt, async () => {
@@ -40,7 +40,7 @@ describe('enqueueReceiptEmailBestEffort (R5)', () => {
 
   it('a succeeding enqueue dependency writes no failure marker at all', async () => {
     const receiptId = `test-r5-ok-${Math.random().toString(36).slice(2, 10)}`;
-    const receipt = { id: receiptId, parentPhone: '0990000001', studentName: 'R5 OK Child', kind: 'new' };
+    const receipt = { id: receiptId, parentEmail: 'r5ok@example.com', studentName: 'R5 OK Child', kind: 'new' };
     let called = false;
 
     await enqueueReceiptEmailBestEffort(testDb(), receipt, async () => {

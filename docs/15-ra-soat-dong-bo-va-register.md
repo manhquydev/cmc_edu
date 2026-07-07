@@ -21,6 +21,18 @@
 (trừ lỗi B về tên hiển thị), oversightMode (TL9/TL10/TL13), agent-principal (TL4/TL10/TL13/TL14),
 bất biến tiền (TL1/TL10/TL11), URL↔query↔API list input (TL6/TL11).
 
+> **product-decision 2026-07-07 — Đồng bộ 4 thay đổi sau (đã áp vào TL10/TL11/TL18/TL19/TL24)**:
+>
+> **[G1] Mã phiếu thu SO (không PT-)**: Format đúng là `SO00183` (prefix `SO`, pad-5, không gạch ngang). Nguồn: `packages/domain-finance/src/receipt-code.ts`. Mọi doc/wireframe dùng `PT-000001` là sai.
+>
+> **[G2] Auth 2-tier (đảo QĐ0033/WF-P1-07)**: Phụ huynh = email+OTP qua email; Học sinh = SĐT PH + password (default `Cmc2026@`). Auth phone+OTP đơn tài khoản không còn dùng. **BLOCKED-ON-COMMS**: email OTP dùng ConsoleEmailTransport stub, chưa production. Chi tiết: TL11/TL18/TL19/TL24.
+>
+> **[G3] StudentAccount.passwordHash + LmsSubject.kind**: Các trường `passwordHash`, `mustChangePassword`, `loginAttempts`, `loginLockedUntil` nằm trên `StudentAccount` (không phải `ParentAccount`). `LmsSubject` có `kind: 'parent' | 'student'` phân tách session. Chi tiết: TL10.
+>
+> **[G4] Không có studentCode**: Không có cột/trường `studentCode` trong schema. HS định danh bằng `fullName + SĐT PH`. Mã `HS-0182` trong wireframe là tham chiếu hình ảnh thuần tuý, không phải dữ liệu thực. Chi tiết: TL10.
+>
+> **[G5] Duyệt phiếu vượt ngưỡng = role-elevation (không co-approval)**: Phiếu thu > 20,000,000 VND cần duyệt bởi `giam_doc_dao_tao` hoặc `super_admin` (một người duyệt, không phải hai chữ ký). `APPROVAL_SECOND_EYE_THRESHOLD = 20_000_000` trong `apps/api/src/finance/router.ts`.
+
 ## 2. Mồ côi (orphan) đã đóng / còn mở
 
 - ✅ **Vai trò không có tài liệu gốc** → đã tạo **TL14** (nguồn duy nhất).

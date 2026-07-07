@@ -61,11 +61,13 @@ describe('can()', () => {
     expect(can(hr, 'guardian', 'listPendingLinks')).toBe(false);
   });
 
-  it('student.lookup is staff-only, restricted to the roles that need a studentId (K4)', () => {
+  it('student.lookup: allowed for roles that need studentId (K4); giao_vien included for attendance name resolution (RLS + facilityId predicate)', () => {
     const sale = { userId: 'u-sale', roles: ['sale'] as const };
     const giaoVien = { userId: 'u-gv', roles: ['giao_vien'] as const };
+    const cskh = { userId: 'u-cskh', roles: ['cskh'] as const };
     expect(can(sale, 'student', 'lookup')).toBe(true);
-    expect(can(giaoVien, 'student', 'lookup')).toBe(false);
+    expect(can(giaoVien, 'student', 'lookup')).toBe(true);
+    expect(can(cskh, 'student', 'lookup')).toBe(false);
   });
 
   it('facility.create/list is super_admin only — every registered role is FORBIDDEN (K7)', () => {

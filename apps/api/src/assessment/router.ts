@@ -297,6 +297,13 @@ export const assessmentRouter = router({
       // lmsProcedure guarantees ctx.lmsSubject is non-null.
       const parentAccountId = ctx.lmsSubject!.parentAccountId;
 
+      // Sibling scope gate: student sessions may only access their own records.
+      if (ctx.lmsSubject!.kind === 'student') {
+        if (input.studentId !== ctx.lmsSubject!.studentId) {
+          throw forbidden('Students may only access their own records.');
+        }
+      }
+
       // Guardian gate — single approved-children source of truth.
       const approvedChildren = await getApprovedChildren(ctx.db, parentAccountId);
       if (!approvedChildren.some((c) => c.studentId === input.studentId)) {
@@ -307,6 +314,7 @@ export const assessmentRouter = router({
         parentAccountId,
         studentIds: [input.studentId],
         via: 'assessment.listForChild',
+        actorKind: ctx.lmsSubject!.kind,
       });
 
       // Resolve the student's facility for RLS scoping.
@@ -351,6 +359,13 @@ export const reportCardRouter = router({
     .query(async ({ ctx, input }): Promise<ReportCardDto> => {
       const parentAccountId = ctx.lmsSubject!.parentAccountId;
 
+      // Sibling scope gate: student sessions may only access their own report card.
+      if (ctx.lmsSubject!.kind === 'student') {
+        if (input.studentId !== ctx.lmsSubject!.studentId) {
+          throw forbidden('Students may only access their own records.');
+        }
+      }
+
       // Guardian gate.
       const approvedChildren = await getApprovedChildren(ctx.db, parentAccountId);
       if (!approvedChildren.some((c) => c.studentId === input.studentId)) {
@@ -361,6 +376,7 @@ export const reportCardRouter = router({
         parentAccountId,
         studentIds: [input.studentId],
         via: 'reportCard.getForChild',
+        actorKind: ctx.lmsSubject!.kind,
       });
 
       const student = await withFacility(ctx.db, null, (tx) =>

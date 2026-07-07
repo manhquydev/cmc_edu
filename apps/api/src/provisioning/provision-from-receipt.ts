@@ -24,12 +24,17 @@
 import { withFacility, type PrismaClient } from '@cmc/db';
 import { normalizeLoginPhone } from '@cmc/domain-identity';
 import { activateEnrollmentForReceipt } from '../enrollment/activate-enrollment.js';
+import { hashPassword } from '../lms-auth/password-hash.js';
 
 /** The subset of a committed, approved Receipt this function needs. */
 export interface ReceiptForProvisioning {
   id: string;
   facilityId: string;
   parentPhone: string;
+  /** C1/phase-01b: optional parent email captured at receiptCreate time; when
+   * present, provisioning upserts it onto ParentAccount to enable email-OTP
+   * login (lmsAuth.requestOtpEmail). Omit for receipts created before phase-01b. */
+  parentEmail?: string | null;
   studentName: string;
   classBatchId: string | null;
   /**
@@ -72,22 +77,47 @@ function isUniqueConstraintViolation(error: unknown): boolean {
  * — caught here and resolved by refetching, per ADR 0041 ("SAVEPOINT /
  * ON CONFLICT DO NOTHING + refetch") rather than letting the error propagate.
  * `ParentAccount` carries no `facilityId`/RLS policy — plain client calls.
+ *
+ * C1/phase-01b: when `email` is provided, upserts it onto the ParentAccount
+ * after find-or-create so the parent can also log in via email-OTP. A
+ * conflicting email on a DIFFERENT account is caught as a P2002 on the unique
+ * `email` column — surfaced as a thrown error (the approver must correct the
+ * email on the receipt before retrying provisioning).
  */
-async function findOrCreateParentAccount(db: PrismaClient, rawPhone: string) {
+async function findOrCreateParentAccount(
+  db: PrismaClient,
+  rawPhone: string,
+  email?: string | null,
+) {
   const phone = normalizeLoginPhone(rawPhone);
 
   const existing = await db.parentAccount.findUnique({ where: { phone } });
-  if (existing) return existing;
+  let account = existing;
 
-  try {
-    return await db.parentAccount.create({ data: { phone } });
-  } catch (error) {
-    if (!isUniqueConstraintViolation(error)) throw error;
+  if (!account) {
+    try {
+      account = await db.parentAccount.create({ data: { phone } });
+    } catch (error) {
+      if (!isUniqueConstraintViolation(error)) throw error;
 
-    const refetched = await db.parentAccount.findUnique({ where: { phone } });
-    if (!refetched) throw error; // Unexpected: constraint fired but no row found.
-    return refetched;
+      const refetched = await db.parentAccount.findUnique({ where: { phone } });
+      if (!refetched) throw error; // Unexpected: constraint fired but no row found.
+      account = refetched;
+    }
   }
+
+  // Upsert email when provided and not already set to the same value —
+  // idempotent: replaying with the same email is a no-op.
+  if (email && account.email !== email) {
+    // P2002 on the unique email column means another ParentAccount already
+    // owns this address — let the error propagate so the approver can correct it.
+    account = await db.parentAccount.update({
+      where: { id: account.id },
+      data: { email },
+    });
+  }
+
+  return account;
 }
 
 /**
@@ -156,9 +186,18 @@ async function findOrCreateStudentAccount(
   const existing = await db.studentAccount.findUnique({ where: { studentId } });
   if (existing) return existing;
 
+  // C1/phase-01b: set the default password on provisioning so the student can
+  // log in immediately. `mustChangePassword: true` forces a password change on
+  // first login. The default password literal is intentionally kept here in
+  // provisioning only — never hardcoded in tests or business logic.
   try {
     return await db.studentAccount.create({
-      data: { studentId, parentAccountId },
+      data: {
+        studentId,
+        parentAccountId,
+        passwordHash: hashPassword('Cmc2026@'),
+        mustChangePassword: true,
+      },
     });
   } catch (error) {
     // Same idempotency race as the student/phone creates (ADR 0041).
@@ -233,7 +272,7 @@ export async function provisionFromReceipt(
   db: PrismaClient,
   receipt: ReceiptForProvisioning,
 ): Promise<ProvisionResult> {
-  const parentAccount = await findOrCreateParentAccount(db, receipt.parentPhone);
+  const parentAccount = await findOrCreateParentAccount(db, receipt.parentPhone, receipt.parentEmail);
   const student = await findOrCreateStudent(db, receipt);
   const guardian = await findOrCreateGuardian(db, receipt.facilityId, parentAccount.id, student.id);
 

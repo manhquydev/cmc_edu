@@ -6,6 +6,121 @@
 
 ---
 
+## [2026-07-07] G0 — Xanh hoá main: test drift fixes + phase-01b alignment (PR #12)
+
+**Test drift: giao_vien student.lookup (K4)**
+- `packages/auth/src/index.ts:71-75` intentionally added `giao_vien` to `student.lookup` roster (attendance name resolution, RLS + facilityId predicate). Unit tests (`@cmc/auth`) and API integration tests (`student/lookup.test.ts`) were still asserting the old FORBIDDEN state.
+- Fix: updated to assert allowed; added `cskh` deny guard to preserve K4 scope.
+- Files: `packages/auth/src/index.test.ts`, `apps/api/src/student/lookup.test.ts`
+
+**Test drift: kind:'student' two-tier auth (phase-01b)**
+- Migration `20260707120000_phase01b_lms_auth_two_tier` added `kind` field to LMS sessions; `requireLmsStudent` now checks `kind !== 'student'` → FORBIDDEN before checking `!studentId` → BAD_REQUEST. All student-facing test callers used the default `kind:'parent'`, causing FORBIDDEN where tests expected success.
+- Fix: added `kind:'student'` to all `studentCaller` helpers and inline `buildLmsContext` calls; 'no selected student' negative tests now use `kind:'student'` + no `studentId`.
+- Files: `apps/api/src/exercise/open-tier.test.ts`, `rewards/redeem-refund.test.ts`, `submission/grade.test.ts`, `submission/annotate-submit.test.ts`, `submission/teacher-annotation.test.ts`
+
+**domain-time: passWithNoTests**
+- Package has no test files; `vitest run` exits 1 on no-match by default. Added `--passWithNoTests` (standard flag; does not suppress failing tests).
+- File: `packages/domain-time/package.json`
+
+**Result:** 402/402 tests green (net +1 from lookup test split); typecheck 26/26; build 14/14.
+
+---
+
+## [2026-07-07] Code-review bug fixes (retroactive harness pass, wave 2)
+
+**PDF viewer always returning 400 in grading screen**
+- Root cause: `listForGrading` returned only `exerciseId`; `handleExercisePdfGet` requires a `blobRef` starting with `exercise-pdf/` — a bare UUID never passes the check.
+- Fix: added `include: { exercise: { select: { basePdfRef: true } } }` to `listForGrading`; grading.tsx now builds PDF URL from `item.basePdfRef` when non-null, else shows a "no PDF" message.
+- Files: `apps/api/src/submission/router.ts`, `apps/admin/src/pages/teaching/grading.tsx`
+
+**Fractional grading scores rejected by Zod schema**
+- Root cause: `score: z.number().int()` rejected step-0.5 inputs the UI allows.
+- Fix: removed `.int()` — `z.number().nonnegative()` accepts fractional scores.
+- File: `apps/api/src/submission/router.ts`
+
+**`requireLmsParent` extracted as shared guard function**
+- Three procedures had inline kind-check duplicates: `setPhotoConsent`, `enrollment.mine`, `lmsAuth.resetChildPassword`.
+- Fix: added `requireLmsParent(ctx): { parentAccountId }` to `trpc.ts` (symmetric with `requireLmsStudent`), replaced all three inline checks.
+- Files: `apps/api/src/trpc.ts`, `apps/api/src/session-evidence/router.ts`, `apps/api/src/enrollment/router.ts`, `apps/api/src/lms-auth/router.ts`
+
+**Timing oracle — network round-trip (no-parent branch)**
+- Root cause: PBKDF2 equalization fixed CPU time but the no-parent branch issued 1 DB query vs 2 in the no-student branch — leaking phone/email existence via latency.
+- Fix: added `await ctx.db.$executeRaw\`SELECT 1\`` in the no-parent branch to match query count.
+- File: `apps/api/src/lms-auth/router.ts`
+
+**`credentials` option invalid on tRPC v11 `httpBatchLink`**
+- Root cause: tRPC v11 removed `credentials` as a top-level option; passing it caused TS2353.
+- Fix: use custom fetch wrapper `fetch(url, { ...options, credentials: 'include' })`.
+- File: `apps/admin/src/lib/trpc.ts`
+
+---
+
+## [2026-07-07] Security bug fixes (retroactive harness pass)
+
+**HIGH-2: `enqueueReceiptEmail` was writing phone number as email `to` field**
+- Root cause: function signature used `parentPhone: string` but `ReceiptRow` carries `parentEmail: string | null`.
+- Fix: renamed param to `parentEmail: string | null`, added null-guard early-return (no outbox row when email absent).
+- Files: `apps/api/src/finance/router.ts`, `approve.test.ts`, `enqueue-receipt-email-best-effort.test.ts`
+
+**MEDIUM-1: `loginStudent` timing oracle — phone enumeration via latency**
+- Root cause: `studentAccounts.length === 0` branch returned immediately without PBKDF2, making it ~70ms faster than wrong-password branch — phone existence leakable via timing.
+- Fix: added `verifyPassword(input.password, DUMMY_PASSWORD_HASH)` equalization call before the throw.
+- File: `apps/api/src/lms-auth/router.ts`
+
+**Phase-06 gap: `parentAccount.updateEmail` UI was missing**
+- Backend procedure existed; no UI called it.
+- Fix: added "Cập nhật email" modal to parents page (approved tab, gated by `canDo('parentAccount','updateEmail')`).
+- File: `apps/admin/src/pages/parents/index.tsx`
+
+**Revenue report M1/M2: truncation warning + decorative FilterBar removed**
+- M1: added yellow alert when `data.total > items.length` (PAGE_SIZE=100 hardcoded).
+- M2: removed `RANGE_FILTER` constant and `FilterBar` import — range filter was decorative, query param never used in API call.
+- File: `apps/admin/src/pages/finance/revenue-report.tsx`
+
+**Receipt create M3: opportunityId UUID validation**
+- Raw `?opportunityId=` query param now validated against UUID regex before use; malformed param silently dropped (server rejects anyway, but prevents arbitrary string in UI alert).
+- File: `apps/admin/src/pages/finance/receipt-create.tsx`
+
+---
+
+## [2026-07-07] Phase summary index (Phases 01a–07)
+
+### Phase 01a — Backend deltas
+- SO receipt code format (`SO00001`), `canApprove` field on `ReceiptDto` (self-approval guard + over-threshold second-eye), `session.me` nav-gating endpoint.
+- Teacher annotation column (`teacherAnnotationLayer`) on Submission; `submission.saveTeacherAnnotation` procedure.
+
+### Phase 01b — LMS auth 2-tier
+- Email-OTP login (`requestOtpEmail` / `verifyOtpEmail`) alongside existing phone-OTP; student direct password login (`loginStudent`, PBKDF2, `mustChangePassword` flag).
+- Kind discriminator (`kind: 'parent' | 'student'`) in session tokens; `lmsAuth.resetChildPassword` parent-only gate; 15-minute lockout after 5 failed login attempts.
+
+### Phase 02 — UI foundation
+- Mantine v7 design system integrated; tRPC React client wired to API; 10 `@cmc/ui` components (Button, Input, Modal, Table, Badge, etc.).
+- App shell (sidebar nav + auth guard), staff login screen, facility switcher.
+
+### Phase 03 — Sales screens
+- Receipt create/approve screens with `canApprove` hint and over-threshold warning dialog.
+- CRM kanban board (O1→O5 drag-and-drop); over-threshold gate surfaced as a blocking modal before approve.
+
+### Phase 04 — Teaching screens
+- Class schedule view, session lifecycle controls (confirm/cancel/makeup).
+- Attendance marking UI (present/absent/late per student), grading screen with PDF annotation viewer, report-card PDF export.
+- Teacher cockpit: today's sessions, pending grading queue.
+
+### Phase 05 — Ops / HR
+- IP-based clock-in/out (`checkInOut`), shift registration and approval workflow, revenue reconciliation worker and flag-review UI.
+- Payroll: compensation rates, payslip generation (gross → net), KPI score submit/confirm/approve/override pipeline.
+
+### Phase 06 — Generic admin coverage
+- 15 admin routes across user, room, course, facility CRUD; `parentAccount.updateEmail` backfill for LMS email-OTP login.
+- Super-admin facility management screen.
+
+### Phase 07 — LMS app (parent + student portal)
+- Parent login (phone-OTP + email-OTP), profile picker, enrollment list, session-evidence feed with photo-consent toggle.
+- Student login (password + `mustChangePassword` redirect), PDF exercise viewer, submission draft/submit, star balance + gift redemption flow.
+- Consent settings screen; push-notification consent stub.
+
+---
+
 ## [2026-07-06] P1 Backend Complete & Merged
 
 ### Commits
@@ -264,3 +379,35 @@
 
 ## 2026-07-06 — T2-I: exercise foundation (PR #4)
 - @cmc/storage blob seam (local-disk); global CurriculumUnit/Exercise (no-RLS QĐ0021/0022); classSession.assignUnit; exercise create/publish/close; raw-PDF upload route (auth+mime+10MB). 192 api tests + storage 7.
+
+## 2026-07-07 — Phase-08: test-seam OTP + e2e security specs
+- **Test-seam OTP**: `lmsAuth.requestOtp` / `requestOtpEmail` return `_testSeamCode` when `TEST_OTP_SEAM=1` AND `NODE_ENV !== 'production'`; runtime double-check is fail-closed (field never populated in production even if env var is accidentally set).
+- **4 new e2e specs** (`lms-auth`, `finance-approval`, `kind-isolation`, `attendance-grading`): covers student login + lockout, `canApprove` gate, over-threshold second-eye (ke_toan blocked / GĐDT allowed), LMS kind discriminator (student↔parent), sibling scope fence, attendance mark + grading + star balance.
+- **e2e/src/db.ts**: `seedPublishedExercise`, `seedSubmittedSubmission`, `cleanupExercises` helpers added; `cleanupFacility` extended to tear down `StarTransaction`/`FinalGrade`/`Submission` rows before enrollment/student deletes.
+
+---
+
+## 2026-07-07 — Domain decisions (5 product decisions applied to docs)
+
+5 domain decisions confirmed and synced to docs (TL10/TL11/TL12/TL15/TL18/TL19/TL24):
+
+1. **Receipt code SO**: Format đổi từ `PT-000001` sang `SO00183` (`packages/domain-finance/src/receipt-code.ts`).
+2. **Auth 2-tier (đảo QĐ0033/WF-P1-07)**: PH login = email+OTP (BLOCKED-ON-COMMS); HS login = SĐT PH + password.
+3. **StudentAccount.passwordHash + LmsSubject.kind**: Password fields trên `StudentAccount`; `kind` discriminator.
+4. **Không có studentCode**: HS định danh bằng `fullName + SĐT PH`.
+5. **Duyệt phiếu vượt ngưỡng = role-elevation**: >20,000,000 VND cần `giam_doc_dao_tao` hoặc `super_admin` (một người, không co-approval). `APPROVAL_SECOND_EYE_THRESHOLD = 20_000_000`.
+
+## 2026-07-07 — P3-I: AppUser, IP attendance, domain-time (US-020/021, PR #7)
+- `AppUser` entity; IP-based attendance (TimePunch + FacilityNetwork); `@cmc/domain-time` package (time zone helpers, ICT bucket).
+
+## 2026-07-07 — P3-II: Shifts/payroll/KPI + @cmc/domain-payroll (US-022/023/024, PR #8)
+- Shift registration + approval workflow; payroll assembly (Payslip + SalaryRate + CompensationPolicy); KPI scoring; `@cmc/domain-payroll` domain package.
+
+## 2026-07-07 — P4: Gift/rewards, parent-meeting, test-appointment, after-sale (US-025–029, PR #9)
+- Star/reward redemption (StarTransaction + Gift + Reward); ParentMeeting scheduling; TestAppointment for học thử; AfterSaleCase tracking + CallMetric.
+
+## 2026-07-07 — P5: Reconciliation worker + flag system + MCP skeleton (US-010, PR #10)
+- Reconciliation agent worker (scheduled + event-triggered); flag/dismiss system for anomalies; MCP server skeleton (tool-wrapping tRPC procedures for agent access).
+
+## 2026-07-07 — PD: CI hardening, threat checklist, worker runtime, boot checks (PR #11)
+- GitHub Actions CI pipeline hardening; STRIDE threat checklist validation; worker runtime bootstrap; boot-time integrity checks (schema, RLS, append-only enforcement).

@@ -33,6 +33,10 @@ import { testAppointmentRouter } from './appointment/router.js';
 import { afterSaleRouter } from './after-sale/router.js';
 // P5: Reconciliation flag review surface.
 import { reconciliationRouter } from './reconciliation/router.js';
+// Phase-06 gap fill: parent account email backfill for LMS login.
+import { parentAccountRouter } from './parentAccount/router.js';
+// Phase-01a: session mirror (nav gating + threshold config).
+import { sessionRouter } from './session/router.js';
 import { mergeRouters, publicProcedure, router } from './trpc.js';
 
 const healthOutput = z.object({
@@ -93,6 +97,10 @@ export const appRouter = router({
   afterSale: afterSaleRouter,
   // P5: Reconciliation flag review (list/dismiss/action).
   reconciliation: reconciliationRouter,
+  // Phase-01a: session mirror — nav gating + threshold config for UI.
+  session: sessionRouter,
+  // Phase-06 gap: parent account email backfill (LMS login prerequisite).
+  parentAccount: parentAccountRouter,
 });
 
 export type AppRouter = typeof appRouter;

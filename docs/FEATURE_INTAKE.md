@@ -137,6 +137,59 @@ Hard gates:
 - External provider behavior.
 - Removing or weakening validation requirements.
 
+## Domain Decision Records (2026-07-07)
+
+The following 5 domain decisions were confirmed on 2026-07-07 and are recorded here as high-risk intake items (Auth + Data model + Public contracts flags). All are implemented in code; docs synced in this session.
+
+### DD-001 — Receipt code SO (not PT-)
+
+**Type:** Change request  
+**Lane:** Normal  
+**Risk flags:** Public contracts, Existing behavior  
+**Decision:** Receipt code format is `SO00183` (prefix `SO`, zero-pad 5, no dash). Previous format `PT-000001` is incorrect.  
+**Source:** `packages/domain-finance/src/receipt-code.ts`  
+**Docs updated:** TL15, TL19, project-changelog.md  
+**Story:** Verify all UI components and print templates display `SO`-prefixed codes; update any hardcoded `PT-` references.
+
+### DD-002 — Auth 2-tier (reversal of QĐ0033/WF-P1-07)
+
+**Type:** Change request  
+**Lane:** High-risk  
+**Risk flags:** Auth, Data model, Public contracts, External systems  
+**Decision:** LMS auth is 2-tier: (a) Parent = email + OTP via email (`kind='parent'`); (b) Student = parent phone + password (`kind='student'`). Previous phone+OTP single-account model is removed.  
+**BLOCKED-ON-COMMS:** Parent email OTP is non-functional in production until Brevo/Graph credentials provided. `ConsoleEmailTransport` stub only.  
+**Docs updated:** TL11, TL15, TL18, TL19, TL24, TL12, TL06  
+**Story:** Implement 2-tab LMS login screen; wire `lmsAuth.requestEmailOtp`/`verifyEmailOtp` for parent; `lmsAuth.studentLogin` for student; add BLOCKED-ON-COMMS warning to UI.
+
+### DD-003 — StudentAccount.passwordHash + LmsSubject.kind
+
+**Type:** Change request  
+**Lane:** High-risk  
+**Risk flags:** Auth, Data model, Audit/security  
+**Decision:** `passwordHash` (PBKDF2-SHA256), `mustChangePassword`, `loginAttempts`, `loginLockedUntil` are on `StudentAccount`, not `ParentAccount`. `LmsSubject` has `kind: 'parent' | 'student'` discriminator.  
+**Docs updated:** TL10, TL15  
+**Story:** Verify schema has these fields on `StudentAccount`; `mustChangePassword=true` on provisioning; enforce password change on first login; test lockout logic.
+
+### DD-004 — No studentCode
+
+**Type:** Change request  
+**Lane:** Normal  
+**Risk flags:** Data model, Public contracts  
+**Decision:** No `studentCode` column exists. Students are identified by `fullName + parent phone`. Codes like `HS-0182` in wireframes are visual references only.  
+**Docs updated:** TL10, TL15  
+**Story:** Remove any `studentCode` references from UI; update search/display to use `fullName + phone` identification.
+
+### DD-005 — Over-threshold approval = role-elevation (not co-approval)
+
+**Type:** Change request  
+**Lane:** Normal  
+**Risk flags:** Authorization, Public contracts  
+**Decision:** Receipts > 20,000,000 VND require approval by `giam_doc_dao_tao` or `super_admin` (single approver, not two signatures). `APPROVAL_SECOND_EYE_THRESHOLD = 20_000_000` in `apps/api/src/finance/router.ts`.  
+**Docs updated:** TL15  
+**Story:** Verify role check in `finance.receiptApprove`; test that `ke_toan` or `sale` cannot approve over-threshold receipts; test that `giam_doc_dao_tao` can.
+
+---
+
 ## Output
 
 At the end of intake, the agent should be able to say:

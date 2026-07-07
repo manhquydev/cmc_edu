@@ -216,6 +216,35 @@ export const classBatchRouter = router({
       });
     }),
 
+  listStudents: requirePermission('class', 'create')
+    .input(classBatchGetInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const enrollments = await tx.enrollment.findMany({
+          where: {
+            classBatchId: input.classBatchId,
+            facilityId,
+            status: { in: ['reserved', 'active'] },
+          },
+          orderBy: { createdAt: 'asc' },
+        });
+        if (enrollments.length === 0) return [];
+        const studentIds = enrollments.map((e) => e.studentId);
+        const students = await tx.student.findMany({
+          where: { id: { in: studentIds }, facilityId },
+          select: { id: true, fullName: true },
+        });
+        const studentMap = new Map(students.map((s) => [s.id, s]));
+        return enrollments.map((e) => ({
+          enrollmentId: e.id,
+          studentId: e.studentId,
+          fullName: studentMap.get(e.studentId)?.fullName ?? '—',
+          status: e.status,
+        }));
+      });
+    }),
+
   get: requirePermission('class', 'create')
     .input(classBatchGetInput)
     .query(async ({ ctx, input }): Promise<ClassBatchDto> => {

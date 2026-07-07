@@ -20,7 +20,7 @@
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { badRequest, forbidden, notFound } from '../errors.js';
-import { lmsProcedure, requirePermission, router, scoped } from '../trpc.js';
+import { lmsProcedure, requireLmsParent, requirePermission, router, scoped } from '../trpc.js';
 import {
   auditChildDataAccess,
   getApprovedChildren,
@@ -271,10 +271,19 @@ export const sessionEvidenceRouter = router({
   // -------------------------------------------------------------------------
   // studentId comes from INPUT — parent may browse any of their approved
   // children without having a profile selected in the LMS session context.
+  // Students may only access their own records (sibling scope gate).
   listForChild: lmsProcedure
     .input(listForChildInput)
     .query(async ({ ctx, input }): Promise<{ items: SessionEvidenceLmsDto[] }> => {
       const parentAccountId = ctx.lmsSubject!.parentAccountId;
+
+      // Sibling scope gate: a student session may only view their own records,
+      // never a sibling's. A parent session may browse any approved child.
+      if (ctx.lmsSubject!.kind === 'student') {
+        if (input.studentId !== ctx.lmsSubject!.studentId) {
+          throw forbidden('Students may only access their own records.');
+        }
+      }
 
       // Guardian gate.
       const approvedChildren = await getApprovedChildren(ctx.db, parentAccountId);
@@ -286,6 +295,7 @@ export const sessionEvidenceRouter = router({
         parentAccountId,
         studentIds: [input.studentId],
         via: 'sessionEvidence.listForChild',
+        actorKind: ctx.lmsSubject!.kind,
       });
 
       // Resolve student's facility.
@@ -341,7 +351,7 @@ export const guardianLmsRouter = router({
   setPhotoConsent: lmsProcedure
     .input(setPhotoConsentInput)
     .mutation(async ({ ctx, input }): Promise<{ photoConsent: boolean }> => {
-      const parentAccountId = ctx.lmsSubject!.parentAccountId;
+      const { parentAccountId } = requireLmsParent(ctx);
 
       // Guardian gate — verify the studentId belongs to this parent.
       const approvedChildren = await getApprovedChildren(ctx.db, parentAccountId);

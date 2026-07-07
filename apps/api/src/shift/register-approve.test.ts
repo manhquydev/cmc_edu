@@ -13,16 +13,12 @@ import {
   seedAppUser,
   testDbBypass,
 } from '../test/db.js';
-import { ictToUtc } from '@cmc/domain-time';
-
 // ---------------------------------------------------------------------------
 // Test setup
 // ---------------------------------------------------------------------------
 
 let facilityId: string;
-let employeeAppUserId: string;   // giao_vien
-let managerAppUserId: string;    // giam_doc_dao_tao
-let kdEmployeeAppUserId: string; // sale (KINH_DOANH group)
+let employeeAppUserId: string; // giao_vien
 let shiftGroupId: string;
 let shiftTemplateId: string;
 let kdShiftGroupId: string;
@@ -48,21 +44,19 @@ beforeEach(async () => {
   });
   employeeAppUserId = employee.id;
 
-  const manager = await seedAppUser({
+  await seedAppUser({
     facilityId,
     userId: MANAGER_USER_ID,
     fullName: 'Trần Giám Đốc',
     position: 'giam_doc_dao_tao',
   });
-  managerAppUserId = manager.id;
 
-  const kdEmployee = await seedAppUser({
+  await seedAppUser({
     facilityId,
     userId: KD_USER_ID,
     fullName: 'Lê Sale',
     position: 'sale',
   });
-  kdEmployeeAppUserId = kdEmployee.id;
 
   // Seed GIAO_VIEN ShiftGroup + ShiftTemplate via DB bypass (setup, not subject under test)
   const group = await testDbBypass((tx) =>
@@ -140,13 +134,7 @@ function managerCtx() {
   });
 }
 
-function kdCtx() {
-  return buildStaffContext({
-    facilityId,
-    userId: KD_USER_ID,
-    roles: ['sale'],
-  });
-}
+
 
 const caller = (ctx: ReturnType<typeof buildStaffContext>) =>
   appRouter.createCaller(ctx);

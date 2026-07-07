@@ -293,6 +293,9 @@ model Receipt {
   /// shape for it.
   studentId     String?
   parentPhone   String
+  /// C1/phase-01b: optional email captured at receipt creation; provisioning
+  /// upserts it onto ParentAccount so the parent can also log in via email-OTP.
+  parentEmail   String?
   studentName   String
   /// P2-Foundation: real (nullable) FK — WF-P2-05 "seam", `finance.receiptCreate`
   /// validates this points at a ClassBatch in the caller's facility (app-level
@@ -378,6 +381,10 @@ model Student {
 model ParentAccount {
   id                   String                @id @default(uuid())
   phone                String                @unique
+  /// Email identifier for parent email-OTP login flow (C1/phase-01b). Nullable —
+  /// existing accounts provisioned by phone only will not have an email until
+  /// the parent sets one or staff captures it on receiptCreate.
+  email                String?               @unique
   passwordHash         String?
   createdAt            DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime              @updatedAt @db.Timestamptz(3)
@@ -389,10 +396,24 @@ model ParentAccount {
 /// One row per Student's LMS login, owned by the ParentAccount that
 /// provisioned it (finance.receiptApprove auto-provisioning — ADR 0041).
 model StudentAccount {
-  id              String   @id @default(uuid())
-  studentId       String   @unique
+  id              String    @id @default(uuid())
+  studentId       String    @unique
   parentAccountId String
-  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  /// Hashed password for student direct login (C1/phase-01b). Nullable until
+  /// provisioning sets the default; a null value means this account cannot log
+  /// in directly yet (parent-only flow still works via ParentAccount).
+  passwordHash         String?
+  /// True when the student must change their password on next login (set to
+  /// true on provisioning with the default password; cleared by the student on
+  /// first change or by parent reset).
+  mustChangePassword   Boolean  @default(false)
+  /// Count of consecutive failed student login attempts against this account.
+  /// Reset to 0 on successful login. Used for rate-limiting (phase-01b).
+  loginAttempts        Int      @default(0)
+  /// When set and in the future, direct student login for this account is locked
+  /// out until this timestamp. Cleared on successful login.
+  loginLockedUntil     DateTime? @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
 
   student       Student       @relation(fields: [studentId], references: [id])
   parentAccount ParentAccount @relation(fields: [parentAccountId], references: [id])
@@ -703,8 +724,14 @@ model Submission {
   studentId       String
   /// The student's PDF annotation overlay (docs/19 §3) — capped at 1MB by the
   /// application (`submission.saveDraft`), not enforced at the DB layer.
-  annotationLayer Json
-  answerText      String?
+  annotationLayer        Json
+  /// Teacher's separate PDF annotation overlay — written via
+  /// `submission.saveTeacherAnnotation` (phase-01a), never via `saveDraft`
+  /// (which is student-only). Null until a teacher first annotates. Capped
+  /// at 1MB by the application. Stored in a separate column so student and
+  /// teacher layers are never co-mingled (append-mindset, actor audit).
+  teacherAnnotationLayer Json?
+  answerText             String?
   version         Int              @default(1)
   status          SubmissionStatus @default(draft)
   submittedAt     DateTime?        @db.Timestamptz(3)
@@ -826,11 +853,16 @@ model ClassBatchCodeCounter {
   @@index([facilityId])
 }
 
-/// Phone-based OTP login for the LMS (parent/student). System-wide, not
-/// facility-scoped — a phone is not bound to one facility.
+/// Phone-based or email-based OTP login for the LMS (parent). System-wide, not
+/// facility-scoped — a phone/email is not bound to one facility.
 model LoginOtp {
   id        String         @id @default(uuid())
-  phone     String
+  /// Nullable (C1/phase-01b): email-OTP rows set phone=null; phone-OTP rows
+  /// set email=null. At least one of phone/email must be non-null (enforced
+  /// at the application layer in lms-auth/router.ts, not the DB).
+  phone     String?
+  /// Email identifier for parent email-OTP flow (C1/phase-01b).
+  email     String?
   /// Hashed OTP (M11/H5 remediation): `${salt}:${sha256Hex}` — see
   /// apps/api/src/lms-auth/otp-hash.ts. The plaintext code is never
   /// persisted.
@@ -844,6 +876,7 @@ model LoginOtp {
   createdAt DateTime       @default(now()) @db.Timestamptz(3)
 
   @@index([phone])
+  @@index([email])
 }
 
 model EmailOutbox {

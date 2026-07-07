@@ -10,7 +10,7 @@
 // `withFacility` transaction; RLS does not apply to it.
 
 import { z } from 'zod';
-import { withFacility, Prisma } from '@cmc/db';
+import { withFacility } from '@cmc/db';
 import { badRequest, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
@@ -74,9 +74,14 @@ export const userRouter = router({
               employeeCode,
             },
           });
-        } catch (err) {
-          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-            // userId is globally unique (one auth identity → one staff profile).
+        } catch (err: unknown) {
+          // P2002 = userId unique constraint: one auth identity → one staff profile.
+          if (
+            err !== null &&
+            typeof err === 'object' &&
+            'code' in err &&
+            (err as { code: unknown }).code === 'P2002'
+          ) {
             throw badRequest('A staff profile already exists for this userId.');
           }
           throw err;

@@ -1,0 +1,341 @@
+// Đối soát tài chính — P05 (US-010 reconciliation surface).
+//
+// Key invariants:
+// - HOTL agent results are READ-ONLY AI output. The amber banner must be
+//   present and unambiguous: "ai:recon" worker cannot self-action flags.
+// - Dismiss / action buttons only shown to canDo('reconciliation','review')
+//   (GĐ). All other roles see flags as read-only.
+// - Flag deep-link: /finance/{receiptId}?flag={flagId}.
+// - Status lifecycle is terminal: open → dismissed | actioned (no re-open).
+
+import { useState } from 'react';
+import {
+  Alert,
+  Anchor,
+  Badge,
+  Box,
+  Button,
+  Card,
+  Group,
+  Select,
+  Stack,
+  Text,
+} from '@mantine/core';
+import { useSearchParams } from 'react-router-dom';
+import { ConfirmDialog, PageHeader } from '@cmc/ui';
+import { useSession } from '../../lib/session-context.js';
+import { trpc } from '../../lib/trpc.js';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+type FlagKind =
+  | 'self_approved'
+  | 'exceeds_threshold'
+  | 'excess_refunds'
+  | 'missing_provisioning';
+
+const KIND_LABELS: Record<FlagKind, string> = {
+  self_approved: 'Tự duyệt phiếu thu',
+  exceeds_threshold: 'Vượt ngưỡng phê duyệt',
+  excess_refunds: 'Hoàn tiền vượt mức',
+  missing_provisioning: 'Thiếu cấp phát dịch vụ',
+};
+
+const KIND_COLORS: Record<FlagKind, string> = {
+  self_approved: 'red',
+  exceeds_threshold: 'orange',
+  excess_refunds: 'orange',
+  missing_provisioning: 'yellow',
+};
+
+const KIND_DESCRIPTIONS: Record<FlagKind, string> = {
+  self_approved:
+    'Agent phát hiện phiếu thu được duyệt bởi chính người tạo (vi phạm kiểm soát nội bộ).',
+  exceeds_threshold:
+    'Phiếu thu vượt ngưỡng cần second-eye nhưng không có GĐ đào tạo hoặc super_admin phê duyệt.',
+  excess_refunds:
+    'Tổng hoàn tiền cho phiếu này vượt quá số tiền gốc (netAmount).',
+  missing_provisioning:
+    'Phiếu thu đã được duyệt nhưng không có bản ghi cấp phát dịch vụ tương ứng.',
+};
+
+// ---------------------------------------------------------------------------
+// Narrow flag shape for JSX — avoids TS2589 from deep Prisma type inference
+// ---------------------------------------------------------------------------
+interface FlagItem {
+  id: string;
+  kind: string;
+  receiptId: string | null;
+  createdAt: Date | string;
+  status: string;
+}
+
+// ---------------------------------------------------------------------------
+// Confirm action type
+// ---------------------------------------------------------------------------
+type PendingAction = {
+  type: 'dismiss' | 'action';
+  flagId: string;
+  flagKind: FlagKind;
+} | null;
+
+// ---------------------------------------------------------------------------
+// Flag card
+// ---------------------------------------------------------------------------
+interface FlagCardProps {
+  flag: {
+    id: string;
+    kind: string;
+    receiptId: string | null;
+    createdAt: Date | string;
+    status: string;
+  };
+  canReview: boolean;
+  onDismiss: (flagId: string, kind: FlagKind) => void;
+  onAction: (flagId: string, kind: FlagKind) => void;
+  isMutating: boolean;
+}
+
+function FlagCard({ flag, canReview, onDismiss, onAction, isMutating }: FlagCardProps) {
+  const kind = flag.kind as FlagKind;
+  const label = KIND_LABELS[kind] ?? flag.kind;
+  const color = KIND_COLORS[kind] ?? 'gray';
+  const description = KIND_DESCRIPTIONS[kind] ?? '';
+  const createdAt = new Date(flag.createdAt as unknown as string).toLocaleDateString(
+    'vi-VN',
+    { day: '2-digit', month: '2-digit', year: 'numeric' },
+  );
+
+  return (
+    <Card withBorder radius="xs" padding="md">
+      <Stack gap="xs">
+        <Group justify="space-between" wrap="nowrap">
+          <Badge color={color} variant="light" radius="xs" size="sm">
+            {label}
+          </Badge>
+          <Text fz="xs" c="dimmed">
+            {createdAt}
+          </Text>
+        </Group>
+
+        <Text fz="xs" c="dimmed">
+          {description}
+        </Text>
+
+        {flag.receiptId && (
+          <Group gap={6} align="center">
+            <Text fz="xs" c="dimmed">
+              Phiếu thu:
+            </Text>
+            <Anchor
+              fz="xs"
+              href={`/finance/${flag.receiptId}?flag=${flag.id}`}
+              style={{ color: 'var(--cmc-brand)' }}
+            >
+              …{flag.receiptId.slice(-8)}
+            </Anchor>
+          </Group>
+        )}
+
+        <Box mt={4}>
+          {canReview ? (
+            <Group gap="xs" justify="flex-end">
+              <Button
+                size="xs"
+                radius="xs"
+                variant="default"
+                disabled={isMutating}
+                onClick={() => onDismiss(flag.id, kind)}
+              >
+                Bỏ qua
+              </Button>
+              <Button
+                size="xs"
+                radius="xs"
+                color="blue"
+                disabled={isMutating}
+                onClick={() => onAction(flag.id, kind)}
+              >
+                Đã xử lý
+              </Button>
+            </Group>
+          ) : (
+            <Text fz="xs" c="dimmed" fs="italic">
+              Chỉ đọc — liên hệ GĐ để xử lý cảnh báo.
+            </Text>
+          )}
+        </Box>
+      </Stack>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+export default function ReconciliationPage() {
+  const { canDo } = useSession();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const kindFilter = (searchParams.get('kind') ?? '') as FlagKind | '';
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+
+  const utils = trpc.useUtils();
+
+  const { data: flagsRaw, isLoading, error } = trpc.reconciliation.listFlags.useQuery(
+    kindFilter ? { kind: kindFilter } : {},
+  );
+  // Cast to narrow local interface to avoid TS2589 from recursive Prisma types.
+  const flags = flagsRaw as unknown as FlagItem[] | undefined;
+
+  // Callbacks passed at mutate() call-site rather than useMutation() options to
+  // avoid TS2589 (excessively deep type instantiation through Prisma generics).
+  const dismissMut = trpc.reconciliation.dismiss.useMutation();
+  const actionMut = trpc.reconciliation.action.useMutation();
+
+  function afterMutateSuccess() {
+    void utils.reconciliation.listFlags.invalidate();
+    setPendingAction(null);
+  }
+
+  function afterMutateError() {
+    setPendingAction(null);
+  }
+
+  const isMutating = dismissMut.isPending || actionMut.isPending;
+  const canReview = canDo('reconciliation', 'review');
+
+  const activeKindLabel = pendingAction
+    ? (KIND_LABELS[pendingAction.flagKind] ?? pendingAction.flagKind)
+    : '';
+
+  function handleKindFilter(value: string | null) {
+    const p = new URLSearchParams(searchParams);
+    if (value) {
+      p.set('kind', value);
+    } else {
+      p.delete('kind');
+    }
+    setSearchParams(p, { replace: true });
+  }
+
+  return (
+    <>
+      <PageHeader
+        title="Đối soát tài chính"
+        subtitle="Cảnh báo từ agent phân tích tự động"
+        breadcrumbs={[{ label: 'Ops' }, { label: 'Đối soát' }]}
+      />
+
+      <Stack gap="md" p="md">
+        {/* ----------------------------------------------------------------
+            HOTL agent read-only banner — MUST be present and unambiguous.
+            The ai:recon worker is read-only per-facility; it cannot action
+            flags itself. Human review (dismiss / action) is gated to GĐ.
+        ---------------------------------------------------------------- */}
+        <Alert
+          color="yellow"
+          variant="light"
+          radius="xs"
+          title="Kết quả phân tích tự động từ AI agent — chỉ đọc"
+        >
+          Các cảnh báo bên dưới được tạo tự động bởi agent{' '}
+          <Text span fw={700} fz="sm">
+            ai:recon
+          </Text>{' '}
+          dựa trên quy tắc nghiệp vụ. Agent{' '}
+          <Text span fw={700} fz="sm">
+            không tự thực hiện hành động
+          </Text>{' '}
+          — mọi thao tác xử lý (bỏ qua / đã xử lý) đều yêu cầu GĐ xác nhận thủ công.
+          Kết quả chỉ mang tính tham khảo và cần được xác minh độc lập.
+        </Alert>
+
+        {/* Kind filter */}
+        <Select
+          size="xs"
+          radius="xs"
+          label="Lọc theo loại cảnh báo"
+          placeholder="Tất cả"
+          data={Object.entries(KIND_LABELS).map(([value, label]) => ({ value, label }))}
+          value={kindFilter || null}
+          onChange={handleKindFilter}
+          clearable
+          w={260}
+        />
+
+        {error && (
+          <Alert color="red" title="Lỗi tải dữ liệu" radius="xs">
+            {error.message}
+          </Alert>
+        )}
+
+        {isLoading && (
+          <Text fz="sm" c="dimmed">
+            Đang tải cảnh báo…
+          </Text>
+        )}
+
+        {!isLoading && flags?.length === 0 && (
+          <Alert color="green" variant="light" radius="xs">
+            Không có cảnh báo nào đang mở
+            {kindFilter ? ` (loại: ${KIND_LABELS[kindFilter]})` : ''}.
+          </Alert>
+        )}
+
+        {flags?.map((flag) => (
+          <FlagCard
+            key={flag.id}
+            flag={flag}
+            canReview={canReview}
+            isMutating={isMutating}
+            onDismiss={(id, kind) =>
+              setPendingAction({ type: 'dismiss', flagId: id, flagKind: kind })
+            }
+            onAction={(id, kind) =>
+              setPendingAction({ type: 'action', flagId: id, flagKind: kind })
+            }
+          />
+        ))}
+      </Stack>
+
+      {/* Confirm: dismiss */}
+      <ConfirmDialog
+        opened={pendingAction?.type === 'dismiss'}
+        title="Bỏ qua cảnh báo"
+        message={`Bỏ qua "${activeKindLabel}"? Hành động này không thể hoàn tác.`}
+        confirmLabel="Bỏ qua"
+        confirmColor="gray"
+        loading={isMutating}
+        onConfirm={() => {
+          if (pendingAction) {
+            dismissMut.mutate(
+              { flagId: pendingAction.flagId },
+              { onSuccess: afterMutateSuccess, onError: afterMutateError },
+            );
+          }
+        }}
+        onCancel={() => setPendingAction(null)}
+      />
+
+      {/* Confirm: action */}
+      <ConfirmDialog
+        opened={pendingAction?.type === 'action'}
+        title="Đánh dấu đã xử lý"
+        message={`Đánh dấu đã xử lý "${activeKindLabel}"? Hành động này không thể hoàn tác.`}
+        confirmLabel="Đã xử lý"
+        confirmColor="blue"
+        loading={isMutating}
+        onConfirm={() => {
+          if (pendingAction) {
+            actionMut.mutate(
+              { flagId: pendingAction.flagId },
+              { onSuccess: afterMutateSuccess, onError: afterMutateError },
+            );
+          }
+        }}
+        onCancel={() => setPendingAction(null)}
+      />
+    </>
+  );
+}

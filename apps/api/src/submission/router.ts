@@ -13,7 +13,7 @@ import { computeFinalGrade } from '@cmc/domain-grading';
 import { withFacility, type Prisma } from '@cmc/db';
 import { ictMonthOf, ictMonthBounds } from '@cmc/domain-time';
 import { badRequest, notFound } from '../errors.js';
-import { lmsProcedure, requirePermission, requireLmsStudent, router, scoped } from '../trpc.js';
+import { lmsProcedure, requirePermission, requireLmsStudent, assertPasswordNotExpired, router, scoped } from '../trpc.js';
 import { assertExerciseOpenForStudent, loadLmsStudent } from '../exercise/open-tier.js';
 
 /** TL19 §3: the annotation layer is capped at 1MB — enforced here (app
@@ -32,7 +32,7 @@ const submitInput = z.object({ exerciseId: z.string().uuid() });
 
 const gradeInput = z.object({
   submissionId: z.string().uuid(),
-  score: z.number().int().nonnegative(),
+  score: z.number().nonnegative(),
 });
 
 const listForGradingInput = z.object({
@@ -40,11 +40,18 @@ const listForGradingInput = z.object({
   status: z.enum(['draft', 'submitted', 'graded']).optional().default('submitted'),
 });
 
+const saveTeacherAnnotationInput = z.object({
+  submissionId: z.string().uuid(),
+  teacherAnnotationLayer: annotationLayerSchema,
+});
+
 export interface SubmissionDto {
   id: string;
   exerciseId: string;
   studentId: string;
   annotationLayer: unknown;
+  /** Teacher's separate annotation overlay; null until first teacher annotation. */
+  teacherAnnotationLayer: unknown;
   answerText: string | null;
   version: number;
   status: string;
@@ -52,6 +59,8 @@ export interface SubmissionDto {
   gradedAt: Date | null;
   score: number | null;
   gradedById: string | null;
+  /** BlobStorage key for the base PDF; used by grading UI to fetch the PDF file. */
+  basePdfRef: string | null;
 }
 
 function toSubmissionDto(row: {
@@ -59,6 +68,7 @@ function toSubmissionDto(row: {
   exerciseId: string;
   studentId: string;
   annotationLayer: unknown;
+  teacherAnnotationLayer?: unknown;
   answerText: string | null;
   version: number;
   status: string;
@@ -66,12 +76,14 @@ function toSubmissionDto(row: {
   gradedAt: Date | null;
   score: number | null;
   gradedById: string | null;
+  exercise?: { basePdfRef: string } | null;
 }): SubmissionDto {
   return {
     id: row.id,
     exerciseId: row.exerciseId,
     studentId: row.studentId,
     annotationLayer: row.annotationLayer,
+    teacherAnnotationLayer: row.teacherAnnotationLayer ?? null,
     answerText: row.answerText,
     version: row.version,
     status: row.status,
@@ -79,6 +91,7 @@ function toSubmissionDto(row: {
     gradedAt: row.gradedAt,
     score: row.score,
     gradedById: row.gradedById,
+    basePdfRef: row.exercise?.basePdfRef ?? null,
   };
 }
 
@@ -163,6 +176,7 @@ export const submissionRouter = router({
   // blocked once the submission has moved past `draft`.
   saveDraft: lmsProcedure.input(saveDraftInput).mutation(async ({ ctx, input }): Promise<SubmissionDto> => {
     const { studentId, parentAccountId } = requireLmsStudent(ctx);
+    await assertPasswordNotExpired(ctx, studentId);
     const student = await loadLmsStudent(ctx.db, studentId, parentAccountId);
 
     const exercise = await ctx.db.exercise.findUnique({ where: { id: input.exerciseId } });
@@ -208,6 +222,7 @@ export const submissionRouter = router({
   // draft -> submitted (immutable afterward).
   submit: lmsProcedure.input(submitInput).mutation(async ({ ctx, input }): Promise<SubmissionDto> => {
     const { studentId, parentAccountId } = requireLmsStudent(ctx);
+    await assertPasswordNotExpired(ctx, studentId);
     const student = await loadLmsStudent(ctx.db, studentId, parentAccountId);
 
     return withFacility(ctx.db, student.facilityId, async (tx) => {
@@ -284,6 +299,47 @@ export const submissionRouter = router({
       });
     }),
 
+  // Phase-01a (C3): teacher annotation writer — separate from saveDraft
+  // (student-only lmsProcedure). Writes the teacher's PDF annotation overlay
+  // to its own column (`teacherAnnotationLayer`) — never overwrites the
+  // student's `annotationLayer`. Gate: `submission.grade` (same as `grade`).
+  // Cap: 1MB via `assertAnnotationLayerSize` (same helper as student layer).
+  saveTeacherAnnotation: requirePermission('submission', 'grade')
+    .input(saveTeacherAnnotationInput)
+    .mutation(async ({ ctx, input }): Promise<SubmissionDto> => {
+      const { facilityId } = scoped(ctx);
+      assertAnnotationLayerSize(input.teacherAnnotationLayer);
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const submission = await tx.submission.findFirst({
+          where: { id: input.submissionId, facilityId },
+        });
+        if (!submission) {
+          throw notFound('Submission not found.');
+        }
+        if (submission.status === 'draft') {
+          throw badRequest('Cannot annotate a submission that has not been submitted yet.');
+        }
+
+        const updated = await tx.submission.update({
+          where: { id: submission.id },
+          data: { teacherAnnotationLayer: input.teacherAnnotationLayer as Prisma.InputJsonValue },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'submission.saveTeacherAnnotation',
+            entity: 'Submission',
+            entityId: submission.id,
+            data: { teacherId: ctx.subject.userId },
+          },
+        });
+
+        return toSubmissionDto(updated);
+      });
+    }),
+
   // Teacher grading queue — defaults to `submitted` (the actionable set).
   listForGrading: requirePermission('submission', 'grade')
     .input(listForGradingInput)
@@ -294,6 +350,8 @@ export const submissionRouter = router({
         const items = await tx.submission.findMany({
           where: { facilityId, exerciseId: input.exerciseId, status: input.status },
           orderBy: { submittedAt: 'asc' },
+          take: 100,
+          include: { exercise: { select: { basePdfRef: true } } },
         });
         return { items: items.map(toSubmissionDto) };
       });

@@ -97,7 +97,7 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
       parentAccountId: parent.id,
     });
     const student = appRouter.createCaller(
-      buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId }),
+      buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
     await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: { done: true } });
     const submitted = await student.submission.submit({ exerciseId: exercise.id });
@@ -121,7 +121,7 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
       parentAccountId: parent.id,
     });
     const student = appRouter.createCaller(
-      buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId }),
+      buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
     const draft = await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: {} });
 

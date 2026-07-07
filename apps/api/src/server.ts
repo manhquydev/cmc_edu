@@ -14,7 +14,11 @@ import {
   EXERCISE_PDF_UPLOAD_PATH, handleExercisePdfUpload, handleExercisePdfGet,
   SESSION_PHOTO_UPLOAD_PATH, handleSessionPhotoUpload, handleSessionPhotoGet,
 } from './exercise/upload-route.js';
-import { assertCmcAppNotSuperuser } from './boot-checks.js';
+import {
+  assertAllowDevAuthNotInProd,
+  assertCmcAppNotSuperuser,
+  assertLmsSecretConfiguredForProd,
+} from './boot-checks.js';
 
 const port = Number(process.env.PORT ?? 3000);
 
@@ -66,7 +70,11 @@ const server = createServer((req, res) => {
   trpcHandler(req, res);
 });
 
-// Boot-check: verify cmc_app is not a superuser before accepting requests
+// Synchronous boot assertions (no I/O required).
+assertAllowDevAuthNotInProd();
+assertLmsSecretConfiguredForProd();
+
+// Async boot-check: verify cmc_app is not a superuser before accepting requests
 // (ADR 0042 — superuser bypasses RLS unconditionally). Uses a throw-away
 // client scoped to APP_DATABASE_URL; the shared lazy singleton in context.ts
 // is not used here to keep startup sequencing independent.

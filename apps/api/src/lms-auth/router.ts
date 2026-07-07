@@ -29,6 +29,7 @@ import {
 import { lmsProcedure, publicProcedure, requireLmsParent, router } from '../trpc.js';
 import { hashOtpCode, verifyOtpCode } from './otp-hash.js';
 import { hashPassword, verifyPassword } from './password-hash.js';
+import { LMS_SESSION_SECRET_DEV_DEFAULT, signLmsToken } from './session-token.js';
 
 /**
  * Non-prod test seam: when TEST_OTP_SEAM=1 and not production, OTP procedures
@@ -82,31 +83,22 @@ function generateOtpCode(): string {
   return randomInt(0, 1_000_000).toString().padStart(6, '0');
 }
 
-/**
- * Encodes a parent session token. `kind` defaults to 'parent' for the
- * phone-OTP flow; the email-OTP flow passes 'parent' explicitly.
- */
+/** Resolves the LMS session signing secret (RT-1). */
+function getLmsSecret(): string {
+  return process.env['LMS_SESSION_SECRET'] ?? LMS_SESSION_SECRET_DEV_DEFAULT;
+}
+
+/** Signs a parent LMS session token. */
 function encodeSessionToken(
   parentAccountId: string,
   kind: 'parent' | 'student' = 'parent',
 ): string {
-  return Buffer.from(JSON.stringify({ parentAccountId, kind }), 'utf8').toString('base64url');
+  return signLmsToken({ parentAccountId, kind }, getLmsSecret());
 }
 
-/**
- * Encodes a student session token embedding the student identity.
- * The student's parentAccountId is included so `lmsProcedure` can reconstruct
- * the full LmsSubject without a DB lookup per request (same opaque-blob
- * approach as the parent token).
- */
-function encodeStudentSessionToken(
-  parentAccountId: string,
-  studentId: string,
-): string {
-  return Buffer.from(
-    JSON.stringify({ parentAccountId, studentId, kind: 'student' }),
-    'utf8',
-  ).toString('base64url');
+/** Signs a student LMS session token. */
+function encodeStudentSessionToken(parentAccountId: string, studentId: string): string {
+  return signLmsToken({ parentAccountId, studentId, kind: 'student' }, getLmsSecret());
 }
 
 /** Normalizes a raw login phone; a malformed phone is a format error

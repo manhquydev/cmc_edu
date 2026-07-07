@@ -69,8 +69,15 @@ export async function handleSessionPhotoGet(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
-  // No auth required for GET — consent gate is enforced by the LMS frontend
-  // (photos only rendered when photoConsent=true, per TL08 §7).
+  // RT-3: GET ảnh trẻ PHẢI yêu cầu LMS-session server-side. Frontend consent
+  // gate is NOT a trust boundary — any unauthenticated caller could hit this
+  // endpoint directly. Require a valid LMS bearer token (parent or student).
+  const ctx = createContext({ req });
+  if (!ctx.lmsSubject) {
+    sendJson(res, 401, { error: 'LMS session required to view session photos.' });
+    return;
+  }
+
   const url = new URL(req.url ?? '', 'http://localhost');
   const blobRef = url.searchParams.get('ref');
   if (!blobRef) {

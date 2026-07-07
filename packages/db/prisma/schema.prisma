@@ -196,6 +196,11 @@ enum EmailOutboxStatus {
   sending
   sent
   failed
+  /// RT-6/RT-8: permanent failure terminal state — a row reaches `dead` after
+  /// `EMAIL_MAX_ATTEMPTS` consecutive transport failures, or when no transport
+  /// is configured for `row.transport`. Dead rows are never re-drained; they
+  /// exist for audit and manual investigation only.
+  dead
 }
 
 // ---------------------------------------------------------------------------
@@ -880,13 +885,23 @@ model LoginOtp {
 }
 
 model EmailOutbox {
-  id        String            @id @default(uuid())
-  to        String
-  transport EmailTransport
-  status    EmailOutboxStatus @default(pending)
-  payload   Json
-  createdAt DateTime          @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime          @updatedAt @db.Timestamptz(3)
+  id          String            @id @default(uuid())
+  to          String
+  transport   EmailTransport
+  status      EmailOutboxStatus @default(pending)
+  payload     Json
+  /// RT-6/RT-8: number of delivery attempts made so far (starts at 0). Each
+  /// transport failure increments this; reaching EMAIL_MAX_ATTEMPTS transitions
+  /// the row to `dead` rather than `failed`.
+  attempts    Int               @default(0)
+  /// Last transport error message. Set on every failure, cleared on success.
+  lastError   String?
+  /// Earliest time the row may be retried. Populated on `failed`; not yet used
+  /// by the drain query (Phase PD-2 optimization) — all `failed` rows are
+  /// picked up unconditionally for now.
+  nextRetryAt DateTime?         @db.Timestamptz(3)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
 }
 
 model AuditLog {

@@ -25,13 +25,24 @@ export interface LLMClient {
  * Creates an LLMClient.
  *
  * When `opts.apiKey` is absent (or the env var `LLM_API_KEY` is not set),
- * returns the DETERMINISTIC STUB — no network calls, no key required. The
- * stub logs the full prompt to `console.log` for test visibility.
- *
- * Stop-condition: swap the stub body for a real provider call once a key is
- * provisioned (roadmap continues with stub in the meantime).
+ * returns the DETERMINISTIC STUB — no network calls, no key required (offline
+ * tests). When a key is present, returns the real client that calls an
+ * OpenAI-compatible `/chat/completions` endpoint (`LLM_BASE_URL`/`LLM_MODEL`).
  */
-export function createLLMClient(opts?: { apiKey?: string }): LLMClient {
+const DEFAULT_BASE_URL = 'https://router.clawcmc.io.vn/v1';
+const DEFAULT_MODEL = 'ag/gemini-3.5-flash-low';
+
+// System instruction: keep output a short Vietnamese draft comment. The draft
+// is never auto-published — staff review + confirm downstream (AI draft-only).
+const SYSTEM_PROMPT =
+  'Bạn soạn NHÁP nhận xét buổi học bằng tiếng Việt, ngắn gọn, khách quan, ' +
+  'không suy diễn thông tin ngoài dữ liệu được cung cấp. Trả về đúng nội dung nhận xét.';
+
+export function createLLMClient(opts?: {
+  apiKey?: string;
+  baseUrl?: string;
+  model?: string;
+}): LLMClient {
   const apiKey = opts?.apiKey ?? process.env['LLM_API_KEY'];
 
   if (!apiKey) {
@@ -44,15 +55,49 @@ export function createLLMClient(opts?: { apiKey?: string }): LLMClient {
     };
   }
 
-  // Real provider path — placeholder for when a key is available.
-  // The prompt contract (no PII, versioned template) is documented at TL13 §5.
+  // Real provider path — OpenAI-compatible /chat/completions (router.clawcmc).
+  // `assertNoPii` runs BEFORE any network call (TL13 §5). Prompt content is
+  // never logged (may carry student data); only length is emitted.
+  const baseUrl = (opts?.baseUrl ?? process.env['LLM_BASE_URL'] ?? DEFAULT_BASE_URL).replace(/\/$/, '');
+  const model = opts?.model ?? process.env['LLM_MODEL'] ?? DEFAULT_MODEL;
+
   return {
     async draftAssessment(prompt: string): Promise<string> {
       assertNoPii(prompt);
       console.log('[LLMClient real] draftAssessment prompt length:', prompt.length);
-      // TODO(stop-condition): call external LLM API using `apiKey`.
-      // Until then, fall back to stub behavior so the binary stays deployable.
-      return 'AI nhận xét nháp: [tóm tắt buổi học]';
+
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.3,
+          // Non-streaming: the router defaults to SSE (`data: {...}`) otherwise,
+          // which is not a single JSON body. We want one JSON response.
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '<no body>');
+        throw new Error(`LLMClient: HTTP ${response.status} — ${detail}`);
+      }
+
+      const data = (await response.json()) as {
+        choices?: Array<{ message?: { content?: unknown } }>;
+      };
+      const content = data.choices?.[0]?.message?.content;
+      if (typeof content !== 'string' || content.length === 0) {
+        throw new Error('LLMClient: unexpected response shape (no choices[0].message.content)');
+      }
+      return content;
     },
   };
 }

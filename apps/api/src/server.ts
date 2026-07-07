@@ -21,7 +21,14 @@ import {
   assertForceRlsOnAllRlsTables,
   assertLmsSecretConfiguredForProd,
   assertRequiredEnvForProd,
+  assertStaffLmsSecretsDistinct,
+  assertStaffSecretConfiguredForProd,
 } from './boot-checks.js';
+import {
+  handleSsoCallback,
+  handleSsoLogin,
+  handleSsoLogout,
+} from './auth/sso-routes.js';
 
 const port = Number(process.env.PORT ?? 3000);
 
@@ -30,8 +37,34 @@ const trpcHandler = createHTTPHandler({
   createContext: ({ req }) => createContext({ req }),
 });
 
+const SSO_ENABLED = process.env['SSO_ENABLED'] === 'true';
+
 const server = createServer((req, res) => {
   const urlPath = req.url?.split('?')[0];
+
+  if (SSO_ENABLED) {
+    if (req.method === 'GET' && urlPath === '/auth/login') {
+      handleSsoLogin(req, res).catch((err: unknown) => {
+        // eslint-disable-next-line no-console
+        console.error('[api] SSO login failed:', err);
+        if (!res.headersSent) res.writeHead(500).end('SSO error');
+      });
+      return;
+    }
+    if (req.method === 'GET' && urlPath === '/auth/callback') {
+      handleSsoCallback(req, res).catch((err: unknown) => {
+        // eslint-disable-next-line no-console
+        console.error('[api] SSO callback failed:', err);
+        if (!res.headersSent) res.writeHead(500).end('SSO error');
+      });
+      return;
+    }
+    if (req.method === 'GET' && urlPath === '/auth/logout') {
+      handleSsoLogout(req, res);
+      return;
+    }
+  }
+
   if (req.method === 'POST' && urlPath === EXERCISE_PDF_UPLOAD_PATH) {
     handleExercisePdfUpload(req, res).catch((error: unknown) => {
       // eslint-disable-next-line no-console
@@ -76,6 +109,8 @@ const server = createServer((req, res) => {
 // Synchronous boot assertions (no I/O required).
 assertAllowDevAuthNotInProd();
 assertLmsSecretConfiguredForProd();
+assertStaffSecretConfiguredForProd();
+assertStaffLmsSecretsDistinct();
 assertRequiredEnvForProd();
 
 // Async boot-check: verify cmc_app is not a superuser before accepting requests

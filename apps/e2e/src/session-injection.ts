@@ -1,18 +1,24 @@
 // session-injection.ts — Mode B (V3) UAT helper.
 //
-// Mints signed LMS bearer tokens for automated e2e flows, replacing the old
-// `x-dev-lms-user` dev-header. Uses the same HMAC-SHA256 signing logic as
-// the production API (apps/api/src/lms-auth/session-token.ts).
+// Mints signed LMS bearer tokens AND staff session cookies for automated e2e
+// flows, replacing the old `x-dev-lms-user`/`x-dev-user` dev-headers.
+// Uses the same HMAC-SHA256 signing logic as the production API.
 //
-// Why: x-dev-lms-user only works when NODE_ENV !== 'production' (DEV_AUTH_ENABLED).
-// After V2 (ALLOW_DEV_AUTH removed), the only reliable way to authenticate LMS
-// flows in production-mode e2e is a properly-signed bearer token.
+// LMS tokens:   apps/api/src/lms-auth/session-token.ts
+// Staff cookie: apps/api/src/auth/staff-session.ts
+//
+// Why: dev-headers only work when NODE_ENV !== 'production' (DEV_AUTH_ENABLED).
+// After V2 (ALLOW_DEV_AUTH removed), the only reliable way to authenticate any
+// flow in production-mode e2e is a properly-signed token/cookie.
 //
 // Usage in e2e tests:
 //   const token = mintParentToken('pa-123', E2E_LMS_SECRET);
 //   const client = createSignedLmsClient(baseUrl, token);
+//
+//   const cookie = mintStaffCookie({ userId, roles, facilityId }, E2E_STAFF_SECRET);
+//   // Pass as Cookie header: `cmc_staff_session=${cookie}`
 
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 
 // Dev default must match the API's LMS_SESSION_SECRET_DEV_DEFAULT.
 // In CI this is intentional: both sides use the same insecure dev default
@@ -109,7 +115,46 @@ export async function cutoverProbe(
   return { passed: res.status === 401 || res.status === 403, status: res.status };
 }
 
-// Suppress unused import warning — timingSafeEqual is used indirectly via the
-// same algorithm as the production verifyLmsToken; it's exported here so
-// callers can verify round-trips in unit tests without duplicating the impl.
-void timingSafeEqual;
+// ─── Staff Mode-B cookie injection ────────────────────────────────────────────
+
+// Dev default must match the API's STAFF_SESSION_SECRET_DEV_DEFAULT.
+const STAFF_DEV_SECRET = 'cmc-staff-dev-only-insecure-default-CHANGE-IN-PROD';
+
+const STAFF_HEADER_B64 = Buffer.from(
+  JSON.stringify({ alg: 'HS256', typ: 'CMC-STAFF-1' }),
+  'utf8',
+).toString('base64url');
+
+export interface StaffClaims {
+  userId: string;
+  roles: string[];
+  facilityId: string;
+}
+
+/**
+ * Mints a signed staff session cookie value for e2e test injection.
+ * This is the Mode-B helper: works in any NODE_ENV, bypasses SSO.
+ *
+ * Use as the `cmc_staff_session` cookie value in requests:
+ *   Cookie: cmc_staff_session=<token>
+ */
+export function mintStaffCookie(
+  claims: StaffClaims,
+  secret: string = process.env['STAFF_SESSION_SECRET'] ?? STAFF_DEV_SECRET,
+  ttlMs = 60 * 60 * 1000, // 1 hour for tests
+): string {
+  const now = Math.floor(Date.now() / 1000);
+  const payload = Buffer.from(
+    JSON.stringify({
+      userId: claims.userId,
+      roles: claims.roles,
+      facilityId: claims.facilityId,
+      iat: now,
+      exp: now + Math.floor(ttlMs / 1000),
+    }),
+    'utf8',
+  ).toString('base64url');
+  const sig = hmacB64(`${STAFF_HEADER_B64}.${payload}`, secret);
+  return `${STAFF_HEADER_B64}.${payload}.${sig}`;
+}
+

@@ -21,7 +21,8 @@ import { fileURLToPath } from 'node:url';
 import type { FullConfig } from '@playwright/test';
 import { cleanupFacility, disconnectDb } from './db.js';
 import { findFreePort } from './find-free-port.js';
-import { createStaffClient } from './trpc-client.js';
+import { mintStaffCookie } from './session-injection.js';
+import { createSignedStaffClient, createStaffClient } from './trpc-client.js';
 
 const require = createRequire(import.meta.url);
 
@@ -80,15 +81,19 @@ export default async function globalSetup(_config: FullConfig): Promise<() => Pr
     throw error;
   }
 
-  // Bootstrap: super_admin's `facilityId` header value is never read for
-  // `facility.create` (Facility carries no RLS policy, and the procedure
-  // never calls `scoped(ctx)`) — the placeholder below is required only to
-  // satisfy the dev-header's schema shape (apps/api/src/context.ts).
-  const bootstrapClient = createStaffClient(baseUrl, {
-    userId: 'e2e-bootstrap',
-    roles: ['super_admin'],
-    facilityId: 'bootstrap',
-  });
+  // Bootstrap: create a facility using the appropriate auth mode.
+  // Mode-A (dev-header, NODE_ENV !== 'production'): x-dev-user JSON header.
+  // Mode-B (signed cookie, NODE_ENV = 'production'): mintStaffCookie — uses
+  // STAFF_SESSION_SECRET from env (same secret as the running API stack).
+  // The facilityId in bootstrap claims is a placeholder — facility.create
+  // ignores it (no RLS policy on Facility table).
+  const isProdMode = process.env['NODE_ENV'] === 'production';
+  const bootstrapClient = isProdMode
+    ? createSignedStaffClient(
+        baseUrl,
+        mintStaffCookie({ userId: 'e2e-bootstrap', roles: ['super_admin'], facilityId: 'bootstrap' }),
+      )
+    : createStaffClient(baseUrl, { userId: 'e2e-bootstrap', roles: ['super_admin'], facilityId: 'bootstrap' });
   const facility = await bootstrapClient.facility.create.mutate({
     name: `E2E Run ${new Date().toISOString()}`,
   });

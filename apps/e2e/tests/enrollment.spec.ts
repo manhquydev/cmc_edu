@@ -10,7 +10,7 @@ import { test, expect } from '@playwright/test';
 import { normalizeLoginPhone } from '@cmc/domain-identity';
 import { cleanupParentAccountsByPhone } from '../src/db.js';
 import { randomVnPhone } from '../src/random-vn-phone.js';
-import { createAnonClient, createStaffClient } from '../src/trpc-client.js';
+import { createAnonClient, createE2eStaffClient } from '../src/trpc-client.js';
 import { readOtpCode } from '../src/db.js';
 
 const baseUrl = process.env.E2E_BASE_URL!;
@@ -24,17 +24,17 @@ test.describe('enrollment end-to-end (O1..O5 -> receipt -> approve -> parent OTP
   });
 
   test('sale-to-provisioning-to-parent-login happy path', async () => {
-    const gddt = createStaffClient(baseUrl, {
+    const gddt = createE2eStaffClient(baseUrl, {
       userId: 'e2e-gddt',
       roles: ['giam_doc_dao_tao'],
       facilityId,
     });
-    const sale = createStaffClient(baseUrl, {
+    const sale = createE2eStaffClient(baseUrl, {
       userId: 'e2e-sale',
       roles: ['sale'],
       facilityId,
     });
-    const gdkd = createStaffClient(baseUrl, {
+    const gdkd = createE2eStaffClient(baseUrl, {
       userId: 'e2e-gdkd',
       roles: ['giam_doc_kinh_doanh'],
       facilityId,

@@ -41,12 +41,21 @@ export function LoginPage() {
               Đăng nhập (Dev)
             </Button>
           )}
-          <Button disabled variant="outline" radius="xs" title="Sắp có">
-            Đăng nhập Microsoft Entra (sắp có)
-          </Button>
-          <Text fz="xs" c="dimmed">
-            Microsoft SSO đang phát triển — P0-debt. Hiện tại chỉ dùng được trong môi trường dev.
-          </Text>
+          {import.meta.env.VITE_SSO_ENABLED === 'true' && (
+            <Button
+              component="a"
+              href={`${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/auth/login`}
+              variant="outline"
+              radius="xs"
+            >
+              Đăng nhập Microsoft (Entra SSO)
+            </Button>
+          )}
+          {import.meta.env.VITE_SSO_ENABLED !== 'true' && (
+            <Button disabled variant="outline" radius="xs">
+              Đăng nhập Microsoft (sắp có)
+            </Button>
+          )}
         </Stack>
       </Paper>
     </Container>

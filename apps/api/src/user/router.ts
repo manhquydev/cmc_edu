@@ -1,17 +1,20 @@
 // AppUser router — P3-I HR/identity (US-020, WF-P3-01).
 //
-// `user.create`  — provision a staff member (super_admin only via user.manage).
+// `user.create`      — provision a staff member (super_admin only via user.manage).
 //   Generates an atomic `CMC####` employeeCode via EmployeeCodeCounter.
-// `user.list`    — list staff for the calling facility.
-// `user.update`  — mutate position/email/managerId/isActive.
+// `user.list`        — list staff for the calling facility.
+// `user.update`      — mutate position/email/managerId/isActive.
+// `user.updateRoles` — assign roles array to a staff member (S1: role substrate).
 //
 // All writes are facility-scoped via `withFacility` (ADR 0042).
 // EmployeeCodeCounter is global (no RLS) — it is accessed in the same
 // `withFacility` transaction; RLS does not apply to it.
 
 import { z } from 'zod';
-import { withFacility } from '@cmc/db';
-import { badRequest, notFound } from '../errors.js';
+import { withFacility, Role as DbRole } from '@cmc/db';
+import { ROLES } from '@cmc/auth';
+import type { Role as AuthRole } from '@cmc/auth';
+import { badRequest, forbidden, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
 const createInput = z.object({
@@ -40,8 +43,39 @@ export interface AppUserDto {
   position: string;
   managerId: string | null;
   employeeCode: string;
+  roles: AuthRole[];
   isActive: boolean;
 }
+
+function isPrismaP2002(err: unknown): boolean {
+  return (
+    err !== null &&
+    typeof err === 'object' &&
+    'code' in err &&
+    (err as { code: unknown }).code === 'P2002'
+  );
+}
+
+function p2002Target(err: unknown): string[] {
+  if (
+    err !== null &&
+    typeof err === 'object' &&
+    'meta' in err &&
+    (err as { meta: unknown }).meta !== null &&
+    typeof (err as { meta: unknown }).meta === 'object'
+  ) {
+    const target = ((err as { meta: { target?: unknown } }).meta).target;
+    if (Array.isArray(target)) return target as string[];
+  }
+  return [];
+}
+
+const VALID_ROLES = ROLES as readonly string[];
+// max(9): exactly 9 valid roles, duplicates deduped before DB write.
+const roleArraySchema = z
+  .array(z.string().refine((r) => VALID_ROLES.includes(r), { message: 'Unknown role' }))
+  .max(9)
+  .transform((arr) => [...new Set(arr)] as AuthRole[]);
 
 export const userRouter = router({
   create: requirePermission('user', 'manage')
@@ -75,13 +109,12 @@ export const userRouter = router({
             },
           });
         } catch (err: unknown) {
-          // P2002 = userId unique constraint: one auth identity → one staff profile.
-          if (
-            err !== null &&
-            typeof err === 'object' &&
-            'code' in err &&
-            (err as { code: unknown }).code === 'P2002'
-          ) {
+          if (isPrismaP2002(err)) {
+            const target = p2002Target(err);
+            if (target.includes('email')) {
+              throw badRequest('This email is already in use by another staff member.');
+            }
+            // userId or employeeCode constraint
             throw badRequest('A staff profile already exists for this userId.');
           }
           throw err;
@@ -125,16 +158,78 @@ export const userRouter = router({
           }
         }
 
+        let updated;
+        try {
+          updated = await tx.appUser.update({
+            where: { id: input.appUserId },
+            data: {
+              ...(input.email !== undefined ? { email: input.email } : {}),
+              ...(input.fullName !== undefined ? { fullName: input.fullName } : {}),
+              ...(input.position !== undefined ? { position: input.position } : {}),
+              ...(input.managerId !== undefined ? { managerId: input.managerId } : {}),
+              ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+            },
+          });
+        } catch (err: unknown) {
+          if (isPrismaP2002(err)) {
+            throw badRequest('This email is already in use by another staff member.');
+          }
+          throw err;
+        }
+        return updated as AppUserDto;
+      });
+    }),
+
+  updateRoles: requirePermission('user', 'manage')
+    .input(
+      z.object({
+        appUserId: z.string().uuid(),
+        roles: roleArraySchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const existing = await tx.appUser.findFirst({
+          where: { id: input.appUserId, facilityId },
+          select: { id: true, userId: true, roles: true },
+        });
+        if (!existing) throw notFound('AppUser not found.');
+
+        // Guard self-demotion: caller may not remove their own super_admin role.
+        // Once SSO wires AppUser.roles → ctx.subject.roles, self-lockout becomes live.
+        // A last-super-admin check should land before that SSO integration (phase S2).
+        if (
+          ctx.subject.userId === existing.userId &&
+          !input.roles.includes('super_admin') &&
+          (existing.roles as string[]).includes('super_admin')
+        ) {
+          throw forbidden('Cannot remove your own super_admin role.');
+        }
+
+        // Skip write + audit when roles are unchanged.
+        const beforeSorted = [...(existing.roles as string[])].sort().join(',');
+        const afterSorted = [...input.roles].sort().join(',');
+        if (beforeSorted === afterSorted) {
+          return (await tx.appUser.findFirst({ where: { id: input.appUserId } })) as AppUserDto;
+        }
+
         const updated = await tx.appUser.update({
           where: { id: input.appUserId },
+          // AuthRole === DbRole at runtime; drift-assertion test locks the values.
+          data: { roles: input.roles as unknown as DbRole[] },
+        });
+
+        await tx.auditLog.create({
           data: {
-            ...(input.email !== undefined ? { email: input.email } : {}),
-            ...(input.fullName !== undefined ? { fullName: input.fullName } : {}),
-            ...(input.position !== undefined ? { position: input.position } : {}),
-            ...(input.managerId !== undefined ? { managerId: input.managerId } : {}),
-            ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+            actor: ctx.subject.userId,
+            action: 'user.updateRoles',
+            entity: 'AppUser',
+            entityId: input.appUserId,
+            data: { before: existing.roles, after: input.roles },
           },
         });
+
         return updated as AppUserDto;
       });
     }),

@@ -18,14 +18,21 @@ Version: v2.0 · Stack: cmcv2-prod · Mode B (V3) session-injection
 Run on local prod-config stack (not the live VPS production DB):
 
 ```bash
-# Set env pointing to local prod-config stack
+# Set env pointing to local prod-config stack (NOT the live VPS production DB)
+export NODE_ENV=production                  # enables Mode-B signed cookie/bearer auth
 export APP_DATABASE_URL=postgresql://cmc_app:<pw>@localhost:5432/cmc_staging
 export DATABASE_URL=postgresql://postgres:<pw>@localhost:5432/cmc_staging
 export LMS_SESSION_SECRET=<same-secret-as-stack>
+export STAFF_SESSION_SECRET=<same-secret-as-stack>  # must match API server
 export E2E_BASE_URL=http://localhost:3000
 
 pnpm --filter @cmc/e2e test
 ```
+
+> **Mode-B auth:** When `NODE_ENV=production`, dev-headers are disabled.
+> Staff specs use `createSignedStaffClient` + `mintStaffCookie(STAFF_SESSION_SECRET)`.
+> LMS specs use `createSignedLmsClient` + `mintParentToken(LMS_SESSION_SECRET)`.
+> Both secrets must match the running stack or auth will return 401.
 
 ### Run 1
 
@@ -192,6 +199,8 @@ All of the following must be checked before proceeding to go-live:
 | G6 | Isolation check PASS | |
 | G7 | Runbook: second person executed deploy from scratch successfully | |
 | G8 | `ALLOW_DEV_AUTH` absent from `.env.prod` (`grep ALLOW_DEV_AUTH .env.prod` → empty) | |
+| G9 | `TEST_OTP_SEAM` absent from `.env.prod` (`grep TEST_OTP_SEAM .env.prod` → empty) | |
+| G10 | `STAFF_SESSION_SECRET` ≠ `LMS_SESSION_SECRET` in prod (two distinct values) | |
 
 ---
 

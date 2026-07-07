@@ -11,19 +11,19 @@ import { test, expect } from '@playwright/test';
 import { TRPCClientError } from '@trpc/client';
 import type { AppRouter } from '../../api/src/router.js';
 import { seedActiveEnrollment } from '../src/db.js';
-import { createStaffClient } from '../src/trpc-client.js';
+import { createE2eStaffClient } from '../src/trpc-client.js';
 
 const baseUrl = process.env.E2E_BASE_URL!;
 const facilityId = process.env.E2E_FACILITY_ID!;
 
 test.describe('attendance marking + session lifecycle', () => {
   test('marks present on a valid session, rejects a cancelled one', async () => {
-    const gddt = createStaffClient(baseUrl, {
+    const gddt = createE2eStaffClient(baseUrl, {
       userId: 'e2e-gddt-attendance',
       roles: ['giam_doc_dao_tao'],
       facilityId,
     });
-    const teacher = createStaffClient(baseUrl, {
+    const teacher = createE2eStaffClient(baseUrl, {
       userId: 'e2e-teacher',
       roles: ['giao_vien'],
       facilityId,

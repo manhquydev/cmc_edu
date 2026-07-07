@@ -15,7 +15,9 @@ Stack: `cmcv2-prod` · Docker Compose · VPS riêng (khác máy cmcnew-*) · Pos
 | AWS CLI v2 (for backup) | `aws --version` |
 | TLS certs (Let's Encrypt or paid) | `ls infra/nginx/certs/` |
 | `.env.prod` filled (from `.env.prod.example`) | `grep CHANGE_ME .env.prod` → 0 lines |
+| `STAFF_SESSION_SECRET` ≠ `LMS_SESSION_SECRET` | `grep SESSION_SECRET .env.prod` → 2 distinct values |
 | `ALLOW_DEV_AUTH` NOT in `.env.prod` | `grep ALLOW_DEV_AUTH .env.prod` → empty |
+| Azure app redirect URI matches `ERP_SSO_REDIRECT_URI` | Check Azure Portal → App registrations → Redirect URIs |
 | Backup target on DIFFERENT host (RT-13) | `echo $BACKUP_S3_ENDPOINT` |
 
 ### 1.2 Isolation check (run before any deploy)
@@ -154,7 +156,9 @@ Common causes:
 | Error | Fix |
 |-------|-----|
 | `ALLOW_DEV_AUTH=1 must not be set` | Remove from `.env.prod`, restart |
-| `LMS_SESSION_SECRET is using the insecure dev default` | Set a real secret in `.env.prod` |
+| `LMS_SESSION_SECRET is using the insecure dev default` | Set a real secret in `.env.prod` (`openssl rand -base64 48`) |
+| `STAFF_SESSION_SECRET must be set in production` | Add `STAFF_SESSION_SECRET` to `.env.prod` (`openssl rand -base64 48`) |
+| `STAFF_SESSION_SECRET is using the insecure dev default` | Replace with a unique random value — MUST differ from `LMS_SESSION_SECRET` |
 | `Database role is 'postgres', expected 'cmc_app'` | Check `APP_DATABASE_URL` uses the `cmc_app` role |
 | `FORCE ROW LEVEL SECURITY missing on...` | `ALTER TABLE <t> FORCE ROW LEVEL SECURITY;` as superuser |
 | `Database user has superuser privilege` | Revoke superuser from `cmc_app` |

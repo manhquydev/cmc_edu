@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 # Admin frontend (Vite SPA) — builds static assets served by nginx.
 # Build context: repo root (docker build -f infra/docker/Dockerfile.admin .)
+# Needs api sources at build time: admin type-imports AppRouter from
+# apps/api (tRPC client typing), which in turn needs the generated Prisma client.
 
 FROM node:22-alpine AS base
 ENV PNPM_HOME=/pnpm
@@ -8,14 +10,33 @@ ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable pnpm
 WORKDIR /app
 
+# pnpm --frozen-lockfile validates the lockfile against EVERY workspace
+# importer, so all workspace package.json manifests must be present.
 FROM base AS deps
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-COPY apps/admin/package.json apps/admin/
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY packages/auth/package.json            packages/auth/
+COPY packages/db/package.json              packages/db/
+COPY packages/domain-finance/package.json  packages/domain-finance/
+COPY packages/domain-grading/package.json  packages/domain-grading/
+COPY packages/domain-identity/package.json packages/domain-identity/
+COPY packages/domain-payroll/package.json  packages/domain-payroll/
+COPY packages/domain-time/package.json     packages/domain-time/
+COPY packages/llm/package.json             packages/llm/
+COPY packages/mcp-server/package.json      packages/mcp-server/
+COPY packages/storage/package.json         packages/storage/
+COPY packages/ui/package.json              packages/ui/
+COPY apps/api/package.json                 apps/api/
+COPY apps/admin/package.json               apps/admin/
+COPY apps/lms/package.json                 apps/lms/
+COPY apps/e2e/package.json                 apps/e2e/
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile
 
 FROM deps AS build
+COPY packages/ packages/
+COPY apps/api/ apps/api/
 COPY apps/admin/ apps/admin/
+RUN pnpm --filter @cmc/db exec prisma generate
 ARG VITE_API_BASE_URL=/api
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 # SSO UI flag: VITE_SSO_ENABLED=true shows the Microsoft login button.
@@ -24,7 +45,8 @@ ARG VITE_SSO_ENABLED=false
 ENV VITE_SSO_ENABLED=${VITE_SSO_ENABLED}
 ARG VITE_API_URL=
 ENV VITE_API_URL=${VITE_API_URL}
-RUN pnpm --filter @cmc/admin run build
+# `@cmc/admin...` builds workspace dependencies (ui/auth/api chain) first.
+RUN pnpm --filter @cmc/admin... run build
 
 FROM nginx:1.27-alpine AS runtime
 COPY --from=build /app/apps/admin/dist /usr/share/nginx/html/admin

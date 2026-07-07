@@ -86,7 +86,7 @@ describe('submission.saveDraft / submission.submit (US-016, TL19 §3)', () => {
   }
 
   function studentCaller(studentId: string): Caller {
-    return appRouter.createCaller(buildLmsContext({ parentAccountId: parent.id, studentId }));
+    return appRouter.createCaller(buildLmsContext({ parentAccountId: parent.id, studentId, kind: 'student' }));
   }
 
   it('creates a draft, then re-saves it (version increments, same row)', async () => {
@@ -202,7 +202,7 @@ describe('submission.saveDraft / submission.submit (US-016, TL19 §3)', () => {
   });
 
   it('rejects a call with no selected student profile', async () => {
-    const noStudent = appRouter.createCaller(buildLmsContext({ parentAccountId: parent.id }));
+    const noStudent = appRouter.createCaller(buildLmsContext({ parentAccountId: parent.id, kind: 'student' }));
     await expect(
       noStudent.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: {} }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });

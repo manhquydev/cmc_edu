@@ -79,7 +79,7 @@ describe('submission.saveTeacherAnnotation (phase-01a C3)', () => {
       parentAccountId: parent.id,
     });
     const student = appRouter.createCaller(
-      buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId }),
+      buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
     const studentLayer = { pen: 'red', strokes: [1, 2, 3] };
     await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: studentLayer });
@@ -123,7 +123,7 @@ describe('submission.saveTeacherAnnotation (phase-01a C3)', () => {
       parentAccountId: parent.id,
     });
     const student = appRouter.createCaller(
-      buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId }),
+      buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
     const draft = await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: {} });
 

@@ -58,7 +58,7 @@ describe('gift catalog + rewards lifecycle (P4)', () => {
     await seedStudentAccount(student.id, parentAccount.id);
 
     studentCaller = appRouter.createCaller(
-      buildLmsContext({ parentAccountId: parentAccount.id, studentId: student.id }),
+      buildLmsContext({ parentAccountId: parentAccount.id, studentId: student.id, kind: 'student' }),
     );
   });
 

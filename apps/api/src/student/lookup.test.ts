@@ -27,6 +27,7 @@ describe('student.lookup (K4)', () => {
   let sale: Caller;
   let saleOther: Caller;
   let giaoVien: Caller;
+  let cskh: Caller;
   const phonesToClean: string[] = [];
 
   beforeEach(async () => {
@@ -40,6 +41,9 @@ describe('student.lookup (K4)', () => {
     );
     giaoVien = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'gv-lookup-1', roles: ['giao_vien'] }),
+    );
+    cskh = appRouter.createCaller(
+      buildStaffContext({ facilityId: facility.id, userId: 'cskh-lookup-1', roles: ['cskh'] }),
     );
   });
 
@@ -113,8 +117,13 @@ describe('student.lookup (K4)', () => {
     });
   });
 
-  it('forbids a role without student.lookup permission', async () => {
-    await expect(giaoVien.student.lookup({ name: 'anything' })).rejects.toMatchObject({
+  it('giao_vien has student.lookup permission for attendance name resolution (K4)', async () => {
+    const result = await giaoVien.student.lookup({ name: 'anything' });
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it('forbids a role without student.lookup permission (K4 — cskh excluded)', async () => {
+    await expect(cskh.student.lookup({ name: 'anything' })).rejects.toMatchObject({
       code: 'FORBIDDEN',
     });
   });

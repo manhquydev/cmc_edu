@@ -59,7 +59,7 @@ describe('finance.receiptCreate from opportunity (WF-P1-02)', () => {
     expect(result.status).toBe('success');
     if (result.status !== 'success') throw new Error('expected status success');
     expect(result.receipt.opportunityId).toBe(opp.id);
-    expect(result.receipt.code).toMatch(/^PT-\d{6}$/);
+    expect(result.receipt.code).toMatch(/^SO\d{5}$/);
     expect(result.receipt.status).toBe('draft');
     expect(result.receipt.netAmount).toBe(5000000);
   });

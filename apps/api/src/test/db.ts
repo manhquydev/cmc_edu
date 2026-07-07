@@ -268,6 +268,9 @@ export function buildStaffContext(opts: TestStaffContextOptions): Context {
 export interface TestLmsContextOptions {
   parentAccountId: string;
   studentId?: string;
+  /** C1/phase-01b: session kind. Defaults to 'parent' so existing tests that
+   * don't pass kind continue to work as parent sessions. */
+  kind?: 'parent' | 'student';
 }
 
 /** Hand-builds an LMS (parent/student) `Context` against the real DB. */
@@ -275,7 +278,11 @@ export function buildLmsContext(opts: TestLmsContextOptions): Context {
   return {
     subject: null,
     facilityId: null,
-    lmsSubject: { parentAccountId: opts.parentAccountId, studentId: opts.studentId },
+    lmsSubject: {
+      parentAccountId: opts.parentAccountId,
+      studentId: opts.studentId,
+      kind: opts.kind ?? 'parent',
+    },
     db: testDb(),
     ip: null,
   };

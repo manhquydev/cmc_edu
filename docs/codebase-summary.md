@@ -1,8 +1,8 @@
 # CMC EDU v2 — Codebase Summary
 
-**Status:** P1 (Identity & Enrollment) implemented & merged to main  
-**Last Updated:** 2026-07-06  
-**Build State:** 137/137 tests passing; 95%+ coverage (finance 97.88% statements, provisioning 95.9%)
+**Status:** UI phases 01a–08 complete — ERP admin + LMS app shipped  
+**Last Updated:** 2026-07-07  
+**Build State:** API unit tests pass; apps/admin + apps/lms build clean (Vite, 855 modules); integration tests BLOCKED (postgresql-x64-18 stopped)
 
 ---
 
@@ -11,14 +11,16 @@
 ```
 D:\project\vip\CMC
 ├── apps/
-│   ├── admin/           # Vite+React placeholder (P0)
-│   └── api/             # tRPC backend (Node.js + Prisma + Postgres)
+│   ├── admin/           # Vite+React ERP SPA — 30 routes, Mantine v7, tRPC client (phases 02–06)
+│   ├── lms/             # Vite+React LMS SPA — parent+student, kind guards, mobile-first (phase 07)
+│   ├── api/             # tRPC backend (Node.js + Prisma + Postgres) — 27 routers
+│   └── e2e/             # Playwright — API-driven + UI-driven specs (phase 08)
 ├── packages/
 │   ├── auth/            # RBAC registry (single source of truth for roles/permissions)
-│   ├── db/              # Prisma schema, migrations, seed
-│   ├── domain-finance/  # Finance domain logic (receipt codes, refund cap, phone dedup)
+│   ├── db/              # Prisma schema, migrations, seed — 48 models
+│   ├── domain-finance/  # Finance domain logic (SO receipt codes, refund cap, phone dedup)
 │   ├── domain-identity/ # Identity domain logic (phone normalization)
-│   └── ui/              # Design tokens
+│   └── ui/              # Design system: cmcTheme + 10 components + CSS tokens (tsconfig.build.json)
 ├── docs/                # Design docs (TL00-TL31, frozen design corpus)
 └── plans/               # Session reports (audits, remediation, deep reviews)
 ```
@@ -28,7 +30,7 @@ D:\project\vip\CMC
 - **Language:** TypeScript (ESM)  
 - **API:** tRPC 11 (procedure-based, not REST)  
 - **Database:** Postgres + Prisma ORM with row-level security (RLS)  
-- **Frontend:** Vite + React (admin app stub; LMS frontend not yet built)  
+- **Frontend:** Vite + React — apps/admin (ERP, 30 routes) + apps/lms (LMS, parent+student kind gate)  
 - **Auth:** Registry-driven RBAC (centralized in `@cmc/auth`)
 
 ---

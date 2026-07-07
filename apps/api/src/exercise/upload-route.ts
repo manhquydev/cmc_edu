@@ -98,3 +98,49 @@ export async function handleExercisePdfUpload(
 
   sendJson(res, 200, { blobRef });
 }
+
+/**
+ * `GET /upload/exercise-pdf?ref=<blobRef>` — streams a stored PDF back to
+ * the caller. Used by the grading PDF annotator to display the base exercise
+ * PDF. Requires `exercise.view` permission (teachers + training director).
+ */
+export async function handleExercisePdfGet(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  const ctx = createContext({ req });
+  if (!ctx.subject) {
+    sendJson(res, 401, { error: 'Session required.' });
+    return;
+  }
+  if (!can(ctx.subject, 'exercise', 'view')) {
+    sendJson(res, 403, { error: 'Missing permission exercise.view.' });
+    return;
+  }
+
+  const url = new URL(req.url ?? '', 'http://localhost');
+  const blobRef = url.searchParams.get('ref');
+  if (!blobRef) {
+    sendJson(res, 400, { error: 'Missing ?ref= query parameter.' });
+    return;
+  }
+
+  // Prevent path traversal: blobRef must match the upload prefix.
+  if (!blobRef.startsWith('exercise-pdf/') || blobRef.includes('..')) {
+    sendJson(res, 400, { error: 'Invalid blobRef.' });
+    return;
+  }
+
+  const bytes = await createBlobStorage().get(blobRef);
+  if (!bytes) {
+    sendJson(res, 404, { error: 'PDF not found.' });
+    return;
+  }
+
+  res.writeHead(200, {
+    'content-type': 'application/pdf',
+    'content-length': String(bytes.length),
+    'cache-control': 'private, max-age=3600',
+  });
+  res.end(bytes);
+}

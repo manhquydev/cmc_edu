@@ -108,11 +108,10 @@ flowchart TD
 - **Idempotent replay** (retry outbox/agent): find-or-create theo `phone` → không nhân đôi.
 - **Lỗi bước provisioning:** **KHÔNG rollback tiền** (đã tách khỏi mạch tiền — ADR 0041) → retry.
 
-**Rules/ADR:** **ADR 0041** · QĐ 0033. **API:** nội bộ (gọi bởi `receiptApprove`); `idempotencyKey` theo
-`phone`. **UI/URL:** không có màn riêng — kết quả hiện ở ResultPanel WF-P1-03.
+**Rules/ADR:** **ADR 0041** · ~~QĐ 0033~~ (đã đảo bởi product-decision 2026-07-07 → auth 2-tier). Provisioning tạo `ParentAccount` (với `email`) + `StudentAccount` (với `passwordHash` PBKDF2-SHA256, `mustChangePassword=true`) thay vì mô hình phone+OTP đơn tầng cũ. **API:** nội bộ (gọi bởi `receiptApprove`); `idempotencyKey` theo `phone`. **UI/URL:** không có màn riêng — kết quả hiện ở ResultPanel WF-P1-03.
 
 **Traceability:** `hệ thống → WF-P1-04 → "Sinh tài khoản khi thu tiền" → (internal provisioning) →
-(ResultPanel) → test/provisioning/idempotent.spec → ADR0041, QĐ0033`.
+(ResultPanel) → test/provisioning/idempotent.spec → ADR0041, product-decision-2026-07-07`.
 **Acceptance:** không student mồ côi (mọi Student có `createdByReceiptId`); replay không nhân đôi; lỗi
 provisioning không rollback `netAmount`.
 
@@ -178,33 +177,43 @@ nhân viên `/parents/:id` (hàng đợi duyệt).
 
 ---
 
-## WF-P1-07 — Đăng nhập LMS phụ huynh (SĐT + OTP, profile picker)
+## WF-P1-07 — Đăng nhập LMS 2-tier (PH: email+OTP · HS: SĐT+password)
 
-**Meta:** P1 · P0 · auto. **Actors:** phụ huynh, học viên. **Trigger:** PH đăng nhập bằng SĐT.
-**Precondition:** ParentAccount tồn tại (từ provisioning).
+> **product-decision 2026-07-07**: WF-P1-07 đảo từ phone+OTP (QĐ0033) sang 2-tier auth. Hành vi cũ: phụ huynh đăng nhập bằng SĐT + OTP. Hành vi mới: 2 luồng song song phân biệt bằng `LmsSubject.kind`. Tham chiếu: UI implementation plan phase 01a/01b.
+>
+> **BLOCKED-ON-COMMS (stop-condition)**: Luồng phụ huynh (email OTP) dùng `ConsoleEmailTransport` — OTP chỉ ghi vào server log, không gửi ra ngoài. **Luồng PH không hoạt động production** cho đến khi Brevo API key hoặc MS Graph mail credentials được cấp và cấu hình. Luồng học sinh (SĐT+password) không phụ thuộc email transport và có thể kiểm tra độc lập.
 
-**Swimlane**
+**Meta:** P1 · P0 · auto. **Actors:** phụ huynh (`kind='parent'`), học sinh (`kind='student'`). **Trigger:** người dùng truy cập LMS `/login`. **Precondition:** ParentAccount + StudentAccount tồn tại (từ provisioning).
+
+**Swimlane (2 tab song song)**
 ```mermaid
 flowchart LR
-    A["Nhập SĐT 84xxx"] --> B["OTP 6 số / mật khẩu"]
-    B --> C{"Số con?"}
-    C -->|1 con| D["Vào thẳng dashboard con"]
-    C -->|≥2 con| E["Profile picker chọn con"] --> D
+    subgraph PH["Tab Phụ huynh (kind=parent)"]
+        A1["Nhập email"] --> B1["Yêu cầu OTP → gửi email\n[BLOCKED-ON-COMMS]"]
+        B1 --> C1["Nhập OTP 6 số"] --> D1{"Số con?"}
+        D1 -->|1 con| E1["Vào thẳng dashboard con"]
+        D1 -->|≥2 con| F1["Profile picker"] --> E1
+    end
+    subgraph HS["Tab Học sinh (kind=student)"]
+        A2["Nhập SĐT PH 84xxx"] --> B2["Nhập mật khẩu"]
+        B2 --> C2{"mustChangePassword?"}
+        C2 -->|true| D2["Buộc đổi mật khẩu"] --> E2["Dashboard con"]
+        C2 -->|false| E2
+    end
 ```
 
-**State machine (LoginOtp):** `issued` → `verified` | `expired`.
+**State machine (LoginOtp — luồng PH):** `issued` → `verified` | `expired`.
+**State machine (StudentAuth — luồng HS):** check `passwordHash` + `loginAttempts` + `loginLockedUntil`.
 
-**Happy path:** SĐT → OTP → (picker nếu ≥2 con) → dashboard con (lịch/kết quả/bài tập).
+**Happy path PH:** nhập email → request OTP → OTP gửi email → nhập OTP → (picker nếu ≥2 con) → dashboard.
+**Happy path HS:** nhập SĐT PH + mật khẩu → nếu `mustChangePassword=true` → đổi password → dashboard.
 
-**Exceptions & edge:** OTP hết hạn → phát lại. HS ở `BLOCKED_LMS_LIFECYCLE` → **chặn truy cập** (TL19 §4).
-Chưa có con (link chưa duyệt) → hướng dẫn WF-P1-06. SĐT sai → không lộ tồn tại tài khoản.
+**Exceptions & edge:** OTP hết hạn → phát lại. HS ở `BLOCKED_LMS_LIFECYCLE` → **chặn truy cập** (TL19 §4). Chưa có con (link chưa duyệt) → hướng dẫn WF-P1-06. `loginAttempts` vượt ngưỡng → lock account (`loginLockedUntil`). Email/SĐT sai → không lộ tồn tại tài khoản.
 
-**Rules/ADR:** QĐ 0031/0033 · TL19 §2 (1 credential/SĐT). **API:** `lmsAuth.requestOtp/verifyOtp` ·
-`enrollment.mine`. **UI/URL:** LMS `/login` · `/select-child` · `/child/:id`.
+**Rules/ADR:** product-decision 2026-07-07 (2-tier auth) · TL19 §2 · TL10 §4 (StudentAccount fields). **API:** `lmsAuth.requestEmailOtp` / `lmsAuth.verifyEmailOtp` (PH) · `lmsAuth.studentLogin` (HS) · `enrollment.mine`. **UI/URL:** LMS `/login` (2 tab) · `/select-child` · `/child/:id`.
 
-**Traceability:** `PH → WF-P1-07 → "Đăng nhập xem con" → lmsAuth.verifyOtp + enrollment.mine →
-/select-child → test/lms-auth/login.spec → QĐ0033`.
-**Acceptance:** SĐT = login; picker khi ≥2 con; lifecycle bị chặn không vào được; OTP hết hạn xử đúng.
+**Traceability:** `PH/HS → WF-P1-07 → "Đăng nhập LMS" → lmsAuth.verifyEmailOtp|studentLogin + enrollment.mine → /select-child → test/lms-auth/login.spec → product-decision-2026-07-07`.
+**Acceptance:** 2 tab login rõ ràng; picker khi PH có ≥2 con; mustChangePassword buộc đổi; lifecycle bị chặn không vào được; OTP expired xử đúng; loginAttempts lock đúng; email OTP là BLOCKED-ON-COMMS.
 
 ---
 

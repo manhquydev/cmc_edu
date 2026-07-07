@@ -24,15 +24,34 @@
 |---|---|---|---|
 | **Mã lớp** (ClassBatch) | `{facility.code}-{program}-{year}-{seq}` (QĐ 0036); year từ `startDate` | `nextBatchCode()` | `HN-UCREA-2026-001` |
 | **Mã nhân viên** | `CMC` + seq 4 chữ số (bộ đếm global 1-hàng, atomic) | `nextEmployeeCode()` | `CMC0001` |
-| **Mã tài khoản học viên (login)** | = **SĐT phụ huynh** chuẩn hoá `84xxxxxxxxx` (QĐ 0033) | `normalizeLoginPhone()` | `84912345678` |
-| **Mã phiếu thu** | seq từ `receiptCodeCounter` | `nextReceiptCode()` | — |
-| **OTP đăng nhập PH** | 6 chữ số ngẫu nhiên | `randomInt(0,1e6).padStart(6)` | `048213` |
+| **Mã tài khoản HS (login credential)** | = **SĐT phụ huynh** chuẩn hoá `84xxxxxxxxx` (dùng khi học sinh login) | `normalizeLoginPhone()` | `84912345678` |
+| **Mã phiếu thu** | `SO` + seq 5 chữ số (`SO00183`) — KHÔNG có dấu gạch ngang, KHÔNG prefix `PT-` | `nextReceiptCode()` trong `@cmc/domain-finance` | `SO00183` |
+| **OTP đăng nhập PH** | 6 chữ số ngẫu nhiên, gửi qua email | `randomInt(0,1e6).padStart(6)` | `048213` |
+
+> **product-decision 2026-07-07**: Mã phiếu thu đổi từ `PT-000001` (prefix PT-, pad 6, có gạch ngang) sang `SO00183` (prefix SO, pad 5, không có gạch ngang). `packages/domain-finance/src/receipt-code.ts` là nguồn sự thật; mọi doc/code dùng format cũ `PT-` là sai. Tham chiếu: UI implementation plan phase 01a.
 
 **Quy tắc chung:** mọi mã dùng **bộ đếm atomic** (`INSERT … ON CONFLICT DO UPDATE … RETURNING`)
 để không trùng khi tạo đồng thời. Mã nhân viên/phiếu là **global**; mã lớp **theo facility+program+year**.
 
-**Tài khoản học viên** (QĐ 0033): 1 credential/SĐT phụ huynh (dùng chung cho mọi con); đăng nhập →
-*profile picker* chọn con (1 con vào thẳng, ≥2 con hiện chọn). Mật khẩu mặc định `Cmc2026@` hoặc OTP.
+> **product-decision 2026-07-07**: Auth LMS đổi sang **2-tier** — đảo QĐ 0033 (phone+OTP đơn tài khoản). Chi tiết:
+>
+> **Phụ huynh** (`LmsSubject.kind = 'parent'`): đăng nhập bằng `email` + OTP 6 số gửi qua email. `ParentAccount.email` là bắt buộc. Sau xác thực → *profile picker* nếu ≥2 con.
+>
+> **Học sinh** (`LmsSubject.kind = 'student'`): đăng nhập bằng SĐT phụ huynh (`84xxx`) + mật khẩu. Mật khẩu mặc định được set lúc provisioning; `StudentAccount.mustChangePassword = true` khi dùng default → buộc đổi lần đăng nhập đầu. Các trường trên `StudentAccount`: `passwordHash` (PBKDF2-SHA256), `mustChangePassword`, `loginAttempts`, `loginLockedUntil`. Các trường này **không** nằm trên `ParentAccount`.
+>
+> **Không có `studentCode`**: HS được định danh bằng `fullName + SĐT PH`; không có cột mã học sinh.
+>
+> **BLOCKED-ON-COMMS**: Email OTP phụ huynh dùng `ConsoleEmailTransport` stub — chưa giao được email thật ra ngoài. Luồng này **không hoạt động production** cho đến khi Brevo/Graph credentials được cấu hình (xem TL18). Dev/staging: xem OTP trong server log.
+
+## 2b. Quy tắc phê duyệt phiếu thu (Over-threshold role-elevation)
+
+> **product-decision 2026-07-07 — ADR-B**: Phiếu thu cần xét duyệt độc lập 1 người, **không phải 2 chữ ký (co-approval)**. Điều kiện duyệt phiếu (`canApprove = true`) đồng thời phải thoả **cả 3**:
+>
+> 1. **notSelf**: người duyệt ≠ người tạo phiếu.
+> 2. **secondEyeOk**: nếu `netAmount > 20.000.000 VND` → người duyệt phải mang role `giam_doc_dao_tao` hoặc `super_admin` (SECOND_EYE_ROLES). Ngưỡng 20M là default — chưa có quyết định chốt số cụ thể (xem `APPROVAL_SECOND_EYE_THRESHOLD` trong `apps/api/src/finance/router.ts`).
+> 3. **permission**: người duyệt có quyền `can(subject, 'finance', 'receiptApprove')`.
+>
+> Nguồn: `apps/api/src/finance/router.ts` — `APPROVAL_SECOND_EYE_THRESHOLD = 20_000_000`, `SECOND_EYE_ROLES = ['giam_doc_dao_tao', 'super_admin']`, field `canApprove` được tính server-side và trả về trong `ReceiptDto`.
 
 ## 3. Luồng làm bài trên PDF (Exercise ↔ Submission)
 
@@ -127,9 +146,10 @@ Nghiệp vụ "ảnh lớp gửi PH" — giáo viên ghi lại buổi học, g�
 
 | Quy tắc | Nguồn chuẩn |
 |---|---|
+| Phê duyệt phiếu thu (canApprove, over-threshold) | **product-decision 2026-07-07** (§2b) + `apps/api/src/finance/router.ts` `APPROVAL_SECOND_EYE_THRESHOLD` |
 | Mã lớp | QĐ 0036 + `nextBatchCode()` |
 | Mã nhân viên / phiếu / OTP | `services/employee-code.ts`, `receipt-code`, code |
-| Login học viên = SĐT PH | QĐ 0033 |
+| Login học viên = SĐT PH (student) | ~~QĐ 0033~~ → đảo bởi **product-decision 2026-07-07** (xem §2): auth 2-tier, `kind='parent'` dùng email+OTP, `kind='student'` dùng SĐT PH+password |
 | Chương trình / chứng chỉ | QĐ 0008, 0021 + seed-curriculum |
 | Bài tập PDF + annotation | `schema.prisma` (Exercise/Submission) |
 | Mở bài tập theo buổi học | `lib/exercise-open.ts` (Tier A/B) |

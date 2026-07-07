@@ -16,7 +16,7 @@
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { badRequest, notFound } from '../errors.js';
-import { lmsProcedure, requireLmsStudent, requirePermission, router, scoped } from '../trpc.js';
+import { lmsProcedure, requireLmsStudent, assertPasswordNotExpired, requirePermission, router, scoped } from '../trpc.js';
 import { loadLmsStudent } from '../exercise/open-tier.js';
 
 const redeemInput = z.object({
@@ -52,6 +52,7 @@ export const rewardRouter = router({
    */
   redeem: lmsProcedure.input(redeemInput).mutation(async ({ ctx, input }) => {
     const { studentId } = requireLmsStudent(ctx);
+    await assertPasswordNotExpired(ctx, studentId);
     const student = await loadLmsStudent(ctx.db, studentId, ctx.lmsSubject!.parentAccountId);
 
     return withFacility(ctx.db, student.facilityId, async (tx) => {
@@ -64,11 +65,17 @@ export const rewardRouter = router({
       // 2. Stock pre-check (avoid locking when trivially out of stock).
       if (gift.stock === 0) throw badRequest('Out of stock.');
 
-      // 3. Serialize concurrent redeems via advisory lock keyed on student
-      //    identity. Unlike a row-level FOR UPDATE, this works even when no
-      //    StudentAccount row exists yet (edge case: student created outside
-      //    the provisioning path), closing the TOCTOU gap.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${student.id}))`;
+      // 3. Serialize concurrent redeems for this gift. Lock keyed on gift.id so
+      //    two different students racing for the last unit of the same gift
+      //    compete for the same advisory lock (per-student locking would allow
+      //    both to pass step 2 concurrently since they acquire distinct locks).
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.giftId}))`;
+
+      // 3a. Re-read stock inside the lock to catch races that passed the pre-check.
+      const lockedGift = await tx.gift.findFirst({
+        where: { id: input.giftId, facilityId: student.facilityId, isActive: true },
+      });
+      if (!lockedGift || lockedGift.stock === 0) throw badRequest('Out of stock.');
 
       // 4. Compute current balance.
       const agg = await tx.starTransaction.aggregate({
@@ -77,8 +84,8 @@ export const rewardRouter = router({
       });
       const balance = agg._sum.amount ?? 0;
 
-      // 5. Balance gate.
-      if (balance < gift.starsRequired) {
+      // 5. Balance gate — use lockedGift.starsRequired (re-read, authoritative).
+      if (balance < lockedGift.starsRequired) {
         throw badRequest('Insufficient stars.');
       }
 
@@ -87,7 +94,7 @@ export const rewardRouter = router({
         data: {
           facilityId: student.facilityId,
           studentId: student.id,
-          giftId: gift.id,
+          giftId: lockedGift.id,
           status: 'pending',
         },
       });
@@ -97,13 +104,13 @@ export const rewardRouter = router({
           facilityId: student.facilityId,
           studentId: student.id,
           type: 'gift_redeemed',
-          amount: -gift.starsRequired,
+          amount: -lockedGift.starsRequired,
           refType: 'reward',
           refId: reward.id,
         },
       });
 
-      const newBalance = balance - gift.starsRequired;
+      const newBalance = balance - lockedGift.starsRequired;
       return { reward, newBalance };
     });
   }),
@@ -232,6 +239,31 @@ export const rewardRouter = router({
           },
         });
       });
+    }),
+
+  /** Staff: list rewards in this facility, optionally filtered by status. */
+  list: requirePermission('rewards', 'manage')
+    .input(
+      z.object({
+        status: z.enum(['pending', 'approved', 'delivered', 'rejected']).optional(),
+        pageSize: z.number().int().min(1).max(100).default(50),
+        cursor: z.string().uuid().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, (tx) =>
+        tx.reward.findMany({
+          where: {
+            facilityId,
+            ...(input.status ? { status: input.status } : {}),
+            ...(input.cursor ? { id: { lt: input.cursor } } : {}),
+          },
+          include: { gift: { select: { id: true, name: true, starsRequired: true } } },
+          orderBy: { redeemedAt: 'desc' },
+          take: input.pageSize,
+        }),
+      );
     }),
 
   /** LMS: student reads their own reward history. */

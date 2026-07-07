@@ -15,12 +15,16 @@
 | **UI** | Mantine + CSS custom properties | Mantine 7.15 | tokens `@cmc/ui` (TL12) |
 | **API** | tRPC + zod | tRPC 11 · zod 3 | hợp đồng FE↔BE (TL11) |
 | **DB / ORM** | PostgreSQL + Prisma | Prisma 6 | RLS theo `facilityId` |
-| **Auth** | Microsoft Entra SSO (`@azure/msal-node`) | msal 2.16 | staff SSO; LMS phone/OTP |
-| **Email** | MS Graph + Brevo | — | transactional outbox |
+| **Auth** | Microsoft Entra SSO (`@azure/msal-node`) | msal 2.16 | staff SSO; LMS 2-tier (parent=email+OTP, student=SĐT PH+password) — xem product-decision 2026-07-07 bên dưới |
+| **Email** | MS Graph + Brevo | — | transactional outbox — **xem note BLOCKED-ON-COMMS bên dưới** |
 | **Test** | Vitest + Playwright | vitest 2.1 · playwright 1.49 | unit/integration + e2e |
 | **CI/CD** | Jenkins (kế hoạch) | — | pipeline: typecheck→test→verify-RLS→build (DEBT) |
 | **Infra** | VPS + Cloudflare | — | Full TLS, origin self-signed (ADR 0029) |
 | **Object store** | MinIO/S3 (kế hoạch) | — | blob + backup off-box (trả nợ TL3) |
+
+> **product-decision 2026-07-07 — BLOCKED-ON-COMMS (Email transport)**: Hiện tại hệ thống dùng `ConsoleEmailTransport` (stub) — mọi email (bao gồm OTP đăng nhập phụ huynh) chỉ được ghi vào server log, **không gửi ra ngoài**. Email OTP cho phụ huynh đăng nhập LMS sẽ không hoạt động production cho đến khi một trong hai được cung cấp: (a) Brevo API key, hoặc (b) MS Graph mail credentials. Dev/staging: đọc OTP từ server log. Tham chiếu: UI implementation plan phase 01a.
+
+> **product-decision 2026-07-07 — Mật khẩu học sinh (PBKDF2-SHA256)**: `StudentAccount.passwordHash` dùng PBKDF2-SHA256 (không bcrypt). Lý do: hiệu năng trên VPS không có GPU; đủ mạnh cho threat model hiện tại. Hash không bao giờ được ghi vào docs, log, hoặc response API. Các trường liên quan: `passwordHash`, `mustChangePassword`, `loginAttempts`, `loginLockedUntil` — tất cả trên `StudentAccount`, không phải `ParentAccount`.
 
 ## 2. Packages (workspace `packages/*`)
 

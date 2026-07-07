@@ -69,10 +69,10 @@ export const PERMISSIONS: Record<string, readonly Role[]> = {
   // prerequisite to acting on it, not a broader read grant.
   'guardian.listPendingLinks': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien', 'cskh'],
   // K4 remediation: staff-only student lookup (docs/08 §7 child-data
-  // minimization) — restricted to the roles that actually need a resulting
-  // `studentId` downstream: `finance.receiptCreate` renewals (GĐKD/sale/
-  // ke_toan) and `enrollment.enroll` (GĐKD/GĐĐT/sale).
-  'student.lookup': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'ke_toan'],
+  // minimization). `giao_vien` added for attendance name resolution
+  // (`student.getManyByIds`) — teachers see only students in their own
+  // facility sessions (RLS + facilityId predicate), same minimization rules.
+  'student.lookup': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'ke_toan', 'giao_vien'],
   // K7 remediation: no role entry on purpose — only `super_admin`'s registry
   // bypass (see `can()` below) may create/list facilities. Every other role
   // falls through to the empty array and is FORBIDDEN.
@@ -97,6 +97,13 @@ export const PERMISSIONS: Record<string, readonly Role[]> = {
   // permission key for create/publish/close/upload + `curriculumUnit.list`
   // (documented deviation, phase-03 spec §Procedures).
   'exercise.manage': ['giam_doc_dao_tao'],
+  // PDF download for the grading UI — same roster as submission.grade so
+  // teachers can display the base PDF while grading submissions.
+  'exercise.view': ['giao_vien', 'giam_doc_dao_tao'],
+  // Staff email backfill for parents provisioned before email capture was added
+  // (phase-01b). Same roster as finance.receiptCreate: the staff who create
+  // receipts are the ones who capture email at enrollment time.
+  'parentAccount.updateEmail': ['giam_doc_kinh_doanh', 'sale', 'cskh', 'ke_toan'],
   // T2-II (docs/26 WF-P2-06, TL19 §6): grading a Submission (score + Grade +
   // star award) is a teacher-facing action, unlike `exercise.manage`'s
   // director-only scope above — the spec names `giao_vien/GĐĐT/super_admin`
@@ -136,6 +143,10 @@ export const PERMISSIONS: Record<string, readonly Role[]> = {
   'payslip.assemble': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   'payslip.finalize': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   'payslip.reopen': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
+  // C1/phase-01b: staff-side student password reset (back to default). Same
+  // director-level roster as other sensitive student-data mutations (GĐKD/GĐĐT
+  // have accountability; ke_toan excluded — not a training-ops role).
+  'studentAccount.resetPassword': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   // P3-II: KPI score submission — all staff can submit their own KPI.
   'kpi.submit': ['giao_vien', 'sale', 'hr', 'giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
   // P3-II: KPI confirm (by direct manager) — directors are managers in CMC org.

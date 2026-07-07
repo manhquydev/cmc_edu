@@ -89,10 +89,24 @@ Nút hành động rõ nghĩa ("Duyệt & Kích hoạt"). Sau khi chạy → **R
 - Tiếng Việt, ngôn ngữ người dùng (không thuật ngữ hệ thống ra mặt tiền — TL2 §5).
 - Nút = động từ việc người dùng làm ("Ghi danh", "Duyệt"), không tên kỹ thuật ("approve receipt").
 
-## 9. Cách dùng ở cổng DoR
+## 9. Pattern màn đăng nhập LMS (2-tier auth)
+
+> **product-decision 2026-07-07**: Màn đăng nhập LMS cần 2 tab song song, không phải một form đơn.
+
+**Yêu cầu UI:**
+- **Tab 1 — Phụ huynh**: nhập email → nút "Gửi mã OTP" → nhập OTP 6 số → đăng nhập. Nút "Gửi mã OTP" cần trạng thái loading + cooldown (60s). **Phải hiển thị thông báo BLOCKED-ON-COMMS** khi chạy không có email transport: "Hệ thống email đang trong quá trình cấu hình. Vui lòng liên hệ nhân viên để nhận hỗ trợ đăng nhập."
+- **Tab 2 — Học sinh**: nhập SĐT phụ huynh (`84xxx`) + mật khẩu → đăng nhập. Nếu `mustChangePassword=true` → chuyển ngay sang màn đổi mật khẩu (không vào dashboard).
+- Tab mặc định: Tab 1 (Phụ huynh). Deep-link `?tab=student` vào thẳng Tab 2.
+- Sau đăng nhập PH: nếu 1 con → thẳng dashboard; nếu ≥2 con → `ProfilePicker` (xem WF-P1-07).
+- Không lộ tồn tại tài khoản (email/SĐT sai → cùng một thông báo lỗi generic).
+- Trạng thái component bắt buộc: default · loading · error (inline) · success (redirect).
+
+> **BLOCKED-ON-COMMS**: Tab Phụ huynh chưa hoạt động production (email transport stub). Màn hình phải render được nhưng nút "Gửi mã OTP" nên hiển thị cảnh báo/disable khi `EMAIL_TRANSPORT=console`. Không được để người dùng thật chờ OTP không đến.
+
+## 10. Cách dùng ở cổng DoR
 
 Mỗi màn mới phải: chọn pattern (§5), liệt kê trạng thái component (§4), map màu trạng thái (§3),
-đạt a11y (§6), và có ResultPanel nếu có bước tự động hoá.
+đạt a11y (§6), và có ResultPanel nếu có bước tự động hoá. Màn đăng nhập LMS phải theo §9.
 
 > Liên kết: TL2 (UX principles & lỗi gốc) · TL6 (routing/URL) · TL8 (a11y trong NFR) · repo
 > `packages/ui` (nguồn token/component).

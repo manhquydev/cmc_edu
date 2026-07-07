@@ -126,6 +126,13 @@ Quy tắc:
 > **LMS phụ huynh/học sinh** là app riêng (domain/subdomain riêng), cùng ngữ pháp:
 > `/child/{studentId}/exercises`, `/child/{studentId}/report-card`.
 
+> **product-decision 2026-07-07 — LMS login routes**: Auth LMS đổi sang 2-tier. Routes liên quan:
+> - `/login` — màn đăng nhập LMS chính; có 2 tab: `?tab=parent` (email+OTP) và `?tab=student` (SĐT+password). Tab mặc định: `parent`.
+> - `/login/change-password` — màn đổi mật khẩu bắt buộc khi `mustChangePassword=true` (học sinh).
+> - `/select-child` — profile picker sau khi phụ huynh đăng nhập (≥2 con).
+>
+> Không còn route phone-OTP (`/login/otp-phone` hoặc tương đương) — đã loại bỏ. Nếu codebase cũ còn route này, cần xoá. **BLOCKED-ON-COMMS**: Tab phụ huynh (email OTP) chưa functional production — xem TL18/TL24.
+
 ---
 
 ## 4. Quy ước Trang chi tiết (phần bạn nhấn mạnh)

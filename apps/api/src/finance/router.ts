@@ -12,7 +12,8 @@ import {
   RefundCapExceededError,
 } from '@cmc/domain-finance';
 import { withFacility, type Prisma, type PrismaClient } from '@cmc/db';
-import type { Role } from '@cmc/auth';
+import { can } from '@cmc/auth';
+import type { AuthSubject, Role } from '@cmc/auth';
 import { badRequest, conflict, forbidden, notFound } from '../errors.js';
 import { provisionFromReceipt } from '../provisioning/provision-from-receipt.js';
 import { requirePermission, router, scoped } from '../trpc.js';
@@ -46,7 +47,7 @@ const SECOND_EYE_ROLES: readonly Role[] = ['giam_doc_dao_tao', 'super_admin'];
  * (`facility+program+year` scoped) — so this counter must NOT be keyed by
  * `facilityId`. Keying it by `facilityId` was a pre-existing Phase 1 bug: two
  * different facilities' first receipts both computed counter value 0 ->
- * "PT-000001", tripping the global unique constraint on `Receipt.code` the
+ * "SO00001", tripping the global unique constraint on `Receipt.code` the
  * moment more than one facility issues a receipt. Fixed here rather than in
  * a later phase since it blocks this phase's own money-gate tests from
  * running alongside Phase 1's.
@@ -70,6 +71,10 @@ const receiptCreateInput = z.object({
   studentId: z.string().uuid().optional(),
   studentName: z.string().min(1),
   parentPhone: z.string().min(1),
+  /** C1/phase-01b: optional email address for the parent. When provided,
+   * provisioning upserts it onto the ParentAccount so the parent can also log
+   * in via email-OTP (lmsAuth.requestOtpEmail). */
+  parentEmail: z.string().email().optional(),
   amount: vndAmountSchema,
   classBatchId: z.string().min(1).optional(),
 });
@@ -85,6 +90,12 @@ export interface ReceiptDto {
   classBatchId: string | null;
   netAmount: number;
   createdAt: Date;
+  /** Server-derived UI hint: true iff the calling subject has the
+   * `finance.receiptApprove` permission, is not the drafter of this receipt
+   * (no self-approval), and satisfies the over-threshold second-eye rule when
+   * `netAmount > APPROVAL_SECOND_EYE_THRESHOLD`. `false` whenever subject is
+   * not provided (e.g. post-mutation responses where approval is moot). */
+  canApprove: boolean;
 }
 
 export type ReceiptCreateResult =
@@ -101,13 +112,28 @@ interface ReceiptRow {
   /** H3 remediation: the Student this receipt renews, when known. */
   studentId: string | null;
   parentPhone: string;
+  /** C1/phase-01b: optional parent email captured at receipt creation. */
+  parentEmail: string | null;
   studentName: string;
   classBatchId: string | null;
   netAmount: { toNumber(): number };
   createdAt: Date;
+  createdById: string;
 }
 
-function toReceiptDto(receipt: ReceiptRow): ReceiptDto {
+function toReceiptDto(
+  receipt: ReceiptRow,
+  subject?: AuthSubject,
+): ReceiptDto {
+  const netAmount = receipt.netAmount.toNumber();
+  let canApprove = false;
+  if (subject) {
+    const notSelf = receipt.createdById !== subject.userId;
+    const secondEyeOk =
+      netAmount <= APPROVAL_SECOND_EYE_THRESHOLD ||
+      subject.roles.some((r) => SECOND_EYE_ROLES.includes(r));
+    canApprove = notSelf && secondEyeOk && can(subject, 'finance', 'receiptApprove');
+  }
   return {
     id: receipt.id,
     code: receipt.code,
@@ -117,8 +143,9 @@ function toReceiptDto(receipt: ReceiptRow): ReceiptDto {
     parentPhone: receipt.parentPhone,
     studentName: receipt.studentName,
     classBatchId: receipt.classBatchId,
-    netAmount: receipt.netAmount.toNumber(),
+    netAmount,
     createdAt: receipt.createdAt,
+    canApprove,
   };
 }
 
@@ -548,7 +575,7 @@ export const financeRouter = router({
         ]);
 
         return {
-          items: rows.map(toReceiptDto),
+          items: rows.map((r) => toReceiptDto(r, ctx.subject ?? undefined)),
           total,
           page: input.page,
           pageSize: input.pageSize,
@@ -570,7 +597,7 @@ export const financeRouter = router({
       if (!receipt) {
         throw notFound('Receipt not found.');
       }
-      return toReceiptDto(receipt);
+      return toReceiptDto(receipt, ctx.subject ?? undefined);
     }),
 
   receiptCreate: requirePermission('finance', 'receiptCreate')
@@ -661,6 +688,7 @@ export const financeRouter = router({
               opportunityId: input.opportunityId,
               studentId: input.studentId,
               parentPhone: input.parentPhone,
+              parentEmail: input.parentEmail ?? null,
               studentName: input.studentName,
               classBatchId: input.classBatchId,
               createdById: ctx.subject.userId,
@@ -671,7 +699,7 @@ export const financeRouter = router({
         },
       );
 
-      const dto = toReceiptDto(created);
+      const dto = toReceiptDto(created, ctx.subject ?? undefined);
 
       const warnings = [dupWarning, opportunityNotAtO4Warning].filter(
         (warning): warning is string => warning !== null,
@@ -706,6 +734,7 @@ export const financeRouter = router({
           id: receipt.id,
           facilityId,
           parentPhone: receipt.parentPhone,
+          parentEmail: receipt.parentEmail ?? undefined,
           studentName: receipt.studentName,
           classBatchId: receipt.classBatchId,
           studentId: receipt.studentId,
@@ -738,7 +767,7 @@ export const financeRouter = router({
         await enqueueReceiptEmailBestEffort(ctx.db, receipt);
       }
 
-      return { receipt: toReceiptDto(receipt), opportunityStage, provisioning };
+      return { receipt: toReceiptDto(receipt, ctx.subject ?? undefined), opportunityStage, provisioning };
     }),
 
   // WF-P1-08: `receiptCancel` is a money-gate action (TL11 §5 catalog gates
@@ -755,7 +784,7 @@ export const financeRouter = router({
         (tx) => runCancelTransaction(tx, facilityId, ctx.subject.userId, input.receiptId, input.reason, input.void),
       );
 
-      return { receipt: toReceiptDto(receipt), opportunityReverted, studentLifecycle };
+      return { receipt: toReceiptDto(receipt, ctx.subject ?? undefined), opportunityReverted, studentLifecycle };
     }),
 
   // WF-P1-08: append-only refund ledger, capped at netAmount (I5).
@@ -782,8 +811,10 @@ export const financeRouter = router({
  */
 export async function enqueueReceiptEmail(
   db: PrismaClient,
-  receipt: { id: string; parentPhone: string; studentName: string; kind: string },
+  receipt: { id: string; parentEmail: string | null; studentName: string; kind: string },
 ): Promise<void> {
+  if (!receipt.parentEmail) return;
+
   const existing = await db.$queryRaw<{ id: string }[]>`
     SELECT "id" FROM "EmailOutbox" WHERE "payload"->>'receiptId' = ${receipt.id} LIMIT 1
   `;
@@ -793,7 +824,7 @@ export async function enqueueReceiptEmail(
   // failed); there is no separate "queued" status in the schema.
   await db.emailOutbox.create({
     data: {
-      to: receipt.parentPhone,
+      to: receipt.parentEmail,
       transport: 'brevo',
       status: 'pending',
       payload: { receiptId: receipt.id, studentName: receipt.studentName, kind: receipt.kind },
@@ -819,20 +850,24 @@ export async function enqueueReceiptEmail(
  */
 export async function enqueueReceiptEmailBestEffort(
   db: PrismaClient,
-  receipt: { id: string; parentPhone: string; studentName: string; kind: string },
+  receipt: { id: string; parentEmail: string | null; studentName: string; kind: string },
   enqueue: typeof enqueueReceiptEmail = enqueueReceiptEmail,
 ): Promise<void> {
   try {
     await enqueue(db, receipt);
   } catch (error) {
-    await db.auditLog.create({
-      data: {
-        actor: 'system',
-        action: 'email.enqueue_failed',
-        entity: 'Receipt',
-        entityId: receipt.id,
-        data: { error: error instanceof Error ? error.message : String(error) },
-      },
-    });
+    try {
+      await db.auditLog.create({
+        data: {
+          actor: 'system',
+          action: 'email.enqueue_failed',
+          entity: 'Receipt',
+          entityId: receipt.id,
+          data: { error: error instanceof Error ? error.message : String(error) },
+        },
+      });
+    } catch {
+      // DB also unavailable — truly swallow so provisioning success is never masked
+    }
   }
 }

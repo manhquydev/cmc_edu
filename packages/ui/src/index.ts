@@ -39,3 +39,37 @@ export const tokens = {
 } as const;
 
 export type Tokens = typeof tokens;
+
+// Mantine theme
+export { cmcTheme } from './theme.js';
+
+// Primitive components (DUMB — no tRPC calls, props-driven only)
+export { StatusBadge } from './components/status-badge.js';
+export type { StatusBadgeProps } from './components/status-badge.js';
+
+export { PageHeader } from './components/page-header.js';
+export type { PageHeaderProps, Breadcrumb } from './components/page-header.js';
+
+export { DataTable } from './components/data-table.js';
+export type { DataTableProps, TableColumn } from './components/data-table.js';
+
+export { EmptyState } from './components/empty-state.js';
+export type { EmptyStateProps } from './components/empty-state.js';
+
+export { StatCard } from './components/stat-card.js';
+export type { StatCardProps } from './components/stat-card.js';
+
+export { FilterBar } from './components/filter-bar.js';
+export type { FilterBarProps, FilterDef } from './components/filter-bar.js';
+
+export { MasterDetail } from './components/master-detail.js';
+export type { MasterDetailProps } from './components/master-detail.js';
+
+export { CmcTabs } from './components/cmc-tabs.js';
+export type { CmcTabsProps, CmcTabDef } from './components/cmc-tabs.js';
+
+export { ConfirmDialog } from './components/confirm-dialog.js';
+export type { ConfirmDialogProps } from './components/confirm-dialog.js';
+
+export { ResultPanel } from './components/result-panel.js';
+export type { ResultPanelProps, ResultStatus } from './components/result-panel.js';

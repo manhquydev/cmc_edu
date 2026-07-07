@@ -23,6 +23,7 @@ import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { InvalidPhoneError, normalizeLoginPhone } from '@cmc/domain-identity';
 import { badRequest, notFound } from '../errors.js';
+import { hashPassword } from '../lms-auth/password-hash.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
 const studentLookupInput = z
@@ -56,6 +57,60 @@ function normalizeOrReject(rawPhone: string): string {
 }
 
 export const studentRouter = router({
+  /**
+   * C1/phase-01b: staff resets a student's password to the system default
+   * (`Cmc2026@`), forcing a password change on next login. Director-only —
+   * same separation-of-duties roster as `finance.receiptApprove` (a sensitive
+   * account-mutation that staff must be accountable for).
+   *
+   * Facility-scoped: the student must belong to the caller's facility. This
+   * prevents a staff member at one facility from resetting a student's password
+   * at a different facility.
+   */
+  resetPassword: requirePermission('studentAccount', 'resetPassword')
+    .input(z.object({ studentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }): Promise<{ ok: true }> => {
+      const { facilityId } = scoped(ctx);
+
+      // Verify the student exists in this facility.
+      const student = await withFacility(ctx.db, facilityId, (tx) =>
+        tx.student.findFirst({
+          where: { id: input.studentId, facilityId },
+          select: { id: true },
+        }),
+      );
+      if (!student) throw notFound('Student not found.');
+
+      // StudentAccount carries no RLS — plain lookup by studentId.
+      const studentAccount = await ctx.db.studentAccount.findUnique({
+        where: { studentId: input.studentId },
+        select: { id: true },
+      });
+      if (!studentAccount) throw notFound('No student account found for this student.');
+
+      await ctx.db.studentAccount.update({
+        where: { id: studentAccount.id },
+        data: {
+          passwordHash: hashPassword('Cmc2026@'),
+          mustChangePassword: true,
+          loginAttempts: 0,
+          loginLockedUntil: null,
+        },
+      });
+
+      await ctx.db.auditLog.create({
+        data: {
+          actor: ctx.subject!.userId,
+          action: 'student.resetPassword',
+          entity: 'StudentAccount',
+          entityId: studentAccount.id,
+          data: { studentId: input.studentId, facilityId },
+        },
+      });
+
+      return { ok: true };
+    }),
+
   /**
    * P4: General student lifecycle mutation (active | blocked_lms | withdrawn).
    * Director-only — same separation-of-duties rationale as finance.receiptApprove.
@@ -101,6 +156,102 @@ export const studentRouter = router({
 
         return updated;
       });
+    }),
+
+  /**
+   * Single student by ID — used by the student detail page (docs/08 §7:
+   * same child-data disclosure rules as `lookup`; facility-scoped).
+   */
+  get: requirePermission('student', 'lookup')
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }): Promise<{ id: string; fullName: string; lifecycle: string; parentPhone: string | null } | null> => {
+      const { facilityId } = scoped(ctx);
+      const student = await withFacility(ctx.db, facilityId, (tx) =>
+        tx.student.findFirst({
+          where: { id: input.id, facilityId },
+          select: { id: true, fullName: true, lifecycle: true },
+        }),
+      );
+      if (!student) return null;
+
+      const guardian = await ctx.db.guardian.findFirst({
+        where: { studentId: student.id, facilityId },
+        select: { parentAccountId: true },
+      });
+      let parentPhone: string | null = null;
+      if (guardian) {
+        const parent = await ctx.db.parentAccount.findUnique({
+          where: { id: guardian.parentAccountId },
+          select: { phone: true },
+        });
+        parentPhone = parent?.phone ?? null;
+      }
+
+      await ctx.db.auditLog.create({
+        data: {
+          actor: ctx.subject.userId,
+          action: 'student.get',
+          entity: 'Student',
+          entityId: student.id,
+          data: { facilityId },
+        },
+      });
+
+      return { id: student.id, fullName: student.fullName, lifecycle: student.lifecycle, parentPhone };
+    }),
+
+  /**
+   * Batch student lookup by IDs — used by the attendance page to resolve
+   * session roster UUIDs to display names and parent phones.
+   * Same child-data disclosure rules as `lookup` (docs/08 §7).
+   */
+  getManyByIds: requirePermission('student', 'lookup')
+    .input(z.object({ ids: z.array(z.string().uuid()).max(100) }))
+    .query(async ({ ctx, input }): Promise<Array<{ id: string; fullName: string; parentPhone: string | null }>> => {
+      const { facilityId } = scoped(ctx);
+      if (input.ids.length === 0) return [];
+
+      const students = await withFacility(ctx.db, facilityId, (tx) =>
+        tx.student.findMany({
+          where: { id: { in: input.ids }, facilityId },
+          select: { id: true, fullName: true },
+        }),
+      );
+      if (students.length === 0) return [];
+
+      const guardians = await ctx.db.guardian.findMany({
+        where: { studentId: { in: students.map((s) => s.id) }, facilityId },
+        select: { studentId: true, parentAccountId: true },
+      });
+      const parentIds = [...new Set(guardians.map((g) => g.parentAccountId))];
+      const parents = await ctx.db.parentAccount.findMany({
+        where: { id: { in: parentIds } },
+        select: { id: true, phone: true },
+      });
+      const parentById = new Map(parents.map((p) => [p.id, p]));
+      const phoneByStudentId = new Map(
+        guardians.map((g) => [g.studentId, parentById.get(g.parentAccountId)?.phone ?? null]),
+      );
+
+      const result = students.map((s) => ({
+        id: s.id,
+        fullName: s.fullName,
+        parentPhone: phoneByStudentId.get(s.id) ?? null,
+      }));
+
+      // docs/08 §7: child-data disclosure to staff — audit every returned row,
+      // same pattern as student.lookup (lines ~281-290).
+      await ctx.db.auditLog.createMany({
+        data: result.map((s) => ({
+          actor: ctx.subject.userId,
+          action: 'student.getManyByIds',
+          entity: 'Student',
+          entityId: s.id,
+          data: { facilityId },
+        })),
+      });
+
+      return result;
     }),
 
   lookup: requirePermission('student', 'lookup')

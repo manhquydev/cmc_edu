@@ -25,9 +25,9 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐  │
 │  │ Frontend (Vite+React)                               │  │
-│  │ - Admin dashboard (P0 scaffold)                     │  │
-│  │ - LMS portal (parent+student, P2+)                 │  │
-│  │ - Uses tRPC client + JWT from lmsAuth              │  │
+│  │ - apps/admin: ERP SPA, 30 routes, Mantine v7       │  │
+│  │ - apps/lms: LMS SPA, kind gate (parent/student)    │  │
+│  │ - tRPC client; dev-auth via x-dev-user header      │  │
 │  └──────────────────┬──────────────────────────────────┘  │
 │                     │                                      │
 │  ┌──────────────────▼──────────────────────────────────┐  │
@@ -56,19 +56,25 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 ## Layers & Responsibilities
 
 ### 1. Frontend (Vite+React)
-**Status:** P0 scaffold only (admin app stub)
+**Status:** Two apps shipped — ERP admin (phases 02–06) + LMS portal (phase 07)
 
-- `apps/admin/` — placeholder Vite+React app  
-- Entry: `apps/admin/src/main.tsx`  
-- Uses `@cmc/ui` for design tokens  
+**apps/admin/** — ERP SPA, ~30 routes
+- Mantine v7 + `@cmc/ui` (cmcTheme + 10 components)
+- tRPC client gated with `x-dev-user` header (dev auth until Entra SSO)
+- Route groups: sales, teaching, hr, finance, admin + generic table coverage
+- `can()` RBAC guards per route; `session.me` for over-threshold role check
 
-**P2+ Requirements:**
-- Parent portal: `enrollment.mine` (approved children list)  
-- Opportunity kanban: `crm.opportunityList` (paginated)  
-- Enrollment flow: forms for `enrollment.enroll`, `crm.opportunityCreate`  
-- LMS parent dashboard: receipt history, student progress  
+**apps/lms/** — LMS SPA, mobile-first
+- Parent sessions (`kind:'parent'`): email-OTP login, child picker, session evidence (consent-gated photos), report card, reset child password, consent settings
+- Student sessions (`kind:'student'`): phone+password login, `mustChangePassword` gate, exercises (open-tier), PDF annotation submit, star balance + gift redemption
+- **Kind guards:** `ParentOnly`/`StudentOnly` route wrappers in `kind-guard.tsx` — redirect to `/login` on wrong kind; backend `requireLmsParent`/`requireLmsStudent` re-gates every procedure
+- Session: `parseLmsToken` (base64url, unsigned placeholder — P0-debt: add HMAC signing)
+- `x-dev-lms-user` header (dev auth, `import.meta.env.DEV`-gated `DevHeaderWriter`)
 
-**Auth Integration:** Retrieves JWT from `lmsAuth.verifyOtp`, attaches to tRPC client
+**Auth Integration:**
+- Staff: `x-dev-user` header (dev), Entra SSO (P0-debt)
+- LMS Parent: `lmsAuth.requestOtpEmail` / `verifyOtpEmail` — **BLOCKED-ON-COMMS** (ConsoleEmailTransport stub; OTP visible in server log only until Brevo/Graph creds configured)
+- LMS Student: `lmsAuth.loginStudent` (PBKDF2-SHA256, mustChangePassword, 5-attempt lockout)
 
 ---
 

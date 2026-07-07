@@ -25,9 +25,6 @@ import { ictToUtc } from '@cmc/domain-time';
 
 let facilityId: string;
 let employeeAppUserId: string;
-let otherAppUserId: string;
-let shiftGroupId: string;
-let shiftTemplateId: string;
 
 const DIRECTOR_USER_ID  = 'payroll-test-director-001';
 const EMPLOYEE_USER_ID  = 'payroll-test-employee-001';
@@ -63,13 +60,12 @@ beforeEach(async () => {
   });
   employeeAppUserId = employee.id;
 
-  const other = await seedAppUser({
+  await seedAppUser({
     facilityId,
     userId: OTHER_USER_ID,
     fullName: 'Trần Người Khác',
     position: 'sale',
   });
-  otherAppUserId = other.id;
 
   // Director (no AppUser needed for director actions in payroll)
   await seedAppUser({
@@ -90,8 +86,6 @@ beforeEach(async () => {
       },
     }),
   );
-  shiftGroupId = group.id;
-
   const template = await testDbBypass((tx) =>
     tx.shiftTemplate.create({
       data: {
@@ -103,7 +97,6 @@ beforeEach(async () => {
       },
     }),
   );
-  shiftTemplateId = template.id;
 
   // Seed an approved ShiftRegistration + Entry for TEST_DATE
   const reg = await testDbBypass((tx) =>

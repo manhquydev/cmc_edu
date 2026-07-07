@@ -113,8 +113,8 @@ export async function seedActiveEnrollment(
 
 /** Deletes every row this e2e run's dedicated Facility could have created,
  * then the Facility itself — same FK-ordered teardown shape as
- * apps/api/src/test/db.ts's `cleanupFacility`, trimmed to what the 2 e2e
- * specs actually create. */
+ * apps/api/src/test/db.ts's `cleanupFacility`, extended for phase-08 specs
+ * that create Submissions/StarTransactions/FinalGrades. */
 export async function cleanupFacility(facilityId: string): Promise<void> {
   const db = getDb();
 
@@ -128,6 +128,11 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
     db,
     null,
     async (tx) => {
+      // Phase-08 additions: Submission-derived tables before Submission, then
+      // StarTransaction/FinalGrade before Enrollment/Student.
+      await tx.finalGrade.deleteMany({ where: { facilityId } });
+      await tx.starTransaction.deleteMany({ where: { facilityId } });
+      await tx.submission.deleteMany({ where: { facilityId } });
       await tx.studentAccount.deleteMany({ where: { student: { facilityId } } });
       await tx.enrollment.deleteMany({ where: { facilityId } });
       await tx.student.deleteMany({ where: { facilityId } });
@@ -146,6 +151,86 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
 
   await db.receiptCodeCounter.deleteMany({ where: { facilityId } });
   await db.facility.deleteMany({ where: { id: facilityId } });
+}
+
+// ---------------------------------------------------------------------------
+// Phase-08: exercise + submission seeding helpers
+// ---------------------------------------------------------------------------
+
+/** Seeds a global CurriculumUnit + published Exercise. Both are facility-
+ * agnostic (no facilityId). Clean up with `cleanupExercises(exerciseId)`. */
+export async function seedPublishedExercise(opts?: {
+  maxScore?: number;
+  starReward?: number;
+}): Promise<{ unitId: string; exerciseId: string }> {
+  const db = getDb();
+  const unit = await db.curriculumUnit.create({
+    data: {
+      program: 'UCREA',
+      level: 1,
+      monthIndex: 1,
+      unitType: 'LESSON',
+      title: `E2E Unit ${randomUUID().slice(0, 8)}`,
+    },
+  });
+  const exercise = await db.exercise.create({
+    data: {
+      curriculumUnitId: unit.id,
+      type: 'homework',
+      basePdfRef: 'e2e/test.pdf',
+      maxScore: opts?.maxScore ?? 10,
+      starReward: opts?.starReward ?? 5,
+      status: 'published',
+      createdById: 'e2e-seed',
+    },
+  });
+  return { unitId: unit.id, exerciseId: exercise.id };
+}
+
+/** Seeds a Submission in 'submitted' state directly in the DB (bypassing the
+ * LMS open-tier gate) — use when the spec targets `submission.grade` rather
+ * than the student submission flow. */
+export async function seedSubmittedSubmission(opts: {
+  facilityId: string;
+  studentId: string;
+  exerciseId: string;
+}): Promise<{ submissionId: string }> {
+  return withFacility(
+    getDb(),
+    null,
+    async (tx) => {
+      const submission = await tx.submission.create({
+        data: {
+          facilityId: opts.facilityId,
+          studentId: opts.studentId,
+          exerciseId: opts.exerciseId,
+          annotationLayer: {},
+          status: 'submitted',
+          submittedAt: new Date(),
+          version: 1,
+        },
+      });
+      return { submissionId: submission.id };
+    },
+    { bypass: true },
+  );
+}
+
+/** Deletes globally-scoped Exercise rows and their CurriculumUnits by
+ * exercise ID. Call in afterAll after `cleanupFacility` (which removes
+ * facility-scoped Submission rows that reference these exercises). */
+export async function cleanupExercises(...exerciseIds: string[]): Promise<void> {
+  if (exerciseIds.length === 0) return;
+  const db = getDb();
+  const exercises = await db.exercise.findMany({
+    where: { id: { in: exerciseIds } },
+    select: { id: true, curriculumUnitId: true },
+  });
+  await db.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
+  const unitIds = [...new Set(exercises.map((e) => e.curriculumUnitId))];
+  if (unitIds.length > 0) {
+    await db.curriculumUnit.deleteMany({ where: { id: { in: unitIds } } });
+  }
 }
 
 /** ParentAccount/LoginOtp are system-wide (phone-keyed, not facility-scoped)

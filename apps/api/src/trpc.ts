@@ -14,10 +14,15 @@ import { badRequest, forbidden, unauthorized } from './errors.js';
  * LMS session subject (parent/student, TL11 §1). A distinct identity space
  * from staff `AuthSubject` — the two are never conflated, and `lmsProcedure`
  * never falls back to a staff session.
+ *
+ * `kind` distinguishes a parent session (phone/email OTP) from a student
+ * session (password login). Gates that must be parent-only or student-only
+ * check this field after `lmsProcedure` confirms the subject is non-null.
  */
 export interface LmsSubject {
   parentAccountId: string;
   studentId?: string;
+  kind: 'parent' | 'student';
 }
 
 export interface Context {
@@ -155,8 +160,47 @@ export function requireLmsStudent(ctx: Context): { parentAccountId: string; stud
   if (!ctx.lmsSubject) {
     throw unauthorized('LMS session required.');
   }
+  if (ctx.lmsSubject.kind !== 'student') {
+    throw forbidden('Student session required.');
+  }
   if (!ctx.lmsSubject.studentId) {
     throw badRequest('A student profile must be selected first.');
   }
   return { parentAccountId: ctx.lmsSubject.parentAccountId, studentId: ctx.lmsSubject.studentId };
+}
+
+/**
+ * Parent-only gate — symmetric counterpart to `requireLmsStudent`. Use this
+ * in every procedure that operates on behalf of the parent identity
+ * (setPhotoConsent, listChildren/enrollment.mine, resetChildPassword, etc.)
+ * so a student session cannot reach parent-only data paths.
+ */
+export function requireLmsParent(ctx: Context): { parentAccountId: string } {
+  if (!ctx.lmsSubject) {
+    throw unauthorized('LMS session required.');
+  }
+  if (ctx.lmsSubject.kind !== 'parent') {
+    throw forbidden('Parent session required.');
+  }
+  return { parentAccountId: ctx.lmsSubject.parentAccountId };
+}
+
+/**
+ * Server-side guard for the mustChangePassword flag. Must be called at the start
+ * of every student-facing mutation that modifies domain state (submit, redeem,
+ * etc.). A DB round-trip is required because the session token is not yet HMAC-
+ * signed (P0-debt) — relying on the token value alone would be client-bypassable.
+ *
+ * Query procedures (listForStudent, openForStudent) are intentionally exempt:
+ * a student who has not yet changed their password can still read their history
+ * and view exercises, but cannot submit new work or redeem rewards.
+ */
+export async function assertPasswordNotExpired(ctx: Context, studentId: string): Promise<void> {
+  const account = await ctx.db.studentAccount.findUnique({
+    where: { studentId },
+    select: { mustChangePassword: true },
+  });
+  if (account?.mustChangePassword) {
+    throw forbidden('Password change required before proceeding.');
+  }
 }

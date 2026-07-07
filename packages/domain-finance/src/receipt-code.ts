@@ -14,5 +14,5 @@ export function nextReceiptCode(counterValue: number): string {
   }
 
   const next = counterValue + 1;
-  return `PT-${String(next).padStart(6, '0')}`;
+  return `SO${String(next).padStart(5, '0')}`;
 }

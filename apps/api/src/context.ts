@@ -28,6 +28,8 @@ const devUserHeaderSchema = z.object({
 const devLmsUserHeaderSchema = z.object({
   parentAccountId: z.string().min(1),
   studentId: z.string().min(1).optional(),
+  // Default 'parent' so existing dev headers without kind continue to work.
+  kind: z.enum(['parent', 'student']).default('parent'),
 });
 
 /**

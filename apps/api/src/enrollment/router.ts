@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { notFound } from '../errors.js';
 import { auditChildDataAccess, getApprovedChildren } from '../guardian/approved-children.js';
-import { lmsProcedure, requirePermission, router, scoped } from '../trpc.js';
+import { lmsProcedure, requireLmsParent, requirePermission, router, scoped } from '../trpc.js';
 
 const enrollInput = z.object({
   studentId: z.string().uuid(),
@@ -116,6 +116,10 @@ export const enrollmentRouter = router({
   // approved-guardian children only, excluding any `blocked_lms` child
   // (docs/19 §2), via the shared gate in ../guardian/approved-children.ts.
   //
+  // Parent-only: students see their own enrollment via submission context,
+  // not the parent-facing multi-child list. A student trying to call this
+  // endpoint gets FORBIDDEN to prevent sibling enumeration.
+  //
   // Runs with the RLS bypass GUC (not a facility scope): a parent session has
   // no single facilityId, and a parent's children may legitimately be
   // enrolled across different facilities (franchise branches) — the real
@@ -123,7 +127,9 @@ export const enrollmentRouter = router({
   // not facility membership (same rationale as the Guardian/GuardianLinkRequest
   // RLS exemption, schema.prisma).
   mine: lmsProcedure.query(async ({ ctx }): Promise<EnrollmentMineDto[]> => {
-    const children = await getApprovedChildren(ctx.db, ctx.lmsSubject.parentAccountId);
+    const { parentAccountId } = requireLmsParent(ctx);
+
+    const children = await getApprovedChildren(ctx.db, parentAccountId);
     if (children.length === 0) return [];
 
     const nameByStudentId = new Map(children.map((c) => [c.studentId, c.fullName]));
@@ -141,9 +147,10 @@ export const enrollmentRouter = router({
     // M3 remediation (docs/08 §7): this is a real child-data disclosure to
     // the parent — audit it (one row per student actually returned).
     await auditChildDataAccess(ctx.db, {
-      parentAccountId: ctx.lmsSubject.parentAccountId,
+      parentAccountId,
       studentIds: children.map((c) => c.studentId),
       via: 'enrollment.mine',
+      actorKind: 'parent',
     });
 
     return enrollments.map((e) => ({

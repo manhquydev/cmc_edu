@@ -19,7 +19,7 @@
 
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
-import { ictToUtc, ictDateOnlyOf, resolveShiftGroup } from '@cmc/domain-time';
+import { ictToUtc, resolveShiftGroup } from '@cmc/domain-time';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { protectedProcedure, requirePermission, router, scoped } from '../trpc.js';
 

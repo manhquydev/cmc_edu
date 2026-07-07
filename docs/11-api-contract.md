@@ -90,7 +90,11 @@ narrow `status==='success'`** trước khi đọc payload. Đây là hợp đồ
 ### Identity / Platform
 | Procedure | Loại | Quyền | Ghi chú |
 |---|---|---|---|
-| `auth.*` / `lmsAuth.*` | — | — | SSO staff / OTP-phone PH |
+| `auth.*` / `lmsAuth.*` | — | — | SSO staff / 2-tier LMS auth (xem decision note bên dưới) |
+
+> **product-decision 2026-07-07**: Auth LMS đảo 2 tầng — ngược với QĐ0033/WF-P1-07 cũ (phone+OTP đơn tài khoản). Hành vi trước đây: phụ huynh đăng nhập bằng SĐT + OTP SMS/phone. Hành vi hiện tại: (a) **Phụ huynh** (`kind='parent'`) đăng nhập bằng **email + OTP qua email**; procedure: `lmsAuth.requestEmailOtp` / `lmsAuth.verifyEmailOtp`. (b) **Học sinh** (`kind='student'`) đăng nhập bằng **SĐT phụ huynh + password**; procedure: `lmsAuth.studentLogin`. `LmsSubject.kind` là discriminator phân tách session. Tham chiếu: UI implementation plan phase 01a/01b.
+>
+> **BLOCKED-ON-COMMS**: Luồng (a) email OTP **chưa hoạt động trong production** — `ConsoleEmailTransport` chỉ ghi log, không gửi email thật. Sẽ được mở khoá khi cung cấp Brevo API key hoặc MS Graph credentials. Không được tài liệu hoá luồng email OTP PH như đang chạy trong production cho đến khi dependency này được giải quyết.
 | `student.lookup` | query | `student.lookup` (staff-only, K4) | `{ phone?, name? }` → `{id, fullName, lifecycle}[]`; facility-scoped, mỗi kết quả không rỗng được audit (docs/08 §7). Nguồn `studentId` hợp lệ cho renewal (`receiptCreate.studentId`) / `enrollment.enroll.studentId`. |
 | `guardian.listPendingLinks` | query | `guardian.listPendingLinks` (roster = `approveLink`, K3) | `{ status?='pending', page?, pageSize? }` | hàng đợi `GuardianLinkRequest` cho staff duyệt |
 | `student.*` (khác) · `guardian.*` (khác) | mutation/query | role-gate | không có UI tạo student mồ côi |

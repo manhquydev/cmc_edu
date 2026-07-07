@@ -20,7 +20,7 @@
 // Payslip is append-like: cmc_app has no DELETE grant.
 
 import { z } from 'zod';
-import { withFacility, Prisma } from '@cmc/db';
+import { withFacility } from '@cmc/db';
 import { ictMonthBounds, ictDateOnlyOf, ictToUtc } from '@cmc/domain-time';
 import { assembleSlip } from '@cmc/domain-payroll';
 import { badRequest, forbidden, notFound } from '../errors.js';
@@ -246,10 +246,13 @@ export const payslipRouter = router({
                 updatedAt: new Date(),
               },
             });
-          } catch (err) {
+          } catch (err: unknown) {
+            // P2025 = row targeted by updateMany was concurrently finalized.
             if (
-              err instanceof Prisma.PrismaClientKnownRequestError &&
-              err.code === 'P2025'
+              err !== null &&
+              typeof err === 'object' &&
+              'code' in err &&
+              (err as { code: unknown }).code === 'P2025'
             ) {
               throw badRequest('Payslip was finalized concurrently; cannot assemble.');
             }
@@ -303,7 +306,7 @@ export const payslipRouter = router({
   // payslip.reopen — revert finalized → draft for reassembly
   // -------------------------------------------------------------------------
   reopen: requirePermission('payslip', 'reopen')
-    .input(finalizeInput)
+    .input(reopenInput)
     .mutation(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
       return withFacility(ctx.db, facilityId, async (tx) => {

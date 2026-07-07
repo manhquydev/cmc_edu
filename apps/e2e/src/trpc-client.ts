@@ -34,13 +34,33 @@ export function createStaffClient(baseUrl: string, staff: DevStaffIdentity) {
 }
 
 /** A parent/LMS-session client (`x-dev-lms-user`) — `enrollment.mine`,
- * `guardian.requestLink`. */
+ * `guardian.requestLink`.
+ *
+ * @deprecated Use `createSignedLmsClient` for mode-B (V3) e2e runs.
+ * This variant only works when `NODE_ENV !== 'production'` (DEV_AUTH_ENABLED).
+ */
 export function createLmsClient(baseUrl: string, lms: DevLmsIdentity) {
   return createTRPCClient<AppRouter>({
     links: [
       httpBatchLink({
         url: baseUrl,
         headers: () => ({ 'x-dev-lms-user': JSON.stringify(lms) }),
+      }),
+    ],
+  });
+}
+
+/**
+ * Mode B (V3): LMS client using a properly HMAC-SHA256 signed Bearer token.
+ * Works in both dev and production-mode API servers — no DEV_AUTH_ENABLED required.
+ * Pass a token from `mintParentToken()` or `mintStudentToken()` in session-injection.ts.
+ */
+export function createSignedLmsClient(baseUrl: string, bearerToken: string) {
+  return createTRPCClient<AppRouter>({
+    links: [
+      httpBatchLink({
+        url: baseUrl,
+        headers: () => ({ authorization: `Bearer ${bearerToken}` }),
       }),
     ],
   });

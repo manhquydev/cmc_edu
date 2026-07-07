@@ -26,6 +26,16 @@ import {
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
+const API_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? 'http://localhost:3000';
+
+function photoUrl(blobRef: string): string {
+  if (blobRef.startsWith('http')) return blobRef;
+  if (blobRef.startsWith('session-photos/')) {
+    return `${API_URL}/upload/session-photo?ref=${encodeURIComponent(blobRef)}`;
+  }
+  return blobRef;
+}
+
 export default function SessionEvidencePage() {
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
@@ -96,11 +106,9 @@ export default function SessionEvidencePage() {
               {item.photos.length > 0 ? (
                 <SimpleGrid cols={3} spacing="xs">
                   {item.photos.map((photo) => (
-                    // blobRef is a storage key/path — rendered as img src.
-                    // Never cache or expose outside this consent-gated component.
                     <Image
                       key={photo.id}
-                      src={photo.blobRef}
+                      src={photoUrl(photo.blobRef)}
                       alt="Ảnh buổi học"
                       radius="sm"
                       h={100}

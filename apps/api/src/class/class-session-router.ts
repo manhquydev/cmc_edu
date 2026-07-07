@@ -73,7 +73,24 @@ function toClassSessionDto(row: {
   };
 }
 
+const listSessionsInput = z.object({
+  classBatchId: z.string().uuid(),
+});
+
 export const classSessionRouter = router({
+  // Read-only: list all sessions for a batch (schedule, confirm/cancel UI).
+  list: requirePermission('class', 'create')
+    .input(listSessionsInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const rows = await tx.classSession.findMany({
+          where: { classBatchId: input.classBatchId, facilityId },
+          orderBy: { sessionDate: 'asc' },
+        });
+        return rows.map(toClassSessionDto);
+      });
+    }),
   // planned/confirmed -> cancelled. Cancelled sessions are excluded from
   // attendance (docs/19 §5 gate 1) — enforced in ../attendance/router.ts.
   cancel: requirePermission('schedule', 'generate')

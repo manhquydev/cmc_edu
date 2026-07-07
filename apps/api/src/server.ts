@@ -10,7 +10,10 @@ import { createHTTPHandler } from '@trpc/server/adapters/standalone';
 import { createPrismaClient } from '@cmc/db';
 import { appRouter } from './router.js';
 import { createContext } from './context.js';
-import { EXERCISE_PDF_UPLOAD_PATH, handleExercisePdfUpload, handleExercisePdfGet } from './exercise/upload-route.js';
+import {
+  EXERCISE_PDF_UPLOAD_PATH, handleExercisePdfUpload, handleExercisePdfGet,
+  SESSION_PHOTO_UPLOAD_PATH, handleSessionPhotoUpload, handleSessionPhotoGet,
+} from './exercise/upload-route.js';
 import { assertCmcAppNotSuperuser } from './boot-checks.js';
 
 const port = Number(process.env.PORT ?? 3000);
@@ -40,6 +43,22 @@ const server = createServer((req, res) => {
       if (!res.headersSent) {
         res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
       }
+      res.end(JSON.stringify({ error: 'Fetch failed.' }));
+    });
+    return;
+  }
+  if (req.method === 'POST' && urlPath === SESSION_PHOTO_UPLOAD_PATH) {
+    handleSessionPhotoUpload(req, res).catch((error: unknown) => {
+      console.error('[api] session-photo upload failed:', error);
+      if (!res.headersSent) res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Upload failed.' }));
+    });
+    return;
+  }
+  if (req.method === 'GET' && urlPath === SESSION_PHOTO_UPLOAD_PATH) {
+    handleSessionPhotoGet(req, res).catch((error: unknown) => {
+      console.error('[api] session-photo get failed:', error);
+      if (!res.headersSent) res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: 'Fetch failed.' }));
     });
     return;

@@ -34,6 +34,8 @@ export const NAV_MODULES: NavModule[] = [
       { id: 'schedule', label: 'Lịch dạy', path: '/teaching/schedule', icon: '📅' },
       { id: 'attendance', label: 'Điểm danh', path: '/teaching/attendance', icon: '✅', permission: { module: 'attendance', action: 'mark' } },
       { id: 'grading', label: 'Chấm bài', path: '/teaching/grading', icon: '📝', permission: { module: 'submission', action: 'grade' } },
+      { id: 'session-evidence', label: 'Nhật ký buổi học', path: '/teaching/session-evidence', icon: '📸' },
+      { id: 'exercises', label: 'Bài tập', path: '/teaching/exercises', icon: '📋', permission: { module: 'exercise', action: 'manage' } },
     ],
   },
   {

@@ -12,6 +12,13 @@ export default defineConfig({
     },
   },
   test: {
+    // Explicitly forward DB connection env vars to vitest worker contexts.
+    // Prisma 6 resolves env("DATABASE_URL") from the schema at engine startup;
+    // vitest workers may not inherit all parent env vars in every pool mode.
+    env: {
+      ...(process.env.DATABASE_URL && { DATABASE_URL: process.env.DATABASE_URL }),
+      ...(process.env.APP_DATABASE_URL && { APP_DATABASE_URL: process.env.APP_DATABASE_URL }),
+    },
     // Integration tests hit ONE real, shared dev Postgres instance (no
     // per-worker isolated schema) — running test FILES in parallel (Vitest's
     // default) intermittently produces spurious FK-constraint errors during

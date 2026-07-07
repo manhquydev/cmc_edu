@@ -67,6 +67,13 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -U postgres -d cmc_ci \
             -c "ALTER ROLE cmc_app WITH PASSWORD '${CMC_APP_PASSWORD}';"
 
+      # Prisma 6 validates env("DATABASE_URL") from schema.prisma at engine
+      # startup (separate from Node.js process.env). Writing prisma/.env gives
+      # the engine a dotenv fallback so schema validation passes even when the
+      # engine subprocess can't read the CI job-level env directly.
+      - name: Write Prisma .env (CI schema validation)
+        run: printf 'DATABASE_URL=%s\nAPP_DATABASE_URL=%s\n' "$DATABASE_URL" "$APP_DATABASE_URL" > packages/db/prisma/.env
+
       - name: Typecheck
         run: pnpm typecheck
 

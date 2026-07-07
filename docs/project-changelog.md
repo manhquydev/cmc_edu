@@ -6,6 +6,26 @@
 
 ---
 
+## [2026-07-07] G0 — Xanh hoá main: test drift fixes + phase-01b alignment (PR #12)
+
+**Test drift: giao_vien student.lookup (K4)**
+- `packages/auth/src/index.ts:71-75` intentionally added `giao_vien` to `student.lookup` roster (attendance name resolution, RLS + facilityId predicate). Unit tests (`@cmc/auth`) and API integration tests (`student/lookup.test.ts`) were still asserting the old FORBIDDEN state.
+- Fix: updated to assert allowed; added `cskh` deny guard to preserve K4 scope.
+- Files: `packages/auth/src/index.test.ts`, `apps/api/src/student/lookup.test.ts`
+
+**Test drift: kind:'student' two-tier auth (phase-01b)**
+- Migration `20260707120000_phase01b_lms_auth_two_tier` added `kind` field to LMS sessions; `requireLmsStudent` now checks `kind !== 'student'` → FORBIDDEN before checking `!studentId` → BAD_REQUEST. All student-facing test callers used the default `kind:'parent'`, causing FORBIDDEN where tests expected success.
+- Fix: added `kind:'student'` to all `studentCaller` helpers and inline `buildLmsContext` calls; 'no selected student' negative tests now use `kind:'student'` + no `studentId`.
+- Files: `apps/api/src/exercise/open-tier.test.ts`, `rewards/redeem-refund.test.ts`, `submission/grade.test.ts`, `submission/annotate-submit.test.ts`, `submission/teacher-annotation.test.ts`
+
+**domain-time: passWithNoTests**
+- Package has no test files; `vitest run` exits 1 on no-match by default. Added `--passWithNoTests` (standard flag; does not suppress failing tests).
+- File: `packages/domain-time/package.json`
+
+**Result:** 402/402 tests green (net +1 from lookup test split); typecheck 26/26; build 14/14.
+
+---
+
 ## [2026-07-07] Code-review bug fixes (retroactive harness pass, wave 2)
 
 **PDF viewer always returning 400 in grading screen**

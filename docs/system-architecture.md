@@ -1,8 +1,8 @@
 # CMC EDU v2 — System Architecture (As-Built)
 
-**Date:** 2026-07-06  
-**Phase:** P1 Identity & Enrollment (complete)  
-**Build Status:** Merged to main, 137/137 tests passing
+**Date:** 2026-07-08  
+**Phase:** P1–P3 complete (SSO landing · flow audit) · Phase 4 UAT pending  
+**Build Status:** Merged to main · 473/473 tests passing (13 skipped — lms-auth-two-tier) · 26/26 typecheck green
 
 ---
 
@@ -130,14 +130,18 @@ Response (DTO serialization)
 requirePermission('crm', 'opportunityCreate')  // checks registry
 ```
 
-**Roles (7 total):**
-- `super_admin` — bypass most gates (bootstrap, hardening context)  
-- `giam_doc_dao_tao` — director of education (approval authority, second eye)  
-- `giam_doc_kinh_doanh` — business director (money gate, self-approval)  
-- `sale` — sales staff (lead entry, opportunity advancement)  
-- `giao_vien` — teacher (P2+ attendance, payroll input)  
-- `phu_huynh` — parent (LMS: read enrollment, request link)  
-- `hoc_sinh` — student (LMS: read self)  
+**Roles (9 staff + 2 LMS-only):**
+- `super_admin` — bypass most gates (bootstrap, hardening context)
+- `giam_doc_dao_tao` — training director; **only** staff role satisfying ADR-B second-eye gate (along with `super_admin`) — `giam_doc_kinh_doanh` alone does NOT satisfy ≥20M threshold (`finance/router.ts:41`)
+- `giam_doc_kinh_doanh` — business director; money gate approver (under threshold); does NOT satisfy `SECOND_EYE_ROLES`
+- `sale` — sales staff (lead entry, opportunity, receipt creation)
+- `giao_vien` — teacher (attendance, grading, session evidence)
+- `ke_toan` — accountant (receipt approve, payroll)
+- `cskh` — customer care (guardian link approval, parent email update)
+- `ctv_mkt` — marketing affiliate (manual punch creation — **suspicious**, under review per HIGH-2 finding)
+- `hr` — HR staff (rewards manage, meetings, KPI, shift management)
+- `phu_huynh` — parent (LMS: read enrollment, request link)
+- `hoc_sinh` — student (LMS: read self, submit exercises)  
 
 ---
 
@@ -494,15 +498,37 @@ This implementation strictly follows the frozen design:
 
 ---
 
+## Phase 3 Flow Audit Results (2026-07-08)
+
+**Verdict:** REDEPLOY NOT REQUIRED — 0 bare-unprotected mutations found.
+
+| Metric | Result |
+|--------|--------|
+| WF traced | 28/28 (22 FULL · 6 PARTIAL UI gap) |
+| Findings | 0 CRITICAL · 3 HIGH · 13 MEDIUM |
+| e2e spec coverage | 6/28 exist (22 aspirational — Phase 4 obligation) |
+| ADR-B second-eye | Confirmed: only `giam_doc_dao_tao` + `super_admin` satisfy gate |
+
+**HIGH findings (non-blocking, addressed in UAT):**
+- HIGH-1: cskh had no UAT scenarios → added to KB1+KB4
+- HIGH-2: ctv_mkt `manualPunch.create` suspicious — added to KB4; user must decide if remove
+- HIGH-3: hr had no UAT scenarios → added to KB4+KB5
+
+## Phase 4 Pre-conditions
+
+- [ ] **lms-auth-two-tier** 13 skipped tests must un-skip green before Run 1
+- [ ] Phase 2 (docker stack) must complete: WSL2, R2 S3 keypair, Entra seed email
+- [ ] ctv_mkt `manualPunch.create` decision: intentional or permission leak?
+- [ ] REDEPLOY NOT REQUIRED confirmed — no rebuild needed before Phase 4 Run 1
+
 ## Next Session Priorities
 
-1. **Student lookup** — unblock parent enrollment query flow (K4)  
-2. **Facility CRUD** — move bootstrap out of dev seed  
-3. **Email transport** — wire Brevo/Graph + test end-to-end  
-4. **Class management** — start P2 (attendance, shifts)  
-5. **LMS frontend** — build parent portal (enrollment.mine, student dashboard)
+1. **Phase 2** — complete docker stack setup (WSL2 confirmed, R2 keypair, Entra email)
+2. **Phase 4 Run 1** — UAT with real users against 5 kịch bản chuỗi liên vai (Section 2)
+3. **un-skip lms-auth-two-tier** — 13 tests must pass before GO/NO-GO decision
+4. **ctv_mkt manualPunch.create** — business decision before UAT sign-off
 
 ---
 
-**Last Updated:** 2026-07-06 by docs-manager subagent  
-**Aligns with:** P1 backend complete state, commit 32147df (main branch)
+**Last Updated:** 2026-07-08 by docs-manager (Phase 3 audit findings)  
+**Aligns with:** commit 8a68ae1 (main branch) — Phase 3 complete

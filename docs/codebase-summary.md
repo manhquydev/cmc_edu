@@ -1,8 +1,8 @@
 # CMC EDU v2 — Codebase Summary
 
-**Status:** UI phases 01a–08 complete — ERP admin + LMS app shipped  
-**Last Updated:** 2026-07-07  
-**Build State:** API unit tests pass; apps/admin + apps/lms build clean (Vite, 855 modules); integration tests BLOCKED (postgresql-x64-18 stopped)
+**Status:** SSO landing complete (Phase 1) · Flow audit complete (Phase 3) · Phase 4 UAT pending  
+**Last Updated:** 2026-07-08  
+**Build State:** 473 tests passing (13 skipped — lms-auth-two-tier suite, must un-skip before Phase 4 Run 1); 26/26 typecheck packages green; apps build clean
 
 ---
 
@@ -221,8 +221,10 @@ Sends queued emails via EmailOutbox (R3 atomic claim).
 ### `@cmc/auth` (Role/Permission Registry)
 Single RBAC source of truth. Consulted by every mutation via `requirePermission(domain, action)`.
 
-**Roles:** `super_admin`, `giam_doc_dao_tao`, `giam_doc_kinh_doanh`, `sale`, `giao_vien`, `phu_huynh`, `hoc_sinh`  
+**Roles (9 staff + 2 LMS-only):** `super_admin`, `giam_doc_dao_tao`, `giam_doc_kinh_doanh`, `sale`, `giao_vien`, `ke_toan`, `cskh`, `ctv_mkt`, `hr` · (LMS-only: `phu_huynh`, `hoc_sinh`)  
 **Pattern:** Each procedure declares which role(s) can call it; `can()` checked at procedure entry.
+
+**ADR-B second-eye note:** `SECOND_EYE_ROLES = ['giam_doc_dao_tao', 'super_admin']` — `giam_doc_kinh_doanh` alone does **NOT** satisfy the ≥20M VND second-eye gate (`finance/router.ts:41`).
 
 ---
 
@@ -267,7 +269,7 @@ Single RBAC source of truth. Consulted by every mutation via `requirePermission(
 ## Test Coverage & Validation
 
 **Test Framework:** Vitest  
-**Test Count:** 137 passing tests across 24 test files
+**Test Count:** 473 passing tests · 13 skipped (lms-auth-two-tier) · 54 test files (2026-07-08)
 
 | Domain | Tests | Coverage (Statements) | Notes |
 |--------|-------|----------------------|-------|
@@ -329,11 +331,12 @@ pnpm build                      # turbo build (7 tasks)
 ```
 
 **Current State:**
-- ✅ All tests passing (137/137)  
-- ✅ Type checking green  
-- ✅ Build successful  
-- ✅ Migrations applied & schema up-to-date  
-- ✅ Merged to main (2026-07-06 16:18 UTC)
+- ✅ 473/473 tests passing (13 skipped — lms-auth-two-tier, must un-skip before Phase 4 Run 1)
+- ✅ Type checking green (26 packages)
+- ✅ Build successful
+- ✅ Migrations applied & schema up-to-date
+- ✅ Phase 3 flow audit complete: 0 CRITICAL · 3 HIGH · 13 MEDIUM · REDEPLOY NOT REQUIRED
+- ✅ All 9 staff roles verified in UAT Section 2 (28/28 WF traced: 22 FULL · 6 PARTIAL)
 
 ---
 

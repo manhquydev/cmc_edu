@@ -18,7 +18,7 @@
 |---|---|---|---|---|---|---|---|
 | **P1-01** | sale | "Quản lý phễu tuyển sinh O1→O5" | `crm.opportunityCreate/advance/markLost/lookup` (crm.*) | `/crm/opportunities?view=kanban` → `/:id` | `crm/stage.spec` | QĐ0037 · OpportunityStage | HITL |
 | **P1-02** | sale | "Tạo phiếu học phí từ cơ hội" | `finance.receiptCreate` (finance.receiptCreate) | `/finance/receipts/new?opportunityId=` | `finance/create-from-opp.spec` | QĐ0037 · mã phiếu | HITL |
-| **P1-03** | GĐKD | "Duyệt phiếu kích hoạt học viên" | `finance.receiptApprove` (finance.receiptApprove) | `/finance/receipts/:id` | `finance/approve.spec` | ADR-B · 0041 · QĐ0024/0028 | HITL |
+| **P1-03** | GĐKD · GĐĐT · ke_toan | "Duyệt phiếu kích hoạt học viên" | `finance.receiptApprove` | `/finance/receipts/:id` | `finance/approve.spec` | ADR-B · 0041 · QĐ0024/0028 | HITL |
 | **P1-04** | hệ thống | "Sinh tài khoản khi thu tiền" | (internal provisioning; key=phone) | ResultPanel (WF-03) | `provisioning/idempotent.spec` | **ADR0041** · QĐ0033 | auto |
 | **P1-05** | hệ thống | "Kích hoạt ghi danh khi đóng phí" | `enrollment.enroll` + `finance.receiptApprove` | `/students/:id/enrollments` | `enrollment/reserved-active.spec` | **ADR-A** | auto |
 | **P1-06** | PH / nhân viên | "Liên kết phụ huynh–con" | `guardian.requestLink`(lms) · `approveLink`/`reject` | LMS `/child/link-request` · `/parents/:id` | `guardian/link.spec` | TL19§6c · GuardianLinkRequest | HITL |

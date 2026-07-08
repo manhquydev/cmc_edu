@@ -233,7 +233,7 @@ export default function ReceiptDetailPage() {
             <Text fz="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
               Lớp học
             </Text>
-            <Text fz="sm">{receipt.classBatchId ?? '—'}</Text>
+            <Text fz="sm">{receipt.classBatchCode ?? receipt.classBatchId ?? '—'}</Text>
           </Stack>
         </Grid.Col>
         <Grid.Col span={6}>
@@ -254,8 +254,20 @@ export default function ReceiptDetailPage() {
         </Grid.Col>
       </Grid>
 
-      {/* canApprove gate: only show button when server says this subject can approve.
-          Do NOT try to infer from userId or roles on the client. */}
+      {receipt.canApprove && receipt.status === 'draft' && (
+        <Alert color="blue" variant="light" title="Khi duyệt phiếu thu này, hệ thống sẽ tự động:">
+          <Stack gap={4}>
+            <Text fz="sm">• Tạo tài khoản học sinh + phụ huynh trên LMS</Text>
+            <Text fz="sm">• Chuyển ghi danh sang trạng thái active</Text>
+            <Text fz="sm">• Đưa cơ hội (nếu có) về O5_ENROLLED</Text>
+            <Text fz="sm">• Gửi email thông báo cho phụ huynh</Text>
+            <Text fz="xs" c="dimmed" mt={4}>
+              Cổng tiền (SoD): người tạo phiếu ≠ người duyệt.
+            </Text>
+          </Stack>
+        </Alert>
+      )}
+
       {receipt.canApprove && receipt.status === 'draft' && (
         <Group mt="sm">
           <Button
@@ -312,7 +324,7 @@ export default function ReceiptDetailPage() {
         </Group>
         <Group justify="space-between" px="md" py="sm">
           <Stack gap={2}>
-            <Text fz="sm">Học phí — {receipt.classBatchId ?? 'Chưa xếp lớp'}</Text>
+            <Text fz="sm">Học phí — {receipt.classBatchCode ?? receipt.classBatchId ?? 'Chưa xếp lớp'}</Text>
             <Text fz="xs" c="dimmed">
               {receipt.studentName}
             </Text>

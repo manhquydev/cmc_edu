@@ -68,6 +68,10 @@ const opportunityLookupInput = z.object({
   phone: z.string().min(1),
 });
 
+const opportunityGetInput = z.object({
+  opportunityId: z.string().uuid(),
+});
+
 const opportunityListInput = z.object({
   stage: z.enum(STAGE_VALUES).optional(),
   page: z.number().int().positive().default(1),
@@ -182,6 +186,27 @@ export const crmRouter = router({
           select: { id: true },
         });
         return { exists: contact !== null };
+      });
+    }),
+
+  opportunityGet: requirePermission('crm', 'opportunityList')
+    .input(opportunityGetInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const opportunity = await tx.opportunity.findFirst({
+          where: { id: input.opportunityId, facilityId },
+          include: { contact: { select: { name: true, phone: true, email: true } } },
+        });
+        if (!opportunity) {
+          throw notFound('Opportunity not found.');
+        }
+        return {
+          id: opportunity.id,
+          stage: opportunity.stage,
+          contact: opportunity.contact,
+        };
       });
     }),
 

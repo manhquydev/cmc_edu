@@ -1,13 +1,19 @@
-import { AppShell, Badge, Group, NavLink, ScrollArea, Stack, Text } from '@mantine/core';
+import { useState } from 'react';
+import { AppShell, Badge, Button, Group, NavLink, ScrollArea, Stack, Text } from '@mantine/core';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../lib/session-context.js';
-import { NAV_MODULES } from './nav-registry.js';
+import { EnrollPicker } from '../lib/enroll-picker.js';
+import { visibleModulesFor } from './nav-registry.js';
 import { RoleSwitcher } from './role-switcher.js';
 
 export function Shell() {
   const { me, canDo } = useSession();
   const location = useLocation();
   const navigate = useNavigate();
+  const [enrollPickerOpen, setEnrollPickerOpen] = useState(false);
+
+  const modules = me ? visibleModulesFor(me.roles, canDo) : [];
+  const canCreateReceipt = canDo('finance', 'receiptCreate');
 
   return (
     <AppShell
@@ -33,6 +39,17 @@ export function Shell() {
             </Text>
           </Group>
           <Group gap="sm">
+            {canCreateReceipt && (
+              <Button
+                size="xs"
+                radius="xs"
+                color="green"
+                variant="light"
+                onClick={() => setEnrollPickerOpen(true)}
+              >
+                + Ghi danh
+              </Button>
+            )}
             {me && me.roles[0] && (
               <Badge variant="light" size="sm">
                 {me.roles[0]}
@@ -46,16 +63,8 @@ export function Shell() {
       <AppShell.Navbar style={{ background: '#1A1A1E', borderRight: 'none' }}>
         <ScrollArea flex={1} p="xs">
           <Stack gap={2}>
-            {NAV_MODULES.map((mod) => {
+            {modules.map((mod) => {
               const isActive = location.pathname.startsWith(mod.path);
-              // Show module if user has permission for any child, or module has no children.
-              const visibleChildren = mod.children?.filter((child) =>
-                child.permission ? canDo(child.permission.module, child.permission.action) : true,
-              );
-              // Hide module entirely when all children are permission-gated and none pass.
-              if (mod.children && mod.children.length > 0 && visibleChildren?.length === 0) {
-                return null;
-              }
 
               return (
                 <NavLink
@@ -81,6 +90,8 @@ export function Shell() {
       <AppShell.Main style={{ background: 'var(--cmc-surface-2)' }}>
         <Outlet />
       </AppShell.Main>
+
+      <EnrollPicker opened={enrollPickerOpen} onClose={() => setEnrollPickerOpen(false)} />
     </AppShell>
   );
 }

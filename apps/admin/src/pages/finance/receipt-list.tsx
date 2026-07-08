@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '@mantine/core';
+import { Button, Group } from '@mantine/core';
 import { DataTable, FilterBar, PageHeader, StatusBadge } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { EnrollPicker } from '../../lib/enroll-picker.js';
 
 const RECEIPT_STATUS_VALUES = ['draft', 'approved', 'sent', 'cancelled'] as const;
 type ReceiptStatus = (typeof RECEIPT_STATUS_VALUES)[number];
@@ -76,6 +77,7 @@ const FILTERS: FilterDef[] = [
 export default function ReceiptListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [enrollPickerOpen, setEnrollPickerOpen] = useState(false);
 
   const statusParam = searchParams.get('status');
   const q = searchParams.get('q') ?? '';
@@ -115,16 +117,27 @@ export default function ReceiptListPage() {
         subtitle="Danh sách phiếu thu — tìm kiếm và duyệt học phí"
         breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Phiếu thu' }]}
         actions={
-          <Button
-            size="xs"
-            radius="xs"
-            style={{ background: 'var(--cmc-brand)' }}
-            onClick={() => void navigate('/finance/new')}
-          >
-            + Tạo phiếu thu
-          </Button>
+          <Group gap="xs">
+            <Button
+              size="xs"
+              radius="xs"
+              color="green"
+              onClick={() => setEnrollPickerOpen(true)}
+            >
+              + Ghi danh
+            </Button>
+            <Button
+              size="xs"
+              radius="xs"
+              style={{ background: 'var(--cmc-brand)' }}
+              onClick={() => void navigate('/finance/new')}
+            >
+              + Tạo phiếu thu
+            </Button>
+          </Group>
         }
       />
+      <EnrollPicker opened={enrollPickerOpen} onClose={() => setEnrollPickerOpen(false)} />
       <FilterBar filters={FILTERS} onChange={handleFiltersChange} />
       <DataTable<ReceiptRow>
         columns={COLUMNS}

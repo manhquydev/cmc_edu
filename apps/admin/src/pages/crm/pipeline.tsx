@@ -19,7 +19,7 @@ type AdvanceableStage = 'O2_CONTACTED' | 'O3_TEST_SCHEDULED' | 'O4_TESTED';
 interface OpportunityItem {
   id: string;
   stage: string;
-  closedAt: Date | null;
+  closedAt: string | null;
   contact: { id: string; name: string; phone: string };
 }
 
@@ -78,7 +78,6 @@ function KanbanCard({
           </Button>
         )}
 
-        {/* O4_TESTED: advance to O5 is only via receipt — show quick-create shortcut. */}
         {opp.stage === 'O4_TESTED' && !isLost && (
           <Button
             size="xs"
@@ -90,7 +89,7 @@ function KanbanCard({
               void navigate(`/finance/new?opportunityId=${opp.id}`);
             }}
           >
-            Tạo phiếu thu
+            Ghi danh
           </Button>
         )}
       </Stack>

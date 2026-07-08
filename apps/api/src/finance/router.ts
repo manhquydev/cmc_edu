@@ -88,6 +88,7 @@ export interface ReceiptDto {
   parentPhone: string;
   studentName: string;
   classBatchId: string | null;
+  classBatchCode: string | null;
   netAmount: number;
   createdAt: Date;
   /** Server-derived UI hint: true iff the calling subject has the
@@ -116,6 +117,7 @@ interface ReceiptRow {
   parentEmail: string | null;
   studentName: string;
   classBatchId: string | null;
+  classBatch?: { code: string } | null;
   netAmount: { toNumber(): number };
   createdAt: Date;
   createdById: string;
@@ -143,6 +145,7 @@ function toReceiptDto(
     parentPhone: receipt.parentPhone,
     studentName: receipt.studentName,
     classBatchId: receipt.classBatchId,
+    classBatchCode: receipt.classBatch?.code ?? null,
     netAmount,
     createdAt: receipt.createdAt,
     canApprove,
@@ -567,6 +570,7 @@ export const financeRouter = router({
         const [rows, total] = await Promise.all([
           tx.receipt.findMany({
             where,
+            include: { classBatch: { select: { code: true } } },
             orderBy: { createdAt: 'desc' },
             skip: (input.page - 1) * input.pageSize,
             take: input.pageSize,
@@ -591,7 +595,10 @@ export const financeRouter = router({
       const { facilityId } = scoped(ctx);
 
       const receipt = await withFacility(ctx.db, facilityId, (tx) =>
-        tx.receipt.findFirst({ where: { id: input.receiptId, facilityId } }),
+        tx.receipt.findFirst({
+          where: { id: input.receiptId, facilityId },
+          include: { classBatch: { select: { code: true } } },
+        }),
       );
       // Out-of-facility ids look identical to non-existent ones (RLS — TL11 §2).
       if (!receipt) {

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Box,
   Button,
   Group,
+  Loader,
   NumberInput,
   Select,
   Stack,
@@ -68,6 +69,30 @@ export default function ReceiptCreatePage() {
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitted, setSubmitted] = useState(false);
+  const prefilled = useRef(false);
+
+  const { data: oppData, isLoading: oppLoading } = trpc.crm.opportunityGet.useQuery(
+    { opportunityId: opportunityId! },
+    { enabled: Boolean(opportunityId) },
+  );
+
+  useEffect(() => {
+    if (oppData && !prefilled.current) {
+      prefilled.current = true;
+      setForm((prev) => ({
+        ...prev,
+        studentName: oppData.contact.name,
+        parentPhone: oppData.contact.phone,
+        parentEmail: oppData.contact.email ?? '',
+      }));
+    }
+  }, [oppData]);
+
+  const phoneForDedup = form.parentPhone.trim();
+  const { data: dedupData } = trpc.crm.opportunityLookup.useQuery(
+    { phone: phoneForDedup },
+    { enabled: phoneForDedup.length >= 8 },
+  );
 
   const { data: classBatchData, isLoading: classBatchLoading, error: classBatchError } =
     trpc.classBatch.list.useQuery({ pageSize: 100 });
@@ -110,12 +135,12 @@ export default function ReceiptCreatePage() {
   return (
     <>
       <PageHeader
-        title="Tạo phiếu thu mới"
+        title={opportunityId ? 'Tạo phiếu từ cơ hội' : 'Tạo phiếu thu mới'}
         subtitle="Ghi danh học viên mới — tài khoản LMS sẽ tự động tạo sau khi duyệt"
         breadcrumbs={[
           { label: 'Kinh doanh' },
           { label: 'Phiếu thu', href: '/finance' },
-          { label: 'Tạo mới' },
+          { label: opportunityId ? 'Tạo từ cơ hội' : 'Tạo mới' },
         ]}
         actions={
           <Button variant="default" size="xs" radius="xs" onClick={() => void navigate('/finance')}>
@@ -127,9 +152,15 @@ export default function ReceiptCreatePage() {
       <Box p="md" maw={560}>
         <form onSubmit={handleSubmit}>
           <Stack gap="md">
-            {opportunityId && (
+            {opportunityId && oppLoading && (
+              <Alert color="blue" variant="light" icon={<Loader size="xs" />}>
+                Đang tải thông tin cơ hội...
+              </Alert>
+            )}
+
+            {opportunityId && oppData && (
               <Alert color="blue" variant="light">
-                Tạo phiếu thu từ cơ hội #{opportunityId.slice(0, 8)}
+                Tạo phiếu từ cơ hội — {oppData.contact.name} ({oppData.contact.phone})
               </Alert>
             )}
 
@@ -164,6 +195,12 @@ export default function ReceiptCreatePage() {
               onChange={(e) => handleField('parentPhone', e.currentTarget.value)}
               error={errors.parentPhone}
             />
+
+            {dedupData?.exists && (
+              <Alert color="orange" variant="light">
+                SĐT phụ huynh đã có hồ sơ — vẫn tạo mới? Hệ thống dùng chung 1 tài khoản/SĐT.
+              </Alert>
+            )}
 
             <TextInput
               label="Email phụ huynh"

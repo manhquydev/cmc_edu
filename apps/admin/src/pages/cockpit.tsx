@@ -1,19 +1,8 @@
-/**
- * Cockpit — role-aware dashboard.
- *
- * Shows task counts and deep-links for actions the current user has permission
- * to take. Queries are gated by `canDo()` so a user without a given permission
- * never fires a request that would 403.
- *
- * Mounted as the teaching section index (`/teaching`).
- */
-
 import { Link } from 'react-router-dom';
 import { StatCard, PageHeader } from '@cmc/ui';
 import { useSession } from '../lib/session-context.js';
 import { trpc } from '../lib/trpc.js';
 import {
-  Alert,
   Badge,
   Box,
   Card,
@@ -22,20 +11,25 @@ import {
   Skeleton,
   Stack,
   Text,
+  Title,
 } from '@mantine/core';
 
+export function countPendingApproval(receipts: { status: string }[]): number {
+  return receipts.filter((r) => r.status === 'draft').length;
+}
+
 // ---------------------------------------------------------------------------
-// Pending-receipts stat card (finance.receiptList gated)
+// Stat cards
 // ---------------------------------------------------------------------------
 
 function PendingReceiptsCard() {
-  const { data, isLoading, error } = trpc.finance.receiptList.useQuery({});
-  const pending = (data?.items ?? []).filter(
-    (r: { status: string }) => r.status === 'pending',
-  ).length;
+  const { data, isLoading, error } = trpc.finance.receiptList.useQuery(
+    { status: 'draft', pageSize: 1 },
+  );
+  const pending = data?.total ?? 0;
 
   return (
-    <Link to="/finance" style={{ textDecoration: 'none' }}>
+    <Link to="/finance?status=draft" style={{ textDecoration: 'none' }}>
       <StatCard
         label="Phiếu thu chờ duyệt"
         value={isLoading ? '…' : error ? 'Lỗi' : pending}
@@ -47,16 +41,37 @@ function PendingReceiptsCard() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Ungraded submissions stat card (submission.grade gated)
-// ---------------------------------------------------------------------------
+function OverThresholdCard() {
+  const { me } = useSession();
+  const { data, isLoading, error } = trpc.finance.receiptList.useQuery(
+    { status: 'draft', pageSize: 100 },
+  );
+  const threshold = me?.config.approvalSecondEyeThreshold ?? 20_000_000;
+  const count = (data?.items ?? []).filter(
+    (r) => r.netAmount > threshold,
+  ).length;
+
+  return (
+    <Link to="/finance?status=draft" style={{ textDecoration: 'none' }}>
+      <StatCard
+        label="Vượt ngưỡng duyệt"
+        value={isLoading ? '…' : error ? 'Lỗi' : count}
+        trend={error ? error.message : 'Cần GĐĐT/SA →'}
+        color={count > 0 ? '#e67700' : undefined}
+        loading={isLoading}
+      />
+    </Link>
+  );
+}
 
 function UngradedSubmissionsCard() {
   const { data, isLoading, error } = trpc.submission.listForGrading.useQuery(
     {},
     { refetchOnWindowFocus: false },
   );
-  const count = data?.items.length ?? 0;
+  const count = (data?.items ?? []).filter(
+    (s) => s.status === 'submitted',
+  ).length;
 
   return (
     <Link to="/teaching/grading" style={{ textDecoration: 'none' }}>
@@ -71,109 +86,233 @@ function UngradedSubmissionsCard() {
   );
 }
 
+function O4OpportunitiesCard() {
+  const { data, isLoading, error } = trpc.crm.opportunityList.useQuery(
+    { stage: 'O4_TESTED', pageSize: 100 },
+    { refetchOnWindowFocus: false },
+  );
+  const count = (data?.items ?? []).filter(
+    (o) => !o.closedAt,
+  ).length;
+
+  return (
+    <Link to="/crm" style={{ textDecoration: 'none' }}>
+      <StatCard
+        label="Sẵn sàng ghi danh"
+        value={isLoading ? '…' : error ? 'Lỗi' : count}
+        trend={error ? error.message : 'Cơ hội O4 →'}
+        color={count > 0 ? '#2f9e44' : undefined}
+        loading={isLoading}
+      />
+    </Link>
+  );
+}
+
 // ---------------------------------------------------------------------------
-// Today's classes widget (classBatch.list gated on class.create permission,
-// which all teaching roles carry)
+// Task queue — "Việc cần bạn xử lý"
 // ---------------------------------------------------------------------------
 
-function TodayClassesWidget() {
-  const { data, isLoading, error } = trpc.classBatch.list.useQuery(
+interface TaskItem {
+  title: string;
+  meta: string;
+  href: string;
+}
+
+function TaskQueue({ items, loading }: { items: TaskItem[]; loading: boolean }) {
+  if (loading) {
+    return (
+      <Stack gap="xs">
+        {[1, 2, 3].map((i) => <Skeleton key={i} height={48} radius="xs" />)}
+      </Stack>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <Box
+        p="md"
+        style={{
+          border: '1px dashed var(--cmc-border)',
+          borderRadius: 4,
+          textAlign: 'center',
+        }}
+      >
+        <Text fz="sm" c="dimmed">
+          Không có nhiệm vụ nào chờ xử lý cho vai trò này.
+        </Text>
+      </Box>
+    );
+  }
+
+  return (
+    <Stack gap="xs">
+      {items.map((item, i) => (
+        <Card
+          key={i}
+          padding="sm"
+          radius="xs"
+          withBorder
+          component={Link}
+          to={item.href}
+          style={{ borderColor: 'var(--cmc-border)', textDecoration: 'none', cursor: 'pointer' }}
+        >
+          <Group justify="space-between">
+            <Stack gap={2}>
+              <Text fz="sm" fw={600}>{item.title}</Text>
+              <Text fz="xs" c="dimmed">{item.meta}</Text>
+            </Stack>
+            <Text fz="xs" c="blue">Xem →</Text>
+          </Group>
+        </Card>
+      ))}
+    </Stack>
+  );
+}
+
+function DirectorTaskQueue() {
+  const { me } = useSession();
+  const { data, isLoading } = trpc.finance.receiptList.useQuery(
+    { status: 'draft', pageSize: 10 },
+  );
+  const threshold = me?.config.approvalSecondEyeThreshold ?? 20_000_000;
+  const items: TaskItem[] = (data?.items ?? []).slice(0, 10).map((r) => ({
+    title: `Duyệt ${r.code} — ${r.studentName}`,
+    meta: `${r.netAmount.toLocaleString('vi-VN')} đ${r.netAmount > threshold ? ' ⚠️ vượt ngưỡng' : ''}`,
+    href: `/finance/${r.id}`,
+  }));
+
+  return <TaskQueue items={items} loading={isLoading} />;
+}
+
+function SaleTaskQueue() {
+  const { data, isLoading } = trpc.crm.opportunityList.useQuery(
+    { stage: 'O4_TESTED', pageSize: 50 },
+    { refetchOnWindowFocus: false },
+  );
+  const items: TaskItem[] = (data?.items ?? [])
+    .filter((o) => !o.closedAt)
+    .slice(0, 10)
+    .map((o) => ({
+      title: `Ghi danh — ${o.contact.name}`,
+      meta: o.contact.phone,
+      href: `/finance/new?opportunityId=${o.id}`,
+    }));
+
+  return <TaskQueue items={items} loading={isLoading} />;
+}
+
+function TeacherTaskQueue() {
+  const { data, isLoading } = trpc.submission.listForGrading.useQuery(
+    {},
+    { refetchOnWindowFocus: false },
+  );
+  const pending = (data?.items ?? []).filter(
+    (s) => s.status === 'submitted',
+  );
+  const items: TaskItem[] = pending.slice(0, 10).map(
+    (s) => ({
+      title: `Chấm bài — ${s.studentId.slice(0, 8)}`,
+      meta: `Bài tập ${s.exerciseId.slice(0, 8)}`,
+      href: '/teaching/grading',
+    }),
+  );
+
+  return <TaskQueue items={items} loading={isLoading} />;
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline side panel — O1→O5 funnel
+// ---------------------------------------------------------------------------
+
+const STAGE_LABELS: Record<string, string> = {
+  O1_LEAD: 'Tiếp cận',
+  O2_CONTACTED: 'Đã liên hệ',
+  O3_TEST_SCHEDULED: 'Đặt lịch KT',
+  O4_TESTED: 'Đã kiểm tra',
+  O5_ENROLLED: 'Đã ghi danh',
+};
+
+function PipelineFunnel() {
+  const { data, isLoading } = trpc.crm.opportunityList.useQuery(
+    { pageSize: 100 },
+    { refetchOnWindowFocus: false },
+  );
+
+  const counts: Record<string, number> = {};
+  for (const opp of data?.items ?? []) {
+    counts[opp.stage] = (counts[opp.stage] ?? 0) + 1;
+  }
+
+  if (isLoading) return <Skeleton height={120} radius="xs" />;
+
+  return (
+    <Box
+      p="md"
+      style={{
+        border: '1px solid var(--cmc-border)',
+        borderRadius: 4,
+        background: 'var(--cmc-surface)',
+      }}
+    >
+      <Text fz="xs" fw={600} c="dimmed" tt="uppercase" mb="sm" style={{ letterSpacing: '0.04em' }}>
+        Pipeline O1 → O5
+      </Text>
+      <Stack gap="xs">
+        {Object.entries(STAGE_LABELS).map(([key, label]) => (
+          <Group key={key} justify="space-between">
+            <Text fz="sm">{label}</Text>
+            <Badge
+              size="sm"
+              variant="light"
+              color={(counts[key] ?? 0) > 0 ? 'blue' : 'gray'}
+            >
+              {counts[key] ?? 0}
+            </Badge>
+          </Group>
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
+function TodaySchedulePanel() {
+  const { data, isLoading } = trpc.classBatch.list.useQuery(
     { page: 1, pageSize: 20 },
     { refetchOnWindowFocus: false },
   );
 
-  const today = new Date().toLocaleDateString('vi-VN', {
-    weekday: 'long',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-
-  // Show batches that are currently active (startDate ≤ today ≤ endDate)
   const now = new Date();
   const todayBatches = (data?.items ?? []).filter((b) => {
-    // tRPC transmits dates as strings over JSON; cast through unknown.
-    const start = new Date(b.startDate as unknown as string);
-    const end = new Date(b.endDate as unknown as string);
+    const start = new Date(b.startDate);
+    const end = new Date(b.endDate);
     return start <= now && now <= end && b.status !== 'cancelled';
   });
 
+  if (isLoading) return <Skeleton height={120} radius="xs" />;
+
   return (
-    <Box>
-      <Group mb="sm" justify="space-between">
-        <Text fz="sm" fw={600}>
-          Lịch dạy hôm nay
-        </Text>
-        <Text fz="xs" c="dimmed">
-          {today}
-        </Text>
-      </Group>
-
-      {error && (
-        <Alert color="red" fz="xs" p="xs" mb="sm">
-          {error.message}
-        </Alert>
-      )}
-
-      {isLoading ? (
-        <Stack gap="xs">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} height={52} radius="xs" />
-          ))}
-        </Stack>
-      ) : todayBatches.length === 0 ? (
-        <Box
-          p="md"
-          style={{
-            border: '1px dashed var(--cmc-border)',
-            borderRadius: 4,
-            textAlign: 'center',
-          }}
-        >
-          <Text fz="sm" c="dimmed">
-            Không có lớp học nào hôm nay.
-          </Text>
-        </Box>
+    <Box
+      p="md"
+      style={{
+        border: '1px solid var(--cmc-border)',
+        borderRadius: 4,
+        background: 'var(--cmc-surface)',
+      }}
+    >
+      <Text fz="xs" fw={600} c="dimmed" tt="uppercase" mb="sm" style={{ letterSpacing: '0.04em' }}>
+        Lịch dạy hôm nay
+      </Text>
+      {todayBatches.length === 0 ? (
+        <Text fz="sm" c="dimmed">Không có lớp hôm nay.</Text>
       ) : (
         <Stack gap="xs">
-          {todayBatches.map((batch) => (
-            <Card
-              key={batch.id}
-              padding="sm"
-              radius="xs"
-              withBorder
-              component={Link}
-              to={`/teaching/attendance?class=${batch.id}`}
-              style={{
-                borderColor: 'var(--cmc-border)',
-                textDecoration: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <Group justify="space-between">
-                <Stack gap={2}>
-                  <Text fz="sm" fw={600}>
-                    {batch.code}
-                  </Text>
-                  <Text fz="xs" c="dimmed">
-                    {batch.program}
-                  </Text>
-                </Stack>
-                <Badge color="green" size="xs" radius="xs">
-                  Đang dạy
-                </Badge>
-              </Group>
-            </Card>
+          {todayBatches.map((b) => (
+            <Group key={b.id} justify="space-between">
+              <Text fz="sm">{b.code}</Text>
+              <Badge size="xs" color="green">Đang dạy</Badge>
+            </Group>
           ))}
         </Stack>
-      )}
-
-      {!isLoading && !error && (
-        <Box mt="xs">
-          <Link to="/teaching/schedule" style={{ fontSize: 12, color: 'var(--cmc-accent, #228be6)' }}>
-            Xem lịch dạy đầy đủ →
-          </Link>
-        </Box>
       )}
     </Box>
   );
@@ -188,14 +327,21 @@ export default function CockpitPage() {
 
   const canViewReceipts = canDo('finance', 'receiptList');
   const canGrade = canDo('submission', 'grade');
+  const canViewCrm = canDo('crm', 'opportunityList');
   const canViewSchedule = canDo('class', 'create');
+
+  const isDirector = me?.roles.some((r) =>
+    r === 'giam_doc_kinh_doanh' || r === 'giam_doc_dao_tao' || r === 'super_admin',
+  );
+  const isSale = me?.roles.includes('sale');
+  const isTeacher = me?.roles.includes('giao_vien');
 
   if (sessionLoading) {
     return (
       <>
         <PageHeader
           title="Tổng quan"
-          breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Tổng quan' }]}
+          breadcrumbs={[{ label: 'Tổng quan' }]}
         />
         <Box p="md">
           <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" mb="xl">
@@ -209,62 +355,54 @@ export default function CockpitPage() {
     );
   }
 
-  const hasAnyStatCard = canViewReceipts || canGrade;
+  const hasAnyStatCard = canViewReceipts || canGrade || canViewCrm;
 
   return (
     <>
       <PageHeader
         title="Tổng quan"
-        subtitle={
-          me
-            ? `Xin chào · ${me.roles.join(', ')}`
-            : 'Dashboard giảng dạy'
-        }
-        breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Tổng quan' }]}
+        subtitle={me ? `Xin chào · ${me.roles.join(', ')}` : 'Dashboard'}
+        breadcrumbs={[{ label: 'Tổng quan' }]}
       />
 
       <Box p="md">
-        {/* Stat cards — gated per permission */}
         {hasAnyStatCard && (
-          <SimpleGrid
-            cols={{ base: 1, sm: 2, md: 3 }}
-            spacing="md"
-            mb="xl"
-          >
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md" mb="xl">
             {canViewReceipts && <PendingReceiptsCard />}
+            {canViewReceipts && isDirector && <OverThresholdCard />}
+            {canViewCrm && isSale && <O4OpportunitiesCard />}
             {canGrade && <UngradedSubmissionsCard />}
           </SimpleGrid>
         )}
 
-        {!hasAnyStatCard && (
-          <Box
-            mb="xl"
-            p="md"
-            style={{
-              border: '1px dashed var(--cmc-border)',
-              borderRadius: 4,
-              background: 'var(--cmc-surface-2)',
-            }}
-          >
-            <Text fz="sm" c="dimmed" ta="center">
-              Không có nhiệm vụ nào chờ xử lý cho vai trò này.
-            </Text>
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+          <Box>
+            <Title order={6} mb="sm">Việc cần bạn xử lý</Title>
+            {isDirector && canViewReceipts && <DirectorTaskQueue />}
+            {isSale && canViewCrm && !isDirector && <SaleTaskQueue />}
+            {isTeacher && canGrade && !isDirector && !isSale && <TeacherTaskQueue />}
+            {!isDirector && !isSale && !isTeacher && (
+              <Box
+                p="md"
+                style={{
+                  border: '1px dashed var(--cmc-border)',
+                  borderRadius: 4,
+                  textAlign: 'center',
+                }}
+              >
+                <Text fz="sm" c="dimmed">
+                  Không có nhiệm vụ nào chờ xử lý cho vai trò này.
+                </Text>
+              </Box>
+            )}
           </Box>
-        )}
 
-        {/* Today's teaching progress */}
-        {canViewSchedule && (
-          <Box
-            p="md"
-            style={{
-              border: '1px solid var(--cmc-border)',
-              borderRadius: 4,
-              background: 'var(--cmc-surface)',
-            }}
-          >
-            <TodayClassesWidget />
+          <Box>
+            {(isSale || isDirector) && canViewCrm && <PipelineFunnel />}
+            {isTeacher && canViewSchedule && <TodaySchedulePanel />}
+            {!isSale && !isDirector && !isTeacher && canViewSchedule && <TodaySchedulePanel />}
           </Box>
-        )}
+        </SimpleGrid>
       </Box>
     </>
   );

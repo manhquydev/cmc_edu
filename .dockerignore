@@ -1,0 +1,25 @@
+# Never send host installs into the image — pnpm installs inside the container;
+# host node_modules (Windows junctions) would clobber the container symlinks.
+**/node_modules
+**/dist
+**/.turbo
+
+# Secrets must never enter the build context (recursive — catch nested app envs).
+**/.env*
+!**/.env.example
+!**/.env.prod.example
+
+# VCS, tooling, local artifacts
+.git
+.github
+.claude
+.vscode
+plans
+docs
+harness.db
+repomix-output.xml
+*.log
+apps/e2e/test-results
+apps/e2e/playwright-report
+scripts/bin
+infra/nginx/certs

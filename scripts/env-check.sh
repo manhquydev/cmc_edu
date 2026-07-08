@@ -31,6 +31,8 @@ if [ "$NODE_ENV" = "production" ]; then
   fi
   # Staff session cookie secret (always required in prod — guards cookie forgery).
   REQUIRED+=(STAFF_SESSION_SECRET)
+  # Backup dump encryption (AES-256 via openssl; passphrase must be escrowed in password manager).
+  REQUIRED+=(BACKUP_ENCRYPTION_PASSPHRASE)
   # Staff SSO only enforced once enabled (Entra shares its app with Graph email).
   if [ "${SSO_ENABLED:-false}" = "true" ]; then
     REQUIRED+=(ENTRA_TENANT_ID ENTRA_CLIENT_ID ENTRA_CLIENT_SECRET ERP_SSO_REDIRECT_URI)
@@ -42,6 +44,14 @@ fi
 # TEST_OTP_SEAM must never be truthy in production.
 if [ "$NODE_ENV" = "production" ] && [ -n "${TEST_OTP_SEAM:-}" ]; then
   echo "FATAL: TEST_OTP_SEAM must not be set in production." >&2
+  exit 1
+fi
+
+# BACKUP_BUCKET_PRIVATE_CONFIRMED must equal "true" in production (explicit acknowledgment).
+if [ "$NODE_ENV" = "production" ] && [ "${BACKUP_BUCKET_PRIVATE_CONFIRMED:-}" != "true" ]; then
+  echo "FATAL: BACKUP_BUCKET_PRIVATE_CONFIRMED must be set to 'true' in production." >&2
+  echo "  1. Open Cloudflare Dashboard → R2 → bucket → Settings → Public Access = Disabled." >&2
+  echo "  2. Set BACKUP_BUCKET_PRIVATE_CONFIRMED=true in .env.prod." >&2
   exit 1
 fi
 

@@ -19,6 +19,10 @@ Stack: `cmcv2-prod` · Docker Compose · VPS riêng (khác máy cmcnew-*) · Pos
 | `ALLOW_DEV_AUTH` NOT in `.env.prod` | `grep ALLOW_DEV_AUTH .env.prod` → empty |
 | Azure app redirect URI matches `ERP_SSO_REDIRECT_URI` | Check Azure Portal → App registrations → Redirect URIs |
 | Backup target on DIFFERENT host (RT-13) | `echo $BACKUP_S3_ENDPOINT` |
+| `BACKUP_ENCRYPTION_PASSPHRASE` set in `.env.prod` | `grep BACKUP_ENCRYPTION_PASSPHRASE .env.prod` → non-empty |
+| Passphrase escrowed in team password manager | Verify: decrypt a test dump using passphrase from PM, not from `.env.prod` |
+| R2 bucket public access disabled | CF Dashboard → R2 → bucket → Settings → Public Access = Disabled |
+| `BACKUP_BUCKET_PRIVATE_CONFIRMED=true` in `.env.prod` | After verifying CF Dashboard step above |
 
 ### 1.2 Isolation check (run before any deploy)
 
@@ -57,11 +61,35 @@ docker compose -p cmcv2-prod ps
 
 ### 1.7 Run restore drill (mandatory before seeding)
 
-```bash
-source .env.prod
-./scripts/restore-drill.sh
-# Must print: === RESTORE DRILL PASSED ===
-```
+**Before running the drill, complete these one-time setup steps:**
+
+1. **R2 bucket privacy** — in Cloudflare Dashboard → R2 → `<BACKUP_S3_BUCKET>` → Settings → verify Public Access = Disabled. Then set `BACKUP_BUCKET_PRIVATE_CONFIRMED=true` in `.env.prod`.
+
+2. **Encryption passphrase escrow** — store `BACKUP_ENCRYPTION_PASSPHRASE` in your team password manager (e.g., 1Password, Bitwarden). This is the recovery path if the VPS is lost. The passphrase must be recoverable from the PM *without* access to the machine or `.env.prod`.
+
+3. **Run a backup first** (creates the `.dump.enc` the drill needs):
+   ```bash
+   source .env.prod
+   ./scripts/backup-db.sh
+   ```
+
+4. **Run the drill**:
+   ```bash
+   source .env.prod
+   ./scripts/restore-drill.sh
+   # Must print: === RESTORE DRILL PASSED ===
+   ```
+
+5. **Verify escrow** — after the drill passes, decrypt a copy of the backup using only the passphrase retrieved from your password manager (not from `.env.prod`):
+   ```bash
+   openssl enc -d -aes-256-cbc -pbkdf2 \
+     -in /tmp/test.dump.enc -out /tmp/test.dump \
+     -pass pass:"<passphrase-from-PM>"
+   # Must succeed without error
+   rm -f /tmp/test.dump /tmp/test.dump.enc
+   ```
+
+**R2 lifecycle rule (retention):** Set an object lifecycle rule on the bucket to expire objects in `db-backups/` after 30 days — Cloudflare Dashboard → R2 → bucket → Settings → Lifecycle Rules → Add Rule (prefix: `db-backups/`, expiration: 30 days). This is belt-and-suspenders with `BACKUP_KEEP_DAYS` in the script.
 
 ### 1.8 Seed production (one-time)
 
@@ -218,7 +246,7 @@ docker system prune -f   # remove dangling images/layers
 ## 5. Backup schedule (cron on VPS host)
 
 ```cron
-# Daily backup at 02:00 UTC, keep 14 days
+# Daily backup at 02:00 UTC, keep 30 days (BACKUP_KEEP_DAYS in .env.prod)
 0 2 * * * cd /opt/cmcv2 && source .env.prod && ./scripts/backup-db.sh >> /var/log/cmcv2-backup.log 2>&1
 
 # Monthly restore drill
@@ -236,6 +264,10 @@ docker system prune -f   # remove dangling images/layers
 - [ ] All RLS tables have `FORCE ROW LEVEL SECURITY` (boot-check verifies at start)
 - [ ] nginx strips `x-dev-user` / `x-dev-lms-user` (verified by header-strip probe)
 - [ ] Backup target is on a DIFFERENT host (`restore-drill.sh` asserts RT-13)
-- [ ] Restore drill passed at least once
+- [ ] `BACKUP_ENCRYPTION_PASSPHRASE` set and escrowed in team password manager
+- [ ] R2 bucket public access disabled (CF Dashboard verified) + `BACKUP_BUCKET_PRIVATE_CONFIRMED=true`
+- [ ] Restore drill passed at least once (dumps are `.dump.enc`, decrypted during drill)
+- [ ] Escrow verified: decrypt test dump using passphrase from PM (not from `.env.prod`)
+- [ ] R2 lifecycle rule set: `db-backups/` prefix → 30-day expiry
 - [ ] TLS cert valid (HTTPS only, HTTP redirects to HTTPS)
 - [ ] Isolation check passed — no cmcnew-* collision

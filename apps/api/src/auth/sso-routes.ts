@@ -117,7 +117,13 @@ export async function handleSsoLogin(
       'HttpOnly',
       'SameSite=Lax',
       `Max-Age=${OAUTH_STATE_TTL_S}`,
-      'Path=/auth/callback',
+      // Path=/ (not the callback path): the browser returns from Entra to the
+      // registered redirect_uri, whose public path can differ from the internal
+      // /auth/callback route (e.g. /api/auth/sso/callback fronted by an nginx
+      // rewrite). A callback-scoped path would suppress the cookie there and
+      // break the CSRF check. The token is short-lived (5 min), HttpOnly, and
+      // carries only a random state + its HMAC — no secret.
+      'Path=/',
     ];
     if (isProd) stateCookieParts.push('Secure');
 

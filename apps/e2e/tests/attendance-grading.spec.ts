@@ -16,7 +16,6 @@
 
 import { test, expect } from '@playwright/test';
 import { TRPCClientError } from '@trpc/client';
-import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import type { AppRouter } from '../../api/src/router.js';
 import {
   cleanupParentAccountsByPhone,
@@ -25,35 +24,20 @@ import {
   seedPublishedExercise,
   seedSubmittedSubmission,
 } from '../src/db.js';
-import { createE2eStaffClient, createAnonClient } from '../src/trpc-client.js';
+import {
+  createE2eStaffClient,
+  createAnonClient,
+  createE2eLmsStudentClient,
+} from '../src/trpc-client.js';
 import { randomVnPhone } from '../src/random-vn-phone.js';
 
 const baseUrl = process.env.E2E_BASE_URL!;
 const facilityId = process.env.E2E_FACILITY_ID!;
 
-// ---------------------------------------------------------------------------
-// Student-session client (kind='student') — same helper as kind-isolation spec
-// ---------------------------------------------------------------------------
-
-function createStudentSessionClient(
-  url: string,
-  opts: { parentAccountId: string; studentId: string },
-) {
-  return createTRPCClient<AppRouter>({
-    links: [
-      httpBatchLink({
-        url,
-        headers: () => ({
-          'x-dev-lms-user': JSON.stringify({
-            parentAccountId: opts.parentAccountId,
-            studentId: opts.studentId,
-            kind: 'student',
-          }),
-        }),
-      }),
-    ],
-  });
-}
+// Mode-aware student-session client (kind='student') — shared factory so the
+// spec runs under both dev (Mode-A header) and prod-config (Mode-B signed
+// Bearer); see apps/e2e/src/trpc-client.ts.
+const createStudentSessionClient = createE2eLmsStudentClient;
 
 // ---------------------------------------------------------------------------
 // Setup: provision a student with a Guardian link via the receipt pipeline

@@ -8,7 +8,7 @@
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import type { Role } from '@cmc/auth';
 import type { AppRouter } from '../../api/src/router.js';
-import { mintStaffCookie } from './session-injection.js';
+import { mintStaffCookie, mintParentToken, mintStudentToken } from './session-injection.js';
 
 export interface DevStaffIdentity {
   userId: string;
@@ -108,4 +108,45 @@ export function createE2eStaffClient(baseUrl: string, staff: DevStaffIdentity) {
     return createSignedStaffClient(baseUrl, cookie);
   }
   return createStaffClient(baseUrl, staff);
+}
+
+/**
+ * Mode-aware LMS parent-session client. Mode-A (dev): x-dev-lms-user header.
+ * Mode-B (production): signed Bearer token via mintParentToken — the dev-header
+ * is disabled under NODE_ENV=production, so an unsigned header is rejected
+ * UNAUTHORIZED before any kind-gate. Mirrors createE2eStaffClient.
+ */
+export function createE2eLmsParentClient(baseUrl: string, parentAccountId: string) {
+  if (process.env['NODE_ENV'] === 'production') {
+    return createSignedLmsClient(baseUrl, mintParentToken(parentAccountId));
+  }
+  return createLmsClient(baseUrl, { parentAccountId });
+}
+
+/**
+ * Mode-aware LMS student-session client (kind=student). Mode-A (dev): explicit
+ * x-dev-lms-user header with kind=student (createLmsClient omits kind → parent).
+ * Mode-B (production): signed Bearer token via mintStudentToken.
+ */
+export function createE2eLmsStudentClient(
+  baseUrl: string,
+  opts: { parentAccountId: string; studentId: string },
+) {
+  if (process.env['NODE_ENV'] === 'production') {
+    return createSignedLmsClient(baseUrl, mintStudentToken(opts.parentAccountId, opts.studentId));
+  }
+  return createTRPCClient<AppRouter>({
+    links: [
+      httpBatchLink({
+        url: baseUrl,
+        headers: () => ({
+          'x-dev-lms-user': JSON.stringify({
+            parentAccountId: opts.parentAccountId,
+            studentId: opts.studentId,
+            kind: 'student',
+          }),
+        }),
+      }),
+    ],
+  });
 }

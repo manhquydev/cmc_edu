@@ -13,54 +13,24 @@
 
 import { test, expect } from '@playwright/test';
 import { TRPCClientError } from '@trpc/client';
-import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import type { AppRouter } from '../../api/src/router.js';
 import { cleanupParentAccountsByPhone, seedActiveEnrollment } from '../src/db.js';
-import { createE2eStaffClient } from '../src/trpc-client.js';
+import {
+  createE2eStaffClient,
+  createE2eLmsStudentClient,
+  createE2eLmsParentClient,
+} from '../src/trpc-client.js';
 import { randomVnPhone } from '../src/random-vn-phone.js';
 
 const baseUrl = process.env.E2E_BASE_URL!;
 const facilityId = process.env.E2E_FACILITY_ID!;
 
-// ---------------------------------------------------------------------------
-// Client factory — explicit kind field in header
-// ---------------------------------------------------------------------------
-
-function createStudentSessionClient(
-  url: string,
-  opts: { parentAccountId: string; studentId: string },
-) {
-  return createTRPCClient<AppRouter>({
-    links: [
-      httpBatchLink({
-        url,
-        headers: () => ({
-          'x-dev-lms-user': JSON.stringify({
-            parentAccountId: opts.parentAccountId,
-            studentId: opts.studentId,
-            kind: 'student',
-          }),
-        }),
-      }),
-    ],
-  });
-}
-
-function createParentSessionClient(url: string, opts: { parentAccountId: string }) {
-  return createTRPCClient<AppRouter>({
-    links: [
-      httpBatchLink({
-        url,
-        headers: () => ({
-          'x-dev-lms-user': JSON.stringify({
-            parentAccountId: opts.parentAccountId,
-            kind: 'parent',
-          }),
-        }),
-      }),
-    ],
-  });
-}
+// Session clients are the shared mode-aware factories (createE2eLms*Client) so
+// these specs run under both dev (Mode-A header) and prod-config (Mode-B signed
+// Bearer) — see apps/e2e/src/trpc-client.ts.
+const createStudentSessionClient = createE2eLmsStudentClient;
+const createParentSessionClient = (url: string, opts: { parentAccountId: string }) =>
+  createE2eLmsParentClient(url, opts.parentAccountId);
 
 // ---------------------------------------------------------------------------
 // Setup: provision a parent + two students so sibling isolation can be tested

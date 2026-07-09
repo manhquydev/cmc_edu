@@ -38,13 +38,23 @@ pnpm --filter @cmc/e2e test
 
 | Date | Result | Notes |
 |------|--------|-------|
-|      | PASS / FAIL | |
+| 2026-07-09 | **PASS** (17 passed, 1 skipped) | Mode-B `NODE_ENV=production`, DB throwaway `cmc_staging` (≠ cmc_prod), secret throwaway ≠ pilot. Skip = `TEST_OTP_SEAM` (đúng, seam tắt ở prod). |
 
 ### Run 2 (must also pass — 2 consecutive required)
 
 | Date | Result | Notes |
 |------|--------|-------|
-|      | PASS / FAIL | |
+| 2026-07-09 | **PASS** (17 passed, 1 skipped) | Chạy liên tiếp ngay sau Run 1, cùng config. 2/2 xanh liên tiếp ✅ |
+
+> **Lần chạy này lộ + sửa 1 gap Mode-B thật:** 2 spec LMS (`kind-isolation`, `attendance-grading`)
+> dùng helper dev-header cục bộ (`x-dev-lms-user`) — tắt dưới `NODE_ENV=production` → token bị
+> UNAUTHORIZED trước khi tới kind-gate (4 test đỏ). Đã gom về factory mode-aware chung
+> (`createE2eLmsStudentClient`/`ParentClient` trong `apps/e2e/src/trpc-client.ts`), khớp pattern staff.
+> Prerequisite Phase 1 (C2 mode-switching) trước đây sót 2 helper LMS này.
+>
+> **Phạm vi e2e (plan Architecture):** e2e spawn server tsx riêng (`global-setup.ts`), KHÔNG phải
+> stack docker cmcv2-prod → e2e xanh không validate images/nginx/boot-checks. Khoảng trống này phủ
+> bằng HTTP smoke trực tiếp stack ở Phase 2 (health 200 + `/auth/login` 302 Entra).
 
 **E2E critical flows covered:**
 - [ ] Receipt create → approve (over-threshold role-elevation)
@@ -316,16 +326,16 @@ All of the following must be checked before proceeding to go-live:
 
 | # | Criteria | Status |
 |---|---------|--------|
-| G1 | E2E critical green ≥2 consecutive runs | |
+| G1 | E2E critical green ≥2 consecutive runs | ✅ 2026-07-09 (Run 1+2 PASS 17/1skip, Mode-B staging) |
 | G2 | All 6 rows in Section 2 sign-off table signed (4 active staff roles + PH + học sinh; ke_toan/cskh/ctv_mkt/hr no longer active per ADR-D amendment) | |
 | G3 | Cutover probe → 401 (RT-2) | |
 | G4 | 0 CRITICAL/HIGH open findings | |
-| G5 | Restore drill PASS (backup host ≠ deploy host, RT-13) | |
-| G6 | Isolation check PASS | |
+| G5 | Restore drill PASS (backup host ≠ deploy host, RT-13) | ✅ 2026-07-09 (R2 `cmc-db-backups`, 49 tables, escrow decrypt OK) |
+| G6 | Isolation check PASS | ✅ 2026-07-09 |
 | G7 | **G7-nhẹ** (2026-07-08 user chốt): người thứ hai chạy `env-check.sh` + boot-checks API + grep `ALLOW_DEV_AUTH`/`TEST_OTP_SEAM` vắng → ký tên (full G7 deferred M1) | |
-| G8 | `ALLOW_DEV_AUTH` absent from `.env.prod` (`grep ALLOW_DEV_AUTH .env.prod` → empty) | |
-| G9 | `TEST_OTP_SEAM` absent from `.env.prod` (`grep TEST_OTP_SEAM .env.prod` → empty) | |
-| G10 | `STAFF_SESSION_SECRET` ≠ `LMS_SESSION_SECRET` in prod (two distinct values) | |
+| G8 | `ALLOW_DEV_AUTH` absent from `.env.prod` (`grep ALLOW_DEV_AUTH .env.prod` → empty) | ✅ 2026-07-09 (0 dòng) |
+| G9 | `TEST_OTP_SEAM` absent from `.env.prod` (`grep TEST_OTP_SEAM .env.prod` → empty) | ✅ 2026-07-09 (0 dòng) |
+| G10 | `STAFF_SESSION_SECRET` ≠ `LMS_SESSION_SECRET` in prod (two distinct values) | ✅ 2026-07-09 (distinct) |
 
 ---
 

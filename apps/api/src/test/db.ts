@@ -17,11 +17,37 @@ import { createPrismaClient, PrismaClient, withFacility, type Prisma } from '@cm
 import type { Role } from '@cmc/auth';
 import type { Context } from '../trpc.js';
 
+/** Real pilot DB name (docs/runbook-deploy.md). Fail-closed guard (gap-closure
+ * 260710-0005 Phase 3, red-team F6): this test harness runs real INSERT/
+ * DELETE against whatever `APP_DATABASE_URL` points at — never the real
+ * pilot database. Mirrors the same check in apps/e2e/src/global-setup.ts. */
+const FORBIDDEN_DATABASE_NAME = 'cmc_prod';
+
+function assertNotProdDatabase(databaseUrl: string | undefined): void {
+  if (!databaseUrl) return; // createPrismaClient() will fail its own way if unset.
+  let dbName: string;
+  try {
+    dbName = new URL(databaseUrl).pathname.replace(/^\//, '');
+  } catch {
+    return; // Not our job to validate URL shape — createPrismaClient() will surface that error.
+  }
+  if (dbName === FORBIDDEN_DATABASE_NAME) {
+    throw new Error(
+      `apps/api integration tests refuse to run against database "${FORBIDDEN_DATABASE_NAME}" — this is ` +
+        `the real pilot database, not a throwaway. Point APP_DATABASE_URL at a throwaway DB (e.g. ` +
+        `"cmc_staging") before running \`pnpm test\`.`,
+    );
+  }
+}
+
 let dbSingleton: PrismaClient | undefined;
 
 /** Shared Prisma client for integration tests (lazy — no connection until used). */
 export function testDb(): PrismaClient {
-  dbSingleton ??= createPrismaClient();
+  if (!dbSingleton) {
+    assertNotProdDatabase(process.env['APP_DATABASE_URL']);
+    dbSingleton = createPrismaClient();
+  }
   return dbSingleton;
 }
 

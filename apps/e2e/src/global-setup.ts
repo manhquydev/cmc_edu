@@ -29,6 +29,31 @@ const require = createRequire(import.meta.url);
 const HEALTH_TIMEOUT_MS = 20_000;
 const HEALTH_POLL_INTERVAL_MS = 200;
 
+/** Real pilot DB name (docs/runbook-deploy.md) — the local-sim stack's
+ * `cmc_prod` seeds a real super_admin. e2e must never run destructive
+ * facility.create/cleanupFacility writes against it. Fail-closed: any parse
+ * failure or a match on this name aborts before the server is even spawned
+ * (gap-closure 260710-0005 Phase 3, red-team F6). This guard is the single
+ * shared checkpoint — apps/api/src/test/db.ts integration tests rely on the
+ * same env-var convention but don't share this file. */
+const FORBIDDEN_DATABASE_NAME = 'cmc_prod';
+
+function assertNotProdDatabase(databaseUrl: string): void {
+  let dbName: string;
+  try {
+    dbName = new URL(databaseUrl).pathname.replace(/^\//, '');
+  } catch {
+    throw new Error(`APP_DATABASE_URL is not a valid URL — refusing to run e2e (fail-closed): ${databaseUrl}`);
+  }
+  if (dbName === FORBIDDEN_DATABASE_NAME) {
+    throw new Error(
+      `@cmc/e2e refuses to run against database "${FORBIDDEN_DATABASE_NAME}" — this is the real pilot ` +
+        `database, not a throwaway. Point APP_DATABASE_URL/DATABASE_URL at a throwaway DB (e.g. ` +
+        `"cmc_staging") before running \`pnpm --filter @cmc/e2e test\`.`,
+    );
+  }
+}
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -61,6 +86,7 @@ async function waitForHealth(baseUrl: string, child: ChildProcess): Promise<void
 
 export default async function globalSetup(_config: FullConfig): Promise<() => Promise<void>> {
   const appDatabaseUrl = requireEnv('APP_DATABASE_URL');
+  assertNotProdDatabase(appDatabaseUrl);
   const port = await findFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;
 

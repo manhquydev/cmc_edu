@@ -92,4 +92,4 @@ Thêm/đổi role hoặc quyền → sửa **enum Role + registry + tài liệu 
 mô hình. Đây là nguồn duy nhất; các tài liệu khác (TL1/TL05/TL07) trỏ về đây, không định nghĩa lại.
 
 > Liên kết: TL1 (bất biến & SoD) · TL3 (nợ role-array) · TL13 (agent principal) · TL17
-> (luồng — **cần cập nhật theo tài liệu này**, xem TL15).
+> (luồng — đã viết lại theo mô hình v2, nhất quán với tài liệu này; xác nhận 2026-07-09).

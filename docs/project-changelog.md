@@ -6,6 +6,98 @@
 
 ---
 
+## [2026-07-09] Backup hardening — R2 encrypted upload + restore drill pass
+
+**Context:** Phase 2 infrastructure hardening; backup restore (RT-13) pre-condition for M0 GO/NO-GO.
+
+**Encrypted backup to R2:**
+- `cmc-db-backups` bucket (R2 Cloudflare), 30-day lifecycle rule, public access disabled
+- AES-256-CBC encryption via `openssl enc -aes-256-cbc -pbkdf2` with symmetric passphrase
+  `BACKUP_ENCRYPTION_PASSPHRASE` (NOT `age` — corrected 2026-07-09; DR must follow
+  `docs/runbook-deploy.md` §1.7 / `scripts/backup-db.sh`)
+- Escrow: passphrase copy in team password manager (user action pending confirmation)
+- All 49 tables included in dump; `--no-acl` removed so cmc_app GRANTs survive restore (`b0cd729`)
+
+**Restore drill passed (2026-07-09):**
+- Backup host ≠ deploy host (RT-13 safety validation)
+- `pg_restore` clean exit; Prisma `?schema=` query param stripped before pg_dump (`b0cd729`)
+- 49 tables verified post-restore; RLS smoke query via cmc_app PASS
+- Escrow decrypt validated: passphrase alone decrypts backup → valid PostgreSQL custom dump
+
+**Gates:** G5 ✅ (restore drill passing)
+
+---
+
+## [2026-07-09] Phase 4 UAT automated slice — e2e 17/18 pass, lms-auth-two-tier deleted
+
+**Context:** Phase 4 go-live UAT automation. Automated e2e gates (G1, G5, G8, G9, G10) proven; manual gates (G2–G4, G6, G7) tracked in UAT checklist.
+
+**e2e Run 1 + Run 2 (Mode-B, NODE_ENV=production):**
+- 17 passed, 1 skipped (TEST_OTP_SEAM — correct; seam disabled in prod)
+- Consecutive runs: both passed ✅
+- DB: throwaway `cmc_staging` (≠ cmc_prod)
+- Session injection via signed cookies (staff: `mintStaffCookie`, LMS: `mintParentToken`)
+
+**lms-auth-two-tier stub deletion:**
+- File `apps/api/src/lms-auth/lms-auth-two-tier.test.ts` was 13 empty stubs (0 assertions)
+- Deletion rationale: coverage proven in e2e `kind-isolation.spec.ts` + `lms-auth.spec.ts`
+- Two-tier gates (kind checking, sibling scope, student lockout, resetChildPassword scoping) verified under Mode-B prod config
+
+**Blocker gap fixed (2026-07-09 during Run 1):**
+- 2 LMS specs (`kind-isolation`, `attendance-grading`) used dev-header helper (`x-dev-lms-user`)
+- Mode-B disabled dev-headers → UNAUTHORIZED before kind-gate (4 tests red)
+- Fixed: migrated to factory mode-aware clients (`createE2eLmsStudentClient`, `createE2eLmsParentClient`)
+- Matches staff pattern in `apps/e2e/src/trpc-client.ts`
+
+**Gates passed:** G1 ✅, G5 ✅, G8 ✅, G9 ✅, G10 ✅
+
+**Remaining gates (manual):** G2 (real-user UAT), G3 (cutover probe), G4 (audit), G6 (security review), G7 (env sign-off)
+
+---
+
+## [2026-07-09] Phase 3 flow audit — 0 CRITICAL, 3 HIGH (UAT coverage gaps, not code defects)
+
+**Verdict:** REDEPLOY_NOT_REQUIRED — no blocking code findings.
+
+**Finding summary:**
+- **0 CRITICAL:** No code execution defects
+- **3 HIGH:** UAT coverage gaps (not code bugs)
+  - Real-user auth flow untested in anger (covered: dev stub, e2e Mode-B; gap: live Entra + parent OTP via Brevo)
+  - E2E doesn't cover all 5 UAT scenarios from Section 2 (staff + real LMS users)
+  - ctv_mkt role status ambiguous per HIGH-2 (resolved 2026-07-09: marked dormant, business decision pending)
+- **13 MEDIUM:** Traceability drift (docs vs code, mitigated by TL14 + TL16 amendment)
+
+**Remediation:**
+- ctv_mkt dormant per ADR-D amendment (2026-07-09 commit)
+- UAT Section 2 scenarios to be executed manually (real staff + parent/student actors)
+- Follow-up audit: post-UAT (2026-07-10 target)
+
+---
+
+## [2026-07-09] Phase 2 env-prod hardening — Nginx DNS, LMS API URL, CRLF, ACL backup
+
+**Nginx DNS-cache 502:**
+- Root cause: upstream resolver caching stale IPs under rapid facility scale-out
+- Fix: added explicit `resolver` directive with TTL in nginx prod config
+- Result: no more 502s on facility creation
+
+**LMS prod API URL:**
+- Fix: `NEXT_PUBLIC_API_URL` env var pointing to correct API host in prod environment
+- Impact: parent login OTP requests now reach correct endpoint
+
+**CRLF line endings:**
+- Added `.gitattributes text=auto eol=lf` rules for shell scripts
+- Prevents CRLF-induced deploy failures (Windows dev → Linux deploy mismatch)
+
+**Backup ACL preservation:**
+- PostgreSQL dump now preserves ACLs (`pg_dump --clean` with role restore)
+- Prisma connection string `?schema=` parameter stripped before `pg_restore` to avoid schema mismatch
+- Restore tested successfully (2026-07-09 drill)
+
+**Phase 2 acceptance:** Phase 2 UAT scenarios (docker compose stack + SSO smoke) prerequisites met; ready for Task #8 execution
+
+---
+
 ## [2026-07-09] Role scope alignment Nac 2 — ADR-D amendment (5 active roles)
 
 **Branch:** `main` — single PR, 4 phases.

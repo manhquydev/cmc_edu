@@ -18,7 +18,10 @@
 | **IT (super_admin)** | ERP | Cấu hình cơ sở/IP/ca, người dùng | — |
 | **Phụ huynh / Học sinh** | LMS | Xem lịch, kết quả, bài tập | — |
 
-`cskh`, `ctv_mkt`, `ke_toan`, `hr`: tạm gác (ADR-D). "Quản lý" = quan hệ `managerId`, không phải role.
+`cskh`, `ctv_mkt`, `ke_toan`, `hr`: tạm gác (ADR-D). Từ amendment 2026-07-08 (commit `57ee539`),
+việc gác được **enforce bằng code**: 0 quyền trong registry, `user.updateRoles` reject, UI không
+hiển thị, invariant test khoá — không chỉ là quy ước tài liệu. "Quản lý" = quan hệ `managerId`,
+không phải role.
 
 ---
 

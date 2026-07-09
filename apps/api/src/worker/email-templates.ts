@@ -27,6 +27,29 @@ function isReceiptPayload(p: unknown): p is ReceiptPayload {
   );
 }
 
+/**
+ * LMS parent email-OTP delivery (gap closure 260710-0005 Phase 1). `code` is
+ * the plaintext OTP — lives in the outbox row only until relay-email-outbox
+ * scrubs it post-send (see relay-email-outbox.ts). Distinguished from
+ * ReceiptPayload by `kind: 'otp'` so a scrubbed row `{kind:'otp',scrubbed:true}`
+ * never matches this guard again (falls through to the safe generic branch).
+ */
+interface OtpPayload {
+  kind: 'otp';
+  code: string;
+  ttlMinutes: number;
+}
+
+function isOtpPayload(p: unknown): p is OtpPayload {
+  return (
+    typeof p === 'object' &&
+    p !== null &&
+    (p as Record<string, unknown>)['kind'] === 'otp' &&
+    typeof (p as Record<string, unknown>)['code'] === 'string' &&
+    typeof (p as Record<string, unknown>)['ttlMinutes'] === 'number'
+  );
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -50,6 +73,23 @@ export function renderOutboxEmail(payload: unknown): RenderedEmail {
       `<p>Phiếu thu học phí cho học viên <strong>${escapeHtml(name)}</strong> ` +
       `đã được duyệt và ghi nhận.</p>` +
       `<p>Quý phụ huynh vui lòng đăng nhập cổng CMC EDU để xem chi tiết.</p>` +
+      `<p>Trân trọng,<br/>CMC EDU</p>`;
+    return { subject, html, text };
+  }
+
+  if (isOtpPayload(payload)) {
+    const code = escapeHtml(payload.code);
+    const ttl = payload.ttlMinutes;
+    const subject = 'CMC EDU — Mã đăng nhập';
+    const text =
+      `Kính gửi Quý phụ huynh,\n\n` +
+      `Mã đăng nhập cổng CMC EDU của Quý phụ huynh là: ${payload.code}\n` +
+      `Mã hết hạn sau ${ttl} phút. Vui lòng không chia sẻ mã này với bất kỳ ai.\n\n` +
+      `Trân trọng,\nCMC EDU`;
+    const html =
+      `<p>Kính gửi Quý phụ huynh,</p>` +
+      `<p>Mã đăng nhập cổng CMC EDU của Quý phụ huynh là: <strong>${code}</strong></p>` +
+      `<p>Mã hết hạn sau ${ttl} phút. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>` +
       `<p>Trân trọng,<br/>CMC EDU</p>`;
     return { subject, html, text };
   }

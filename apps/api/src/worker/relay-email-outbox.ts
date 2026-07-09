@@ -41,6 +41,46 @@ const EMAIL_MAX_ATTEMPTS = Number(process.env.EMAIL_MAX_ATTEMPTS ?? 5);
  *  and are reset to `pending` before the main drain loop. */
 const SENDING_REAP_TIMEOUT_MS = 5 * 60 * 1_000;
 
+/** Must stay in sync with `OTP_TTL_MINUTES` in `lms-auth/router.ts`. Sweep
+ *  window for orphaned OTP payloads (row stuck in `failed`/`pending` — e.g.
+ *  worker died mid-cycle — past the point the code could still be used to
+ *  log in). Gap-closure 260710-0005 Phase 1 red-team C1/validation #2: scrub
+ *  runs on both terminal success paths (`sent`, `dead`) AND this age-based
+ *  sweep, so no OTP plaintext survives past its login TTL regardless of
+ *  which state the row is stuck in. */
+const OTP_PAYLOAD_TTL_MINUTES = 5;
+
+/** True when a raw `EmailOutbox.payload` JSON value is an (unscrubbed or
+ *  scrubbed) OTP payload — kind discriminator only, no other field access. */
+function isOtpKindPayload(payload: unknown): boolean {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    (payload as Record<string, unknown>)['kind'] === 'otp'
+  );
+}
+
+const SCRUBBED_OTP_PAYLOAD = { kind: 'otp', scrubbed: true };
+
+/**
+ * Scrubs plaintext OTP codes from `EmailOutbox` rows older than
+ * `OTP_PAYLOAD_TTL_MINUTES`, regardless of `status`. Covers the case where a
+ * row is stuck in `pending`/`sending`/`failed` (worker crash, transport
+ * outage) past the point the code is still usable — closes red-team C1
+ * (scrub-only-on-success left `dead`/stuck rows holding plaintext forever).
+ */
+export async function sweepStaleOtpPayloads(db: PrismaClient): Promise<number> {
+  const cutoff = new Date(Date.now() - OTP_PAYLOAD_TTL_MINUTES * 60_000);
+  const result = await db.emailOutbox.updateMany({
+    where: {
+      createdAt: { lt: cutoff },
+      payload: { path: ['kind'], equals: 'otp' },
+    },
+    data: { payload: SCRUBBED_OTP_PAYLOAD },
+  });
+  return result.count;
+}
+
 /**
  * Exponential back-off before the next retry.
  * Caps at 30 minutes so a permanently-broken transport doesn't produce a
@@ -57,6 +97,8 @@ export interface RelayEmailOutboxResult {
   failed: number;
   dead: number;
   reaped: number;
+  /** Count of stale OTP-payload rows scrubbed this cycle (see sweepStaleOtpPayloads). */
+  otpSwept: number;
 }
 
 /**
@@ -116,6 +158,8 @@ export async function relayEmailOutbox(
           status: 'dead',
           attempts: (row.attempts as number) + 1,
           lastError: reason,
+          // C1: dead is terminal — scrub any OTP plaintext now, don't wait for sweep.
+          ...(isOtpKindPayload(row.payload) ? { payload: SCRUBBED_OTP_PAYLOAD } : {}),
         },
       });
       dead += 1;
@@ -136,7 +180,11 @@ export async function relayEmailOutbox(
       await t.send({ id: row.id, to: row.to, payload: row.payload });
       await db.emailOutbox.update({
         where: { id: row.id },
-        data: { status: 'sent' },
+        data: {
+          status: 'sent',
+          // C1: scrub OTP plaintext immediately on the success path.
+          ...(isOtpKindPayload(row.payload) ? { payload: SCRUBBED_OTP_PAYLOAD } : {}),
+        },
       });
       sent += 1;
     } catch (error) {
@@ -154,6 +202,11 @@ export async function relayEmailOutbox(
           // need it (they are never re-drained). Phase PD-2 will use this
           // column to filter out rows whose nextRetryAt hasn't passed yet.
           ...(isDead ? {} : { nextRetryAt: new Date(Date.now() + backoffMs(newAttempts)) }),
+          // C1: `dead` is terminal — scrub now. `failed` (still retryable)
+          // intentionally KEEPS the code so a retry can still send it; the
+          // age-based sweep (sweepStaleOtpPayloads) is the backstop if a
+          // `failed` row never recovers before the OTP's own login TTL.
+          ...(isDead && isOtpKindPayload(row.payload) ? { payload: SCRUBBED_OTP_PAYLOAD } : {}),
         },
       });
 
@@ -175,5 +228,16 @@ export async function relayEmailOutbox(
     }
   }
 
-  return { sent, failed, dead, reaped };
+  // ── 3. Sweep stale OTP payloads (age-based, any status) ───────────────────
+  // Runs AFTER the drain loop, not before: a stale `pending`/`failed` row
+  // scrubbed first would then be claimed and sent this SAME cycle with its
+  // payload already wiped — `renderOutboxEmail` falls through to the empty
+  // generic branch, wasting a real Brevo send on content-free mail instead
+  // of the row being handled by drain (sent-with-code or dead-lettered).
+  // Running the sweep last means drain always sees the real payload first;
+  // the sweep then only catches rows drain didn't resolve this cycle (still
+  // `pending`/`failed`/`sending` and past the OTP's own login TTL).
+  const otpSwept = await sweepStaleOtpPayloads(db);
+
+  return { sent, failed, dead, reaped, otpSwept };
 }

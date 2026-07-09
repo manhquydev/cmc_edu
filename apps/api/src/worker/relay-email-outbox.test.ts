@@ -11,7 +11,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
-import { relayEmailOutbox } from './relay-email-outbox.js';
+import { relayEmailOutbox, sweepStaleOtpPayloads } from './relay-email-outbox.js';
 import type { EmailTransport, OutboxEmail } from './email-transport.js';
 import type { PrismaClient } from '@cmc/db';
 import { testDb } from '../test/db.js';
@@ -130,6 +130,93 @@ describe('relayEmailOutbox (K6)', () => {
     });
     expect(audit).not.toBeNull();
   });
+
+  // ── Gap-closure 260710-0005 Phase 1: OTP scrub + sweep (red-team C1) ──────
+  async function seedOtpOutbox(overrides?: { status?: 'pending' | 'failed'; createdAt?: Date }) {
+    const row = await testDb().emailOutbox.create({
+      data: {
+        to: `otp-${Math.random().toString(36).slice(2, 8)}@test.com`,
+        transport: 'brevo',
+        status: overrides?.status ?? 'pending',
+        payload: { kind: 'otp', code: '999999', ttlMinutes: 5 },
+        ...(overrides?.createdAt ? { createdAt: overrides.createdAt } : {}),
+      },
+    });
+    outboxIdsToClean.push(row.id);
+    return row;
+  }
+
+  it('scrubs the OTP code from payload immediately after a successful send', async () => {
+    const row = await seedOtpOutbox();
+    const transport = new RecordingTransport();
+
+    await relayEmailOutbox(testDb(), { brevo: transport });
+
+    const updated = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
+    expect(updated.status).toBe('sent');
+    expect(updated.payload).toEqual({ kind: 'otp', scrubbed: true });
+    expect(JSON.stringify(updated.payload)).not.toContain('999999');
+  });
+
+  it('scrubs the OTP code when a row goes dead (no transport configured)', async () => {
+    const row = await seedOtpOutbox();
+
+    await relayEmailOutbox(testDb(), {}); // no 'brevo' transport registered → dead
+
+    const updated = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
+    expect(updated.status).toBe('dead');
+    expect(updated.payload).toEqual({ kind: 'otp', scrubbed: true });
+  });
+
+  it('does NOT scrub a `failed` (still-retryable) OTP row on a transient failure', async () => {
+    const row = await seedOtpOutbox();
+
+    await relayEmailOutbox(testDb(), { brevo: new AlwaysFailingTransport() });
+
+    const updated = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
+    expect(updated.status).toBe('failed');
+    expect(JSON.stringify(updated.payload)).toContain('999999');
+  });
+
+  it('sweeps a stale OTP row past its TTL regardless of status', async () => {
+    const staleDate = new Date(Date.now() - 6 * 60_000); // 6 min ago > 5 min TTL
+    const row = await seedOtpOutbox({ status: 'failed', createdAt: staleDate });
+
+    const result = await relayEmailOutbox(testDb(), {}); // no transport — row would also go dead
+
+    expect(result.otpSwept).toBeGreaterThanOrEqual(1);
+    const updated = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
+    expect(updated.payload).toEqual({ kind: 'otp', scrubbed: true });
+  });
+
+  it('a stale pending OTP row is still sent WITH its real code this cycle (sweep runs after drain, not before)', async () => {
+    const staleDate = new Date(Date.now() - 6 * 60_000); // 6 min ago > 5 min TTL
+    const row = await seedOtpOutbox({ status: 'pending', createdAt: staleDate });
+    const transport = new RecordingTransport();
+
+    await relayEmailOutbox(testDb(), { brevo: transport });
+
+    const sentEmail = transport.sent.find((e) => e.id === row.id);
+    expect(sentEmail).toBeDefined();
+    // The payload the transport received must still carry the real code —
+    // if sweep ran before drain, this would already be {kind:'otp',scrubbed:true}
+    // and renderOutboxEmail would silently send an empty "Thông báo" email.
+    expect(JSON.stringify(sentEmail?.payload)).toContain('999999');
+    const updated = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
+    expect(updated.status).toBe('sent');
+    // Scrubbed AFTER send, by the normal 'sent' path — not empty-content-sent.
+    expect(updated.payload).toEqual({ kind: 'otp', scrubbed: true });
+  });
+
+  it('sweepStaleOtpPayloads leaves a fresh OTP row untouched (age-based, not status-based)', async () => {
+    const fresh = await seedOtpOutbox({ status: 'failed' }); // createdAt = now, well under TTL
+
+    const swept = await sweepStaleOtpPayloads(testDb());
+
+    expect(swept).toBe(0);
+    const unchanged = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: fresh.id } });
+    expect(JSON.stringify(unchanged.payload)).toContain('999999');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -184,7 +271,8 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
     const row = makeRow();
     db.emailOutbox.updateMany
       .mockResolvedValueOnce({ count: 0 }) // reap: nothing stuck
-      .mockResolvedValueOnce({ count: 1 }); // claim: won
+      .mockResolvedValueOnce({ count: 1 }) // claim: won
+      .mockResolvedValueOnce({ count: 0 }); // sweep: nothing stale
     db.emailOutbox.findMany.mockResolvedValue([row]);
 
     const send = vi.fn().mockResolvedValue(undefined);
@@ -195,7 +283,7 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
     expect(db.emailOutbox.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: 'sent' } }),
     );
-    expect(result).toEqual({ sent: 1, failed: 0, dead: 0, reaped: 0 });
+    expect(result).toEqual({ sent: 1, failed: 0, dead: 0, reaped: 0, otpSwept: 0 });
   });
 
   it('failed row → retried → success → sent', async () => {
@@ -203,7 +291,8 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
     const row = makeRow({ attempts: 2 });
     db.emailOutbox.updateMany
       .mockResolvedValueOnce({ count: 0 })
-      .mockResolvedValueOnce({ count: 1 });
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
     db.emailOutbox.findMany.mockResolvedValue([row]);
 
     const send = vi.fn().mockResolvedValue(undefined);
@@ -220,13 +309,14 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
     const row = makeRow({ attempts: 0 });
     db.emailOutbox.updateMany
       .mockResolvedValueOnce({ count: 0 })
-      .mockResolvedValueOnce({ count: 1 });
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
     db.emailOutbox.findMany.mockResolvedValue([row]);
 
     const send = vi.fn().mockRejectedValue(new Error('SMTP timeout'));
     const result = await relayEmailOutbox(db as unknown as PrismaClient, { brevo: { send } });
 
-    expect(result).toEqual({ sent: 0, failed: 1, dead: 0, reaped: 0 });
+    expect(result).toEqual({ sent: 0, failed: 1, dead: 0, reaped: 0, otpSwept: 0 });
     expect(db.emailOutbox.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'failed', attempts: 1, lastError: 'SMTP timeout' }),
@@ -243,13 +333,14 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
     const row = makeRow({ attempts: 4 });
     db.emailOutbox.updateMany
       .mockResolvedValueOnce({ count: 0 })
-      .mockResolvedValueOnce({ count: 1 });
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
     db.emailOutbox.findMany.mockResolvedValue([row]);
 
     const send = vi.fn().mockRejectedValue(new Error('connection refused'));
     const result = await relayEmailOutbox(db as unknown as PrismaClient, { brevo: { send } });
 
-    expect(result).toEqual({ sent: 0, failed: 0, dead: 1, reaped: 0 });
+    expect(result).toEqual({ sent: 0, failed: 0, dead: 1, reaped: 0, otpSwept: 0 });
     expect(db.emailOutbox.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'dead', attempts: 5 }),
@@ -274,7 +365,7 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
     const result = await relayEmailOutbox(db as unknown as PrismaClient, {});
 
     expect(result.reaped).toBe(2);
-    expect(result).toEqual({ sent: 0, failed: 0, dead: 0, reaped: 2 });
+    expect(result).toEqual({ sent: 0, failed: 0, dead: 0, reaped: 2, otpSwept: 0 });
     // First updateMany call must target 'sending' status + updatedAt cutoff
     const reapArgs = (db.emailOutbox.updateMany.mock.calls[0] as [{ where: { status: string; updatedAt: { lt: Date } }; data: { status: string } }])[0];
     expect(reapArgs.where.status).toBe('sending');
@@ -287,12 +378,13 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
     const row = makeRow({ transport: 'sms' }); // key absent from transport map
     db.emailOutbox.updateMany
       .mockResolvedValueOnce({ count: 0 })
-      .mockResolvedValueOnce({ count: 1 });
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
     db.emailOutbox.findMany.mockResolvedValue([row]);
 
     const result = await relayEmailOutbox(db as unknown as PrismaClient, { brevo: { send: vi.fn() } });
 
-    expect(result).toEqual({ sent: 0, failed: 0, dead: 1, reaped: 0 });
+    expect(result).toEqual({ sent: 0, failed: 0, dead: 1, reaped: 0, otpSwept: 0 });
     expect(db.emailOutbox.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -329,7 +421,8 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
       const row = makeRow({ payload: { otp: 'SECRET_OTP_789', receiptId: 'rcpt-1' } });
       db.emailOutbox.updateMany
         .mockResolvedValueOnce({ count: 0 })
-        .mockResolvedValueOnce({ count: 1 });
+        .mockResolvedValueOnce({ count: 1 })
+        .mockResolvedValueOnce({ count: 0 });
       db.emailOutbox.findMany.mockResolvedValue([row]);
 
       // Silent stub transport — relayEmailOutbox itself must not log payload.

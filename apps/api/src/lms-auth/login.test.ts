@@ -292,3 +292,91 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
     expect(priorRow.status).toBe('expired');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Gap-closure 260710-0005 Phase 1: requestOtpEmail → EmailOutbox delivery.
+// Prior to this phase requestOtpEmail only created a LoginOtp row and never
+// enqueued an email — parents could never receive their OTP in production.
+// ---------------------------------------------------------------------------
+describe('lmsAuth.requestOtpEmail — EmailOutbox enqueue (gap-closure 260710-0005)', () => {
+  const anon: Caller = appRouter.createCaller({
+    subject: null,
+    facilityId: null,
+    lmsSubject: null,
+    db: testDb(),
+    ip: null,
+  });
+  const emailsToClean: string[] = [];
+  const phonesToClean: string[] = [];
+
+  afterEach(async () => {
+    if (emailsToClean.length > 0) {
+      await testDb().emailOutbox.deleteMany({ where: { to: { in: emailsToClean } } });
+      await testDb().loginOtp.deleteMany({ where: { email: { in: emailsToClean } } });
+      await testDb().parentAccount.deleteMany({ where: { email: { in: emailsToClean } } });
+    }
+    if (phonesToClean.length > 0) {
+      await testDb().parentAccount.deleteMany({ where: { phone: { in: phonesToClean } } });
+    }
+    emailsToClean.length = 0;
+    phonesToClean.length = 0;
+  });
+
+  it('enqueues exactly one EmailOutbox row with the OTP payload shape when a ParentAccount owns the email', async () => {
+    const email = 'otp-enqueue-1@test.com';
+    const phone = '0993000001';
+    emailsToClean.push(email);
+    phonesToClean.push(phone);
+    await testDb().parentAccount.create({ data: { phone, email } });
+
+    const result = await anon.lmsAuth.requestOtpEmail({ email });
+    expect(result).toEqual({ ok: true });
+
+    const rows = await testDb().emailOutbox.findMany({ where: { to: email } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.transport).toBe('brevo');
+    expect(rows[0]?.status).toBe('pending');
+    const payload = rows[0]?.payload as { kind: string; code: string; ttlMinutes: number };
+    expect(payload.kind).toBe('otp');
+    expect(payload.code).toMatch(/^\d{6}$/);
+    expect(payload.ttlMinutes).toBe(5);
+  });
+
+  it('does NOT enqueue an EmailOutbox row when no ParentAccount owns the email, but still returns {ok:true} (no-leak)', async () => {
+    const email = 'otp-no-account@test.com';
+    emailsToClean.push(email);
+
+    const result = await anon.lmsAuth.requestOtpEmail({ email });
+    expect(result).toEqual({ ok: true });
+
+    const rows = await testDb().emailOutbox.findMany({ where: { to: email } });
+    expect(rows).toHaveLength(0);
+    // LoginOtp is still created unconditionally (no-leak response invariant).
+    const otp = await testDb().loginOtp.findFirst({ where: { email } });
+    expect(otp).not.toBeNull();
+  });
+
+  it('the global otp-enqueue cap fail-closes further email requests once the hourly ceiling is hit', async () => {
+    const email = 'otp-cap-test@test.com';
+    emailsToClean.push(email);
+    // Seed 200 pre-existing otp EmailOutbox rows within the last hour to
+    // simulate the cap already being saturated by other requests.
+    await testDb().emailOutbox.createMany({
+      data: Array.from({ length: 200 }, (_, i) => ({
+        to: `otp-cap-filler-${i}@test.com`,
+        transport: 'brevo' as const,
+        status: 'pending' as const,
+        payload: { kind: 'otp', code: '000000', ttlMinutes: 5 },
+      })),
+    });
+    const fillerEmails = Array.from({ length: 200 }, (_, i) => `otp-cap-filler-${i}@test.com`);
+
+    try {
+      await expect(anon.lmsAuth.requestOtpEmail({ email })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+      const rows = await testDb().emailOutbox.findMany({ where: { to: email } });
+      expect(rows).toHaveLength(0);
+    } finally {
+      await testDb().emailOutbox.deleteMany({ where: { to: { in: fillerEmails } } });
+    }
+  });
+});

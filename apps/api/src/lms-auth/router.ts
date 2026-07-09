@@ -55,6 +55,17 @@ const OTP_REQUEST_COOLDOWN_SECONDS = 30;
 /** H5 remediation: failed verify attempts allowed before a code locks. */
 const MAX_OTP_VERIFY_ATTEMPTS = 5;
 
+/**
+ * Gap-closure 260710-0005 Phase 1 red-team C2: per-email cooldown alone is
+ * bypassable by rotating the target email (email-bomb / Brevo-quota-drain
+ * against the LMS's only login gate). This is a system-wide ceiling on how
+ * many `kind='otp'` EmailOutbox rows may be enqueued per rolling hour,
+ * fail-closed once hit. Pilot-scale placeholder — raise (with a comment
+ * explaining the new basis) once there are multiple facilities driving
+ * legitimate concurrent OTP volume.
+ */
+const GLOBAL_OTP_ENQUEUE_CAP_PER_HOUR = 200;
+
 const GENERIC_VERIFY_FAILURE = 'Invalid or expired code.';
 const GENERIC_COOLDOWN_FAILURE = 'Please wait before requesting another code.';
 
@@ -296,6 +307,19 @@ export const lmsAuthRouter = router({
         }
       }
 
+      // Gap-closure C2: global fail-closed ceiling on outbound OTP email
+      // volume, independent of per-email cooldown (which an attacker can
+      // bypass by rotating the target address). Counts EmailOutbox rows
+      // enqueued in the last rolling hour, not LoginOtp rows — this caps
+      // actual outbound Brevo sends, which is the resource being protected.
+      const hourAgo = new Date(Date.now() - 60 * 60_000);
+      const recentOtpEnqueueCount = await ctx.db.emailOutbox.count({
+        where: { transport: 'brevo', payload: { path: ['kind'], equals: 'otp' }, createdAt: { gte: hourAgo } },
+      });
+      if (recentOtpEnqueueCount >= GLOBAL_OTP_ENQUEUE_CAP_PER_HOUR) {
+        throw badRequest(GENERIC_COOLDOWN_FAILURE);
+      }
+
       // Invalidate any still-pending prior code for this email.
       await ctx.db.loginOtp.updateMany({
         where: { email, status: 'pending' },
@@ -307,9 +331,36 @@ export const lmsAuthRouter = router({
 
       // phone is nullable (schema phase-01b migration); email-OTP rows set
       // phone=null and populate the email column instead.
+      //
+      // Ordering (red-team M1): LoginOtp is ALWAYS created first, regardless
+      // of whether a ParentAccount exists for this email — this preserves the
+      // no-leak response below (identical `{ok:true}` either way). The
+      // outbox insert is a separate, unwrapped statement (no shared
+      // transaction — consistent with this codebase's append-mindset
+      // pattern elsewhere): if it fails, the request throws and the mint'd
+      // LoginOtp row simply expires unused after its 5-minute TTL. It does
+      // NOT strand a "verify-able but never emailed" code indefinitely.
       await ctx.db.loginOtp.create({
         data: { phone: null, email, codeHash: hashOtpCode(code), status: 'pending', expiresAt },
       });
+
+      // Gap-closure gate (red-team C2 email-bomb defense): the send decision
+      // (not the response) is allowed to depend on account existence — only
+      // enqueue an actual email when a ParentAccount owns this address. The
+      // caller-facing response stays identical either way (see return below),
+      // so this lookup does NOT leak account existence to the caller; it only
+      // prevents Brevo from being used to spam arbitrary third-party inboxes.
+      const parentAccount = await ctx.db.parentAccount.findUnique({ where: { email } });
+      if (parentAccount) {
+        await ctx.db.emailOutbox.create({
+          data: {
+            to: email,
+            transport: 'brevo',
+            status: 'pending',
+            payload: { kind: 'otp', code, ttlMinutes: OTP_TTL_MINUTES },
+          },
+        });
+      }
 
       await ctx.db.auditLog.create({
         data: {

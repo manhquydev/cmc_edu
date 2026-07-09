@@ -55,6 +55,12 @@ pnpm --filter @cmc/e2e test
 > **Phạm vi e2e (plan Architecture):** e2e spawn server tsx riêng (`global-setup.ts`), KHÔNG phải
 > stack docker cmcv2-prod → e2e xanh không validate images/nginx/boot-checks. Khoảng trống này phủ
 > bằng HTTP smoke trực tiếp stack ở Phase 2 (health 200 + `/auth/login` 302 Entra).
+>
+> **Prerequisite lms-auth (giải quyết 2026-07-09):** `lms-auth-two-tier.test.ts` là 13 stub rỗng
+> (0 assertion) — un-skip = fake-green, đã XÓA (user chốt). Coverage đối kháng two-tier (kind gate ·
+> sibling scope · student lockout/no-leak · resetChildPassword scoping · OTP no-leak) nằm THẬT ở e2e
+> `kind-isolation.spec.ts` + `lms-auth.spec.ts` (chạy xanh Mode-B lần này). Prerequisite coi như đạt
+> qua e2e, không phải qua vitest stub.
 
 **E2E critical flows covered:**
 - [ ] Receipt create → approve (over-threshold role-elevation)

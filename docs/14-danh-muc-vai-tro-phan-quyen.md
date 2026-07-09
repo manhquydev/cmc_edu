@@ -80,6 +80,9 @@ Plan `erp-rebuild-f0-f4` từng nhắc `quan_ly` + `head_teacher`, nhưng enum R
 > Bảng là *đại diện* (5 active roles, ADR-D amendment); nguồn đầy đủ = registry `@cmc/auth`.
 > Role gác (ke_toan/cskh/ctv_mkt/hr) có 0 quyền — không hiển thị.
 > UI/route/agent gate phải gọi `can(roles, module, action)` — không hardcode.
+> **LMS surface** (`submission.listForChild`, `attendance.listForChild`, `assessment.listForChild`,
+> `sessionEvidence.listForChild`…) KHÔNG nằm trong bảng này — đó là gate `requireLmsParent`/
+> `requireLmsStudent` (PH/HS), tách biệt hoàn toàn khỏi `can()` staff registry. Xem docs/17 §6.
 
 ## 6. Agent là vai trò hạng nhất
 

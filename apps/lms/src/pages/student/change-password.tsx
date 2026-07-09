@@ -1,11 +1,10 @@
 // Forced password change screen — shown when mustChangePassword=true.
 //
-// There is no student self-service password change procedure in the current
-// backend (lmsAuth.resetChildPassword is parent-only). This screen informs
-// the student to ask their parent to set a new password, then logs out.
-//
-// P0-debt: a student self-service changePassword procedure should be added
-// to the lmsAuth router in a follow-up phase.
+// Parent-mediated student passwords are the official design (ADR-E(a),
+// docs/16 — students are children; a parent manages their password via
+// lmsAuth.resetChildPassword). There is deliberately no student self-service
+// password change procedure. This screen informs the student to ask their
+// parent to set a new password, then logs out.
 
 import { useNavigate } from 'react-router-dom';
 import {
@@ -61,11 +60,6 @@ export default function ChangePasswordPage() {
             </Text>
           </Stack>
         </Alert>
-
-        <Text size="xs" c="dimmed">
-          Tính năng tự đổi mật khẩu cho học sinh sẽ được bổ sung trong phiên bản tiếp theo
-          (P0-debt: lmsAuth.changeStudentPassword).
-        </Text>
 
         <Button fullWidth onClick={handleLogout}>
           Đăng xuất và quay lại đăng nhập

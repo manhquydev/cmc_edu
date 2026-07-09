@@ -111,3 +111,30 @@ Cấp trên–cấp dưới theo `managerId`: sale→GĐKD, giáo viên→GĐĐT
 | Nhân viên | Phiếu ca | managerId (GĐKD/GĐĐT) | `shiftRegistration.approve` |
 
 > Liên kết: TL14 (vai trò) · TL16 (ADR) · TL01 (bất biến) · TL04/13 (agent) · TL06 (URL escalate).
+
+---
+
+## 6. Trải nghiệm LMS theo vai trò (PH/HS — gap-closure 260710-0005)
+
+PO chốt 2026-07-10: "đừng quá quan trọng hệ thống với PH/HS những cái mang tính nội bộ" — PH/HS chỉ
+thấy dữ liệu học tập của chính con mình, KHÔNG bao giờ thấy tiền/phiếu thu/dữ liệu nội bộ ERP.
+
+| | PH thấy | HS làm | KHÔNG bao giờ thấy |
+|---|---|---|---|
+| **Bài tập & điểm** | Danh sách bài con đã nộp + điểm GV chấm + sao thưởng (`submission.listForChild`) | Làm bài, nộp, xem điểm/sao của chính mình | Bài của HS khác, `gradedById`, annotation layer của GV |
+| **Điểm danh** | Trạng thái từng buổi: có mặt / **"Nghỉ học"** / **"Đi muộn"** (`attendance.listForChild`) | — (HS không có view điểm danh riêng) | Điểm danh của bạn học cùng buổi (filter theo `studentId`, không theo buổi) |
+| **Nhận xét & ảnh** | Nhận xét GV từng buổi đã xác nhận + ảnh lớp học (khi đã bật đồng ý ảnh); buổi `absent` không hiện khối ảnh | — | `internalNote` (nội bộ, không bao giờ serialize ra LMS) |
+| **Report card** | Điểm tổng kết + tỷ lệ chuyên cần theo kỳ | Xem điểm của mình qua `student/home` | — |
+| **Mật khẩu** | Quản lý mật khẩu của con (`resetChildPassword`) — quyết định chính thức, xem ADR-E(a) TL16 | Đổi mật khẩu lần đầu khi bắt buộc; không tự đặt lại được khi quên (PH làm hộ) | — |
+| **Tiền/nội bộ** | — | — | Phiếu thu, trạng thái duyệt tiền, mọi bảng ERP nội bộ (reconciliation, payroll, CRM…) |
+
+**Cổng đăng nhập PH:** SĐT+OTP hoặc **Email+OTP** (`lmsAuth.requestOtpEmail` → `EmailOutbox` → Brevo,
+xem ADR-E(b) TL16 — trước gap-closure này, email OTP không được gửi, chỉ SĐT OTP hoạt động).
+
+**Bất biến truy cập:** mọi read PH/HS đi qua `getApprovedChildren` + `auditChildDataAccess`
+(`guardian/approved-children.ts`) — nguồn boundary DUY NHẤT, không có gate nào khác. Endpoint mới
+(`submission.listForChild`, `attendance.listForChild`) parent-only (`requireLmsParent`) — HS có view
+riêng của mình, không cần (và không được) dùng `listForChild` của người khác.
+
+> Liên kết: TL16 ADR-E (mật khẩu parent-mediated + OTP payload) · §2 luồng provisioning (nguồn OTP) ·
+> `docs/uat-checklist-go-live.md` KB1 (kịch bản UAT thực tế theo bảng trên).

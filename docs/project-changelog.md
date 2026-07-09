@@ -6,6 +6,49 @@
 
 ---
 
+## [2026-07-10] LMS gap closure: OTP email delivery + parent visibility + test backfill
+
+**Context:** Scout 260709-2350 found `requestOtpEmail` never delivered any email (no transport called)
+— parents could not log into the LMS in production. PO also chartered the LMS role experience (docs/17
+§6): parents see homework results + attendance, never receipt/money data.
+
+**Phase 1 — OTP email delivery (auth-adjacent):**
+- `requestOtpEmail` now enqueues a real `EmailOutbox` row (transport `brevo`) when a `ParentAccount`
+  owns the target email; response stays `{ok:true}` either way (no-leak preserved)
+- Global fail-closed cap on `kind='otp'` enqueue volume per hour (email-bomb / Brevo-quota defense)
+- Relay worker: OTP payload scrubbed on both `sent` and `dead` terminal states, plus an age-based
+  sweep (`sweepStaleOtpPayloads`) for rows stuck past the OTP's own 5-minute login TTL — sweep runs
+  AFTER the drain loop each cycle (a same-cycle-before-drain ordering bug, caught in code review, would
+  have sent empty-content emails for stale rows)
+- ADR-E(b) (docs/16): plaintext-in-outbox trade-off formally documented and accepted
+
+**Phase 2 — Parent visibility (submission/attendance):**
+- New `submission.listForChild` / `attendance.listForChild` (parent-only, `requireLmsParent`) — same
+  `getApprovedChildren` + `auditChildDataAccess` boundary as every other LMS read
+- LMS UI: new "Bài tập & điểm" page; per-session evidence view now merges attendance status
+  ("Nghỉ học" / "Đi muộn")
+- ADR-E(a) (docs/16): parent-mediated student password is now a documented decision, not "P0-debt"
+
+**Phase 3 — Test backfill (6 modules):** `appointment`, `reconciliation`, `course`, `room`,
+`parentAccount`, `class/schedule-router` (schedule.generateSessions already had deep coverage —
+verified, not re-duplicated). Added a fail-closed DB-safety guard (`cmc_prod` name check) in both
+`apps/e2e/src/global-setup.ts` and `apps/api/src/test/db.ts`.
+
+**Phase 4 — Docs:** docs/17 §6 (LMS role experience table), docs/16 ADR-E, UAT KB1 step 8 amended
+(receipt viewing → homework results + attendance), docs/14 §5 LMS-surface note.
+
+**Gates:** typecheck ✅ (api, lms, e2e) · full api suite 524/525 (1 pre-existing unrelated failure in
+`finance/receipt-get.test.ts`, confirmed unrelated — reproduces standalone, untouched by this diff) ·
+lms build ✅.
+
+**Known gap:** live-verify confirmed the full pipeline (enqueue → worker → Brevo call → correct
+failure handling, no code leaked) but the local-sim stack's `BREVO_API_KEY` returned `401 Key not
+found` — matches the 260709 sprint journal's noted gap ("LMS OTP: manual only, never verified in
+anger"). Real end-to-end email delivery is still unverified; needs a valid Brevo credential before
+UAT KB1 step 7 can be signed off.
+
+---
+
 ## [2026-07-09] Backup hardening — R2 encrypted upload + restore drill pass
 
 **Context:** Phase 2 infrastructure hardening; backup restore (RT-13) pre-condition for M0 GO/NO-GO.

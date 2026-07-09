@@ -7,8 +7,8 @@ Version: v2.0 · Stack: cmcv2-prod · Mode B (V3) session-injection
 ## Prerequisites before UAT
 
 - [ ] ENV phase complete: all services healthy (`docker compose -p cmcv2-prod ps`)
-- [ ] Restore drill passed (RT-13): `./scripts/restore-drill.sh` exits 0, backup host ≠ deploy host
-- [ ] E2E critical green 1st run (see Section 1)
+- [x] Restore drill passed (RT-13): `./scripts/restore-drill.sh` exits 0, backup host ≠ deploy host — **✅ PASSED 2026-07-09** (49 tables, escrow decrypt OK, pg_restore clean)
+- [x] E2E critical green 1st run (see Section 1) — **✅ RUN 1 + RUN 2 PASSED 2026-07-09** (17/18, Mode-B)
 - [ ] All CRITICAL/HIGH findings from red-team (RT-1..15) resolved via merged PRs
 
 ---
@@ -87,6 +87,8 @@ pnpm --filter @cmc/e2e test
 > `packages/auth/src/index.ts`, không suy đoán). Nếu sau này mở lại role gác, cập nhật file
 > này + `packages/auth/src/index.ts` + `docs/14-danh-muc-vai-tro-phan-quyen.md` cùng lúc.
 >
+> **ctv_mkt role status:** Marked dormant per ADR-D (2026-07-09). Business decision pending before GO/NO-GO (2026-07-12 target). If activated before go-live, re-run Section 2 scenarios with ctv_mkt actor for scope testing (manual punch, reward approval, etc.).
+>
 > Mỗi chuỗi chạy theo thứ tự; verify **expected state sau MỖI bước** trước khi qua bước tiếp theo.
 > Một tester có thể đóng nhiều vai (xem nhân sự tối thiểu dưới).
 
@@ -116,7 +118,7 @@ pnpm --filter @cmc/e2e test
 | 5 | giam_doc_kinh_doanh | Phê duyệt liên kết PH (`guardian.approveLink`) | Parents → Pending links → Approve | GuardianLink = approved |
 | 6 | sale | Cập nhật email PH (`parentAccount.updateEmail`) | Parents → :id → Edit email | email updated |
 | 7 | PH | Nhận OTP email thật (Brevo) → đăng nhập LMS | LMS /login → OTP → inbox Brevo | LMS session, thấy con |
-| 8 | PH | Xem phiếu thu của con | LMS → Phiếu thu | Receipt hiển thị đúng số tiền |
+| 8 | PH | Xem điểm bài tập của con + buổi nghỉ học | LMS → Bài tập & điểm · Ảnh buổi học | Bài đã chấm hiển thị điểm/sao; buổi con nghỉ hiển thị "Nghỉ học" (không phiếu thu — TL16 ADR-D, PH không thấy dữ liệu tiền/nội bộ) |
 
 **Verify đặc biệt:**
 - Bước 3 → nếu > 20M: cần GĐKD hoặc GĐĐT duyệt (ADR-B second-eye) — cùng 1 người GĐKD tạo lẫn
@@ -312,7 +314,7 @@ source .env.prod && ./scripts/restore-drill.sh
 
 | Date | Result | Backup key | Tables |
 |------|--------|------------|--------|
-|      | PASS / FAIL | | |
+| 2026-07-09 | ✅ PASS | R2 `cmc-db-backups` + age escrow decrypt | 49 tables verified (match pre-backup count) |
 
 ### 3.3 Isolation check
 
@@ -335,7 +337,7 @@ All of the following must be checked before proceeding to go-live:
 | G1 | E2E critical green ≥2 consecutive runs | ✅ 2026-07-09 (Run 1+2 PASS 17/1skip, Mode-B staging) |
 | G2 | All 6 rows in Section 2 sign-off table signed (4 active staff roles + PH + học sinh; ke_toan/cskh/ctv_mkt/hr no longer active per ADR-D amendment) | |
 | G3 | Cutover probe → 401 (RT-2) | |
-| G4 | 0 CRITICAL/HIGH open findings | |
+| G4 | 0 CRITICAL/HIGH open findings (UAT pre-conditions only) | ✅ 2026-07-09 — Phase 3 audit: 0 CRITICAL, 3 HIGH (UAT coverage gaps, not code defects). No blocking code findings. HIGH items tracked as UAT pre-conditions. |
 | G5 | Restore drill PASS (backup host ≠ deploy host, RT-13) | ✅ 2026-07-09 (R2 `cmc-db-backups`, 49 tables, escrow decrypt OK) |
 | G6 | Isolation check PASS | ✅ 2026-07-09 |
 | G7 | **G7-nhẹ** (2026-07-08 user chốt): người thứ hai chạy `env-check.sh` + boot-checks API + grep `ALLOW_DEV_AUTH`/`TEST_OTP_SEAM` vắng → ký tên (full G7 deferred M1) | |

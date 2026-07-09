@@ -120,10 +120,60 @@ giao_vien, super_admin). 2 giám đốc đã đảm nhiệm toàn bộ công vi�
 
 ---
 
+## ADR-E — LMS gap closure 260710-0005: mật khẩu HS parent-mediated + OTP payload plaintext ngắn hạn
+
+**Context.** Scout 260709-2350 phát hiện `requestOtpEmail` không gửi email thật (không transport nào
+được gọi) — PH không thể đăng nhập LMS ở production. Song song, UI `change-password.tsx` (HS) ghi
+"P0-debt" ngụ ý self-service đổi mật khẩu HS sẽ được bổ sung sau — chưa từng có quyết định chính thức.
+
+### (a) Mật khẩu học sinh do phụ huynh quản lý — quyết định chính thức, không phải nợ kỹ thuật
+
+**Decision.** HS là trẻ nhỏ; PH quản lý mật khẩu HS qua `lmsAuth.resetChildPassword` (đã có, đã test
+— `lms-auth/router.ts`). Không build self-service đổi mật khẩu tự thân cho HS. Nhãn "P0-debt" trong
+`student/change-password.tsx` bị gỡ — đây không phải nợ chờ trả, mà là thiết kế phù hợp đối tượng
+người dùng (trẻ em không tự quản lý được credential dài hạn một cách an toàn).
+
+**Consequences.** `change-password.tsx` giữ nguyên hành vi (đổi mật khẩu lần đầu khi
+`mustChangePassword`), chỉ sửa comment/text UI — không đổi API/behavior.
+
+### (b) OTP delivery qua EmailOutbox với payload plaintext ngắn hạn
+
+**Context.** `LoginOtp` chỉ lưu `codeHash` (đúng thiết kế — không đảo ngược được); email gửi PH phải
+chứa code thật → chỉ có thể mang qua `EmailOutbox.payload` tại thời điểm request (không có nơi nào
+khác giữ plaintext).
+
+**Decision.** `requestOtpEmail` (chỉ khi ParentAccount tồn tại — gate-send, không phải gate-response)
+enqueue 1 dòng `EmailOutbox` với `payload: {kind:'otp', code, ttlMinutes}`. Trade-off plaintext ngắn
+hạn được chấp nhận có kiểm soát (user chốt, validation log 2026-07-10 #2), bù bằng:
+- **Scrub** payload ngay khi row đạt trạng thái terminal `sent` (gửi thành công) HOẶC `dead` (hết
+  retry) — worker cập nhật `payload: {kind:'otp', scrubbed:true}` cùng statement với đổi status.
+- **Sweep theo tuổi**: mọi row `kind='otp'` cũ hơn TTL đăng nhập (5 phút) bị scrub bất kể status —
+  chặn trường hợp row kẹt ở `pending`/`sending`/`failed` giữ code vượt quá thời điểm code còn dùng
+  được để đăng nhập. Sweep chạy SAU vòng drain trong cùng chu kỳ worker (không phải trước) — nếu chạy
+  trước, một row "failed nhưng chưa hết TTL" bị scrub rồi mới gửi sẽ khiến `renderOutboxEmail` rơi vào
+  nhánh fallback rỗng, lãng phí 1 lượt gửi Brevo thật mà PH nhận được email không nội dung.
+- Row `failed` (còn lượt retry, CHƯA hết TTL) CỐ Ý giữ code để lần retry kế tiếp còn gửi được — không
+  scrub non-terminal.
+- Lớp phòng-thủ khác đã có sẵn: TTL 5 phút, single-use (atomic claim), cooldown 30s/email, gate-send
+  theo ParentAccount tồn tại (không gửi cho email lạ dù response vẫn `{ok:true}` — no-leak), global cap
+  `kind='otp'`/giờ fail-closed (chống email-bomb/Brevo-quota-drain — red-team C2), không log OTP/PII ở
+  transport.
+- `EmailOutbox` không có RLS/không `facilityId` (bảng hệ thống dùng chung) — ghi rõ đây là bảng DUY
+  NHẤT trong hệ thống có thể chứa secret ngắn hạn (OTP code) ở dạng plaintext; nếu lọt vào backup, code
+  đã hết hạn đăng nhập từ lâu (TTL 5 phút ≪ chu kỳ backup).
+
+**Acceptance ngữ nghĩa (chốt tránh hiểu lầm).** "Không tồn đọng" nghĩa là: không còn plaintext SAU KHI
+gửi xong HOẶC sau TTL — không phải zero-giây từ lúc tạo row.
+
+**Refs.** `plans/260710-0005-lms-gap-closure-otp-parent-visibility/plan.md` (Red Team Review C1/C2/M1,
+Validation Log #2) · `apps/api/src/worker/relay-email-outbox.ts` (`sweepStaleOtpPayloads`).
+
+---
+
 ## Đồng bộ cần làm sau khi chốt (housekeeping)
 
-1. **TL14** — đánh dấu 4 vai trò active + IT, 5 deferred; xoá mục "quan_ly/head_teacher là role"
-   (chốt: không thêm).
+1. ✅ **TL14** — đánh dấu 5 vai trò active + 4 deferred + IT; xoá mục "quan_ly/head_teacher là role"
+   (chốt: không thêm). **DONE 2026-07-09** — ADR-D amendment merged.
 2. **TL07** — định nghĩa lại `reserved` (ADR-A); ghi `active ⇔ có Receipt approved`.
 3. **TL02/05/06** — thay bằng IA 5 nhóm (ADR-C); sửa `O4_ENROLLED` → `O5_ENROLLED`.
 4. **TL10/11** — enrollment: `reserved`→`active` lái bởi Receipt (bỏ `pending_payment` như enum mới).

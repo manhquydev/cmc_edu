@@ -40,7 +40,14 @@ S3_KEY="db-backups/cmc-prod-${TIMESTAMP}.dump.enc"
 trap 'rm -f "${DUMP_FILE}" "${ENC_FILE}"' EXIT
 
 echo "[backup] $(date -u +%FT%TZ) starting pg_dump → ${DUMP_FILE}"
-pg_dump --format=custom --no-acl --no-owner "${DATABASE_URL}" > "${DUMP_FILE}"
+# Strip any libpq-incompatible query params (Prisma appends ?schema=public, which
+# pg_dump rejects with "invalid URI query parameter").
+PGDUMP_URL="${DATABASE_URL%%\?*}"
+# Keep ACLs (GRANTs) in the dump: cmc_app's table privileges live in GRANT
+# statements from migrations. A --no-acl dump restores tables+data but no grants,
+# leaving the app role unable to touch any table after a real recovery. --no-owner
+# is still safe (objects owned by whoever runs the restore).
+pg_dump --format=custom --no-owner "${PGDUMP_URL}" > "${DUMP_FILE}"
 DUMP_SIZE="$(du -sh "${DUMP_FILE}" | cut -f1)"
 echo "[backup] dump complete: ${DUMP_SIZE}"
 

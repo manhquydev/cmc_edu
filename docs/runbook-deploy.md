@@ -76,6 +76,14 @@ docker compose -p cmcv2-prod ps
 
 2. **Encryption passphrase escrow** — store `BACKUP_ENCRYPTION_PASSPHRASE` in your team password manager (e.g., 1Password, Bitwarden). This is the recovery path if the VPS is lost. The passphrase must be recoverable from the PM *without* access to the machine or `.env.prod`.
 
+   > **Disaster-recovery caveat (roles before restore):** backups now include ACLs
+   > (GRANTs to `cmc_app`) so a restored DB is immediately app-usable. But `pg_restore`
+   > fails if a GRANT/REVOKE references a role that does not exist on the target. On a
+   > fresh host (full DR, not the local drill where `cmc_app` already exists), create the
+   > `cmc_app` role **before** restoring: `CREATE ROLE cmc_app LOGIN PASSWORD '<pw>';`
+   > (non-superuser, matching `APP_DATABASE_URL`). The compose postgres init creates it
+   > automatically; a bare new server does not.
+
 3. **Run a backup first** (creates the `.dump.enc` the drill needs):
    ```bash
    source .env.prod

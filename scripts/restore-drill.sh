@@ -99,9 +99,11 @@ psql "${DATABASE_URL%/*}/postgres" \
   -c "DROP DATABASE IF EXISTS ${DRILL_DB};" \
   -c "CREATE DATABASE ${DRILL_DB};"
 
-# Restore
+# Restore. Keep ACLs so cmc_app's GRANTs are re-applied (a --no-acl restore would
+# strip them, leaving the app role unable to query — the exact failure this drill
+# exists to catch). --no-owner keeps objects owned by the restoring role.
 echo "[drill] restoring..."
-pg_restore --no-acl --no-owner -d "${DRILL_PG_URL}" "${DUMP_FILE}"
+pg_restore --no-owner -d "${DRILL_PG_URL}" "${DUMP_FILE}"
 echo "[drill] restore complete"
 
 # Smoke query 1: table count

@@ -63,7 +63,14 @@ pnpm --filter @cmc/e2e test
 
 ## Section 2 — UAT kịch bản chuỗi liên vai
 
-> **Phiên bản Phase 3** (2026-07-08): thay các mục role đơn lẻ cũ bằng 5 kịch bản chuỗi liên vai.
+> **Phiên bản Phase 4** (2026-07-09, sau ADR-D amendment 2026-07-08 — xem
+> `docs/14-danh-muc-vai-tro-phan-quyen.md`): registry `@cmc/auth` chỉ còn **5 role active**
+> (super_admin, giam_doc_kinh_doanh, giam_doc_dao_tao, sale, giao_vien). 4 role gác cũ
+> (ke_toan/cskh/ctv_mkt/hr) có **0 quyền, không gán được** — mọi bước kịch bản trước đây gán
+> cho các role này đã đổi sang role active đang thực sự giữ quyền đó (verify trực tiếp từ
+> `packages/auth/src/index.ts`, không suy đoán). Nếu sau này mở lại role gác, cập nhật file
+> này + `packages/auth/src/index.ts` + `docs/14-danh-muc-vai-tro-phan-quyen.md` cùng lúc.
+>
 > Mỗi chuỗi chạy theo thứ tự; verify **expected state sau MỖI bước** trước khi qua bước tiếp theo.
 > Một tester có thể đóng nhiều vai (xem nhân sự tối thiểu dưới).
 
@@ -71,17 +78,17 @@ pnpm --filter @cmc/e2e test
 
 | Phương án | Số người | Phân vai |
 |-----------|----------|----------|
-| **Rút gọn (tối thiểu)** | 3 | P1: GĐKD + sale + cskh · P2: GĐĐT + giao_vien + hr + ctv_mkt · P3: PH/HS thật |
-| **Đầy đủ** | 9 | 1 người/vai staff (7 vai) + 1 PH thật + 1 HS thật |
+| **Rút gọn (tối thiểu)** | 3 | P1: GĐKD + sale · P2: GĐĐT + giao_vien · P3: PH/HS thật |
+| **Đầy đủ** | 6 | 1 người/vai staff (4 vai: GĐKD, GĐĐT, sale, giao_vien) + 1 PH thật + 1 HS thật |
 
-> **Bắt buộc:** hr, cskh, ctv_mkt phải có tester thực hiện các bước mutation của họ — không skip.
-> 3 role này chưa có e2e coverage; UAT là lần kiểm chứng đầu tiên.
+> **Bắt buộc:** GĐKD phải test cả 2 miền — quyền tiền (đã có e2e coverage) VÀ quyền tiếp nhận
+> (mới, trước đây do cskh/hr giữ) — đây là UAT đầu tiên kiểm chứng GĐKD gánh đúng phần việc gộp.
 
 ---
 
 ### Kịch bản 1 — Chuỗi Tuyển sinh (P1-01 → P1-07)
 
-**Vai tham gia:** sale · ke_toan · cskh · PH thật  
+**Vai tham gia:** sale · giam_doc_kinh_doanh · PH thật  
 **Mục tiêu:** OTP email Brevo landing đúng inbox PH sau khi phiếu được duyệt
 
 | Bước | Vai | Thao tác | URL / action | Expected state |
@@ -89,17 +96,19 @@ pnpm --filter @cmc/e2e test
 | 1 | sale | Đăng nhập Entra SSO | `/admin` → redirect Entra → login thật | Dashboard hiển thị, role = sale |
 | 2 | sale | Tạo opportunity + học sinh mới | CRM → New → điền thông tin | opportunityId sinh, stage = O1 |
 | 3 | sale | Tạo phiếu thu (< 20M VND) | Finance → Receipt → New | receiptId sinh, status = pending |
-| 4 | ke_toan | Đăng nhập → duyệt phiếu | Finance → Receipts → Approve | status = approved; enrollment = active |
-| 5 | cskh | Đăng nhập → phê duyệt liên kết PH (`guardian.approveLink`) | Parents → Pending links → Approve | GuardianLink = approved |
-| 6 | cskh | Cập nhật email PH (`parentAccount.updateEmail`) | Parents → :id → Edit email | email updated |
+| 4 | giam_doc_kinh_doanh | Đăng nhập → duyệt phiếu (`finance.receiptApprove`) | Finance → Receipts → Approve | status = approved; enrollment = active |
+| 5 | giam_doc_kinh_doanh | Phê duyệt liên kết PH (`guardian.approveLink`) | Parents → Pending links → Approve | GuardianLink = approved |
+| 6 | sale | Cập nhật email PH (`parentAccount.updateEmail`) | Parents → :id → Edit email | email updated |
 | 7 | PH | Nhận OTP email thật (Brevo) → đăng nhập LMS | LMS /login → OTP → inbox Brevo | LMS session, thấy con |
 | 8 | PH | Xem phiếu thu của con | LMS → Phiếu thu | Receipt hiển thị đúng số tiền |
 
 **Verify đặc biệt:**
-- Bước 3 → nếu > 20M: cần GĐKD hoặc GĐĐT duyệt (ADR-B second-eye); ke_toan đơn độc → phải block
-- Bước 6: sale CŨNG có `parentAccount.updateEmail` → confirm sale cũng thực hiện được
+- Bước 3 → nếu > 20M: cần GĐKD hoặc GĐĐT duyệt (ADR-B second-eye) — cùng 1 người GĐKD tạo lẫn
+  duyệt phải bị block (SoD); test bằng cách sale tạo, GĐKD duyệt (2 người khác nhau) là đường PASS
+- Bước 5: `guardian.approveLink` thực ra share cho cả 4 role active (GĐKD/GĐĐT/sale/giao_vien) —
+  test thêm 1 lần bằng sale để confirm không chỉ GĐKD làm được (registry `index.ts:67`)
 
-Tester (cskh): _________________ · Date: _________________
+Tester (giam_doc_kinh_doanh): _________________ · Date: _________________
 
 | | Result | Notes |
 |-|--------|-------|
@@ -160,25 +169,28 @@ Tester (GĐĐT + giao_vien): _________________ · Date: _________________
 
 ### Kịch bản 4 — Chuỗi Nhân sự + Lương (P3-01 → P3-06)
 
-**Vai tham gia:** hr · ctv_mkt · cskh · GĐKD · ke_toan  
+**Vai tham gia:** giao_vien · sale · giam_doc_kinh_doanh · giam_doc_dao_tao  
 **Mục tiêu:** Punch → manual ticket → ca → KPI → payslip finalized
 
 | Bước | Vai | Thao tác | URL / action | Expected state |
 |------|-----|----------|--------------|----------------|
-| 1 | hr | Đăng nhập → chấm công (`checkIn.punch`) | Attendance → Check-in-out | punchId sinh |
-| 2 | ctv_mkt | Đăng nhập → tạo manual punch ticket | Attendance → Manual ticket → New | manualPunchId pending |
-| 3 | cskh | Đăng nhập → tạo manual punch ticket (verify cskh có quyền) | Attendance → Manual ticket → New | manualPunchId pending |
-| 4 | GĐKD | Duyệt các manual punch tickets (`manualPunch.approve`) | Attendance → Pending tickets → Approve | status = approved |
-| 5 | hr | Đăng ký ca làm (`shift.submit`) | Attendance → Shifts → Register | shiftRegistration pending |
-| 6 | hr | Submit KPI (`kpi.submit`) | HR → KPI → Submit | kpi pending |
-| 7 | GĐKD | Duyệt KPI (`kpi.approve`) | HR → KPI → Approve | kpi approved |
-| 8 | ke_toan | Assemble + finalize payslip (`payslip.finalize`) | HR → Payroll → Assemble → Finalize | payslip finalized |
+| 1 | giao_vien | Đăng nhập → chấm công (`checkIn.punch`) | Attendance → Check-in-out | punchId sinh |
+| 2 | sale | Đăng nhập → tạo manual punch ticket (`manualPunch.create`) | Attendance → Manual ticket → New | manualPunchId pending |
+| 3 | giao_vien | Tạo manual punch ticket (verify giao_vien cũng có quyền) | Attendance → Manual ticket → New | manualPunchId pending |
+| 4 | giam_doc_kinh_doanh | Duyệt các manual punch tickets (`manualPunch.approve`) | Attendance → Pending tickets → Approve | status = approved |
+| 5 | giao_vien | Đăng ký ca làm (`shift.submit`) | Attendance → Shifts → Register | shiftRegistration pending |
+| 6 | giao_vien | Submit KPI (`kpi.submit`) | HR → KPI → Submit | kpi pending |
+| 7 | giam_doc_dao_tao | Duyệt KPI (`kpi.approve`) | HR → KPI → Approve | kpi approved |
+| 8 | giam_doc_kinh_doanh | Assemble + finalize payslip (`payslip.assemble` → `payslip.finalize`) | HR → Payroll → Assemble → Finalize | payslip finalized |
 
 **Verify đặc biệt:**
-- Bước 2 & 3: ctv_mkt VÀ cskh đều phải tạo được manual punch — confirm cả hai quyền hoạt động
-- Bước 8: ke_toan trong roster `payslip.finalize` — confirm phân quyền đúng
+- Bước 2 & 3: sale VÀ giao_vien đều phải tạo được manual punch — confirm cả hai quyền hoạt động
+  (registry `index.ts:94` — `manualPunch.create` share cho cả 4 role active)
+- Bước 4 & 7: `manualPunch.approve`/`kpi.approve` chỉ GĐKD+GĐĐT giữ (`index.ts:95,107`) —
+  confirm sale/giao_vien KHÔNG duyệt được (thử bằng sale → phải FORBIDDEN)
+- Bước 8: `payslip.assemble`/`finalize` chỉ GĐKD+GĐĐT giữ (`index.ts:100-101`, thay ke_toan cũ)
 
-Tester (hr): _________________ · Date: _________________ · Tester (ctv_mkt): _________________ · Tester (cskh): _________________
+Tester (giam_doc_kinh_doanh): _________________ · Date: _________________ · Tester (giam_doc_dao_tao): _________________
 
 | | Result | Notes |
 |-|--------|-------|
@@ -188,24 +200,26 @@ Tester (hr): _________________ · Date: _________________ · Tester (ctv_mkt): _
 
 ### Kịch bản 5 — Chuỗi Sau bán + Lifecycle (P4-01 → P4-05)
 
-**Vai tham gia:** GĐKD · học sinh thật · hr · sale  
+**Vai tham gia:** giam_doc_kinh_doanh · học sinh thật · sale  
 **Mục tiêu:** Quà đổi-giao xong, PH meeting được đặt, after-sale case đóng
 
 | Bước | Vai | Thao tác | URL / action | Expected state |
 |------|-----|----------|--------------|----------------|
-| 1 | GĐKD | Cấu hình quà catalog (`gift.upsert`) | Engagement → Gifts → New | giftId active |
+| 1 | giam_doc_kinh_doanh | Cấu hình quà catalog (`gift.upsert`) | Engagement → Gifts → New | giftId active |
 | 2 | học sinh | Đổi sao lấy quà (LMS) | LMS → Gifts → Redeem | rewardId pending |
-| 3 | hr | Đăng nhập → duyệt quà (`rewards.manage` → Approve) | Engagement → Rewards → Approve | reward approved |
-| 4 | hr | Giao quà (`rewards.manage` → Deliver) | Engagement → Rewards → Deliver | reward delivered |
-| 5 | hr | Lên lịch họp PH (`parentMeeting.manage`) | Parent meetings → Schedule | meetingId |
-| 6 | hr | Đặt lịch test đầu vào (`testAppointment.manage`) | CRM → Appointments → Schedule | appointmentId |
+| 3 | sale | Đăng nhập → duyệt quà (`rewards.manage` → Approve) | Engagement → Rewards → Approve | reward approved |
+| 4 | sale | Giao quà (`rewards.manage` → Deliver) | Engagement → Rewards → Deliver | reward delivered |
+| 5 | sale | Lên lịch họp PH (`parentMeeting.manage`) | Parent meetings → Schedule | meetingId |
+| 6 | sale | Đặt lịch test đầu vào (`testAppointment.manage`) | CRM → Appointments → Schedule | appointmentId |
 | 7 | sale | Tạo after-sale case (`afterSale.manage`) | CRM → After-sale → New | caseId open |
-| 8 | GĐKD | Đóng case + cập nhật lifecycle học sinh | CRM → After-sale → :id → Close | case closed |
+| 8 | giam_doc_kinh_doanh | Đóng case + cập nhật lifecycle học sinh | CRM → After-sale → :id → Close | case closed |
 
 **Verify đặc biệt:**
-- Bước 3–6: hr phải thực hiện được cả 4 bước — đây là UAT đầu tiên cho hr mutations
+- Bước 3–7: `rewards.manage`/`parentMeeting.manage`/`testAppointment.manage`/`afterSale.manage`
+  đều share GĐKD+GĐĐT+sale (`index.ts:111-114`, thay hr cũ) — sale thực hiện được cả 5 bước
+  là UAT đầu tiên kiểm chứng phần này sau khi hr bị gác
 
-Tester (hr): _________________ · Date: _________________
+Tester (sale): _________________ · Date: _________________
 
 | | Result | Notes |
 |-|--------|-------|
@@ -220,34 +234,29 @@ Tester (hr): _________________ · Date: _________________
 | giam_doc_kinh_doanh | | | |
 | giam_doc_dao_tao | | | |
 | sale | | | |
-| ke_toan | | | |
 | giao_vien | | | |
-| **cskh** | | | |
-| **ctv_mkt** | | | |
-| **hr** | | | |
 | Phụ huynh (PH thật) | | | |
 | Học sinh (thật) | | | |
 
-> Gate **G2** (Section 4): tất cả 10 dòng trên phải có chữ ký trước khi tick G2 ✓
+> Gate **G2** (Section 4): tất cả 6 dòng trên phải có chữ ký trước khi tick G2 ✓ (giảm từ 10 xuống
+> 6 sau ADR-D amendment — ke_toan/cskh/ctv_mkt/hr không còn active, xem note đầu Section 2)
 
 ---
 
 ### Phụ lục 2A — Ma trận role × mutation (proof of coverage)
 
-Mọi role giữ ≥1 mutation phải xuất hiện trong ≥1 kịch bản (ràng buộc F-S4).
+Mọi role active giữ ≥1 mutation phải xuất hiện trong ≥1 kịch bản (ràng buộc F-S4). Nguồn:
+`packages/auth/src/index.ts` (verify trực tiếp, không suy đoán) — 4 role gác (ke_toan/cskh/ctv_mkt/hr)
+0 quyền, không xuất hiện ở bảng này (đúng theo thiết kế, xem TL14 §1).
 
-| Role | Mutation permissions (key) | Kịch bản |
+| Role | Mutation permissions (key, không đầy đủ) | Kịch bản |
 |------|---------------------------|----------|
-| giam_doc_kinh_doanh | finance.receiptApprove · manualPunch.approve · kpi.approve · ... | KB1 · KB4 · KB5 |
-| giam_doc_dao_tao | class.create · schedule.generate · exercise.manage · payslip.finalize · ... | KB2 · KB3 |
-| sale | crm.opportunityCreate · finance.receiptCreate · enrollment.enroll | KB1 · KB5 |
-| giao_vien | attendance.mark · exercise.manage · submission.grade · sessionEvidence.publish | KB2 · KB3 |
-| ke_toan | finance.receiptApprove · payslip.finalize · payslip.assemble | KB1 · KB4 |
-| **cskh** | guardian.approveLink · parentAccount.updateEmail · manualPunch.create | **KB1 · KB4** |
-| **ctv_mkt** | manualPunch.create | **KB4** |
-| **hr** | manualPunch.create · shift.submit · kpi.submit · rewards.manage · parentMeeting.manage · testAppointment.manage | **KB4 · KB5** |
+| giam_doc_kinh_doanh | finance.receiptApprove · manualPunch.approve · kpi.approve · payslip.assemble/finalize · guardian.approveLink · gift.upsert · rewards/parentMeeting/testAppointment/afterSale.manage | KB1 · KB4 · KB5 |
+| giam_doc_dao_tao | class.create · schedule.generate · exercise.manage · payslip.assemble/finalize · kpi.approve | KB2 · KB3 · KB4 |
+| sale | crm.opportunityCreate · finance.receiptCreate · enrollment.enroll · parentAccount.updateEmail · manualPunch.create · rewards/parentMeeting/testAppointment/afterSale.manage | KB1 · KB4 · KB5 |
+| giao_vien | attendance.mark · exercise.manage · submission.grade · sessionEvidence.publish · manualPunch.create · shift.submit · kpi.submit | KB2 · KB3 · KB4 |
 
-✅ Không role nào giữ mutation mà vắng khỏi kịch bản.
+✅ Không role active nào giữ mutation mà vắng khỏi kịch bản.
 
 ---
 
@@ -308,7 +317,7 @@ All of the following must be checked before proceeding to go-live:
 | # | Criteria | Status |
 |---|---------|--------|
 | G1 | E2E critical green ≥2 consecutive runs | |
-| G2 | All 10 roles in Section 2 sign-off table signed (incl. cskh · ctv_mkt · hr) | |
+| G2 | All 6 rows in Section 2 sign-off table signed (4 active staff roles + PH + học sinh; ke_toan/cskh/ctv_mkt/hr no longer active per ADR-D amendment) | |
 | G3 | Cutover probe → 401 (RT-2) | |
 | G4 | 0 CRITICAL/HIGH open findings | |
 | G5 | Restore drill PASS (backup host ≠ deploy host, RT-13) | |

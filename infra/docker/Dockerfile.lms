@@ -39,6 +39,12 @@ COPY apps/lms/ apps/lms/
 RUN pnpm --filter @cmc/db exec prisma generate
 ARG VITE_API_BASE_URL=/api
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+# apps/lms/src/lib/trpc.ts and session-evidence.tsx read VITE_API_URL (not
+# VITE_API_BASE_URL above, which is unused dead config in this app) for the
+# tRPC base URL. Empty default = relative same-origin requests through nginx,
+# matching Dockerfile.admin's pattern.
+ARG VITE_API_URL=
+ENV VITE_API_URL=${VITE_API_URL}
 # `@cmc/lms...` builds workspace dependencies (ui/auth/api chain) first.
 RUN pnpm --filter @cmc/lms... run build
 

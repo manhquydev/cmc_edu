@@ -46,6 +46,15 @@ source .env.prod
 pnpm --filter @cmc/db exec prisma migrate deploy
 ```
 
+> **Note (verified 2026-07-09):** `postgres` in `docker-compose.prod.yml` has no host port
+> mapping (intentional — DB not exposed to host network). `DATABASE_URL`/`APP_DATABASE_URL` in
+> `.env.prod` use the Docker-internal hostname `postgres`, which only resolves inside
+> `cmcv2-prod_cmcv2-prod-net`. This step as written only works if run from a shell already
+> attached to that network (e.g. `docker compose -p cmcv2-prod exec api sh` then run prisma from
+> there, or a throwaway container on the same `--network`). Running directly from the VPS host
+> shell will fail to resolve `postgres`. If a genuine host-side migration path is needed, either
+> temporarily publish the postgres port or set up a bastion; do not permanently expose the DB port.
+
 ### 1.5 Start stack
 
 ```bash

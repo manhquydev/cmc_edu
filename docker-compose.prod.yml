@@ -96,6 +96,10 @@ services:
       dockerfile: infra/docker/Dockerfile.lms
       args:
         VITE_API_BASE_URL: /trpc
+        # Empty default = relative /trpc through the same nginx origin (matches
+        # admin's pattern below); parity fix so a future VITE_API_URL in
+        # .env.prod applies to both SPAs consistently.
+        VITE_API_URL: ${VITE_API_URL:-}
     restart: unless-stopped
     networks:
       - cmcv2-prod-net

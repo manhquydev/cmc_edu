@@ -16,6 +16,7 @@ const LoginPage = lazy(() => import('../pages/login.js'));
 const ParentHomePage = lazy(() => import('../pages/parent/home.js'));
 const SessionEvidencePage = lazy(() => import('../pages/parent/session-evidence.js'));
 const ReportCardPage = lazy(() => import('../pages/parent/report-card.js'));
+const HomeworkResultsPage = lazy(() => import('../pages/parent/homework-results.js'));
 const ConsentSettingsPage = lazy(() => import('../pages/parent/consent-settings.js'));
 const ResetChildPasswordPage = lazy(() => import('../pages/parent/reset-child-password.js'));
 
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
       { path: 'home', element: <ParentHomePage /> },
       { path: 'evidence/:studentId', element: <SessionEvidencePage /> },
       { path: 'report-card/:studentId', element: <ReportCardPage /> },
+      { path: 'homework/:studentId', element: <HomeworkResultsPage /> },
       { path: 'consent/:studentId', element: <ConsentSettingsPage /> },
       { path: 'reset-password/:studentId', element: <ResetChildPasswordPage /> },
     ],

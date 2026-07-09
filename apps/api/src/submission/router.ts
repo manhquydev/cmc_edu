@@ -12,9 +12,18 @@ import { z } from 'zod';
 import { computeFinalGrade } from '@cmc/domain-grading';
 import { withFacility, type Prisma } from '@cmc/db';
 import { ictMonthOf, ictMonthBounds } from '@cmc/domain-time';
-import { badRequest, notFound } from '../errors.js';
-import { lmsProcedure, requirePermission, requireLmsStudent, assertPasswordNotExpired, router, scoped } from '../trpc.js';
+import { badRequest, forbidden, notFound } from '../errors.js';
+import {
+  lmsProcedure,
+  requirePermission,
+  requireLmsParent,
+  requireLmsStudent,
+  assertPasswordNotExpired,
+  router,
+  scoped,
+} from '../trpc.js';
 import { assertExerciseOpenForStudent, loadLmsStudent } from '../exercise/open-tier.js';
+import { auditChildDataAccess, getApprovedChildren } from '../guardian/approved-children.js';
 
 /** TL19 §3: the annotation layer is capped at 1MB — enforced here (app
  * layer), not at the DB (JSONB column has no such constraint). */
@@ -34,6 +43,8 @@ const gradeInput = z.object({
   submissionId: z.string().uuid(),
   score: z.number().nonnegative(),
 });
+
+const listForChildInput = z.object({ studentId: z.string().uuid() });
 
 const listForGradingInput = z.object({
   exerciseId: z.string().uuid().optional(),
@@ -93,6 +104,26 @@ function toSubmissionDto(row: {
     gradedById: row.gradedById,
     basePdfRef: row.exercise?.basePdfRef ?? null,
   };
+}
+
+/**
+ * Gap-closure 260710-0005 Phase 2: parent-facing DTO for
+ * `submission.listForChild`. Deliberately a NARROW, explicit field list —
+ * red-team M2/F5 flagged that a wide select on this parent-readable
+ * procedure could leak `gradedById` (staff AppUser id),
+ * `teacherAnnotationLayer`, `annotationLayer`, or `answerText`. None of
+ * those fields exist on this type; a test asserts the raw query response
+ * shape never carries them either.
+ */
+export interface ChildSubmissionDto {
+  id: string;
+  exerciseId: string;
+  exerciseTitle: string;
+  status: string;
+  submittedAt: Date | null;
+  score: number | null;
+  gradedAt: Date | null;
+  starReward: number;
 }
 
 function assertAnnotationLayerSize(annotationLayer: unknown): void {
@@ -354,6 +385,74 @@ export const submissionRouter = router({
           include: { exercise: { select: { basePdfRef: true } } },
         });
         return { items: items.map(toSubmissionDto) };
+      });
+    }),
+
+  // -------------------------------------------------------------------------
+  // submission.listForChild — LMS (parent session ONLY, gap-closure 260710-0005
+  // Phase 2). Gate pattern copied from assessment.listForChild
+  // (../assessment/router.ts) — getApprovedChildren + auditChildDataAccess is
+  // the sole child-data boundary (never re-implemented). Unlike
+  // assessment.listForChild this is `requireLmsParent`-gated (parent-only,
+  // red-team H2): a student session already has its own submission view via
+  // exercise.openForStudent/student home, so `student`-kind is FORBIDDEN here.
+  // -------------------------------------------------------------------------
+  listForChild: lmsProcedure
+    .input(listForChildInput)
+    .query(async ({ ctx, input }): Promise<{ items: ChildSubmissionDto[] }> => {
+      const { parentAccountId } = requireLmsParent(ctx);
+
+      const approvedChildren = await getApprovedChildren(ctx.db, parentAccountId);
+      if (!approvedChildren.some((c) => c.studentId === input.studentId)) {
+        throw forbidden('Student does not belong to this account.');
+      }
+
+      await auditChildDataAccess(ctx.db, {
+        parentAccountId,
+        studentIds: [input.studentId],
+        via: 'submission.listForChild',
+        actorKind: 'parent',
+      });
+
+      // Resolve the student's facility for RLS scoping — getApprovedChildren
+      // runs RLS-bypass cross-facility (approved-children.ts), so the actual
+      // data read below MUST re-establish the facility GUC (red-team H1
+      // defense-in-depth) rather than relying on the studentId filter alone.
+      const student = await withFacility(
+        ctx.db,
+        null,
+        (tx) => tx.student.findUnique({ where: { id: input.studentId }, select: { facilityId: true } }),
+        { bypass: true },
+      );
+      if (!student) throw notFound('Student not found.');
+
+      return withFacility(ctx.db, student.facilityId, async (tx) => {
+        const items = await tx.submission.findMany({
+          where: { studentId: input.studentId, status: { not: 'draft' } },
+          orderBy: { submittedAt: 'desc' },
+          take: 50,
+          select: {
+            id: true,
+            exerciseId: true,
+            status: true,
+            submittedAt: true,
+            score: true,
+            gradedAt: true,
+            exercise: { select: { starReward: true, curriculumUnit: { select: { title: true } } } },
+          },
+        });
+        return {
+          items: items.map((row) => ({
+            id: row.id,
+            exerciseId: row.exerciseId,
+            exerciseTitle: row.exercise.curriculumUnit.title,
+            status: row.status,
+            submittedAt: row.submittedAt,
+            score: row.score,
+            gradedAt: row.gradedAt,
+            starReward: row.exercise.starReward,
+          })),
+        };
       });
     }),
 });

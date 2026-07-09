@@ -52,6 +52,9 @@ function ChildLinks({ studentId, fullName }: ChildLinksProps) {
         <Anchor size="sm" onClick={() => navigate(`/parent/evidence/${studentId}`)}>
           Ảnh buổi học
         </Anchor>
+        <Anchor size="sm" onClick={() => navigate(`/parent/homework/${studentId}`)}>
+          Bài tập & điểm
+        </Anchor>
         {/* Parent-only: consent and password reset */}
         <Anchor size="sm" onClick={() => navigate(`/parent/consent/${studentId}`)}>
           Cài đặt đồng ý ảnh

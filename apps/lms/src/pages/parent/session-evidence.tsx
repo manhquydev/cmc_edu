@@ -36,6 +36,13 @@ function photoUrl(blobRef: string): string {
   return blobRef;
 }
 
+/** docs/17 §LMS experience: absent → "Nghỉ học", late → "Đi muộn". Present
+ * (or not-yet-marked) sessions render the normal evidence view unchanged. */
+const ATTENDANCE_LABEL: Record<string, string> = {
+  absent: 'Nghỉ học',
+  late: 'Đi muộn',
+};
+
 export default function SessionEvidencePage() {
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
@@ -51,6 +58,17 @@ export default function SessionEvidencePage() {
   const { data, isLoading, error } = trpc.sessionEvidence.listForChild.useQuery(
     { studentId: studentId! },
     { enabled: !!studentId },
+  );
+  // Gap-closure 260710-0005 Phase 2: merge per-session attendance status into
+  // the evidence gallery, keyed by classSessionId — a session may have
+  // evidence but no attendance mark yet (or vice versa), so this is a lookup,
+  // not an assumed 1:1 join.
+  const { data: attendanceData } = trpc.attendance.listForChild.useQuery(
+    { studentId: studentId! },
+    { enabled: !!studentId },
+  );
+  const attendanceBySession = new Map(
+    (attendanceData?.items ?? []).map((a) => [a.classSessionId, a.status]),
   );
 
   return (
@@ -87,48 +105,63 @@ export default function SessionEvidencePage() {
         )}
 
         <Stack gap="lg">
-          {data?.items.map((item) => (
-            <Box
-              key={item.id}
-              p="md"
-              style={{
-                border: '1px solid var(--cmc-border)',
-                borderRadius: 'var(--cmc-radius-xs)',
-              }}
-            >
-              <Text size="xs" c="dimmed" mb={4}>
-                {item.publishedAt
-                  ? new Date(item.publishedAt).toLocaleDateString('vi-VN')
-                  : '—'}
-              </Text>
-              <Text size="sm" mb="sm">{item.summary}</Text>
+          {data?.items.map((item) => {
+            const attendanceStatus = attendanceBySession.get(item.classSessionId);
+            const isAbsent = attendanceStatus === 'absent';
+            const attendanceLabel = attendanceStatus ? ATTENDANCE_LABEL[attendanceStatus] : undefined;
 
-              {item.photos.length > 0 ? (
-                <SimpleGrid cols={3} spacing="xs">
-                  {item.photos.map((photo) => (
-                    <Image
-                      key={photo.id}
-                      src={photoUrl(photo.blobRef)}
-                      alt="Ảnh buổi học"
-                      radius="sm"
-                      h={100}
-                      fit="cover"
-                    />
-                  ))}
-                </SimpleGrid>
-              ) : (
-                <Alert color="gray" variant="light" p="xs">
-                  <Text size="xs">
-                    Ảnh không hiển thị — đồng ý chia sẻ ảnh chưa được bật hoặc chưa có ảnh
-                    nào trong buổi này.{' '}
-                    <Anchor size="xs" onClick={() => navigate(`/parent/consent/${studentId}`)}>
-                      Bật đồng ý ảnh →
-                    </Anchor>
+            return (
+              <Box
+                key={item.id}
+                p="md"
+                style={{
+                  border: '1px solid var(--cmc-border)',
+                  borderRadius: 'var(--cmc-radius-xs)',
+                }}
+              >
+                <Group justify="space-between" mb={4}>
+                  <Text size="xs" c="dimmed">
+                    {item.publishedAt
+                      ? new Date(item.publishedAt).toLocaleDateString('vi-VN')
+                      : '—'}
                   </Text>
-                </Alert>
-              )}
-            </Box>
-          ))}
+                  {attendanceLabel && (
+                    <Text size="xs" fw={600} c={isAbsent ? 'red' : 'orange'}>
+                      {attendanceLabel}
+                    </Text>
+                  )}
+                </Group>
+                <Text size="sm" mb="sm">{item.summary}</Text>
+
+                {isAbsent ? (
+                  <Text size="xs" c="dimmed">Con nghỉ buổi này.</Text>
+                ) : item.photos.length > 0 ? (
+                  <SimpleGrid cols={3} spacing="xs">
+                    {item.photos.map((photo) => (
+                      <Image
+                        key={photo.id}
+                        src={photoUrl(photo.blobRef)}
+                        alt="Ảnh buổi học"
+                        radius="sm"
+                        h={100}
+                        fit="cover"
+                      />
+                    ))}
+                  </SimpleGrid>
+                ) : (
+                  <Alert color="gray" variant="light" p="xs">
+                    <Text size="xs">
+                      Ảnh không hiển thị — đồng ý chia sẻ ảnh chưa được bật hoặc chưa có ảnh
+                      nào trong buổi này.{' '}
+                      <Anchor size="xs" onClick={() => navigate(`/parent/consent/${studentId}`)}>
+                        Bật đồng ý ảnh →
+                      </Anchor>
+                    </Text>
+                  </Alert>
+                )}
+              </Box>
+            );
+          })}
         </Stack>
 
         <Button variant="subtle" mt="lg" onClick={() => navigate('/parent/home')}>

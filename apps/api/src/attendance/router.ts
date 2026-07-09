@@ -18,8 +18,9 @@
 
 import { z } from 'zod';
 import { withFacility, type Prisma } from '@cmc/db';
-import { badRequest, forbidden } from '../errors.js';
-import { requirePermission, router, scoped } from '../trpc.js';
+import { badRequest, forbidden, notFound } from '../errors.js';
+import { lmsProcedure, requireLmsParent, requirePermission, router, scoped } from '../trpc.js';
+import { auditChildDataAccess, getApprovedChildren } from '../guardian/approved-children.js';
 
 const attendanceStatusSchema = z.enum(['present', 'absent', 'late']);
 
@@ -40,6 +41,20 @@ const markAllInput = z.object({
 });
 
 const listBySessionInput = z.object({ sessionId: z.string().uuid() });
+
+const listForChildInput = z.object({ studentId: z.string().uuid() });
+
+/**
+ * Gap-closure 260710-0005 Phase 2: parent-facing DTO for
+ * `attendance.listForChild`. `status` is the raw `AttendanceStatus` enum
+ * (`present|absent|late`) — the LMS UI is responsible for the Vietnamese
+ * label ("Nghỉ học"/"Đi muộn"), not the API.
+ */
+export interface ChildAttendanceDto {
+  classSessionId: string;
+  sessionDate: Date;
+  status: string;
+}
 
 export interface AttendanceDto {
   id: string;
@@ -262,6 +277,58 @@ export const attendanceRouter = router({
         });
 
         return { items, total: items.length };
+      });
+    }),
+
+  // -------------------------------------------------------------------------
+  // attendance.listForChild — LMS (parent session ONLY, gap-closure
+  // 260710-0005 Phase 2). Gate pattern copied from assessment.listForChild
+  // (../assessment/router.ts): getApprovedChildren + auditChildDataAccess is
+  // the sole child-data boundary. Filters by `studentId` (NOT classSessionId)
+  // so a session-scoped query can never expose another student's attendance
+  // in the same class (red-team F4).
+  // -------------------------------------------------------------------------
+  listForChild: lmsProcedure
+    .input(listForChildInput)
+    .query(async ({ ctx, input }): Promise<{ items: ChildAttendanceDto[] }> => {
+      const { parentAccountId } = requireLmsParent(ctx);
+
+      const approvedChildren = await getApprovedChildren(ctx.db, parentAccountId);
+      if (!approvedChildren.some((c) => c.studentId === input.studentId)) {
+        throw forbidden('Student does not belong to this account.');
+      }
+
+      await auditChildDataAccess(ctx.db, {
+        parentAccountId,
+        studentIds: [input.studentId],
+        via: 'attendance.listForChild',
+        actorKind: 'parent',
+      });
+
+      // Re-establish the facility GUC (red-team H1 defense-in-depth) — see
+      // submission.listForChild for the same pattern + rationale.
+      const student = await withFacility(
+        ctx.db,
+        null,
+        (tx) => tx.student.findUnique({ where: { id: input.studentId }, select: { facilityId: true } }),
+        { bypass: true },
+      );
+      if (!student) throw notFound('Student not found.');
+
+      return withFacility(ctx.db, student.facilityId, async (tx) => {
+        const items = await tx.attendance.findMany({
+          where: { studentId: input.studentId },
+          orderBy: { markedAt: 'desc' },
+          take: 100,
+          select: { classSessionId: true, status: true, classSession: { select: { sessionDate: true } } },
+        });
+        return {
+          items: items.map((row) => ({
+            classSessionId: row.classSessionId,
+            sessionDate: row.classSession.sessionDate,
+            status: row.status,
+          })),
+        };
       });
     }),
 });

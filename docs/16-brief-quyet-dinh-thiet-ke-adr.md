@@ -100,6 +100,24 @@ nhóm theo vai trò**, đặt theo *chức năng*.
 - Cổng tiền → GĐKD (ADR-B) là hệ quả trực tiếp của việc gác `ke_toan`.
 - Việc tạo lớp/xếp lịch gán vào quyền `class.create`/`schedule.generate` cho GĐĐT (không cần role mới).
 
+### ADR-D amendment (2026-07-08) — Siết scope: registry/UI/gán chỉ 5 role thật
+
+**Context.** PO chốt: hệ thống thực tế chỉ 5 vai trò vận hành (GĐKD, GĐĐT, sale,
+giao_vien, super_admin). 2 giám đốc đã đảm nhiệm toàn bộ công việc của role gác
+(ke_toan, cskh, ctv_mkt, hr). Registry vẫn ghi quyền cho role gác → rủi ro gán nhầm
+= có quyền duyệt tiền.
+
+**Decision.**
+- `ACTIVE_ROLES` (5) export từ `@cmc/auth`; `ROLES` (9) giữ nguyên (drift-test enum↔TS).
+- `PERMISSIONS` typed `ActiveRole[]` — typecheck chặn tái nhập role gác.
+- `user.updateRoles` zod reject role ∉ ACTIVE_ROLES (BAD_REQUEST). Seed script bypass by design.
+- UI Phân quyền chỉ hiện 5 role; user mang role gác vẫn Save được (drop chủ động).
+- Guard last-super-admin: không cho gỡ super_admin cuối cùng (FORBIDDEN).
+- Enum DB giữ 9 giá trị trơ (tránh migration Postgres `ALTER TYPE DROP VALUE`).
+- Bật lại role = thêm vào `ACTIVE_ROLES` + quyền + UI + ADR mới.
+
+**Refs.** `plans/reports/brainstorm-260708-2232-role-scope-alignment-adr-d-report.md`
+
 ---
 
 ## Đồng bộ cần làm sau khi chốt (housekeeping)

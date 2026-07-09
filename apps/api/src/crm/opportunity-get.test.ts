@@ -4,7 +4,6 @@ import {
   buildStaffContext,
   cleanupFacility,
   createTestFacility,
-  testDb,
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
@@ -35,7 +34,7 @@ describe('crm.opportunityGet', () => {
     await cleanupFacility(facilityB.id);
   });
 
-  it('returns contact name/phone/email for an opportunity in the caller's facility', async () => {
+  it('returns contact name/phone/email for an opportunity in the caller facility', async () => {
     const opp = await sale.crm.opportunityCreate({
       contactName: 'Nguyen Van A',
       phone: '0900111222',

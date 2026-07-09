@@ -558,7 +558,7 @@ async function runRefundTransaction(
 
 export const financeRouter = router({
   // K3 remediation: paginated, facility-scoped, filterable by status — the
-  // work queue an approver (GĐKD/GĐĐT/ke_toan, same roster as receiptApprove)
+  // work queue an approver (GĐKD/GĐĐT, same roster as receiptApprove)
   // actually needs to find drafts awaiting a decision.
   receiptList: requirePermission('finance', 'receiptList')
     .input(receiptListInput)

@@ -47,7 +47,7 @@ không dữ liệu trẻ ra ngoài) được thí điểm sớm trên data pilot
 - **Cập nhật trạng thái tại đây** (cột Trạng thái + link plan) mỗi khi milestone chuyển pha;
   file này là trạng thái sống, TL31 giữ nguyên làm bản đồ thi công gốc.
 - **Bất biến xuyên suốt** (không milestone nào được nới): RLS `withFacility`+`cmc_app` ·
-  `can()` registry 9-role (ADR-D) · zod + 5 mã lỗi · không commit secrets · dev-header chỉ non-prod ·
+  enum 9 giá trị · registry/gán `ACTIVE_ROLES` 5 role (ADR-D amendment) · zod + 5 mã lỗi · không commit secrets · dev-header chỉ non-prod ·
   timestamptz/ICT · sổ tiền/sao append-mindset.
 - **Stop-conditions kế thừa** (plan 260707-2128): creds sai · migration mất dữ liệu ·
   thao tác phá huỷ ngoài repo · e2e nghi trỏ DB thật.

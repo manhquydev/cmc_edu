@@ -22,15 +22,16 @@
 | `sale` | Sale / Tư vấn tuyển sinh | CRM, tạo phiếu **nháp**, afterSale | 37 | 🟢 **Active** |
 | `giao_vien` | Giáo viên | Dạy, điểm danh, chấm bài, nhận xét | 39 | 🟢 **Active** |
 | `super_admin` | Quản trị hệ thống (IT) | Bypass, cấu hình hệ thống | 20 (+bypass) | 🟢 **Active (IT)** |
-| `ke_toan` | Kế toán | Tạo & duyệt phiếu, hoàn tiền, chốt lương | 20 | 🟡 Deferred |
-| `cskh` | CSKH | Chăm sóc sau bán | 32 | 🟡 Deferred |
-| `ctv_mkt` | CTV Marketing | CRM tối thiểu (lead O1) | 6 | 🟡 Deferred |
-| `hr` | Nhân sự | Onboarding, duyệt ca thay quản lý | 8 | 🟡 Deferred |
+| `ke_toan` | Kế toán | *(dormant — enum trơ)* | 0 | 🟡 Deferred |
+| `cskh` | CSKH | *(dormant — enum trơ)* | 0 | 🟡 Deferred |
+| `ctv_mkt` | CTV Marketing | *(dormant — enum trơ)* | 0 | 🟡 Deferred |
+| `hr` | Nhân sự | *(dormant — enum trơ)* | 0 | 🟡 Deferred |
 
-**Mô hình vận hành v2 (ADR-D):** ERP = **GĐKD (quản lý sale) · GĐĐT (quản lý giáo viên) · sale ·
-giáo viên · IT**. LMS = **phụ huynh + học sinh**. 5 role deferred giữ trong enum/registry, **không
-build quyền/UI riêng** lúc này — khi cần chỉ bật quyền + màn, không đổi mô hình. Hệ quả: vì gác
-`ke_toan`, **cổng tiền do GĐKD** (sale tạo ≠ GĐKD duyệt → SoD đạt; xem ADR-B).
+**Mô hình vận hành v2 (ADR-D + amendment 2026-07-08):** ERP = **GĐKD · GĐĐT · sale ·
+giáo viên · IT**. LMS = **phụ huynh + học sinh**. 4 role deferred giữ trong DB enum (không
+migration) nhưng **0 quyền trong registry, không gán được** (`ACTIVE_ROLES` + `updateRoles`
+zod reject + invariant test enforce). Bật lại = thêm `ACTIVE_ROLES` + quyền + UI + ADR mới.
+Hệ quả: vì gác `ke_toan`, **cổng tiền do GĐKD** (sale tạo ≠ GĐKD duyệt → SoD; ADR-B).
 
 ## 2. "Quản lý" là THUỘC TÍNH, không phải vai trò
 
@@ -55,27 +56,30 @@ Plan `erp-rebuild-f0-f4` từng nhắc `quan_ly` + `head_teacher`, nhưng enum R
 
 ## 5. Ma trận quyền tóm tắt (module × role — gate đại diện)
 
-| Module.action | super | GĐKD | GĐĐT | sale | ke_toan | giao_vien | cskh | ctv_mkt | hr |
-|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| `crm.opportunityList` | ✓ | ✓ | | ✓ | | | ✓ | ✓ | |
-| `crm.opportunityLookup` | ✓ | ✓ | | ✓ | ✓ | | | | |
-| `finance.receiptCreate` | ✓ | ✓ | | ✓(nháp) | ✓ | | | | |
-| `finance.receiptApprove` (cổng tiền) | ✓ | ✓ | ✓ | | ✓ | | | | |
-| `finance.refundCreate` | ✓ | ✓ | | | ✓ | | | | |
-| `finance.receiptList` / `receiptGet` (K3, hàng đợi duyệt) | ✓ | ✓ | ✓ | | ✓ | | | | |
-| `guardian.listPendingLinks` (K3, hàng đợi duyệt link) | ✓ | ✓ | ✓ | ✓ | | ✓ | ✓ | | |
-| `student.lookup` (K4, staff-only) | ✓ | ✓ | ✓ | ✓ | ✓ | | | | |
-| `facility.create` / `facility.list` (K7) | ✓ | | | | | | | | |
-| `enrollment.enroll` | ✓ | ✓ | ✓ | ✓ | | | | | |
-| `class.create` / `schedule.generate` | ✓ | | ✓ | | | | | | |
-| `attendance.mark` | ✓ | | ✓ | | | ✓ | | | |
-| `assessment.*` | ✓ | | ✓ | | | ✓ | | | |
-| `shiftRegistration.approve` | ✓ | ✓ | ✓ | | | | | | ✓ + managerId |
-| `payroll.approve` | ✓ | ✓(KD) | ✓(ĐT) | | ✓ | | | | |
-| `checkInOut.monthlyReport` | ✓ | ✓ | ✓ | | | | | | |
+| Module.action | super | GĐKD | GĐĐT | sale | giao_vien |
+|---|:-:|:-:|:-:|:-:|:-:|
+| `crm.opportunityList` | ✓ | ✓ | | ✓ | |
+| `crm.opportunityLookup` | ✓ | ✓ | | ✓ | |
+| `finance.receiptCreate` | ✓ | ✓ | | ✓(nháp) | |
+| `finance.receiptApprove` (cổng tiền) | ✓ | ✓ | ✓ | | |
+| `finance.refundCreate` | ✓ | ✓ | | | |
+| `finance.receiptList` / `receiptGet` (hàng đợi duyệt) | ✓ | ✓ | ✓ | | |
+| `guardian.listPendingLinks` (hàng đợi duyệt link) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `student.lookup` (staff-only) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `facility.create` / `facility.list` | ✓ | | | | |
+| `enrollment.enroll` | ✓ | ✓ | ✓ | ✓ | |
+| `class.create` / `schedule.generate` | ✓ | | ✓ | | |
+| `attendance.mark` | ✓ | | ✓ | | ✓ |
+| `assessment.*` | ✓ | | ✓ | | ✓ |
+| `checkIn.punch` / `manualPunch.create` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `shift.submit` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `kpi.submit` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `payslip.assemble` / `finalize` | ✓ | ✓ | ✓ | | |
+| `gift.list` / `rewards.manage` | ✓ | ✓ | ✓ | ✓ | |
 
-> Bảng là *đại diện* để đối chiếu; nguồn đầy đủ là registry `@cmc/auth`. Mọi UI/route/agent gate
-> phải gọi cùng `can(roles, module, action)` — không hardcode (nợ TL3).
+> Bảng là *đại diện* (5 active roles, ADR-D amendment); nguồn đầy đủ = registry `@cmc/auth`.
+> Role gác (ke_toan/cskh/ctv_mkt/hr) có 0 quyền — không hiển thị.
+> UI/route/agent gate phải gọi `can(roles, module, action)` — không hardcode.
 
 ## 6. Agent là vai trò hạng nhất
 

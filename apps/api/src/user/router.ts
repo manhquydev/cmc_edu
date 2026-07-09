@@ -12,7 +12,7 @@
 
 import { z } from 'zod';
 import { withFacility, Role as DbRole } from '@cmc/db';
-import { ROLES } from '@cmc/auth';
+import { ACTIVE_ROLES } from '@cmc/auth';
 import type { Role as AuthRole } from '@cmc/auth';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
@@ -70,11 +70,14 @@ function p2002Target(err: unknown): string[] {
   return [];
 }
 
-const VALID_ROLES = ROLES as readonly string[];
-// max(9): exactly 9 valid roles, duplicates deduped before DB write.
+// ADR-D amendment: only 5 active roles can be assigned. DB enum keeps 9
+// values but dormant roles (ke_toan/cskh/ctv_mkt/hr) are not assignable.
+// This applies to ALL callers including super_admin (business rule, not
+// a privilege — seed scripts bypass zod by design).
+const VALID_ROLES = ACTIVE_ROLES as readonly string[];
 const roleArraySchema = z
   .array(z.string().refine((r) => VALID_ROLES.includes(r), { message: 'Unknown role' }))
-  .max(9)
+  .max(ACTIVE_ROLES.length)
   .transform((arr) => [...new Set(arr)] as AuthRole[]);
 
 export const userRouter = router({
@@ -197,14 +200,34 @@ export const userRouter = router({
         if (!existing) throw notFound('AppUser not found.');
 
         // Guard self-demotion: caller may not remove their own super_admin role.
-        // Once SSO wires AppUser.roles → ctx.subject.roles, self-lockout becomes live.
-        // A last-super-admin check should land before that SSO integration (phase S2).
         if (
           ctx.subject.userId === existing.userId &&
           !input.roles.includes('super_admin') &&
           (existing.roles as string[]).includes('super_admin')
         ) {
           throw forbidden('Cannot remove your own super_admin role.');
+        }
+
+        // Guard last-super-admin: prevent removing super_admin from the last
+        // active admin in the system (SSO already wires AppUser.roles into session).
+        // NOTE: count-then-update under READ COMMITTED has a narrow TOCTOU window
+        // if two concurrent requests both target the last two admins. Acceptable
+        // for single-facility/admin-panel usage; harden with SERIALIZABLE or
+        // advisory lock if multi-facility concurrent admin ops become real.
+        if (
+          (existing.roles as string[]).includes('super_admin') &&
+          !input.roles.includes('super_admin')
+        ) {
+          const otherAdmins = await tx.appUser.count({
+            where: {
+              id: { not: input.appUserId },
+              isActive: true,
+              roles: { has: 'super_admin' as DbRole },
+            },
+          });
+          if (otherAdmins === 0) {
+            throw forbidden('Cannot remove super_admin from the last active admin.');
+          }
         }
 
         // Skip write + audit when roles are unchanged.

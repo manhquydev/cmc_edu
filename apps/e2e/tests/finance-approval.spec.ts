@@ -132,19 +132,20 @@ test.describe('finance — canApprove gate + over-threshold second-eye', () => {
     expect((caughtError as TRPCClientError<AppRouter>).data?.code).toBe('FORBIDDEN');
   });
 
-  test('over-threshold blocked for ke_toan (not in SECOND_EYE_ROLES)', async () => {
-    // 20_000_001 VND > APPROVAL_SECOND_EYE_THRESHOLD — ke_toan cannot approve.
+  test('over-threshold blocked for GDKD (not in SECOND_EYE_ROLES)', async () => {
+    // 20_000_001 VND > APPROVAL_SECOND_EYE_THRESHOLD — GĐKD has receiptApprove
+    // but is NOT in SECOND_EYE_ROLES, so the second-eye gate blocks.
     const receipt = await createDraftReceipt({ classBatchId, amount: 20_000_001 });
 
-    const keToan = createE2eStaffClient(baseUrl, {
-      userId: 'e2e-finance-ketoan',
-      roles: ['ke_toan'],
+    const gdkd = createE2eStaffClient(baseUrl, {
+      userId: 'e2e-finance-gdkd-threshold',
+      roles: ['giam_doc_kinh_doanh'],
       facilityId,
     });
 
     let caughtError: unknown;
     try {
-      await keToan.finance.receiptApprove.mutate({ receiptId: receipt.id });
+      await gdkd.finance.receiptApprove.mutate({ receiptId: receipt.id });
     } catch (err) {
       caughtError = err;
     }

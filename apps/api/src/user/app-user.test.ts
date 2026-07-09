@@ -160,9 +160,9 @@ describe('user — AppUser CRUD (P3-I)', () => {
     const user = await seedAppUser({ facilityId, userId: 'u-roles-1' });
     const result = await caller(superAdminCtx).user.updateRoles({
       appUserId: user.id,
-      roles: ['sale', 'cskh'],
+      roles: ['sale', 'giao_vien'],
     });
-    expect(result.roles).toEqual(expect.arrayContaining(['sale', 'cskh']));
+    expect(result.roles).toEqual(expect.arrayContaining(['sale', 'giao_vien']));
     expect(result.roles).toHaveLength(2);
   });
 
@@ -207,5 +207,81 @@ describe('user — AppUser CRUD (P3-I)', () => {
         roles: ['sale'],
       }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('user.updateRoles — rejects dormant role ke_toan (ADR-D)', async () => {
+    const user = await seedAppUser({ facilityId, userId: 'u-dormant-1' });
+    await expect(
+      caller(superAdminCtx).user.updateRoles({
+        appUserId: user.id,
+        roles: ['ke_toan'] as never[],
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('user.updateRoles — rejects mix of active + dormant roles', async () => {
+    const user = await seedAppUser({ facilityId, userId: 'u-dormant-2' });
+    await expect(
+      caller(superAdminCtx).user.updateRoles({
+        appUserId: user.id,
+        roles: ['sale', 'hr'] as never[],
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('user.updateRoles — accepts all 5 active roles', async () => {
+    const user = await seedAppUser({ facilityId, userId: 'u-all-active' });
+    const result = await caller(superAdminCtx).user.updateRoles({
+      appUserId: user.id,
+      roles: ['super_admin', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'],
+    });
+    expect(result.roles).toHaveLength(5);
+  });
+
+  it('user.updateRoles — blocks removing super_admin from last active admin', async () => {
+    const targetUser = await seedAppUser({ facilityId, userId: 'u-last-admin' });
+    await caller(superAdminCtx).user.updateRoles({
+      appUserId: targetUser.id,
+      roles: ['super_admin'],
+    });
+    // The seeded super-admin-user from other tests may exist; ensure this is
+    // the only active super_admin by using a second admin ctx to remove it.
+    // We verify: when only one super_admin remains, cannot remove their role.
+    // Use a different caller userId so self-demotion guard doesn't fire first.
+    const adminCtx2 = buildStaffContext({
+      facilityId,
+      userId: 'other-admin-ctx',
+      roles: ['super_admin'],
+    });
+    await expect(
+      caller(adminCtx2).user.updateRoles({
+        appUserId: targetUser.id,
+        roles: ['sale'],
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('user.updateRoles — allows removing super_admin when another active admin exists', async () => {
+    const adminA = await seedAppUser({ facilityId, userId: 'u-admin-a' });
+    const adminB = await seedAppUser({ facilityId, userId: 'u-admin-b' });
+    await caller(superAdminCtx).user.updateRoles({
+      appUserId: adminA.id,
+      roles: ['super_admin'],
+    });
+    await caller(superAdminCtx).user.updateRoles({
+      appUserId: adminB.id,
+      roles: ['super_admin'],
+    });
+    // With two super_admins, removing one is allowed.
+    const otherCtx = buildStaffContext({
+      facilityId,
+      userId: 'admin-remover',
+      roles: ['super_admin'],
+    });
+    const result = await caller(otherCtx).user.updateRoles({
+      appUserId: adminA.id,
+      roles: ['sale'],
+    });
+    expect(result.roles).toEqual(['sale']);
   });
 });

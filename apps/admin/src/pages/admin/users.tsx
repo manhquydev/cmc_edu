@@ -2,20 +2,22 @@ import { useState } from 'react';
 import { Badge, Button, Group, Modal, MultiSelect, Stack, Text, TextInput } from '@mantine/core';
 import { DataTable, EmptyState, PageHeader } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
+import { ACTIVE_ROLES } from '@cmc/auth';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
-const ROLE_OPTIONS = [
-  { value: 'super_admin', label: 'Super Admin' },
-  { value: 'giam_doc_kinh_doanh', label: 'GĐ Kinh doanh' },
-  { value: 'giam_doc_dao_tao', label: 'GĐ Đào tạo' },
-  { value: 'sale', label: 'Sale' },
-  { value: 'giao_vien', label: 'Giáo viên' },
-  { value: 'ke_toan', label: 'Kế toán' },
-  { value: 'cskh', label: 'CSKH' },
-  { value: 'ctv_mkt', label: 'CTV MKT' },
-  { value: 'hr', label: 'HR' },
-];
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: 'Super Admin',
+  giam_doc_kinh_doanh: 'GĐ Kinh doanh',
+  giam_doc_dao_tao: 'GĐ Đào tạo',
+  sale: 'Sale',
+  giao_vien: 'Giáo viên',
+};
+
+const ROLE_OPTIONS = ACTIVE_ROLES.map((r) => ({
+  value: r,
+  label: ROLE_LABELS[r] ?? r,
+}));
 
 interface UserRow {
   id: string;
@@ -106,7 +108,10 @@ function UsersContent() {
 
   function openRolesModal(user: UserRow) {
     setRolesModalUser(user);
-    setSelectedRoles(user.roles ?? []);
+    // Drop dormant roles on open — next Save will persist only active roles.
+    // The user's badge still shows old roles until saved.
+    const activeSet = new Set<string>(ACTIVE_ROLES);
+    setSelectedRoles((user.roles ?? []).filter((r) => activeSet.has(r)));
   }
 
   function handleSaveRoles() {

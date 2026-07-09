@@ -30,6 +30,8 @@ import type { Context, LmsSubject } from './trpc.js';
 
 const devUserHeaderSchema = z.object({
   userId: z.string().min(1),
+  // KEEP 9-role — tokens/legacy users may carry dormant roles; deny via
+  // registry (PERMISSIONS ⊆ ACTIVE_ROLES), not via session parse failure.
   roles: z.array(z.enum(ROLES)).min(1),
   facilityId: z.string().min(1),
 });

@@ -6,6 +6,20 @@
 
 ---
 
+## [2026-07-09] Role scope alignment Nac 2 — ADR-D amendment (5 active roles)
+
+**Branch:** `main` — single PR, 4 phases.
+
+- `@cmc/auth`: added `ACTIVE_ROLES` (5) / `ActiveRole` type; `PERMISSIONS` narrowed to `ActiveRole[]`; dormant roles (ke_toan/cskh/ctv_mkt/hr) removed from all permission arrays; `can()` widening cast for type safety; `ROLES` (9) preserved for enum drift-test.
+- `user.updateRoles`: zod schema now rejects dormant roles (BAD_REQUEST); last-super-admin guard added (FORBIDDEN when removing the only active super_admin).
+- Admin UI (users.tsx): `ROLE_OPTIONS` derived from `ACTIVE_ROLES`; modal filters dormant roles on open (prevents deadlock for legacy users).
+- `context.ts` session schema: kept 9-role (prevents staff lockout from legacy tokens).
+- e2e `finance-approval.spec.ts`: fixture changed from ke_toan to GĐKD for second-eye coverage.
+- TDD: 447 tests in `@cmc/auth` — full permission matrix + deferred-denial + invariant.
+- Docs: ADR-D amendment in TL16, TL14 §1/§5 updated, roadmap invariant updated.
+
+---
+
 ## [2026-07-08] Phase 1 — Staff Entra SSO land + CSRF fix + RBAC hardening (PR #24, MERGED)
 
 **Branch:** `feat/staff-sso-golive` — 5 commits, CI green (typecheck-and-test ×2, e2e ×2), merged to main `00ca207`, branch deleted. Task #10 completed. Roadmap vision M0–M4 chốt cùng ngày: `docs/project-roadmap.md`.

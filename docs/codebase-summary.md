@@ -295,11 +295,12 @@ Single RBAC source of truth. Consulted by every mutation via `requirePermission(
 
 ---
 
-## In-Progress Work (Phase 2 — Astryx UI Migration)
+## Phase 2 Completion (Astryx UI Migration) — 2026-07-10
 
-**Mantine 7 → Astryx Design System Migration (Spike APPROVED 2026-07-10):**
+**Mantine 7 → Astryx Design System Migration (Phase 2 COMPLETE):**
 - **Phase 1 (complete):** Verified Astryx (@astryxdesign/core@0.1.4 beta, Facebook OSS) production readiness: precompiled CSS (no bundler plugin), clean build/typecheck/HMR, zero supply-chain vulnerabilities (audit+signature), token override via CSS custom properties, CSS footprint favorable vs. Mantine.
-- **Phase 2 (in progress):** Rebuild @cmc/ui theme layer + migrate 10 shared components with API compatibility. New Playwright UI-mode e2e infrastructure added (see Dev/Preview Infrastructure above).
+- **Phase 2 (complete):** All 10 components migrated (status-badge → data-table, one commit each, risk-ascending). Theme rebuild: `cmcTheme` deleted, replaced with `AstryxCmcProvider` (CSS-only wrapper, `data-astryx-theme="neutral"`). peerDependencies: removed @mantine/core, added @astryxdesign/core@0.1.4 + @stylexjs/stylex@0.18.3 (pinned). Both apps/admin and apps/lms: MantineProvider kept (for unmigrated pages) + AstryxCmcProvider wraps hierarchy (strangler pattern). Workspace: typecheck + build + test all green (0 errors). Browser e2e infrastructure: apps/e2e UI-mode specs (admin-shell.ui.spec.ts, lms-login.ui.spec.ts) now 4 passing, 1 fixme (pre-existing session-context bug in change-password.tsx), 0 failing.
+- **Bugs fixed (PR #27):** (1) tRPC basePath missing → 404 on browser clients — fixed with conditional prefix-strip (serves /trpc/{proc} + bare root simultaneously). (2) finance/receipt-get.test.ts DB write missing withFacility() RLS wrapper — fixed. (3) student/change-password.tsx session timing bug — unfixed, tracked test.fixme(), not Astryx-related.
 - **Strategy:** Strangler pattern — both CSS/providers coexist through Phase 4; Mantine removed only in Phase 5.
 - **Plan:** `plans/260710-0236-astryx-ui-migration/` (gitignored; details in plan.md + phase-*.md files).
 

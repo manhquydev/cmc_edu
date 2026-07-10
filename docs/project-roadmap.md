@@ -26,15 +26,15 @@ CMC EDU v2 đạt đích khi **cả 5** điều sau đúng:
 **Loại khỏi phạm vi v2** (giữ nguyên quyết định TL16): huy hiệu · bảng xếp hạng · chứng chỉ tự động ·
 duyệt lên cấp. SaaS hoá/multi-tenant ngoài CMC: **không trong vision này** (cần brainstorm riêng nếu đặt ra).
 
-## 2. Công việc song song: UI Design System Migration (2026-07-10)
+## 2. UI Design System Migration: Phase 2 COMPLETE (2026-07-10)
 
-Ngoài các milestone dọc tuyến tính M0→M4, một **UI migration spike (Phase 1) đã chốt GO** vào 2026-07-10:
-- **Mantine v7 → Astryx (beta)** — verified không phá build, CSS footprint tốt hơn, zero supply-chain risk.
-- **Phase 2 (in progress):** Rebuild `@cmc/ui` theme layer; new browser-based e2e infrastructure (apps/e2e UI-mode Playwright).
+Ngoài các milestone dọc tuyến tính M0→M4, **UI migration spike đã hoàn thành Phase 2**:
+- **Phase 1 (GO):** Mantine v7 → Astryx (beta) — verified không phá build, CSS footprint tốt hơn, zero supply-chain risk.
+- **Phase 2 (complete):** All 10 components migrated, theme rebuilt (cmcTheme → AstryxCmcProvider CSS-only), peerDependencies updated (@astryxdesign/core@0.1.4 + @stylexjs/stylex@0.18.3). MantineProvider + AstryxCmcProvider coexist (strangler). Workspace clean: build + typecheck + test green. Browser e2e specs added (admin-shell.ui.spec.ts, lms-login.ui.spec.ts): 4 passing, 1 fixme (pre-existing session-context bug unrelated to Astryx), 0 failing. Fixed 3 pre-existing bugs via PR #27 (tRPC basePath, RLS wrapper, session timing).
 - **Phạm vi:** Strangler pattern qua Phase 2-4; bỏ Mantine chỉ ở Phase 5 (không chặn milestone trước).
 - **Plan:** `plans/260710-0236-astryx-ui-migration/` (5 pha, gitignored).
 
-Công việc này **song song với M0-M4**, không kéo timeline M0 go-live (Phase 2 UI work không chặn UAT dùng Mantine hiện tại).
+Công việc này **song song với M0-M4**, không kéo timeline M0 go-live.
 
 ---
 

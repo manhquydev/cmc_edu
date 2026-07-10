@@ -6,6 +6,36 @@
 
 ---
 
+## [2026-07-10] M1 P4 hardening: sweep write-amplification fix, EmailOutbox index+retention, RLS fixture
+
+**Context:** M1 pilot-stability plan (`plans/260710-0228-m1-pilot-stability-real-vps`) Phase 4 — closes
+3 tech-debt items surfaced by the 2026-07-10 red-team review, independent of the VPS/infra phases.
+
+- **Sweep NULL-trap fix (H1):** `sweepStaleOtpPayloads` matched any row with `payload.kind=='otp'`
+  regardless of scrub state, so every relay cycle re-`UPDATE`d the entire history of already-scrubbed
+  OTP rows (unbounded WAL/DB growth). Fixed with a whole-object `NOT: { payload: { equals:
+  SCRUBBED_OTP_PAYLOAD } } }` filter — a path-scoped check (`NOT path:['scrubbed'] equals true`) would
+  have been a NULL-trap instead (missing key on unscrubbed rows → 3-valued UNKNOWN → row silently never
+  scrubbed, the exact vulnerability this sweep exists to close).
+- **EmailOutbox index + retention:** added `@@index([status, createdAt])` (drain query was seq-scanning)
+  and `pruneTerminalOutbox()` — deletes `sent`/`dead` rows older than `EMAIL_OUTBOX_RETENTION_DAYS`
+  (default 30d, env-configurable), called each `relayEmailOutbox` cycle; result gained a `pruned` field
+  (additive, no breaking change — the only production caller discards the whole result today).
+- **receipt-get.test.ts fixture fix:** pre-existing RLS 42501 failure from a naked `db.receipt.create`
+  bypassing `withFacility`; wrapped in `testDbBypass` (the standard arrange-helper for direct writes to
+  RLS-protected tables).
+- **Migration hygiene finding:** the first `prisma migrate dev` auto-generated migration for the index
+  silently swept in ~121 lines of unrelated pre-existing drift (7 FK on-delete/on-update action
+  mismatches, 18 tables' `id`/`updatedAt` `DROP DEFAULT`, `QualitativeAssessment.confidence` REAL→DOUBLE
+  PRECISION type correction) between the historical migration files and `schema.prisma` — caught by
+  code review before landing. Stripped to a hand-authored migration containing only the `CREATE INDEX`
+  statement. The underlying drift is real but pre-existing and out of this phase's scope — **follow-up
+  needed**: a dedicated, reviewed migration to reconcile it, before it risks landing silently again on
+  a future `prisma migrate dev` run.
+- Gates: typecheck 26/26 · build 14/14 · unit suite 524/527 (3 fail = `assessment/draft-confirm.test.ts`
+  LLM/PII tests, confirmed pre-existing on unmodified `main`, unrelated) · e2e Mode-B 17 passed/1 skipped
+  (`TEST_OTP_SEAM`, expected off in prod).
+
 ## [2026-07-10] LMS gap closure: OTP email delivery + parent visibility + test backfill
 
 **Context:** Scout 260709-2350 found `requestOtpEmail` never delivered any email (no transport called)

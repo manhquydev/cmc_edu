@@ -4,7 +4,7 @@
 import { lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { Skeleton } from '@mantine/core';
+import { Skeleton } from '@cmc/ui';
 import { Shell } from '../shell/shell.js';
 import { LoginPage } from '../pages/login.js';
 import { ComingSoon } from '../pages/coming-soon.js';
@@ -35,7 +35,7 @@ export const router = createBrowserRouter([
       {
         path: 'cockpit',
         element: (
-          <Suspense fallback={<Skeleton height={200} radius="xs" m="md" />}>
+          <Suspense fallback={<Skeleton height={200} radius={0} />}>
             <CockpitPage />
           </Suspense>
         ),

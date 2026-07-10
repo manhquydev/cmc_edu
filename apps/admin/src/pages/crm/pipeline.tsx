@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, Badge, Box, Button, Group, Loader, ScrollArea, Stack, Text } from '@mantine/core';
-import { PageHeader } from '@cmc/ui';
+import { Badge, Banner, Button, HStack, PageHeader, Spinner, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 // Stage metadata — O5 is reached only via finance.receiptApprove, never via opportunityAdvance.
@@ -38,7 +37,7 @@ function KanbanCard({
   const isLost = Boolean(opp.closedAt);
 
   return (
-    <Box
+    <div
       style={{
         background: 'var(--cmc-surface)',
         border: '1px solid var(--cmc-border)',
@@ -48,52 +47,43 @@ function KanbanCard({
       }}
       onClick={() => void navigate(`/crm/opportunities/${opp.id}`)}
     >
-      <Stack gap={6}>
-        <Group justify="space-between" align="flex-start">
-          <Text fz="sm" fw={600} style={{ color: 'var(--cmc-text)' }} lineClamp={1}>
+      <Stack gap={1.5}>
+        <HStack justify="between" align="start">
+          <Text size="sm" weight="semibold" maxLines={1} style={{ color: 'var(--cmc-text)' }}>
             {opp.contact.name}
           </Text>
-          {isLost && (
-            <Badge color="red" variant="light" size="xs">
-              Lost
-            </Badge>
-          )}
-        </Group>
-        <Text fz="xs" c="dimmed">
+          {isLost && <Badge label="Lost" variant="error" />}
+        </HStack>
+        <Text type="supporting" size="xsm">
           {opp.contact.phone}
         </Text>
 
         {nextStage && !isLost && (
           <Button
-            size="xs"
-            variant="light"
-            radius="xs"
-            loading={advancing}
+            label="Chuyển lên →"
+            size="sm"
+            variant="secondary"
+            isLoading={advancing}
             onClick={(e) => {
               e.stopPropagation();
               onAdvance(opp.id, nextStage);
             }}
-          >
-            Chuyển lên →
-          </Button>
+          />
         )}
 
         {opp.stage === 'O4_TESTED' && !isLost && (
           <Button
-            size="xs"
-            variant="light"
-            color="green"
-            radius="xs"
+            label="Ghi danh"
+            size="sm"
+            variant="primary"
             onClick={(e) => {
               e.stopPropagation();
               void navigate(`/finance/new?opportunityId=${opp.id}`);
             }}
-          >
-            Ghi danh
-          </Button>
+          />
         )}
       </Stack>
-    </Box>
+    </div>
   );
 }
 
@@ -140,9 +130,9 @@ export default function CrmPipelinePage() {
 
   if (isLoading) {
     return (
-      <Stack align="center" py={64}>
-        <Loader size="md" />
-        <Text fz="sm" c="dimmed">
+      <Stack hAlign="center" gap={2} style={{ paddingBlock: 64 }}>
+        <Spinner size="md" />
+        <Text type="supporting" size="sm">
           Đang tải pipeline CRM...
         </Text>
       </Stack>
@@ -151,11 +141,9 @@ export default function CrmPipelinePage() {
 
   if (error) {
     return (
-      <Box p="md">
-        <Alert color="red" title="Lỗi tải pipeline">
-          {error.message}
-        </Alert>
-      </Box>
+      <div style={{ padding: 16 }}>
+        <Banner status="error" title="Lỗi tải pipeline" description={error.message} />
+      </div>
     );
   }
 
@@ -177,20 +165,22 @@ export default function CrmPipelinePage() {
         subtitle="Theo dõi cơ hội từ Tiếp cận đến Ghi danh"
         breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Pipeline CRM' }]}
       />
-      <ScrollArea style={{ height: 'calc(100vh - 90px)' }}>
-        <Group
-          gap="md"
-          align="flex-start"
-          px="md"
-          py="md"
-          style={{ flexWrap: 'nowrap', minWidth: 960 }}
+      {/* Astryx has no dedicated scroll-container primitive (confirmed 0 direct
+          equivalent in the Phase 1 spike — ScrollArea gap) — native CSS
+          overflow replaces the prior ScrollArea, same visual result. */}
+      <div style={{ height: 'calc(100vh - 90px)', overflow: 'auto' }}>
+        <HStack
+          gap={4}
+          align="start"
+          wrap="nowrap"
+          style={{ paddingInline: 16, paddingBlock: 16, minWidth: 960 }}
         >
           {STAGES.map((stage) => {
             const stageItems = byStage.get(stage.key) ?? [];
             const hasItems = stageItems.length > 0;
 
             return (
-              <Box
+              <div
                 key={stage.key}
                 style={{
                   width: 220,
@@ -201,44 +191,46 @@ export default function CrmPipelinePage() {
                 }}
               >
                 {/* Column header — active stage uses brand blue per docs/12 §3. */}
-                <Box
-                  px="sm"
-                  py="xs"
+                <div
                   style={{
+                    paddingInline: 12,
+                    paddingBlock: 8,
                     borderBottom: '1px solid var(--cmc-border)',
                     background: hasItems ? 'var(--cmc-brand-muted)' : undefined,
                     borderRadius: 'var(--cmc-radius-xs) var(--cmc-radius-xs) 0 0',
                   }}
                 >
-                  <Group justify="space-between" align="center">
-                    <Text
-                      fz="xs"
-                      fw={700}
-                      tt="uppercase"
+                  <HStack justify="between" align="center">
+                    {/* TODO(astryx-review): stage label color is brand-blue when
+                        active vs. a muted text token when empty — both CSS vars,
+                        no raw hex, but Text's color enum has no direct
+                        "brand"/"muted" slot distinct from primary/secondary, so
+                        this stays a plain <span> like StatCard's value line. */}
+                    <span
                       style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
                         letterSpacing: '0.05em',
-                        // Stage with cards = brand blue; empty = muted.
                         color: hasItems ? 'var(--cmc-brand)' : 'var(--cmc-text-muted)',
                       }}
                     >
                       {stage.label}
-                    </Text>
+                    </span>
                     <Badge
-                      size="xs"
-                      variant="filled"
+                      label={String(stageItems.length)}
+                      variant="neutral"
                       style={{
                         background: hasItems ? 'var(--cmc-brand)' : 'var(--cmc-border)',
                         color: hasItems ? '#fff' : 'var(--cmc-text-muted)',
                       }}
-                    >
-                      {stageItems.length}
-                    </Badge>
-                  </Group>
-                </Box>
+                    />
+                  </HStack>
+                </div>
 
-                <Stack gap="xs" p="xs">
+                <Stack gap={2} padding={1}>
                   {stageItems.length === 0 ? (
-                    <Text fz="xs" c="dimmed" ta="center" py="sm">
+                    <Text type="supporting" size="xsm" justify="center" display="block" style={{ paddingBlock: 8 }}>
                       Chưa có
                     </Text>
                   ) : (
@@ -253,11 +245,11 @@ export default function CrmPipelinePage() {
                     ))
                   )}
                 </Stack>
-              </Box>
+              </div>
             );
           })}
-        </Group>
-      </ScrollArea>
+        </HStack>
+      </div>
     </>
   );
 }

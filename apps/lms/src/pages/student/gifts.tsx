@@ -9,19 +9,7 @@
 // aggregation on the backend. The UI never computes balance locally.
 
 import { useNavigate } from 'react-router-dom';
-import {
-  Alert,
-  Anchor,
-  Badge,
-  Box,
-  Button,
-  Group,
-  Image,
-  Loader,
-  SimpleGrid,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Badge, Banner, Button, Heading, HStack, Spinner, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 export default function GiftsPage() {
@@ -41,63 +29,57 @@ export default function GiftsPage() {
   const gifts = data?.gifts ?? [];
 
   return (
-    <Box className="lms-shell">
-      <Box className="lms-topbar">
-        <Anchor size="sm" onClick={() => navigate('/student/home')}>← Trang chủ</Anchor>
+    <div className="lms-shell">
+      <div className="lms-topbar">
+        <Button variant="ghost" size="sm" label="← Trang chủ" onClick={() => navigate('/student/home')} />
         <Text className="lms-topbar__brand">Đổi quà</Text>
-        <Box w={60} />
-      </Box>
+        <div style={{ width: 60 }} />
+      </div>
 
-      <Box className="lms-page">
+      <div className="lms-page">
         {/* Star balance hero */}
-        <Box className="lms-star-hero" mb="lg">
+        <div className="lms-star-hero" style={{ marginBottom: 24 }}>
           {isLoading ? (
-            <Loader color="white" size="sm" />
+            <Spinner shade="onMedia" size="sm" />
           ) : (
             <>
               <Text className="lms-star-hero__value">⭐ {starBalance}</Text>
               <Text className="lms-star-hero__label">Số sao hiện có</Text>
             </>
           )}
-        </Box>
+        </div>
 
-        <Title order={4} className="lms-page__title">Danh sách quà</Title>
+        <Heading level={4} className="lms-page__title">Danh sách quà</Heading>
 
-        {isLoading && <Group justify="center"><Loader /></Group>}
+        {isLoading && <HStack justify="center"><Spinner /></HStack>}
 
-        {error && (
-          <Alert color="red" variant="light" title="Lỗi">
-            {error.message}
-          </Alert>
-        )}
+        {error && <Banner status="error" title="Lỗi" description={error.message} />}
 
         {redeemMut.isError && (
-          <Alert color="red" variant="light" mb="md">
-            {redeemMut.error.message}
-          </Alert>
+          <Banner status="error" title={redeemMut.error.message} style={{ marginBottom: 16 }} />
         )}
 
         {redeemMut.isSuccess && (
-          <Alert color="green" variant="light" mb="md">
-            Đổi quà thành công! Nhân viên sẽ xác nhận và giao quà cho bạn.
-          </Alert>
+          <Banner
+            status="success"
+            title="Đổi quà thành công! Nhân viên sẽ xác nhận và giao quà cho bạn."
+            style={{ marginBottom: 16 }}
+          />
         )}
 
         {gifts.length === 0 && !isLoading && (
-          <Alert color="gray" variant="light">
-            Chưa có quà nào trong danh mục.
-          </Alert>
+          <Banner status="info" title="Chưa có quà nào trong danh mục." />
         )}
 
-        <SimpleGrid cols={2} spacing="sm">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
           {gifts.map((gift) => {
             const canAfford = starBalance >= gift.starsRequired;
             const outOfStock = gift.stock === 0;
             return (
-              <Box
+              <div
                 key={gift.id}
-                p="sm"
                 style={{
+                  padding: 12,
                   border: '1px solid var(--cmc-border)',
                   borderRadius: 'var(--cmc-radius-xs)',
                   background: 'var(--cmc-surface)',
@@ -105,43 +87,45 @@ export default function GiftsPage() {
                 }}
               >
                 {gift.imageUrl && (
-                  <Image
+                  <img
                     src={gift.imageUrl}
                     alt={gift.name}
-                    h={80}
-                    fit="cover"
-                    radius="sm"
-                    mb="xs"
+                    style={{
+                      width: '100%',
+                      height: 80,
+                      objectFit: 'cover',
+                      borderRadius: 'var(--cmc-radius-xs)',
+                      marginBottom: 8,
+                    }}
                   />
                 )}
-                <Text fw={600} size="sm" mb={4} lineClamp={2}>
+                <Text
+                  weight="bold"
+                  size="sm"
+                  display="block"
+                  maxLines={2}
+                  style={{ marginBottom: 4 }}
+                >
                   {gift.name}
                 </Text>
-                <Group gap={4} mb="xs">
-                  <Badge size="sm" color={canAfford ? 'green' : 'gray'} variant="light">
-                    ⭐ {gift.starsRequired}
-                  </Badge>
-                  {outOfStock && (
-                    <Badge size="xs" color="red" variant="light">Hết hàng</Badge>
-                  )}
-                  {gift.stock > 0 && (
-                    <Badge size="xs" color="blue" variant="light">Còn {gift.stock}</Badge>
-                  )}
-                </Group>
+                <HStack gap={0.5} style={{ marginBottom: 8 }}>
+                  <Badge label={`⭐ ${gift.starsRequired}`} variant={canAfford ? 'green' : 'neutral'} />
+                  {outOfStock && <Badge label="Hết hàng" variant="red" />}
+                  {gift.stock > 0 && <Badge label={`Còn ${gift.stock}`} variant="blue" />}
+                </HStack>
                 <Button
-                  size="xs"
-                  fullWidth
-                  disabled={!canAfford || outOfStock || redeemMut.isPending}
-                  loading={redeemMut.isPending && redeemMut.variables?.giftId === gift.id}
+                  size="sm"
+                  style={{ width: '100%' }}
+                  label={canAfford ? 'Đổi quà' : 'Chưa đủ sao'}
+                  isDisabled={!canAfford || outOfStock || redeemMut.isPending}
+                  isLoading={redeemMut.isPending && redeemMut.variables?.giftId === gift.id}
                   onClick={() => redeemMut.mutate({ giftId: gift.id })}
-                >
-                  {canAfford ? 'Đổi quà' : 'Chưa đủ sao'}
-                </Button>
-              </Box>
+                />
+              </div>
             );
           })}
-        </SimpleGrid>
-      </Box>
-    </Box>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -40,8 +40,19 @@ export const tokens = {
 
 export type Tokens = typeof tokens;
 
-// Mantine theme
-export { cmcTheme } from './theme.js';
+// Astryx theme scope provider — see astryx-theme-cmc.css for token values.
+export { AstryxCmcProvider } from './astryx-provider.js';
+export type { AstryxCmcProviderProps } from './astryx-provider.js';
+
+// Astryx primitive re-export barrel (the "single door" for apps — see
+// primitives.ts). Lets apps import Text/Stack/Button/… from @cmc/ui instead
+// of @astryxdesign/core directly, satisfying the one-door lint rule.
+export * from './primitives.js';
+
+// Auth-form input composites — fill Astryx gaps (typed input attrs +
+// PasswordInput) required by the LMS login hardening spec. See auth-inputs.tsx.
+export { TextField, PasswordInput } from './components/auth-inputs.js';
+export type { TextFieldProps, PasswordInputProps } from './components/auth-inputs.js';
 
 // Primitive components (DUMB — no tRPC calls, props-driven only)
 export { StatusBadge } from './components/status-badge.js';

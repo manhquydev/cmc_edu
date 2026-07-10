@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Group } from '@mantine/core';
-import { DataTable, FilterBar, PageHeader, StatusBadge } from '@cmc/ui';
+import { Button, DataTable, FilterBar, HStack, PageHeader, StatusBadge } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { EnrollPicker } from '../../lib/enroll-picker.js';
@@ -117,24 +116,20 @@ export default function ReceiptListPage() {
         subtitle="Danh sách phiếu thu — tìm kiếm và duyệt học phí"
         breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Phiếu thu' }]}
         actions={
-          <Group gap="xs">
+          <HStack gap={2}>
             <Button
-              size="xs"
-              radius="xs"
-              color="green"
+              label="+ Ghi danh"
+              size="sm"
+              variant="secondary"
               onClick={() => setEnrollPickerOpen(true)}
-            >
-              + Ghi danh
-            </Button>
+            />
             <Button
-              size="xs"
-              radius="xs"
-              style={{ background: 'var(--cmc-brand)' }}
+              label="+ Tạo phiếu thu"
+              size="sm"
+              variant="primary"
               onClick={() => void navigate('/finance/new')}
-            >
-              + Tạo phiếu thu
-            </Button>
-          </Group>
+            />
+          </HStack>
         }
       />
       <EnrollPicker opened={enrollPickerOpen} onClose={() => setEnrollPickerOpen(false)} />

@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import type { RouteObject } from 'react-router-dom';
-import { Skeleton } from '@mantine/core';
+import { Skeleton } from '@cmc/ui';
 
 const CockpitPage = lazy(() => import('../pages/cockpit.js'));
 const SchedulePage = lazy(() => import('../pages/teaching/schedule.js'));
@@ -10,7 +10,7 @@ const SessionEvidencePage = lazy(() => import('../pages/teaching/session-evidenc
 const ExercisesPage = lazy(() => import('../pages/teaching/exercises.js'));
 
 function PageFallback() {
-  return <Skeleton height={200} radius="xs" m="md" />;
+  return <Skeleton height={200} radius={0} />;
 }
 
 // Phase 04 owns this file — teaching section routes.

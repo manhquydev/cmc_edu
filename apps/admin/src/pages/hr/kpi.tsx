@@ -15,17 +15,19 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Alert,
   Badge,
-  Box,
+  Banner,
   Button,
-  Group,
-  Paper,
+  Card,
+  ConfirmDialog,
+  DataTable,
+  HStack,
+  PageHeader,
   Stack,
+  StatusBadge,
   Text,
   TextInput,
-} from '@mantine/core';
-import { ConfirmDialog, DataTable, PageHeader, StatusBadge } from '@cmc/ui';
+} from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
@@ -106,115 +108,119 @@ function KpiDetail({ appUserId, period, employeeName, onBack }: KpiDetailProps) 
   const isBusy = confirmMut.isPending || approveMut.isPending;
 
   return (
-    <Stack gap="md">
+    <Stack gap={3}>
       {/* Back nav */}
-      <Group>
-        <Button variant="subtle" size="xs" radius="xs" onClick={onBack}>
-          ← Danh sách nhân viên
-        </Button>
-        <Text fw={600} fz="sm" c="dimmed">
+      <HStack gap={2} align="center">
+        <Button label="← Danh sách nhân viên" variant="ghost" size="sm" onClick={onBack} />
+        <Text type="supporting" size="sm" weight="semibold">
           {employeeName} · {period}
         </Text>
-      </Group>
+      </HStack>
 
       {isLoading && (
-        <Text fz="sm" c="dimmed">
+        <Text type="supporting" size="sm">
           Đang tải…
         </Text>
       )}
 
       {error && (
-        <Alert color="orange" title="Chưa có điểm KPI" radius="xs">
-          {error.message.toLowerCase().includes('not found')
-            ? `Kỳ ${period} chưa có điểm KPI cho nhân viên này.`
-            : error.message}
-        </Alert>
+        <Banner
+          status="warning"
+          title="Chưa có điểm KPI"
+          description={
+            error.message.toLowerCase().includes('not found')
+              ? `Kỳ ${period} chưa có điểm KPI cho nhân viên này.`
+              : error.message
+          }
+        />
       )}
 
-      {mutError && (
-        <Alert color="red" radius="xs">
-          {mutError}
-        </Alert>
-      )}
+      {mutError && <Banner status="error" title={mutError} />}
 
       {data && (
-        <Paper withBorder radius="xs" p="md">
-          <Stack gap="sm">
+        <Card padding={3}>
+          <Stack gap={2}>
             {/* Status */}
-            <Group justify="space-between">
-              <Text fz="xs" tt="uppercase" fw={600} c="dimmed" style={{ letterSpacing: '0.04em' }}>
+            <HStack justify="between">
+              <Text
+                type="supporting"
+                size="2xs"
+                weight="semibold"
+                style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
+              >
                 Trạng thái
               </Text>
               <StatusBadge
                 status={data.status}
                 label={KPI_STATUS_LABELS[data.status] ?? data.status}
               />
-            </Group>
+            </HStack>
 
             {/* Score */}
-            <Group justify="space-between">
-              <Text fz="sm">Điểm KPI</Text>
-              <Text fz="xl" fw={700} style={{ fontVariantNumeric: 'tabular-nums' }}>
+            <HStack justify="between">
+              <Text type="body" size="sm">Điểm KPI</Text>
+              <Text type="body" size="xl" weight="bold" hasTabularNumbers>
                 {Number(data.value).toLocaleString('vi-VN')}
               </Text>
-            </Group>
+            </HStack>
 
             {/* Max */}
-            <Group justify="space-between">
-              <Text fz="sm" c="dimmed">
+            <HStack justify="between">
+              <Text type="supporting" size="sm">
                 Tối đa (kpiMax)
               </Text>
-              <Text fz="sm" c="dimmed" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              <Text type="supporting" size="sm" hasTabularNumbers>
                 {Number(data.kpiMax).toLocaleString('vi-VN')}
               </Text>
-            </Group>
+            </HStack>
 
             {/* Override badge */}
             {data.override && (
-              <Alert color="orange" variant="light" radius="xs" title="Đã ghi đè (override)">
-                {data.overrideReason
-                  ? String(data.overrideReason)
-                  : 'Giá trị đã được GĐ ghi đè.'}
-              </Alert>
+              <Banner
+                status="warning"
+                title="Đã ghi đè (override)"
+                description={
+                  data.overrideReason
+                    ? String(data.overrideReason)
+                    : 'Giá trị đã được GĐ ghi đè.'
+                }
+              />
             )}
 
             {/* Action buttons — gated per role */}
-            <Group gap="xs" pt="xs" style={{ borderTop: '1px solid var(--cmc-border)' }}>
+            <HStack
+              gap={1}
+              paddingBlock={1}
+              style={{ borderTop: '1px solid var(--cmc-border)' }}
+            >
               {/* Confirm: direct manager */}
               {canDo('kpi', 'confirm') && data.status === 'submitted' && (
                 <Button
-                  size="xs"
-                  radius="xs"
-                  color="blue"
-                  variant="light"
-                  disabled={isBusy}
+                  label="Xác nhận (Quản lý)"
+                  size="sm"
+                  variant="primary"
+                  isDisabled={isBusy}
                   onClick={() => setConfirmAction('confirm')}
-                >
-                  Xác nhận (Quản lý)
-                </Button>
+                />
               )}
 
               {/* Approve: GĐ only — gated to kpi.approve permission */}
               {canDo('kpi', 'approve') && data.status === 'confirmed' && (
                 <Button
-                  size="xs"
-                  radius="xs"
-                  color="green"
-                  disabled={isBusy}
+                  label="Duyệt (GĐ)"
+                  size="sm"
+                  variant="primary"
+                  isDisabled={isBusy}
                   onClick={() => setConfirmAction('approve')}
-                >
-                  Duyệt (GĐ)
-                </Button>
+                />
               )}
 
               {data.status === 'approved' && (
-                <Badge color="green" variant="light" radius="xs">
-                  Đã duyệt — hoàn tất
-                </Badge>
+                <Badge label="Đã duyệt — hoàn tất" variant="success" />
               )}
-            </Group>
+            </HStack>
           </Stack>
-        </Paper>
+        </Card>
       )}
 
       {/* Confirm: manager confirm */}
@@ -294,24 +300,24 @@ export default function KpiPage() {
             { label: selectedUser.name },
           ]}
           actions={
-            <TextInput
-              size="xs"
-              radius="xs"
-              label="Kỳ"
-              value={period}
-              onChange={(e) => setPeriod(e.currentTarget.value)}
-              w={110}
-            />
+            <div style={{ width: 110 }}>
+              <TextInput
+                size="sm"
+                label="Kỳ"
+                value={period}
+                onChange={(v) => setPeriod(v)}
+              />
+            </div>
           }
         />
-        <Box p="md">
+        <div style={{ padding: 16 }}>
           <KpiDetail
             appUserId={selectedUser.id}
             period={period}
             employeeName={selectedUser.name}
             onBack={() => setSelectedUser(null)}
           />
-        </Box>
+        </div>
       </>
     );
   }
@@ -323,18 +329,18 @@ export default function KpiPage() {
         subtitle="Xem và duyệt điểm KPI nhân viên theo kỳ"
         breadcrumbs={[{ label: 'HR' }, { label: 'KPI' }]}
         actions={
-          <TextInput
-            size="xs"
-            radius="xs"
-            label="Kỳ (YYYY-MM)"
-            placeholder={defaultPeriod}
-            value={period}
-            onChange={(e) => setPeriod(e.currentTarget.value)}
-            w={130}
-          />
+          <div style={{ width: 130 }}>
+            <TextInput
+              size="sm"
+              label="Kỳ (YYYY-MM)"
+              placeholder={defaultPeriod}
+              value={period}
+              onChange={(v) => setPeriod(v)}
+            />
+          </div>
         }
       />
-      <Box p="md">
+      <div style={{ padding: 16 }}>
         <DataTable<StaffRow>
           columns={STAFF_COLS}
           data={staffRows}
@@ -345,7 +351,7 @@ export default function KpiPage() {
             setSelectedUser({ id: row.id, name: row.fullName })
           }
         />
-      </Box>
+      </div>
     </>
   );
 }

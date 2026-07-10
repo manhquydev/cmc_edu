@@ -1,5 +1,5 @@
-// Named CmcTabs to avoid shadowing Mantine's own Tabs export.
-import { Tabs } from '@mantine/core';
+// Named CmcTabs to avoid shadowing Astryx's own Tab/TabList exports.
+import { TabList, Tab } from '@astryxdesign/core/TabList';
 import type { ReactNode } from 'react';
 
 export interface CmcTabDef {
@@ -15,26 +15,15 @@ export interface CmcTabsProps {
 }
 
 export function CmcTabs({ tabs, activeTab, onTabChange }: CmcTabsProps) {
+  const active = tabs.find((tab) => tab.id === activeTab);
   return (
-    <Tabs
-      value={activeTab}
-      onChange={(v) => {
-        if (v) onTabChange(v);
-      }}
-      radius="xs"
-    >
-      <Tabs.List style={{ borderBottom: '1px solid var(--cmc-border)' }}>
+    <div>
+      <TabList value={activeTab} onChange={onTabChange} hasDivider>
         {tabs.map((tab) => (
-          <Tabs.Tab key={tab.id} value={tab.id} fz="sm">
-            {tab.label}
-          </Tabs.Tab>
+          <Tab key={tab.id} value={tab.id} label={tab.label} />
         ))}
-      </Tabs.List>
-      {tabs.map((tab) => (
-        <Tabs.Panel key={tab.id} value={tab.id}>
-          {tab.content}
-        </Tabs.Panel>
-      ))}
-    </Tabs>
+      </TabList>
+      {active?.content}
+    </div>
   );
 }

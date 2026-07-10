@@ -13,18 +13,7 @@
 // Star balance comes from gift.listForStudent (combined endpoint: gifts + balance).
 
 import { useNavigate } from 'react-router-dom';
-import {
-  Alert,
-  Anchor,
-  Badge,
-  Box,
-  Button,
-  Group,
-  Loader,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Badge, Banner, Button, Heading, HStack, Spinner, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -34,16 +23,16 @@ function StarBalanceHero() {
   const balance = data?.starBalance ?? 0;
 
   return (
-    <Box className="lms-star-hero">
+    <div className="lms-star-hero">
       {isLoading ? (
-        <Loader color="white" size="sm" />
+        <Spinner shade="onMedia" size="sm" />
       ) : (
         <>
           <Text className="lms-star-hero__value">⭐ {balance}</Text>
           <Text className="lms-star-hero__label">Số sao hiện có</Text>
         </>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -52,26 +41,27 @@ function ExerciseList() {
   const navigate = useNavigate();
   const { data, isLoading, error } = trpc.exercise.openForStudent.useQuery();
 
-  if (isLoading) return <Group justify="center"><Loader /></Group>;
-  if (error) return <Alert color="red" variant="light">{error.message}</Alert>;
+  if (isLoading) return <HStack justify="center"><Spinner /></HStack>;
+  if (error) return <Banner status="error" title={error.message} />;
 
   const items = data?.items ?? [];
 
   if (items.length === 0) {
     return (
-      <Alert color="gray" variant="light">
-        Chưa có bài tập nào mở. Bài tập sẽ xuất hiện sau khi hoàn thành buổi học.
-      </Alert>
+      <Banner
+        status="info"
+        title="Chưa có bài tập nào mở. Bài tập sẽ xuất hiện sau khi hoàn thành buổi học."
+      />
     );
   }
 
   return (
-    <Stack gap="sm">
+    <Stack gap={1.5}>
       {items.map((exercise) => (
-        <Box
+        <div
           key={exercise.id}
-          p="md"
           style={{
+            padding: 16,
             border: '1px solid var(--cmc-border)',
             borderRadius: 'var(--cmc-radius-xs)',
             background: 'var(--cmc-surface)',
@@ -79,16 +69,14 @@ function ExerciseList() {
           }}
           onClick={() => navigate(`/student/exercise/${exercise.id}`)}
         >
-          <Group justify="space-between" mb={4}>
-            <Text fw={600} size="sm">{exercise.type}</Text>
-            <Badge size="sm" color="green" variant="light">
-              Mở — {exercise.starReward} sao
-            </Badge>
-          </Group>
-          <Text size="xs" c="dimmed">
+          <HStack justify="between" style={{ marginBottom: 4 }}>
+            <Text weight="bold" size="sm">{exercise.type}</Text>
+            <Badge label={`Mở — ${exercise.starReward} sao`} variant="green" />
+          </HStack>
+          <Text type="supporting" size="2xs">
             Điểm tối đa: {exercise.maxScore} | Trạng thái: {exercise.status}
           </Text>
-        </Box>
+        </div>
       ))}
     </Stack>
   );
@@ -109,23 +97,26 @@ export default function StudentHomePage() {
   }
 
   return (
-    <Box className="lms-shell">
-      <Box className="lms-topbar">
+    <div className="lms-shell">
+      <div className="lms-topbar">
         <Text className="lms-topbar__brand">CMC EDU — Học sinh</Text>
-        <Group gap="xs">
-          <Anchor size="xs" onClick={() => navigate('/student/gifts')}>Đổi quà</Anchor>
-          <Button size="xs" variant="subtle" onClick={() => { logout(); navigate('/login', { replace: true }); }}>
-            Đăng xuất
-          </Button>
-        </Group>
-      </Box>
+        <HStack gap={1}>
+          <Button variant="ghost" size="sm" label="Đổi quà" onClick={() => navigate('/student/gifts')} />
+          <Button
+            size="sm"
+            variant="ghost"
+            label="Đăng xuất"
+            onClick={() => { logout(); navigate('/login', { replace: true }); }}
+          />
+        </HStack>
+      </div>
 
-      <Box className="lms-page">
+      <div className="lms-page">
         <StarBalanceHero />
 
-        <Title order={4} className="lms-page__title">Bài tập của tôi</Title>
+        <Heading level={4} className="lms-page__title">Bài tập của tôi</Heading>
         <ExerciseList />
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }

@@ -1,4 +1,8 @@
-import { Anchor, Breadcrumbs, Group, Stack, Text, Title } from '@mantine/core';
+import { Stack, HStack } from '@astryxdesign/core/Stack';
+import { Breadcrumbs, BreadcrumbItem } from '@astryxdesign/core/Breadcrumbs';
+import { Text } from '@astryxdesign/core/Text';
+import { Heading } from '@astryxdesign/core/Heading';
+import { Link } from '@astryxdesign/core/Link';
 import type { ReactNode } from 'react';
 
 export interface Breadcrumb {
@@ -16,9 +20,9 @@ export interface PageHeaderProps {
 export function PageHeader({ title, subtitle, actions, breadcrumbs }: PageHeaderProps) {
   return (
     <Stack
-      gap={4}
-      px="md"
-      py="sm"
+      gap={0.5}
+      paddingInline={3}
+      paddingBlock={2}
       style={{
         background: 'var(--cmc-surface)',
         borderBottom: '1px solid var(--cmc-border)',
@@ -28,33 +32,30 @@ export function PageHeader({ title, subtitle, actions, breadcrumbs }: PageHeader
       }}
     >
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <Breadcrumbs fz="xs" c="dimmed">
-          {breadcrumbs.map((bc, i) =>
-            bc.href ? (
-              <Anchor key={i} href={bc.href} fz="xs">
-                {bc.label}
-              </Anchor>
-            ) : (
-              <Text key={i} fz="xs">
-                {bc.label}
-              </Text>
-            ),
-          )}
+        <Breadcrumbs>
+          {breadcrumbs.map((bc, i) => {
+            const isLast = i === breadcrumbs.length - 1;
+            return (
+              <BreadcrumbItem key={i} href={isLast ? undefined : bc.href} isCurrent={isLast}>
+                {bc.href && !isLast ? <Link href={bc.href}>{bc.label}</Link> : bc.label}
+              </BreadcrumbItem>
+            );
+          })}
         </Breadcrumbs>
       )}
-      <Group justify="space-between" align="flex-end">
-        <Stack gap={2}>
-          <Title order={4} style={{ color: 'var(--cmc-text)' }}>
+      <HStack justify="between" align="end">
+        <Stack gap={0}>
+          <Heading level={4} color="primary">
             {title}
-          </Title>
+          </Heading>
           {subtitle && (
-            <Text fz="sm" c="dimmed">
+            <Text type="supporting" size="sm">
               {subtitle}
             </Text>
           )}
         </Stack>
-        {actions && <Group gap="xs">{actions}</Group>}
-      </Group>
+        {actions && <HStack gap={1}>{actions}</HStack>}
+      </HStack>
     </Stack>
   );
 }

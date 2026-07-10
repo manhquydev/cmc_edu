@@ -1,18 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Alert,
-  Box,
+  Banner,
   Button,
-  Group,
-  Loader,
+  HStack,
   NumberInput,
-  Select,
+  PageHeader,
+  Selector,
+  Spinner,
   Stack,
   Text,
   TextInput,
-} from '@mantine/core';
-import { PageHeader } from '@cmc/ui';
+} from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 interface FormState {
@@ -143,137 +142,138 @@ export default function ReceiptCreatePage() {
           { label: opportunityId ? 'Tạo từ cơ hội' : 'Tạo mới' },
         ]}
         actions={
-          <Button variant="default" size="xs" radius="xs" onClick={() => void navigate('/finance')}>
-            ← Quay lại
-          </Button>
+          <Button
+            label="← Quay lại"
+            variant="secondary"
+            size="sm"
+            onClick={() => void navigate('/finance')}
+          />
         }
       />
 
-      <Box p="md" maw={560}>
+      <div style={{ padding: 16, maxWidth: 560 }}>
         <form onSubmit={handleSubmit}>
-          <Stack gap="md">
+          <Stack gap={4}>
             {opportunityId && oppLoading && (
-              <Alert color="blue" variant="light" icon={<Loader size="xs" />}>
-                Đang tải thông tin cơ hội...
-              </Alert>
+              <Banner
+                status="info"
+                title="Đang tải thông tin cơ hội..."
+                icon={<Spinner size="sm" />}
+              />
             )}
 
             {opportunityId && oppData && (
-              <Alert color="blue" variant="light">
-                Tạo phiếu từ cơ hội — {oppData.contact.name} ({oppData.contact.phone})
-              </Alert>
+              <Banner
+                status="info"
+                title={`Tạo phiếu từ cơ hội — ${oppData.contact.name} (${oppData.contact.phone})`}
+              />
             )}
 
             {createMutation.error && (
-              <Alert color="red" title="Lỗi tạo phiếu thu">
-                {createMutation.error.message}
-              </Alert>
+              <Banner status="error" title="Lỗi tạo phiếu thu" description={createMutation.error.message} />
             )}
 
             {createMutation.data?.status === 'warning' && (
-              <Alert color="orange" title="Cảnh báo">
-                {createMutation.data.message}
-              </Alert>
+              <Banner status="warning" title="Cảnh báo" description={createMutation.data.message} />
             )}
 
             <TextInput
               label="Họ tên học viên"
               placeholder="Nguyễn Văn A"
-              radius="xs"
-              withAsterisk
+              isRequired
               value={form.studentName}
-              onChange={(e) => handleField('studentName', e.currentTarget.value)}
-              error={errors.studentName}
+              onChange={(v) => handleField('studentName', v)}
+              status={errors.studentName ? { type: 'error', message: errors.studentName } : undefined}
             />
 
             <TextInput
               label="SĐT phụ huynh"
               placeholder="0912345678"
-              radius="xs"
-              withAsterisk
+              isRequired
               value={form.parentPhone}
-              onChange={(e) => handleField('parentPhone', e.currentTarget.value)}
-              error={errors.parentPhone}
+              onChange={(v) => handleField('parentPhone', v)}
+              status={errors.parentPhone ? { type: 'error', message: errors.parentPhone } : undefined}
             />
 
             {dedupData?.exists && (
-              <Alert color="orange" variant="light">
-                SĐT phụ huynh đã có hồ sơ — vẫn tạo mới? Hệ thống dùng chung 1 tài khoản/SĐT.
-              </Alert>
+              <Banner
+                status="warning"
+                title="SĐT phụ huynh đã có hồ sơ — vẫn tạo mới?"
+                description="Hệ thống dùng chung 1 tài khoản/SĐT."
+              />
             )}
 
             <TextInput
               label="Email phụ huynh"
               placeholder="phu-huynh@example.com (tuỳ chọn)"
               description="Dùng cho đăng nhập LMS bằng email. Không bắt buộc."
-              radius="xs"
               value={form.parentEmail}
-              onChange={(e) => handleField('parentEmail', e.currentTarget.value)}
-              error={errors.parentEmail}
+              onChange={(v) => handleField('parentEmail', v)}
+              status={errors.parentEmail ? { type: 'error', message: errors.parentEmail } : undefined}
             />
 
             {classBatchError && (
-              <Alert color="orange" title="Không tải được danh sách lớp">
-                {classBatchError.message}
-              </Alert>
+              <Banner status="warning" title="Không tải được danh sách lớp" description={classBatchError.message} />
             )}
 
-            <Select
+            {/* TODO(astryx-review): Astryx Selector has no `nothingFoundMessage`
+                equivalent (empty search results use its own built-in "no
+                results" UI) — the prior custom message is dropped. */}
+            <Selector
               label="Lớp học"
               placeholder={classBatchLoading ? 'Đang tải danh sách lớp...' : 'Chọn lớp học'}
-              radius="xs"
-              withAsterisk
-              data={classBatchOptions}
+              isRequired
+              options={classBatchOptions}
               value={form.classBatchId || null}
               onChange={(v) => handleField('classBatchId', v ?? '')}
-              searchable
-              disabled={classBatchLoading}
-              nothingFoundMessage="Không tìm thấy lớp"
-              error={errors.classBatchId}
+              hasSearch
+              hasClear
+              isDisabled={classBatchLoading}
+              status={errors.classBatchId ? { type: 'error', message: errors.classBatchId } : undefined}
             />
 
+            {/* TODO(astryx-review): Astryx NumberInput has no thousand/decimal
+                separator formatting props (thousandSeparator/decimalSeparator) —
+                dropped; `isIntegerOnly` covers the allowDecimal={false} behavior.
+                Field stays numeric-only, just without live "5.000.000" grouping
+                as the user types. */}
             <NumberInput
               label="Học phí (VND)"
               placeholder="5000000"
-              radius="xs"
-              withAsterisk
+              isRequired
               min={1}
               step={100000}
-              allowDecimal={false}
-              thousandSeparator="."
-              decimalSeparator=","
+              isIntegerOnly
+              units="đ"
               description="Nhập số nguyên VND — không có xu"
-              value={form.amount}
-              onChange={(v) => handleField('amount', typeof v === 'number' ? v : '')}
-              error={errors.amount}
+              hasClear
+              value={form.amount === '' ? null : form.amount}
+              onChange={(v) => handleField('amount', v ?? '')}
+              status={errors.amount ? { type: 'error', message: errors.amount } : undefined}
             />
 
-            <Text fz="xs" c="dimmed">
-              Sau khi tạo, phiếu ở trạng thái <strong>Nháp</strong>. GĐKD/GĐĐT/Kế toán duyệt để
+            <Text type="supporting" size="xsm">
+              Sau khi tạo, phiếu ở trạng thái <Text weight="bold" size="xsm">Nháp</Text>. GĐKD/GĐĐT/Kế toán duyệt để
               kích hoạt tài khoản LMS tự động.
             </Text>
 
-            <Group gap="xs">
+            <HStack gap={2}>
               <Button
+                label="Tạo phiếu thu"
                 type="submit"
-                radius="xs"
-                style={{ background: 'var(--cmc-brand)' }}
-                loading={createMutation.isPending}
-              >
-                Tạo phiếu thu
-              </Button>
+                variant="primary"
+                isLoading={createMutation.isPending}
+              />
               <Button
-                variant="default"
-                radius="xs"
+                label="Hủy"
+                variant="secondary"
                 onClick={() => void navigate('/finance')}
-                disabled={createMutation.isPending}
-              >
-                Hủy
-              </Button>
-            </Group>
+                isDisabled={createMutation.isPending}
+              />
+            </HStack>
           </Stack>
         </form>
-      </Box>
+      </div>
     </>
   );
 }

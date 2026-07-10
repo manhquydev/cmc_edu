@@ -10,19 +10,7 @@
 // the parent chose from their own children list.
 
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Alert,
-  Anchor,
-  Box,
-  Button,
-  Group,
-  Image,
-  Loader,
-  SimpleGrid,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Banner, Button, Heading, HStack, Spinner, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -72,102 +60,134 @@ export default function SessionEvidencePage() {
   );
 
   return (
-    <Box className="lms-shell">
-      <Box className="lms-topbar">
-        <Anchor size="sm" onClick={() => navigate('/parent/home')}>← Trang chủ</Anchor>
+    <div className="lms-shell">
+      <div className="lms-topbar">
+        <Button variant="ghost" size="sm" label="← Trang chủ" onClick={() => navigate('/parent/home')} />
         <Text className="lms-topbar__brand">Ảnh buổi học</Text>
-        <Box w={60} /> {/* spacer */}
-      </Box>
+        <div style={{ width: 60 }} /> {/* spacer */}
+      </div>
 
-      <Box className="lms-page">
-        <Title order={4} className="lms-page__title">Ảnh buổi học</Title>
+      <div className="lms-page">
+        <Heading level={4} className="lms-page__title">Ảnh buổi học</Heading>
 
         {/* Consent-settings shortcut — parent can enable consent from here */}
-        <Alert color="blue" variant="light" mb="md">
-          Ảnh chỉ hiển thị khi đồng ý chia sẻ ảnh đã được bật.{' '}
-          <Anchor size="sm" onClick={() => navigate(`/parent/consent/${studentId}`)}>
-            Quản lý đồng ý ảnh →
-          </Anchor>
-        </Alert>
+        <Banner
+          status="info"
+          title={
+            <>
+              Ảnh chỉ hiển thị khi đồng ý chia sẻ ảnh đã được bật.{' '}
+              <Button
+                variant="ghost"
+                size="sm"
+                label="Quản lý đồng ý ảnh →"
+                onClick={() => navigate(`/parent/consent/${studentId}`)}
+              />
+            </>
+          }
+          style={{ marginBottom: 16 }}
+        />
 
-        {isLoading && <Group justify="center"><Loader /></Group>}
+        {isLoading && <HStack justify="center"><Spinner /></HStack>}
 
         {error && (
-          <Alert color="red" variant="light" title="Lỗi tải dữ liệu">
-            {error.message}
-          </Alert>
+          <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
         )}
 
         {data && data.items.length === 0 && (
-          <Alert color="gray" variant="light">
-            Chưa có nhật ký buổi học nào được công bố.
-          </Alert>
+          <Banner status="info" title="Chưa có nhật ký buổi học nào được công bố." />
         )}
 
-        <Stack gap="lg">
+        <Stack gap={3}>
           {data?.items.map((item) => {
             const attendanceStatus = attendanceBySession.get(item.classSessionId);
             const isAbsent = attendanceStatus === 'absent';
             const attendanceLabel = attendanceStatus ? ATTENDANCE_LABEL[attendanceStatus] : undefined;
 
             return (
-              <Box
+              <div
                 key={item.id}
-                p="md"
                 style={{
+                  padding: 16,
                   border: '1px solid var(--cmc-border)',
                   borderRadius: 'var(--cmc-radius-xs)',
                 }}
               >
-                <Group justify="space-between" mb={4}>
-                  <Text size="xs" c="dimmed">
+                <HStack justify="between" style={{ marginBottom: 4 }}>
+                  <Text type="supporting" size="2xs">
                     {item.publishedAt
                       ? new Date(item.publishedAt).toLocaleDateString('vi-VN')
                       : '—'}
                   </Text>
                   {attendanceLabel && (
-                    <Text size="xs" fw={600} c={isAbsent ? 'red' : 'orange'}>
+                    // TODO(astryx-review): raw cmc-danger/cmc-warning CSS vars have no
+                    // Astryx TextColor equivalent (enum is primary/secondary/disabled/
+                    // placeholder/accent/inherit) — kept as a plain styled span.
+                    <span
+                      style={{
+                        fontSize: 'var(--cmc-font-size-column, 12px)',
+                        fontWeight: 600,
+                        color: isAbsent ? 'var(--cmc-danger)' : 'var(--cmc-warning)',
+                      }}
+                    >
                       {attendanceLabel}
-                    </Text>
+                    </span>
                   )}
-                </Group>
-                <Text size="sm" mb="sm">{item.summary}</Text>
+                </HStack>
+                <Text type="body" size="sm" display="block" style={{ marginBottom: 8 }}>{item.summary}</Text>
 
                 {isAbsent ? (
-                  <Text size="xs" c="dimmed">Con nghỉ buổi này.</Text>
+                  <Text type="supporting" size="2xs">Con nghỉ buổi này.</Text>
                 ) : item.photos.length > 0 ? (
-                  <SimpleGrid cols={3} spacing="xs">
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: 8,
+                    }}
+                  >
                     {item.photos.map((photo) => (
-                      <Image
+                      <img
                         key={photo.id}
                         src={photoUrl(photo.blobRef)}
                         alt="Ảnh buổi học"
-                        radius="sm"
-                        h={100}
-                        fit="cover"
+                        style={{
+                          width: '100%',
+                          height: 100,
+                          objectFit: 'cover',
+                          borderRadius: 'var(--cmc-radius-xs)',
+                        }}
                       />
                     ))}
-                  </SimpleGrid>
+                  </div>
                 ) : (
-                  <Alert color="gray" variant="light" p="xs">
-                    <Text size="xs">
-                      Ảnh không hiển thị — đồng ý chia sẻ ảnh chưa được bật hoặc chưa có ảnh
-                      nào trong buổi này.{' '}
-                      <Anchor size="xs" onClick={() => navigate(`/parent/consent/${studentId}`)}>
-                        Bật đồng ý ảnh →
-                      </Anchor>
-                    </Text>
-                  </Alert>
+                  <Banner
+                    status="info"
+                    title={
+                      <>
+                        Ảnh không hiển thị — đồng ý chia sẻ ảnh chưa được bật hoặc chưa có ảnh
+                        nào trong buổi này.{' '}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          label="Bật đồng ý ảnh →"
+                          onClick={() => navigate(`/parent/consent/${studentId}`)}
+                        />
+                      </>
+                    }
+                  />
                 )}
-              </Box>
+              </div>
             );
           })}
         </Stack>
 
-        <Button variant="subtle" mt="lg" onClick={() => navigate('/parent/home')}>
-          ← Quay lại
-        </Button>
-      </Box>
-    </Box>
+        <Button
+          variant="ghost"
+          style={{ marginTop: 24 }}
+          label="← Quay lại"
+          onClick={() => navigate('/parent/home')}
+        />
+      </div>
+    </div>
   );
 }

@@ -8,26 +8,33 @@
 //     exists (mirrors the backend no-leak contract).
 //   - On successful student login with mustChangePassword=true, the session is
 //     stored and the user is redirected to /student/change-password.
+//   - Auth-field hardening attrs preserved across the Astryx migration
+//     (TL12 §9, red-team F11 / AC#5): OTP field autoComplete="one-time-code" +
+//     inputMode="numeric" + maxLength={6}; password autoComplete;
+//     phone inputMode="tel"; email type. Carried via @cmc/ui TextField /
+//     PasswordInput (which forward these input attrs — Astryx TextInput's type
+//     omits them).
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Alert,
   Badge,
-  Box,
+  Banner,
   Button,
   Divider,
-  Group,
   PasswordInput,
   Stack,
-  Tabs,
+  Tab,
+  TabList,
   Text,
-  TextInput,
-  Title,
-} from '@mantine/core';
+  TextField,
+  Heading,
+} from '@cmc/ui';
 import { trpc } from '../lib/trpc.js';
 import { useSession } from '../lib/session-context.js';
 import { parseLmsToken } from '../lib/lms-session.js';
+
+const fullWidth = { width: '100%' } as const;
 
 // ---------------------------------------------------------------------------
 // Parent email-OTP tab
@@ -68,67 +75,70 @@ function ParentEmailOtpTab() {
   });
 
   return (
-    <Stack gap="md">
+    <Stack gap={2}>
       {/* BLOCKED-ON-COMMS notice — always visible, not collapsible */}
-      <Alert color="orange" title="[DEV ONLY — blocked-on-comms]" variant="light">
-        Email OTP đang dùng <strong>ConsoleEmailTransport</strong> (stub). Mã OTP chỉ
-        xuất hiện trong console của server — <em>không gửi email thật</em>.
-        Luồng này chưa hoạt động end-to-end cho production cho đến khi tích hợp
-        Brevo/Graph credentials.
-      </Alert>
+      <Banner
+        status="warning"
+        title="[DEV ONLY — blocked-on-comms]"
+        description="Email OTP đang dùng ConsoleEmailTransport (stub). Mã OTP chỉ xuất hiện trong console của server — không gửi email thật. Luồng này chưa hoạt động end-to-end cho production cho đến khi tích hợp Brevo/Graph credentials."
+      />
 
       {step === 'request' ? (
         <>
-          <TextInput
+          <TextField
             label="Email phụ huynh"
             type="email"
             placeholder="parent@example.com"
             value={email}
-            onChange={(e) => setEmail(e.currentTarget.value)}
+            onChange={(value) => setEmail(value)}
             autoComplete="email"
           />
-          {error && <Alert color="red" variant="light">{error}</Alert>}
+          {error && <Banner status="error" title={error} />}
           <Button
-            fullWidth
-            loading={requestMut.isPending}
+            style={fullWidth}
+            label="Gửi mã OTP"
+            isLoading={requestMut.isPending}
+            isDisabled={!email}
             onClick={() => {
               setError('');
               requestMut.mutate({ email });
             }}
-            disabled={!email}
-          >
-            Gửi mã OTP
-          </Button>
+          />
         </>
       ) : (
         <>
-          <Text size="sm" c="dimmed">
+          <Text type="supporting" size="sm">
             Mã OTP đã được gửi (xem console server trong môi trường dev). Nhập mã 6 chữ số:
           </Text>
-          <TextInput
+          <TextField
             label="Mã OTP (6 số)"
             placeholder="123456"
             value={code}
-            onChange={(e) => setCode(e.currentTarget.value)}
+            onChange={(value) => setCode(value)}
             maxLength={6}
             inputMode="numeric"
             autoComplete="one-time-code"
           />
-          {error && <Alert color="red" variant="light">{error}</Alert>}
+          {error && <Banner status="error" title={error} />}
           <Button
-            fullWidth
-            loading={verifyMut.isPending}
+            style={fullWidth}
+            label="Xác nhận mã"
+            isLoading={verifyMut.isPending}
+            isDisabled={code.length !== 6}
             onClick={() => {
               setError('');
               verifyMut.mutate({ email, code });
             }}
-            disabled={code.length !== 6}
-          >
-            Xác nhận mã
-          </Button>
-          <Button variant="subtle" size="xs" onClick={() => { setStep('request'); setError(''); }}>
-            ← Nhập lại email
-          </Button>
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            label="← Nhập lại email"
+            onClick={() => {
+              setStep('request');
+              setError('');
+            }}
+          />
         </>
       )}
     </Stack>
@@ -168,12 +178,12 @@ function StudentLoginTab() {
   });
 
   return (
-    <Stack gap="md">
-      <TextInput
+    <Stack gap={2}>
+      <TextField
         label="Số điện thoại phụ huynh"
         placeholder="0912345678"
         value={phone}
-        onChange={(e) => setPhone(e.currentTarget.value)}
+        onChange={(value) => setPhone(value)}
         inputMode="tel"
         autoComplete="tel"
       />
@@ -181,23 +191,22 @@ function StudentLoginTab() {
         label="Mật khẩu"
         placeholder="••••••••"
         value={password}
-        onChange={(e) => setPassword(e.currentTarget.value)}
+        onChange={(value) => setPassword(value)}
         autoComplete="current-password"
       />
-      {error && <Alert color="red" variant="light">{error}</Alert>}
+      {error && <Banner status="error" title={error} />}
       <Button
-        fullWidth
-        loading={loginMut.isPending}
+        style={fullWidth}
+        label="Đăng nhập"
+        isLoading={loginMut.isPending}
+        isDisabled={!phone || !password}
         onClick={() => {
           setError('');
           loginMut.mutate({ phone, password });
         }}
-        disabled={!phone || !password}
-      >
-        Đăng nhập
-      </Button>
-      <Text size="xs" c="dimmed" ta="center">
-        Mật khẩu mặc định: <strong>Cmc2026@</strong> — phải đổi lần đầu đăng nhập.
+      />
+      <Text type="supporting" size="2xs" justify="center" display="block">
+        Mật khẩu mặc định: Cmc2026@ — phải đổi lần đầu đăng nhập.
       </Text>
     </Stack>
   );
@@ -240,25 +249,31 @@ function DevHeaderWriter() {
   }
 
   return (
-    <Box mt="xl">
-      <Divider label="Dev: x-dev-lms-user" labelPosition="center" my="md" />
-      <Stack gap="xs">
-        <Text size="xs" c="dimmed">
+    <div style={{ marginTop: 32 }}>
+      <Divider label="Dev: x-dev-lms-user" />
+      <Stack gap={1}>
+        <Text type="supporting" size="2xs">
           Dán JSON header để mô phỏng phiên (dev/e2e only — bị vô hiệu trong production):
         </Text>
-        <TextInput
+        <TextField
+          label="Dev header JSON"
+          isLabelHidden
           placeholder='{"parentAccountId":"uuid","kind":"parent"}'
           value={raw}
-          onChange={(e) => { setRaw(e.currentTarget.value); setErr(''); }}
-          size="xs"
-          styles={{ input: { fontFamily: 'monospace', fontSize: '0.75rem' } }}
+          onChange={(value) => {
+            setRaw(value);
+            setErr('');
+          }}
+          size="sm"
         />
-        {err && <Text size="xs" c="red">{err}</Text>}
-        <Button size="xs" variant="outline" onClick={apply} disabled={!raw}>
-          Áp dụng header dev
-        </Button>
+        {err && (
+          <Text type="supporting" size="2xs" style={{ color: 'var(--cmc-danger)' }}>
+            {err}
+          </Text>
+        )}
+        <Button variant="secondary" size="sm" label="Áp dụng header dev" isDisabled={!raw} onClick={apply} />
       </Stack>
-    </Box>
+    </div>
   );
 }
 
@@ -269,6 +284,7 @@ function DevHeaderWriter() {
 export default function LoginPage() {
   const { session } = useSession();
   const navigate = useNavigate();
+  const [tab, setTab] = useState<'student' | 'parent'>('student');
 
   // Already logged in — redirect away.
   if (session) {
@@ -278,34 +294,27 @@ export default function LoginPage() {
   }
 
   return (
-    <Box className="lms-shell" style={{ padding: '1.5rem 1rem' }}>
-      <Stack gap="lg">
-        <Group justify="center">
-          <Title order={2} style={{ color: 'var(--cmc-brand)' }}>CMC EDU</Title>
-          <Badge variant="outline" color="gray" size="sm">LMS</Badge>
-        </Group>
+    <div className="lms-shell" style={{ padding: '1.5rem 1rem' }}>
+      <Stack gap={3}>
+        <Stack gap={1} hAlign="center">
+          <Heading level={2} style={{ color: 'var(--cmc-brand)' }}>
+            CMC EDU
+          </Heading>
+          <Badge label="LMS" variant="neutral" />
+        </Stack>
 
-        <Tabs defaultValue="student">
-          <Tabs.List grow>
-            <Tabs.Tab value="student">Học sinh</Tabs.Tab>
-            <Tabs.Tab value="parent">
-              Phụ huynh{' '}
-              <Badge size="xs" color="orange" variant="filled" ml={4}>DEV</Badge>
-            </Tabs.Tab>
-          </Tabs.List>
+        <TabList value={tab} onChange={(v) => setTab(v as 'student' | 'parent')} layout="fill" hasDivider>
+          <Tab value="student" label="Học sinh" />
+          <Tab value="parent" label="Phụ huynh" endContent={<Badge label="DEV" variant="warning" />} />
+        </TabList>
 
-          <Tabs.Panel value="student" pt="md">
-            <StudentLoginTab />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="parent" pt="md">
-            <ParentEmailOtpTab />
-          </Tabs.Panel>
-        </Tabs>
+        <div style={{ paddingTop: 16 }}>
+          {tab === 'student' ? <StudentLoginTab /> : <ParentEmailOtpTab />}
+        </div>
 
         {/* Dev-only shortcut for e2e tests — gated to non-production builds */}
         {import.meta.env.DEV && <DevHeaderWriter />}
       </Stack>
-    </Box>
+    </div>
   );
 }

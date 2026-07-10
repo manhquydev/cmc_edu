@@ -15,16 +15,17 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Alert,
-  Box,
+  Banner,
   Button,
-  Group,
-  Paper,
+  Card,
+  DataTable,
+  HStack,
+  PageHeader,
   Stack,
+  StatusBadge,
   Text,
   TextInput,
-} from '@mantine/core';
-import { DataTable, PageHeader, StatusBadge } from '@cmc/ui';
+} from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
@@ -107,77 +108,67 @@ function PayslipDetail({
     reopenMut.error?.message;
 
   return (
-    <Stack gap="md">
+    <Stack gap={3}>
       {/* Back nav */}
-      <Group>
-        <Button variant="subtle" size="xs" radius="xs" onClick={onBack}>
-          ← Danh sách nhân viên
-        </Button>
-        <Text fw={600} fz="sm" c="dimmed">
+      <HStack gap={2} align="center">
+        <Button label="← Danh sách nhân viên" variant="ghost" size="sm" onClick={onBack} />
+        <Text type="supporting" size="sm" weight="semibold">
           {employeeName} · {period}
         </Text>
-      </Group>
+      </HStack>
 
       {/* Action bar */}
       {canDo('payslip', 'assemble') && (
-        <Group gap="xs">
+        <HStack gap={1}>
           <Button
-            size="xs"
-            radius="xs"
-            variant="default"
-            loading={anyMutating}
+            label="Tính lương (assemble)"
+            size="sm"
+            variant="secondary"
+            isLoading={anyMutating}
+            isDisabled={anyMutating}
             onClick={() => assembleMut.mutate({ appUserId, period })}
-          >
-            Tính lương (assemble)
-          </Button>
+          />
           {data && data.status === 'draft' && canDo('payslip', 'finalize') && (
             <Button
-              size="xs"
-              radius="xs"
-              color="green"
-              loading={anyMutating}
-              onClick={() =>
-                finalizeMut.mutate({ payslipId: data.id })
-              }
-            >
-              Chốt bảng lương
-            </Button>
+              label="Chốt bảng lương"
+              size="sm"
+              variant="primary"
+              isLoading={anyMutating}
+              isDisabled={anyMutating}
+              onClick={() => finalizeMut.mutate({ payslipId: data.id })}
+            />
           )}
           {data && data.status === 'finalized' && canDo('payslip', 'reopen') && (
             <Button
-              size="xs"
-              radius="xs"
-              color="orange"
-              variant="light"
-              loading={anyMutating}
-              onClick={() =>
-                reopenMut.mutate({ payslipId: data.id })
-              }
-            >
-              Mở lại (reopen)
-            </Button>
+              label="Mở lại (reopen)"
+              size="sm"
+              variant="secondary"
+              isLoading={anyMutating}
+              isDisabled={anyMutating}
+              onClick={() => reopenMut.mutate({ payslipId: data.id })}
+            />
           )}
-        </Group>
+        </HStack>
       )}
 
-      {mutError && (
-        <Alert color="red" radius="xs">
-          {mutError}
-        </Alert>
-      )}
+      {mutError && <Banner status="error" title={mutError} />}
 
       {isLoading && (
-        <Text fz="sm" c="dimmed">
+        <Text type="supporting" size="sm">
           Đang tải…
         </Text>
       )}
 
       {error && (
-        <Alert color="orange" title="Chưa có bảng lương" radius="xs">
-          {error.message.toLowerCase().includes('not found')
-            ? `Kỳ ${period} chưa có bảng lương. Nhấn "Tính lương" để tạo bản nháp.`
-            : error.message}
-        </Alert>
+        <Banner
+          status="warning"
+          title="Chưa có bảng lương"
+          description={
+            error.message.toLowerCase().includes('not found')
+              ? `Kỳ ${period} chưa có bảng lương. Nhấn "Tính lương" để tạo bản nháp.`
+              : error.message
+          }
+        />
       )}
 
       {/* ----------------------------------------------------------------
@@ -186,26 +177,28 @@ function PayslipDetail({
           visually distinct from income components (base / variable / KPI).
       ---------------------------------------------------------------- */}
       {data && (
-        <Paper withBorder radius="xs" p={0} style={{ overflow: 'hidden' }}>
+        <Card padding={0} style={{ overflow: 'hidden' }}>
           {/* Header */}
-          <Box
-            px="md"
-            py="sm"
-            style={{ background: 'var(--cmc-surface-2)', borderBottom: '1px solid var(--cmc-border)' }}
+          <div
+            style={{
+              padding: '8px 16px',
+              background: 'var(--cmc-surface-2)',
+              borderBottom: '1px solid var(--cmc-border)',
+            }}
           >
-            <Group justify="space-between">
-              <Text fz="sm" fw={600}>
+            <HStack justify="between">
+              <Text type="body" size="sm" weight="semibold">
                 Phiếu lương · {period}
               </Text>
               <StatusBadge
                 status={data.status}
                 label={data.status === 'finalized' ? 'Đã chốt' : 'Nháp'}
               />
-            </Group>
-          </Box>
+            </HStack>
+          </div>
 
           {/* Line items */}
-          <Stack gap={0} px="md">
+          <Stack gap={0} paddingInline={4}>
             {/* Income components */}
             <LineRow label="Lương cơ bản" value={fmtVND(data.baseSalary)} />
             <LineRow label="Lương biến đổi" value={fmtVND(data.variablePay)} />
@@ -224,23 +217,22 @@ function PayslipDetail({
           </Stack>
 
           {/* Attendance detail footer */}
-          <Box
-            px="md"
-            py="xs"
+          <div
             style={{
+              padding: '8px 16px',
               borderTop: '1px solid var(--cmc-border)',
               background: 'var(--cmc-surface-2)',
             }}
           >
-            <Text fz="xs" c="dimmed">
+            <Text type="supporting" size="2xs">
               Chấm công không có ca:{' '}
-              <Text span fw={500}>
+              <Text type="supporting" size="2xs" weight="medium" as="span">
                 {fmtInt(data.flaggedPunches)} lần
               </Text>{' '}
               (ghi nhận, không phạt — xem chi tiết trong payslip.assemble)
             </Text>
-          </Box>
-        </Paper>
+          </div>
+        </Card>
       )}
     </Stack>
   );
@@ -251,16 +243,16 @@ function PayslipDetail({
 // ---------------------------------------------------------------------------
 function LineRow({ label, value }: { label: string; value: string }) {
   return (
-    <Group
-      justify="space-between"
-      py={10}
+    <HStack
+      justify="between"
+      paddingBlock={1.5}
       style={{ borderBottom: '1px solid var(--cmc-border)' }}
     >
-      <Text fz="sm">{label}</Text>
-      <Text fz="sm" fw={500} style={{ fontVariantNumeric: 'tabular-nums' }}>
+      <Text type="body" size="sm">{label}</Text>
+      <Text type="body" size="sm" weight="medium" hasTabularNumbers>
         {value}
       </Text>
-    </Group>
+    </HStack>
   );
 }
 
@@ -278,22 +270,26 @@ function PenaltyRow({
 }) {
   const hasDetail = lateMinutes > 0 || earlyMinutes > 0 || unpunchedDays > 0;
   return (
-    <Group
-      justify="space-between"
-      py={10}
-      px={12}
-      mx={-16}
+    <HStack
+      justify="between"
+      paddingBlock={1.5}
       style={{
+        paddingInline: 12,
+        margin: '0 -16px',
         borderBottom: '1px solid var(--cmc-border)',
         background: 'color-mix(in srgb, var(--cmc-danger) 7%, transparent)',
       }}
     >
-      <Stack gap={2}>
-        <Text fz="sm" fw={600} c="red">
+      <Stack gap={0.5}>
+        {/* TODO(astryx-review): Text's `color` prop is a fixed semantic enum
+            (primary/secondary/disabled/placeholder/accent/inherit) with no
+            danger/red slot — kept as a plain <span style> per the documented
+            fallback (same pattern as receipt-detail's pipeline labels). */}
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--cmc-danger)' }}>
           Phạt khấu trừ
-        </Text>
+        </span>
         {hasDetail && (
-          <Text fz="xs" c="dimmed">
+          <Text type="supporting" size="2xs">
             {lateMinutes > 0 ? `Đi muộn ${lateMinutes} phút` : ''}
             {lateMinutes > 0 && (earlyMinutes > 0 || unpunchedDays > 0)
               ? ' · '
@@ -304,31 +300,43 @@ function PenaltyRow({
           </Text>
         )}
       </Stack>
-      <Text fz="sm" fw={600} c="red" style={{ fontVariantNumeric: 'tabular-nums' }}>
+      {/* TODO(astryx-review): same raw-color fallback as the label above. */}
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          color: 'var(--cmc-danger)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
         − {fmtVND(penaltyAmount)}
-      </Text>
-    </Group>
+      </span>
+    </HStack>
   );
 }
 
 function NetRow({ value }: { value: string }) {
   return (
-    <Group
-      justify="space-between"
-      py={12}
+    <HStack
+      justify="between"
       style={{ background: 'var(--cmc-surface-2)', margin: '0 -16px', padding: '12px 16px' }}
     >
-      <Text fz="sm" fw={700}>
+      <Text type="body" size="sm" weight="bold">
         Thực lĩnh (Net)
       </Text>
-      <Text
-        fz="lg"
-        fw={700}
-        style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--cmc-brand)' }}
+      {/* TODO(astryx-review): brand-color net total has no Text color-enum
+          slot — kept as a plain <span style> per the documented fallback. */}
+      <span
+        style={{
+          fontSize: 16,
+          fontWeight: 700,
+          fontVariantNumeric: 'tabular-nums',
+          color: 'var(--cmc-brand)',
+        }}
       >
         {value}
-      </Text>
-    </Group>
+      </span>
+    </HStack>
   );
 }
 
@@ -379,24 +387,24 @@ export default function PayrollPage() {
             { label: selectedUser.name },
           ]}
           actions={
-            <TextInput
-              size="xs"
-              radius="xs"
-              label="Kỳ lương"
-              value={period}
-              onChange={(e) => setPeriod(e.currentTarget.value)}
-              w={120}
-            />
+            <div style={{ width: 120 }}>
+              <TextInput
+                size="sm"
+                label="Kỳ lương"
+                value={period}
+                onChange={(v) => setPeriod(v)}
+              />
+            </div>
           }
         />
-        <Box p="md">
+        <div style={{ padding: 16 }}>
           <PayslipDetail
             appUserId={selectedUser.id}
             period={period}
             employeeName={selectedUser.name}
             onBack={() => setSelectedUser(null)}
           />
-        </Box>
+        </div>
       </>
     );
   }
@@ -408,18 +416,18 @@ export default function PayrollPage() {
         subtitle="Chọn nhân viên để xem / chốt lương theo tháng"
         breadcrumbs={[{ label: 'HR' }, { label: 'Bảng lương' }]}
         actions={
-          <TextInput
-            size="xs"
-            radius="xs"
-            label="Kỳ lương (YYYY-MM)"
-            placeholder={defaultPeriod}
-            value={period}
-            onChange={(e) => setPeriod(e.currentTarget.value)}
-            w={140}
-          />
+          <div style={{ width: 140 }}>
+            <TextInput
+              size="sm"
+              label="Kỳ lương (YYYY-MM)"
+              placeholder={defaultPeriod}
+              value={period}
+              onChange={(v) => setPeriod(v)}
+            />
+          </div>
         }
       />
-      <Box p="md">
+      <div style={{ padding: 16 }}>
         <DataTable<StaffRow>
           columns={STAFF_COLS}
           data={staffRows}
@@ -430,7 +438,7 @@ export default function PayrollPage() {
             setSelectedUser({ id: row.id, name: row.fullName })
           }
         />
-      </Box>
+      </div>
     </>
   );
 }

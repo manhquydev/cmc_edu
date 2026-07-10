@@ -1,18 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { PageHeader } from '@cmc/ui';
+import { Badge, Banner, Button, Grid, HStack, PageHeader, Skeleton, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
-import {
-  Alert,
-  Badge,
-  Box,
-  Button,
-  Group,
-  SimpleGrid,
-  Skeleton,
-  Stack,
-  Text,
-} from '@mantine/core';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -58,7 +47,7 @@ function CountTile({
   color: string;
 }) {
   return (
-    <Box
+    <div
       style={{
         background: 'var(--cmc-surface)',
         border: '1px solid var(--cmc-border)',
@@ -67,13 +56,17 @@ function CountTile({
         textAlign: 'center',
       }}
     >
-      <Text fz={24} fw={700} style={{ color, lineHeight: 1.2 }}>
+      {/* TODO(astryx-review): raw hex/CSS-var color per tile (count values use
+          semantic red/green/orange from STATUS_CONFIG, not Text's fixed color
+          enum) — kept as plain <span style> per the documented fallback for
+          arbitrary-color text (same pattern as StatCard's value line). */}
+      <span style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.2, color }}>
         {count}
-      </Text>
-      <Text fz="xs" c="dimmed" mt={2}>
+      </span>
+      <Text type="supporting" size="xsm" style={{ marginTop: 2 }}>
         {label}
       </Text>
-    </Box>
+    </div>
   );
 }
 
@@ -92,11 +85,11 @@ function StudentRow({
   const cfg = STATUS_CONFIG[currentStatus];
 
   return (
-    <Group
-      justify="space-between"
-      px="md"
-      py="sm"
+    <HStack
+      justify="between"
       style={{
+        paddingInline: 16,
+        paddingBlock: 8,
         borderBottom: '1px solid var(--cmc-border)',
         minHeight: TOUCH_MIN_HEIGHT,
         background: 'var(--cmc-surface)',
@@ -104,19 +97,25 @@ function StudentRow({
     >
       {/* Student identity — show truncated studentId; fullName/parentPhone
           requires a student.getById procedure not yet exposed by the API. */}
-      <Stack gap={2}>
-        <Text fz="sm" fw={500}>
+      <Stack gap={0.5}>
+        <Text size="sm" weight="medium">
           {entry.studentId.slice(0, 8).toUpperCase()}
         </Text>
-        <Text fz="xs" c="dimmed">
+        <Text type="supporting" size="xsm">
           ID: {entry.enrollmentId.slice(0, 8)}…
         </Text>
       </Stack>
 
-      {/* 3-state toggle — cycles present → late → absent → present */}
+      {/* 3-state toggle — cycles present → late → absent → present.
+          TODO(astryx-review): raw per-status hex bg/color/border (tablet
+          touch-target status toggle, TL12 §7) has no Astryx Button variant
+          equivalent — kept via style override on a secondary-variant Button,
+          same escape hatch already accepted for Badge in opportunity-detail
+          and crm/pipeline. */}
       <Button
+        label={cfg.label}
         size="sm"
-        radius="xs"
+        variant="secondary"
         onClick={() => onToggle(entry.enrollmentId)}
         style={{
           minHeight: TOUCH_MIN_HEIGHT,
@@ -126,11 +125,8 @@ function StudentRow({
           border: `1px solid ${cfg.color}`,
           fontWeight: 600,
         }}
-        variant="default"
-      >
-        {cfg.label}
-      </Button>
-    </Group>
+      />
+    </HStack>
   );
 }
 
@@ -212,11 +208,17 @@ export default function AttendancePage() {
           title="Điểm danh"
           breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Điểm danh' }]}
         />
-        <Box p="xl">
-          <Alert color="yellow" title="Chưa chọn buổi học">
-            Vui lòng cung cấp tham số <code>?session=&lt;sessionId&gt;</code> trên URL.
-          </Alert>
-        </Box>
+        <div style={{ padding: 32 }}>
+          <Banner
+            status="warning"
+            title="Chưa chọn buổi học"
+            description={
+              <>
+                Vui lòng cung cấp tham số <code>?session=&lt;sessionId&gt;</code> trên URL.
+              </>
+            }
+          />
+        </div>
       </>
     );
   }
@@ -229,84 +231,90 @@ export default function AttendancePage() {
         breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Điểm danh' }]}
         actions={
           <Button
+            label={saved ? '✓ Đã lưu' : 'Lưu điểm danh'}
             size="sm"
-            radius="xs"
-            loading={markAll.isPending}
-            disabled={isLoading || total === 0}
+            variant="primary"
+            isLoading={markAll.isPending}
+            isDisabled={isLoading || total === 0}
             onClick={handleSave}
             style={{ minHeight: TOUCH_MIN_HEIGHT }}
-          >
-            {saved ? '✓ Đã lưu' : 'Lưu điểm danh'}
-          </Button>
+          />
         }
       />
 
       {/* Count tiles */}
-      <Box px="md" py="sm" style={{ background: 'var(--cmc-surface-2)', borderBottom: '1px solid var(--cmc-border)' }}>
-        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
+      <div
+        style={{
+          paddingInline: 16,
+          paddingBlock: 8,
+          background: 'var(--cmc-surface-2)',
+          borderBottom: '1px solid var(--cmc-border)',
+        }}
+      >
+        <Grid columns={{ minWidth: 140, max: 4 }} gap={2}>
           <CountTile label="Tổng" count={total} color="var(--cmc-text)" />
           <CountTile label="Có mặt" count={presentCount} color="#2f9e44" />
           <CountTile label="Vắng" count={absentCount} color="#e03131" />
           <CountTile label="Muộn" count={lateCount} color="#e67700" />
-        </SimpleGrid>
-      </Box>
+        </Grid>
+      </div>
 
       {/* Error states */}
       {listError && (
-        <Box p="md">
-          <Alert color="red" title="Lỗi tải danh sách">
-            {listError.message}
-          </Alert>
-        </Box>
+        <div style={{ padding: 16 }}>
+          <Banner status="error" title="Lỗi tải danh sách" description={listError.message} />
+        </div>
       )}
       {markAll.error && (
-        <Box px="md" pt="sm">
-          <Alert color="red" title="Lưu thất bại">
-            {markAll.error.message}
-          </Alert>
-        </Box>
+        <div style={{ paddingInline: 16, paddingTop: 8 }}>
+          <Banner status="error" title="Lưu thất bại" description={markAll.error.message} />
+        </div>
       )}
 
       {/* Roster */}
-      <Box>
+      <div>
         {isLoading ? (
           <Stack gap={0}>
             {Array.from({ length: 6 }, (_, i) => (
-              <Box
+              <div
                 key={i}
-                px="md"
-                py="sm"
-                style={{ borderBottom: '1px solid var(--cmc-border)', minHeight: TOUCH_MIN_HEIGHT }}
+                style={{
+                  paddingInline: 16,
+                  paddingBlock: 8,
+                  borderBottom: '1px solid var(--cmc-border)',
+                  minHeight: TOUCH_MIN_HEIGHT,
+                }}
               >
-                <Group justify="space-between">
-                  <Skeleton height={14} width={120} radius="xs" />
-                  <Skeleton height={36} width={96} radius="xs" />
-                </Group>
-              </Box>
+                <HStack justify="between">
+                  <Skeleton height={14} width={120} radius={1} />
+                  <Skeleton height={36} width={96} radius={1} />
+                </HStack>
+              </div>
             ))}
           </Stack>
         ) : roster.length === 0 ? (
-          <Box p="xl">
-            <Text c="dimmed" ta="center">
+          <div style={{ padding: 32 }}>
+            <Text type="supporting" size="sm" justify="center" display="block">
               Không có học sinh nào trong buổi học này.
             </Text>
-          </Box>
+          </div>
         ) : (
-          <Box>
+          <div>
             {roster.map((entry) => (
               <StudentRow key={entry.enrollmentId} entry={entry} onToggle={toggleStatus} />
             ))}
-          </Box>
+          </div>
         )}
-      </Box>
+      </div>
 
       {/* Session summary */}
       {saved && (
-        <Box px="md" py="sm">
-          <Badge color="green" size="md" radius="xs">
-            Điểm danh đã được lưu — {presentCount} có mặt / {lateCount} muộn / {absentCount} vắng
-          </Badge>
-        </Box>
+        <div style={{ paddingInline: 16, paddingBlock: 8 }}>
+          <Badge
+            label={`Điểm danh đã được lưu — ${presentCount} có mặt / ${lateCount} muộn / ${absentCount} vắng`}
+            variant="success"
+          />
+        </div>
       )}
     </>
   );

@@ -1,7 +1,14 @@
-import { Box, Group, Loader, Modal, Stack, Text } from '@mantine/core';
+import { Dialog, DialogHeader, HStack, Spinner, Stack, Text } from '@cmc/ui';
 import { useNavigate } from 'react-router-dom';
 import { trpc } from './trpc.js';
 
+// TODO(astryx-review): Astryx `Dialog` (native <dialog>-based) manages its own
+// focus-trap, auto-focus-on-open, and Escape/backdrop-dismiss behavior
+// internally — different implementation from the prior `Modal` (though the
+// resulting UX — click backdrop or press Escape to close, same as before —
+// is preserved via `purpose="info"`, the default). Flagged per migration
+// instructions as "any modal that isn't a simple confirm" for reviewer
+// sign-off rather than silently assuming parity with the old focus-trap.
 export function EnrollPicker({ opened, onClose }: { opened: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const { data, isLoading } = trpc.crm.opportunityList.useQuery(
@@ -12,20 +19,21 @@ export function EnrollPicker({ opened, onClose }: { opened: boolean; onClose: ()
   const items = (data?.items ?? []).filter((o) => !o.closedAt);
 
   return (
-    <Modal opened={opened} onClose={onClose} title="Chọn cơ hội để ghi danh" size="md">
+    <Dialog isOpen={opened} onOpenChange={(next) => { if (!next) onClose(); }} width={480}>
+      <DialogHeader title="Chọn cơ hội để ghi danh" onOpenChange={(next) => { if (!next) onClose(); }} />
       {isLoading && (
-        <Stack align="center" py="lg">
-          <Loader size="sm" />
+        <Stack hAlign="center" paddingBlock={5}>
+          <Spinner size="sm" />
         </Stack>
       )}
       {!isLoading && items.length === 0 && (
-        <Text fz="sm" c="dimmed" ta="center" py="lg">
+        <Text type="supporting" size="sm" justify="center" display="block" style={{ paddingBlock: 20 }}>
           Không có cơ hội O4 nào sẵn sàng ghi danh.
         </Text>
       )}
-      <Stack gap="xs">
+      <Stack gap={2}>
         {items.map((opp) => (
-          <Box
+          <div
             key={opp.id}
             onClick={() => {
               onClose();
@@ -38,16 +46,16 @@ export function EnrollPicker({ opened, onClose }: { opened: boolean; onClose: ()
               cursor: 'pointer',
             }}
           >
-            <Group justify="space-between">
-              <Stack gap={2}>
-                <Text fz="sm" fw={600}>{opp.contact.name}</Text>
-                <Text fz="xs" c="dimmed">{opp.contact.phone}</Text>
+            <HStack justify="between">
+              <Stack gap={0.5}>
+                <Text size="sm" weight="semibold">{opp.contact.name}</Text>
+                <Text type="supporting" size="xsm">{opp.contact.phone}</Text>
               </Stack>
-              <Text fz="xs" c="blue">Ghi danh →</Text>
-            </Group>
-          </Box>
+              <Text size="xsm" color="accent">Ghi danh →</Text>
+            </HStack>
+          </div>
         ))}
       </Stack>
-    </Modal>
+    </Dialog>
   );
 }

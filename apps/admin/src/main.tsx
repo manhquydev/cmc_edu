@@ -1,14 +1,21 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
-import { MantineProvider } from '@mantine/core';
-import '@mantine/core/styles.css';
+// Astryx reset flip (plan Phase 3 step 5): admin now renders zero legacy-UI
+// components, so its provider + styles are dropped here (the legacy UI-library
+// package deps stay in package.json until Phase 5 per rollback policy — only
+// the runtime usage is removed). main.tsx is the one whitelisted entry
+// allowed to import CSS/reset directly; reset.css is app-scoped and NOT in
+// @cmc/ui (red-team F14). Order: reset → tokens → astryx theme (astryx.css +
+// theme.css, imported transitively by astryx-theme-cmc.css) → app overrides.
+import '@astryxdesign/core/reset.css';
 import '@cmc/ui/tokens.css';
+import '@cmc/ui/astryx-theme-cmc.css';
 import './app.css';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { trpc, makeTrpcClient, makeQueryClient } from './lib/trpc.js';
 import { SessionProvider } from './lib/session-context.js';
-import { cmcTheme } from '@cmc/ui';
+import { AstryxCmcProvider } from '@cmc/ui';
 import { router } from './routes/index.js';
 
 const queryClient = makeQueryClient();
@@ -23,11 +30,11 @@ createRoot(rootElement).render(
   <StrictMode>
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <MantineProvider theme={cmcTheme}>
+        <AstryxCmcProvider>
           <SessionProvider>
             <RouterProvider router={router} />
           </SessionProvider>
-        </MantineProvider>
+        </AstryxCmcProvider>
       </QueryClientProvider>
     </trpc.Provider>
   </StrictMode>,

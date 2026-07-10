@@ -1,32 +1,40 @@
-import { Badge } from '@mantine/core';
-import type { BadgeProps } from '@mantine/core';
+import { Badge } from '@astryxdesign/core/Badge';
+import type { ComponentProps } from 'react';
 
 type Status = string;
+type AstryxBadgeVariant = ComponentProps<typeof Badge>['variant'];
 
-const STATUS_COLORS: Record<string, string> = {
-  active: 'green',
-  approved: 'green',
+// TL12 §3 color semantics: success/warning/error carry meaning, everything
+// else is a plain category color. Astryx has no 'gray' variant — 'neutral'
+// is its equivalent.
+const STATUS_VARIANTS: Record<string, AstryxBadgeVariant> = {
+  active: 'success',
+  approved: 'success',
   sent: 'teal',
-  pending: 'yellow',
-  draft: 'gray',
-  rejected: 'red',
-  error: 'red',
-  cancelled: 'red',
-  disabled: 'gray',
+  pending: 'warning',
+  draft: 'neutral',
+  rejected: 'error',
+  error: 'error',
+  cancelled: 'error',
+  disabled: 'neutral',
   withdrawn: 'orange',
-  warning: 'orange',
+  warning: 'warning',
 };
 
-export interface StatusBadgeProps extends Omit<BadgeProps, 'color' | 'children'> {
+export interface StatusBadgeProps {
   status: Status;
   label?: string;
+  /** Astryx's Badge has no native size axis (checked: only variant/label/icon
+   * props exist) — 'lg' is approximated with a CSS scale on the 2 call
+   * sites (detail-page headers) that use it today. */
+  size?: 'sm' | 'md' | 'lg';
 }
 
-export function StatusBadge({ status, label, ...rest }: StatusBadgeProps) {
-  const color = STATUS_COLORS[status] ?? 'blue';
-  return (
-    <Badge color={color} variant="light" {...rest}>
-      {label ?? status}
-    </Badge>
-  );
+export function StatusBadge({ status, label, size = 'md' }: StatusBadgeProps) {
+  const variant = STATUS_VARIANTS[status] ?? 'blue';
+  const badge = <Badge label={label ?? status} variant={variant} />;
+  if (size === 'lg') {
+    return <span style={{ display: 'inline-block', fontSize: '1.15em' }}>{badge}</span>;
+  }
+  return badge;
 }

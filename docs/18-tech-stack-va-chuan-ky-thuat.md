@@ -12,7 +12,7 @@
 | **Monorepo** | pnpm workspaces + Turborepo | pnpm 10.24 · turbo 2.3 | Node **≥22**, ESM |
 | **Ngôn ngữ** | TypeScript | 5.7 | strict; type-safe end-to-end |
 | **Frontend** | **Vite + React + react-router-dom** | Vite 6 · React 19 · router 7 | **SPA, KHÔNG Next.js**; path-based routing (ADR 0016) |
-| **UI** | Mantine + CSS custom properties | Mantine 7.15 | tokens `@cmc/ui` (TL12) |
+| **UI** | Astryx + CSS custom properties | @astryxdesign/core@0.1.4 · @stylexjs/stylex@0.18.3 | Single-door @cmc/ui barrel (Phase 3–4 complete) · tokens `@cmc/ui` (TL12) |
 | **API** | tRPC + zod | tRPC 11 · zod 3 | hợp đồng FE↔BE (TL11) |
 | **DB / ORM** | PostgreSQL + Prisma | Prisma 6 | RLS theo `facilityId` |
 | **Auth** | Microsoft Entra SSO (`@azure/msal-node`) | msal 2.16 | staff SSO; LMS 2-tier (parent=email+OTP, student=SĐT PH+password) — xem product-decision 2026-07-07 bên dưới |

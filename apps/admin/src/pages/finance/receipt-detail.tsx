@@ -1,13 +1,20 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Alert, Badge, Box, Button, Grid, Group, Stack, Text, Title } from '@mantine/core';
 import {
+  Badge,
+  Banner,
+  Button,
   CmcTabs,
   ConfirmDialog,
+  Grid,
+  Heading,
+  HStack,
   MasterDetail,
   PageHeader,
   ResultPanel,
+  Stack,
   StatusBadge,
+  Text,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
@@ -28,16 +35,31 @@ function PipelinePanel({ status }: { status: string }) {
   const isCancelled = status === 'cancelled';
 
   return (
-    <Stack gap="xs" p="md">
-      <Text fz="xs" fw={600} c="dimmed" tt="uppercase" style={{ letterSpacing: '0.06em' }}>
+    <Stack gap={2} padding={4}>
+      <Text
+        type="supporting"
+        size="xsm"
+        weight="semibold"
+        style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}
+      >
         Tiến trình
       </Text>
       {PIPELINE_STAGES.map((stage, i) => {
         const isActive = !isCancelled && i === current;
         const isDone = !isCancelled && i < current;
+        // TODO(astryx-review): Astryx Text's `color` prop is a fixed semantic
+        // enum (primary/secondary/disabled/placeholder/accent/inherit) with
+        // no raw-CSS-var escape hatch — this line needs the brand/success/
+        // muted tokens per pipeline stage state, so it stays a plain <span>
+        // like StatCard's value line, per the documented fallback.
+        const labelColor = isActive
+          ? 'var(--cmc-brand)'
+          : isDone
+            ? 'var(--cmc-text)'
+            : 'var(--cmc-text-muted)';
         return (
-          <Group key={stage.key} gap="sm" align="center">
-            <Box
+          <HStack key={stage.key} gap={2} align="center">
+            <div
               style={{
                 width: 10,
                 height: 10,
@@ -52,19 +74,15 @@ function PipelinePanel({ status }: { status: string }) {
                 boxShadow: isActive ? '0 0 0 3px var(--cmc-brand-muted)' : undefined,
               }}
             />
-            <Text
-              fz="sm"
-              fw={isActive ? 600 : 400}
-              c={isActive ? 'var(--cmc-brand)' : isDone ? 'dimmed' : 'var(--cmc-text-muted)'}
-            >
+            <span style={{ fontSize: 14, fontWeight: isActive ? 600 : 400, color: labelColor }}>
               {stage.label}
-            </Text>
-          </Group>
+            </span>
+          </HStack>
         );
       })}
       {isCancelled && (
-        <Group gap="sm" align="center">
-          <Box
+        <HStack gap={2} align="center">
+          <div
             style={{
               width: 10,
               height: 10,
@@ -73,10 +91,10 @@ function PipelinePanel({ status }: { status: string }) {
               flexShrink: 0,
             }}
           />
-          <Text fz="sm" fw={600} c="red">
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--cmc-danger)' }}>
             Đã hủy
-          </Text>
-        </Group>
+          </span>
+        </HStack>
       )}
     </Stack>
   );
@@ -133,11 +151,13 @@ export default function ReceiptDetailPage() {
 
   if (error || !receipt) {
     return (
-      <Box p="md">
-        <Alert color="red" title="Không tìm thấy phiếu thu">
-          {error?.message ?? 'Phiếu thu không tồn tại hoặc bạn không có quyền truy cập.'}
-        </Alert>
-      </Box>
+      <div style={{ padding: 16 }}>
+        <Banner
+          status="error"
+          title="Không tìm thấy phiếu thu"
+          description={error?.message ?? 'Phiếu thu không tồn tại hoặc bạn không có quyền truy cập.'}
+        />
+      </div>
     );
   }
 
@@ -146,7 +166,7 @@ export default function ReceiptDetailPage() {
   const isOverThreshold = threshold !== undefined && receipt.netAmount > threshold;
 
   const overviewContent = (
-    <Stack gap="md" p="md">
+    <Stack gap={4} padding={4}>
       {approveResult && (
         <ResultPanel
           status={approveResult.provisioning === 'ok' ? 'success' : 'warning'}
@@ -164,121 +184,112 @@ export default function ReceiptDetailPage() {
       )}
 
       {isOverThreshold && (
-        <Alert color="orange" title="Phiếu vượt ngưỡng — cần GĐĐT/super_admin duyệt">
-          Phiếu có giá trị vượt ngưỡng {fmt(threshold!)} — chỉ Giám đốc Đào tạo (GĐĐT) hoặc
-          super_admin mới được phê duyệt. Không phải "2 chữ ký" — một người đủ quyền duyệt một mình.
-        </Alert>
+        <Banner
+          status="warning"
+          title="Phiếu vượt ngưỡng — cần GĐĐT/super_admin duyệt"
+          description={`Phiếu có giá trị vượt ngưỡng ${fmt(threshold!)} — chỉ Giám đốc Đào tạo (GĐĐT) hoặc super_admin mới được phê duyệt. Không phải "2 chữ ký" — một người đủ quyền duyệt một mình.`}
+        />
       )}
 
-      <Grid gutter="md">
-        <Grid.Col span={6}>
-          <Stack gap={4}>
-            <Text fz="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
-              Mã phiếu
-            </Text>
-            <Text fz="sm" fw={600} ff="monospace">
-              {receipt.code}
-            </Text>
-          </Stack>
-        </Grid.Col>
-        <Grid.Col span={6}>
-          <Stack gap={4}>
-            <Text fz="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
-              Trạng thái
-            </Text>
-            <StatusBadge
-              status={receipt.status}
-              label={STATUS_LABELS[receipt.status] ?? receipt.status}
-            />
-          </Stack>
-        </Grid.Col>
-        <Grid.Col span={6}>
-          <Stack gap={4}>
-            <Text fz="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
-              Học viên
-            </Text>
-            <Text fz="sm">{receipt.studentName}</Text>
-          </Stack>
-        </Grid.Col>
-        <Grid.Col span={6}>
-          <Stack gap={4}>
-            <Text fz="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
-              SĐT phụ huynh
-            </Text>
-            <Text fz="sm">{receipt.parentPhone}</Text>
-          </Stack>
-        </Grid.Col>
-        <Grid.Col span={6}>
-          <Stack gap={4}>
-            <Text fz="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
-              Số tiền
-            </Text>
-            <Text fz="sm" fw={700} style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {fmt(receipt.netAmount)}
-            </Text>
-          </Stack>
-        </Grid.Col>
-        <Grid.Col span={6}>
-          <Stack gap={4}>
-            <Text fz="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
-              Loại phiếu
-            </Text>
-            <Badge variant="dot" color={receipt.kind === 'new' ? 'blue' : 'teal'}>
-              {receipt.kind === 'new' ? 'Mới' : 'Gia hạn'}
-            </Badge>
-          </Stack>
-        </Grid.Col>
-        <Grid.Col span={6}>
-          <Stack gap={4}>
-            <Text fz="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
-              Lớp học
-            </Text>
-            <Text fz="sm">{receipt.classBatchCode ?? receipt.classBatchId ?? '—'}</Text>
-          </Stack>
-        </Grid.Col>
-        <Grid.Col span={6}>
-          <Stack gap={4}>
-            <Text fz="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
-              Ngày tạo
-            </Text>
-            <Text fz="sm">
-              {new Date(receipt.createdAt).toLocaleDateString('vi-VN', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
-          </Stack>
-        </Grid.Col>
+      <Grid columns={2} gap={4}>
+        <Stack gap={1}>
+          <Text type="supporting" size="xsm" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Mã phiếu
+          </Text>
+          <Text size="sm" weight="semibold" style={{ fontFamily: 'monospace' }}>
+            {receipt.code}
+          </Text>
+        </Stack>
+        <Stack gap={1}>
+          <Text type="supporting" size="xsm" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Trạng thái
+          </Text>
+          <StatusBadge
+            status={receipt.status}
+            label={STATUS_LABELS[receipt.status] ?? receipt.status}
+          />
+        </Stack>
+        <Stack gap={1}>
+          <Text type="supporting" size="xsm" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Học viên
+          </Text>
+          <Text size="sm">{receipt.studentName}</Text>
+        </Stack>
+        <Stack gap={1}>
+          <Text type="supporting" size="xsm" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            SĐT phụ huynh
+          </Text>
+          <Text size="sm">{receipt.parentPhone}</Text>
+        </Stack>
+        <Stack gap={1}>
+          <Text type="supporting" size="xsm" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Số tiền
+          </Text>
+          <Text size="sm" weight="bold" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {fmt(receipt.netAmount)}
+          </Text>
+        </Stack>
+        <Stack gap={1}>
+          <Text type="supporting" size="xsm" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Loại phiếu
+          </Text>
+          <Badge
+            label={receipt.kind === 'new' ? 'Mới' : 'Gia hạn'}
+            variant={receipt.kind === 'new' ? 'blue' : 'teal'}
+          />
+        </Stack>
+        <Stack gap={1}>
+          <Text type="supporting" size="xsm" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Lớp học
+          </Text>
+          <Text size="sm">{receipt.classBatchCode ?? receipt.classBatchId ?? '—'}</Text>
+        </Stack>
+        <Stack gap={1}>
+          <Text type="supporting" size="xsm" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Ngày tạo
+          </Text>
+          <Text size="sm">
+            {new Date(receipt.createdAt).toLocaleDateString('vi-VN', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </Text>
+        </Stack>
       </Grid>
 
       {receipt.canApprove && receipt.status === 'draft' && (
-        <Alert color="blue" variant="light" title="Khi duyệt phiếu thu này, hệ thống sẽ tự động:">
-          <Stack gap={4}>
-            <Text fz="sm">• Tạo tài khoản học sinh + phụ huynh trên LMS</Text>
-            <Text fz="sm">• Chuyển ghi danh sang trạng thái active</Text>
-            <Text fz="sm">• Đưa cơ hội (nếu có) về O5_ENROLLED</Text>
-            <Text fz="sm">• Gửi email thông báo cho phụ huynh</Text>
-            <Text fz="xs" c="dimmed" mt={4}>
-              Cổng tiền (SoD): người tạo phiếu ≠ người duyệt.
-            </Text>
-          </Stack>
-        </Alert>
+        // description (not children) keeps the content always visible — Banner's
+        // `children` slot adds a collapse/expand toggle, which would change the
+        // always-expanded behavior of the original Alert.
+        <Banner
+          status="info"
+          title="Khi duyệt phiếu thu này, hệ thống sẽ tự động:"
+          description={
+            <Stack gap={1}>
+              <Text size="sm">• Tạo tài khoản học sinh + phụ huynh trên LMS</Text>
+              <Text size="sm">• Chuyển ghi danh sang trạng thái active</Text>
+              <Text size="sm">• Đưa cơ hội (nếu có) về O5_ENROLLED</Text>
+              <Text size="sm">• Gửi email thông báo cho phụ huynh</Text>
+              <Text type="supporting" size="xsm" style={{ marginTop: 4 }}>
+                Cổng tiền (SoD): người tạo phiếu ≠ người duyệt.
+              </Text>
+            </Stack>
+          }
+        />
       )}
 
       {receipt.canApprove && receipt.status === 'draft' && (
-        <Group mt="sm">
+        <HStack style={{ marginTop: 8 }}>
           <Button
-            color="green"
-            radius="xs"
+            label="Duyệt & Kích hoạt"
+            variant="primary"
             onClick={() => setApproveOpen(true)}
-            loading={approveMutation.isPending}
-          >
-            Duyệt &amp; Kích hoạt
-          </Button>
-        </Group>
+            isLoading={approveMutation.isPending}
+          />
+        </HStack>
       )}
 
       <ConfirmDialog
@@ -298,55 +309,61 @@ export default function ReceiptDetailPage() {
   );
 
   const orderLinesContent = (
-    <Stack gap="md" p="md">
-      <Title order={6} c="dimmed">
+    <Stack gap={4} padding={4}>
+      <Heading level={6} color="secondary">
         Chi tiết thanh toán
-      </Title>
-      <Box
+      </Heading>
+      <div
         style={{
           border: '1px solid var(--cmc-border)',
           borderRadius: 'var(--cmc-radius-xs)',
           overflow: 'hidden',
         }}
       >
-        <Group
-          justify="space-between"
-          px="md"
-          py="sm"
-          style={{ background: 'var(--cmc-surface-2)', borderBottom: '1px solid var(--cmc-border)' }}
+        <HStack
+          justify="between"
+          style={{
+            paddingInline: 16,
+            paddingBlock: 8,
+            background: 'var(--cmc-surface-2)',
+            borderBottom: '1px solid var(--cmc-border)',
+          }}
         >
-          <Text fz="xs" fw={600} c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
+          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Dịch vụ
           </Text>
-          <Text fz="xs" fw={600} c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
+          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Thành tiền
           </Text>
-        </Group>
-        <Group justify="space-between" px="md" py="sm">
-          <Stack gap={2}>
-            <Text fz="sm">Học phí — {receipt.classBatchCode ?? receipt.classBatchId ?? 'Chưa xếp lớp'}</Text>
-            <Text fz="xs" c="dimmed">
+        </HStack>
+        <HStack justify="between" style={{ paddingInline: 16, paddingBlock: 8 }}>
+          <Stack gap={0.5}>
+            <Text size="sm">Học phí — {receipt.classBatchCode ?? receipt.classBatchId ?? 'Chưa xếp lớp'}</Text>
+            <Text type="supporting" size="xsm">
               {receipt.studentName}
             </Text>
           </Stack>
-          <Text fz="sm" fw={700} style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <Text size="sm" weight="bold" style={{ fontVariantNumeric: 'tabular-nums' }}>
             {fmt(receipt.netAmount)}
           </Text>
-        </Group>
-        <Group
-          justify="space-between"
-          px="md"
-          py="sm"
-          style={{ background: 'var(--cmc-surface-2)', borderTop: '1px solid var(--cmc-border)' }}
+        </HStack>
+        <HStack
+          justify="between"
+          style={{
+            paddingInline: 16,
+            paddingBlock: 8,
+            background: 'var(--cmc-surface-2)',
+            borderTop: '1px solid var(--cmc-border)',
+          }}
         >
-          <Text fz="sm" fw={600}>
+          <Text size="sm" weight="semibold">
             Tổng cộng
           </Text>
-          <Text fz="sm" fw={700} style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <Text size="sm" weight="bold" style={{ fontVariantNumeric: 'tabular-nums' }}>
             {fmt(receipt.netAmount)}
           </Text>
-        </Group>
-      </Box>
+        </HStack>
+      </div>
     </Stack>
   );
 
@@ -372,23 +389,21 @@ export default function ReceiptDetailPage() {
         ]}
         actions={
           <Button
-            variant="default"
-            size="xs"
-            radius="xs"
+            label="← Danh sách"
+            variant="secondary"
+            size="sm"
             onClick={() => void navigate('/finance')}
-          >
-            ← Danh sách
-          </Button>
+          />
         }
       />
-      <Box style={{ height: 'calc(100vh - 100px)', overflow: 'hidden' }}>
+      <div style={{ height: 'calc(100vh - 100px)', overflow: 'hidden' }}>
         <MasterDetail
           list={<PipelinePanel status={receipt.status} />}
           detail={detail}
           selectedId={id}
           listWidth={220}
         />
-      </Box>
+      </div>
     </>
   );
 }

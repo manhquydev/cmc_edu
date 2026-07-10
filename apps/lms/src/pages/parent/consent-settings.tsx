@@ -10,16 +10,7 @@
 // After setting, a success message confirms the new state.
 
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Alert,
-  Anchor,
-  Box,
-  Button,
-  Group,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Banner, Button, Heading, HStack, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -43,63 +34,71 @@ function ConsentForm({ studentId, onBack }: { studentId: string; onBack: () => v
   }
 
   return (
-    <Box className="lms-shell">
-      <Box className="lms-topbar">
-        <Anchor size="sm" onClick={onBack}>← Trang chủ</Anchor>
+    <div className="lms-shell">
+      <div className="lms-topbar">
+        <Button variant="ghost" size="sm" label="← Trang chủ" onClick={onBack} />
         <Text className="lms-topbar__brand">Đồng ý ảnh</Text>
-        <Box w={60} />
-      </Box>
+        <div style={{ width: 60 }} />
+      </div>
 
-      <Box className="lms-page">
-        <Title order={4} className="lms-page__title">Cài đặt đồng ý ảnh</Title>
+      <div className="lms-page">
+        <Heading level={4} className="lms-page__title">Cài đặt đồng ý ảnh</Heading>
 
-        <Alert color="blue" variant="light" mb="lg">
-          Khi bật đồng ý, ảnh chụp trong các buổi học của con sẽ được hiển thị
-          trong mục "Ảnh buổi học". Khi tắt, ảnh sẽ bị ẩn ngay lập tức.
-        </Alert>
+        <Banner
+          status="info"
+          title="Khi bật đồng ý, ảnh chụp trong các buổi học của con sẽ được hiển thị trong mục &quot;Ảnh buổi học&quot;. Khi tắt, ảnh sẽ bị ẩn ngay lập tức."
+          style={{ marginBottom: 24 }}
+        />
 
         {mutation.isSuccess && (
-          <Alert color="green" variant="light" mb="md">
-            {mutation.data.photoConsent
-              ? 'Đã bật đồng ý chia sẻ ảnh. Ảnh buổi học sẽ hiển thị.'
-              : 'Đã tắt đồng ý chia sẻ ảnh. Ảnh buổi học sẽ không hiển thị.'}
-          </Alert>
+          <Banner
+            status="success"
+            title={
+              mutation.data.photoConsent
+                ? 'Đã bật đồng ý chia sẻ ảnh. Ảnh buổi học sẽ hiển thị.'
+                : 'Đã tắt đồng ý chia sẻ ảnh. Ảnh buổi học sẽ không hiển thị.'
+            }
+            style={{ marginBottom: 16 }}
+          />
         )}
 
         {mutation.isError && (
-          <Alert color="red" variant="light" mb="md">
-            {mutation.error.message}
-          </Alert>
+          <Banner status="error" title={mutation.error.message} style={{ marginBottom: 16 }} />
         )}
 
-        <Stack gap="md">
+        <Stack gap={2}>
           <Button
-            fullWidth
-            color="green"
-            loading={mutation.isPending}
+            style={{ width: '100%' }}
+            variant="primary"
+            label="Bật đồng ý chia sẻ ảnh"
+            isLoading={mutation.isPending}
             onClick={() => set(true)}
-          >
-            Bật đồng ý chia sẻ ảnh
-          </Button>
+          />
           <Button
-            fullWidth
-            color="red"
-            variant="outline"
-            loading={mutation.isPending}
+            style={{ width: '100%' }}
+            variant="destructive"
+            label="Tắt đồng ý chia sẻ ảnh"
+            isLoading={mutation.isPending}
             onClick={() => set(false)}
-          >
-            Tắt đồng ý chia sẻ ảnh
-          </Button>
+          />
         </Stack>
 
-        <Group mt="lg">
-          <Anchor size="sm" onClick={() => navigate(`/parent/evidence/${studentId}`)}>
-            Xem ảnh buổi học →
-          </Anchor>
-        </Group>
+        <HStack style={{ marginTop: 24 }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            label="Xem ảnh buổi học →"
+            onClick={() => navigate(`/parent/evidence/${studentId}`)}
+          />
+        </HStack>
 
-        <Button variant="subtle" mt="lg" onClick={onBack}>← Quay lại</Button>
-      </Box>
-    </Box>
+        <Button
+          variant="ghost"
+          style={{ marginTop: 24 }}
+          label="← Quay lại"
+          onClick={onBack}
+        />
+      </div>
+    </div>
   );
 }

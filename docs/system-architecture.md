@@ -1,8 +1,8 @@
 # CMC EDU v2 — System Architecture (As-Built)
 
-**Date:** 2026-07-08  
-**Phase:** P1–P3 complete (SSO landing · flow audit) · Phase 4 UAT pending  
-**Build Status:** Merged to main · 473/473 tests passing (13 skipped — lms-auth-two-tier) · 26/26 typecheck green
+**Date:** 2026-07-10  
+**Phase:** P1–P3 complete (SSO landing · flow audit · Astryx UI Phase 3–4) · UI migration Phase 4 complete (apps/lms 100% Astryx) · Phase 5 (Mantine dep removal) next  
+**Build Status:** Merged to main · 473/473 tests passing (13 skipped — lms-auth-two-tier) · 26/26 typecheck green · e2e UI 5 passed · API e2e 17 passed
 
 ---
 
@@ -25,7 +25,7 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐  │
 │  │ Frontend (Vite+React)                               │  │
-│  │ - apps/admin: ERP SPA, 30 routes, Mantine v7       │  │
+│  │ - apps/admin: ERP SPA, 30 routes, 100% Astryx       │  │
 │  │ - apps/lms: LMS SPA, kind gate (parent/student)    │  │
 │  │ - tRPC client; dev-auth via x-dev-user header      │  │
 │  └──────────────────┬──────────────────────────────────┘  │
@@ -59,10 +59,11 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 **Status:** Two apps shipped — ERP admin (phases 02–06) + LMS portal (phase 07)
 
 **apps/admin/** — ERP SPA, ~30 routes
-- Mantine v7 + `@cmc/ui` (cmcTheme + 10 components)
+- 100% Astryx (@astryxdesign/core@0.1.4) via `@cmc/ui/primitives` single-door barrel (Phase 3 complete)
 - tRPC client gated with `x-dev-user` header (dev auth until Entra SSO)
 - Route groups: sales, teaching, hr, finance, admin + generic table coverage
 - `can()` RBAC guards per route; `session.me` for over-threshold role check
+- ESLint no-restricted-imports rule enforces UI imports from `@cmc/ui` only (apps/admin scope, Phase 4 widens to lms)
 
 **apps/lms/** — LMS SPA, mobile-first
 - Parent sessions (`kind:'parent'`): email-OTP login, child picker, session evidence (consent-gated photos), report card, reset child password, consent settings
@@ -70,6 +71,16 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 - **Kind guards:** `ParentOnly`/`StudentOnly` route wrappers in `kind-guard.tsx` — redirect to `/login` on wrong kind; backend `requireLmsParent`/`requireLmsStudent` re-gates every procedure
 - Session: `parseLmsToken` (base64url, unsigned placeholder — P0-debt: add HMAC signing)
 - `x-dev-lms-user` header (dev auth, `import.meta.env.DEV`-gated `DevHeaderWriter`)
+
+**UI Design System Migration (Mantine 7 → Astryx) — Phases 1–4 COMPLETE (2026-07-10):**
+- **Phase 1 (spike, complete):** Verified Astryx (@astryxdesign/core@0.1.4 beta) against production readiness criteria: precompiled CSS (no bundler plugin required), clean build/typecheck/HMR, zero supply-chain vulnerabilities (audit + signature-verified), CSS bundle favorable vs. Mantine (full system smaller, per-component JS deltas bounded), token override via plain CSS custom properties. **GO decision made.**
+- **Phase 2 (complete):** All 10 shared components migrated from Mantine to Astryx (status-badge, empty-state, stat-card, page-header, result-panel, confirm-dialog, cmc-tabs, filter-bar, master-detail, data-table). `cmcTheme` deleted; replaced with `AstryxCmcProvider` (CSS-only scope wrapper, `data-astryx-theme="neutral"`). Brand tokens via CSS custom properties. peerDependencies: removed @mantine/core, added @astryxdesign/core@0.1.4 + @stylexjs/stylex@0.18.3. Both apps/admin and apps/lms: MantineProvider + AstryxCmcProvider coexist (strangler pattern). Workspace clean: typecheck + build + test green. Browser e2e specs: 4 passing, 1 fixme (pre-existing session-context bug), 0 failing.
+- **Phase 3 (complete, 2026-07-10):** apps/admin **100% migrated** from Mantine to Astryx — all 34 page/lib files + shell (AppShell frame) rewritten. Single-door barrel `@cmc/ui/primitives` created (thin re-export of Astryx primitives: Text, Stack, HStack, Button, Badge, TextInput, Selector, Dialog, AppShell, SideNav, etc.). Apps import ALL UI from `@cmc/ui` only; `rg "@mantine" apps/admin/src` = 0 real imports. Migration order (risk-first): shell/AppShell (single-point-of-failure) → login → 5 business-area clusters (CRM/finance/teaching/HR+attendance/students). ESLint flat config added (`eslint.config.js`, NO prior lint in repo): enforces `no-restricted-imports` banning `@mantine/*` and `@astryxdesign/*` in `apps/admin/**` (one-door rule), whitelisting `apps/admin/src/main.tsx` (single entry for reset/theme CSS + providers). New devDeps: eslint, typescript-eslint, eslint-formatter-compact. `pnpm lint` script added. Reset flip: `apps/admin/src/main.tsx` now imports `@astryxdesign/core/reset.css` + dropped MantineProvider + `@mantine/core/styles.css` (no zero Mantine components; avoids double-reset conflict). Mantine package deps remain in package.json until Phase 5 (rollback policy) — runtime usage removed only. Sandbox deleted: `apps/admin/src/pages/sandbox/`. Verification: workspace typecheck + build clean; per-cluster gates passed; e2e green (4 passed, 1 fixme); auth-screen blocking: Astryx reset applied cleanly, focus-visible ring brand-colored (#0071E3), disabled buttons natively inert. Code-review: Approve, 0 Critical. Known API-mismatch trade-offs (non-blocking, accepted): semantic-color enums can't take raw hex (use `<span style>`), Button/Badge variant approximations, Dialog focus-trap differs from Modal, NumberInput lost live thousand-separator, TextArea lost autosize — all flagged in-code with `TODO(astryx-review)`.
+- **Phase 4 (complete, 2026-07-10):** apps/lms **100% migrated** from Mantine to Astryx — all 13 files (login page + 10 parent/student pages + routes + main.tsx) rewritten. `rg "@mantine" apps/lms/src` = 0 real imports. **New @cmc/ui composites added:** `TextField` (forwards standard HTML input attributes—inputMode, maxLength, autoComplete, pattern—that Astryx TextInput omits but passes via ...rest at runtime) and `PasswordInput` (Astryx lacks native password input; composes TextField + show/hide toggle). Also `ProgressBar` added to primitives barrel. These filled gaps needed by LMS login hardening. **LMS login hardening preserved & e2e-verified:** 2-tab login (parent email-OTP | student phone+password) kept all security attributes across migration (TL12 §9, red-team F11 / AC#5): OTP field autoComplete="one-time-code" + inputMode="numeric" + maxLength=6; password autoComplete="current-password"; phone inputMode="tel"; email type. New non-skippable e2e test asserts these land on real DOM. Generic no-leak error messages preserved. Astryx deps exact-pinned (0.1.4) so ...rest-passthrough behavior can't regress. **Theme-level fixes (LMS mobile QA):** `:focus-visible` brand-outline fallback on form controls (Astryx focus ring rendered transparent under CMC theme—a11y blocker) + `@media (max-width:768px)` 44px min-height touch-target rule for text inputs + buttons (Astryx ~32px < TL12 §7's 44px; mobile-only, desktop admin keeps ERP density). **ESLint one-door rule extended to apps/lms/**. Reset flip: apps/lms/src/main.tsx imports @astryxdesign/core/reset.css + drops MantineProvider; @astryxdesign/core added as lms devDep. **Known documented trade-off:** Astryx TabList renders tabs as plain buttons (no ARIA role=tab/aria-selected)—an a11y regression vs Mantine; beta-Astryx limitation affecting all Astryx tabs, flagged for possible future @cmc/ui ARIA wrapper. Verification: lms typecheck + build clean; lint (admin+lms) clean; UI e2e 5 passed + 1 fixme; API e2e 17 passed. Code-review: Approve (0 Critical; 1 Important fragility already mitigated by exact-pin + non-skippable e2e attr test).
+- **Bugs found & fixed (PR #27):** (1) tRPC basePath missing → 404 on browser clients — fixed with conditional prefix-strip. (2) finance/receipt-get.test.ts DB write missing withFacility() — fixed. (3) student/change-password.tsx session timing bug — unfixed, tracked test.fixme(), not Astryx-related.
+- **Migration strategy:** Strangler pattern (Mantine + Astryx coexist through Phase 4; Mantine removed Phase 5). Public API preserved.
+- **Roadmap:** Phase 5 (remove Mantine package deps entirely + full e2e QA + TL12 docs updates) is final phase remaining.
+- **Plan:** `plans/260710-0236-astryx-ui-migration/` (5 phases, gitignored).
 
 **Auth Integration:**
 - Staff: `x-dev-user` header (dev), Entra SSO (P0-debt)
@@ -435,6 +446,7 @@ if (!canApprove) throw forbidden('Insufficient role for approval.');
 | **No retry scheduler** (K2) | Manual `reconcile-orphaned-receipts` trigger | Background job queue in ops phase |
 | **No real auth** | Dev stub accepts any header; RLS enforces tenant | Real OAuth2 in P2+ |
 | **classBatchId not validated** | Scalars accepted; FK created in P2 | P2 data backfill + constraint |
+| **tRPC basePath missing** (live bug) | Workaround: Vite dev/preview proxy | PR #27 (basePath: '/trpc/' + /health rewrite) |
 
 ---
 
@@ -477,6 +489,20 @@ pnpm build                             # Turbo build (all packages)
 pnpm --filter @cmc/db prisma migrate dev --name <description>
 pnpm --filter @cmc/db prisma migrate deploy  # in CI/deploy
 ```
+
+---
+
+## tRPC Client-Server Bug (Fixed, PR #27)
+
+**Issue:** `apps/api/src/server.ts` standalone tRPC handler (`createHTTPHandler`) lacked `basePath` option. Browser clients (apps/admin, apps/lms) build URLs as `${API_URL}/trpc/{procedure}`, but without `basePath`, the server treated the entire path including "trpc/" as the procedure name → 404 on all requests.
+
+**Impact:** Undetected until Phase 2 e2e testing (no browser-based e2e existed before 2026-07-10). Reproduced against running local prod-simulation Docker stack — live bug blocking browser client communication.
+
+**Fix:** PR #27 (not yet merged):
+- Added `basePath: '/trpc/'` to `createHTTPHandler` in `apps/api/src/server.ts`  
+- Explicit rewrite of bare `/health` → `/trpc/health` (used by Docker healthcheck + e2e health-wait; predates prefix convention)
+
+**Workaround in Phase 2:** Vite dev/preview proxy in apps/admin and apps/lms (proxies /trpc to api server same-origin) masked the bug during local development until real e2e testing exposed it.
 
 ---
 
@@ -530,5 +556,5 @@ This implementation strictly follows the frozen design:
 
 ---
 
-**Last Updated:** 2026-07-08 by docs-manager (Phase 3 audit findings)  
-**Aligns with:** commit 8a68ae1 (main branch) — Phase 3 complete
+**Last Updated:** 2026-07-10 by docs-manager (Astryx migration Phase 1 complete + tRPC basePath bug documented)  
+**Aligns with:** main branch + plans/260710-0236-astryx-ui-migration/

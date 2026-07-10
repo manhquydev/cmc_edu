@@ -10,8 +10,7 @@
 // Draft content is shown read-only in a separate area; editable copy is in the textarea.
 
 import { useState } from 'react';
-import { Alert, Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
-import { DataTable, PageHeader } from '@cmc/ui';
+import { Banner, Button, DataTable, HStack, PageHeader, Stack, Text, TextArea, TextInput } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
@@ -122,28 +121,36 @@ export default function ReportCardsPage() {
         breadcrumbs={[{ label: 'Quản trị' }, { label: 'Học bạ' }]}
       />
 
-      <Stack p="md" gap="md" maw={680}>
+      <Stack gap={4} style={{ padding: 16, maxWidth: 680 }}>
 
         {/* ── Step 1: Search ──────────────────────────────────── */}
-        <Stack gap="xs">
-          <Text fz="sm" fw={600}>Bước 1 — Tìm học viên</Text>
-          <Group gap="sm">
-            <TextInput
-              placeholder="Nhập tên hoặc SĐT phụ huynh…"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.currentTarget.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              style={{ flex: 1 }}
-              size="sm"
-            />
+        <Stack gap={1}>
+          <Text size="sm" weight="semibold">Bước 1 — Tìm học viên</Text>
+          <HStack gap={2}>
+            <div style={{ flex: 1 }}>
+              {/* TODO(astryx-review): `label` is required by TextInput's
+                  props but the step heading above already names the field —
+                  passed as an empty string to avoid a duplicate visible
+                  label; flagged for reviewer to confirm it renders without
+                  adding empty label spacing. */}
+              <TextInput
+                label="Tìm kiếm phụ huynh"
+                isLabelHidden
+                placeholder="Nhập tên hoặc SĐT phụ huynh…"
+                value={searchInput}
+                onChange={(value) => setSearchInput(value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                size="sm"
+              />
+            </div>
             <Button
+              label="Tìm"
               size="sm"
+              variant="primary"
               onClick={handleSearch}
-              disabled={searchInput.trim().length < 2}
-            >
-              Tìm
-            </Button>
-          </Group>
+              isDisabled={searchInput.trim().length < 2}
+            />
+          </HStack>
         </Stack>
 
         {/* Search results (only when no student is selected) */}
@@ -159,109 +166,117 @@ export default function ReportCardsPage() {
 
         {/* ── Step 2: Period + Draft ───────────────────────────── */}
         {selectedStudent && (
-          <Stack gap="xs">
-            <Text fz="sm" fw={600}>Bước 2 — Chọn kỳ và tạo nháp AI</Text>
-            <Group gap="sm" align="center">
-              <Text fz="sm">
-                Học viên: <strong>{selectedStudent.fullName}</strong>
+          <Stack gap={1}>
+            <Text size="sm" weight="semibold">Bước 2 — Chọn kỳ và tạo nháp AI</Text>
+            <HStack gap={2} align="center">
+              <Text size="sm">
+                Học viên: <Text weight="bold" size="sm">{selectedStudent.fullName}</Text>
               </Text>
-              <Button size="xs" variant="subtle" onClick={handleChangeStudent}>
-                Đổi
-              </Button>
-            </Group>
-            <Group gap="sm" align="flex-end">
-              <TextInput
-                label="Kỳ (YYYY-MM)"
-                placeholder="2026-07"
-                value={period}
-                onChange={(e) => setPeriod(e.currentTarget.value)}
-                size="sm"
-                style={{ width: 160 }}
-                error={period && !PERIOD_PATTERN.test(period) ? 'Định dạng YYYY-MM' : undefined}
-              />
+              <Button label="Đổi" size="sm" variant="ghost" onClick={handleChangeStudent} />
+            </HStack>
+            <HStack gap={2} align="end">
+              <div style={{ width: 160 }}>
+                <TextInput
+                  label="Kỳ (YYYY-MM)"
+                  placeholder="2026-07"
+                  value={period}
+                  onChange={(value) => setPeriod(value)}
+                  size="sm"
+                  status={period && !PERIOD_PATTERN.test(period) ? { type: 'error', message: 'Định dạng YYYY-MM' } : undefined}
+                />
+              </div>
               <Button
+                label="Tạo nháp AI"
                 size="sm"
+                variant="primary"
                 onClick={handleCreateDraft}
-                loading={draftMut.isPending}
-                disabled={!PERIOD_PATTERN.test(period) || Boolean(draftId)}
-              >
-                Tạo nháp AI
-              </Button>
-            </Group>
+                isLoading={draftMut.isPending}
+                isDisabled={!PERIOD_PATTERN.test(period) || Boolean(draftId)}
+              />
+            </HStack>
             {draftMut.error && (
-              <Text fz="sm" c="red">{draftMut.error.message}</Text>
+              <Banner status="error" title={draftMut.error.message} />
             )}
           </Stack>
         )}
 
         {/* ── Step 3: Review + Edit + Confirm ─────────────────── */}
         {draftId && (
-          <Stack gap="sm">
-            <Alert color="yellow" title="Nháp AI — chưa phát hành" radius="xs">
-              Nội dung dưới đây do AI tạo ra. Giáo viên phải xem xét, chỉnh sửa nếu cần,
-              rồi bấm <strong>Xác nhận &amp; Phát hành</strong>. Nội dung sẽ chỉ hiện cho
-              phụ huynh sau khi được xác nhận.
-            </Alert>
+          <Stack gap={2}>
+            <Banner
+              status="warning"
+              title="Nháp AI — chưa phát hành"
+              description={
+                <>
+                  Nội dung dưới đây do AI tạo ra. Giáo viên phải xem xét, chỉnh sửa nếu cần,
+                  rồi bấm <strong>Xác nhận &amp; Phát hành</strong>. Nội dung sẽ chỉ hiện cho
+                  phụ huynh sau khi được xác nhận.
+                </>
+              }
+            />
 
             {/* AI raw — read-only reference */}
-            <Stack gap={4}>
-              <Text fz="xs" tt="uppercase" c="dimmed" fw={600}>
+            <Stack gap={0.5}>
+              <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase' }}>
                 Nháp gốc từ AI (chỉ đọc)
               </Text>
-              <Textarea
+              {/* TODO(astryx-review): Astryx TextArea has no confirmed
+                  read-only/autosize props (unused elsewhere in the migrated
+                  codebase) — `isDisabled` used to keep this field
+                  non-editable, closest available prop to the prior readOnly.
+                  `label` is required but the heading above already names
+                  the field — passed as empty string on both TextAreas below
+                  to avoid a duplicate visible label (flagged for reviewer). */}
+              <TextArea
+                label="Nội dung do AI tạo"
+                isLabelHidden
                 value={aiRawContent}
-                readOnly
-                minRows={4}
-                autosize
-                styles={{ input: { background: 'var(--mantine-color-gray-0)', color: 'var(--mantine-color-dimmed)' } }}
+                onChange={() => {}}
+                isDisabled
+                rows={4}
               />
             </Stack>
 
             {/* Editable copy */}
-            <Stack gap={4}>
-              <Text fz="xs" tt="uppercase" c="dimmed" fw={600}>
+            <Stack gap={0.5}>
+              <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase' }}>
                 Nội dung sau chỉnh sửa (sẽ được phát hành)
               </Text>
-              <Textarea
+              <TextArea
+                label="Nội dung sau chỉnh sửa"
+                isLabelHidden
                 value={editContent}
-                onChange={(e) => setEditContent(e.currentTarget.value)}
-                minRows={4}
-                autosize
+                onChange={(value) => setEditContent(value)}
+                rows={4}
                 placeholder="Chỉnh sửa nội dung nhận xét tại đây…"
               />
             </Stack>
 
             {confirmMut.error && (
-              <Text fz="sm" c="red">{confirmMut.error.message}</Text>
+              <Banner status="error" title={confirmMut.error.message} />
             )}
 
-            <Group gap="sm">
+            <HStack gap={2}>
               <Button
-                color="green"
-                radius="xs"
+                label="Xác nhận & Phát hành"
+                variant="primary"
                 onClick={handleConfirm}
-                loading={confirmMut.isPending}
-                disabled={!editContent.trim()}
-              >
-                Xác nhận &amp; Phát hành
-              </Button>
+                isLoading={confirmMut.isPending}
+                isDisabled={!editContent.trim()}
+              />
               <Button
-                variant="default"
-                radius="xs"
+                label="Hủy nháp"
+                variant="secondary"
                 onClick={handleCancelDraft}
-                disabled={confirmMut.isPending}
-              >
-                Hủy nháp
-              </Button>
-            </Group>
+                isDisabled={confirmMut.isPending}
+              />
+            </HStack>
           </Stack>
         )}
 
         {/* ── Step 4: Success ─────────────────────────────────── */}
         {confirmed && (
-          <Alert color="green" title="Đã phát hành" radius="xs">
-            Nhận xét đã được xác nhận. Phụ huynh có thể xem trong ứng dụng.
-          </Alert>
+          <Banner status="success" title="Đã phát hành" description="Nhận xét đã được xác nhận. Phụ huynh có thể xem trong ứng dụng." />
         )}
 
       </Stack>

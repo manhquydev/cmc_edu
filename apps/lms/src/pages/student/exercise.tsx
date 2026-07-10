@@ -16,19 +16,7 @@
 
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Alert,
-  Anchor,
-  Badge,
-  Box,
-  Button,
-  Group,
-  Loader,
-  Stack,
-  Text,
-  Textarea,
-  Title,
-} from '@mantine/core';
+import { Badge, Banner, Button, Heading, HStack, Spinner, Stack, Text, TextArea } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 // Max answer text length — well within the backend's 20k char limit.
@@ -93,111 +81,119 @@ export default function ExercisePage() {
 
   if (isLoading) {
     return (
-      <Box className="lms-shell" style={{ padding: '2rem', textAlign: 'center' }}>
-        <Loader />
-      </Box>
+      <div className="lms-shell" style={{ padding: '2rem', textAlign: 'center' }}>
+        <Spinner />
+      </div>
     );
   }
 
   if (!exercise) {
     return (
-      <Box className="lms-shell" style={{ padding: '1.5rem' }}>
-        <Alert color="orange" variant="light" title="Bài tập không tồn tại hoặc chưa mở">
-          Bài tập này chưa mở hoặc không thuộc về tài khoản của bạn.
-        </Alert>
-        <Button variant="subtle" mt="md" onClick={() => navigate('/student/home')}>
-          ← Quay lại
-        </Button>
-      </Box>
+      <div className="lms-shell" style={{ padding: '1.5rem' }}>
+        <Banner status="warning" title="Bài tập không tồn tại hoặc chưa mở" description="Bài tập này chưa mở hoặc không thuộc về tài khoản của bạn." />
+        <Button
+          variant="ghost"
+          style={{ marginTop: 16 }}
+          label="← Quay lại"
+          onClick={() => navigate('/student/home')}
+        />
+      </div>
     );
   }
 
   if (submitted) {
     return (
-      <Box className="lms-shell" style={{ padding: '1.5rem' }}>
-        <Alert color="green" variant="light" title="Đã nộp bài thành công!">
-          Bài làm của bạn đã được gửi. Giáo viên sẽ chấm điểm sớm nhất có thể.
-        </Alert>
-        <Button mt="md" onClick={() => navigate('/student/home')}>
-          ← Về trang chủ
-        </Button>
-      </Box>
+      <div className="lms-shell" style={{ padding: '1.5rem' }}>
+        <Banner status="success" title="Đã nộp bài thành công!" description="Bài làm của bạn đã được gửi. Giáo viên sẽ chấm điểm sớm nhất có thể." />
+        <Button
+          style={{ marginTop: 16 }}
+          label="← Về trang chủ"
+          onClick={() => navigate('/student/home')}
+        />
+      </div>
     );
   }
 
   return (
-    <Box className="lms-shell">
-      <Box className="lms-topbar">
-        <Anchor size="sm" onClick={() => navigate('/student/home')}>← Bài tập</Anchor>
+    <div className="lms-shell">
+      <div className="lms-topbar">
+        <Button variant="ghost" size="sm" label="← Bài tập" onClick={() => navigate('/student/home')} />
         <Text className="lms-topbar__brand">Làm bài</Text>
-        <Box w={60} />
-      </Box>
+        <div style={{ width: 60 }} />
+      </div>
 
-      <Box className="lms-page">
-        <Group justify="space-between" mb="xs">
-          <Title order={4} style={{ margin: 0 }}>{exercise.type}</Title>
-          <Badge color="blue" variant="light">
-            {exercise.starReward} sao
-          </Badge>
-        </Group>
-        <Text size="xs" c="dimmed" mb="lg">
+      <div className="lms-page">
+        <HStack justify="between" style={{ marginBottom: 8 }}>
+          <Heading level={4} style={{ margin: 0 }}>{exercise.type}</Heading>
+          <Badge label={`${exercise.starReward} sao`} variant="blue" />
+        </HStack>
+        <Text type="supporting" size="2xs" display="block" style={{ marginBottom: 24 }}>
           Điểm tối đa: {exercise.maxScore}
         </Text>
 
         {/* PDF base reference — full PDF render is P2-debt */}
         {exercise.basePdfRef && (
-          <Alert color="blue" variant="light" mb="md">
-            Tệp bài tập:{' '}
-            <Anchor href={exercise.basePdfRef} target="_blank" size="sm">
-              Xem PDF
-            </Anchor>
-            {' '}(tính năng viết tay trực tiếp trên PDF sẽ có trong phiên bản tiếp theo)
-          </Alert>
+          <Banner
+            status="info"
+            title={
+              <>
+                Tệp bài tập:{' '}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  label="Xem PDF"
+                  href={exercise.basePdfRef}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                />
+                {' '}(tính năng viết tay trực tiếp trên PDF sẽ có trong phiên bản tiếp theo)
+              </>
+            }
+            style={{ marginBottom: 16 }}
+          />
         )}
 
-        <Stack gap="md">
-          <Textarea
+        <Stack gap={2}>
+          {/* TODO(astryx-review): Astryx TextArea has no minRows/maxRows auto-grow
+              equivalent (fixed `rows` only) — approximated with rows={6}; the
+              16-row growth cap from the original minRows/maxRows pair is dropped. */}
+          <TextArea
             label="Bài làm của bạn"
             placeholder="Nhập câu trả lời ở đây..."
-            minRows={6}
-            maxRows={16}
+            rows={6}
             value={answerText}
-            onChange={(e) => setAnswerText(e.currentTarget.value)}
+            onChange={(value) => setAnswerText(value)}
             maxLength={MAX_ANSWER_TEXT}
-            disabled={submitMut.isPending || submitted}
+            isDisabled={submitMut.isPending || submitted}
           />
-          <Text size="xs" c="dimmed" ta="right">
+          <Text type="supporting" size="2xs" justify="end" display="block">
             {answerText.length}/{MAX_ANSWER_TEXT}
           </Text>
 
-          {saveError && <Alert color="red" variant="light">{saveError}</Alert>}
-          {submitError && <Alert color="red" variant="light">{submitError}</Alert>}
+          {saveError && <Banner status="error" title={saveError} />}
+          {submitError && <Banner status="error" title={submitError} />}
 
           {saveDraftMut.isSuccess && !submitMut.isPending && (
-            <Alert color="green" variant="light" p="xs">
-              <Text size="xs">Đã lưu nháp.</Text>
-            </Alert>
+            <Banner status="success" title="Đã lưu nháp." />
           )}
 
-          <Group>
+          <HStack gap={2}>
             <Button
-              variant="outline"
-              loading={saveDraftMut.isPending && !submitMut.isPending}
+              variant="secondary"
+              label="Lưu nháp"
+              isLoading={saveDraftMut.isPending && !submitMut.isPending}
               onClick={saveDraft}
-              disabled={!answerText || submitMut.isPending}
-            >
-              Lưu nháp
-            </Button>
+              isDisabled={!answerText || submitMut.isPending}
+            />
             <Button
-              loading={submitMut.isPending || (saveDraftMut.isPending && submitMut.isIdle)}
+              label="Nộp bài"
+              isLoading={submitMut.isPending || (saveDraftMut.isPending && submitMut.isIdle)}
               onClick={submitAnswer}
-              disabled={!answerText}
-            >
-              Nộp bài
-            </Button>
-          </Group>
+              isDisabled={!answerText}
+            />
+          </HStack>
         </Stack>
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }

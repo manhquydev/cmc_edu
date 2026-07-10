@@ -1,18 +1,8 @@
 import { useSearchParams } from 'react-router-dom';
-import { FilterBar, PageHeader, DataTable } from '@cmc/ui';
+import type { ComponentProps } from 'react';
+import { Badge, Button, Card, DataTable, FilterBar, Grid, HStack, PageHeader, Skeleton, Stack, Text } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
-import {
-  Badge,
-  Box,
-  Button,
-  Card,
-  Group,
-  SimpleGrid,
-  Skeleton,
-  Stack,
-  Text,
-} from '@mantine/core';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,11 +37,13 @@ const FILTERS: FilterDef[] = [
   { key: 'courseId', label: 'ID khóa học', type: 'text', placeholder: 'Lọc theo khóa học' },
 ];
 
-const STATUS_COLORS: Record<string, string> = {
-  active: 'green',
+type BadgeVariant = ComponentProps<typeof Badge>['variant'];
+
+const STATUS_VARIANTS: Record<string, BadgeVariant> = {
+  active: 'success',
   completed: 'blue',
-  cancelled: 'red',
-  planned: 'gray',
+  cancelled: 'error',
+  planned: 'neutral',
 };
 
 const LIST_COLUMNS: TableColumn<ClassBatchRow>[] = [
@@ -73,11 +65,7 @@ const LIST_COLUMNS: TableColumn<ClassBatchRow>[] = [
     key: 'status',
     label: 'Trạng thái',
     width: 120,
-    render: (v) => (
-      <Badge color={STATUS_COLORS[v as string] ?? 'gray'} size="sm" radius="xs">
-        {String(v)}
-      </Badge>
-    ),
+    render: (v) => <Badge label={String(v)} variant={STATUS_VARIANTS[v as string] ?? 'neutral'} />,
   },
 ];
 
@@ -88,13 +76,13 @@ const LIST_COLUMNS: TableColumn<ClassBatchRow>[] = [
 function CalendarView({ rows, loading }: { rows: ClassBatchRow[]; loading: boolean }) {
   if (loading) {
     return (
-      <Box p="md">
-        <SimpleGrid cols={7} spacing="xs">
+      <div style={{ padding: 16 }}>
+        <Grid columns={7} gap={1}>
           {Array.from({ length: 28 }, (_, i) => (
-            <Skeleton key={i} height={40} radius="xs" />
+            <Skeleton key={i} height={40} radius={1} />
           ))}
-        </SimpleGrid>
-      </Box>
+        </Grid>
+      </div>
     );
   }
 
@@ -112,51 +100,48 @@ function CalendarView({ rows, loading }: { rows: ClassBatchRow[]; loading: boole
 
   if (byMonth.size === 0) {
     return (
-      <Box p="xl">
-        <Text c="dimmed" ta="center">
+      <div style={{ padding: 32 }}>
+        <Text type="supporting" size="sm" justify="center" display="block">
           Chưa có lớp học nào
         </Text>
-      </Box>
+      </div>
     );
   }
 
   return (
-    <Box p="md">
+    <div style={{ padding: 16 }}>
       {Array.from(byMonth.entries()).map(([month, items]) => (
-        <Box key={month} mb="lg">
-          <Text fz="sm" fw={600} mb="xs" c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
+        <div key={month} style={{ marginBottom: 20 }}>
+          <Text
+            type="supporting"
+            size="sm"
+            weight="semibold"
+            style={{ marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+          >
             {month}
           </Text>
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="xs">
+          <Grid columns={{ minWidth: 220, max: 3 }} gap={1}>
             {items.map((item) => (
-              <Card
-                key={item.id}
-                padding="sm"
-                radius="xs"
-                withBorder
-                style={{ borderColor: 'var(--cmc-border)' }}
-              >
-                <Group justify="space-between" mb={4}>
-                  <Text fz="sm" fw={600}>
+              <Card key={item.id} padding={2} style={{ borderColor: 'var(--cmc-border)' }}>
+                <HStack justify="between" style={{ marginBottom: 4 }}>
+                  <Text size="sm" weight="semibold">
                     {item.code}
                   </Text>
-                  <Badge color={STATUS_COLORS[item.status] ?? 'gray'} size="xs" radius="xs">
-                    {item.status}
-                  </Badge>
-                </Group>
-                <Text fz="xs" c="dimmed">
+                  <Badge label={item.status} variant={STATUS_VARIANTS[item.status] ?? 'neutral'} />
+                </HStack>
+                <Text type="supporting" size="xsm">
                   {item.program}
                 </Text>
-                <Text fz="xs" c="dimmed" mt={2}>
+                <Text type="supporting" size="xsm" style={{ marginTop: 2 }}>
                   {new Date(item.startDate as string).toLocaleDateString('vi-VN')} —{' '}
                   {new Date(item.endDate as string).toLocaleDateString('vi-VN')}
                 </Text>
               </Card>
             ))}
-          </SimpleGrid>
-        </Box>
+          </Grid>
+        </div>
       ))}
-    </Box>
+    </div>
   );
 }
 
@@ -170,16 +155,16 @@ function KanbanView({ rows, loading }: { rows: ClassBatchRow[]; loading: boolean
 
   if (loading) {
     return (
-      <Group gap="md" p="md" align="flex-start">
+      <HStack gap={4} align="start" style={{ padding: 16 }}>
         {KANBAN_COLS.map((col) => (
-          <Box key={col.key} style={{ minWidth: 220 }}>
-            <Skeleton height={24} mb="sm" />
+          <div key={col.key} style={{ minWidth: 220 }}>
+            <Skeleton height={24} radius={1} style={{ marginBottom: 8 }} />
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} height={64} mb="xs" radius="xs" />
+              <Skeleton key={i} height={64} radius={1} style={{ marginBottom: 4 }} />
             ))}
-          </Box>
+          </div>
         ))}
-      </Group>
+      </HStack>
     );
   }
 
@@ -191,52 +176,44 @@ function KanbanView({ rows, loading }: { rows: ClassBatchRow[]; loading: boolean
   }
 
   return (
-    <Box p="md" style={{ overflowX: 'auto' }}>
-      <Group gap="md" align="flex-start" style={{ flexWrap: 'nowrap' }}>
+    <div style={{ padding: 16, overflowX: 'auto' }}>
+      <HStack gap={4} align="start" wrap="nowrap">
         {KANBAN_COLS.map((col) => {
           const items = byStatus.get(col.key) ?? [];
           return (
-            <Box key={col.key} style={{ minWidth: 220, flexShrink: 0 }}>
-              <Group mb="sm" gap="xs">
-                <Text fz="xs" fw={700} tt="uppercase" c="dimmed" style={{ letterSpacing: '0.04em' }}>
+            <div key={col.key} style={{ minWidth: 220, flexShrink: 0 }}>
+              <HStack gap={1} style={{ marginBottom: 8 }}>
+                <Text type="supporting" size="xsm" weight="bold" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   {col.label}
                 </Text>
-                <Badge color={STATUS_COLORS[col.key] ?? 'gray'} size="xs" radius="xs">
-                  {items.length}
-                </Badge>
-              </Group>
-              <Stack gap="xs">
+                <Badge label={String(items.length)} variant={STATUS_VARIANTS[col.key] ?? 'neutral'} />
+              </HStack>
+              <Stack gap={1}>
                 {items.length === 0 ? (
-                  <Text fz="xs" c="dimmed" ta="center" py="md">
+                  <Text type="supporting" size="xsm" justify="center" display="block" style={{ paddingBlock: 16 }}>
                     Không có lớp
                   </Text>
                 ) : (
                   items.map((item) => (
-                    <Card
-                      key={item.id}
-                      padding="sm"
-                      radius="xs"
-                      withBorder
-                      style={{ borderColor: 'var(--cmc-border)' }}
-                    >
-                      <Text fz="sm" fw={600}>
+                    <Card key={item.id} padding={2} style={{ borderColor: 'var(--cmc-border)' }}>
+                      <Text size="sm" weight="semibold">
                         {item.code}
                       </Text>
-                      <Text fz="xs" c="dimmed">
+                      <Text type="supporting" size="xsm">
                         {item.program}
                       </Text>
-                      <Text fz="xs" c="dimmed" mt={2}>
+                      <Text type="supporting" size="xsm" style={{ marginTop: 2 }}>
                         {new Date(item.startDate as string).toLocaleDateString('vi-VN')}
                       </Text>
                     </Card>
                   ))
                 )}
               </Stack>
-            </Box>
+            </div>
           );
         })}
-      </Group>
-    </Box>
+      </HStack>
+    </div>
   );
 }
 
@@ -270,19 +247,17 @@ export default function SchedulePage() {
         subtitle="Quản lý lịch giảng dạy"
         breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Lịch dạy' }]}
         actions={
-          <Group gap="xs">
+          <HStack gap={1}>
             {VIEWS.map((v) => (
               <Button
                 key={v}
-                size="xs"
-                radius="xs"
-                variant={view === v ? 'filled' : 'default'}
+                label={VIEW_LABELS[v]}
+                size="sm"
+                variant={view === v ? 'primary' : 'secondary'}
                 onClick={() => setView(v)}
-              >
-                {VIEW_LABELS[v]}
-              </Button>
+              />
             ))}
-          </Group>
+          </HStack>
         }
       />
       <FilterBar filters={FILTERS} />

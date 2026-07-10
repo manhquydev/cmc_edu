@@ -10,17 +10,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
-  Box,
+  Banner,
   Button,
-  Group,
-  Paper,
+  Card,
+  HStack,
+  PageHeader,
   Stack,
   Text,
-  Textarea,
+  TextArea,
   TextInput,
-} from '@mantine/core';
-import { PageHeader } from '@cmc/ui';
+} from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 // ---------------------------------------------------------------------------
@@ -48,12 +47,7 @@ function IctClock() {
   }, []);
 
   return (
-    <Text
-      fz={26}
-      fw={700}
-      ta="center"
-      style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--cmc-text)' }}
-    >
+    <Text type="body" size="2xl" weight="bold" display="block" justify="center" hasTabularNumbers>
       {display}
     </Text>
   );
@@ -81,59 +75,55 @@ function ManualPunchForm({ onClose }: { onClose: () => void }) {
   const dateFormatOk = /^\d{4}-\d{2}-\d{2}$/.test(ticketDate);
 
   return (
-    <Paper withBorder p="md" radius="xs">
-      <Stack gap="sm">
-        <Text fw={600} fz="sm">
+    <Card padding={3}>
+      <Stack gap={2}>
+        <Text type="body" size="sm" weight="semibold">
           Yêu cầu chấm công thủ công
         </Text>
-        <Text fz="xs" c="dimmed">
+        <Text type="supporting" size="2xs">
           Dùng khi thiết bị nằm ngoài mạng WiFi cơ sở. Quản lý trực tiếp sẽ xét duyệt.
         </Text>
         <TextInput
           label="Ngày cần chấm (YYYY-MM-DD)"
           placeholder="2026-07-07"
           value={ticketDate}
-          onChange={(e) => setTicketDate(e.currentTarget.value)}
-          error={ticketDate && !dateFormatOk ? 'Định dạng không hợp lệ — dùng YYYY-MM-DD' : undefined}
-          radius="xs"
+          onChange={(v) => setTicketDate(v)}
+          status={
+            ticketDate && !dateFormatOk
+              ? { type: 'error', message: 'Định dạng không hợp lệ — dùng YYYY-MM-DD' }
+              : undefined
+          }
           size="sm"
         />
-        <Textarea
+        <TextArea
           label="Lý do"
           placeholder="Nêu lý do không thể chấm công qua IP cơ sở..."
           value={note}
-          onChange={(e) => setNote(e.currentTarget.value)}
-          radius="xs"
+          onChange={(v) => setNote(v)}
           size="sm"
           rows={3}
           maxLength={2000}
         />
         {result && (
-          <Alert color={result.ok ? 'green' : 'red'} radius="xs">
-            {result.text}
-          </Alert>
+          <Banner status={result.ok ? 'success' : 'error'} title={result.text} />
         )}
-        <Group justify="flex-end" gap="xs">
+        <HStack justify="end" gap={1}>
           <Button
-            variant="default"
-            size="xs"
-            radius="xs"
+            label="Đóng"
+            variant="secondary"
+            size="sm"
             onClick={() => { onClose(); setResult(null); }}
-          >
-            Đóng
-          </Button>
+          />
           <Button
-            size="xs"
-            radius="xs"
-            loading={mut.isPending}
-            disabled={!dateFormatOk}
+            label="Gửi yêu cầu"
+            size="sm"
+            isLoading={mut.isPending}
+            isDisabled={!dateFormatOk}
             onClick={() => mut.mutate({ ticketDate, note })}
-          >
-            Gửi yêu cầu
-          </Button>
-        </Group>
+          />
+        </HStack>
       </Stack>
-    </Paper>
+    </Card>
   );
 }
 
@@ -182,70 +172,76 @@ export default function CheckInOutPage() {
         subtitle="Điểm danh ca làm việc (IP cơ sở)"
         breadcrumbs={[{ label: 'HR' }, { label: 'Chấm công' }]}
       />
-      <Box p="md" maw={520}>
-        <Stack gap="md">
+      <div style={{ padding: 16, maxWidth: 520 }}>
+        <Stack gap={3}>
           {/* Clock + punch action */}
-          <Paper withBorder p="xl" radius="xs">
-            <Stack align="center" gap="lg">
+          <Card padding={6}>
+            <Stack hAlign="center" gap={4}>
               <IctClock />
 
               <Button
-                size="xl"
-                radius="xs"
-                loading={punchMut.isPending}
+                label="Chấm công"
+                size="lg"
+                isLoading={punchMut.isPending}
                 onClick={() => punchMut.mutate()}
-              >
-                Chấm công
-              </Button>
+              />
 
               {punchAlert.kind === 'success' && (
-                <Alert color="green" title="Đã ghi nhận" w="100%" radius="xs">
-                  Chấm công lúc {punchAlert.timeStr}. Nếu chưa có ca đã duyệt, hệ thống ghi nhận
-                  và chờ review — không áp phạt tự động.
-                </Alert>
+                <Banner
+                  status="success"
+                  title="Đã ghi nhận"
+                  description={`Chấm công lúc ${punchAlert.timeStr}. Nếu chưa có ca đã duyệt, hệ thống ghi nhận và chờ review — không áp phạt tự động.`}
+                />
               )}
               {punchAlert.kind === 'ip_fail' && (
-                <Alert color="orange" title="Ngoài mạng cơ sở" w="100%" radius="xs">
-                  Thiết bị không khớp dải mạng WiFi cơ sở (máy chủ xác nhận). Dùng form
-                  chấm công thủ công bên dưới.
-                </Alert>
+                <Banner
+                  status="warning"
+                  title="Ngoài mạng cơ sở"
+                  description="Thiết bị không khớp dải mạng WiFi cơ sở (máy chủ xác nhận). Dùng form chấm công thủ công bên dưới."
+                />
               )}
               {punchAlert.kind === 'cooldown' && (
-                <Alert color="yellow" title="Chờ cooldown" w="100%" radius="xs">
-                  Đã chấm công trong vòng 5 phút. Thử lại sau.
-                </Alert>
+                <Banner
+                  status="warning"
+                  title="Chờ cooldown"
+                  description="Đã chấm công trong vòng 5 phút. Thử lại sau."
+                />
               )}
               {punchAlert.kind === 'error' && (
-                <Alert color="red" title="Lỗi chấm công" w="100%" radius="xs">
-                  {punchAlert.msg}
-                </Alert>
+                <Banner status="error" title="Lỗi chấm công" description={punchAlert.msg} />
               )}
             </Stack>
-          </Paper>
+          </Card>
 
           {/* Punch-without-shift invariant note */}
-          <Alert color="blue" variant="light" radius="xs">
-            Nếu chưa có ca đã duyệt, hệ thống{' '}
-            <Text span fw={600}>ghi nhận và chờ review</Text> — không tự áp phạt. Phạt (nếu
-            có) chỉ được tính khi xử lý bảng lương cuối kỳ.
-          </Alert>
+          <Banner
+            status="info"
+            title="Ghi nhận không cần ca"
+            description={
+              <>
+                Nếu chưa có ca đã duyệt, hệ thống{' '}
+                <Text type="body" size="sm" weight="semibold" as="span">
+                  ghi nhận và chờ review
+                </Text>{' '}
+                — không tự áp phạt. Phạt (nếu có) chỉ được tính khi xử lý bảng lương cuối kỳ.
+              </>
+            }
+          />
 
           {/* Manual punch toggle */}
           {!showManual && (
             <Button
-              variant="subtle"
-              size="xs"
-              radius="xs"
+              label="Gửi yêu cầu chấm công thủ công"
+              variant="ghost"
+              size="sm"
               style={{ alignSelf: 'flex-start' }}
               onClick={() => setShowManual(true)}
-            >
-              Gửi yêu cầu chấm công thủ công
-            </Button>
+            />
           )}
 
           {showManual && <ManualPunchForm onClose={() => setShowManual(false)} />}
         </Stack>
-      </Box>
+      </div>
     </>
   );
 }

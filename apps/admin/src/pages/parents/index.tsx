@@ -1,6 +1,17 @@
 import { useState } from 'react';
-import { Badge, Button, Group, Modal, Select, Stack, Text, TextInput } from '@mantine/core';
-import { DataTable, PageHeader } from '@cmc/ui';
+import {
+  Button,
+  DataTable,
+  Dialog,
+  DialogHeader,
+  HStack,
+  PageHeader,
+  Selector,
+  Stack,
+  StatusBadge,
+  Text,
+  TextInput,
+} from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
@@ -16,12 +27,6 @@ interface LinkRow {
   createdAt: string | Date;
   [key: string]: unknown;
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'yellow',
-  approved: 'green',
-  rejected: 'red',
-};
 
 const STATUS_LABELS: Record<string, string> = {
   pending: 'Chờ duyệt',
@@ -43,9 +48,7 @@ const BASE_COLUMNS: TableColumn<LinkRow>[] = [
     label: 'Trạng thái',
     width: 120,
     render: (v) => (
-      <Badge color={STATUS_COLORS[String(v)] ?? 'gray'} variant="light">
-        {STATUS_LABELS[String(v)] ?? String(v)}
-      </Badge>
+      <StatusBadge status={String(v)} label={STATUS_LABELS[String(v)] ?? String(v)} />
     ),
   },
   {
@@ -134,20 +137,21 @@ export default function ParentListPage() {
             label: 'Thao tác',
             width: 180,
             render: (_v, row) => (
-              <Group gap="xs" onClick={(e) => e.stopPropagation()}>
-                <Button size="xs" color="green" onClick={() => setApproveRow(row)}>
-                  Duyệt
-                </Button>
+              <HStack gap={1} onClick={(e) => e.stopPropagation()}>
                 <Button
-                  size="xs"
-                  color="red"
-                  variant="outline"
-                  loading={rejectMut.isPending && rejectMut.variables?.requestId === row.id}
+                  label="Duyệt"
+                  size="sm"
+                  variant="primary"
+                  onClick={() => setApproveRow(row)}
+                />
+                <Button
+                  label="Từ chối"
+                  size="sm"
+                  variant="destructive"
+                  isLoading={rejectMut.isPending && rejectMut.variables?.requestId === row.id}
                   onClick={() => handleReject(row.id)}
-                >
-                  Từ chối
-                </Button>
-              </Group>
+                />
+              </HStack>
             ),
           },
         ]
@@ -159,15 +163,14 @@ export default function ParentListPage() {
               label: 'Thao tác',
               width: 160,
               render: (_v, row) => (
-                <Group gap="xs" onClick={(e) => e.stopPropagation()}>
+                <HStack gap={1} onClick={(e) => e.stopPropagation()}>
                   <Button
-                    size="xs"
-                    variant="outline"
+                    label="Cập nhật email"
+                    size="sm"
+                    variant="secondary"
                     onClick={() => handleOpenEmailModal(row)}
-                  >
-                    Cập nhật email
-                  </Button>
-                </Group>
+                  />
+                </HStack>
               ),
             },
           ]
@@ -187,27 +190,30 @@ export default function ParentListPage() {
         breadcrumbs={[{ label: 'Quản trị' }, { label: 'Phụ huynh' }]}
       />
 
-      <Group p="md" gap="sm">
-        <Text fz="sm" c="dimmed">
+      <HStack padding={4} gap={2}>
+        <Text type="supporting" size="sm">
           Lọc:
         </Text>
-        <Select
-          value={filterStatus}
-          onChange={(v) => setFilterStatus((v as FilterStatus) ?? 'pending')}
-          data={[
-            { value: 'pending', label: 'Chờ duyệt' },
-            { value: 'approved', label: 'Đã duyệt' },
-            { value: 'rejected', label: 'Từ chối' },
-          ]}
-          size="sm"
-          style={{ width: 160 }}
-        />
+        <div style={{ width: 160 }}>
+          <Selector
+            label="Lọc theo trạng thái"
+            isLabelHidden
+            value={filterStatus}
+            onChange={(v) => setFilterStatus((v as FilterStatus) ?? 'pending')}
+            options={[
+              { value: 'pending', label: 'Chờ duyệt' },
+              { value: 'approved', label: 'Đã duyệt' },
+              { value: 'rejected', label: 'Từ chối' },
+            ]}
+            size="sm"
+          />
+        </div>
         {data && (
-          <Text fz="sm" c="dimmed">
+          <Text type="supporting" size="sm">
             {data.total} yêu cầu
           </Text>
         )}
-      </Group>
+      </HStack>
 
       <DataTable<LinkRow>
         columns={columns}
@@ -217,111 +223,132 @@ export default function ParentListPage() {
         empty="Không có yêu cầu nào"
       />
 
-      {/* Approve modal with relation selector */}
-      <Modal
-        opened={Boolean(approveRow)}
-        onClose={() => setApproveRow(null)}
-        title="Duyệt liên kết phụ huynh"
-        size="sm"
-        radius="xs"
-        centered
-        closeOnClickOutside={!approveMut.isPending}
+      {/* Approve modal with relation selector.
+          TODO(astryx-review): Astryx Dialog manages its own focus-trap and
+          Escape/backdrop-dismiss internally (native <dialog>-based) — different
+          implementation from the prior Modal. purpose="form" blocks backdrop
+          click (closest match to the original closeOnClickOutside={!pending}
+          guard, though Astryx has no per-render conditional for it). Flagged
+          per migration rule for any non-confirm modal. */}
+      <Dialog
+        isOpen={Boolean(approveRow)}
+        onOpenChange={(next) => {
+          if (!next && !approveMut.isPending) setApproveRow(null);
+        }}
+        purpose="form"
+        width={400}
       >
+        <DialogHeader
+          title="Duyệt liên kết phụ huynh"
+          onOpenChange={(next) => {
+            if (!next && !approveMut.isPending) setApproveRow(null);
+          }}
+        />
         {approveRow && (
-          <Stack gap="sm">
-            <Text fz="sm">
+          <Stack gap={2} padding={4}>
+            <Text size="sm">
               Học viên: <strong>{approveRow.studentName}</strong>
             </Text>
-            <Text fz="sm">
+            <Text size="sm">
               SĐT phụ huynh: <strong>{approveRow.parentPhone}</strong>
             </Text>
-            <Select
+            <Selector
               label="Quan hệ với học viên"
-              data={RELATION_OPTIONS}
+              options={RELATION_OPTIONS}
               value={relation}
               onChange={(v) => setRelation(v ?? 'guardian')}
-              required
+              isRequired
             />
             {approveMut.error && (
-              <Text fz="sm" c="red">
+              // TODO(astryx-review): Text color enum has no error/danger slot —
+              // plain <span> with CSS var per migration flag rule.
+              <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
                 {approveMut.error.message}
-              </Text>
+              </span>
             )}
-            <Group justify="flex-end" mt="xs" gap="xs">
+            <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
               <Button
-                variant="default"
-                radius="xs"
+                label="Hủy"
+                variant="secondary"
                 onClick={() => setApproveRow(null)}
-                disabled={approveMut.isPending}
-              >
-                Hủy
-              </Button>
+                isDisabled={approveMut.isPending}
+              />
               <Button
-                color="green"
-                radius="xs"
+                label="Xác nhận duyệt"
+                variant="primary"
                 onClick={handleApproveSubmit}
-                loading={approveMut.isPending}
-              >
-                Xác nhận duyệt
-              </Button>
-            </Group>
+                isLoading={approveMut.isPending}
+              />
+            </HStack>
           </Stack>
         )}
-      </Modal>
+      </Dialog>
 
       {/* Email update modal — allows staff to set/update parent email for LMS login */}
-      <Modal
-        opened={Boolean(emailRow)}
-        onClose={() => { setEmailRow(null); setEmailInput(''); }}
-        title="Cập nhật email phụ huynh"
-        size="sm"
-        radius="xs"
-        centered
-        closeOnClickOutside={!updateEmailMut.isPending}
+      <Dialog
+        isOpen={Boolean(emailRow)}
+        onOpenChange={(next) => {
+          if (!next && !updateEmailMut.isPending) {
+            setEmailRow(null);
+            setEmailInput('');
+          }
+        }}
+        purpose="form"
+        width={400}
       >
+        <DialogHeader
+          title="Cập nhật email phụ huynh"
+          onOpenChange={(next) => {
+            if (!next && !updateEmailMut.isPending) {
+              setEmailRow(null);
+              setEmailInput('');
+            }
+          }}
+        />
         {emailRow && (
-          <Stack gap="sm">
-            <Text fz="sm">
+          <Stack gap={2} padding={4}>
+            <Text size="sm">
               Phụ huynh: <strong>{emailRow.parentPhone}</strong>
             </Text>
-            <Text fz="sm">
+            <Text size="sm">
               Học viên: <strong>{emailRow.studentName}</strong>
             </Text>
             <TextInput
               label="Email đăng nhập LMS"
               placeholder="example@email.com"
               value={emailInput}
-              onChange={(e) => setEmailInput(e.currentTarget.value)}
+              onChange={(v) => setEmailInput(v)}
               type="email"
-              required
+              isRequired
             />
             {updateEmailMut.error && (
-              <Text fz="sm" c="red">
+              // TODO(astryx-review): Text color enum has no error/danger slot —
+              // plain <span> with CSS var per migration flag rule.
+              <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
                 {updateEmailMut.error.message}
-              </Text>
+              </span>
             )}
-            <Group justify="flex-end" mt="xs" gap="xs">
+            <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
               <Button
-                variant="default"
-                radius="xs"
-                onClick={() => { setEmailRow(null); setEmailInput(''); }}
-                disabled={updateEmailMut.isPending}
-              >
-                Hủy
-              </Button>
+                label="Hủy"
+                variant="secondary"
+                onClick={() => {
+                  setEmailRow(null);
+                  setEmailInput('');
+                }}
+                isDisabled={updateEmailMut.isPending}
+              />
               <Button
-                color="blue"
-                radius="xs"
+                label="Lưu email"
+                variant="primary"
                 onClick={handleEmailSubmit}
-                loading={updateEmailMut.isPending}
-                disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput)}
-              >
-                Lưu email
-              </Button>
-            </Group>
+                isLoading={updateEmailMut.isPending}
+                isDisabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput)}
+              />
+            </HStack>
           </Stack>
         )}
-      </Modal>
+      </Dialog>
     </>
   );
 }

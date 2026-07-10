@@ -1,4 +1,4 @@
-import { Button, Container, Divider, Paper, Stack, Text, Title } from '@mantine/core';
+import { Button, Card, Divider, Heading, Stack, Text } from '@cmc/ui';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,39 +25,34 @@ export function LoginPage() {
     void navigate('/', { replace: true });
   }
 
+  const ssoUrl = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/auth/login`;
+
   return (
-    <Container size={400} mt={80}>
-      <Paper p="xl" withBorder radius="xs">
-        <Stack>
-          <Title order={2} style={{ color: 'var(--cmc-brand)' }}>
+    <div style={{ maxWidth: 400, margin: '80px auto 0', paddingInline: 16 }}>
+      <Card padding={5}>
+        <Stack gap={2}>
+          <Heading level={2} style={{ color: 'var(--cmc-brand)' }}>
             CMC EDU
-          </Title>
-          <Text fz="sm" c="dimmed">
+          </Heading>
+          <Text type="supporting" size="sm">
             Hệ thống quản trị nội bộ
           </Text>
           <Divider />
           {import.meta.env.DEV && (
-            <Button onClick={loginAsDev} variant="filled" radius="xs">
-              Đăng nhập (Dev)
-            </Button>
+            <Button label="Đăng nhập (Dev)" variant="primary" onClick={loginAsDev} />
           )}
           {import.meta.env.VITE_SSO_ENABLED === 'true' && (
             <Button
-              component="a"
-              href={`${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/auth/login`}
-              variant="outline"
-              radius="xs"
-            >
-              Đăng nhập Microsoft (Entra SSO)
-            </Button>
+              label="Đăng nhập Microsoft (Entra SSO)"
+              variant="secondary"
+              onClick={() => window.location.assign(ssoUrl)}
+            />
           )}
           {import.meta.env.VITE_SSO_ENABLED !== 'true' && (
-            <Button disabled variant="outline" radius="xs">
-              Đăng nhập Microsoft (sắp có)
-            </Button>
+            <Button label="Đăng nhập Microsoft (sắp có)" variant="secondary" isDisabled />
           )}
         </Stack>
-      </Paper>
-    </Container>
+      </Card>
+    </div>
   );
 }

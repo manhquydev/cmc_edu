@@ -1,8 +1,8 @@
 # CMC EDU v2 — System Architecture (As-Built)
 
-**Date:** 2026-07-08  
-**Phase:** P1–P3 complete (SSO landing · flow audit) · Phase 4 UAT pending  
-**Build Status:** Merged to main · 473/473 tests passing (13 skipped — lms-auth-two-tier) · 26/26 typecheck green
+**Date:** 2026-07-10  
+**Phase:** P1–P3 complete (SSO landing · flow audit) · Phase 4 UAT pending · UI migration spike GO  
+**Build Status:** Merged to main · 473/473 tests passing (13 skipped — lms-auth-two-tier) · 26/26 typecheck green · e2e UI infrastructure online
 
 ---
 
@@ -70,6 +70,12 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 - **Kind guards:** `ParentOnly`/`StudentOnly` route wrappers in `kind-guard.tsx` — redirect to `/login` on wrong kind; backend `requireLmsParent`/`requireLmsStudent` re-gates every procedure
 - Session: `parseLmsToken` (base64url, unsigned placeholder — P0-debt: add HMAC signing)
 - `x-dev-lms-user` header (dev auth, `import.meta.env.DEV`-gated `DevHeaderWriter`)
+
+**UI Design System Migration (Mantine 7 → Astryx) — Spike APPROVED 2026-07-10:**
+- **Phase 1 (spike, complete):** Verified Astryx (@astryxdesign/core@0.1.4 beta) against production readiness criteria: precompiled CSS (no bundler plugin required), clean build/typecheck/HMR, zero supply-chain vulnerabilities (audit + signature-verified), CSS bundle favorable vs. Mantine (full system smaller, per-component JS deltas bounded), token override via plain CSS custom properties. **GO decision made.**
+- **Phase 2 (in progress):** Theme rebuild + @cmc/ui migration; new browser-based e2e infrastructure (apps/e2e UI-mode Playwright project, `PLAYWRIGHT_UI=1` gate) with fixed API port (apps/e2e/src/global-setup.ts) and Vite dev/preview proxy (apps/admin/vite.config.ts, apps/lms/vite.config.ts) — workaround for lack of CORS in apps/api/src/server.ts. Added specs: apps/e2e/tests/admin-shell.ui.spec.ts, apps/e2e/tests/lms-login.ui.spec.ts.
+- **Migration strategy:** Strangler pattern (Mantine + Astryx CSS coexist through Phase 4; Mantine removed Phase 5). Public API of 10 shared components preserved.
+- **Plan:** plans/260710-0236-astryx-ui-migration/ (gitignored, spans Phase 2-5).
 
 **Auth Integration:**
 - Staff: `x-dev-user` header (dev), Entra SSO (P0-debt)
@@ -435,6 +441,7 @@ if (!canApprove) throw forbidden('Insufficient role for approval.');
 | **No retry scheduler** (K2) | Manual `reconcile-orphaned-receipts` trigger | Background job queue in ops phase |
 | **No real auth** | Dev stub accepts any header; RLS enforces tenant | Real OAuth2 in P2+ |
 | **classBatchId not validated** | Scalars accepted; FK created in P2 | P2 data backfill + constraint |
+| **tRPC basePath missing** (live bug) | Workaround: Vite dev/preview proxy | PR #27 (basePath: '/trpc/' + /health rewrite) |
 
 ---
 
@@ -477,6 +484,20 @@ pnpm build                             # Turbo build (all packages)
 pnpm --filter @cmc/db prisma migrate dev --name <description>
 pnpm --filter @cmc/db prisma migrate deploy  # in CI/deploy
 ```
+
+---
+
+## tRPC Client-Server Bug (Fixed, PR #27)
+
+**Issue:** `apps/api/src/server.ts` standalone tRPC handler (`createHTTPHandler`) lacked `basePath` option. Browser clients (apps/admin, apps/lms) build URLs as `${API_URL}/trpc/{procedure}`, but without `basePath`, the server treated the entire path including "trpc/" as the procedure name → 404 on all requests.
+
+**Impact:** Undetected until Phase 2 e2e testing (no browser-based e2e existed before 2026-07-10). Reproduced against running local prod-simulation Docker stack — live bug blocking browser client communication.
+
+**Fix:** PR #27 (not yet merged):
+- Added `basePath: '/trpc/'` to `createHTTPHandler` in `apps/api/src/server.ts`  
+- Explicit rewrite of bare `/health` → `/trpc/health` (used by Docker healthcheck + e2e health-wait; predates prefix convention)
+
+**Workaround in Phase 2:** Vite dev/preview proxy in apps/admin and apps/lms (proxies /trpc to api server same-origin) masked the bug during local development until real e2e testing exposed it.
 
 ---
 
@@ -530,5 +551,5 @@ This implementation strictly follows the frozen design:
 
 ---
 
-**Last Updated:** 2026-07-08 by docs-manager (Phase 3 audit findings)  
-**Aligns with:** commit 8a68ae1 (main branch) — Phase 3 complete
+**Last Updated:** 2026-07-10 by docs-manager (Astryx migration Phase 1 complete + tRPC basePath bug documented)  
+**Aligns with:** main branch + plans/260710-0236-astryx-ui-migration/

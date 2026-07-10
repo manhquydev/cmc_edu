@@ -1,7 +1,6 @@
 # CMC EDU v2 — Project Roadmap (vision đích cuối + milestone sống)
 
-> Nguồn sự thật cho **hướng đi sau go-live**. Chốt với PO 2026-07-08 (brainstorm
-> `plans/reports/brainstorm-260708-0358-project-vision-endstate-roadmap-report.md`).
+> Nguồn sự thật cho **hướng đi sau go-live**. Chốt với PO 2026-07-08, cập nhật 2026-07-10 (Astryx migration spike GO).
 > Milestone **quality-gated, không date-gated** — qua milestone khi exit criteria đo được pass,
 > không ép deadline. Plan chi tiết tạo **just-in-time** khi milestone sắp bắt đầu (tránh drift —
 > bài học plans 260706-1803 / 260707-2128). Trạng thái build lịch sử P0→P5: TL31.
@@ -27,7 +26,19 @@ CMC EDU v2 đạt đích khi **cả 5** điều sau đúng:
 **Loại khỏi phạm vi v2** (giữ nguyên quyết định TL16): huy hiệu · bảng xếp hạng · chứng chỉ tự động ·
 duyệt lên cấp. SaaS hoá/multi-tenant ngoài CMC: **không trong vision này** (cần brainstorm riêng nếu đặt ra).
 
-## 2. Bản đồ milestone
+## 2. Công việc song song: UI Design System Migration (2026-07-10)
+
+Ngoài các milestone dọc tuyến tính M0→M4, một **UI migration spike (Phase 1) đã chốt GO** vào 2026-07-10:
+- **Mantine v7 → Astryx (beta)** — verified không phá build, CSS footprint tốt hơn, zero supply-chain risk.
+- **Phase 2 (in progress):** Rebuild `@cmc/ui` theme layer; new browser-based e2e infrastructure (apps/e2e UI-mode Playwright).
+- **Phạm vi:** Strangler pattern qua Phase 2-4; bỏ Mantine chỉ ở Phase 5 (không chặn milestone trước).
+- **Plan:** `plans/260710-0236-astryx-ui-migration/` (5 pha, gitignored).
+
+Công việc này **song song với M0-M4**, không kéo timeline M0 go-live (Phase 2 UI work không chặn UAT dùng Mantine hiện tại).
+
+---
+
+## 3. Bản đồ milestone
 
 | # | Milestone | Phạm vi chính | Exit criteria (đo được) | Plan | Trạng thái |
 |---|---|---|---|---|---|
@@ -40,7 +51,7 @@ duyệt lên cấp. SaaS hoá/multi-tenant ngoài CMC: **không trong vision nà
 Phụ thuộc tuyến tính M0→M1→M2→M3→M4. Ngoại lệ cho phép: hạng mục M3 dạng draft-only (không tiền,
 không dữ liệu trẻ ra ngoài) được thí điểm sớm trên data pilot nếu M2 kéo dài — quyết tại plan M3.
 
-## 3. Nguyên tắc vận hành roadmap
+## 4. Nguyên tắc vận hành roadmap
 
 - **Just-in-time planning**: plan milestone kế tiếp chỉ tạo khi milestone hiện tại gần exit —
   brainstorm-nhẹ → `/ck:plan` → red-team nếu chạm tiền/auth/dữ-liệu-trẻ → cook.
@@ -52,7 +63,7 @@ không dữ liệu trẻ ra ngoài) được thí điểm sớm trên data pilot
 - **Stop-conditions kế thừa** (plan 260707-2128): creds sai · migration mất dữ liệu ·
   thao tác phá huỷ ngoài repo · e2e nghi trỏ DB thật.
 
-## 4. Phụ thuộc ngoài repo (theo dõi)
+## 5. Phụ thuộc ngoài repo (theo dõi)
 
 | Hạng mục | Cần cho | Trạng thái 2026-07-08 |
 |---|---|---|

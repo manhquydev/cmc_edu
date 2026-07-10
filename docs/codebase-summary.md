@@ -1,8 +1,8 @@
 # CMC EDU v2 — Codebase Summary
 
-**Status:** SSO landing complete (Phase 1) · Flow audit complete (Phase 3) · Phase 4 UAT pending  
-**Last Updated:** 2026-07-08  
-**Build State:** 473 tests passing (13 skipped — lms-auth-two-tier suite, must un-skip before Phase 4 Run 1); 26/26 typecheck packages green; apps build clean
+**Status:** SSO landing complete (Phase 1) · Flow audit complete (Phase 3) · Phase 4 UAT pending · UI migration spike GO (Phase 2 in progress)  
+**Last Updated:** 2026-07-10  
+**Build State:** 473 tests passing (13 skipped — lms-auth-two-tier suite, must un-skip before Phase 4 Run 1); 26/26 typecheck packages green; apps build clean; e2e UI-mode tests online
 
 ---
 
@@ -14,7 +14,10 @@ D:\project\vip\CMC
 │   ├── admin/           # Vite+React ERP SPA — 30 routes, Mantine v7, tRPC client (phases 02–06)
 │   ├── lms/             # Vite+React LMS SPA — parent+student, kind guards, mobile-first (phase 07)
 │   ├── api/             # tRPC backend (Node.js + Prisma + Postgres) — 27 routers
-│   └── e2e/             # Playwright — API-driven + UI-driven specs (phase 08)
+│   └── e2e/             # Playwright — API-driven specs + browser-based UI tests (phase 08)
+│       ├── src/global-setup.ts         # Fixed API port + health-wait for UI-mode runs (PLAYWRIGHT_UI=1)
+│       ├── tests/*.api.spec.ts         # tRPC API contracts (e2e backend testing)
+│       └── tests/*.ui.spec.ts          # Real browser UI specs (admin-shell, lms-login; Phase 2 new)
 ├── packages/
 │   ├── auth/            # RBAC registry (single source of truth for roles/permissions)
 │   ├── db/              # Prisma schema, migrations, seed — 48 models
@@ -32,6 +35,12 @@ D:\project\vip\CMC
 - **Database:** Postgres + Prisma ORM with row-level security (RLS)  
 - **Frontend:** Vite + React — apps/admin (ERP, 30 routes) + apps/lms (LMS, parent+student kind gate)  
 - **Auth:** Registry-driven RBAC (centralized in `@cmc/auth`)
+- **UI Testing:** Playwright (browser-based e2e; `PLAYWRIGHT_UI=1` gate) with Vite dev/preview proxy for same-origin API calls
+
+**Dev/Preview Infrastructure (Phase 2 — 2026-07-10):**
+- **apps/admin/vite.config.ts, apps/lms/vite.config.ts:** Dev & preview mode proxy config (routes /trpc, /upload, /auth, /health → api server) — workaround for lack of CORS in tRPC handler (see Known Issues). Enables real browser testing without modifying production API security posture.
+- **apps/e2e/src/global-setup.ts:** Fixed API port reservation for UI-mode runs (prevents port-clash between concurrent e2e sessions).
+- **Specs added:** apps/e2e/tests/admin-shell.ui.spec.ts (admin app load, shell render), apps/e2e/tests/lms-login.ui.spec.ts (LMS login flow against real API).
 
 ---
 
@@ -286,6 +295,16 @@ Single RBAC source of truth. Consulted by every mutation via `requirePermission(
 
 ---
 
+## In-Progress Work (Phase 2 — Astryx UI Migration)
+
+**Mantine 7 → Astryx Design System Migration (Spike APPROVED 2026-07-10):**
+- **Phase 1 (complete):** Verified Astryx (@astryxdesign/core@0.1.4 beta, Facebook OSS) production readiness: precompiled CSS (no bundler plugin), clean build/typecheck/HMR, zero supply-chain vulnerabilities (audit+signature), token override via CSS custom properties, CSS footprint favorable vs. Mantine.
+- **Phase 2 (in progress):** Rebuild @cmc/ui theme layer + migrate 10 shared components with API compatibility. New Playwright UI-mode e2e infrastructure added (see Dev/Preview Infrastructure above).
+- **Strategy:** Strangler pattern — both CSS/providers coexist through Phase 4; Mantine removed only in Phase 5.
+- **Plan:** `plans/260710-0236-astryx-ui-migration/` (gitignored; details in plan.md + phase-*.md files).
+
+---
+
 ## Known Deferrals (Not Built in P1)
 
 | Item | Category | Reason | Target Phase |
@@ -297,6 +316,7 @@ Single RBAC source of truth. Consulted by every mutation via `requirePermission(
 | **Graph/Brevo integration** | Infra | Email, SMS transports deferred | Comms phase |
 | **Class provisioning** | P2+ | classBatchId scalars not validated (FK created in P2) | P2 |
 | **Withdrawal/cancellation UI** | Frontend | Backend ready; UI not yet built | Frontend phase |
+| **tRPC basePath** | API | Missing in standalone handler; PR #27 ready, not yet merged | Post-P1 validation |
 
 ---
 
@@ -368,4 +388,5 @@ P1 implementation adheres to frozen design corpus (docs/TL00-TL31):
 
 **Repository:** CMC EDU v2 @ `D:\project\vip\CMC`  
 **Docs Root:** `docs/` (Vietnamese design corpus + English implementation notes)  
-**Reports:** `plans/reports/` (session audits, remediations, deep reviews)
+**Reports:** `plans/reports/` (session audits, remediations, deep reviews)  
+**Last Updated:** 2026-07-10 (Astryx migration Phase 1 GO + e2e UI infrastructure online)

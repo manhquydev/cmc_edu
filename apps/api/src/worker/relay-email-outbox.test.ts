@@ -11,7 +11,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
-import { relayEmailOutbox, sweepStaleOtpPayloads } from './relay-email-outbox.js';
+import { pruneTerminalOutbox, relayEmailOutbox, sweepStaleOtpPayloads } from './relay-email-outbox.js';
 import type { EmailTransport, OutboxEmail } from './email-transport.js';
 import type { PrismaClient } from '@cmc/db';
 import { testDb } from '../test/db.js';
@@ -132,7 +132,7 @@ describe('relayEmailOutbox (K6)', () => {
   });
 
   // ── Gap-closure 260710-0005 Phase 1: OTP scrub + sweep (red-team C1) ──────
-  async function seedOtpOutbox(overrides?: { status?: 'pending' | 'failed'; createdAt?: Date }) {
+  async function seedOtpOutbox(overrides?: { status?: 'pending' | 'failed' | 'dead'; createdAt?: Date }) {
     const row = await testDb().emailOutbox.create({
       data: {
         to: `otp-${Math.random().toString(36).slice(2, 8)}@test.com`,
@@ -180,9 +180,14 @@ describe('relayEmailOutbox (K6)', () => {
 
   it('sweeps a stale OTP row past its TTL regardless of status', async () => {
     const staleDate = new Date(Date.now() - 6 * 60_000); // 6 min ago > 5 min TTL
-    const row = await seedOtpOutbox({ status: 'failed', createdAt: staleDate });
+    // `dead` (not `failed`/`pending`) so the drain loop's own WHERE
+    // (status IN ['pending','failed']) never claims this row this cycle —
+    // only the age-based sweep can reach it. This is the case the sweep
+    // exists to backstop: a terminal row whose payload was never scrubbed
+    // (e.g. a row from before the C1 scrub-on-terminal fix existed).
+    const row = await seedOtpOutbox({ status: 'dead', createdAt: staleDate });
 
-    const result = await relayEmailOutbox(testDb(), {}); // no transport — row would also go dead
+    const result = await relayEmailOutbox(testDb(), {});
 
     expect(result.otpSwept).toBeGreaterThanOrEqual(1);
     const updated = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
@@ -217,6 +222,48 @@ describe('relayEmailOutbox (K6)', () => {
     const unchanged = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: fresh.id } });
     expect(JSON.stringify(unchanged.payload)).toContain('999999');
   });
+
+  // ── M1 Phase 4 (a): H1 fix regression — whole-object filter must not
+  // re-amplify writes onto rows it already scrubbed.
+  it('sweepStaleOtpPayloads does not re-sweep an already-scrubbed row (no write-amplification)', async () => {
+    const staleDate = new Date(Date.now() - 6 * 60_000); // 6 min ago > 5 min TTL
+    const row = await seedOtpOutbox({ status: 'dead', createdAt: staleDate });
+
+    const first = await sweepStaleOtpPayloads(testDb());
+    expect(first).toBeGreaterThanOrEqual(1);
+    const afterFirst = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
+    expect(afterFirst.payload).toEqual({ kind: 'otp', scrubbed: true });
+
+    // Second sweep on the same, now-scrubbed row must not match it again —
+    // the H1 NULL-trap would have kept matching it (path-scoped check on a
+    // missing `scrubbed` key evaluates UNKNOWN, not TRUE) and re-run the
+    // UPDATE every cycle forever.
+    const second = await sweepStaleOtpPayloads(testDb());
+    expect(second).toBe(0);
+  });
+
+  // ── M1 Phase 4 (b): retention prune ──────────────────────────────────────
+  it('pruneTerminalOutbox deletes old sent/dead rows but keeps pending/failed', async () => {
+    const oldDate = new Date(Date.now() - 31 * 24 * 60 * 60_000); // 31d ago > 30d retention
+    const sentRow = await testDb().emailOutbox.create({
+      data: { to: '84900000011', transport: 'brevo', status: 'sent', payload: {}, createdAt: oldDate },
+    });
+    const deadRow = await testDb().emailOutbox.create({
+      data: { to: '84900000012', transport: 'brevo', status: 'dead', payload: {}, createdAt: oldDate },
+    });
+    const pendingRow = await testDb().emailOutbox.create({
+      data: { to: '84900000013', transport: 'brevo', status: 'pending', payload: {}, createdAt: oldDate },
+    });
+    outboxIdsToClean.push(sentRow.id, deadRow.id, pendingRow.id);
+
+    const pruned = await pruneTerminalOutbox(testDb());
+
+    expect(pruned).toBeGreaterThanOrEqual(2);
+    expect(await testDb().emailOutbox.findUnique({ where: { id: sentRow.id } })).toBeNull();
+    expect(await testDb().emailOutbox.findUnique({ where: { id: deadRow.id } })).toBeNull();
+    const stillPending = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: pendingRow.id } });
+    expect(stillPending.status).toBe('pending');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -231,6 +278,7 @@ type MockDb = {
     findMany: MockInstance;
     updateMany: MockInstance;
     update: MockInstance;
+    deleteMany: MockInstance;
   };
   auditLog: {
     create: MockInstance;
@@ -247,6 +295,7 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
         findMany: vi.fn().mockResolvedValue([]),
         updateMany: vi.fn().mockResolvedValue({ count: 0 }),
         update: vi.fn().mockResolvedValue({}),
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
       auditLog: {
         create: vi.fn().mockResolvedValue({}),
@@ -283,7 +332,7 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
     expect(db.emailOutbox.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: 'sent' } }),
     );
-    expect(result).toEqual({ sent: 1, failed: 0, dead: 0, reaped: 0, otpSwept: 0 });
+    expect(result).toEqual({ sent: 1, failed: 0, dead: 0, reaped: 0, otpSwept: 0, pruned: 0 });
   });
 
   it('failed row → retried → success → sent', async () => {
@@ -316,7 +365,7 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
     const send = vi.fn().mockRejectedValue(new Error('SMTP timeout'));
     const result = await relayEmailOutbox(db as unknown as PrismaClient, { brevo: { send } });
 
-    expect(result).toEqual({ sent: 0, failed: 1, dead: 0, reaped: 0, otpSwept: 0 });
+    expect(result).toEqual({ sent: 0, failed: 1, dead: 0, reaped: 0, otpSwept: 0, pruned: 0 });
     expect(db.emailOutbox.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'failed', attempts: 1, lastError: 'SMTP timeout' }),
@@ -340,7 +389,7 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
     const send = vi.fn().mockRejectedValue(new Error('connection refused'));
     const result = await relayEmailOutbox(db as unknown as PrismaClient, { brevo: { send } });
 
-    expect(result).toEqual({ sent: 0, failed: 0, dead: 1, reaped: 0, otpSwept: 0 });
+    expect(result).toEqual({ sent: 0, failed: 0, dead: 1, reaped: 0, otpSwept: 0, pruned: 0 });
     expect(db.emailOutbox.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'dead', attempts: 5 }),
@@ -365,7 +414,7 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
     const result = await relayEmailOutbox(db as unknown as PrismaClient, {});
 
     expect(result.reaped).toBe(2);
-    expect(result).toEqual({ sent: 0, failed: 0, dead: 0, reaped: 2, otpSwept: 0 });
+    expect(result).toEqual({ sent: 0, failed: 0, dead: 0, reaped: 2, otpSwept: 0, pruned: 0 });
     // First updateMany call must target 'sending' status + updatedAt cutoff
     const reapArgs = (db.emailOutbox.updateMany.mock.calls[0] as [{ where: { status: string; updatedAt: { lt: Date } }; data: { status: string } }])[0];
     expect(reapArgs.where.status).toBe('sending');
@@ -384,7 +433,7 @@ describe('relayEmailOutbox unit tests (RT-6/RT-8)', () => {
 
     const result = await relayEmailOutbox(db as unknown as PrismaClient, { brevo: { send: vi.fn() } });
 
-    expect(result).toEqual({ sent: 0, failed: 0, dead: 1, reaped: 0, otpSwept: 0 });
+    expect(result).toEqual({ sent: 0, failed: 0, dead: 1, reaped: 0, otpSwept: 0, pruned: 0 });
     expect(db.emailOutbox.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

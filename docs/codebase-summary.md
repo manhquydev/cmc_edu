@@ -157,11 +157,14 @@ Detects and recovers mid-provision failures (K2 partial remediation).
 ---
 
 ### `apps/api/src/worker/relay-email-outbox.ts`
-Sends queued emails via EmailOutbox (R3 atomic claim).
+Sends queued emails via EmailOutbox (R3 atomic claim); transport wired (Brevo/Graph).
 
-**Status:** Relay logic exists; **transport NOT wired** (K6: email relay deferred)  
 **Concurrency:** Atomic claim via `updateMany` with new `sending` status (prevents double-send)  
-**Tests:** 5 test cases (concurrent drain safety, idempotency, retry, failed email)
+**OTP hygiene (M1 P4):** `sweepStaleOtpPayloads` scrubs stale OTP payloads (whole-object equality,
+avoids NULL-trap on unscrubbed rows); `pruneTerminalOutbox` deletes `sent`/`dead` rows past
+`EMAIL_OUTBOX_RETENTION_DAYS` (default 30d); indexed on `[status, createdAt]`  
+**Tests:** unit + integration suite (concurrent drain safety, idempotency, retry, failed email, OTP
+scrub/sweep, terminal-row prune)
 
 ---
 

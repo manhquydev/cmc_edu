@@ -256,14 +256,19 @@ Policies applied to: Opportunity, Student, Enrollment, Receipt, RefundRecord, Au
 
 **Purpose:** Deliver queued emails from EmailOutbox.
 
-**Status:** Relay logic ready; **transport layer NOT WIRED** (Brevo/Graph deferred).
+**Status:** Relay logic + transport wired (Brevo for parent-facing, Graph for internal mailboxes).
 
 **Concurrency Safety (R3 remediation):**
 - Each worker replica claims rows via `updateMany({ where: { id, status: { in: ['pending','failed'] } }, data: { status: 'sending' } })`  
 - Only claimer (count=1) proceeds to send  
 - Prevents double-send in distributed setup
 
-**Tests:** 5 test cases (concurrent drain, idempotency, failed email retry, retry limit)
+**OTP payload hygiene (M1 P4):**
+- `sweepStaleOtpPayloads` scrubs plaintext OTP codes from rows past their login TTL, regardless of status — whole-object JSON equality against `SCRUBBED_OTP_PAYLOAD` (not a path-scoped check, which NULL-traps on rows missing the `scrubbed` key)
+- `pruneTerminalOutbox` deletes `sent`/`dead` rows older than `EMAIL_OUTBOX_RETENTION_DAYS` (default 30d)
+- `EmailOutbox` has `@@index([status, createdAt])` covering the drain query
+
+**Tests:** unit + integration suite in `relay-email-outbox.test.ts` (concurrent drain, idempotency, failed email retry, retry limit, OTP scrub/sweep, terminal-row prune)
 
 ---
 

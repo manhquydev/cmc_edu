@@ -1,18 +1,7 @@
 import { Link } from 'react-router-dom';
-import { StatCard, PageHeader } from '@cmc/ui';
+import { StatCard, PageHeader, Badge, Card, Grid, HStack, Skeleton, Stack, Text, Heading } from '@cmc/ui';
 import { useSession } from '../lib/session-context.js';
 import { trpc } from '../lib/trpc.js';
-import {
-  Badge,
-  Box,
-  Card,
-  Group,
-  SimpleGrid,
-  Skeleton,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
 
 export function countPendingApproval(receipts: { status: string }[]): number {
   return receipts.filter((r) => r.status === 'draft').length;
@@ -121,49 +110,47 @@ interface TaskItem {
 function TaskQueue({ items, loading }: { items: TaskItem[]; loading: boolean }) {
   if (loading) {
     return (
-      <Stack gap="xs">
-        {[1, 2, 3].map((i) => <Skeleton key={i} height={48} radius="xs" />)}
+      <Stack gap={1}>
+        {[1, 2, 3].map((i) => <Skeleton key={i} height={48} radius={1} />)}
       </Stack>
     );
   }
 
   if (items.length === 0) {
     return (
-      <Box
-        p="md"
+      <div
         style={{
+          padding: 16,
           border: '1px dashed var(--cmc-border)',
           borderRadius: 4,
           textAlign: 'center',
         }}
       >
-        <Text fz="sm" c="dimmed">
+        <Text type="supporting" size="sm">
           Không có nhiệm vụ nào chờ xử lý cho vai trò này.
         </Text>
-      </Box>
+      </div>
     );
   }
 
   return (
-    <Stack gap="xs">
+    <Stack gap={1}>
       {items.map((item, i) => (
-        <Card
+        <Link
           key={i}
-          padding="sm"
-          radius="xs"
-          withBorder
-          component={Link}
           to={item.href}
-          style={{ borderColor: 'var(--cmc-border)', textDecoration: 'none', cursor: 'pointer' }}
+          style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
         >
-          <Group justify="space-between">
-            <Stack gap={2}>
-              <Text fz="sm" fw={600}>{item.title}</Text>
-              <Text fz="xs" c="dimmed">{item.meta}</Text>
-            </Stack>
-            <Text fz="xs" c="blue">Xem →</Text>
-          </Group>
-        </Card>
+          <Card padding={2} style={{ cursor: 'pointer' }}>
+            <HStack justify="between">
+              <Stack gap={0.5}>
+                <Text size="sm" weight="semibold">{item.title}</Text>
+                <Text type="supporting" size="xsm">{item.meta}</Text>
+              </Stack>
+              <Text size="xsm" color="accent">Xem →</Text>
+            </HStack>
+          </Card>
+        </Link>
       ))}
     </Stack>
   );
@@ -243,35 +230,37 @@ function PipelineFunnel() {
     counts[opp.stage] = (counts[opp.stage] ?? 0) + 1;
   }
 
-  if (isLoading) return <Skeleton height={120} radius="xs" />;
+  if (isLoading) return <Skeleton height={120} radius={1} />;
 
   return (
-    <Box
-      p="md"
+    <div
       style={{
+        padding: 16,
         border: '1px solid var(--cmc-border)',
         borderRadius: 4,
         background: 'var(--cmc-surface)',
       }}
     >
-      <Text fz="xs" fw={600} c="dimmed" tt="uppercase" mb="sm" style={{ letterSpacing: '0.04em' }}>
+      <Text
+        type="supporting"
+        size="xsm"
+        weight="semibold"
+        style={{ textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}
+      >
         Pipeline O1 → O5
       </Text>
-      <Stack gap="xs">
+      <Stack gap={2}>
         {Object.entries(STAGE_LABELS).map(([key, label]) => (
-          <Group key={key} justify="space-between">
-            <Text fz="sm">{label}</Text>
+          <HStack key={key} justify="between">
+            <Text size="sm">{label}</Text>
             <Badge
-              size="sm"
-              variant="light"
-              color={(counts[key] ?? 0) > 0 ? 'blue' : 'gray'}
-            >
-              {counts[key] ?? 0}
-            </Badge>
-          </Group>
+              label={String(counts[key] ?? 0)}
+              variant={(counts[key] ?? 0) > 0 ? 'blue' : 'neutral'}
+            />
+          </HStack>
         ))}
       </Stack>
-    </Box>
+    </div>
   );
 }
 
@@ -288,33 +277,38 @@ function TodaySchedulePanel() {
     return start <= now && now <= end && b.status !== 'cancelled';
   });
 
-  if (isLoading) return <Skeleton height={120} radius="xs" />;
+  if (isLoading) return <Skeleton height={120} radius={1} />;
 
   return (
-    <Box
-      p="md"
+    <div
       style={{
+        padding: 16,
         border: '1px solid var(--cmc-border)',
         borderRadius: 4,
         background: 'var(--cmc-surface)',
       }}
     >
-      <Text fz="xs" fw={600} c="dimmed" tt="uppercase" mb="sm" style={{ letterSpacing: '0.04em' }}>
+      <Text
+        type="supporting"
+        size="xsm"
+        weight="semibold"
+        style={{ textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}
+      >
         Lịch dạy hôm nay
       </Text>
       {todayBatches.length === 0 ? (
-        <Text fz="sm" c="dimmed">Không có lớp hôm nay.</Text>
+        <Text type="supporting" size="sm">Không có lớp hôm nay.</Text>
       ) : (
-        <Stack gap="xs">
+        <Stack gap={2}>
           {todayBatches.map((b) => (
-            <Group key={b.id} justify="space-between">
-              <Text fz="sm">{b.code}</Text>
-              <Badge size="xs" color="green">Đang dạy</Badge>
-            </Group>
+            <HStack key={b.id} justify="between">
+              <Text size="sm">{b.code}</Text>
+              <Badge label="Đang dạy" variant="success" />
+            </HStack>
           ))}
         </Stack>
       )}
-    </Box>
+    </div>
   );
 }
 
@@ -343,14 +337,14 @@ export default function CockpitPage() {
           title="Tổng quan"
           breadcrumbs={[{ label: 'Tổng quan' }]}
         />
-        <Box p="md">
-          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" mb="xl">
-            <Skeleton height={80} radius="xs" />
-            <Skeleton height={80} radius="xs" />
-            <Skeleton height={80} radius="xs" />
-          </SimpleGrid>
-          <Skeleton height={200} radius="xs" />
-        </Box>
+        <div style={{ padding: 16 }}>
+          <Grid columns={{ minWidth: 220, max: 3 }} gap={4} style={{ marginBottom: 32 }}>
+            <Skeleton height={80} radius={1} />
+            <Skeleton height={80} radius={1} />
+            <Skeleton height={80} radius={1} />
+          </Grid>
+          <Skeleton height={200} radius={1} />
+        </div>
       </>
     );
   }
@@ -365,45 +359,45 @@ export default function CockpitPage() {
         breadcrumbs={[{ label: 'Tổng quan' }]}
       />
 
-      <Box p="md">
+      <div style={{ padding: 16 }}>
         {hasAnyStatCard && (
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md" mb="xl">
+          <Grid columns={{ minWidth: 200, max: 4 }} gap={4} style={{ marginBottom: 32 }}>
             {canViewReceipts && <PendingReceiptsCard />}
             {canViewReceipts && isDirector && <OverThresholdCard />}
             {canViewCrm && isSale && <O4OpportunitiesCard />}
             {canGrade && <UngradedSubmissionsCard />}
-          </SimpleGrid>
+          </Grid>
         )}
 
-        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-          <Box>
-            <Title order={6} mb="sm">Việc cần bạn xử lý</Title>
+        <Grid columns={{ minWidth: 320, max: 2 }} gap={4}>
+          <div>
+            <Heading level={6} style={{ marginBottom: 8 }}>Việc cần bạn xử lý</Heading>
             {isDirector && canViewReceipts && <DirectorTaskQueue />}
             {isSale && canViewCrm && !isDirector && <SaleTaskQueue />}
             {isTeacher && canGrade && !isDirector && !isSale && <TeacherTaskQueue />}
             {!isDirector && !isSale && !isTeacher && (
-              <Box
-                p="md"
+              <div
                 style={{
+                  padding: 16,
                   border: '1px dashed var(--cmc-border)',
                   borderRadius: 4,
                   textAlign: 'center',
                 }}
               >
-                <Text fz="sm" c="dimmed">
+                <Text type="supporting" size="sm">
                   Không có nhiệm vụ nào chờ xử lý cho vai trò này.
                 </Text>
-              </Box>
+              </div>
             )}
-          </Box>
+          </div>
 
-          <Box>
+          <div>
             {(isSale || isDirector) && canViewCrm && <PipelineFunnel />}
             {isTeacher && canViewSchedule && <TodaySchedulePanel />}
             {!isSale && !isDirector && !isTeacher && canViewSchedule && <TodaySchedulePanel />}
-          </Box>
-        </SimpleGrid>
-      </Box>
+          </div>
+        </Grid>
+      </div>
     </>
   );
 }

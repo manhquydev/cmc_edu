@@ -66,21 +66,26 @@ test.describe('admin shell (UI safety net)', () => {
   test('finance nav entry navigates to receipts list with a DataTable', async ({ page }) => {
     await page.goto('/cockpit');
 
-    // Nav item label combines an icon + text ("💰  Tài chính & Điều hành" for
-    // the parent, "🧾  Phiếu thu" for the child) — match by substring text so
-    // this survives icon/label formatting changes.
+    // Nav item label combines an icon + text ("💰  Tài chính & Điều hành") —
+    // match by substring so this survives icon/label formatting changes.
+    // The parent module's own path is /finance (same as its "Phiếu thu"
+    // child), so this one click already navigates — a second click on
+    // "Phiếu thu" text is both redundant and ambiguous once the finance
+    // page's own content (also containing that text) has rendered.
     await page.getByText(/tài chính & điều hành/i).click();
-    await page.getByText(/phiếu thu/i).click();
 
     await expect(page).toHaveURL(/\/finance/);
 
-    // DataTable: assert a table structure exists (header row), regardless of
-    // whether seeded data is present — this spec runs against a fresh
-    // ephemeral facility with no receipts, so an empty body is expected.
-    // The `table` role comes from the Mantine Table's native <table> markup
-    // today; when Astryx's Table renders, the ARIA role must still be
-    // preserved (or this spec must be updated deliberately, not silently
-    // broken).
-    await expect(page.getByRole('table')).toBeVisible();
+    // DataTable: this spec runs against a fresh ephemeral facility with no
+    // receipts, so the empty state is what's expected here — @cmc/ui's
+    // DataTable (packages/ui/src/components/data-table.tsx) renders
+    // EmptyState in place of the table when data.length === 0 (a
+    // deliberate, reasonable design choice on the Astryx port; the old
+    // Mantine version kept table headers visible with EmptyState nested in
+    // the body instead — also valid, just a different pattern). The
+    // receipt-list page passes its own custom `empty` message ("Chưa có
+    // phiếu thu nào") rather than DataTable's generic default, so assert
+    // via EmptyState's implicit `status` role instead of hardcoded text.
+    await expect(page.getByRole('status')).toBeVisible();
   });
 });

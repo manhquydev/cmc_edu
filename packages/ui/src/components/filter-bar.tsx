@@ -1,4 +1,6 @@
-import { Group, Select, TextInput } from '@mantine/core';
+import { HStack } from '@astryxdesign/core/Stack';
+import { Selector } from '@astryxdesign/core/Selector';
+import { TextInput } from '@astryxdesign/core/TextInput';
 import { useSearchParams } from 'react-router-dom';
 
 export interface FilterDef {
@@ -46,38 +48,42 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
   }
 
   return (
-    <Group gap="xs" px="md" py="sm" style={{ background: 'var(--cmc-surface-2)', borderBottom: '1px solid var(--cmc-border)' }}>
+    <HStack
+      gap={1}
+      paddingInline={3}
+      paddingBlock={2}
+      wrap="wrap"
+      style={{ background: 'var(--cmc-surface-2)', borderBottom: '1px solid var(--cmc-border)' }}
+    >
       {filters.map((f) => {
         const val = currentValues[f.key] ?? '';
         if (f.type === 'select') {
           return (
-            <Select
-              key={f.key}
-              size="xs"
-              radius="xs"
-              label={f.label}
-              placeholder={f.placeholder ?? `Tất cả`}
-              data={f.options ?? []}
-              value={val || null}
-              onChange={(v) => handleChange(f.key, v ?? '')}
-              clearable
-              w={160}
-            />
+            <div key={f.key} style={{ width: 160 }}>
+              <Selector
+                size="sm"
+                label={f.label}
+                placeholder={f.placeholder ?? 'Tất cả'}
+                options={f.options ?? []}
+                value={val || null}
+                onChange={(v) => handleChange(f.key, v ?? '')}
+                hasClear
+              />
+            </div>
           );
         }
         return (
-          <TextInput
-            key={f.key}
-            size="xs"
-            radius="xs"
-            label={f.label}
-            placeholder={f.placeholder ?? f.label}
-            value={val}
-            onChange={(e) => handleChange(f.key, e.currentTarget.value)}
-            w={180}
-          />
+          <div key={f.key} style={{ width: 180 }}>
+            <TextInput
+              size="sm"
+              label={f.label}
+              placeholder={f.placeholder ?? f.label}
+              value={val}
+              onChange={(v) => handleChange(f.key, v)}
+            />
+          </div>
         );
       })}
-    </Group>
+    </HStack>
   );
 }

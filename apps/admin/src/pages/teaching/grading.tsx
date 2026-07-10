@@ -1,19 +1,9 @@
 import { useState } from 'react';
+import type { ComponentProps } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MasterDetail, PageHeader } from '@cmc/ui';
+import { Badge, Banner, Button, HStack, MasterDetail, NumberInput, PageHeader, Skeleton, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { PdfAnnotator } from './pdf-annotator.js';
-import {
-  Alert,
-  Badge,
-  Box,
-  Button,
-  Group,
-  NumberInput,
-  Skeleton,
-  Stack,
-  Text,
-} from '@mantine/core';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,10 +29,12 @@ interface SubmissionItem {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const API_URL = ((import.meta as any).env?.['VITE_API_URL'] as string | undefined) ?? 'http://localhost:3000';
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: 'gray',
+type BadgeVariant = ComponentProps<typeof Badge>['variant'];
+
+const STATUS_VARIANTS: Record<string, BadgeVariant> = {
+  draft: 'neutral',
   submitted: 'blue',
-  graded: 'green',
+  graded: 'success',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -65,37 +57,31 @@ function SubmissionListItem({
   onClick: () => void;
 }) {
   return (
-    <Box
-      px="md"
-      py="sm"
+    <div
       onClick={onClick}
       style={{
+        paddingInline: 16,
+        paddingBlock: 8,
         borderBottom: '1px solid var(--cmc-border)',
         cursor: 'pointer',
         background: selected ? 'var(--cmc-accent-subtle, #e8f4fd)' : 'var(--cmc-surface)',
         borderLeft: selected ? '3px solid var(--cmc-accent, #228be6)' : '3px solid transparent',
       }}
     >
-      <Group justify="space-between" mb={2}>
+      <HStack justify="between" style={{ marginBottom: 2 }}>
         {/* Never show studentCode — show truncated studentId only */}
-        <Text fz="sm" fw={500}>
+        <Text size="sm" weight="medium">
           HS: {item.studentId.slice(0, 8).toUpperCase()}
         </Text>
-        <Badge
-          color={STATUS_COLORS[item.status] ?? 'gray'}
-          size="xs"
-          radius="xs"
-        >
-          {STATUS_LABELS[item.status] ?? item.status}
-        </Badge>
-      </Group>
-      <Text fz="xs" c="dimmed">
+        <Badge label={STATUS_LABELS[item.status] ?? item.status} variant={STATUS_VARIANTS[item.status] ?? 'neutral'} />
+      </HStack>
+      <Text type="supporting" size="xsm">
         {item.submittedAt
           ? `Nộp: ${new Date(item.submittedAt as string).toLocaleDateString('vi-VN')}`
           : 'Chưa nộp'}
         {item.score !== null ? ` · ${item.score}/10` : ''}
       </Text>
-    </Box>
+    </div>
   );
 }
 
@@ -136,85 +122,86 @@ function DetailPane({
   const pdfUrl = item.basePdfRef ? `${API_URL}/upload/exercise-pdf?ref=${item.basePdfRef}` : null;
 
   return (
-    <Stack gap="md" p="md">
+    <Stack gap={4} style={{ padding: 16 }}>
       {/* Header */}
-      <Group justify="space-between">
-        <Stack gap={2}>
-          <Text fz="sm" fw={600}>
+      <HStack justify="between">
+        <Stack gap={0.5}>
+          <Text size="sm" weight="semibold">
             Bài nộp: {item.id.slice(0, 8).toUpperCase()}
           </Text>
-          <Text fz="xs" c="dimmed">
+          <Text type="supporting" size="xsm">
             Học sinh: {item.studentId.slice(0, 8).toUpperCase()} · Bài tập: {item.exerciseId.slice(0, 8).toUpperCase()}
           </Text>
         </Stack>
-        <Badge color={STATUS_COLORS[item.status] ?? 'gray'} size="sm" radius="xs">
-          {STATUS_LABELS[item.status] ?? item.status}
-        </Badge>
-      </Group>
+        <Badge label={STATUS_LABELS[item.status] ?? item.status} variant={STATUS_VARIANTS[item.status] ?? 'neutral'} />
+      </HStack>
 
       {/* Star award notice — shown only when this grade call was the first */}
       {starAwarded && (
-        <Alert color="yellow" title="⭐ +1 sao" radius="xs">
-          Học sinh nhận được 1 sao cho bài tập này (lần chấm đầu tiên).
-        </Alert>
+        <Banner
+          status="warning"
+          title="⭐ +1 sao"
+          description="Học sinh nhận được 1 sao cho bài tập này (lần chấm đầu tiên)."
+        />
       )}
 
       {/* Score input + grade button */}
-      <Box
-        p="sm"
+      <div
         style={{
+          padding: 12,
           background: 'var(--cmc-surface-2)',
           border: '1px solid var(--cmc-border)',
           borderRadius: 4,
         }}
       >
-        <Text fz="xs" fw={600} mb="xs" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.04em' }}>
+        <Text type="supporting" size="xsm" weight="semibold" style={{ marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           Chấm điểm
         </Text>
-        <Group gap="sm" align="flex-end">
-          <NumberInput
-            label="Điểm (0–10)"
-            value={score}
-            onChange={setScore}
-            min={0}
-            max={10}
-            step={0.5}
-            decimalScale={1}
-            w={120}
-            size="sm"
-            radius="xs"
-          />
-          <Text fz="sm" c="dimmed" pb={4}>
+        <HStack gap={2} align="end">
+          <div style={{ width: 120 }}>
+            {/* TODO(astryx-review): Astryx NumberInput has no confirmed
+                decimalScale prop (thousand/decimal formatting dropped per
+                mapping doc) — `step={0.5}` still constrains scoring
+                increments, just without forced 1-decimal display rounding. */}
+            <NumberInput
+              label="Điểm (0–10)"
+              value={score === '' ? null : Number(score)}
+              onChange={(v) => setScore(v ?? '')}
+              min={0}
+              max={10}
+              step={0.5}
+            />
+          </div>
+          <Text type="supporting" size="sm" style={{ paddingBottom: 4 }}>
             / 10
           </Text>
           <Button
+            label={item.status === 'graded' ? 'Chấm lại' : 'Chấm bài'}
             size="sm"
-            radius="xs"
-            loading={grade.isPending}
-            disabled={score === '' || score === null}
+            variant="primary"
+            isLoading={grade.isPending}
+            isDisabled={score === '' || score === null}
             onClick={handleGrade}
-          >
-            {item.status === 'graded' ? 'Chấm lại' : 'Chấm bài'}
-          </Button>
-        </Group>
+          />
+        </HStack>
         {grade.error && (
-          <Alert color="red" mt="xs" p="xs" fz="xs">
-            {grade.error.message}
-          </Alert>
+          <div style={{ marginTop: 8 }}>
+            <Banner status="error" title={grade.error.message} />
+          </div>
         )}
         {grade.isSuccess && !starAwarded && (
-          <Alert color="green" mt="xs" p="xs" fz="xs">
-            Điểm đã được lưu.
-          </Alert>
+          <div style={{ marginTop: 8 }}>
+            <Banner status="success" title="Điểm đã được lưu." />
+          </div>
         )}
-      </Box>
+      </div>
 
       {/* PDF viewer */}
-      <Box>
-        <Text fz="xs" fw={600} mb="xs" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.04em' }}>
+      <div>
+        <Text type="supporting" size="xsm" weight="semibold" style={{ marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           Bài làm PDF
         </Text>
-        <Box
+        <div
           style={{
             border: '1px solid var(--cmc-border)',
             borderRadius: 4,
@@ -230,16 +217,16 @@ function DetailPane({
               style={{ width: '100%', height: '100%', border: 'none' }}
             />
           ) : (
-            <Text fz="sm" c="dimmed" p="md">
+            <Text type="supporting" size="sm" style={{ padding: 16 }}>
               Bài chưa có file PDF
             </Text>
           )}
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       {/* Annotation layers */}
-      <Box>
-        <Text fz="xs" fw={600} mb="xs" tt="uppercase" c="dimmed" style={{ letterSpacing: '0.04em' }}>
+      <div>
+        <Text type="supporting" size="xsm" weight="semibold" style={{ marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           Lớp chú thích PDF
         </Text>
         <PdfAnnotator
@@ -248,7 +235,7 @@ function DetailPane({
           teacherLayer={item.teacherAnnotationLayer}
           onSaved={onGraded}
         />
-      </Box>
+      </div>
     </Stack>
   );
 }
@@ -283,51 +270,50 @@ export default function GradingPage() {
   // ---------------------------------------------------------------------------
 
   const listPanel = (
-    <Box style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box
-        px="md"
-        py="sm"
-        style={{ borderBottom: '1px solid var(--cmc-border)', background: 'var(--cmc-surface-2)' }}
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div
+        style={{
+          paddingInline: 16,
+          paddingBlock: 8,
+          borderBottom: '1px solid var(--cmc-border)',
+          background: 'var(--cmc-surface-2)',
+        }}
       >
-        <Text fz="xs" fw={600} tt="uppercase" c="dimmed" style={{ letterSpacing: '0.04em' }}>
-          Bài chờ chấm
-          {items.length > 0 && (
-            <Badge color="blue" size="xs" radius="xs" ml={6}>
-              {items.length}
-            </Badge>
-          )}
-        </Text>
+        <HStack gap={1} align="center">
+          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Bài chờ chấm
+          </Text>
+          {items.length > 0 && <Badge label={String(items.length)} variant="blue" />}
+        </HStack>
         {classFilter && (
-          <Text fz="xs" c="dimmed" mt={2}>
+          <Text type="supporting" size="xsm" style={{ marginTop: 2 }}>
             Lớp: {classFilter.slice(0, 8)}…
           </Text>
         )}
-      </Box>
+      </div>
 
       {error && (
-        <Box p="md">
-          <Alert color="red" fz="xs">
-            {error.message}
-          </Alert>
-        </Box>
+        <div style={{ padding: 16 }}>
+          <Banner status="error" title={error.message} />
+        </div>
       )}
 
-      <Box style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto' }}>
         {isLoading ? (
           <Stack gap={0}>
             {Array.from({ length: 5 }, (_, i) => (
-              <Box key={i} px="md" py="sm" style={{ borderBottom: '1px solid var(--cmc-border)' }}>
-                <Skeleton height={14} mb={4} radius="xs" />
-                <Skeleton height={11} width="60%" radius="xs" />
-              </Box>
+              <div key={i} style={{ paddingInline: 16, paddingBlock: 8, borderBottom: '1px solid var(--cmc-border)' }}>
+                <Skeleton height={14} radius={1} style={{ marginBottom: 4 }} />
+                <Skeleton height={11} width="60%" radius={1} />
+              </div>
             ))}
           </Stack>
         ) : items.length === 0 ? (
-          <Box p="xl">
-            <Text c="dimmed" ta="center" fz="sm">
+          <div style={{ padding: 32 }}>
+            <Text type="supporting" size="sm" justify="center" display="block">
               Không có bài nào chờ chấm.
             </Text>
-          </Box>
+          </div>
         ) : (
           items.map((item) => (
             <SubmissionListItem
@@ -338,8 +324,8 @@ export default function GradingPage() {
             />
           ))
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 
   // ---------------------------------------------------------------------------
@@ -353,7 +339,7 @@ export default function GradingPage() {
       onGraded={() => void refetch()}
     />
   ) : (
-    <Box
+    <div
       style={{
         height: '100%',
         display: 'flex',
@@ -361,10 +347,10 @@ export default function GradingPage() {
         justifyContent: 'center',
       }}
     >
-      <Text c="dimmed" fz="sm">
+      <Text type="supporting" size="sm">
         Chọn một bài để chấm
       </Text>
-    </Box>
+    </div>
   );
 
   // ---------------------------------------------------------------------------
@@ -378,14 +364,14 @@ export default function GradingPage() {
         subtitle="Danh sách bài nộp cần chấm điểm"
         breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Chấm bài' }]}
       />
-      <Box style={{ height: 'calc(100vh - 120px)' }}>
+      <div style={{ height: 'calc(100vh - 120px)' }}>
         <MasterDetail
           list={listPanel}
           detail={detailPanel}
           selectedId={selectedId ?? undefined}
           listWidth={300}
         />
-      </Box>
+      </div>
     </>
   );
 }

@@ -16,15 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import { trpc } from '../../lib/trpc.js';
-import {
-  Alert,
-  Badge,
-  Box,
-  Button,
-  Group,
-  Text,
-  Textarea,
-} from '@mantine/core';
+import { Badge, Banner, Button, HStack, Text, TextArea } from '@cmc/ui';
 
 export interface PdfAnnotatorProps {
   submissionId: string;
@@ -108,18 +100,16 @@ export function PdfAnnotator({
   }
 
   return (
-    <Box>
+    <div>
       {/* Student layer — read-only display */}
-      <Box mb="md">
-        <Group mb={4} gap="xs">
-          <Text fz="xs" fw={600} tt="uppercase" c="dimmed" style={{ letterSpacing: '0.04em' }}>
+      <div style={{ marginBottom: 16 }}>
+        <HStack gap={1} style={{ marginBottom: 4 }}>
+          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Lớp vẽ của học sinh
           </Text>
-          <Badge color="gray" size="xs" radius="xs" variant="outline">
-            Chỉ xem
-          </Badge>
-        </Group>
-        <Box
+          <Badge label="Chỉ xem" variant="neutral" />
+        </HStack>
+        <div
           style={{
             background: 'var(--cmc-surface-2)',
             border: '1px solid var(--cmc-border)',
@@ -130,74 +120,73 @@ export function PdfAnnotator({
           }}
         >
           <Text
-            fz="xs"
+            type="supporting"
+            size="xsm"
             style={{
               fontFamily: 'monospace',
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-all',
-              color: 'var(--cmc-text-muted)',
             }}
           >
             {serializeLayer(studentLayer) || '(chưa có lớp vẽ)'}
           </Text>
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       {/* Teacher layer — editable textarea */}
-      <Box>
-        <Group mb={4} gap="xs">
-          <Text fz="xs" fw={600} tt="uppercase" c="dimmed" style={{ letterSpacing: '0.04em' }}>
+      <div>
+        <HStack gap={1} style={{ marginBottom: 4 }}>
+          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Chú thích của giáo viên
           </Text>
-          <Badge color="blue" size="xs" radius="xs" variant="outline">
-            Có thể chỉnh sửa
-          </Badge>
-        </Group>
-        <Textarea
+          <Badge label="Có thể chỉnh sửa" variant="blue" />
+        </HStack>
+        {/* TODO(astryx-review): Astryx TextArea has no confirmed autosize/
+            minRows/maxRows API (unused elsewhere in the migrated codebase) —
+            using a fixed `rows` instead of Mantine's autosize(4–10) behavior;
+            flagged for reviewer to confirm visual parity. `label` is
+            required by TextArea's props but the heading above already
+            names the field (with an inline Badge it can't render) — passed
+            as an empty string to satisfy the type without a duplicate
+            visible heading; flagged for reviewer to confirm it renders
+            without adding empty label spacing. */}
+        <TextArea
+          label="Chú thích của giáo viên"
+          isLabelHidden
           value={teacherText}
-          onChange={(e) => {
-            setTeacherText(e.currentTarget.value);
+          onChange={(value) => {
+            setTeacherText(value);
             setParseError(null);
           }}
           placeholder='{"notes": "Bài làm tốt, cần chú ý…"}'
-          autosize
-          minRows={4}
-          maxRows={10}
-          fz="xs"
-          styles={{
-            input: {
-              fontFamily: 'monospace',
-              fontSize: 12,
-              background: 'var(--cmc-surface)',
-            },
-          }}
+          rows={6}
+          style={{ fontFamily: 'monospace', fontSize: 12 }}
         />
         {parseError && (
-          <Alert color="red" mt="xs" p="xs" fz="xs">
-            {parseError}
-          </Alert>
+          <div style={{ marginTop: 8 }}>
+            <Banner status="error" title={parseError} />
+          </div>
         )}
         {saveAnnotation.error && (
-          <Alert color="red" mt="xs" p="xs" fz="xs">
-            {saveAnnotation.error.message}
-          </Alert>
+          <div style={{ marginTop: 8 }}>
+            <Banner status="error" title={saveAnnotation.error.message} />
+          </div>
         )}
         {saveAnnotation.isSuccess && (
-          <Alert color="green" mt="xs" p="xs" fz="xs">
-            Đã lưu chú thích giáo viên.
-          </Alert>
+          <div style={{ marginTop: 8 }}>
+            <Banner status="success" title="Đã lưu chú thích giáo viên." />
+          </div>
         )}
-        <Group mt="xs" justify="flex-end">
+        <HStack justify="end" style={{ marginTop: 8 }}>
           <Button
-            size="xs"
-            radius="xs"
-            loading={saveAnnotation.isPending}
+            label="Lưu chú thích"
+            size="sm"
+            variant="primary"
+            isLoading={saveAnnotation.isPending}
             onClick={handleSave}
-          >
-            Lưu chú thích
-          </Button>
-        </Group>
-      </Box>
-    </Box>
+          />
+        </HStack>
+      </div>
+    </div>
   );
 }

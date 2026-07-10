@@ -2,29 +2,32 @@
 // exercise.manage permission = giam_doc_dao_tao only.
 
 import { useRef, useState } from 'react';
+import type { ComponentProps } from 'react';
 import {
-  Alert,
   Badge,
-  Box,
+  Banner,
   Button,
-  Group,
-  Loader,
-  Modal,
-  Select,
+  DataTable,
+  Dialog,
+  DialogHeader,
+  HStack,
+  PageHeader,
+  Selector,
   Skeleton,
   Stack,
-  Table,
   Text,
-} from '@mantine/core';
-import { PageHeader } from '@cmc/ui';
+} from '@cmc/ui';
+import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 const API_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? 'http://localhost:3000';
 
-const STATUS_COLOR: Record<string, string> = {
-  draft: 'gray',
-  published: 'green',
-  closed: 'red',
+type BadgeVariant = ComponentProps<typeof Badge>['variant'];
+
+const STATUS_VARIANTS: Record<string, BadgeVariant> = {
+  draft: 'neutral',
+  published: 'success',
+  closed: 'error',
 };
 
 const EXERCISE_TYPE_OPTIONS = [
@@ -32,6 +35,14 @@ const EXERCISE_TYPE_OPTIONS = [
   { value: 'test_entrance', label: 'Kiểm tra đầu vào' },
   { value: 'test_periodic', label: 'Kiểm tra định kỳ' },
 ];
+
+interface ExerciseRow {
+  id: string;
+  curriculumUnitId: string;
+  type: string;
+  status: string;
+  [key: string]: unknown;
+}
 
 export default function ExercisesPage() {
   const [createOpen, setCreateOpen] = useState(false);
@@ -67,6 +78,11 @@ export default function ExercisesPage() {
     setPdfError(null);
   }
 
+  function closeDialog() {
+    setCreateOpen(false);
+    resetForm();
+  }
+
   async function handlePdfUpload(file: File) {
     setPdfUploading(true);
     setPdfError(null);
@@ -99,7 +115,57 @@ export default function ExercisesPage() {
     label: `${u.program} – Lv${u.level} T${u.monthIndex}: ${u.title}`,
   }));
 
-  const exercises = data?.items ?? [];
+  const exercises = (data?.items ?? []) as ExerciseRow[];
+
+  const columns: TableColumn<ExerciseRow>[] = [
+    {
+      key: 'curriculumUnitId',
+      label: 'Đơn vị học',
+      render: (v) => {
+        const unit = unitMap.get(v as string);
+        return unit
+          ? `${unit.program} Lv${unit.level} T${unit.monthIndex}: ${unit.title}`
+          : String(v);
+      },
+    },
+    {
+      key: 'type',
+      label: 'Loại',
+      render: (v) => EXERCISE_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? String(v),
+    },
+    {
+      key: 'status',
+      label: 'Trạng thái',
+      width: 120,
+      render: (v) => <Badge label={String(v)} variant={STATUS_VARIANTS[v as string] ?? 'neutral'} />,
+    },
+    {
+      key: 'id',
+      label: 'Thao tác',
+      render: (_v, row) => (
+        <HStack gap={1}>
+          {row.status === 'draft' && (
+            <Button
+              label="Publish"
+              size="sm"
+              variant="primary"
+              isLoading={publishMut.isPending}
+              onClick={() => publishMut.mutate({ exerciseId: row.id })}
+            />
+          )}
+          {row.status === 'published' && (
+            <Button
+              label="Đóng"
+              size="sm"
+              variant="destructive"
+              isLoading={closeMut.isPending}
+              onClick={() => closeMut.mutate({ exerciseId: row.id })}
+            />
+          )}
+        </HStack>
+      ),
+    },
+  ];
 
   return (
     <>
@@ -108,134 +174,90 @@ export default function ExercisesPage() {
         subtitle="Tạo và quản lý bài tập học viên"
         breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Bài tập' }]}
         actions={
-          <Button size="xs" radius="xs" onClick={() => setCreateOpen(true)}>
-            + Tạo bài tập
-          </Button>
+          <Button label="+ Tạo bài tập" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />
         }
       />
 
-      {isLoading && <Skeleton height={200} m="md" />}
-      {error && <Alert color="red" m="md">{error.message}</Alert>}
-
-      {!isLoading && exercises.length === 0 && (
-        <Box p="xl" ta="center">
-          <Text c="dimmed">Chưa có bài tập nào. Nhấn "Tạo bài tập" để bắt đầu.</Text>
-        </Box>
+      {isLoading && (
+        <div style={{ margin: 16 }}>
+          <Skeleton height={200} radius={1} />
+        </div>
+      )}
+      {error && (
+        <div style={{ margin: 16 }}>
+          <Banner status="error" title={error.message} />
+        </div>
       )}
 
-      {exercises.length > 0 && (
-        <Box p="md" style={{ overflowX: 'auto' }}>
-          <Table striped highlightOnHover fz="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Đơn vị học</Table.Th>
-                <Table.Th>Loại</Table.Th>
-                <Table.Th>Trạng thái</Table.Th>
-                <Table.Th>Thao tác</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {exercises.map((ex) => {
-                const unit = unitMap.get(ex.curriculumUnitId);
-                return (
-                  <Table.Tr key={ex.id}>
-                    <Table.Td>
-                      {unit
-                        ? `${unit.program} Lv${unit.level} T${unit.monthIndex}: ${unit.title}`
-                        : ex.curriculumUnitId}
-                    </Table.Td>
-                    <Table.Td>
-                      {EXERCISE_TYPE_OPTIONS.find((o) => o.value === ex.type)?.label ?? ex.type}
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge size="xs" radius="xs" color={STATUS_COLOR[ex.status] ?? 'gray'}>
-                        {ex.status}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap={4}>
-                        {ex.status === 'draft' && (
-                          <Button
-                            size="xs" radius="xs" color="green" variant="light"
-                            loading={publishMut.isPending}
-                            onClick={() => publishMut.mutate({ exerciseId: ex.id })}
-                          >
-                            Publish
-                          </Button>
-                        )}
-                        {ex.status === 'published' && (
-                          <Button
-                            size="xs" radius="xs" color="red" variant="light"
-                            loading={closeMut.isPending}
-                            onClick={() => closeMut.mutate({ exerciseId: ex.id })}
-                          >
-                            Đóng
-                          </Button>
-                        )}
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
-        </Box>
+      {!isLoading && !error && (
+        <div style={{ padding: 16 }}>
+          <DataTable<ExerciseRow>
+            columns={columns}
+            data={exercises}
+            empty='Chưa có bài tập nào. Nhấn "Tạo bài tập" để bắt đầu.'
+          />
+        </div>
       )}
 
-      {/* Create modal */}
-      <Modal
-        opened={createOpen}
-        onClose={() => { setCreateOpen(false); resetForm(); }}
-        title="Tạo bài tập mới"
-        radius="xs"
-        size="md"
-      >
-        <Stack gap="sm">
+      {/* Create dialog.
+          TODO(astryx-review): Astryx `Dialog` (native <dialog>-based) manages
+          its own focus-trap / auto-focus / Escape-dismiss internally —
+          different implementation from Mantine's `Modal`, though the
+          resulting close-on-backdrop/Escape UX is preserved. Flagged per
+          migration instructions as "any modal that isn't a simple confirm"
+          for reviewer sign-off (same class of flag as EnrollPicker). */}
+      <Dialog isOpen={createOpen} onOpenChange={(next) => { if (!next) closeDialog(); }} width={480}>
+        <DialogHeader title="Tạo bài tập mới" onOpenChange={(next) => { if (!next) closeDialog(); }} />
+        <Stack gap={2}>
           {unitsLoading ? (
-            <Skeleton height={36} />
+            <Skeleton height={36} radius={1} />
           ) : (
-            <Select
+            <Selector
               label="Đơn vị học (CurriculumUnit)"
               placeholder="Chọn chương trình / tháng / bài"
-              data={unitOptions}
-              value={curriculumUnitId}
-              onChange={setCurriculumUnitId}
-              searchable
-              required
-              radius="xs"
+              options={unitOptions}
+              value={curriculumUnitId ?? undefined}
+              onChange={(v) => setCurriculumUnitId(v ?? null)}
+              hasSearch
+              hasClear={false}
+              isRequired
             />
           )}
 
-          <Select
+          <Selector
             label="Loại bài tập"
             placeholder="Chọn loại"
-            data={EXERCISE_TYPE_OPTIONS}
-            value={exerciseType}
-            onChange={setExerciseType}
-            required
-            radius="xs"
+            options={EXERCISE_TYPE_OPTIONS}
+            value={exerciseType ?? undefined}
+            onChange={(v) => setExerciseType(v ?? null)}
+            hasClear={false}
+            isRequired
           />
 
           {/* PDF upload — required */}
-          <Box>
-            <Text fz="sm" fw={500} mb={4}>File PDF bài tập (bắt buộc)</Text>
-            {pdfError && <Alert color="red" p="xs" mb="xs">{pdfError}</Alert>}
+          <div>
+            <Text type="body" size="sm" weight="medium" style={{ marginBottom: 4 }}>
+              File PDF bài tập (bắt buộc)
+            </Text>
+            {pdfError && (
+              <div style={{ marginBottom: 8 }}>
+                <Banner status="error" title={pdfError} />
+              </div>
+            )}
             {pdfBlobRef ? (
-              <Group gap="xs">
-                <Badge color="green" radius="xs" size="sm">PDF đã upload</Badge>
-                <Button size="xs" radius="xs" variant="subtle" onClick={() => setPdfBlobRef(null)}>
-                  Đổi file
-                </Button>
-              </Group>
+              <HStack gap={1}>
+                <Badge label="PDF đã upload" variant="success" />
+                <Button label="Đổi file" size="sm" variant="ghost" onClick={() => setPdfBlobRef(null)} />
+              </HStack>
             ) : (
               <Button
-                size="xs" radius="xs" variant="default"
+                label={pdfUploading ? 'Đang upload…' : 'Chọn file PDF'}
+                size="sm"
+                variant="secondary"
                 onClick={() => fileRef.current?.click()}
-                disabled={pdfUploading}
-                leftSection={pdfUploading ? <Loader size="xs" /> : undefined}
-              >
-                {pdfUploading ? 'Đang upload…' : 'Chọn file PDF'}
-              </Button>
+                isDisabled={pdfUploading}
+                isLoading={pdfUploading}
+              />
             )}
             <input
               ref={fileRef}
@@ -248,19 +270,16 @@ export default function ExercisesPage() {
                 e.currentTarget.value = '';
               }}
             />
-          </Box>
+          </div>
 
-          <Group justify="flex-end" mt="sm">
+          <HStack justify="end" gap={2}>
+            <Button label="Huỷ" variant="secondary" size="sm" onClick={closeDialog} />
             <Button
-              radius="xs" variant="default" size="sm"
-              onClick={() => { setCreateOpen(false); resetForm(); }}
-            >
-              Huỷ
-            </Button>
-            <Button
-              radius="xs" size="sm"
-              loading={createMut.isPending}
-              disabled={!curriculumUnitId || !exerciseType || !pdfBlobRef}
+              label="Tạo bài tập"
+              variant="primary"
+              size="sm"
+              isLoading={createMut.isPending}
+              isDisabled={!curriculumUnitId || !exerciseType || !pdfBlobRef}
               onClick={() => {
                 if (!curriculumUnitId || !exerciseType || !pdfBlobRef) return;
                 createMut.mutate({
@@ -269,12 +288,10 @@ export default function ExercisesPage() {
                   basePdfRef: pdfBlobRef,
                 });
               }}
-            >
-              Tạo bài tập
-            </Button>
-          </Group>
+            />
+          </HStack>
         </Stack>
-      </Modal>
+      </Dialog>
     </>
   );
 }

@@ -2,22 +2,7 @@
 // Flow: pick lớp → pick buổi → upsert evidence → add photos → publish.
 
 import { useRef, useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Box,
-  Button,
-  Group,
-  Image,
-  Loader,
-  Select,
-  SimpleGrid,
-  Skeleton,
-  Stack,
-  Text,
-  Textarea,
-} from '@mantine/core';
-import { PageHeader } from '@cmc/ui';
+import { Badge, Banner, Button, Grid, HStack, PageHeader, Selector, Skeleton, Stack, Text, TextArea } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 const API_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? 'http://localhost:3000';
@@ -66,10 +51,15 @@ export default function SessionEvidencePage() {
     label: `${c.code} — ${c.program}`,
   }));
 
+  // TODO(astryx-review): per-option disabled state (cancelled sessions should
+  // be unselectable) has no confirmed Astryx SelectorOption field — `isDisabled`
+  // used to match the Selector component's own isDisabled naming convention;
+  // flagged for reviewer to confirm it's honored per-option (not just at the
+  // Selector root).
   const sessionOptions = (sessions ?? []).map((s) => ({
     value: s.id,
     label: `${new Date(s.sessionDate).toLocaleDateString('vi-VN')} | ${s.status}`,
-    disabled: s.status === 'cancelled',
+    isDisabled: s.status === 'cancelled',
   }));
 
   function resetSession() {
@@ -135,91 +125,98 @@ export default function SessionEvidencePage() {
         breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Nhật ký buổi học' }]}
       />
 
-      <Stack p="md" gap="md" maw={680}>
+      <Stack gap={4} style={{ padding: 16, maxWidth: 680 }}>
         {/* Step 1: pick class */}
-        <Box>
-          <Text fz="xs" fw={600} tt="uppercase" c="dimmed" mb={4}>1. Chọn lớp</Text>
+        <div>
+          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>1. Chọn lớp</Text>
+          {/* TODO(astryx-review): `label` is required by Selector's props
+              but the step heading above already names the field — passed
+              as empty string to avoid a duplicate visible label (same
+              pattern applied to the session Selector and summary TextArea
+              below). */}
           {classLoading ? (
-            <Skeleton height={36} />
+            <Skeleton height={36} radius={1} />
           ) : (
-            <Select
+            <Selector
+              label="Chọn lớp học"
+              isLabelHidden
               placeholder="Chọn lớp học"
-              data={classOptions}
-              value={classBatchId}
-              onChange={(v) => { setClassBatchId(v); resetSession(); }}
-              searchable
-              radius="xs"
+              options={classOptions}
+              value={classBatchId ?? undefined}
+              onChange={(v) => { setClassBatchId(v ?? null); resetSession(); }}
+              hasSearch
+              hasClear={false}
             />
           )}
-        </Box>
+        </div>
 
         {/* Step 2: pick session */}
         {classBatchId && (
-          <Box>
-            <Text fz="xs" fw={600} tt="uppercase" c="dimmed" mb={4}>2. Chọn buổi học</Text>
+          <div>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>2. Chọn buổi học</Text>
             {sessionsLoading ? (
-              <Skeleton height={36} />
+              <Skeleton height={36} radius={1} />
             ) : (
-              <Select
+              <Selector
+                label="Chọn buổi học"
+                isLabelHidden
                 placeholder="Chọn buổi"
-                data={sessionOptions}
-                value={sessionId}
-                onChange={(v) => { setSessionId(v); setSummary(''); setEvidenceId(null); setPhotos([]); setPublished(false); setSaved(false); }}
-                radius="xs"
+                options={sessionOptions}
+                value={sessionId ?? undefined}
+                onChange={(v) => { setSessionId(v ?? null); setSummary(''); setEvidenceId(null); setPhotos([]); setPublished(false); setSaved(false); }}
+                hasClear={false}
               />
             )}
-          </Box>
+          </div>
         )}
 
         {/* Step 3: write summary */}
         {sessionId && (
-          <Box>
-            <Text fz="xs" fw={600} tt="uppercase" c="dimmed" mb={4}>3. Tóm tắt buổi học</Text>
-            <Textarea
+          <div>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>3. Tóm tắt buổi học</Text>
+            <TextArea
+              label="Tóm tắt buổi học"
+              isLabelHidden
               placeholder="Hôm nay lớp học về…"
               value={summary}
-              onChange={(e) => setSummary(e.currentTarget.value)}
+              onChange={(value) => setSummary(value)}
               rows={4}
-              radius="xs"
-              disabled={published}
+              isDisabled={published}
             />
-            <Group mt="xs" gap="xs">
+            <HStack gap={1} style={{ marginTop: 8 }}>
               <Button
-                size="xs"
-                radius="xs"
+                label="Lưu tóm tắt"
+                size="sm"
+                variant="primary"
                 onClick={handleSave}
-                loading={evidenceQuery.isPending}
-                disabled={published || !summary.trim()}
-              >
-                Lưu tóm tắt
-              </Button>
+                isLoading={evidenceQuery.isPending}
+                isDisabled={published || !summary.trim()}
+              />
               {saved && !published && (
-                <Text fz="xs" c="green">✓ Đã lưu</Text>
+                <Text size="xsm" color="accent">✓ Đã lưu</Text>
               )}
-              {published && (
-                <Badge color="green" size="sm" radius="xs">Đã công bố</Badge>
-              )}
-            </Group>
-          </Box>
+              {published && <Badge label="Đã công bố" variant="success" />}
+            </HStack>
+          </div>
         )}
 
         {/* Step 4: upload photos */}
         {evidenceId && !published && (
-          <Box>
-            <Text fz="xs" fw={600} tt="uppercase" c="dimmed" mb={4}>4. Upload ảnh buổi học</Text>
+          <div>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>4. Upload ảnh buổi học</Text>
             {uploadError && (
-              <Alert color="red" mb="xs" p="xs">{uploadError}</Alert>
+              <div style={{ marginBottom: 8 }}>
+                <Banner status="error" title={uploadError} />
+              </div>
             )}
             <Button
-              size="xs"
-              radius="xs"
-              variant="default"
+              label={uploading ? 'Đang upload…' : 'Chọn ảnh'}
+              size="sm"
+              variant="secondary"
               onClick={() => fileRef.current?.click()}
-              disabled={uploading}
-              leftSection={uploading ? <Loader size="xs" /> : undefined}
-            >
-              {uploading ? 'Đang upload…' : 'Chọn ảnh'}
-            </Button>
+              isDisabled={uploading}
+              isLoading={uploading}
+            />
             <input
               ref={fileRef}
               type="file"
@@ -231,50 +228,44 @@ export default function SessionEvidencePage() {
                 e.currentTarget.value = '';
               }}
             />
-          </Box>
+          </div>
         )}
 
         {/* Photo grid */}
         {photos.length > 0 && (
-          <Box>
-            <Text fz="xs" fw={600} tt="uppercase" c="dimmed" mb={4}>Ảnh đã upload ({photos.length})</Text>
-            <SimpleGrid cols={4} spacing="xs">
+          <div>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>Ảnh đã upload ({photos.length})</Text>
+            <Grid columns={4} gap={1}>
               {photos.map((p) => (
-                <Image
+                <img
                   key={p.id}
                   src={photoUrl(p.blobRef)}
-                  h={80}
-                  fit="cover"
-                  radius="xs"
+                  style={{ height: 80, width: '100%', objectFit: 'cover', borderRadius: 'var(--cmc-radius-xs)' }}
                   alt="Ảnh buổi học"
                 />
               ))}
-            </SimpleGrid>
-          </Box>
+            </Grid>
+          </div>
         )}
 
         {/* Step 5: publish */}
         {evidenceId && !published && (
-          <Box>
-            <Text fz="xs" c="dimmed" mb={4}>
+          <div>
+            <Text type="supporting" size="xsm" style={{ marginBottom: 4 }}>
               Sau khi công bố, phụ huynh sẽ thấy tóm tắt và ảnh trong ứng dụng.
             </Text>
             <Button
+              label="Công bố cho phụ huynh"
               size="sm"
-              radius="xs"
-              color="green"
+              variant="primary"
               onClick={handlePublish}
-              loading={publishMut.isPending}
-            >
-              Công bố cho phụ huynh
-            </Button>
-          </Box>
+              isLoading={publishMut.isPending}
+            />
+          </div>
         )}
 
         {published && (
-          <Alert color="green" variant="light">
-            Nhật ký buổi học đã được công bố. Phụ huynh có thể xem trong ứng dụng LMS.
-          </Alert>
+          <Banner status="success" title="Nhật ký buổi học đã được công bố. Phụ huynh có thể xem trong ứng dụng LMS." />
         )}
       </Stack>
     </>

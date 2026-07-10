@@ -29,6 +29,17 @@ const require = createRequire(import.meta.url);
 const HEALTH_TIMEOUT_MS = 20_000;
 const HEALTH_POLL_INTERVAL_MS = 200;
 
+// UI-mode (PLAYWRIGHT_UI=1) runs the api server on a FIXED port instead of an
+// OS-assigned free one. admin/lms's `ui-chromium` preview servers are static
+// builds with VITE_API_URL baked in at build time (Vite replaces
+// import.meta.env at build time, not at request time) — playwright.config.ts
+// rebuilds both apps with VITE_API_URL pointed at this exact port before
+// starting `preview`, so the fixed port has to match here. Not used for the
+// `api` project (API-driven specs talk to the server directly, no static
+// build in between, so a free port is fine and avoids collisions with a
+// developer's already-running local stack on 3000/3999).
+const UI_MODE_API_PORT = 3999;
+
 /** Real pilot DB name (docs/runbook-deploy.md) — the local-sim stack's
  * `cmc_prod` seeds a real super_admin. e2e must never run destructive
  * facility.create/cleanupFacility writes against it. Fail-closed: any parse
@@ -87,7 +98,7 @@ async function waitForHealth(baseUrl: string, child: ChildProcess): Promise<void
 export default async function globalSetup(_config: FullConfig): Promise<() => Promise<void>> {
   const appDatabaseUrl = requireEnv('APP_DATABASE_URL');
   assertNotProdDatabase(appDatabaseUrl);
-  const port = await findFreePort();
+  const port = process.env['PLAYWRIGHT_UI'] ? UI_MODE_API_PORT : await findFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;
 
   const tsxCli = require.resolve('tsx/cli');

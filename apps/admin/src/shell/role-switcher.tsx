@@ -1,4 +1,4 @@
-import { Group, Select, Text } from '@mantine/core';
+import { HStack, Selector, Text } from '@cmc/ui';
 import { useState } from 'react';
 
 // Sentinel facility ID used for dev impersonation. The server accepts any non-empty
@@ -20,7 +20,7 @@ export function RoleSwitcher() {
 
   if (import.meta.env.PROD) return null;
 
-  function handleChange(value: string | null) {
+  function handleChange(value: string) {
     if (!value) return;
     setCurrent(value);
     localStorage.setItem('cmc_dev_user', value);
@@ -29,19 +29,20 @@ export function RoleSwitcher() {
   }
 
   return (
-    <Group gap="xs">
-      <Text size="xs" c="dimmed">
+    <HStack gap={1} align="center">
+      <Text type="supporting" size="2xs">
         Dev:
       </Text>
-      <Select
-        data={DEV_USERS}
-        value={current}
-        onChange={handleChange}
-        size="xs"
-        w={120}
-        radius="xs"
-        comboboxProps={{ withinPortal: true }}
-      />
-    </Group>
+      <div style={{ width: 120 }}>
+        <Selector
+          label="Dev role"
+          isLabelHidden
+          options={DEV_USERS}
+          value={current}
+          onChange={handleChange}
+          size="sm"
+        />
+      </div>
+    </HStack>
   );
 }

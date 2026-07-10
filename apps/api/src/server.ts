@@ -32,9 +32,19 @@ import {
 
 const port = Number(process.env.PORT ?? 3000);
 
+// basePath must match what the browser trpc clients actually request:
+// apps/admin/src/lib/trpc.ts and apps/lms/src/lib/trpc.ts both build their
+// base URL as `${API_URL}/trpc`, so every real call arrives as
+// `/trpc/{procedure}`. Without an explicit basePath here, createHTTPHandler
+// defaults to '/' (stripping only the leading slash), so it tries to
+// resolve a procedure literally named "trpc/{procedure}" and 404s — this
+// was live-broken (verified against the running prod-simulation stack,
+// `curl https://localhost/trpc/session.me` returned the same 404) because
+// no browser-driven e2e test had ever exercised this path before.
 const trpcHandler = createHTTPHandler({
   router: appRouter,
   createContext: ({ req }) => createContext({ req }),
+  basePath: '/trpc/',
 });
 
 const SSO_ENABLED = process.env['SSO_ENABLED'] === 'true';
@@ -103,6 +113,15 @@ const server = createServer((req, res) => {
     });
     return;
   }
+
+  // Docker HEALTHCHECK (infra/docker/Dockerfile.api) and e2e's waitForHealth
+  // (apps/e2e/src/global-setup.ts) both call bare `/health` (no /trpc
+  // prefix, predating basePath above) and only care about a 2xx response —
+  // rewrite to the real `health` procedure instead of duplicating its body.
+  if (req.method === 'GET' && urlPath === '/health') {
+    req.url = '/trpc/health';
+  }
+
   trpcHandler(req, res);
 });
 

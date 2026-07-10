@@ -21,6 +21,9 @@ import { useSession } from '../lib/session-context.js';
 const AstryxSpikePage = import.meta.env.DEV
   ? lazy(() => import('../pages/sandbox/astryx-spike.js').then((m) => ({ default: m.AstryxSpikePage })))
   : null;
+const AstryxSpikeSingle = import.meta.env.DEV
+  ? lazy(() => import('../pages/sandbox/spike-single/index.js'))
+  : null;
 
 const CockpitPage = lazy(() => import('../pages/cockpit.js'));
 
@@ -40,6 +43,14 @@ export const router = createBrowserRouter([
           element: (
             <Suspense fallback={<Skeleton height="100vh" radius={0} />}>
               <AstryxSpikePage />
+            </Suspense>
+          ),
+        },
+        {
+          path: '/__astryx-spike-single',
+          element: (
+            <Suspense fallback={<Skeleton height="100vh" radius={0} />}>
+              {AstryxSpikeSingle ? <AstryxSpikeSingle /> : null}
             </Suspense>
           ),
         },

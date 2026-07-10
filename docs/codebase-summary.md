@@ -1,8 +1,8 @@
 # CMC EDU v2 — Codebase Summary
 
-**Status:** SSO landing complete (P1) · Flow audit complete (P3) · UI migration Phases 3–4 COMPLETE (Astryx 100% in admin + lms)  
+**Status:** SSO landing complete (P1) · Flow audit complete (P3) · UI migration Phases 3–5 COMPLETE (Astryx 100%, premium design-language layer in @cmc/ui, admin cockpit/shell/finance on premium components)  
 **Last Updated:** 2026-07-10  
-**Build State:** 473 tests passing (13 skipped — lms-auth-two-tier suite); 26/26 typecheck packages green; apps build clean; UI e2e 5 passed + 1 fixme; API e2e 17 passed; ESLint one-door lint rule spans admin+lms
+**Build State:** 524+ tests passing (13 skipped — lms-auth-two-tier suite); 26/26 typecheck packages green; apps build clean; UI e2e 5 passed + 1 fixme; API e2e 17 passed; ESLint one-door lint rule spans admin+lms; @cmc/ui vitest 40+ component tests
 
 ---
 
@@ -23,7 +23,7 @@ D:\project\vip\CMC
 │   ├── db/              # Prisma schema, migrations, seed — 48 models
 │   ├── domain-finance/  # Finance domain logic (SO receipt codes, refund cap, phone dedup)
 │   ├── domain-identity/ # Identity domain logic (phone normalization)
-│   └── ui/              # Design system: @cmc/ui/primitives (Astryx single-door barrel) + @cmc/ui/index (composite components) (Phase 3 complete)
+│   └── ui/              # Design system: Astryx barrel + premium design-language layer (Phase 5) — LineIcon, MetricCard, Panel, TaskRow, FunnelBar, AppFrame/SideNav, page templates; Inter Variable font; 40+ vitest component tests
 ├── docs/                # Design docs (TL00-TL31, frozen design corpus)
 └── plans/               # Session reports (audits, remediation, deep reviews)
 ```

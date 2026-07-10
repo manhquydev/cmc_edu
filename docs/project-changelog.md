@@ -6,6 +6,36 @@
 
 ---
 
+## [2026-07-10] Premium design-language layer promoted to @cmc/ui (Phase 5)
+
+**Context:** Admin cockpit pilot (Phase 1–2) validated a LOCKED design-language layer: light mode only, 
+monochrome outline icons, one accent, warm canvas, Notion-subtle elevation, Inter typography. Phase 5 
+promotes this layer into `@cmc/ui` as reusable surface for both admin + lms.
+
+**Deliverables:**
+- `tokens.premium` object (typed, mirrors `tokens.css` v2 premium block) — warm canvas #F7F6F3, 
+  surface raised/sunken, blur-nav, shadows, typography scale, pill radius
+- `LineIcon` component + `IconName` union (monochrome Feather outline, replaced all emoji)
+- Premium composites: `MetricCard` (metric card with tone), `Panel` (elevation container), `TaskRow` 
+  (compacted list item), `FunnelBar` (one-line chart)
+- App frame: `AppFrame` + `SideNav` (sticky blurred topbar + left tree nav, router-free via onNavigate callback) 
+  + types `NavModule`, `NavEntry`
+- Page templates: `ListPage`, `DetailPage`, `FormPage` (thin slot-based composition)
+- **@cmc/ui/premium.css** single import at app root (`.sh-*`, `.tpl-*`, `.premium-` CSS classes)
+- **Inter Variable** (@fontsource-variable/inter) primary typeface in both apps
+- **40+ vitest component tests** (vitest + @testing-library/react + jsdom) encode design invariants 
+  (frame layout, nav tree, active states, blur effects, component rendering)
+- Admin shell/cockpit/finance migrated onto premium components (parity preserved)
+
+**Principles (LOCKED):** Light mode only · Monochrome outline icons · One accent #0071E3 · Warm canvas 
+#F7F6F3 · Restraint + whitespace · Typography hierarchy · Notion reference. LMS shares base tokens + 
+icons; warm mobile frame deferred to Phase 6.
+
+**Docs:** Updated TL12 §4.5 (premium components overview), TL18 §1 (Inter + test harness), codebase-summary 
+(expanded @cmc/ui, test counts).
+
+---
+
 ## [2026-07-10] LMS gap closure: OTP email delivery + parent visibility + test backfill
 
 **Context:** Scout 260709-2350 found `requestOtpEmail` never delivered any email (no transport called)

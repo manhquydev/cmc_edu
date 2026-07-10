@@ -7,11 +7,20 @@
 
 ---
 
-## 1. Triết lý (giữ từ v1)
+## 1. Triết lý & Tầng Premium Design-Language (v2)
 
 Apple-minimalism thích nghi cho mật độ ERP: **một xanh tương tác duy nhất** (`#0071E3`), bề mặt
 phẳng, whitespace rộng nhưng bảng vẫn đọc được, typography mang phân cấp. CTA vuông (`radius=xs`
 4px), thứ cấp = text link.
+
+**Tầng Premium Design-Language (2026-07 added):** Dựa trên Apple + Notion references, `@cmc/ui` 
+giờ ship một tầng design-language đơn vị cao mức trên Astryx base — **LOCKED: light mode only, 
+monochrome outline icons (no emoji), one accent #0071E3, warm canvas #F7F6F3, restraint + whitespace + 
+typography**. Bao gồm: typed `tokens.premium` object, shared `LineIcon` monochrome set (Feather outline), 
+composites (`MetricCard`, `Panel`, `TaskRow`, `FunnelBar`), app shell (`AppFrame` + `SideNav`), 
+page templates (`ListPage`, `DetailPage`, `FormPage`). Imported via single `@cmc/ui/premium.css` 
+at app root (`--sh-*`, `--tpl-*` CSS classes). Admin shell + cockpit + finance cockpit migrated onto 
+these components; LMS shares base tokens + icons.
 
 ## 2. Tokens (nguồn: `packages/ui/src/tokens.css`)
 
@@ -53,6 +62,45 @@ Màu là **ngôn ngữ** — dùng sai màu = nói sai. Chuẩn v2:
 
 **Trạng thái chung mọi component:** default · hover · active/pressed · focus (ring brand) ·
 disabled · loading · error · empty. Thiếu bất kỳ trạng thái nào = component chưa xong.
+
+## 4.5. Premium Design-Language Layer Components (`@cmc/ui` 2026-07)
+
+Tầng mới `@cmc/ui` promote từ admin cockpit pilot. Toàn bộ DUMB (props-only, không tRPC/session), 
+styled **một lần** bằng `@cmc/ui/premium.css` ở app root. Các component này LOCKED vào nguyên tắc:
+
+**Principles:** Light mode only · Monochrome outline icons (Feather set via `LineIcon` component, 
+no emoji) · One accent (`#0071E3`) · Warm canvas (`#F7F6F3`) · Notion-subtle elevation · Inter 
+type scale · radius pill (12px) · blur-nav sticky · near-black numerals.
+
+**Shared icon language:** `LineIcon` component + `IconName` union — replaced all emoji across shell 
++ content layers. Monochrome outline (no fill), pairs seamlessly with text.
+
+**Composites (render props-only → CSS `.premium-` classes):**
+- `MetricCard`: số liệu dạng card (metric + trend + label) — dùng trong dashboard. Hỗ trợ `Tone` 
+  type (neutral/positive/warning).
+- `Panel`: container căn bản với elevation + padding, thay box mặc định. Dùng khi cần surface raised.
+- `TaskRow`: item list compacted (icon + title + meta + action); render React-Router `Link` (cần 
+  Router ancestor).
+- `FunnelBar`: horizontal bar chart một dòng (width/color/label) — cho funnel/conversion views.
+
+**App frame (light-mode admin shell):**
+- `AppFrame` + `SideNav`: bao frame toàn trang — sticky blurred topbar (pill CTA, centered breadcrumb), 
+  left sidebar tree nav (active module + nav entries), main content slot.
+  - Props: `activeModuleId` (current selected module), `NavModule[]` (tree structure), 
+    `onNavigate` callback (router-free — caller owns push/navigate).
+  - Exported: `NavModule`, `NavEntry` types; `activeModuleId()` helper.
+  - Test: 40+ vitest cases encode shell invariants (frame layout, nav tree, active state, blur effect).
+  
+**Page templates (thin slot-based composition, Phases 3–4):**
+- `ListPage`: header + filter bar + table → standard list archetype. Props: `header` (PageHeader 
+  slot), `filter` (FilterBar), `table` (DataTable slot), no data fetching.
+- `DetailPage`: header (record name + actions) + optional tabs + children → detail archetype. 
+  Props: `header`, `tabs`, `children`.
+- `FormPage`: form container → form archetype. Caller owns validation/submit logic.
+  All require `@cmc/ui/premium.css` (`.tpl-*` CSS classes).
+
+**Deployment:** Import `@cmc/ui/premium.css` once per app root (admin + lms will share). 
+Classes encode paddings, gaps, shadows, blur effects — no inline styles in components.
 
 ## 5. Pattern trang (khớp routing TL6)
 

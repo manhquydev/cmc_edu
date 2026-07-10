@@ -12,7 +12,8 @@
 | **Monorepo** | pnpm workspaces + Turborepo | pnpm 10.24 · turbo 2.3 | Node **≥22**, ESM |
 | **Ngôn ngữ** | TypeScript | 5.7 | strict; type-safe end-to-end |
 | **Frontend** | **Vite + React + react-router-dom** | Vite 6 · React 19 · router 7 | **SPA, KHÔNG Next.js**; path-based routing (ADR 0016) |
-| **UI** | Astryx + CSS custom properties | @astryxdesign/core@0.1.4 · @stylexjs/stylex@0.18.3 | Single-door @cmc/ui barrel (Phase 3–4 complete) · tokens `@cmc/ui` (TL12) |
+| **UI** | Astryx + CSS custom properties + **premium design-language layer** | @astryxdesign/core@0.1.4 · @stylexjs/stylex@0.18.3 · @fontsource-variable/inter | Single-door @cmc/ui barrel (Phase 3–4 complete) · premium layer (Phase 5) · tokens `@cmc/ui` (TL12) · Inter Variable primary typeface |
+| **UI Testing** | Vitest + @testing-library/react + jsdom | vitest 2.1 · @testing-library/react 16 · jsdom | Component-test harness in `packages/ui` (40+ tests encode premium design invariants) |
 | **API** | tRPC + zod | tRPC 11 · zod 3 | hợp đồng FE↔BE (TL11) |
 | **DB / ORM** | PostgreSQL + Prisma | Prisma 6 | RLS theo `facilityId` |
 | **Auth** | Microsoft Entra SSO (`@azure/msal-node`) | msal 2.16 | staff SSO; LMS 2-tier (parent=email+OTP, student=SĐT PH+password) — xem product-decision 2026-07-07 bên dưới |
@@ -31,7 +32,7 @@
 | Package | Vai trò |
 |---|---|
 | `@cmc/auth` | **Permission registry** (`can()`, `requirePermission`) — nguồn phân quyền duy nhất |
-| `@cmc/ui` | Design system: tokens, primitive component (TL12) |
+| `@cmc/ui` | Design system: tokens, primitives (Astryx barrel), **premium design-language layer** (LineIcon, MetricCard, Panel, TaskRow, FunnelBar, AppFrame, SideNav, page templates) — single-door imports (TL12) |
 | `@cmc/db` | Prisma schema, seed, migration |
 | `domain-academic` · `domain-finance` · `domain-grading` · `domain-payroll` · `domain-rewards` | Logic nghiệp vụ thuần (nơi bồi unit test) |
 | `audit` | Nhật ký kiểm toán (nền SoD + agent oversight) |

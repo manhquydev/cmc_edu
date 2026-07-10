@@ -16,15 +16,6 @@ import { opsRoutes } from './ops.routes.js';
 import { adminRoutes } from './admin.routes.js';
 import { useSession } from '../lib/session-context.js';
 
-// Phase 1 spike (plans/260710-0236-astryx-ui-migration): dev-only route,
-// no auth, not linked from any nav. Removed after the GO/NO-GO gate.
-const AstryxSpikePage = import.meta.env.DEV
-  ? lazy(() => import('../pages/sandbox/astryx-spike.js').then((m) => ({ default: m.AstryxSpikePage })))
-  : null;
-const AstryxSpikeSingle = import.meta.env.DEV
-  ? lazy(() => import('../pages/sandbox/spike-single/index.js'))
-  : null;
-
 const CockpitPage = lazy(() => import('../pages/cockpit.js'));
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -36,26 +27,6 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
-  ...(AstryxSpikePage
-    ? [
-        {
-          path: '/__astryx-spike',
-          element: (
-            <Suspense fallback={<Skeleton height="100vh" radius={0} />}>
-              <AstryxSpikePage />
-            </Suspense>
-          ),
-        },
-        {
-          path: '/__astryx-spike-single',
-          element: (
-            <Suspense fallback={<Skeleton height="100vh" radius={0} />}>
-              {AstryxSpikeSingle ? <AstryxSpikeSingle /> : null}
-            </Suspense>
-          ),
-        },
-      ]
-    : []),
   {
     path: '/',
     element: <RequireAuth><Shell /></RequireAuth>,

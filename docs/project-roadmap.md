@@ -26,16 +26,18 @@ CMC EDU v2 đạt đích khi **cả 5** điều sau đúng:
 **Loại khỏi phạm vi v2** (giữ nguyên quyết định TL16): huy hiệu · bảng xếp hạng · chứng chỉ tự động ·
 duyệt lên cấp. SaaS hoá/multi-tenant ngoài CMC: **không trong vision này** (cần brainstorm riêng nếu đặt ra).
 
-## 2. UI Design System Migration: Phase 3 COMPLETE (2026-07-10)
+## 2. UI Design System Migration: Phases 3–4 COMPLETE (2026-07-10)
 
-Ngoài các milestone dọc tuyến tính M0→M4, **UI migration spike đã hoàn thành Phase 3**:
+Ngoài các milestone dọc tuyến tính M0→M4, **UI migration spike đã hoàn thành Phases 3–4**:
 - **Phase 1 (GO):** Mantine v7 → Astryx (beta) — verified không phá build, CSS footprint tốt hơn, zero supply-chain risk.
 - **Phase 2 (complete):** All 10 components migrated, theme rebuilt (cmcTheme → AstryxCmcProvider CSS-only), peerDependencies updated. MantineProvider + AstryxCmcProvider coexist (strangler). Workspace clean: build + typecheck + test green. Browser e2e: 4 passing, 1 fixme, 0 failing.
 - **Phase 3 (complete, 2026-07-10):** **apps/admin 100% migrated** to Astryx — all 34 page/lib files + shell rewritten. Single-door barrel `@cmc/ui/primitives` created. Apps import ALL UI from `@cmc/ui` only; `rg "@mantine" apps/admin/src` = 0. Migration order (risk-first): shell/AppShell → login → 5 business-area clusters. **ESLint flat config added** (`eslint.config.js`): `no-restricted-imports` enforces one-door rule (ban @mantine/* + @astryxdesign/* in apps/admin/**, whitelist apps/admin/src/main.tsx for reset/theme CSS). Reset flip: apps/admin/src/main.tsx imports @astryxdesign/core/reset.css, dropped MantineProvider + @mantine/core/styles.css (no double-reset conflict). Sandbox deleted. Verification: typecheck + build clean, e2e green (4/4), auth-screen blocking check passed, code-review Approve (0 Critical). Known trade-offs (TODO(astryx-review)): semantic-color enums, Button/Badge variants, Dialog focus-trap, NumberInput thousand-separator, TextArea autosize.
-- **Phạm vi:** Strangler pattern qua Phase 3-4; bỏ Mantine chỉ ở Phase 5 (không chặn milestone trước). Phase 4 mở rộng ESLint rule sang apps/lms.
+- **Phase 4 (complete, 2026-07-10):** **apps/lms 100% migrated** to Astryx — all 13 files (login + 10 parent/student pages + routes + main.tsx) rewritten. `rg "@mantine" apps/lms/src` = 0. **New @cmc/ui composites:** `TextField` (forwards HTML input attributes—inputMode, maxLength, autoComplete, pattern—that Astryx TextInput omits but passes via ...rest) + `PasswordInput` (composes TextField + show/hide toggle; Astryx lacks native) + `ProgressBar` (added to primitives). **LMS login hardening preserved & e2e-verified:** OTP field autoComplete="one-time-code" + inputMode="numeric" + maxLength=6; password autoComplete="current-password"; phone inputMode="tel"; email type. New non-skippable e2e test asserts these land on real DOM. Generic no-leak error messages preserved. Astryx exact-pinned (0.1.4) to prevent ...rest regression. **Theme-level fixes (LMS mobile QA):** `:focus-visible` brand-outline fallback + `@media (max-width:768px)` 44px min-height touch-target for inputs+buttons (Astryx ~32px < TL12 §7). **ESLint one-door rule extended to apps/lms/**. Reset flip: apps/lms/src/main.tsx imports @astryxdesign/core/reset.css + drops MantineProvider. **Known trade-off:** Astryx TabList ARIA regression (buttons not role=tab/aria-selected)—flagged for future @cmc/ui wrapper. Verification: typecheck + build clean, lint (admin+lms) clean, UI e2e 5 passed + 1 fixme, API e2e 17 passed. Code-review: Approve (0 Critical; 1 Important fragility mitigated).
+- **Phạm vi:** Strangler pattern qua Phase 4; bỏ Mantine chỉ ở Phase 5 (không chặn milestone trước). ESLint one-door rule spans admin+lms.
+- **Roadmap:** Phase 5 (remove Mantine package deps entirely + full e2e QA + TL12 docs) is final phase.
 - **Plan:** `plans/260710-0236-astryx-ui-migration/` (5 pha, gitignored).
 
-Công việc này **song song với M0-M4**, không kéo timeline M0 go-live. **Phase 4 (apps/lms migration) là next.**
+Công việc này **song song với M0-M4**, không kéo timeline M0 go-live. **Phase 5 (Mantine dep removal) là next.**
 
 ---
 

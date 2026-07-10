@@ -32,6 +32,9 @@
     "react": "^18 || ^19",
     "react-router-dom": "^7"
   },
+  "dependencies": {
+    "@cmc/auth": "workspace:*"
+  },
   "devDependencies": {
     "@astryxdesign/core": "0.1.4",
     "@astryxdesign/theme-neutral": "0.1.4",

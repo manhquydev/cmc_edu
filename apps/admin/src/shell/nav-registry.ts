@@ -1,22 +1,5 @@
 import type { Role } from '@cmc/auth';
-import type { IconName } from '@cmc/ui';
-
-export interface NavEntry {
-  id: string;
-  label: string;
-  path: string;
-  icon: IconName;
-  permission?: { module: string; action: string };
-}
-
-export interface NavModule {
-  id: string;
-  label: string;
-  icon: IconName;
-  path: string;
-  children?: NavEntry[];
-  roles?: readonly Role[];
-}
+import type { NavModule } from '@cmc/ui';
 
 // `icon` is a LineIcon key (see @cmc/ui line-icon) — monochrome outline icons,
 // never emoji (reference study: one consistent icon language, no colour).

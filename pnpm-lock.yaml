@@ -350,6 +350,10 @@ importers:
         version: 2.1.9(@types/node@22.20.0)(jsdom@29.1.1)
 
   packages/ui:
+    dependencies:
+      '@cmc/auth':
+        specifier: workspace:*
+        version: link:../auth
     devDependencies:
       '@astryxdesign/core':
         specifier: 0.1.4

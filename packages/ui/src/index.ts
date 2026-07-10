@@ -126,3 +126,14 @@ export type { ConfirmDialogProps } from './components/confirm-dialog.js';
 
 export { ResultPanel } from './components/result-panel.js';
 export type { ResultPanelProps, ResultStatus } from './components/result-panel.js';
+
+// App shell (promoted from apps/admin/src/shell — P3 shell extraction). DUMB —
+// props-only, no router/session/tRPC coupling. Requires @cmc/ui/premium.css
+// (.sh-* classes). LMS keeps its own lightweight mobile frame (YAGNI — see
+// plans/260710-1730-premium-design-language-buildout/phase-03).
+export type { NavEntry, NavModule } from './components/nav-types.js';
+export { activeModuleId } from './lib/active-module.js';
+export { SideNav } from './components/side-nav.js';
+export type { SideNavProps } from './components/side-nav.js';
+export { AppFrame } from './components/app-frame.js';
+export type { AppFrameProps } from './components/app-frame.js';

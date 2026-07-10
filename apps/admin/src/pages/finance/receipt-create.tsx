@@ -218,7 +218,7 @@ export default function ReceiptCreatePage() {
 
             {/* TODO(astryx-review): Astryx Selector has no `nothingFoundMessage`
                 equivalent (empty search results use its own built-in "no
-                results" UI) — the Mantine custom message is dropped. */}
+                results" UI) — the prior custom message is dropped. */}
             <Selector
               label="Lớp học"
               placeholder={classBatchLoading ? 'Đang tải danh sách lớp...' : 'Chọn lớp học'}

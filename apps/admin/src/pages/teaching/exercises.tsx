@@ -202,7 +202,7 @@ export default function ExercisesPage() {
       {/* Create dialog.
           TODO(astryx-review): Astryx `Dialog` (native <dialog>-based) manages
           its own focus-trap / auto-focus / Escape-dismiss internally —
-          different implementation from Mantine's `Modal`, though the
+          different implementation from the prior `Modal`, though the
           resulting close-on-backdrop/Escape UX is preserved. Flagged per
           migration instructions as "any modal that isn't a simple confirm"
           for reviewer sign-off (same class of flag as EnrollPicker). */}

@@ -303,7 +303,7 @@ export default function ClassPlacementPage() {
                       <Stack gap={3}>
                         {/* TODO(astryx-review): Astryx Selector has no
                             `nothingFoundMessage` equivalent (empty search results use
-                            its own built-in "no results" UI) — the Mantine custom
+                            its own built-in "no results" UI) — the prior custom
                             message is dropped (same flag as receipt-create's class
                             selector). */}
                         <Selector

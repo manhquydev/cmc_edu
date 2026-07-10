@@ -120,7 +120,7 @@ export default function GiftsPage() {
 
       {/* TODO(astryx-review): Astryx `Dialog` (native <dialog>-based) manages
           its own focus-trap / auto-focus / Escape-dismiss internally —
-          different implementation from Mantine's `Modal`. The original
+          different implementation from the prior `Modal`. The original
           `closeOnClickOutside={!upsertMut.isPending}` toggle (block backdrop
           dismiss only while submitting) has no direct equivalent — `purpose`
           only supports a static form/info/required mode, so this uses the

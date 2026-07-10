@@ -167,7 +167,7 @@ export default function CrmPipelinePage() {
       />
       {/* Astryx has no dedicated scroll-container primitive (confirmed 0 direct
           equivalent in the Phase 1 spike — ScrollArea gap) — native CSS
-          overflow replaces Mantine's ScrollArea, same visual result. */}
+          overflow replaces the prior ScrollArea, same visual result. */}
       <div style={{ height: 'calc(100vh - 90px)', overflow: 'auto' }}>
         <HStack
           gap={4}

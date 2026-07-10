@@ -1,9 +1,9 @@
 // Astryx primitive re-export barrel — the "single door" (một cửa) for apps.
 //
 // Apps (admin/lms) are lint-forbidden from importing @astryxdesign/core or
-// @mantine/* directly (see the app-scoped no-restricted-imports rule); every
+// the legacy UI lib directly (see the app-scoped no-restricted-imports rule); every
 // primitive they need is re-exported here and surfaced through @cmc/ui's main
-// entry. This is a thin namespace facade — NOT a Mantine-compat shim: the
+// entry. This is a thin namespace facade — NOT a legacy-compat shim: the
 // re-exported components keep their real Astryx prop APIs. Callers use Astryx
 // props (e.g. `gap={2}` numeric spacing, `variant="primary"`). Add exports
 // here as pages reveal need; the barrel is intentionally additive.

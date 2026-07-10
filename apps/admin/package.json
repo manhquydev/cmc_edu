@@ -14,8 +14,6 @@
     "@cmc/api": "workspace:*",
     "@cmc/auth": "workspace:*",
     "@cmc/ui": "workspace:*",
-    "@mantine/core": "^7.17.0",
-    "@mantine/hooks": "^7.17.0",
     "@tanstack/react-query": "^5.80.0",
     "@trpc/client": "^11.0.0",
     "@trpc/react-query": "^11.0.0",

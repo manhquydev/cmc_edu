@@ -1,9 +1,9 @@
 // LMS login UI safety net (Phase 1 of the Astryx UI migration).
 //
-// Captures CURRENT (Mantine) login-page behavior via real browser assertions
+// Captures the pre-Astryx login-page behavior via real browser assertions
 // BEFORE any component is migrated: 2-tab switch, BLOCKED-ON-COMMS notice,
 // generic error messages (no-leak contract), and the mustChangePassword
-// redirect. Selectors use role/label/text, not Mantine CSS classes.
+// redirect. Selectors use role/label/text, not legacy CSS classes.
 //
 // Plan drift note (found while writing this spec, 2026-07-10): the phase-02
 // doc describes testing a "deep-link ?tab=student" query param. No such
@@ -87,7 +87,7 @@ test.describe('lms login (UI safety net)', () => {
     await cleanupParentAccountsByPhone(normalizeLoginPhone(parentPhone));
   });
 
-  // A11Y NOTE (Astryx migration, 2026-07-10): the old Mantine Tabs rendered the
+  // A11Y NOTE (Astryx migration, 2026-07-10): the old the prior Tabs rendered the
   // proper ARIA tab pattern (role="tablist"/"tab" + aria-selected). Astryx's
   // TabList/Tab (@astryxdesign/core@0.1.4) renders the tabs as plain <button>
   // elements with NO role="tab"/aria-selected — a real a11y regression from the
@@ -162,7 +162,7 @@ test.describe('lms login (UI safety net)', () => {
   // reads useSession()'s context state, which appears to not yet reflect
   // the just-set session on first render after the login-triggered
   // navigate(). Pre-existing bug, unrelated to the Astryx migration (this
-  // file is untouched Mantine code) — out of scope to fix here; tracked as
+  // file is untouched legacy UI code) — out of scope to fix here; tracked as
   // fixme so the safety net accurately reflects "known broken" instead of
   // silently passing or blocking unrelated work.
   test.fixme('correct default-password login redirects to mustChangePassword', async ({ page }) => {

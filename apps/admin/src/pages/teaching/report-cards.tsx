@@ -223,7 +223,7 @@ export default function ReportCardsPage() {
               {/* TODO(astryx-review): Astryx TextArea has no confirmed
                   read-only/autosize props (unused elsewhere in the migrated
                   codebase) — `isDisabled` used to keep this field
-                  non-editable, closest available prop to Mantine's readOnly.
+                  non-editable, closest available prop to the prior readOnly.
                   `label` is required but the heading above already names
                   the field — passed as empty string on both TextAreas below
                   to avoid a duplicate visible label (flagged for reviewer). */}

@@ -4,7 +4,7 @@ import { trpc } from './trpc.js';
 
 // TODO(astryx-review): Astryx `Dialog` (native <dialog>-based) manages its own
 // focus-trap, auto-focus-on-open, and Escape/backdrop-dismiss behavior
-// internally — different implementation from Mantine's `Modal` (though the
+// internally — different implementation from the prior `Modal` (though the
 // resulting UX — click backdrop or press Escape to close, same as before —
 // is preserved via `purpose="info"`, the default). Flagged per migration
 // instructions as "any modal that isn't a simple confirm" for reviewer

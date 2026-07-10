@@ -1,9 +1,9 @@
 // Admin shell UI safety net (Phase 1 of the Astryx UI migration).
 //
-// Captures CURRENT (Mantine) shell + nav + DataTable behavior via real
+// Captures the pre-Astryx shell + nav + DataTable behavior via real
 // browser assertions BEFORE any component is migrated, so regressions during
-// the Mantine -> Astryx swap are caught by browser rendering, not just
-// typecheck/build. Selectors use role/label/text, not Mantine CSS classes,
+// the legacy-UI → Astryx swap are caught by browser rendering, not just
+// typecheck/build. Selectors use role/label/text, not legacy CSS classes,
 // so they survive the migration (see architecture note in phase-02).
 //
 // Auth: preview builds are production builds (import.meta.env.PROD), so the
@@ -81,7 +81,7 @@ test.describe('admin shell (UI safety net)', () => {
     // DataTable (packages/ui/src/components/data-table.tsx) renders
     // EmptyState in place of the table when data.length === 0 (a
     // deliberate, reasonable design choice on the Astryx port; the old
-    // Mantine version kept table headers visible with EmptyState nested in
+    // prior version kept table headers visible with EmptyState nested in
     // the body instead — also valid, just a different pattern). The
     // receipt-list page passes its own custom `empty` message ("Chưa có
     // phiếu thu nào") rather than DataTable's generic default, so assert

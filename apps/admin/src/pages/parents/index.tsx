@@ -226,7 +226,7 @@ export default function ParentListPage() {
       {/* Approve modal with relation selector.
           TODO(astryx-review): Astryx Dialog manages its own focus-trap and
           Escape/backdrop-dismiss internally (native <dialog>-based) — different
-          implementation from Mantine's Modal. purpose="form" blocks backdrop
+          implementation from the prior Modal. purpose="form" blocks backdrop
           click (closest match to the original closeOnClickOutside={!pending}
           guard, though Astryx has no per-render conditional for it). Flagged
           per migration rule for any non-confirm modal. */}

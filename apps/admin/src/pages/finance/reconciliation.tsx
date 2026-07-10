@@ -127,7 +127,7 @@ function FlagCard({ flag, canReview, onDismiss, onAction, isMutating }: FlagCard
               Phiếu thu:
             </Text>
             {/* Plain <a> (not react-router Link) — matches the original
-                Mantine Anchor's full-page-navigation behavior exactly. */}
+                the prior anchor's full-page-navigation behavior exactly. */}
             <a
               href={`/finance/${flag.receiptId}?flag=${flag.id}`}
               style={{ fontSize: 12, color: 'var(--cmc-brand)' }}

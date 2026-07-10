@@ -172,7 +172,7 @@ function SubmitTab() {
       </HStack>
 
       {/* TODO(astryx-review): Astryx Divider has no `labelPosition` prop — the
-          label always renders centered (Mantine had it left-aligned). Cosmetic
+          label always renders centered (the prior UI had it left-aligned). Cosmetic
           only, no functional change. */}
       <Divider label="Danh sách ngày đăng ký" />
 

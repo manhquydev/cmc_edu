@@ -93,7 +93,7 @@ function SessionsTab({ classBatchId }: { classBatchId: string }) {
     onSuccess: () => void utils.classSession.list.invalidate({ classBatchId }),
   });
 
-  // Cancelled sessions are dimmed (opacity) at the row level in Mantine's
+  // Cancelled sessions are dimmed (opacity) at the row level in the prior UI's
   // Table; DataTable has no per-row style hook, so each cell's rendered
   // content is wrapped individually to approximate the same dimmed look.
   function dim(status: string, content: ReactNode) {

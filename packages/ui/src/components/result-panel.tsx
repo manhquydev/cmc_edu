@@ -26,7 +26,7 @@ export function ResultPanel({ status, title, message, actions }: ResultPanelProp
   }
 
   // Astryx's Banner picks its own icon per status automatically (no manual
-  // ✓/✕/⚠ mapping needed — a simplification over the Mantine version).
+  // ✓/✕/⚠ mapping needed — a simplification over the prior version).
   return (
     <Banner status={status} title={title}>
       {(message || actions) && (

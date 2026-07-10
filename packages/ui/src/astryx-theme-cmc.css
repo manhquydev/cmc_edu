@@ -8,7 +8,7 @@
  *
  * Does NOT import reset.css (red-team F14): reset is app-scoped, imported
  * only in each app's main.tsx once that app flips to Astryx, so it never
- * leaks onto pages still running Mantine during the Phase 2-4 strangler
+ * leaks onto pages still running the legacy UI during the Phase 2-4 strangler
  * window. Consumers must import tokens.css separately (already required
  * today) before this file, since the overrides below reference its
  * variables.

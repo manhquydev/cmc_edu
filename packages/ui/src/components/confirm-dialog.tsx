@@ -16,8 +16,8 @@ export interface ConfirmDialogProps {
 }
 
 // Astryx's AlertDialog has only 4 fixed action variants (primary/secondary/
-// ghost/destructive) — no arbitrary color escape hatch, unlike Mantine's
-// Button which accepted any color name. Approximates the Mantine color
+// ghost/destructive) — no arbitrary color escape hatch, unlike the prior UI's
+// Button which accepted any color name. Approximates the prior color
 // palette actually used by callers (red/orange/green/blue/gray) onto the
 // closest semantic variant; loses the distinct green vs. blue vs. gray
 // color-coding, an accepted visual approximation (plan Risk Assessment

@@ -143,7 +143,7 @@ export function PdfAnnotator({
         </HStack>
         {/* TODO(astryx-review): Astryx TextArea has no confirmed autosize/
             minRows/maxRows API (unused elsewhere in the migrated codebase) —
-            using a fixed `rows` instead of Mantine's autosize(4–10) behavior;
+            using a fixed `rows` instead of the prior autosize(4–10) behavior;
             flagged for reviewer to confirm visual parity. `label` is
             required by TextArea's props but the heading above already
             names the field (with an inline Badge it can't render) — passed

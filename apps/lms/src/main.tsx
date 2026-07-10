@@ -1,8 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
-// Astryx reset flip (plan Phase 4 step 4): lms now renders zero Mantine
-// components, so its provider + styles are dropped here (the @mantine/*
+// Astryx reset flip (plan Phase 4 step 4): lms now renders zero legacy-UI
+// components, so its provider + styles are dropped here (the legacy UI-library
 // package deps stay in package.json until Phase 5 per rollback policy — only
 // the runtime usage is removed, avoiding a double-reset). main.tsx is the one
 // whitelisted entry allowed to import CSS/reset directly; reset.css is

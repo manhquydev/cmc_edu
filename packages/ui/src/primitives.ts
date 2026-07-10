@@ -23,6 +23,7 @@ export { MultiSelector } from '@astryxdesign/core/MultiSelector';
 export { NumberInput } from '@astryxdesign/core/NumberInput';
 export { Skeleton } from '@astryxdesign/core/Skeleton';
 export { Spinner } from '@astryxdesign/core/Spinner';
+export { ProgressBar } from '@astryxdesign/core/ProgressBar';
 export { Divider } from '@astryxdesign/core/Divider';
 export { Grid, GridSpan } from '@astryxdesign/core/Grid';
 export { Banner } from '@astryxdesign/core/Banner';

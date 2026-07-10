@@ -10,16 +10,7 @@
 
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Alert,
-  Anchor,
-  Box,
-  Button,
-  PasswordInput,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Banner, Button, Heading, PasswordInput, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -61,60 +52,69 @@ function ResetForm({ studentId, onBack }: { studentId: string; onBack: () => voi
   }
 
   return (
-    <Box className="lms-shell">
-      <Box className="lms-topbar">
-        <Anchor size="sm" onClick={onBack}>← Trang chủ</Anchor>
+    <div className="lms-shell">
+      <div className="lms-topbar">
+        <Button variant="ghost" size="sm" label="← Trang chủ" onClick={onBack} />
         <Text className="lms-topbar__brand">Đặt lại mật khẩu</Text>
-        <Box w={60} />
-      </Box>
+        <div style={{ width: 60 }} />
+      </div>
 
-      <Box className="lms-page">
-        <Title order={4} className="lms-page__title">Đặt lại mật khẩu học sinh</Title>
+      <div className="lms-page">
+        <Heading level={4} className="lms-page__title">Đặt lại mật khẩu học sinh</Heading>
 
-        <Alert color="blue" variant="light" mb="lg">
-          Mật khẩu mới sẽ được áp dụng ngay. Học sinh sẽ cần đăng nhập lại
-          bằng mật khẩu mới. Chỉ phụ huynh mới có thể thực hiện thao tác này.
-        </Alert>
+        <Banner
+          status="info"
+          title="Mật khẩu mới sẽ được áp dụng ngay. Học sinh sẽ cần đăng nhập lại bằng mật khẩu mới. Chỉ phụ huynh mới có thể thực hiện thao tác này."
+          style={{ marginBottom: 24 }}
+        />
 
         {mutation.isSuccess && (
-          <Alert color="green" variant="light" mb="md">
-            Đặt lại mật khẩu thành công. Học sinh có thể đăng nhập bằng mật khẩu mới.
-          </Alert>
+          <Banner
+            status="success"
+            title="Đặt lại mật khẩu thành công. Học sinh có thể đăng nhập bằng mật khẩu mới."
+            style={{ marginBottom: 16 }}
+          />
         )}
 
         {(mutation.isError || validationErr) && (
-          <Alert color="red" variant="light" mb="md">
-            {validationErr || mutation.error?.message}
-          </Alert>
+          <Banner
+            status="error"
+            title={validationErr || mutation.error?.message || ''}
+            style={{ marginBottom: 16 }}
+          />
         )}
 
-        <Stack gap="md">
+        <Stack gap={2}>
           <PasswordInput
             label="Mật khẩu mới"
             placeholder="Ít nhất 8 ký tự"
             value={newPassword}
-            onChange={(e) => setNewPassword(e.currentTarget.value)}
+            onChange={(value) => setNewPassword(value)}
             autoComplete="new-password"
           />
           <PasswordInput
             label="Xác nhận mật khẩu mới"
             placeholder="Nhập lại mật khẩu"
             value={confirm}
-            onChange={(e) => setConfirm(e.currentTarget.value)}
+            onChange={(value) => setConfirm(value)}
             autoComplete="new-password"
           />
           <Button
-            fullWidth
-            loading={mutation.isPending}
+            style={{ width: '100%' }}
+            label="Đặt lại mật khẩu"
+            isLoading={mutation.isPending}
             onClick={submit}
-            disabled={!newPassword || !confirm}
-          >
-            Đặt lại mật khẩu
-          </Button>
+            isDisabled={!newPassword || !confirm}
+          />
         </Stack>
 
-        <Button variant="subtle" mt="lg" onClick={onBack}>← Quay lại</Button>
-      </Box>
-    </Box>
+        <Button
+          variant="ghost"
+          style={{ marginTop: 24 }}
+          label="← Quay lại"
+          onClick={onBack}
+        />
+      </div>
+    </div>
   );
 }

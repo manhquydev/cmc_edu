@@ -8,18 +8,16 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Alert,
-  Anchor,
-  Box,
+  Banner,
   Button,
-  Group,
-  Loader,
-  Progress,
-  Select,
+  Heading,
+  HStack,
+  ProgressBar,
+  Selector,
+  Spinner,
   Stack,
   Text,
-  Title,
-} from '@mantine/core';
+} from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -58,100 +56,103 @@ export default function ReportCardPage() {
   );
 
   return (
-    <Box className="lms-shell">
-      <Box className="lms-topbar">
-        <Anchor size="sm" onClick={() => navigate('/parent/home')}>← Trang chủ</Anchor>
+    <div className="lms-shell">
+      <div className="lms-topbar">
+        <Button variant="ghost" size="sm" label="← Trang chủ" onClick={() => navigate('/parent/home')} />
         <Text className="lms-topbar__brand">Học bạ</Text>
-        <Box w={60} />
-      </Box>
+        <div style={{ width: 60 }} />
+      </div>
 
-      <Box className="lms-page">
-        <Title order={4} className="lms-page__title">Kết quả học tập</Title>
+      <div className="lms-page">
+        <Heading level={4} className="lms-page__title">Kết quả học tập</Heading>
 
-        <Select
-          label="Kỳ học"
-          data={recentPeriods()}
-          value={period}
-          onChange={(v) => v && setPeriod(v)}
-          mb="lg"
-        />
+        <div style={{ marginBottom: 24 }}>
+          <Selector
+            label="Kỳ học"
+            options={recentPeriods()}
+            value={period}
+            onChange={(v) => v && setPeriod(v)}
+          />
+        </div>
 
-        {isLoading && <Group justify="center"><Loader /></Group>}
+        {isLoading && <HStack justify="center"><Spinner /></HStack>}
 
-        {error && (
-          <Alert color="red" variant="light" title="Lỗi">
-            {error.message}
-          </Alert>
-        )}
+        {error && <Banner status="error" title="Lỗi" description={error.message} />}
 
         {data && (
-          <Stack gap="lg">
+          <Stack gap={3}>
             {/* Attendance rate */}
-            <Box
-              p="md"
-              style={{ border: '1px solid var(--cmc-border)', borderRadius: 'var(--cmc-radius-xs)' }}
+            <div
+              style={{ padding: 16, border: '1px solid var(--cmc-border)', borderRadius: 'var(--cmc-radius-xs)' }}
             >
-              <Text fw={600} mb="xs">Tỷ lệ chuyên cần</Text>
-              <Progress
-                value={data.attendanceRate * 100}
-                color={data.attendanceRate >= 0.8 ? 'green' : 'orange'}
-                mb={4}
+              <Text weight="bold" display="block" style={{ marginBottom: 8 }}>Tỷ lệ chuyên cần</Text>
+              <ProgressBar
+                label="Tỷ lệ chuyên cần"
+                isLabelHidden
+                value={Math.round(data.attendanceRate * 100)}
+                max={100}
+                variant={data.attendanceRate >= 0.8 ? 'success' : 'warning'}
               />
-              <Text size="sm" c="dimmed">
+              <Text type="supporting" size="sm" style={{ marginTop: 4 }}>
                 {(data.attendanceRate * 100).toFixed(1)}%
               </Text>
-            </Box>
+            </div>
 
             {/* Final grade */}
             {data.finalGrade ? (
-              <Box
-                p="md"
-                style={{ border: '1px solid var(--cmc-border)', borderRadius: 'var(--cmc-radius-xs)' }}
+              <div
+                style={{ padding: 16, border: '1px solid var(--cmc-border)', borderRadius: 'var(--cmc-radius-xs)' }}
               >
-                <Text fw={600} mb="xs">Điểm tổng kết</Text>
-                <Text size="2rem" fw={700} style={{ color: 'var(--cmc-brand)' }}>
+                <Text weight="bold" display="block" style={{ marginBottom: 8 }}>Điểm tổng kết</Text>
+                {/* TODO(astryx-review): raw cmc-brand CSS var has no Astryx TextColor
+                    equivalent (enum is primary/secondary/disabled/placeholder/accent/inherit) —
+                    kept as a plain styled span to preserve the exact brand color. */}
+                <span style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--cmc-brand)' }}>
                   {data.finalGrade.score.toFixed(1)}
-                </Text>
-              </Box>
+                </span>
+              </div>
             ) : (
-              <Alert color="gray" variant="light">Chưa có điểm tổng kết trong kỳ này.</Alert>
+              <Banner status="info" title="Chưa có điểm tổng kết trong kỳ này." />
             )}
 
             {/* Confirmed assessments */}
-            <Box>
-              <Text fw={600} mb="xs">Nhận xét đã xác nhận</Text>
+            <div>
+              <Text weight="bold" display="block" style={{ marginBottom: 8 }}>Nhận xét đã xác nhận</Text>
               {data.assessments.length === 0 ? (
-                <Text size="sm" c="dimmed">Chưa có nhận xét nào.</Text>
+                <Text type="supporting" size="sm">Chưa có nhận xét nào.</Text>
               ) : (
-                <Stack gap="xs">
+                <Stack gap={1}>
                   {data.assessments.map((a) => (
-                    <Box
+                    <div
                       key={a.id}
-                      p="sm"
                       style={{
+                        padding: 12,
                         border: '1px solid var(--cmc-border)',
                         borderRadius: 'var(--cmc-radius-xs)',
                         background: 'var(--cmc-surface-2)',
                       }}
                     >
-                      <Text size="xs" c="dimmed" mb={4}>
+                      <Text type="supporting" size="2xs" display="block" style={{ marginBottom: 4 }}>
                         {a.confirmedAt
                           ? new Date(a.confirmedAt).toLocaleDateString('vi-VN')
                           : '—'}
                       </Text>
-                      <Text size="sm">{a.content}</Text>
-                    </Box>
+                      <Text type="body" size="sm">{a.content}</Text>
+                    </div>
                   ))}
                 </Stack>
               )}
-            </Box>
+            </div>
           </Stack>
         )}
 
-        <Button variant="subtle" mt="lg" onClick={() => navigate('/parent/home')}>
-          ← Quay lại
-        </Button>
-      </Box>
-    </Box>
+        <Button
+          variant="ghost"
+          style={{ marginTop: 24 }}
+          label="← Quay lại"
+          onClick={() => navigate('/parent/home')}
+        />
+      </div>
+    </div>
   );
 }

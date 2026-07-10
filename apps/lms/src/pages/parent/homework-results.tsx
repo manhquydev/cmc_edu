@@ -5,7 +5,7 @@
 // (backend excludes them). Kind gate: reachable under ParentLayout only.
 
 import { useParams, useNavigate } from 'react-router-dom';
-import { Alert, Anchor, Badge, Box, Button, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import { Badge, Banner, Button, Heading, HStack, Spinner, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -23,49 +23,45 @@ export default function HomeworkResultsPage() {
   );
 
   return (
-    <Box className="lms-shell">
-      <Box className="lms-topbar">
-        <Anchor size="sm" onClick={() => navigate('/parent/home')}>← Trang chủ</Anchor>
+    <div className="lms-shell">
+      <div className="lms-topbar">
+        <Button variant="ghost" size="sm" label="← Trang chủ" onClick={() => navigate('/parent/home')} />
         <Text className="lms-topbar__brand">Bài tập & điểm</Text>
-        <Box w={60} />
-      </Box>
+        <div style={{ width: 60 }} />
+      </div>
 
-      <Box className="lms-page">
-        <Title order={4} className="lms-page__title">Bài tập & điểm</Title>
+      <div className="lms-page">
+        <Heading level={4} className="lms-page__title">Bài tập & điểm</Heading>
 
-        {isLoading && <Group justify="center"><Loader /></Group>}
+        {isLoading && <HStack justify="center"><Spinner /></HStack>}
 
         {error && (
-          <Alert color="red" variant="light" title="Lỗi tải dữ liệu">
-            {error.message}
-          </Alert>
+          <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
         )}
 
         {data && data.items.length === 0 && (
-          <Alert color="gray" variant="light">
-            Con chưa nộp bài tập nào.
-          </Alert>
+          <Banner status="info" title="Con chưa nộp bài tập nào." />
         )}
 
-        <Stack gap="sm">
+        <Stack gap={1.5}>
           {data?.items.map((item) => (
-            <Box
+            <div
               key={item.id}
-              p="md"
               style={{
+                padding: 16,
                 border: '1px solid var(--cmc-border)',
                 borderRadius: 'var(--cmc-radius-xs)',
               }}
             >
-              <Group justify="space-between" mb={4}>
-                <Text fw={600}>{item.exerciseTitle}</Text>
+              <HStack justify="between" style={{ marginBottom: 4 }}>
+                <Text weight="bold">{item.exerciseTitle}</Text>
                 {item.status === 'graded' ? (
-                  <Badge color="green">{item.score} điểm</Badge>
+                  <Badge label={`${item.score} điểm`} variant="green" />
                 ) : (
-                  <Badge color="gray">Chờ chấm</Badge>
+                  <Badge label="Chờ chấm" variant="neutral" />
                 )}
-              </Group>
-              <Text size="xs" c="dimmed">
+              </HStack>
+              <Text type="supporting" size="2xs">
                 {item.submittedAt
                   ? `Nộp ngày ${new Date(item.submittedAt).toLocaleDateString('vi-VN')}`
                   : 'Chưa nộp'}
@@ -73,14 +69,17 @@ export default function HomeworkResultsPage() {
                   ? ` · Chấm ngày ${new Date(item.gradedAt).toLocaleDateString('vi-VN')} · +${item.starReward} sao`
                   : ''}
               </Text>
-            </Box>
+            </div>
           ))}
         </Stack>
 
-        <Button variant="subtle" mt="lg" onClick={() => navigate('/parent/home')}>
-          ← Quay lại
-        </Button>
-      </Box>
-    </Box>
+        <Button
+          variant="ghost"
+          style={{ marginTop: 24 }}
+          label="← Quay lại"
+          onClick={() => navigate('/parent/home')}
+        />
+      </div>
+    </div>
   );
 }

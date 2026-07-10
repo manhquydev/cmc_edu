@@ -9,18 +9,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Alert,
-  Anchor,
-  Box,
-  Button,
-  Divider,
-  Group,
-  Loader,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Banner, Button, Divider, Heading, Spinner, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -36,34 +25,49 @@ interface ChildLinksProps {
 function ChildLinks({ studentId, fullName }: ChildLinksProps) {
   const navigate = useNavigate();
   return (
-    <Box
-      p="md"
+    <div
       style={{
+        padding: 16,
         border: '1px solid var(--cmc-border)',
         borderRadius: 'var(--cmc-radius-xs)',
         background: 'var(--cmc-surface-2)',
       }}
     >
-      <Text fw={600} mb="xs">{fullName}</Text>
-      <Stack gap="xs">
-        <Anchor size="sm" onClick={() => navigate(`/parent/report-card/${studentId}`)}>
-          Học bạ / nhận xét
-        </Anchor>
-        <Anchor size="sm" onClick={() => navigate(`/parent/evidence/${studentId}`)}>
-          Ảnh buổi học
-        </Anchor>
-        <Anchor size="sm" onClick={() => navigate(`/parent/homework/${studentId}`)}>
-          Bài tập & điểm
-        </Anchor>
+      <Text weight="bold" display="block" style={{ marginBottom: 8 }}>{fullName}</Text>
+      <Stack gap={1}>
+        <Button
+          variant="ghost"
+          size="sm"
+          label="Học bạ / nhận xét"
+          onClick={() => navigate(`/parent/report-card/${studentId}`)}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          label="Ảnh buổi học"
+          onClick={() => navigate(`/parent/evidence/${studentId}`)}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          label="Bài tập & điểm"
+          onClick={() => navigate(`/parent/homework/${studentId}`)}
+        />
         {/* Parent-only: consent and password reset */}
-        <Anchor size="sm" onClick={() => navigate(`/parent/consent/${studentId}`)}>
-          Cài đặt đồng ý ảnh
-        </Anchor>
-        <Anchor size="sm" onClick={() => navigate(`/parent/reset-password/${studentId}`)}>
-          Đặt lại mật khẩu học sinh
-        </Anchor>
+        <Button
+          variant="ghost"
+          size="sm"
+          label="Cài đặt đồng ý ảnh"
+          onClick={() => navigate(`/parent/consent/${studentId}`)}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          label="Đặt lại mật khẩu học sinh"
+          onClick={() => navigate(`/parent/reset-password/${studentId}`)}
+        />
       </Stack>
-    </Box>
+    </div>
   );
 }
 
@@ -77,34 +81,34 @@ function RecentAssessments({ studentId }: { studentId: string }) {
     { enabled: !!studentId },
   );
 
-  if (isLoading) return <Loader size="xs" />;
-  if (error) return <Alert color="red" variant="light" title="Lỗi">{error.message}</Alert>;
+  if (isLoading) return <Spinner size="sm" />;
+  if (error) return <Banner status="error" title="Lỗi" description={error.message} />;
 
   const items = data?.items ?? [];
 
   if (items.length === 0) {
-    return <Text size="sm" c="dimmed">Chưa có nhận xét nào được xác nhận.</Text>;
+    return <Text type="supporting" size="sm">Chưa có nhận xét nào được xác nhận.</Text>;
   }
 
   return (
-    <Stack gap="xs">
+    <Stack gap={1}>
       {items.slice(0, 5).map((item) => (
-        <Box
+        <div
           key={item.id}
-          p="sm"
           style={{
+            padding: 12,
             border: '1px solid var(--cmc-border)',
             borderRadius: 'var(--cmc-radius-xs)',
             background: 'var(--cmc-surface)',
           }}
         >
-          <Text size="xs" c="dimmed" mb={4}>
+          <Text type="supporting" size="2xs" display="block" style={{ marginBottom: 4 }}>
             {item.confirmedAt
               ? new Date(item.confirmedAt).toLocaleDateString('vi-VN')
               : item.period ?? '—'}
           </Text>
-          <Text size="sm">{item.content}</Text>
-        </Box>
+          <Text type="body" size="sm">{item.content}</Text>
+        </div>
       ))}
     </Stack>
   );
@@ -125,23 +129,27 @@ export default function ParentHomePage() {
   if (!session || session.kind !== 'parent') return null;
 
   return (
-    <Box className="lms-shell">
-      <Box className="lms-topbar">
+    <div className="lms-shell">
+      <div className="lms-topbar">
         <Text className="lms-topbar__brand">CMC EDU — Phụ huynh</Text>
-        <Button size="xs" variant="subtle" onClick={() => { logout(); navigate('/login', { replace: true }); }}>
-          Đăng xuất
-        </Button>
-      </Box>
+        <Button
+          size="sm"
+          variant="ghost"
+          label="Đăng xuất"
+          onClick={() => { logout(); navigate('/login', { replace: true }); }}
+        />
+      </div>
 
-      <Box className="lms-page">
-        <Title order={4} className="lms-page__title">Con của bạn</Title>
+      <div className="lms-page">
+        <Heading level={4} className="lms-page__title">Con của bạn</Heading>
 
         {children.length === 0 ? (
-          <Alert color="yellow" variant="light">
-            Chưa có học sinh nào được liên kết với tài khoản. Liên hệ nhân viên để yêu cầu duyệt liên kết.
-          </Alert>
+          <Banner
+            status="warning"
+            title="Chưa có học sinh nào được liên kết với tài khoản. Liên hệ nhân viên để yêu cầu duyệt liên kết."
+          />
         ) : (
-          <Group gap="sm" mb="lg">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
             {children.map((child) => (
               <button
                 key={child.studentId}
@@ -152,7 +160,7 @@ export default function ParentHomePage() {
                 {child.fullName}
               </button>
             ))}
-          </Group>
+          </div>
         )}
 
         {selectedId && (
@@ -167,11 +175,11 @@ export default function ParentHomePage() {
                 />
               ))}
 
-            <Divider my="lg" label="Nhận xét gần đây (đã xác nhận)" labelPosition="left" />
+            <Divider label="Nhận xét gần đây (đã xác nhận)" style={{ marginTop: 24, marginBottom: 24 }} />
             <RecentAssessments studentId={selectedId} />
           </>
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 }

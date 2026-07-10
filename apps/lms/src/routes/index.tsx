@@ -6,7 +6,7 @@
 
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
-import { Center, Loader } from '@mantine/core';
+import { Spinner } from '@cmc/ui';
 import { ParentOnly, StudentOnly } from '../components/kind-guard.js';
 
 // --- lazy page imports ---
@@ -28,9 +28,9 @@ const ChangePasswordPage = lazy(() => import('../pages/student/change-password.j
 
 function PageLoader() {
   return (
-    <Center style={{ minHeight: '100vh' }}>
-      <Loader size="md" />
-    </Center>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Spinner size="md" />
+    </div>
   );
 }
 

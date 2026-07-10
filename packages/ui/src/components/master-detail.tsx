@@ -1,4 +1,4 @@
-import { Box, Group } from '@mantine/core';
+import { HStack } from '@astryxdesign/core/Stack';
 import type { ReactNode } from 'react';
 
 export interface MasterDetailProps {
@@ -10,8 +10,8 @@ export interface MasterDetailProps {
 
 export function MasterDetail({ list, detail, selectedId, listWidth = 320 }: MasterDetailProps) {
   return (
-    <Group gap={0} align="stretch" style={{ height: '100%', overflow: 'hidden' }}>
-      <Box
+    <HStack gap={0} align="stretch" style={{ height: '100%', overflow: 'hidden' }}>
+      <div
         style={{
           width: listWidth,
           flexShrink: 0,
@@ -21,8 +21,8 @@ export function MasterDetail({ list, detail, selectedId, listWidth = 320 }: Mast
         }}
       >
         {list}
-      </Box>
-      <Box
+      </div>
+      <div
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -30,7 +30,7 @@ export function MasterDetail({ list, detail, selectedId, listWidth = 320 }: Mast
         }}
       >
         {detail}
-      </Box>
-    </Group>
+      </div>
+    </HStack>
   );
 }

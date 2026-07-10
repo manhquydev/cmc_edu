@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, DataTable, FilterBar, HStack, PageHeader, StatusBadge } from '@cmc/ui';
+import { Button, DataTable, FilterBar, HStack, ListPage, PageHeader, StatusBadge } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { EnrollPicker } from '../../lib/enroll-picker.js';
@@ -111,37 +111,42 @@ export default function ReceiptListPage() {
 
   return (
     <>
-      <PageHeader
-        title="Phiếu thu học phí"
-        subtitle="Danh sách phiếu thu — tìm kiếm và duyệt học phí"
-        breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Phiếu thu' }]}
-        actions={
-          <HStack gap={2}>
-            <Button
-              label="+ Ghi danh"
-              size="sm"
-              variant="secondary"
-              onClick={() => setEnrollPickerOpen(true)}
-            />
-            <Button
-              label="+ Tạo phiếu thu"
-              size="sm"
-              variant="primary"
-              onClick={() => void navigate('/finance/new')}
-            />
-          </HStack>
-        }
-      />
       <EnrollPicker opened={enrollPickerOpen} onClose={() => setEnrollPickerOpen(false)} />
-      <FilterBar filters={FILTERS} onChange={handleFiltersChange} />
-      <DataTable<ReceiptRow>
-        columns={COLUMNS}
-        data={rows}
-        loading={isLoading}
-        error={error?.message}
-        empty="Chưa có phiếu thu nào"
-        onRowClick={(row) => void navigate(`/finance/${row.id}`)}
-      />
+      <ListPage
+        header={
+          <PageHeader
+            title="Phiếu thu học phí"
+            subtitle="Danh sách phiếu thu — tìm kiếm và duyệt học phí"
+            breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Phiếu thu' }]}
+            actions={
+              <HStack gap={2}>
+                <Button
+                  label="+ Ghi danh"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setEnrollPickerOpen(true)}
+                />
+                <Button
+                  label="+ Tạo phiếu thu"
+                  size="sm"
+                  variant="primary"
+                  onClick={() => void navigate('/finance/new')}
+                />
+              </HStack>
+            }
+          />
+        }
+        filters={<FilterBar filters={FILTERS} onChange={handleFiltersChange} />}
+      >
+        <DataTable<ReceiptRow>
+          columns={COLUMNS}
+          data={rows}
+          loading={isLoading}
+          error={error?.message}
+          empty="Chưa có phiếu thu nào"
+          onRowClick={(row) => void navigate(`/finance/${row.id}`)}
+        />
+      </ListPage>
     </>
   );
 }

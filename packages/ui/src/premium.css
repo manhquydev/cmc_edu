@@ -104,3 +104,23 @@
   transition: background var(--cmc-transition); }
 .sh-cta:hover { background: var(--cmc-brand-hover); }
 .sh-content { flex: 1; overflow-y: auto; }
+
+/* Page templates — thin premium wrappers for the list/detail/form page
+ * archetypes (P4 template extraction). They only style the shared canvas +
+ * action-bar chrome; the slots themselves compose existing @cmc/ui atoms
+ * (PageHeader/FilterBar/DataTable/MasterDetail/CmcTabs/ResultPanel). Requires
+ * @cmc/ui/premium.css. */
+.tpl-wrap { background: var(--cmc-canvas); min-height: 100%; padding: 32px 34px;
+  display: flex; flex-direction: column; gap: 20px; }
+.tpl-list-body, .tpl-detail-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.tpl-form-body { display: flex; flex-direction: column; gap: 16px; }
+.tpl-actions { position: sticky; bottom: 0; display: flex; justify-content: flex-end;
+  align-items: center; gap: 12px; padding: 14px 20px; background: var(--cmc-surface-raised);
+  border-radius: var(--cmc-radius-md); box-shadow: var(--cmc-shadow-sm); }
+
+/* Pill primary CTA for form action bars — same shape language as .sh-cta. */
+.fp-action { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 22px;
+  border-radius: var(--cmc-radius-pill); background: var(--cmc-brand); color: #fff;
+  font-size: 14px; font-weight: 600; border: none; cursor: pointer; font-family: inherit;
+  transition: background var(--cmc-transition); }
+.fp-action:hover { background: var(--cmc-brand-hover); }

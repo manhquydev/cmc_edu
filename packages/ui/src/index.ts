@@ -137,3 +137,13 @@ export { SideNav } from './components/side-nav.js';
 export type { SideNavProps } from './components/side-nav.js';
 export { AppFrame } from './components/app-frame.js';
 export type { AppFrameProps } from './components/app-frame.js';
+
+// Page templates (P4 template extraction) — thin, slot-based list/detail/form
+// page archetypes composing the atoms above. Props-only, no data fetching;
+// pages own tRPC + business logic. Require @cmc/ui/premium.css (.tpl-*).
+export { ListPage } from './components/list-page.js';
+export type { ListPageProps } from './components/list-page.js';
+export { DetailPage } from './components/detail-page.js';
+export type { DetailPageProps } from './components/detail-page.js';
+export { FormPage } from './components/form-page.js';
+export type { FormPageProps } from './components/form-page.js';

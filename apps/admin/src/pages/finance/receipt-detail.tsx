@@ -6,6 +6,7 @@ import {
   Button,
   CmcTabs,
   ConfirmDialog,
+  DetailPage,
   Grid,
   Heading,
   HStack,
@@ -379,24 +380,30 @@ export default function ReceiptDetailPage() {
   );
 
   return (
-    <>
-      <PageHeader
-        title={`Phiếu thu ${receipt.code}`}
-        breadcrumbs={[
-          { label: 'Kinh doanh' },
-          { label: 'Phiếu thu', href: '/finance' },
-          { label: receipt.code },
-        ]}
-        actions={
-          <Button
-            label="← Danh sách"
-            variant="secondary"
-            size="sm"
-            onClick={() => void navigate('/finance')}
-          />
-        }
-      />
-      <div style={{ height: 'calc(100vh - 100px)', overflow: 'hidden' }}>
+    <DetailPage
+      header={
+        <PageHeader
+          title={`Phiếu thu ${receipt.code}`}
+          breadcrumbs={[
+            { label: 'Kinh doanh' },
+            { label: 'Phiếu thu', href: '/finance' },
+            { label: receipt.code },
+          ]}
+          actions={
+            <Button
+              label="← Danh sách"
+              variant="secondary"
+              size="sm"
+              onClick={() => void navigate('/finance')}
+            />
+          }
+        />
+      }
+    >
+      {/* Fit the split-pane inside DetailPage's chrome (topbar + template
+          padding + header + tabs ≈ 220px) so it neither overflows nor leaves
+          a tall empty gap. */}
+      <div style={{ height: 'calc(100vh - 220px)', overflow: 'hidden' }}>
         <MasterDetail
           list={<PipelinePanel status={receipt.status} />}
           detail={detail}
@@ -404,6 +411,6 @@ export default function ReceiptDetailPage() {
           listWidth={220}
         />
       </div>
-    </>
+    </DetailPage>
   );
 }

@@ -1,7 +1,17 @@
 import { useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
-import { Group, Select, Stack, Text, Button } from '@mantine/core';
-import { CmcTabs, ConfirmDialog, EmptyState, PageHeader, StatusBadge } from '@cmc/ui';
+import {
+  Button,
+  CmcTabs,
+  ConfirmDialog,
+  EmptyState,
+  HStack,
+  PageHeader,
+  Selector,
+  Stack,
+  StatusBadge,
+  Text,
+} from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -64,52 +74,55 @@ export default function StudentDetailPage() {
       id: 'profile',
       label: 'Hồ sơ',
       content: (
-        <Stack p="md" gap="sm">
-          <Group>
-            <Text fw={500} fz="sm">
+        <Stack padding={4} gap={2}>
+          <HStack gap={1}>
+            <Text weight="semibold" size="sm">
               Họ tên:
             </Text>
-            <Text fz="sm">{student?.fullName ?? `ID: ${id}`}</Text>
-          </Group>
-          <Group>
-            <Text fw={500} fz="sm">
+            <Text size="sm">{student?.fullName ?? `ID: ${id}`}</Text>
+          </HStack>
+          <HStack gap={1}>
+            <Text weight="semibold" size="sm">
               Trạng thái:
             </Text>
             {student ? (
               <StatusBadge status={student.lifecycle} />
             ) : (
-              <Text fz="sm" c="dimmed">
+              <Text type="supporting" size="sm">
                 —
               </Text>
             )}
-          </Group>
+          </HStack>
 
           {canSetLifecycle && (
-            <Group mt="md" gap="sm" align="flex-end">
-              <Select
-                label="Đổi trạng thái"
-                placeholder="Chọn trạng thái…"
-                value={pendingLifecycle}
-                onChange={setPendingLifecycle}
-                data={LIFECYCLE_OPTIONS}
-                size="sm"
-                style={{ width: 200 }}
-              />
+            <HStack gap={2} align="end" style={{ marginTop: 16 }}>
+              <div style={{ width: 200 }}>
+                <Selector
+                  label="Đổi trạng thái"
+                  placeholder="Chọn trạng thái…"
+                  value={pendingLifecycle ?? undefined}
+                  onChange={(v) => setPendingLifecycle(v)}
+                  options={LIFECYCLE_OPTIONS}
+                  size="sm"
+                />
+              </div>
               <Button
+                label="Áp dụng"
                 size="sm"
-                color="orange"
-                disabled={!pendingLifecycle || setLifecycleMut.isPending}
+                variant="primary"
+                isDisabled={!pendingLifecycle || setLifecycleMut.isPending}
                 onClick={handleApply}
-              >
-                Áp dụng
-              </Button>
-            </Group>
+              />
+            </HStack>
           )}
 
           {setLifecycleMut.error && (
-            <Text fz="sm" c="red">
+            // TODO(astryx-review): Text's color enum (primary/secondary/disabled/
+            // placeholder/accent/inherit) has no error/danger slot — plain <span>
+            // with the CSS var per migration flag rule for raw-color text.
+            <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
               {setLifecycleMut.error.message}
-            </Text>
+            </span>
           )}
         </Stack>
       ),

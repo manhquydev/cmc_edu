@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Group, Text } from '@mantine/core';
-import { TextInput } from '@mantine/core';
-import { DataTable, PageHeader, StatusBadge } from '@cmc/ui';
+import { Button, DataTable, HStack, PageHeader, StatusBadge, Text, TextInput } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
@@ -49,25 +47,32 @@ export default function StudentListPage() {
         subtitle="Tra cứu học viên theo tên hoặc SĐT phụ huynh (tối đa 20 kết quả)"
         breadcrumbs={[{ label: 'Quản trị' }, { label: 'Học viên' }]}
       />
-      <Group p="md" gap="sm">
-        <TextInput
-          placeholder="Nhập tên hoặc SĐT phụ huynh…"
-          value={query}
-          onChange={(e) => setQuery(e.currentTarget.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          style={{ flex: 1, maxWidth: 400 }}
+      <HStack padding={4} gap={2}>
+        <div style={{ flex: 1, maxWidth: 400 }}>
+          <TextInput
+            label="Tìm kiếm học viên"
+            isLabelHidden
+            placeholder="Nhập tên hoặc SĐT phụ huynh…"
+            value={query}
+            onChange={(v) => setQuery(v)}
+            onEnter={handleSearch}
+            size="sm"
+          />
+        </div>
+        <Button
+          label="Tìm kiếm"
           size="sm"
+          variant="primary"
+          onClick={handleSearch}
+          isDisabled={query.trim().length < 2}
         />
-        <Button size="sm" onClick={handleSearch} disabled={query.trim().length < 2}>
-          Tìm kiếm
-        </Button>
-      </Group>
+      </HStack>
       {submitted.length < 2 ? (
-        <Group p="md">
-          <Text fz="sm" c="dimmed">
+        <HStack padding={4}>
+          <Text type="supporting" size="sm">
             Nhập ít nhất 2 ký tự để tìm kiếm.
           </Text>
-        </Group>
+        </HStack>
       ) : (
         <DataTable<StudentRow>
           columns={COLUMNS}

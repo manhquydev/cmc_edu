@@ -1,6 +1,18 @@
 import { useState } from 'react';
-import { Badge, Button, Group, Modal, MultiSelect, Stack, Text, TextInput } from '@mantine/core';
-import { DataTable, EmptyState, PageHeader } from '@cmc/ui';
+import {
+  Badge,
+  Button,
+  DataTable,
+  Dialog,
+  DialogHeader,
+  EmptyState,
+  HStack,
+  MultiSelector,
+  PageHeader,
+  Stack,
+  Text,
+  TextInput,
+} from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { ACTIVE_ROLES } from '@cmc/auth';
 import { trpc } from '../../lib/trpc.js';
@@ -40,15 +52,18 @@ const COLUMNS: TableColumn<UserRow>[] = [
     label: 'Roles',
     render: (v) => {
       const roles = v as string[];
-      if (!roles || roles.length === 0) return <Text fz="xs" c="dimmed">—</Text>;
+      if (!roles || roles.length === 0)
+        return (
+          <Text type="supporting" size="xsm">
+            —
+          </Text>
+        );
       return (
-        <Group gap={4}>
+        <HStack gap={0.5}>
           {roles.map((r) => (
-            <Badge key={r} size="xs" variant="outline" color="blue">
-              {r}
-            </Badge>
+            <Badge key={r} label={r} variant="info" />
           ))}
-        </Group>
+        </HStack>
       );
     },
   },
@@ -57,9 +72,7 @@ const COLUMNS: TableColumn<UserRow>[] = [
     label: 'Trạng thái',
     width: 120,
     render: (v) => (
-      <Badge color={Boolean(v) ? 'green' : 'gray'} variant="light">
-        {Boolean(v) ? 'Hoạt động' : 'Vô hiệu'}
-      </Badge>
+      <Badge label={Boolean(v) ? 'Hoạt động' : 'Vô hiệu'} variant={Boolean(v) ? 'success' : 'neutral'} />
     ),
   },
 ];
@@ -126,8 +139,12 @@ function UsersContent() {
     form.position.trim().length > 0;
 
   function setField(field: keyof CreateForm) {
-    return (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm((f) => ({ ...f, [field]: e.currentTarget.value }));
+    return (value: string) => setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function closeCreateModal() {
+    setModalOpen(false);
+    setForm(EMPTY_FORM);
   }
 
   const rows = (data?.items as UserRow[] | undefined) ?? [];
@@ -139,9 +156,7 @@ function UsersContent() {
         subtitle="Danh sách tài khoản nhân viên tại cơ sở"
         breadcrumbs={[{ label: 'Quản trị' }, { label: 'Nhân viên' }]}
         actions={
-          <Button size="sm" onClick={() => setModalOpen(true)}>
-            Thêm nhân viên
-          </Button>
+          <Button label="Thêm nhân viên" size="sm" variant="primary" onClick={() => setModalOpen(true)} />
         }
       />
 
@@ -154,114 +169,131 @@ function UsersContent() {
         onRowClick={(row) => openRolesModal(row)}
       />
 
-      {/* Create modal */}
-      <Modal
-        opened={modalOpen}
-        onClose={() => { setModalOpen(false); setForm(EMPTY_FORM); }}
-        title="Thêm nhân viên"
-        size="sm"
-        radius="xs"
-        centered
-        closeOnClickOutside={!createMut.isPending}
+      {/* Create modal.
+          TODO(astryx-review): Astryx Dialog manages its own focus-trap and
+          Escape/backdrop-dismiss internally (native <dialog>-based) — different
+          implementation from Mantine's Modal. purpose="form" blocks backdrop
+          click (closest match to the original closeOnClickOutside={!pending}
+          guard). Flagged per migration rule for any non-confirm modal. */}
+      <Dialog
+        isOpen={modalOpen}
+        onOpenChange={(next) => {
+          if (!next && !createMut.isPending) closeCreateModal();
+        }}
+        purpose="form"
+        width={400}
       >
-        <Stack gap="sm">
+        <DialogHeader
+          title="Thêm nhân viên"
+          onOpenChange={(next) => {
+            if (!next && !createMut.isPending) closeCreateModal();
+          }}
+        />
+        <Stack gap={2} padding={4}>
           <TextInput
             label="User ID (auth identity)"
             placeholder="email hoặc sub từ IdP…"
             value={form.userId}
             onChange={setField('userId')}
-            required
+            isRequired
           />
           <TextInput
             label="Họ tên"
             value={form.fullName}
             onChange={setField('fullName')}
-            required
+            isRequired
           />
           <TextInput
             label="Email"
             type="email"
             value={form.email}
             onChange={setField('email')}
-            required
+            isRequired
           />
           <TextInput
             label="Vị trí"
             placeholder="VD: Giáo viên, Nhân viên kinh doanh…"
             value={form.position}
             onChange={setField('position')}
-            required
+            isRequired
           />
           {createMut.error && (
-            <Text fz="sm" c="red">
+            // TODO(astryx-review): Text color enum has no error/danger slot —
+            // plain <span> with CSS var per migration flag rule.
+            <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
               {createMut.error.message}
-            </Text>
+            </span>
           )}
-          <Group justify="flex-end" mt="xs" gap="xs">
+          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
             <Button
-              variant="default"
-              radius="xs"
-              onClick={() => { setModalOpen(false); setForm(EMPTY_FORM); }}
-              disabled={createMut.isPending}
-            >
-              Hủy
-            </Button>
+              label="Hủy"
+              variant="secondary"
+              onClick={closeCreateModal}
+              isDisabled={createMut.isPending}
+            />
             <Button
-              radius="xs"
+              label="Tạo"
+              variant="primary"
               onClick={handleCreate}
-              loading={createMut.isPending}
-              disabled={!isFormValid}
-            >
-              Tạo
-            </Button>
-          </Group>
+              isLoading={createMut.isPending}
+              isDisabled={!isFormValid}
+            />
+          </HStack>
         </Stack>
-      </Modal>
+      </Dialog>
 
-      {/* Assign roles modal */}
-      <Modal
-        opened={rolesModalUser !== null}
-        onClose={() => setRolesModalUser(null)}
-        title={rolesModalUser ? `Phân quyền — ${rolesModalUser.fullName}` : ''}
-        size="sm"
-        radius="xs"
-        centered
-        closeOnClickOutside={!updateRolesMut.isPending}
+      {/* Assign roles modal.
+          TODO(astryx-review): non-confirm modal — see create-modal note above
+          for Dialog focus-trap/dismiss behavior flag. MultiSelector is a
+          first-use of this primitive in the admin app (0 prior usages
+          found), flagged per migration rule. */}
+      <Dialog
+        isOpen={rolesModalUser !== null}
+        onOpenChange={(next) => {
+          if (!next && !updateRolesMut.isPending) setRolesModalUser(null);
+        }}
+        purpose="form"
+        width={400}
       >
-        <Stack gap="sm">
-          <MultiSelect
+        <DialogHeader
+          title={rolesModalUser ? `Phân quyền — ${rolesModalUser.fullName}` : 'Phân quyền'}
+          onOpenChange={(next) => {
+            if (!next && !updateRolesMut.isPending) setRolesModalUser(null);
+          }}
+        />
+        <Stack gap={2} padding={4}>
+          <MultiSelector
             label="Roles"
-            data={ROLE_OPTIONS}
+            options={ROLE_OPTIONS}
             value={selectedRoles}
             onChange={setSelectedRoles}
-            searchable
-            clearable
+            hasSearch
+            hasClear
             placeholder="Chọn vai trò…"
           />
           {updateRolesMut.error && (
-            <Text fz="sm" c="red">
+            // TODO(astryx-review): Text color enum has no error/danger slot —
+            // plain <span> with CSS var per migration flag rule.
+            <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
               {updateRolesMut.error.message}
-            </Text>
+            </span>
           )}
-          <Group justify="flex-end" mt="xs" gap="xs">
+          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
             <Button
-              variant="default"
-              radius="xs"
+              label="Hủy"
+              variant="secondary"
               onClick={() => setRolesModalUser(null)}
-              disabled={updateRolesMut.isPending}
-            >
-              Hủy
-            </Button>
+              isDisabled={updateRolesMut.isPending}
+            />
             <Button
-              radius="xs"
+              label="Lưu"
+              variant="primary"
               onClick={handleSaveRoles}
-              loading={updateRolesMut.isPending}
-            >
-              Lưu
-            </Button>
-          </Group>
+              isLoading={updateRolesMut.isPending}
+            />
+          </HStack>
         </Stack>
-      </Modal>
+      </Dialog>
     </>
   );
 }

@@ -1,63 +1,87 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  Alert,
   Badge,
-  Box,
+  Banner,
   Button,
-  Group,
+  CmcTabs,
+  DataTable,
+  HStack,
+  PageHeader,
   Skeleton,
   Stack,
-  Table,
+  StatusBadge,
   Text,
-} from '@mantine/core';
-import { CmcTabs, PageHeader, StatusBadge } from '@cmc/ui';
+} from '@cmc/ui';
+import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 // ---------------------------------------------------------------------------
 // Sub-tabs
 // ---------------------------------------------------------------------------
 
+interface StudentTabRow {
+  enrollmentId: string;
+  fullName: string;
+  status: string;
+  [key: string]: unknown;
+}
+
 function StudentsTab({ classBatchId }: { classBatchId: string }) {
   const { data, isLoading, error } = trpc.classBatch.listStudents.useQuery({ classBatchId });
-  if (isLoading) return <Skeleton height={120} m="md" />;
-  if (error) return <Alert color="red" m="md">{error.message}</Alert>;
-  if (!data || data.length === 0) return (
-    <Box p="xl" ta="center"><Text c="dimmed">Chưa có học viên nào trong lớp.</Text></Box>
-  );
+
+  const columns: TableColumn<StudentTabRow>[] = [
+    {
+      key: 'fullName',
+      label: 'Họ tên',
+      render: (v) => (
+        <Text type="body" size="sm" weight="medium">
+          {String(v)}
+        </Text>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Trạng thái đăng ký',
+      width: 160,
+      render: (v) => (
+        <Badge
+          label={String(v)}
+          variant={String(v) === 'active' ? 'success' : 'neutral'}
+        />
+      ),
+    },
+  ];
+
   return (
-    <Box p="md" style={{ overflowX: 'auto' }}>
-      <Table striped fz="sm">
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>#</Table.Th>
-            <Table.Th>Họ tên</Table.Th>
-            <Table.Th>Trạng thái đăng ký</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {data.map((s, idx) => (
-            <Table.Tr key={s.enrollmentId}>
-              <Table.Td c="dimmed">{idx + 1}</Table.Td>
-              <Table.Td fw={500}>{s.fullName}</Table.Td>
-              <Table.Td>
-                <Badge size="xs" radius="xs" color={s.status === 'active' ? 'green' : 'gray'}>
-                  {s.status}
-                </Badge>
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Box>
+    <div style={{ padding: 16 }}>
+      <DataTable<StudentTabRow>
+        columns={columns}
+        data={(data as StudentTabRow[] | undefined) ?? []}
+        loading={isLoading}
+        error={error?.message}
+        empty="Chưa có học viên nào trong lớp."
+      />
+    </div>
   );
 }
 
-const SESSION_STATUS_COLOR: Record<string, string> = {
-  planned: 'gray',
-  confirmed: 'blue',
-  cancelled: 'red',
+const SESSION_STATUS_VARIANT: Record<string, 'neutral' | 'info' | 'error'> = {
+  planned: 'neutral',
+  confirmed: 'info',
+  cancelled: 'error',
 };
+
+interface SessionTabRow {
+  id: string;
+  sessionDate: string | Date;
+  startTime: string | Date;
+  endTime: string | Date;
+  status: string;
+  isMakeup: boolean;
+  [key: string]: unknown;
+}
 
 function SessionsTab({ classBatchId }: { classBatchId: string }) {
   const utils = trpc.useUtils();
@@ -69,64 +93,95 @@ function SessionsTab({ classBatchId }: { classBatchId: string }) {
     onSuccess: () => void utils.classSession.list.invalidate({ classBatchId }),
   });
 
-  if (isLoading) return <Skeleton height={160} m="md" />;
-  if (error) return <Alert color="red" m="md">{error.message}</Alert>;
-  if (!data || data.length === 0) return (
-    <Box p="xl" ta="center"><Text c="dimmed">Chưa có buổi học nào. Dùng "Sinh buổi học" từ quản lý lớp.</Text></Box>
-  );
+  // Cancelled sessions are dimmed (opacity) at the row level in Mantine's
+  // Table; DataTable has no per-row style hook, so each cell's rendered
+  // content is wrapped individually to approximate the same dimmed look.
+  function dim(status: string, content: ReactNode) {
+    return <span style={{ opacity: status === 'cancelled' ? 0.5 : 1 }}>{content}</span>;
+  }
+
+  const columns: TableColumn<SessionTabRow>[] = [
+    {
+      key: 'sessionDate',
+      label: 'Ngày',
+      render: (v, row) => dim(row.status, new Date(v as string).toLocaleDateString('vi-VN')),
+    },
+    {
+      key: 'startTime',
+      label: 'Bắt đầu',
+      render: (v, row) =>
+        dim(
+          row.status,
+          new Date(v as string).toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        ),
+    },
+    {
+      key: 'endTime',
+      label: 'Kết thúc',
+      render: (v, row) =>
+        dim(
+          row.status,
+          new Date(v as string).toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        ),
+    },
+    {
+      key: 'status',
+      label: 'Trạng thái',
+      width: 180,
+      render: (v, row) =>
+        dim(
+          row.status,
+          <HStack gap={0.5}>
+            <Badge label={String(v)} variant={SESSION_STATUS_VARIANT[String(v)] ?? 'neutral'} />
+            {row.isMakeup && <Badge label="makeup" variant="warning" />}
+          </HStack>,
+        ),
+    },
+    {
+      key: '_actions',
+      label: 'Thao tác',
+      width: 160,
+      render: (_v, row) => (
+        <HStack gap={0.5}>
+          {row.status === 'planned' && (
+            <Button
+              label="Xác nhận"
+              size="sm"
+              variant="secondary"
+              isLoading={confirmMut.isPending}
+              onClick={() => confirmMut.mutate({ sessionId: row.id })}
+            />
+          )}
+          {row.status !== 'cancelled' && (
+            <Button
+              label="Huỷ"
+              size="sm"
+              variant="ghost"
+              isLoading={cancelMut.isPending}
+              onClick={() => cancelMut.mutate({ sessionId: row.id })}
+            />
+          )}
+        </HStack>
+      ),
+    },
+  ];
+
   return (
-    <Box p="md" style={{ overflowX: 'auto' }}>
-      <Table striped fz="sm">
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>#</Table.Th>
-            <Table.Th>Ngày</Table.Th>
-            <Table.Th>Bắt đầu</Table.Th>
-            <Table.Th>Kết thúc</Table.Th>
-            <Table.Th>Trạng thái</Table.Th>
-            <Table.Th>Thao tác</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {data.map((s, idx) => (
-            <Table.Tr key={s.id} style={{ opacity: s.status === 'cancelled' ? 0.5 : 1 }}>
-              <Table.Td c="dimmed">{idx + 1}</Table.Td>
-              <Table.Td>{new Date(s.sessionDate).toLocaleDateString('vi-VN')}</Table.Td>
-              <Table.Td>{new Date(s.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</Table.Td>
-              <Table.Td>{new Date(s.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</Table.Td>
-              <Table.Td>
-                <Badge size="xs" radius="xs" color={SESSION_STATUS_COLOR[s.status] ?? 'gray'}>
-                  {s.status}
-                </Badge>
-                {s.isMakeup && <Badge size="xs" radius="xs" color="yellow" ml={4}>makeup</Badge>}
-              </Table.Td>
-              <Table.Td>
-                <Group gap={4}>
-                  {s.status === 'planned' && (
-                    <Button
-                      size="xs" radius="xs" color="blue" variant="light"
-                      loading={confirmMut.isPending}
-                      onClick={() => confirmMut.mutate({ sessionId: s.id })}
-                    >
-                      Xác nhận
-                    </Button>
-                  )}
-                  {s.status !== 'cancelled' && (
-                    <Button
-                      size="xs" radius="xs" color="red" variant="subtle"
-                      loading={cancelMut.isPending}
-                      onClick={() => cancelMut.mutate({ sessionId: s.id })}
-                    >
-                      Huỷ
-                    </Button>
-                  )}
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Box>
+    <div style={{ padding: 16 }}>
+      <DataTable<SessionTabRow>
+        columns={columns}
+        data={(data as SessionTabRow[] | undefined) ?? []}
+        loading={isLoading}
+        error={error?.message}
+        empty='Chưa có buổi học nào. Dùng "Sinh buổi học" từ quản lý lớp.'
+      />
+    </div>
   );
 }
 
@@ -144,41 +199,58 @@ export default function ClassDetailPage() {
   );
 
   const overviewContent = (() => {
-    if (isLoading) return <Text p="md" fz="sm" c="dimmed">Đang tải…</Text>;
-    if (error) return <Alert color="red" m="md">{error.message}</Alert>;
+    if (isLoading) return <Skeleton height={120} style={{ margin: 16 }} />;
+    if (error)
+      return (
+        <div style={{ margin: 16 }}>
+          <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
+        </div>
+      );
     if (!cls) return null;
     return (
-      <Stack p="md" gap="sm">
-        <Group gap="xl">
-          <Stack gap={2}>
-            <Text fz={11} tt="uppercase" c="dimmed" fw={600}>Mã lớp</Text>
-            <Text fz="sm" fw={500}>{cls.code}</Text>
+      <Stack padding={4} gap={2}>
+        <HStack gap={6}>
+          <Stack gap={0.5}>
+            <Text type="supporting" size="2xs" weight="bold" style={{ textTransform: 'uppercase' }}>
+              Mã lớp
+            </Text>
+            <Text size="sm" weight="medium">{cls.code}</Text>
           </Stack>
-          <Stack gap={2}>
-            <Text fz={11} tt="uppercase" c="dimmed" fw={600}>Chương trình</Text>
-            <Text fz="sm">{cls.program}</Text>
+          <Stack gap={0.5}>
+            <Text type="supporting" size="2xs" weight="bold" style={{ textTransform: 'uppercase' }}>
+              Chương trình
+            </Text>
+            <Text size="sm">{cls.program}</Text>
           </Stack>
-          <Stack gap={2}>
-            <Text fz={11} tt="uppercase" c="dimmed" fw={600}>Trạng thái</Text>
+          <Stack gap={0.5}>
+            <Text type="supporting" size="2xs" weight="bold" style={{ textTransform: 'uppercase' }}>
+              Trạng thái
+            </Text>
             <StatusBadge status={cls.status} />
           </Stack>
-        </Group>
-        <Group gap="xl">
-          <Stack gap={2}>
-            <Text fz={11} tt="uppercase" c="dimmed" fw={600}>Bắt đầu</Text>
-            <Text fz="sm">{new Date(cls.startDate).toLocaleDateString('vi-VN')}</Text>
+        </HStack>
+        <HStack gap={6}>
+          <Stack gap={0.5}>
+            <Text type="supporting" size="2xs" weight="bold" style={{ textTransform: 'uppercase' }}>
+              Bắt đầu
+            </Text>
+            <Text size="sm">{new Date(cls.startDate).toLocaleDateString('vi-VN')}</Text>
           </Stack>
-          <Stack gap={2}>
-            <Text fz={11} tt="uppercase" c="dimmed" fw={600}>Kết thúc</Text>
-            <Text fz="sm">{new Date(cls.endDate).toLocaleDateString('vi-VN')}</Text>
+          <Stack gap={0.5}>
+            <Text type="supporting" size="2xs" weight="bold" style={{ textTransform: 'uppercase' }}>
+              Kết thúc
+            </Text>
+            <Text size="sm">{new Date(cls.endDate).toLocaleDateString('vi-VN')}</Text>
           </Stack>
           {cls.teacherId && (
-            <Stack gap={2}>
-              <Text fz={11} tt="uppercase" c="dimmed" fw={600}>Giáo viên (ID)</Text>
-              <Text fz="sm">{cls.teacherId}</Text>
+            <Stack gap={0.5}>
+              <Text type="supporting" size="2xs" weight="bold" style={{ textTransform: 'uppercase' }}>
+                Giáo viên (ID)
+              </Text>
+              <Text size="sm">{cls.teacherId}</Text>
             </Stack>
           )}
-        </Group>
+        </HStack>
       </Stack>
     );
   })();

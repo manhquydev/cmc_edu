@@ -44,14 +44,20 @@ rg "@mantine" pnpm-lock.yaml → 0 matches (after pnpm install, Phase 5 dep remo
 | API e2e | ✅ 17 pass | |
 | `pnpm test` | ⚠️ local DB-contamination | see caveat below |
 
-**`pnpm test` caveat (honest):** local `pnpm test` fails on `@cmc/api` backend suites
+**`pnpm test` caveat (resolved by CI):** local `pnpm test` fails on `@cmc/api` backend suites
 (lms-auth / payroll / kpi) with `Unique constraint failed on (phone)`. Root cause = accumulated
 row contamination in the **shared local dev DB** from many interrupted runs today — NOT a
 regression from this migration (the Phase 5 diff touches only deps + comments + docs; zero test
-logic, zero API code). These same suites pass green on CI's fresh per-run `cmc_ci` DB (proven in
-PR #27, run 29068226340). Per plan AC#3, **CI on a fresh DB is the authoritative test gate** — the
-PR merging this branch re-runs it end-to-end. Not destructively resetting the shared dev DB
-(other worktrees/sessions depend on it).
+logic, zero API code). **Confirmed on PR #28 CI (fresh `cmc_ci` DB): `typecheck-and-test` PASS**
+(blocking gate, runs 29081982230 + 29081985593) — the authoritative AC#3 test gate is GREEN.
+Not destructively resetting the shared dev DB (other worktrees/sessions depend on it).
+
+**CI e2e config fix (this branch):** the first CI run's non-blocking `e2e` job failed because the
+`ui-chromium` Playwright project was registered unconditionally, so the default API-only
+`playwright test` tried to launch a browser CI never installed. Fixed by gating the project behind
+`PLAYWRIGHT_UI=1` (parallel to its already-gated preview webServers) — CI's default run is now
+API-only (18 specs, `e2e` PASS); UI specs run via the documented
+`PLAYWRIGHT_UI=1 --project=ui-chromium`. Both PR #28 checks green.
 
 ## AC#4 — Bundle ≤ +15% vs Phase 1 baseline · **PASS (bundle SHRANK)**
 
@@ -94,7 +100,7 @@ remains a non-goal (prompt-injection surface — requires separate security revi
 |---|---|
 | 1 Zero Mantine | ✅ PASS |
 | 2 TL12 §10 states | ✅ PASS (deep real-device visual QA deferred) |
-| 3 typecheck/build/e2e/test | ✅ typecheck+build+e2e; test green on CI (local DB-contaminated, non-regression) |
+| 3 typecheck/build/e2e/test | ✅ local typecheck+build+e2e; CI `typecheck-and-test` PASS on fresh DB (PR #28) — AC#3 gate green |
 | 4 Bundle ≤+15% | ✅ PASS (−2.5% / −9.5%, shrank) |
 | 5 Login auth-parity | ✅ PASS (e2e DOM-verified) |
 | 6 Supply-chain | ✅ PASS |

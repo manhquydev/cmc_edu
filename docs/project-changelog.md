@@ -6,6 +6,31 @@
 
 ---
 
+## [2026-07-10] Reconcile migration↔schema.prisma drift (pre-P3-dump hygiene)
+
+**Context:** The M1 P4 review flagged that the committed migration history had silently
+diverged from `schema.prisma` (the source of truth). Left unfixed, the next
+`prisma migrate dev` would re-bundle it into an unrelated migration (as happened in P4),
+and the P3 cutover dump would ship a schema that doesn't match the declared model. This
+captures the divergence in one deliberate, reviewed migration
+(`20260710220000_reconcile_schema_drift`).
+
+**Drift categories (verified via `prisma migrate diff` on a fresh migrations-built DB):**
+- **id / updatedAt DB defaults dropped (18 tables)** — migrations set `DEFAULT CURRENT_TIMESTAMP` /
+  uuid defaults; `schema.prisma` generates these app-side (`@default(uuid())` / `@updatedAt`),
+  which Prisma does not back with DB defaults. Behaviourally inert — Prisma always supplies the value.
+- **FK `ON UPDATE NO ACTION → CASCADE` (7 FKs)** — hand-written migrations omitted `ON UPDATE`;
+  Prisma emits `ON UPDATE CASCADE`. Inert — every referenced key is an immutable UUID PK.
+- **`QualitativeAssessment.confidence` `REAL → DOUBLE PRECISION`** — safe widening (schema declares `Float`).
+- **`QualitativeAssessment.classSessionId` FK `ON DELETE RESTRICT → SET NULL`** — the only real
+  behavioural change; matches the already-merged optional-relation declaration
+  (`classSessionId String?` → Prisma default `onDelete: SetNull`). Dormant in practice: no prod
+  path deletes a `ClassSession`, and test teardown already deletes assessments first.
+
+**Verification:** migration applies cleanly on a fresh full-history deploy; `migrate status` = up to date;
+`migrate diff` residual = empty; `schema.prisma` unchanged so the generated Prisma client is identical
+(typecheck/build unaffected). Full suite validated in CI.
+
 ## [2026-07-10] M1 P4 hardening: sweep write-amplification fix, EmailOutbox index+retention, RLS fixture
 
 **Context:** M1 pilot-stability plan (`plans/260710-0228-m1-pilot-stability-real-vps`) Phase 4 — closes

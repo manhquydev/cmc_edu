@@ -70,7 +70,10 @@ export type Tokens = typeof tokens;
 export { LineIcon } from './components/line-icon.js';
 export type { IconName } from './components/line-icon.js';
 
-// Premium composites (promoted from the cockpit pilot — DUMB, props-only).
+// Premium composites (promoted from the cockpit pilot — presentational,
+// props-only; no session/tRPC coupling). MetricCard + TaskRow render
+// react-router `Link`s (a declared peer) so they need a Router ancestor;
+// AppFrame/SideNav below stay router-free via an onNavigate callback.
 // Require `@cmc/ui/premium.css` imported once at the app root.
 export type { Tone } from './components/tone.js';
 export { MetricCard } from './components/metric-card.js';

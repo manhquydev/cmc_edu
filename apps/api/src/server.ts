@@ -32,6 +32,20 @@ import {
 
 const port = Number(process.env.PORT ?? 3000);
 
+// Two client conventions hit this handler and both must keep working:
+//   - Browser clients (apps/admin/src/lib/trpc.ts, apps/lms/src/lib/trpc.ts)
+//     build their base URL as `${API_URL}/trpc`, so every call arrives as
+//     `/trpc/{procedure}`.
+//   - Node e2e clients (apps/e2e/src/trpc-client.ts) call `baseUrl` directly
+//     with NO `/trpc` segment, so calls arrive as `/{procedure}`.
+// createHTTPHandler's `basePath` option can only strip one fixed prefix for
+// every request, so it can't serve both conventions — setting it to
+// '/trpc/' breaks the bare-path e2e clients (verified in CI: a request to
+// `/facility.create` got wrongly sliced to `"ity.create"`, the literal
+// 6-char length of '/trpc/'). Instead, leave basePath at its default ('/',
+// strips only the leading slash — matches the bare-path e2e convention) and
+// normalize the browser convention down to it below, only for requests that
+// actually start with `/trpc/`.
 const trpcHandler = createHTTPHandler({
   router: appRouter,
   createContext: ({ req }) => createContext({ req }),
@@ -103,6 +117,15 @@ const server = createServer((req, res) => {
     });
     return;
   }
+
+  // Normalize the browser clients' `/trpc/{procedure}` convention down to
+  // the bare `/{procedure}` the handler's default basePath expects. Bare
+  // paths (e2e clients, and Docker/e2e's `/health` check — see comment on
+  // trpcHandler above) pass through unchanged.
+  if (urlPath?.startsWith('/trpc/')) {
+    req.url = req.url!.slice('/trpc'.length);
+  }
+
   trpcHandler(req, res);
 });
 

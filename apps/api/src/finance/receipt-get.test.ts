@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { withFacility } from '@cmc/db';
 import { appRouter } from '../router.js';
 import {
   buildStaffContext,
@@ -69,19 +70,21 @@ describe('finance.receiptGet — classBatchCode', () => {
     });
     const code = `SO${String(counter.value).padStart(5, '0')}`;
 
-    const receipt = await db.receipt.create({
-      data: {
-        facilityId: facility.id,
-        code,
-        netAmount: 1_000_000,
-        status: 'draft',
-        kind: 'new',
-        parentPhone: phone,
-        studentName: 'No Class Student',
-        classBatchId: null,
-        createdById: 'sale-rg-1',
-      },
-    });
+    const receipt = await withFacility(db, facility.id, (tx) =>
+      tx.receipt.create({
+        data: {
+          facilityId: facility.id,
+          code,
+          netAmount: 1_000_000,
+          status: 'draft',
+          kind: 'new',
+          parentPhone: phone,
+          studentName: 'No Class Student',
+          classBatchId: null,
+          createdById: 'sale-rg-1',
+        },
+      }),
+    );
 
     const result = await director.finance.receiptGet({
       receiptId: receipt.id,

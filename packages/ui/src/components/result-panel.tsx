@@ -1,14 +1,10 @@
-import { Alert, Group, Loader, Stack, Text } from '@mantine/core';
+import { Banner } from '@astryxdesign/core/Banner';
+import { Stack, HStack } from '@astryxdesign/core/Stack';
+import { Text } from '@astryxdesign/core/Text';
+import { Spinner } from '@astryxdesign/core/Spinner';
 import type { ReactNode } from 'react';
 
 export type ResultStatus = 'success' | 'error' | 'warning' | 'loading';
-
-const STATUS_CONFIG: Record<ResultStatus, { color: string; icon: string }> = {
-  success: { color: 'green', icon: '✓' },
-  error: { color: 'red', icon: '✕' },
-  warning: { color: 'orange', icon: '⚠' },
-  loading: { color: 'blue', icon: '' },
-};
 
 export interface ResultPanelProps {
   status: ResultStatus;
@@ -18,36 +14,31 @@ export interface ResultPanelProps {
 }
 
 export function ResultPanel({ status, title, message, actions }: ResultPanelProps) {
-  const cfg = STATUS_CONFIG[status];
-
   if (status === 'loading') {
     return (
-      <Stack align="center" py={48} gap="md">
-        <Loader size="md" />
-        <Text fz="sm" c="dimmed">
+      <Stack hAlign="center" paddingBlock={6} gap={2}>
+        <Spinner size="md" />
+        <Text type="supporting" size="sm">
           {title}
         </Text>
       </Stack>
     );
   }
 
+  // Astryx's Banner picks its own icon per status automatically (no manual
+  // ✓/✕/⚠ mapping needed — a simplification over the Mantine version).
   return (
-    <Alert
-      color={cfg.color}
-      title={
-        <Group gap={6}>
-          <Text span fw={700}>
-            {cfg.icon}
-          </Text>
-          {title}
-        </Group>
-      }
-      radius="xs"
-    >
-      <Stack gap="sm">
-        {message && <Text fz="sm">{message}</Text>}
-        {actions && <Group gap="xs">{actions}</Group>}
-      </Stack>
-    </Alert>
+    <Banner status={status} title={title}>
+      {(message || actions) && (
+        <Stack gap={2}>
+          {message && (
+            <Text type="body" size="sm">
+              {message}
+            </Text>
+          )}
+          {actions && <HStack gap={1}>{actions}</HStack>}
+        </Stack>
+      )}
+    </Banner>
   );
 }

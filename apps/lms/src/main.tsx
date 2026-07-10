@@ -1,12 +1,15 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
-import { MantineProvider } from '@mantine/core';
-import '@mantine/core/styles.css';
+// Astryx reset flip (plan Phase 4 step 4): lms now renders zero Mantine
+// components, so its provider + styles are dropped here (the @mantine/*
+// package deps stay in package.json until Phase 5 per rollback policy — only
+// the runtime usage is removed, avoiding a double-reset). main.tsx is the one
+// whitelisted entry allowed to import CSS/reset directly; reset.css is
+// app-scoped and NOT in @cmc/ui (red-team F14). Order: reset → tokens →
+// astryx theme (astryx.css + theme.css via astryx-theme-cmc.css) → app.
+import '@astryxdesign/core/reset.css';
 import '@cmc/ui/tokens.css';
-// Astryx CSS + theme scope live alongside Mantine's through Phase 2-4 (both
-// providers deliberately coexist — see plan.md); no reset.css here (that's
-// app-scoped, added only once this app fully flips to Astryx in Phase 4).
 import '@cmc/ui/astryx-theme-cmc.css';
 import './app.css';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -28,11 +31,9 @@ createRoot(rootElement).render(
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <AstryxCmcProvider>
-          <MantineProvider>
-            <LmsSessionProvider>
-              <RouterProvider router={router} />
-            </LmsSessionProvider>
-          </MantineProvider>
+          <LmsSessionProvider>
+            <RouterProvider router={router} />
+          </LmsSessionProvider>
         </AstryxCmcProvider>
       </QueryClientProvider>
     </trpc.Provider>

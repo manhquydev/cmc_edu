@@ -4,11 +4,10 @@
 // pre-existing findings. The single job here is to prevent apps from importing
 // a UI library directly instead of going through @cmc/ui.
 //
-// Scope: apps/admin/** (fully migrated to Astryx in Phase 3). apps/lms/** is
-// added in Phase 4 once it is migrated too — scoping it now would flag lms's
-// still-present Mantine imports and make lint red prematurely.
+// Scope: apps/admin/** (Phase 3) + apps/lms/** (Phase 4) — both fully migrated
+// to Astryx, so the one-door rule now guards both apps.
 //
-// Whitelist: apps/admin/src/main.tsx is fully exempt (the one entry allowed to
+// Whitelist: each app's src/main.tsx is fully exempt (the one entry allowed to
 // import design-system CSS/reset + providers directly — red-team F14: reset.css
 // is app-scoped, not re-exported through @cmc/ui). Note this exempts the whole
 // file, not just its CSS imports — main.tsx is hand-reviewed as the single door,
@@ -32,8 +31,8 @@ const BANNED_UI_IMPORTS = {
 
 export default [
   {
-    files: ['apps/admin/**/*.{ts,tsx}'],
-    ignores: ['apps/admin/src/main.tsx'],
+    files: ['apps/admin/**/*.{ts,tsx}', 'apps/lms/**/*.{ts,tsx}'],
+    ignores: ['apps/admin/src/main.tsx', 'apps/lms/src/main.tsx'],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: { ecmaFeatures: { jsx: true }, sourceType: 'module' },

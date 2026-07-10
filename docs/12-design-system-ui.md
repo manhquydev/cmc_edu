@@ -1,7 +1,7 @@
 # Tài liệu 12 — Design System & Đặc tả UI (v2)
 
 > Ngôn ngữ hình ảnh + thư viện component để build UI nhất quán. Kế thừa & chuẩn hoá bản
-> `docs/design-system.md` đã có (Apple-minimal + ERP density, Mantine v7, brand `#0071E3`), bổ sung
+> `docs/design-system.md` đã có (Apple-minimal + ERP density, Astryx beta, brand `#0071E3`), bổ sung
 > trạng thái component, pattern trang, semantics màu, accessibility.
 > Áp cùng nguyên tắc UX (TL2) và routing (TL6).
 
@@ -19,7 +19,7 @@ phẳng, whitespace rộng nhưng bảng vẫn đọc được, typography mang 
 #E8F1FC` · `--cmc-brand-ink #003D99`.
 **Text:** `--cmc-text #1D1D1F` · `--cmc-text-2 #3C3C43` · `--cmc-text-muted #6E6E73` ·
 `--cmc-text-faint #AEAEB2`.
-**Typography:** header cột UPPERCASE 11px · dữ liệu 13px · heading theo thang Mantine.
+**Typography:** header cột UPPERCASE 11px · dữ liệu 13px · heading theo thang Astryx (CSS custom properties `--cmc-text` scale).
 **Bo góc:** `xs` 4px cho nút/thẻ. **Bóng:** border mảnh + `xs` shadow, không đổ bóng trang trí.
 
 ## 3. ⚠️ Semantics màu trạng thái (sửa lỗi UX audit #6)

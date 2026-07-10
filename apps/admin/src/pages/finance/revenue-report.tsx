@@ -8,8 +8,7 @@
 // - Bar width proportional to group revenue vs. max group revenue.
 // - DateRange filter synced to URL query param ?range= (deep-linkable).
 
-import { Alert, Box, Group, SimpleGrid, Skeleton, Stack, Text } from '@mantine/core';
-import { PageHeader, StatCard, tokens } from '@cmc/ui';
+import { Banner, Grid, HStack, PageHeader, Skeleton, Stack, StatCard, Text, tokens } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 // ---------------------------------------------------------------------------
@@ -63,9 +62,9 @@ function RevenueBarChart({
 }) {
   if (loading) {
     return (
-      <Stack gap={8}>
+      <Stack gap={3}>
         {Array.from({ length: 4 }, (_, i) => (
-          <Skeleton key={i} height={28} radius="xs" />
+          <Skeleton key={i} height={28} radius={1} index={i} />
         ))}
       </Stack>
     );
@@ -73,7 +72,7 @@ function RevenueBarChart({
 
   if (rows.length === 0) {
     return (
-      <Text fz="sm" c="dimmed">
+      <Text type="supporting" size="sm">
         Chưa có phiếu thu đã duyệt nào.
       </Text>
     );
@@ -82,28 +81,28 @@ function RevenueBarChart({
   const maxTotal = rows[0]?.total ?? 0;
 
   return (
-    <Stack gap={6}>
+    <Stack gap={3}>
       {rows.map((row) => {
         const pct = maxTotal > 0 ? (row.total / maxTotal) * 100 : 0;
         return (
-          <Group key={row.classBatchId} gap="sm" align="center" wrap="nowrap">
+          <HStack key={row.classBatchId} gap={2} align="center" wrap="nowrap">
             {/* Label */}
-            <Text
-              fz="xs"
+            <span
+              title={row.classBatchId}
               style={{
                 width: 160,
                 flexShrink: 0,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
+                display: 'inline-block',
               }}
-              title={row.classBatchId}
             >
-              {row.label}
-            </Text>
+              <Text size="xsm">{row.label}</Text>
+            </span>
 
             {/* Bar track */}
-            <Box
+            <div
               style={{
                 flex: 1,
                 height: 22,
@@ -114,7 +113,7 @@ function RevenueBarChart({
               }}
             >
               {/* Filled portion */}
-              <Box
+              <div
                 style={{
                   position: 'absolute',
                   inset: '0 auto 0 0',
@@ -125,12 +124,12 @@ function RevenueBarChart({
                   transition: 'width 0.25s ease',
                 }}
               />
-            </Box>
+            </div>
 
             {/* Value */}
             <Text
-              fz="xs"
-              fw={500}
+              size="xsm"
+              weight="medium"
               style={{
                 width: 130,
                 textAlign: 'right',
@@ -143,13 +142,13 @@ function RevenueBarChart({
 
             {/* Receipt count */}
             <Text
-              fz="xs"
-              c="dimmed"
+              type="supporting"
+              size="xsm"
               style={{ width: 40, textAlign: 'right', flexShrink: 0 }}
             >
               ({row.count})
             </Text>
-          </Group>
+          </HStack>
         );
       })}
     </Stack>
@@ -183,22 +182,21 @@ export default function RevenueReportPage() {
         breadcrumbs={[{ label: 'Ops' }, { label: 'Doanh thu' }]}
       />
 
-      <Stack gap="lg" p="md">
+      <Stack gap={5} padding={4}>
         {error && (
-          <Alert color="red" title="Lỗi tải dữ liệu" radius="xs">
-            {error.message}
-          </Alert>
+          <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
         )}
 
         {isTruncated && (
-          <Alert color="yellow" title="Dữ liệu bị cắt bớt" radius="xs">
-            Chỉ hiển thị {items.length} / {data.total} phiếu thu. Biểu đồ chưa
-            phản ánh toàn bộ doanh thu — phân trang server-side chưa được triển khai.
-          </Alert>
+          <Banner
+            status="warning"
+            title="Dữ liệu bị cắt bớt"
+            description={`Chỉ hiển thị ${items.length} / ${data.total} phiếu thu. Biểu đồ chưa phản ánh toàn bộ doanh thu — phân trang server-side chưa được triển khai.`}
+          />
         )}
 
         {/* Stat cards */}
-        <SimpleGrid cols={{ base: 1, xs: 3 }}>
+        <Grid columns={{ minWidth: 220, max: 3 }} gap={4}>
           <StatCard
             label="Tổng doanh thu (đã duyệt)"
             value={`${totalRevenue.toLocaleString('vi-VN')} đ`}
@@ -214,22 +212,20 @@ export default function RevenueReportPage() {
             value={totalReceiptsAll}
             loading={isLoading}
           />
-        </SimpleGrid>
+        </Grid>
 
         {/* Bar chart section */}
-        <Box>
+        <div>
           <Text
-            fz={11}
-            tt="uppercase"
-            fw={600}
-            c="dimmed"
-            mb="sm"
-            style={{ letterSpacing: '0.04em' }}
+            type="supporting"
+            size="2xs"
+            weight="semibold"
+            style={{ textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}
           >
             Doanh thu theo lớp học
           </Text>
           <RevenueBarChart rows={rows} loading={isLoading} />
-        </Box>
+        </div>
       </Stack>
     </>
   );

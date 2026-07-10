@@ -9,20 +9,20 @@
 // - Status lifecycle is terminal: open → dismissed | actioned (no re-open).
 
 import { useState } from 'react';
+import type { ComponentProps } from 'react';
 import {
-  Alert,
-  Anchor,
   Badge,
-  Box,
+  Banner,
   Button,
   Card,
-  Group,
-  Select,
+  ConfirmDialog,
+  HStack,
+  PageHeader,
+  Selector,
   Stack,
   Text,
-} from '@mantine/core';
+} from '@cmc/ui';
 import { useSearchParams } from 'react-router-dom';
-import { ConfirmDialog, PageHeader } from '@cmc/ui';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
 
@@ -42,7 +42,7 @@ const KIND_LABELS: Record<FlagKind, string> = {
   missing_provisioning: 'Thiếu cấp phát dịch vụ',
 };
 
-const KIND_COLORS: Record<FlagKind, string> = {
+const KIND_COLORS: Record<FlagKind, ComponentProps<typeof Badge>['variant']> = {
   self_approved: 'red',
   exceeds_threshold: 'orange',
   excess_refunds: 'orange',
@@ -100,7 +100,7 @@ interface FlagCardProps {
 function FlagCard({ flag, canReview, onDismiss, onAction, isMutating }: FlagCardProps) {
   const kind = flag.kind as FlagKind;
   const label = KIND_LABELS[kind] ?? flag.kind;
-  const color = KIND_COLORS[kind] ?? 'gray';
+  const color = KIND_COLORS[kind] ?? 'neutral';
   const description = KIND_DESCRIPTIONS[kind] ?? '';
   const createdAt = new Date(flag.createdAt as unknown as string).toLocaleDateString(
     'vi-VN',
@@ -108,64 +108,59 @@ function FlagCard({ flag, canReview, onDismiss, onAction, isMutating }: FlagCard
   );
 
   return (
-    <Card withBorder radius="xs" padding="md">
-      <Stack gap="xs">
-        <Group justify="space-between" wrap="nowrap">
-          <Badge color={color} variant="light" radius="xs" size="sm">
-            {label}
-          </Badge>
-          <Text fz="xs" c="dimmed">
+    <Card padding={4}>
+      <Stack gap={2}>
+        <HStack justify="between" wrap="nowrap">
+          <Badge label={label} variant={color} />
+          <Text type="supporting" size="xsm">
             {createdAt}
           </Text>
-        </Group>
+        </HStack>
 
-        <Text fz="xs" c="dimmed">
+        <Text type="supporting" size="xsm">
           {description}
         </Text>
 
         {flag.receiptId && (
-          <Group gap={6} align="center">
-            <Text fz="xs" c="dimmed">
+          <HStack gap={1.5} align="center">
+            <Text type="supporting" size="xsm">
               Phiếu thu:
             </Text>
-            <Anchor
-              fz="xs"
+            {/* Plain <a> (not react-router Link) — matches the original
+                Mantine Anchor's full-page-navigation behavior exactly. */}
+            <a
               href={`/finance/${flag.receiptId}?flag=${flag.id}`}
-              style={{ color: 'var(--cmc-brand)' }}
+              style={{ fontSize: 12, color: 'var(--cmc-brand)' }}
             >
               …{flag.receiptId.slice(-8)}
-            </Anchor>
-          </Group>
+            </a>
+          </HStack>
         )}
 
-        <Box mt={4}>
+        <div style={{ marginTop: 4 }}>
           {canReview ? (
-            <Group gap="xs" justify="flex-end">
+            <HStack gap={2} justify="end">
               <Button
-                size="xs"
-                radius="xs"
-                variant="default"
-                disabled={isMutating}
+                label="Bỏ qua"
+                size="sm"
+                variant="secondary"
+                isDisabled={isMutating}
                 onClick={() => onDismiss(flag.id, kind)}
-              >
-                Bỏ qua
-              </Button>
+              />
               <Button
-                size="xs"
-                radius="xs"
-                color="blue"
-                disabled={isMutating}
+                label="Đã xử lý"
+                size="sm"
+                variant="primary"
+                isDisabled={isMutating}
                 onClick={() => onAction(flag.id, kind)}
-              >
-                Đã xử lý
-              </Button>
-            </Group>
+              />
+            </HStack>
           ) : (
-            <Text fz="xs" c="dimmed" fs="italic">
+            <Text type="supporting" size="xsm" style={{ fontStyle: 'italic' }}>
               Chỉ đọc — liên hệ GĐ để xử lý cảnh báo.
             </Text>
           )}
-        </Box>
+        </div>
       </Stack>
     </Card>
   );
@@ -227,60 +222,59 @@ export default function ReconciliationPage() {
         breadcrumbs={[{ label: 'Ops' }, { label: 'Đối soát' }]}
       />
 
-      <Stack gap="md" p="md">
+      <Stack gap={4} padding={4}>
         {/* ----------------------------------------------------------------
             HOTL agent read-only banner — MUST be present and unambiguous.
             The ai:recon worker is read-only per-facility; it cannot action
             flags itself. Human review (dismiss / action) is gated to GĐ.
         ---------------------------------------------------------------- */}
-        <Alert
-          color="yellow"
-          variant="light"
-          radius="xs"
+        <Banner
+          status="warning"
           title="Kết quả phân tích tự động từ AI agent — chỉ đọc"
-        >
-          Các cảnh báo bên dưới được tạo tự động bởi agent{' '}
-          <Text span fw={700} fz="sm">
-            ai:recon
-          </Text>{' '}
-          dựa trên quy tắc nghiệp vụ. Agent{' '}
-          <Text span fw={700} fz="sm">
-            không tự thực hiện hành động
-          </Text>{' '}
-          — mọi thao tác xử lý (bỏ qua / đã xử lý) đều yêu cầu GĐ xác nhận thủ công.
-          Kết quả chỉ mang tính tham khảo và cần được xác minh độc lập.
-        </Alert>
-
-        {/* Kind filter */}
-        <Select
-          size="xs"
-          radius="xs"
-          label="Lọc theo loại cảnh báo"
-          placeholder="Tất cả"
-          data={Object.entries(KIND_LABELS).map(([value, label]) => ({ value, label }))}
-          value={kindFilter || null}
-          onChange={handleKindFilter}
-          clearable
-          w={260}
+          description={
+            <>
+              Các cảnh báo bên dưới được tạo tự động bởi agent{' '}
+              <Text weight="bold" size="sm">
+                ai:recon
+              </Text>{' '}
+              dựa trên quy tắc nghiệp vụ. Agent{' '}
+              <Text weight="bold" size="sm">
+                không tự thực hiện hành động
+              </Text>{' '}
+              — mọi thao tác xử lý (bỏ qua / đã xử lý) đều yêu cầu GĐ xác nhận thủ công.
+              Kết quả chỉ mang tính tham khảo và cần được xác minh độc lập.
+            </>
+          }
         />
 
+        {/* Kind filter */}
+        <div style={{ width: 260 }}>
+          <Selector
+            size="sm"
+            label="Lọc theo loại cảnh báo"
+            placeholder="Tất cả"
+            options={Object.entries(KIND_LABELS).map(([value, label]) => ({ value, label }))}
+            value={kindFilter || null}
+            onChange={handleKindFilter}
+            hasClear
+          />
+        </div>
+
         {error && (
-          <Alert color="red" title="Lỗi tải dữ liệu" radius="xs">
-            {error.message}
-          </Alert>
+          <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
         )}
 
         {isLoading && (
-          <Text fz="sm" c="dimmed">
+          <Text type="supporting" size="sm">
             Đang tải cảnh báo…
           </Text>
         )}
 
         {!isLoading && flags?.length === 0 && (
-          <Alert color="green" variant="light" radius="xs">
-            Không có cảnh báo nào đang mở
-            {kindFilter ? ` (loại: ${KIND_LABELS[kindFilter]})` : ''}.
-          </Alert>
+          <Banner
+            status="success"
+            title={`Không có cảnh báo nào đang mở${kindFilter ? ` (loại: ${KIND_LABELS[kindFilter]})` : ''}.`}
+          />
         )}
 
         {flags?.map((flag) => (

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Skeleton } from '@cmc/ui';
 import { useSession } from '../lib/session-context.js';
 import { trpc } from '../lib/trpc.js';
-import { LineIcon, type IconName } from '../lib/line-icons.js';
+import { LineIcon, type IconName } from '@cmc/ui';
 
 export function countPendingApproval(receipts: { status: string }[]): number {
   return receipts.filter((r) => r.status === 'draft').length;
@@ -28,7 +28,7 @@ const TONE_FG: Record<Tone, string> = {
   neutral: 'var(--cmc-text-faint)',
 };
 
-// Icons come from the shared monochrome outline set (lib/line-icons) — same
+// Icons come from the shared monochrome outline set (@cmc/ui line-icon) — same
 // icon language as the shell nav, no emoji, no colour.
 
 const styles = `

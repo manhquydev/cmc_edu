@@ -1,5 +1,5 @@
 import type { Role } from '@cmc/auth';
-import type { IconName } from '../lib/line-icons.js';
+import type { IconName } from '@cmc/ui';
 
 export interface NavEntry {
   id: string;
@@ -18,7 +18,7 @@ export interface NavModule {
   roles?: readonly Role[];
 }
 
-// `icon` is a LineIcon key (see lib/line-icons.tsx) — monochrome outline icons,
+// `icon` is a LineIcon key (see @cmc/ui line-icon) — monochrome outline icons,
 // never emoji (reference study: one consistent icon language, no colour).
 export const NAV_MODULES: NavModule[] = [
   {

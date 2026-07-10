@@ -9,6 +9,10 @@ import { RouterProvider } from 'react-router-dom';
 // app-scoped and NOT in @cmc/ui (red-team F14). Order: reset → tokens →
 // astryx theme (astryx.css + theme.css via astryx-theme-cmc.css) → app.
 import '@astryxdesign/core/reset.css';
+// Inter Variable (self-hosted, no external fetch) — shared design-language font,
+// mirrors apps/admin ordering (after reset, before tokens) so --cmc-font-sans
+// resolves to a loaded face.
+import '@fontsource-variable/inter';
 import '@cmc/ui/tokens.css';
 import '@cmc/ui/astryx-theme-cmc.css';
 import './app.css';

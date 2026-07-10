@@ -2,9 +2,9 @@ import type { ReactNode } from 'react';
 
 // Shared monochrome line-icon set (Feather, MIT). Outline style, single stroke,
 // inherits colour from the parent (currentColor) — never filled, never tinted,
-// never emoji. One source of truth for the shell nav AND page content so the
-// whole app speaks one icon language (per the Apple/Notion reference study:
-// restraint + consistency). Add keys as pages need them.
+// never emoji. One source of truth for shell nav AND page content so the whole
+// app speaks one icon language (Apple/Notion reference study: restraint +
+// consistency). Add keys as pages need them.
 
 export type IconName =
   | 'grid' | 'book' | 'users' | 'card' | 'shield'

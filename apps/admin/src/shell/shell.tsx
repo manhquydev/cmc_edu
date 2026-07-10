@@ -1,10 +1,9 @@
-import { Badge } from '@cmc/ui';
+import { Badge, LineIcon } from '@cmc/ui';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../lib/session-context.js';
 import { EnrollPicker } from '../lib/enroll-picker.js';
 import { visibleModulesFor, type NavModule } from './nav-registry.js';
 import { RoleSwitcher } from './role-switcher.js';
-import { LineIcon } from '../lib/line-icons.js';
 import { useState } from 'react';
 
 // Custom light-mode app frame (design pilot, 2026-07-10). Grounded in the

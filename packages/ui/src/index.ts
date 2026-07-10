@@ -24,6 +24,9 @@ export const tokens = {
   },
   radius: {
     xs: 'var(--cmc-radius-xs)',
+    md: 'var(--cmc-radius-md)',
+    lg: 'var(--cmc-radius-lg)',
+    pill: 'var(--cmc-radius-pill)',
   },
   space: {
     1: 'var(--cmc-space-1)',
@@ -36,9 +39,36 @@ export const tokens = {
     sizeData: 'var(--cmc-font-size-data)',
     sizeColumn: 'var(--cmc-font-size-column)',
   },
+  // Premium design-language layer (mirrors the v2 premium block in tokens.css,
+  // grounded in the Apple + Notion references). Non-CSS surfaces read these.
+  premium: {
+    canvas: 'var(--cmc-canvas)',
+    surfaceRaised: 'var(--cmc-surface-raised)',
+    surfaceSunken: 'var(--cmc-surface-sunken)',
+    hover: 'var(--cmc-hover)',
+    borderSubtle: 'var(--cmc-border-subtle)',
+    shadowSm: 'var(--cmc-shadow-sm)',
+    shadowMd: 'var(--cmc-shadow-md)',
+    shadowLg: 'var(--cmc-shadow-lg)',
+    blurNav: 'var(--cmc-blur-nav)',
+    ease: 'var(--cmc-ease)',
+    transition: 'var(--cmc-transition)',
+    fsLabel: 'var(--cmc-fs-label)',
+    fsBody: 'var(--cmc-fs-body)',
+    fsH3: 'var(--cmc-fs-h3)',
+    fsMetric: 'var(--cmc-fs-metric)',
+    lhBody: 'var(--cmc-lh-body)',
+    padCard: 'var(--cmc-pad-card)',
+    gapSection: 'var(--cmc-gap-section)',
+    accentSoft: 'var(--cmc-accent-soft)',
+  },
 } as const;
 
 export type Tokens = typeof tokens;
+
+// Shared monochrome line-icon set (one icon language for shell + content).
+export { LineIcon } from './components/line-icon.js';
+export type { IconName } from './components/line-icon.js';
 
 // Astryx theme scope provider — see astryx-theme-cmc.css for token values.
 export { AstryxCmcProvider } from './astryx-provider.js';

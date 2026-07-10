@@ -81,8 +81,10 @@
    min tap-target to 44px; desktop admin keeps its ERP density unchanged. */
 @media (max-width: 768px) {
   [data-astryx-theme='neutral'] .astryx-button,
-  [data-astryx-theme='neutral'] input,
-  [data-astryx-theme='neutral'] .astryx-text-input {
+  [data-astryx-theme='neutral'] .astryx-text-input,
+  /* text-like inputs only — do NOT stretch checkbox/radio/color/range, which
+     have intrinsic sizes and would break vertical rhythm in option rows. */
+  [data-astryx-theme='neutral'] input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']) {
     min-height: 44px;
   }
 }

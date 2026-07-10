@@ -1,99 +1,171 @@
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { StatCard, PageHeader, Badge, Card, Grid, HStack, Skeleton, Stack, Text, Heading } from '@cmc/ui';
+import { Skeleton } from '@cmc/ui';
 import { useSession } from '../lib/session-context.js';
 import { trpc } from '../lib/trpc.js';
+import { LineIcon, type IconName } from '../lib/line-icons.js';
 
 export function countPendingApproval(receipts: { status: string }[]): number {
   return receipts.filter((r) => r.status === 'draft').length;
 }
 
 // ---------------------------------------------------------------------------
-// Stat cards
+// Premium design language, v2 (cockpit pilot, 2026-07-10).
+// Grounded in the Apple + Notion deconstructions (D:/Downloads/design):
+// premium = RESTRAINT + WHITESPACE + TYPOGRAPHY + SURFACE CONTRAST, not
+// decoration. White cards on a warm canvas (separation by contrast, not
+// borders/shadows), near-black numerals (one interactive colour only),
+// monochrome Feather line icons, generous spacing. Tokens: tokens.css.
+// Patterns here are page-local; promoted to @cmc/ui in the build-out.
+// ---------------------------------------------------------------------------
+
+type Tone = 'brand' | 'success' | 'warning' | 'danger' | 'neutral';
+const TONE_FG: Record<Tone, string> = {
+  brand: 'var(--cmc-brand)',
+  success: 'var(--cmc-success)',
+  warning: 'var(--cmc-warning)',
+  danger: 'var(--cmc-danger)',
+  neutral: 'var(--cmc-text-faint)',
+};
+
+// Icons come from the shared monochrome outline set (lib/line-icons) — same
+// icon language as the shell nav, no emoji, no colour.
+
+const styles = `
+.ck-wrap { background: var(--cmc-canvas); min-height: 100%; padding: 32px 34px; }
+.ck-head { margin-bottom: 28px; }
+.ck-h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.03em; color: var(--cmc-text); margin: 0; line-height: 1.1; }
+.ck-sub { font-size: 14px; color: var(--cmc-text-muted); margin: 5px 0 0; }
+.ck-grid { display: grid; gap: 20px; }
+.ck-metrics { grid-template-columns: repeat(auto-fit, minmax(236px, 1fr)); margin-bottom: 32px; }
+.ck-body { grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 1040px) { .ck-body { grid-template-columns: 1.4fr 1fr; } }
+
+/* Metric card — white on warm canvas, separation by SURFACE CONTRAST.
+   No border, no resting shadow; a whisper of lift on hover only. */
+.ck-mc { display: block; text-decoration: none; color: inherit;
+  background: var(--cmc-surface-raised); border-radius: var(--cmc-radius-md);
+  padding: 24px 26px; transition: box-shadow var(--cmc-transition); }
+.ck-mc:hover { box-shadow: var(--cmc-shadow-sm); }
+.ck-mc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.ck-mc-label { display: flex; align-items: center; gap: 7px;
+  font-size: var(--cmc-fs-label); font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--cmc-text-muted); }
+.ck-mc-icon { color: var(--cmc-text-faint); }
+.ck-mc-value { font-size: var(--cmc-fs-metric); font-weight: 600; line-height: 1;
+  letter-spacing: -0.03em; color: var(--cmc-text); font-variant-numeric: tabular-nums; }
+.ck-mc-ctx { margin-top: 11px; display: flex; align-items: center; gap: 3px;
+  font-size: 13px; color: var(--cmc-text-muted); transition: color var(--cmc-transition); }
+.ck-mc:hover .ck-mc-ctx { color: var(--cmc-brand); }
+.ck-attn { width: 6px; height: 6px; border-radius: 999px; }
+
+/* Panel — flat white, hairline header divider only */
+.ck-pnl { background: var(--cmc-surface-raised); border-radius: var(--cmc-radius-md); overflow: hidden; }
+.ck-pnl-head { display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 22px 14px; }
+.ck-pnl-title { font-size: 14px; font-weight: 600; color: var(--cmc-text); letter-spacing: -0.01em; }
+.ck-pnl-icon { color: var(--cmc-text-faint); }
+
+/* Rows — spacing + warm hover separate them, minimal hairline */
+.ck-row { display: flex; align-items: center; gap: 13px; padding: 13px 22px;
+  text-decoration: none; color: inherit; transition: background var(--cmc-transition); }
+.ck-row + .ck-row { border-top: 1px solid var(--cmc-border-subtle); }
+.ck-row:hover { background: var(--cmc-canvas); }
+.ck-dot { width: 7px; height: 7px; border-radius: 999px; flex-shrink: 0; }
+.ck-row-title { font-size: 14px; font-weight: 500; color: var(--cmc-text); }
+.ck-row-meta { font-size: 12.5px; color: var(--cmc-text-muted); font-variant-numeric: tabular-nums; margin-top: 1px; }
+.ck-chev { color: #c7c7cc; flex-shrink: 0; }
+
+/* Funnel — thin pill bars, one solid accent, generous rows */
+.ck-fn { padding: 8px 22px 20px; display: flex; flex-direction: column; gap: 16px; }
+.ck-fn-row { display: flex; align-items: center; gap: 14px; }
+.ck-fn-label { width: 96px; flex-shrink: 0; font-size: 13px; color: var(--cmc-text-2); }
+.ck-fn-track { flex: 1; height: 8px; display: block; background: var(--cmc-surface-sunken); border-radius: 999px; overflow: hidden; }
+.ck-fn-fill { display: block; height: 100%; background: var(--cmc-brand); border-radius: 999px; transition: width 520ms var(--cmc-ease); }
+.ck-fn-count { width: 24px; text-align: right; font-size: 13px; font-weight: 600; color: var(--cmc-text); font-variant-numeric: tabular-nums; }
+
+.ck-empty { padding: 34px 22px; text-align: center; color: var(--cmc-text-muted);
+  font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.ck-empty-icon { color: var(--cmc-text-faint); }
+`;
+
+function MetricCard(props: {
+  label: string; value: ReactNode; context: string; icon: IconName;
+  href: string; attention?: Tone; loading?: boolean;
+}) {
+  return (
+    <Link to={props.href} className="ck-mc">
+      <div className="ck-mc-top">
+        <span className="ck-mc-label">
+          {props.attention && <span className="ck-attn" style={{ background: TONE_FG[props.attention] }} />}
+          {props.label}
+        </span>
+        <span className="ck-mc-icon"><LineIcon name={props.icon} size={19} /></span>
+      </div>
+      {props.loading
+        ? <Skeleton height={32} width="46%" radius={0} />
+        : <div className="ck-mc-value">{props.value}</div>}
+      <div className="ck-mc-ctx">{props.context}<LineIcon name="chevron" size={13} /></div>
+    </Link>
+  );
+}
+
+function Panel({ title, icon, children }: { title: string; icon?: IconName; children: ReactNode }) {
+  return (
+    <div className="ck-pnl">
+      <div className="ck-pnl-head">
+        <span className="ck-pnl-title">{title}</span>
+        {icon && <span className="ck-pnl-icon"><LineIcon name={icon} size={17} /></span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Metric cards (data logic unchanged; presentation restrained per references —
+// value stays near-black, urgency is a small dot, not a recoloured number)
 // ---------------------------------------------------------------------------
 
 function PendingReceiptsCard() {
-  const { data, isLoading, error } = trpc.finance.receiptList.useQuery(
-    { status: 'draft', pageSize: 1 },
-  );
+  const { data, isLoading, error } = trpc.finance.receiptList.useQuery({ status: 'draft', pageSize: 1 });
   const pending = data?.total ?? 0;
-
   return (
-    <Link to="/finance?status=draft" style={{ textDecoration: 'none' }}>
-      <StatCard
-        label="Phiếu thu chờ duyệt"
-        value={isLoading ? '…' : error ? 'Lỗi' : pending}
-        trend={error ? error.message : 'Xem danh sách →'}
-        color={pending > 0 ? '#e03131' : undefined}
-        loading={isLoading}
-      />
-    </Link>
+    <MetricCard label="Phiếu thu chờ duyệt" icon="receipt" href="/finance?status=draft"
+      attention={pending > 0 ? 'danger' : undefined} loading={isLoading}
+      value={error ? '—' : pending} context={error ? 'Không tải được' : 'Xem danh sách'} />
   );
 }
 
 function OverThresholdCard() {
   const { me } = useSession();
-  const { data, isLoading, error } = trpc.finance.receiptList.useQuery(
-    { status: 'draft', pageSize: 100 },
-  );
+  const { data, isLoading, error } = trpc.finance.receiptList.useQuery({ status: 'draft', pageSize: 100 });
   const threshold = me?.config.approvalSecondEyeThreshold ?? 20_000_000;
-  const count = (data?.items ?? []).filter(
-    (r) => r.netAmount > threshold,
-  ).length;
-
+  const count = (data?.items ?? []).filter((r) => r.netAmount > threshold).length;
   return (
-    <Link to="/finance?status=draft" style={{ textDecoration: 'none' }}>
-      <StatCard
-        label="Vượt ngưỡng duyệt"
-        value={isLoading ? '…' : error ? 'Lỗi' : count}
-        trend={error ? error.message : 'Cần GĐĐT/SA →'}
-        color={count > 0 ? '#e67700' : undefined}
-        loading={isLoading}
-      />
-    </Link>
+    <MetricCard label="Vượt ngưỡng duyệt" icon="alert" href="/finance?status=draft"
+      attention={count > 0 ? 'warning' : undefined} loading={isLoading}
+      value={error ? '—' : count} context={error ? 'Không tải được' : 'Cần GĐĐT/SA'} />
   );
 }
 
 function UngradedSubmissionsCard() {
-  const { data, isLoading, error } = trpc.submission.listForGrading.useQuery(
-    {},
-    { refetchOnWindowFocus: false },
-  );
-  const count = (data?.items ?? []).filter(
-    (s) => s.status === 'submitted',
-  ).length;
-
+  const { data, isLoading, error } = trpc.submission.listForGrading.useQuery({}, { refetchOnWindowFocus: false });
+  const count = (data?.items ?? []).filter((s) => s.status === 'submitted').length;
   return (
-    <Link to="/teaching/grading" style={{ textDecoration: 'none' }}>
-      <StatCard
-        label="Bài chờ chấm"
-        value={isLoading ? '…' : error ? 'Lỗi' : count}
-        trend={error ? error.message : 'Chấm bài →'}
-        color={count > 0 ? '#e67700' : undefined}
-        loading={isLoading}
-      />
-    </Link>
+    <MetricCard label="Bài chờ chấm" icon="edit" href="/teaching/grading"
+      attention={count > 0 ? 'warning' : undefined} loading={isLoading}
+      value={error ? '—' : count} context={error ? 'Không tải được' : 'Chấm bài'} />
   );
 }
 
 function O4OpportunitiesCard() {
-  const { data, isLoading, error } = trpc.crm.opportunityList.useQuery(
-    { stage: 'O4_TESTED', pageSize: 100 },
-    { refetchOnWindowFocus: false },
-  );
-  const count = (data?.items ?? []).filter(
-    (o) => !o.closedAt,
-  ).length;
-
+  const { data, isLoading, error } = trpc.crm.opportunityList.useQuery({ stage: 'O4_TESTED', pageSize: 100 }, { refetchOnWindowFocus: false });
+  const count = (data?.items ?? []).filter((o) => !o.closedAt).length;
   return (
-    <Link to="/crm" style={{ textDecoration: 'none' }}>
-      <StatCard
-        label="Sẵn sàng ghi danh"
-        value={isLoading ? '…' : error ? 'Lỗi' : count}
-        trend={error ? error.message : 'Cơ hội O4 →'}
-        color={count > 0 ? '#2f9e44' : undefined}
-        loading={isLoading}
-      />
-    </Link>
+    <MetricCard label="Sẵn sàng ghi danh" icon="target" href="/crm"
+      attention={count > 0 ? 'success' : undefined} loading={isLoading}
+      value={error ? '—' : count} context={error ? 'Không tải được' : 'Cơ hội O4'} />
   );
 }
 
@@ -101,114 +173,79 @@ function O4OpportunitiesCard() {
 // Task queue — "Việc cần bạn xử lý"
 // ---------------------------------------------------------------------------
 
-interface TaskItem {
-  title: string;
-  meta: string;
-  href: string;
-}
+interface TaskItem { title: string; meta: string; href: string; tone: Tone }
 
 function TaskQueue({ items, loading }: { items: TaskItem[]; loading: boolean }) {
   if (loading) {
-    return (
-      <Stack gap={1}>
-        {[1, 2, 3].map((i) => <Skeleton key={i} height={48} radius={1} />)}
-      </Stack>
-    );
+    return <div style={{ padding: '8px 22px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {[1, 2, 3].map((i) => <Skeleton key={i} height={40} radius={1} />)}
+    </div>;
   }
-
   if (items.length === 0) {
     return (
-      <div
-        style={{
-          padding: 16,
-          border: '1px dashed var(--cmc-border)',
-          borderRadius: 4,
-          textAlign: 'center',
-        }}
-      >
-        <Text type="supporting" size="sm">
-          Không có nhiệm vụ nào chờ xử lý cho vai trò này.
-        </Text>
+      <div className="ck-empty">
+        <span className="ck-empty-icon"><LineIcon name="check-circle" size={22} /></span>
+        Không có nhiệm vụ nào chờ xử lý cho vai trò này.
       </div>
     );
   }
-
   return (
-    <Stack gap={1}>
+    <div>
       {items.map((item, i) => (
-        <Link
-          key={i}
-          to={item.href}
-          style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
-        >
-          <Card padding={2} style={{ cursor: 'pointer' }}>
-            <HStack justify="between">
-              <Stack gap={0.5}>
-                <Text size="sm" weight="semibold">{item.title}</Text>
-                <Text type="supporting" size="xsm">{item.meta}</Text>
-              </Stack>
-              <Text size="xsm" color="accent">Xem →</Text>
-            </HStack>
-          </Card>
+        <Link key={i} to={item.href} className="ck-row">
+          <span className="ck-dot" style={{ background: TONE_FG[item.tone] }} />
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span className="ck-row-title" style={{ display: 'block' }}>{item.title}</span>
+            <span className="ck-row-meta" style={{ display: 'block' }}>{item.meta}</span>
+          </span>
+          <span className="ck-chev"><LineIcon name="chevron" size={16} /></span>
         </Link>
       ))}
-    </Stack>
+    </div>
   );
 }
 
 function DirectorTaskQueue() {
   const { me } = useSession();
-  const { data, isLoading } = trpc.finance.receiptList.useQuery(
-    { status: 'draft', pageSize: 10 },
-  );
+  const { data, isLoading } = trpc.finance.receiptList.useQuery({ status: 'draft', pageSize: 10 });
   const threshold = me?.config.approvalSecondEyeThreshold ?? 20_000_000;
-  const items: TaskItem[] = (data?.items ?? []).slice(0, 10).map((r) => ({
-    title: `Duyệt ${r.code} — ${r.studentName}`,
-    meta: `${r.netAmount.toLocaleString('vi-VN')} đ${r.netAmount > threshold ? ' ⚠️ vượt ngưỡng' : ''}`,
-    href: `/finance/${r.id}`,
-  }));
-
+  const items: TaskItem[] = (data?.items ?? []).slice(0, 10).map((r) => {
+    const over = r.netAmount > threshold;
+    return {
+      title: `Duyệt ${r.code} — ${r.studentName}`,
+      meta: `${r.netAmount.toLocaleString('vi-VN')} đ${over ? ' · vượt ngưỡng' : ''}`,
+      href: `/finance/${r.id}`,
+      tone: over ? 'warning' : 'brand',
+    };
+  });
   return <TaskQueue items={items} loading={isLoading} />;
 }
 
 function SaleTaskQueue() {
-  const { data, isLoading } = trpc.crm.opportunityList.useQuery(
-    { stage: 'O4_TESTED', pageSize: 50 },
-    { refetchOnWindowFocus: false },
-  );
-  const items: TaskItem[] = (data?.items ?? [])
-    .filter((o) => !o.closedAt)
-    .slice(0, 10)
-    .map((o) => ({
-      title: `Ghi danh — ${o.contact.name}`,
-      meta: o.contact.phone,
-      href: `/finance/new?opportunityId=${o.id}`,
-    }));
-
+  const { data, isLoading } = trpc.crm.opportunityList.useQuery({ stage: 'O4_TESTED', pageSize: 50 }, { refetchOnWindowFocus: false });
+  const items: TaskItem[] = (data?.items ?? []).filter((o) => !o.closedAt).slice(0, 10).map((o) => ({
+    title: `Ghi danh — ${o.contact.name}`,
+    meta: o.contact.phone,
+    href: `/finance/new?opportunityId=${o.id}`,
+    tone: 'success',
+  }));
   return <TaskQueue items={items} loading={isLoading} />;
 }
 
 function TeacherTaskQueue() {
-  const { data, isLoading } = trpc.submission.listForGrading.useQuery(
-    {},
-    { refetchOnWindowFocus: false },
-  );
-  const pending = (data?.items ?? []).filter(
-    (s) => s.status === 'submitted',
-  );
-  const items: TaskItem[] = pending.slice(0, 10).map(
-    (s) => ({
-      title: `Chấm bài — ${s.studentId.slice(0, 8)}`,
-      meta: `Bài tập ${s.exerciseId.slice(0, 8)}`,
-      href: '/teaching/grading',
-    }),
-  );
-
+  const { data, isLoading } = trpc.submission.listForGrading.useQuery({}, { refetchOnWindowFocus: false });
+  const pending = (data?.items ?? []).filter((s) => s.status === 'submitted');
+  const items: TaskItem[] = pending.slice(0, 10).map((s) => ({
+    title: `Chấm bài — ${s.studentId.slice(0, 8)}`,
+    meta: `Bài tập ${s.exerciseId.slice(0, 8)}`,
+    href: '/teaching/grading',
+    tone: 'warning',
+  }));
   return <TaskQueue items={items} loading={isLoading} />;
 }
 
 // ---------------------------------------------------------------------------
-// Pipeline side panel — O1→O5 funnel
+// Pipeline funnel — real O1→O5 counts, thin single-accent pill bars
 // ---------------------------------------------------------------------------
 
 const STAGE_LABELS: Record<string, string> = {
@@ -220,95 +257,55 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 function PipelineFunnel() {
-  const { data, isLoading } = trpc.crm.opportunityList.useQuery(
-    { pageSize: 100 },
-    { refetchOnWindowFocus: false },
-  );
-
+  const { data, isLoading } = trpc.crm.opportunityList.useQuery({ pageSize: 100 }, { refetchOnWindowFocus: false });
   const counts: Record<string, number> = {};
-  for (const opp of data?.items ?? []) {
-    counts[opp.stage] = (counts[opp.stage] ?? 0) + 1;
-  }
-
-  if (isLoading) return <Skeleton height={120} radius={1} />;
-
+  for (const opp of data?.items ?? []) counts[opp.stage] = (counts[opp.stage] ?? 0) + 1;
+  const max = Math.max(1, ...Object.keys(STAGE_LABELS).map((k) => counts[k] ?? 0));
   return (
-    <div
-      style={{
-        padding: 16,
-        border: '1px solid var(--cmc-border)',
-        borderRadius: 4,
-        background: 'var(--cmc-surface)',
-      }}
-    >
-      <Text
-        type="supporting"
-        size="xsm"
-        weight="semibold"
-        style={{ textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}
-      >
-        Pipeline O1 → O5
-      </Text>
-      <Stack gap={2}>
-        {Object.entries(STAGE_LABELS).map(([key, label]) => (
-          <HStack key={key} justify="between">
-            <Text size="sm">{label}</Text>
-            <Badge
-              label={String(counts[key] ?? 0)}
-              variant={(counts[key] ?? 0) > 0 ? 'blue' : 'neutral'}
-            />
-          </HStack>
-        ))}
-      </Stack>
-    </div>
+    <Panel title="Pipeline O1 → O5" icon="filter">
+      {isLoading ? <div style={{ padding: '0 22px 20px' }}><Skeleton height={120} radius={1} /></div> : (
+        <div className="ck-fn">
+          {Object.entries(STAGE_LABELS).map(([key, label]) => {
+            const c = counts[key] ?? 0;
+            return (
+              <div key={key} className="ck-fn-row">
+                <span className="ck-fn-label">{label}</span>
+                <span className="ck-fn-track"><span className="ck-fn-fill" style={{ width: c === 0 ? '0%' : `${Math.max(5, (c / max) * 100)}%` }} /></span>
+                <span className="ck-fn-count">{c}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Panel>
   );
 }
 
 function TodaySchedulePanel() {
-  const { data, isLoading } = trpc.classBatch.list.useQuery(
-    { page: 1, pageSize: 20 },
-    { refetchOnWindowFocus: false },
-  );
-
+  const { data, isLoading } = trpc.classBatch.list.useQuery({ page: 1, pageSize: 20 }, { refetchOnWindowFocus: false });
   const now = new Date();
   const todayBatches = (data?.items ?? []).filter((b) => {
-    const start = new Date(b.startDate);
-    const end = new Date(b.endDate);
+    const start = new Date(b.startDate); const end = new Date(b.endDate);
     return start <= now && now <= end && b.status !== 'cancelled';
   });
-
-  if (isLoading) return <Skeleton height={120} radius={1} />;
-
   return (
-    <div
-      style={{
-        padding: 16,
-        border: '1px solid var(--cmc-border)',
-        borderRadius: 4,
-        background: 'var(--cmc-surface)',
-      }}
-    >
-      <Text
-        type="supporting"
-        size="xsm"
-        weight="semibold"
-        style={{ textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}
-      >
-        Lịch dạy hôm nay
-      </Text>
-      {todayBatches.length === 0 ? (
-        <Text type="supporting" size="sm">Không có lớp hôm nay.</Text>
+    <Panel title="Lịch dạy hôm nay" icon="calendar">
+      {isLoading ? (
+        <div style={{ padding: '0 22px 20px' }}><Skeleton height={80} radius={1} /></div>
+      ) : todayBatches.length === 0 ? (
+        <div className="ck-empty"><span className="ck-empty-icon"><LineIcon name="calendar" size={22} /></span>Không có lớp hôm nay.</div>
       ) : (
-        <Stack gap={2}>
+        <div>
           {todayBatches.map((b) => (
-            <HStack key={b.id} justify="between">
-              <Text size="sm">{b.code}</Text>
-              <Badge label="Đang dạy" variant="success" />
-            </HStack>
+            <div key={b.id} className="ck-row" style={{ cursor: 'default' }}>
+              <span className="ck-dot" style={{ background: 'var(--cmc-success)' }} />
+              <span style={{ flex: 1 }} className="ck-row-title">{b.code}</span>
+              <span className="ck-row-meta" style={{ color: 'var(--cmc-success)', fontWeight: 600 }}>Đang dạy</span>
+            </div>
           ))}
-        </Stack>
+        </div>
       )}
-    </div>
+    </Panel>
   );
 }
 
@@ -324,80 +321,60 @@ export default function CockpitPage() {
   const canViewCrm = canDo('crm', 'opportunityList');
   const canViewSchedule = canDo('class', 'create');
 
-  const isDirector = me?.roles.some((r) =>
-    r === 'giam_doc_kinh_doanh' || r === 'giam_doc_dao_tao' || r === 'super_admin',
-  );
+  const isDirector = me?.roles.some((r) => r === 'giam_doc_kinh_doanh' || r === 'giam_doc_dao_tao' || r === 'super_admin');
   const isSale = me?.roles.includes('sale');
   const isTeacher = me?.roles.includes('giao_vien');
 
   if (sessionLoading) {
     return (
-      <>
-        <PageHeader
-          title="Tổng quan"
-          breadcrumbs={[{ label: 'Tổng quan' }]}
-        />
-        <div style={{ padding: 16 }}>
-          <Grid columns={{ minWidth: 220, max: 3 }} gap={4} style={{ marginBottom: 32 }}>
-            <Skeleton height={80} radius={1} />
-            <Skeleton height={80} radius={1} />
-            <Skeleton height={80} radius={1} />
-          </Grid>
-          <Skeleton height={200} radius={1} />
+      <div className="ck-wrap">
+        <style>{styles}</style>
+        <div className="ck-grid ck-metrics">
+          {[1, 2, 3].map((i) => <Skeleton key={i} height={116} radius={1} />)}
         </div>
-      </>
+        <Skeleton height={220} radius={1} />
+      </div>
     );
   }
 
   const hasAnyStatCard = canViewReceipts || canGrade || canViewCrm;
 
   return (
-    <>
-      <PageHeader
-        title="Tổng quan"
-        subtitle={me ? `Xin chào · ${me.roles.join(', ')}` : 'Dashboard'}
-        breadcrumbs={[{ label: 'Tổng quan' }]}
-      />
+    <div className="ck-wrap">
+      <style>{styles}</style>
+      <div className="ck-head">
+        <h1 className="ck-h1">Tổng quan</h1>
+        {me && <p className="ck-sub">Xin chào · {me.roles.join(', ')}</p>}
+      </div>
 
-      <div style={{ padding: 16 }}>
-        {hasAnyStatCard && (
-          <Grid columns={{ minWidth: 200, max: 4 }} gap={4} style={{ marginBottom: 32 }}>
+      {hasAnyStatCard && (
+          <div className="ck-grid ck-metrics">
             {canViewReceipts && <PendingReceiptsCard />}
             {canViewReceipts && isDirector && <OverThresholdCard />}
             {canViewCrm && isSale && <O4OpportunitiesCard />}
             {canGrade && <UngradedSubmissionsCard />}
-          </Grid>
+          </div>
         )}
 
-        <Grid columns={{ minWidth: 320, max: 2 }} gap={4}>
-          <div>
-            <Heading level={6} style={{ marginBottom: 8 }}>Việc cần bạn xử lý</Heading>
+        <div className="ck-grid ck-body">
+          <Panel title="Việc cần bạn xử lý">
             {isDirector && canViewReceipts && <DirectorTaskQueue />}
             {isSale && canViewCrm && !isDirector && <SaleTaskQueue />}
             {isTeacher && canGrade && !isDirector && !isSale && <TeacherTaskQueue />}
             {!isDirector && !isSale && !isTeacher && (
-              <div
-                style={{
-                  padding: 16,
-                  border: '1px dashed var(--cmc-border)',
-                  borderRadius: 4,
-                  textAlign: 'center',
-                }}
-              >
-                <Text type="supporting" size="sm">
-                  Không có nhiệm vụ nào chờ xử lý cho vai trò này.
-                </Text>
+              <div className="ck-empty">
+                <span className="ck-empty-icon"><LineIcon name="check-circle" size={22} /></span>
+                Không có nhiệm vụ nào chờ xử lý cho vai trò này.
               </div>
             )}
-          </div>
+          </Panel>
 
-          <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {(isSale || isDirector) && canViewCrm && <PipelineFunnel />}
             {isTeacher && canViewSchedule && <TodaySchedulePanel />}
             {!isSale && !isDirector && !isTeacher && canViewSchedule && <TodaySchedulePanel />}
           </div>
-        </Grid>
+        </div>
       </div>
-    </>
   );
 }

@@ -33,8 +33,64 @@
   --cmc-space-3: 16px;
   --cmc-space-4: 24px;
 
-  /* Typography */
-  --cmc-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Typography — Inter (self-hosted via @fontsource) leads; system fallback.
+     Inter is Notion's face; on Windows it replaces the dated Segoe UI default
+     and is the single biggest "looks professional" lever (ref: notion decon). */
+  --cmc-font-sans: "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --cmc-font-size-data: 13px;
   --cmc-font-size-column: 11px;
+
+  /* -------------------------------------------------------------------------
+   * Premium design-language layer (2026-07-10, v2 — grounded in the Apple +
+   * Notion deconstructions at D:/Downloads/design). Additive only.
+   *
+   * Core lesson from the references: premium = RESTRAINT + WHITESPACE +
+   * TYPOGRAPHY + SURFACE CONTRAST, not decoration. Apple: "don't add borders
+   * or shadows to cards — use surface contrast". Notion: "don't add borders
+   * where spacing alone separates; don't use heavy shadows — Notion is flat".
+   * So: warm near-flat surfaces, hairline only where needed, shadows reserved
+   * for truly-floating layers, one interactive color, near-black numerals.
+   * ---------------------------------------------------------------------- */
+
+  /* Warm canvas (Notion #F7F6F3) — paper-like, friendly; cards sit white on it
+     so separation comes from SURFACE CONTRAST, not borders/shadows. */
+  --cmc-canvas: #f7f6f3;
+  --cmc-surface-raised: #ffffff;
+  --cmc-surface-sunken: #f1f0ec;
+  --cmc-hover: #ebeced;          /* Notion warm-gray hover */
+  --cmc-border-subtle: #ebeced;  /* hairline, used sparingly */
+
+  /* Elevation — Notion's exact scale, reserved for floating layers only
+     (dropdowns/popovers/modals). Flat cards use surface contrast instead. */
+  --cmc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --cmc-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --cmc-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* Radius — softened toward Apple's premium feel (their cards use 18px; we
+     land at 12 for ERP density). Inputs keep the flat 4px xs. */
+  --cmc-radius-md: 12px;
+  --cmc-radius-lg: 16px;
+  --cmc-radius-pill: 9999px;      /* Apple: all primary CTAs are pills */
+
+  /* Apple sticky-nav treatment — translucent + blur instead of a shadow */
+  --cmc-blur-nav: saturate(180%) blur(20px);
+
+  /* Motion — one restrained easing */
+  --cmc-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --cmc-transition: 140ms var(--cmc-ease);
+
+  /* Type scale (Inter; max two weights per surface — Apple rule) */
+  --cmc-fs-label: 11px;   /* uppercase eyebrow */
+  --cmc-fs-body: 14px;
+  --cmc-fs-h3: 18px;
+  --cmc-fs-metric: 34px;  /* headline numeral, near-black not colored */
+  --cmc-lh-body: 1.6;     /* Notion generous line height */
+
+  /* Whitespace rhythm (Apple: whitespace is the premium signal) */
+  --cmc-pad-card: 24px;
+  --cmc-gap-section: 28px;
+
+  /* One interactive color only (Apple). Status shown by a small dot, never by
+     recoloring the whole number. Single restrained accent for data-viz bars. */
+  --cmc-accent-soft: #d6e9fb;
 }

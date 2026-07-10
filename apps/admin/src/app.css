@@ -3,7 +3,12 @@ body {
   margin: 0;
   font-family: var(--cmc-font-sans);
   color: var(--cmc-text);
-  background: var(--cmc-surface-2);
+  background: var(--cmc-canvas);
+  /* Crisp Inter rendering — antialiased text is a real premium signal. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  line-height: var(--cmc-lh-body);
 }
 
 .app-shell {

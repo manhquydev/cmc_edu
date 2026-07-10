@@ -1,73 +1,76 @@
 import type { Role } from '@cmc/auth';
+import type { IconName } from '../lib/line-icons.js';
 
 export interface NavEntry {
   id: string;
   label: string;
   path: string;
-  icon: string;
+  icon: IconName;
   permission?: { module: string; action: string };
 }
 
 export interface NavModule {
   id: string;
   label: string;
-  icon: string;
+  icon: IconName;
   path: string;
   children?: NavEntry[];
   roles?: readonly Role[];
 }
 
+// `icon` is a LineIcon key (see lib/line-icons.tsx) — monochrome outline icons,
+// never emoji (reference study: one consistent icon language, no colour).
 export const NAV_MODULES: NavModule[] = [
   {
     id: 'cockpit',
     label: 'Tổng quan',
-    icon: '📊',
+    icon: 'grid',
     path: '/cockpit',
   },
   {
     id: 'teaching',
     label: 'Giảng dạy',
-    icon: '📚',
+    icon: 'book',
     path: '/teaching',
     children: [
-      { id: 'schedule', label: 'Lịch dạy', path: '/teaching/schedule', icon: '📅' },
-      { id: 'attendance', label: 'Điểm danh', path: '/teaching/attendance', icon: '✅', permission: { module: 'attendance', action: 'mark' } },
-      { id: 'grading', label: 'Chấm bài', path: '/teaching/grading', icon: '📝', permission: { module: 'submission', action: 'grade' } },
-      { id: 'session-evidence', label: 'Nhật ký buổi học', path: '/teaching/session-evidence', icon: '📸' },
-      { id: 'exercises', label: 'Bài tập', path: '/teaching/exercises', icon: '📋', permission: { module: 'exercise', action: 'manage' } },
+      { id: 'schedule', label: 'Lịch dạy', path: '/teaching/schedule', icon: 'calendar' },
+      { id: 'attendance', label: 'Điểm danh', path: '/teaching/attendance', icon: 'check-circle', permission: { module: 'attendance', action: 'mark' } },
+      { id: 'grading', label: 'Chấm bài', path: '/teaching/grading', icon: 'edit', permission: { module: 'submission', action: 'grade' } },
+      { id: 'session-evidence', label: 'Nhật ký buổi học', path: '/teaching/session-evidence', icon: 'camera' },
+      { id: 'exercises', label: 'Bài tập', path: '/teaching/exercises', icon: 'clipboard', permission: { module: 'exercise', action: 'manage' } },
     ],
   },
   {
     id: 'classes-students',
     label: 'Lớp & Học sinh',
-    icon: '🎓',
+    icon: 'users',
     path: '/admin/students',
     children: [
-      { id: 'students', label: 'Học viên', path: '/admin/students', icon: '🎓', permission: { module: 'student', action: 'lookup' } },
-      { id: 'classes', label: 'Lớp học', path: '/admin/classes', icon: '🏫' },
+      { id: 'students', label: 'Học viên', path: '/admin/students', icon: 'user', permission: { module: 'student', action: 'lookup' } },
+      { id: 'classes', label: 'Lớp học', path: '/admin/classes', icon: 'layers' },
     ],
   },
   {
     id: 'finance-ops',
     label: 'Tài chính & Điều hành',
-    icon: '💰',
+    icon: 'dollar',
     path: '/finance',
     children: [
-      { id: 'receipts', label: 'Phiếu thu', path: '/finance', icon: '🧾', permission: { module: 'finance', action: 'receiptList' } },
-      { id: 'crm', label: 'CRM', path: '/crm', icon: '📋', permission: { module: 'crm', action: 'opportunityList' } },
-      { id: 'revenue', label: 'Doanh thu', path: '/ops/revenue', icon: '📊' },
-      { id: 'recon', label: 'Đối soát', path: '/ops/recon', icon: '🔍', permission: { module: 'reconciliation', action: 'review' } },
+      { id: 'receipts', label: 'Phiếu thu', path: '/finance', icon: 'receipt', permission: { module: 'finance', action: 'receiptList' } },
+      { id: 'crm', label: 'CRM', path: '/crm', icon: 'target', permission: { module: 'crm', action: 'opportunityList' } },
+      { id: 'revenue', label: 'Doanh thu', path: '/ops/revenue', icon: 'card' },
+      { id: 'recon', label: 'Đối soát', path: '/ops/recon', icon: 'search', permission: { module: 'reconciliation', action: 'review' } },
     ],
   },
   {
     id: 'admin',
     label: 'Quản trị',
-    icon: '🛡️',
+    icon: 'shield',
     path: '/admin',
     roles: ['super_admin'],
     children: [
-      { id: 'users', label: 'Người dùng', path: '/admin/users', icon: '👤', permission: { module: 'user', action: 'manage' } },
-      { id: 'facilities', label: 'Cơ sở', path: '/admin/facilities', icon: '🏫', permission: { module: 'facility', action: 'list' } },
+      { id: 'users', label: 'Người dùng', path: '/admin/users', icon: 'user', permission: { module: 'user', action: 'manage' } },
+      { id: 'facilities', label: 'Cơ sở', path: '/admin/facilities', icon: 'building', permission: { module: 'facility', action: 'list' } },
     ],
   },
 ];

@@ -9,6 +9,10 @@ import { RouterProvider } from 'react-router-dom';
 // @cmc/ui (red-team F14). Order: reset → tokens → astryx theme (astryx.css +
 // theme.css, imported transitively by astryx-theme-cmc.css) → app overrides.
 import '@astryxdesign/core/reset.css';
+// Inter Variable (self-hosted, no external fetch) — professional typeface that
+// replaces the dated Segoe UI default on Windows. Imported before tokens.css so
+// --cmc-font-sans ("Inter Variable" first) resolves to a loaded face.
+import '@fontsource-variable/inter';
 import '@cmc/ui/tokens.css';
 import '@cmc/ui/astryx-theme-cmc.css';
 import './app.css';

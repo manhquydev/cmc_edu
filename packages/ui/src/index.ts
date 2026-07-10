@@ -49,6 +49,11 @@ export type { AstryxCmcProviderProps } from './astryx-provider.js';
 // of @astryxdesign/core directly, satisfying the one-door lint rule.
 export * from './primitives.js';
 
+// Auth-form input composites — fill Astryx gaps (typed input attrs +
+// PasswordInput) required by the LMS login hardening spec. See auth-inputs.tsx.
+export { TextField, PasswordInput } from './components/auth-inputs.js';
+export type { TextFieldProps, PasswordInputProps } from './components/auth-inputs.js';
+
 // Primitive components (DUMB — no tRPC calls, props-driven only)
 export { StatusBadge } from './components/status-badge.js';
 export type { StatusBadgeProps } from './components/status-badge.js';

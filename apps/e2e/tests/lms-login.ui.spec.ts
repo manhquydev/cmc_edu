@@ -87,24 +87,64 @@ test.describe('lms login (UI safety net)', () => {
     await cleanupParentAccountsByPhone(normalizeLoginPhone(parentPhone));
   });
 
+  // A11Y NOTE (Astryx migration, 2026-07-10): the old Mantine Tabs rendered the
+  // proper ARIA tab pattern (role="tablist"/"tab" + aria-selected). Astryx's
+  // TabList/Tab (@astryxdesign/core@0.1.4) renders the tabs as plain <button>
+  // elements with NO role="tab"/aria-selected — a real a11y regression from the
+  // migration, verified against the rendered DOM. It's a beta-Astryx limitation
+  // (affects every Astryx tab, incl. admin's CmcTabs), not something this page
+  // controls; tracked for a possible @cmc/ui ARIA-wrapper fix later. These specs
+  // therefore select the tabs by button role, matching what Astryx actually
+  // renders (tabs still function + are keyboard-focusable, just not announced as
+  // a tablist).
   test('two tabs switch, student is default, parent tab shows blocked-on-comms notice', async ({ page }) => {
     await page.goto('/login');
 
-    // Student tab is the default (Tabs defaultValue="student" in login.tsx).
+    // Student tab is the default (TabList value="student" in login.tsx).
     await expect(page.getByLabel('Số điện thoại phụ huynh')).toBeVisible();
 
-    await page.getByRole('tab', { name: /phụ huynh/i }).click();
+    await page.getByRole('button', { name: /phụ huynh/i }).click();
     await expect(page.getByText('[DEV ONLY — blocked-on-comms]')).toBeVisible();
     await expect(page.getByLabel('Email phụ huynh')).toBeVisible();
 
-    await page.getByRole('tab', { name: /học sinh/i }).click();
+    await page.getByRole('button', { name: /học sinh/i }).click();
     await expect(page.getByLabel('Số điện thoại phụ huynh')).toBeVisible();
+  });
+
+  test('auth-field hardening attrs survive the Astryx migration (TL12 §9, red-team F11 / AC#5)', async ({ page }) => {
+    await page.goto('/login');
+
+    // Student tab: phone + password parity attrs.
+    const phone = page.getByLabel('Số điện thoại phụ huynh');
+    await expect(phone).toHaveAttribute('inputmode', 'tel');
+    await expect(phone).toHaveAttribute('autocomplete', 'tel');
+    // exact:true so this targets the password <input> (label "Mật khẩu"), not
+    // the show/hide toggle IconButton whose aria-label is "Hiện mật khẩu".
+    const pw = page.getByLabel('Mật khẩu', { exact: true });
+    await expect(pw).toHaveAttribute('type', 'password');
+    await expect(pw).toHaveAttribute('autocomplete', 'current-password');
+
+    // Parent tab → request OTP: email field parity.
+    await page.getByRole('button', { name: /phụ huynh/i }).click();
+    const email = page.getByLabel('Email phụ huynh');
+    await expect(email).toHaveAttribute('type', 'email');
+    await expect(email).toHaveAttribute('autocomplete', 'email');
+
+    // OTP field (verify step) — the most security-sensitive: one-time-code +
+    // numeric keypad + 6-char cap must all still be on the real <input>.
+    await email.fill('parent@example.com');
+    await page.getByRole('button', { name: 'Gửi mã OTP' }).click();
+    const otp = page.getByLabel('Mã OTP (6 số)');
+    await expect(otp).toBeVisible();
+    await expect(otp).toHaveAttribute('autocomplete', 'one-time-code');
+    await expect(otp).toHaveAttribute('inputmode', 'numeric');
+    await expect(otp).toHaveAttribute('maxlength', '6');
   });
 
   test('wrong student credentials show a generic error (no-leak contract)', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Số điện thoại phụ huynh').fill('0999999999');
-    await page.getByLabel('Mật khẩu').fill('WrongPassword123!');
+    await page.getByLabel('Mật khẩu', { exact: true }).fill('WrongPassword123!');
     await page.getByRole('button', { name: 'Đăng nhập' }).click();
 
     await expect(page.getByText('Thông tin đăng nhập không đúng.')).toBeVisible();
@@ -128,7 +168,7 @@ test.describe('lms login (UI safety net)', () => {
   test.fixme('correct default-password login redirects to mustChangePassword', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Số điện thoại phụ huynh').fill(parentPhone);
-    await page.getByLabel('Mật khẩu').fill('Cmc2026@');
+    await page.getByLabel('Mật khẩu', { exact: true }).fill('Cmc2026@');
     await page.getByRole('button', { name: 'Đăng nhập' }).click();
 
     await expect(page).toHaveURL(/\/student\/change-password/);

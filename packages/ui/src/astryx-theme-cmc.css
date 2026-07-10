@@ -57,8 +57,32 @@
 
   /* Focus ring: Astryx components derive focus-ring color from
      --color-accent (no separate --color-focus-* token exists in
-     theme-neutral, confirmed by inspecting theme.css directly), so no
-     extra override is needed once --color-accent is set above. */
+     theme-neutral, confirmed by inspecting theme.css directly). Buttons pick
+     up a visible ring from --color-accent, but Astryx TextInput's wrapper
+     focus box-shadow renders transparent/collapsed under this theme (verified
+     against the rendered login DOM: a keyboard-focused input matches
+     :focus-visible but shows no ring). The fallback rule below guarantees a
+     visible brand-colored focus indicator on form controls — an accessibility
+     blocking requirement (TL12 §6, plan Phase 3/4 auth-screen check). */
 
   color-scheme: light;
+}
+
+/* Focus-visible fallback: a brand outline on any keyboard-focused form control
+   or interactive element, so no field/button is left without a visible focus
+   indicator regardless of Astryx's internal focus styling. */
+[data-astryx-theme='neutral'] :is(input, textarea, select, button, a, [role='button'], [tabindex]):focus-visible {
+  outline: 2px solid var(--cmc-brand);
+  outline-offset: 1px;
+}
+
+/* Mobile touch targets (TL12 §7, ≥44px). Astryx's default control heights are
+   desktop-compact (~32px). On small screens (LMS is mobile-first) bump the
+   min tap-target to 44px; desktop admin keeps its ERP density unchanged. */
+@media (max-width: 768px) {
+  [data-astryx-theme='neutral'] .astryx-button,
+  [data-astryx-theme='neutral'] input,
+  [data-astryx-theme='neutral'] .astryx-text-input {
+    min-height: 44px;
+  }
 }

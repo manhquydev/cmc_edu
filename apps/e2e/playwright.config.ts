@@ -10,8 +10,12 @@
 // globalSetup (API server + Facility bootstrap) runs for both project types because
 // UI specs also hit the real API.
 //
-// webServer preview servers only start when PLAYWRIGHT_UI=1, preventing spurious
-// build-artifact failures on API-only CI runs.
+// Both the ui-chromium PROJECT and its preview webServers only register when
+// PLAYWRIGHT_UI=1. A plain `playwright test` (the default CI e2e job) is therefore
+// API-only: registering ui-chromium unconditionally would make CI try to launch a
+// browser it never installed and connect to preview servers that never started,
+// failing every UI spec. UI specs run via the documented command instead:
+//   PLAYWRIGHT_UI=1 pnpm --filter @cmc/e2e test --project=ui-chromium
 
 import { defineConfig, devices } from '@playwright/test';
 
@@ -64,14 +68,20 @@ export default defineConfig({
       name: 'api',
       testMatch: /(?<!\.ui)\.spec\.ts$/,
     },
-    {
-      name: 'ui-chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: 'http://localhost:4174',
-      },
-      testMatch: /\.ui\.spec\.ts$/,
-    },
+    // ui-chromium registers only under PLAYWRIGHT_UI=1 (same gate as uiServers
+    // above) so the default API-only CI run never picks up browser specs.
+    ...(process.env.PLAYWRIGHT_UI
+      ? [
+          {
+            name: 'ui-chromium',
+            use: {
+              ...devices['Desktop Chrome'],
+              baseURL: 'http://localhost:4174',
+            },
+            testMatch: /\.ui\.spec\.ts$/,
+          },
+        ]
+      : []),
   ],
 
   webServer: uiServers,

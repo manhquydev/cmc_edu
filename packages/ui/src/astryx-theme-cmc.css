@@ -1,0 +1,56 @@
+/*
+ * CMC theme on top of Astryx theme-neutral (TL12 design system).
+ *
+ * Imports the precompiled Astryx component CSS + theme-neutral defaults,
+ * then overrides theme-neutral's CSS custom properties with the CMC brand
+ * tokens already defined in tokens.css (single source of truth — do not
+ * hardcode color/radius values here, reference var(--cmc-*) only).
+ *
+ * Does NOT import reset.css (red-team F14): reset is app-scoped, imported
+ * only in each app's main.tsx once that app flips to Astryx, so it never
+ * leaks onto pages still running Mantine during the Phase 2-4 strangler
+ * window. Consumers must import tokens.css separately (already required
+ * today) before this file, since the overrides below reference its
+ * variables.
+ */
+@import '@astryxdesign/core/astryx.css';
+@import '@astryxdesign/theme-neutral/theme.css';
+
+:root,
+[data-astryx-theme='neutral'] {
+  /* Brand -> Astryx accent (Button primary, active Tab indicator, links) */
+  --color-accent: var(--cmc-brand);
+  --color-accent-muted: var(--cmc-brand-muted);
+  --color-text-accent: var(--cmc-brand-ink);
+
+  /* Text */
+  --color-text-primary: var(--cmc-text);
+  --color-text-secondary: var(--cmc-text-muted);
+  --color-text-disabled: var(--cmc-text-faint);
+
+  /* Surface */
+  --color-background-surface: var(--cmc-surface);
+  --color-background-body: var(--cmc-surface-2);
+  --color-background-card: var(--cmc-surface);
+
+  /* Semantic (Badge/Banner variants — TL12 §3) */
+  --color-success: var(--cmc-success);
+  --color-warning: var(--cmc-warning);
+  --color-error: var(--cmc-danger);
+
+  /* Radius (theme-neutral's base already resolves to 4px — verified in the
+     Phase 1 spike — set explicitly anyway so tokens.css stays the single
+     source instead of relying on a coincidental match). */
+  --radius-none: var(--cmc-radius-xs);
+
+  /* Typography */
+  --font-family-body: var(--cmc-font-sans);
+  --font-family-heading: var(--cmc-font-sans);
+
+  /* Focus ring: Astryx components derive focus-ring color from
+     --color-accent (no separate --color-focus-* token exists in
+     theme-neutral, confirmed by inspecting theme.css directly), so no
+     extra override is needed once --color-accent is set above. */
+
+  color-scheme: light;
+}

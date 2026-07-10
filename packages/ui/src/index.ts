@@ -40,8 +40,9 @@ export const tokens = {
 
 export type Tokens = typeof tokens;
 
-// Mantine theme
-export { cmcTheme } from './theme.js';
+// Astryx theme scope provider — see astryx-theme-cmc.css for token values.
+export { AstryxCmcProvider } from './astryx-provider.js';
+export type { AstryxCmcProviderProps } from './astryx-provider.js';
 
 // Primitive components (DUMB — no tRPC calls, props-driven only)
 export { StatusBadge } from './components/status-badge.js';

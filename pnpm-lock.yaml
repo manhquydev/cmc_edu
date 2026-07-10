@@ -345,9 +345,15 @@ importers:
 
   packages/ui:
     devDependencies:
-      '@mantine/core':
-        specifier: ^7.17.0
-        version: 7.17.8(@mantine/hooks@7.17.8(react@19.2.7))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@astryxdesign/core':
+        specifier: 0.1.4
+        version: 0.1.4(@stylexjs/stylex@0.18.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@astryxdesign/theme-neutral':
+        specifier: 0.1.4
+        version: 0.1.4(@astryxdesign/core@0.1.4(@stylexjs/stylex@0.18.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
+      '@stylexjs/stylex':
+        specifier: 0.18.3
+        version: 0.18.3
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.17

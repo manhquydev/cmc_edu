@@ -11,23 +11,28 @@
       "development": "./src/index.ts",
       "default": "./dist/index.js"
     },
-    "./tokens.css": "./src/tokens.css"
+    "./tokens.css": "./src/tokens.css",
+    "./astryx-theme-cmc.css": "./src/astryx-theme-cmc.css"
   },
   "files": [
     "dist",
-    "src/tokens.css"
+    "src/tokens.css",
+    "src/astryx-theme-cmc.css"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
-    "@mantine/core": "^7",
+    "@astryxdesign/core": "0.1.4",
+    "@stylexjs/stylex": "0.18.3",
     "react": "^18 || ^19",
     "react-router-dom": "^7"
   },
   "devDependencies": {
-    "@mantine/core": "^7.17.0",
+    "@astryxdesign/core": "0.1.4",
+    "@astryxdesign/theme-neutral": "0.1.4",
+    "@stylexjs/stylex": "0.18.3",
     "@types/react": "^19.0.0",
     "react": "^19.0.0",
     "react-router-dom": "^7.1.0",

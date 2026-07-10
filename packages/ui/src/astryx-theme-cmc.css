@@ -38,10 +38,18 @@
   --color-warning: var(--cmc-warning);
   --color-error: var(--cmc-danger);
 
-  /* Radius (theme-neutral's base already resolves to 4px — verified in the
-     Phase 1 spike — set explicitly anyway so tokens.css stays the single
-     source instead of relying on a coincidental match). */
+  /* Radius: tokens.css documents "flat surfaces, xs radius (4px)" as a
+     deliberate CMC design choice — apply it to every Astryx radius scale
+     step (Card uses --radius-container=12px by default, Dialog uses
+     --radius-page, etc.; only --radius-none coincidentally already matched
+     4px, verified in the Phase 1 spike) so nothing reverts to Astryx's
+     rounder defaults. --radius-full (pills/avatars) is intentionally left
+     alone — "full" has no flat equivalent. */
   --radius-none: var(--cmc-radius-xs);
+  --radius-inner: var(--cmc-radius-xs);
+  --radius-element: var(--cmc-radius-xs);
+  --radius-container: var(--cmc-radius-xs);
+  --radius-page: var(--cmc-radius-xs);
 
   /* Typography */
   --font-family-body: var(--cmc-font-sans);

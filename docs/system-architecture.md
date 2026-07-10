@@ -1,7 +1,7 @@
 # CMC EDU v2 — System Architecture (As-Built)
 
 **Date:** 2026-07-10  
-**Phase:** P1–P3 complete (SSO landing · flow audit) · Phase 4 UAT pending · UI migration spike GO  
+**Phase:** P1–P3 complete (SSO landing · flow audit · Astryx UI Phase 3) · Phase 4 UAT pending · UI Phase 4 (apps/lms) next  
 **Build Status:** Merged to main · 473/473 tests passing (13 skipped — lms-auth-two-tier) · 26/26 typecheck green · e2e UI infrastructure online
 
 ---
@@ -25,7 +25,7 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐  │
 │  │ Frontend (Vite+React)                               │  │
-│  │ - apps/admin: ERP SPA, 30 routes, Mantine v7       │  │
+│  │ - apps/admin: ERP SPA, 30 routes, 100% Astryx       │  │
 │  │ - apps/lms: LMS SPA, kind gate (parent/student)    │  │
 │  │ - tRPC client; dev-auth via x-dev-user header      │  │
 │  └──────────────────┬──────────────────────────────────┘  │
@@ -59,10 +59,11 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 **Status:** Two apps shipped — ERP admin (phases 02–06) + LMS portal (phase 07)
 
 **apps/admin/** — ERP SPA, ~30 routes
-- Mantine v7 + `@cmc/ui` (cmcTheme + 10 components)
+- 100% Astryx (@astryxdesign/core@0.1.4) via `@cmc/ui/primitives` single-door barrel (Phase 3 complete)
 - tRPC client gated with `x-dev-user` header (dev auth until Entra SSO)
 - Route groups: sales, teaching, hr, finance, admin + generic table coverage
 - `can()` RBAC guards per route; `session.me` for over-threshold role check
+- ESLint no-restricted-imports rule enforces UI imports from `@cmc/ui` only (apps/admin scope, Phase 4 widens to lms)
 
 **apps/lms/** — LMS SPA, mobile-first
 - Parent sessions (`kind:'parent'`): email-OTP login, child picker, session evidence (consent-gated photos), report card, reset child password, consent settings
@@ -71,12 +72,13 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 - Session: `parseLmsToken` (base64url, unsigned placeholder — P0-debt: add HMAC signing)
 - `x-dev-lms-user` header (dev auth, `import.meta.env.DEV`-gated `DevHeaderWriter`)
 
-**UI Design System Migration (Mantine 7 → Astryx) — Phase 2 COMPLETE (2026-07-10):**
+**UI Design System Migration (Mantine 7 → Astryx) — Phase 3 COMPLETE (2026-07-10):**
 - **Phase 1 (spike, complete):** Verified Astryx (@astryxdesign/core@0.1.4 beta) against production readiness criteria: precompiled CSS (no bundler plugin required), clean build/typecheck/HMR, zero supply-chain vulnerabilities (audit + signature-verified), CSS bundle favorable vs. Mantine (full system smaller, per-component JS deltas bounded), token override via plain CSS custom properties. **GO decision made.**
-- **Phase 2 (complete):** All 10 shared components migrated from Mantine to Astryx (one commit each, risk-ascending order): status-badge, empty-state, stat-card, page-header, result-panel, confirm-dialog, cmc-tabs, filter-bar, master-detail, data-table. `cmcTheme` (MantineThemeOverride) deleted entirely; replaced with `AstryxCmcProvider` (packages/ui/src/astryx-provider.tsx) — lightweight CSS-only scope wrapper setting `data-astryx-theme="neutral"`. Brand token overrides via plain CSS custom properties in packages/ui/src/astryx-theme-cmc.css. peerDependencies updated: removed @mantine/core, added @astryxdesign/core@0.1.4 + @stylexjs/stylex@0.18.3. apps/admin/src/main.tsx and apps/lms/src/main.tsx: MantineProvider kept (pages not yet migrated still render), plus AstryxCmcProvider wraps everything (strangler pattern). Full workspace: typecheck + build + test all clean (0 errors). Browser-based e2e safety net (apps/e2e/tests/admin-shell.ui.spec.ts, apps/e2e/tests/lms-login.ui.spec.ts) now green: 4 passing, 1 test.fixme() (documented pre-existing bug in apps/lms/src/pages/student/change-password.tsx — session context timing issue, not Astryx-related), 0 failing. Supporting infrastructure: fixed API port (apps/e2e/src/global-setup.ts), Vite dev/preview proxy (apps/admin/vite.config.ts, apps/lms/vite.config.ts) — workaround for lack of CORS in tRPC handler (see Known Issues).
-- **Bugs found & fixed (PR #27):** (1) apps/api/src/server.ts tRPC handler lacked basePath, causing browser clients' /trpc/{procedure} requests to 404 — fixed with conditional prefix-strip (serves both /trpc/{proc} and bare root). (2) apps/api/src/finance/receipt-get.test.ts had DB write missing withFacility() RLS-scoping wrapper — fixed. (3) apps/lms/src/pages/student/change-password.tsx session context timing bug (stale state on client, mustChangePassword gate fails) — unfixed, tracked via test.fixme(), not Astryx-related.
-- **Migration strategy:** Strangler pattern (Mantine + Astryx CSS coexist through Phase 4; Mantine removed Phase 5). Public API of 10 shared components preserved.
-- **Plan:** plans/260710-0236-astryx-ui-migration/ (gitignored, spans Phase 2-5).
+- **Phase 2 (complete):** All 10 shared components migrated from Mantine to Astryx (status-badge, empty-state, stat-card, page-header, result-panel, confirm-dialog, cmc-tabs, filter-bar, master-detail, data-table). `cmcTheme` deleted; replaced with `AstryxCmcProvider` (CSS-only scope wrapper, `data-astryx-theme="neutral"`). Brand tokens via CSS custom properties. peerDependencies: removed @mantine/core, added @astryxdesign/core@0.1.4 + @stylexjs/stylex@0.18.3. Both apps/admin and apps/lms: MantineProvider + AstryxCmcProvider coexist (strangler pattern). Workspace clean: typecheck + build + test green. Browser e2e specs: 4 passing, 1 fixme (pre-existing session-context bug), 0 failing.
+- **Phase 3 (complete, 2026-07-10):** apps/admin **100% migrated** from Mantine to Astryx — all 34 page/lib files + shell (AppShell frame) rewritten. Single-door barrel `@cmc/ui/primitives` created (thin re-export of Astryx primitives: Text, Stack, HStack, Button, Badge, TextInput, Selector, Dialog, AppShell, SideNav, etc.). Apps import ALL UI from `@cmc/ui` only; `rg "@mantine" apps/admin/src` = 0 real imports. Migration order (risk-first): shell/AppShell (single-point-of-failure) → login → 5 business-area clusters (CRM/finance/teaching/HR+attendance/students). ESLint flat config added (`eslint.config.js`, NO prior lint in repo): enforces `no-restricted-imports` banning `@mantine/*` and `@astryxdesign/*` in `apps/admin/**` (one-door rule), whitelisting `apps/admin/src/main.tsx` (single entry for reset/theme CSS + providers). New devDeps: eslint, typescript-eslint, eslint-formatter-compact. `pnpm lint` script added. Rule scope: apps/admin now; expands to apps/lms in Phase 4. Reset flip: `apps/admin/src/main.tsx` now imports `@astryxdesign/core/reset.css` + dropped MantineProvider + `@mantine/core/styles.css` (no zero Mantine components; avoids double-reset conflict). Mantine package deps remain in package.json until Phase 5 (rollback policy) — runtime usage removed only. Sandbox deleted: `apps/admin/src/pages/sandbox/`. Verification: workspace typecheck + build clean; per-cluster gates passed; e2e green (4 passed, 1 fixme); auth-screen blocking: Astryx reset applied cleanly, focus-visible ring brand-colored (#0071E3), disabled buttons natively inert. Code-review: Approve, 0 Critical/0 Important. Known API-mismatch trade-offs (non-blocking, accepted): semantic-color enums can't take raw hex (use `<span style>`), Button/Badge variant approximations, Dialog focus-trap differs from Modal, NumberInput lost live thousand-separator, TextArea lost autosize — all flagged in-code with `TODO(astryx-review)`.
+- **Bugs found & fixed (PR #27):** (1) tRPC basePath missing → 404 on browser clients — fixed with conditional prefix-strip. (2) finance/receipt-get.test.ts DB write missing withFacility() — fixed. (3) student/change-password.tsx session timing bug — unfixed, tracked test.fixme(), not Astryx-related.
+- **Migration strategy:** Strangler pattern (Mantine + Astryx coexist through Phase 4; Mantine removed Phase 5). Public API preserved.
+- **Plan:** `plans/260710-0236-astryx-ui-migration/` (5 phases, gitignored).
 
 **Auth Integration:**
 - Staff: `x-dev-user` header (dev), Entra SSO (P0-debt)

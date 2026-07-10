@@ -1,8 +1,8 @@
 # CMC EDU v2 — Codebase Summary
 
-**Status:** SSO landing complete (Phase 1) · Flow audit complete (Phase 3) · Phase 4 UAT pending · UI migration spike GO (Phase 2 in progress)  
+**Status:** SSO landing complete (P1) · Flow audit complete (P3) · UI migration Phase 3 COMPLETE (Astryx 100% in admin) · Phase 4 UAT pending  
 **Last Updated:** 2026-07-10  
-**Build State:** 473 tests passing (13 skipped — lms-auth-two-tier suite, must un-skip before Phase 4 Run 1); 26/26 typecheck packages green; apps build clean; e2e UI-mode tests online
+**Build State:** 473 tests passing (13 skipped — lms-auth-two-tier suite); 26/26 typecheck packages green; apps build clean; e2e UI-mode tests online; ESLint no-restricted-imports added
 
 ---
 
@@ -11,19 +11,19 @@
 ```
 D:\project\vip\CMC
 ├── apps/
-│   ├── admin/           # Vite+React ERP SPA — 30 routes, Mantine v7, tRPC client (phases 02–06)
+│   ├── admin/           # Vite+React ERP SPA — 30 routes, 100% Astryx, tRPC client (phases 02–06, Phase 3 UI complete)
 │   ├── lms/             # Vite+React LMS SPA — parent+student, kind guards, mobile-first (phase 07)
 │   ├── api/             # tRPC backend (Node.js + Prisma + Postgres) — 27 routers
 │   └── e2e/             # Playwright — API-driven specs + browser-based UI tests (phase 08)
 │       ├── src/global-setup.ts         # Fixed API port + health-wait for UI-mode runs (PLAYWRIGHT_UI=1)
 │       ├── tests/*.api.spec.ts         # tRPC API contracts (e2e backend testing)
-│       └── tests/*.ui.spec.ts          # Real browser UI specs (admin-shell, lms-login; Phase 2 new)
+│       └── tests/*.ui.spec.ts          # Real browser UI specs (admin-shell, lms-login; Phase 2 added, Phase 3 validated)
 ├── packages/
 │   ├── auth/            # RBAC registry (single source of truth for roles/permissions)
 │   ├── db/              # Prisma schema, migrations, seed — 48 models
 │   ├── domain-finance/  # Finance domain logic (SO receipt codes, refund cap, phone dedup)
 │   ├── domain-identity/ # Identity domain logic (phone normalization)
-│   └── ui/              # Design system: cmcTheme + 10 components + CSS tokens (tsconfig.build.json)
+│   └── ui/              # Design system: @cmc/ui/primitives (Astryx single-door barrel) + @cmc/ui/index (composite components) (Phase 3 complete)
 ├── docs/                # Design docs (TL00-TL31, frozen design corpus)
 └── plans/               # Session reports (audits, remediation, deep reviews)
 ```
@@ -295,14 +295,15 @@ Single RBAC source of truth. Consulted by every mutation via `requirePermission(
 
 ---
 
-## Phase 2 Completion (Astryx UI Migration) — 2026-07-10
+## Phase 3 Completion (Astryx UI Migration) — 2026-07-10
 
-**Mantine 7 → Astryx Design System Migration (Phase 2 COMPLETE):**
+**Mantine 7 → Astryx Design System Migration (Phase 3 COMPLETE):**
 - **Phase 1 (complete):** Verified Astryx (@astryxdesign/core@0.1.4 beta, Facebook OSS) production readiness: precompiled CSS (no bundler plugin), clean build/typecheck/HMR, zero supply-chain vulnerabilities (audit+signature), token override via CSS custom properties, CSS footprint favorable vs. Mantine.
-- **Phase 2 (complete):** All 10 components migrated (status-badge → data-table, one commit each, risk-ascending). Theme rebuild: `cmcTheme` deleted, replaced with `AstryxCmcProvider` (CSS-only wrapper, `data-astryx-theme="neutral"`). peerDependencies: removed @mantine/core, added @astryxdesign/core@0.1.4 + @stylexjs/stylex@0.18.3 (pinned). Both apps/admin and apps/lms: MantineProvider kept (for unmigrated pages) + AstryxCmcProvider wraps hierarchy (strangler pattern). Workspace: typecheck + build + test all green (0 errors). Browser e2e infrastructure: apps/e2e UI-mode specs (admin-shell.ui.spec.ts, lms-login.ui.spec.ts) now 4 passing, 1 fixme (pre-existing session-context bug in change-password.tsx), 0 failing.
-- **Bugs fixed (PR #27):** (1) tRPC basePath missing → 404 on browser clients — fixed with conditional prefix-strip (serves /trpc/{proc} + bare root simultaneously). (2) finance/receipt-get.test.ts DB write missing withFacility() RLS wrapper — fixed. (3) student/change-password.tsx session timing bug — unfixed, tracked test.fixme(), not Astryx-related.
-- **Strategy:** Strangler pattern — both CSS/providers coexist through Phase 4; Mantine removed only in Phase 5.
-- **Plan:** `plans/260710-0236-astryx-ui-migration/` (gitignored; details in plan.md + phase-*.md files).
+- **Phase 2 (complete):** All 10 components migrated (status-badge → data-table). Theme rebuild: `cmcTheme` deleted, replaced with `AstryxCmcProvider` (CSS-only wrapper, `data-astryx-theme="neutral"`). peerDependencies: @astryxdesign/core@0.1.4 + @stylexjs/stylex@0.18.3. MantineProvider + AstryxCmcProvider coexist (strangler). Workspace: typecheck + build + test all green. Browser e2e: 4 passing, 1 fixme, 0 failing.
+- **Phase 3 (complete, 2026-07-10):** **apps/admin 100% migrated** — all 34 page/lib files + shell rewritten from Mantine to Astryx. New single-door barrel `@cmc/ui/primitives` (thin re-export of Astryx primitives). Apps import ALL UI from `@cmc/ui` only; `rg "@mantine" apps/admin/src` = 0. Migration order (risk-first): shell/AppShell → login → 5 business-area clusters (CRM/finance/teaching/HR+attendance/students). **ESLint flat config added** (`eslint.config.js`, first linter in repo): `no-restricted-imports` rule banning `@mantine/*` + `@astryxdesign/*` in `apps/admin/**` (one-door enforcement), whitelist `apps/admin/src/main.tsx` (sole entry for reset/theme CSS + providers). New devDeps: eslint, typescript-eslint, eslint-formatter-compact. `pnpm lint` added. Rule scope: apps/admin now; Phase 4 widens to apps/lms. **Reset flip:** `apps/admin/src/main.tsx` imports `@astryxdesign/core/reset.css`, dropped MantineProvider + `@mantine/core/styles.css` (zero Mantine components now; avoids double-reset conflict). Mantine deps in package.json until Phase 5 (rollback policy) — only runtime usage removed. Sandbox deleted: `apps/admin/src/pages/sandbox/`. Verification: workspace typecheck + build clean; per-cluster gates green; e2e 4 passed, 1 fixme; auth-screen: Astryx reset applied cleanly, focus-visible brand-colored (#0071E3), disabled buttons inert. Code-review: Approve, 0 Critical. Known trade-offs (non-blocking, `TODO(astryx-review)` flagged): semantic-color enums can't take raw hex (use `<span style>`), Button/Badge variant approximations, Dialog focus-trap differs from Modal, NumberInput lost thousand-separator, TextArea lost autosize.
+- **Bugs fixed (PR #27):** (1) tRPC basePath missing → 404 on browser clients — fixed. (2) finance/receipt-get.test.ts DB write missing withFacility() — fixed. (3) student/change-password.tsx session timing — unfixed, test.fixme(), not Astryx-related.
+- **Strategy:** Strangler pattern — both CSS/providers coexist through Phase 4; Mantine removed Phase 5.
+- **Plan:** `plans/260710-0236-astryx-ui-migration/` (5 phases, gitignored).
 
 ---
 

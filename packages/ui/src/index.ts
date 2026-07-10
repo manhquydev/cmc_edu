@@ -44,6 +44,11 @@ export type Tokens = typeof tokens;
 export { AstryxCmcProvider } from './astryx-provider.js';
 export type { AstryxCmcProviderProps } from './astryx-provider.js';
 
+// Astryx primitive re-export barrel (the "single door" for apps — see
+// primitives.ts). Lets apps import Text/Stack/Button/… from @cmc/ui instead
+// of @astryxdesign/core directly, satisfying the one-door lint rule.
+export * from './primitives.js';
+
 // Primitive components (DUMB — no tRPC calls, props-driven only)
 export { StatusBadge } from './components/status-badge.js';
 export type { StatusBadgeProps } from './components/status-badge.js';

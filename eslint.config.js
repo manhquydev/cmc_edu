@@ -8,9 +8,11 @@
 // added in Phase 4 once it is migrated too — scoping it now would flag lms's
 // still-present Mantine imports and make lint red prematurely.
 //
-// Whitelist: apps/admin/src/main.tsx is the one entry allowed to import the
-// design-system CSS/reset directly (red-team F14 — reset.css is app-scoped and
-// not re-exported through @cmc/ui).
+// Whitelist: apps/admin/src/main.tsx is fully exempt (the one entry allowed to
+// import design-system CSS/reset + providers directly — red-team F14: reset.css
+// is app-scoped, not re-exported through @cmc/ui). Note this exempts the whole
+// file, not just its CSS imports — main.tsx is hand-reviewed as the single door,
+// so a stray component import there would not be caught by this rule.
 import tseslint from 'typescript-eslint';
 
 const BANNED_UI_IMPORTS = {
@@ -40,6 +42,10 @@ export default [
     // directives in source resolve to a known rule (left OFF here — we enforce
     // only the import rule). Without this, ESLint errors "rule not found".
     plugins: { '@typescript-eslint': tseslint.plugin },
+    // Those pre-existing directives suppress rules we don't enforce, so they'd
+    // report as "unused" noise — silence that (keeps the authors' intentional
+    // suppressions intact for when the rules are later enabled).
+    linterOptions: { reportUnusedDisableDirectives: 'off' },
     rules: {
       'no-restricted-imports': ['error', BANNED_UI_IMPORTS],
     },

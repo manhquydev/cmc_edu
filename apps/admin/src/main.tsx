@@ -15,6 +15,9 @@ import '@astryxdesign/core/reset.css';
 import '@fontsource-variable/inter';
 import '@cmc/ui/tokens.css';
 import '@cmc/ui/astryx-theme-cmc.css';
+// Premium composite styles (MetricCard/Panel/TaskRow/FunnelBar) — after tokens
+// so the .ck-* classes can reference --cmc-* custom properties.
+import '@cmc/ui/premium.css';
 import './app.css';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { trpc, makeTrpcClient, makeQueryClient } from './lib/trpc.js';

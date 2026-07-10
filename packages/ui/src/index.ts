@@ -70,6 +70,18 @@ export type Tokens = typeof tokens;
 export { LineIcon } from './components/line-icon.js';
 export type { IconName } from './components/line-icon.js';
 
+// Premium composites (promoted from the cockpit pilot — DUMB, props-only).
+// Require `@cmc/ui/premium.css` imported once at the app root.
+export type { Tone } from './components/tone.js';
+export { MetricCard } from './components/metric-card.js';
+export type { MetricCardProps } from './components/metric-card.js';
+export { Panel } from './components/panel.js';
+export type { PanelProps } from './components/panel.js';
+export { TaskRow } from './components/task-row.js';
+export type { TaskRowProps } from './components/task-row.js';
+export { FunnelBar } from './components/funnel-bar.js';
+export type { FunnelBarProps } from './components/funnel-bar.js';
+
 // Astryx theme scope provider — see astryx-theme-cmc.css for token values.
 export { AstryxCmcProvider } from './astryx-provider.js';
 export type { AstryxCmcProviderProps } from './astryx-provider.js';

@@ -1,0 +1,58 @@
+/*
+ * @cmc/ui premium composite styles — the design-language layer for MetricCard,
+ * Panel, TaskRow, FunnelBar (promoted from the cockpit pilot). Import ONCE per
+ * app root: `import '@cmc/ui/premium.css'`. Consumes --cmc-* tokens (tokens.css
+ * must load first). Classnames are stable (.ck-*); components reference them so
+ * there is no per-render inline <style> duplication.
+ *
+ * Locked invariants (Apple/Notion reference study): flat surfaces (no border/
+ * shadow at rest — surface contrast on the warm canvas), near-black numerals
+ * (value never tinted), status = a small dot not a recoloured number, one accent.
+ */
+
+/* Metric card — white on warm canvas; a whisper of lift on hover only. */
+.ck-mc { display: block; text-decoration: none; color: inherit;
+  background: var(--cmc-surface-raised); border-radius: var(--cmc-radius-md);
+  padding: 24px 26px; transition: box-shadow var(--cmc-transition); }
+.ck-mc:hover { box-shadow: var(--cmc-shadow-sm); }
+.ck-mc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.ck-mc-label { display: flex; align-items: center; gap: 7px;
+  font-size: var(--cmc-fs-label); font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--cmc-text-muted); }
+.ck-mc-icon { color: var(--cmc-text-faint); }
+.ck-mc-value { font-size: var(--cmc-fs-metric); font-weight: 600; line-height: 1;
+  letter-spacing: -0.03em; color: var(--cmc-text); font-variant-numeric: tabular-nums; }
+.ck-mc-ctx { margin-top: 11px; display: flex; align-items: center; gap: 3px;
+  font-size: 13px; color: var(--cmc-text-muted); transition: color var(--cmc-transition); }
+.ck-mc:hover .ck-mc-ctx { color: var(--cmc-brand); }
+.ck-attn { width: 6px; height: 6px; border-radius: 999px; }
+
+/* Panel — flat white, hairline header divider only */
+.ck-pnl { background: var(--cmc-surface-raised); border-radius: var(--cmc-radius-md); overflow: hidden; }
+.ck-pnl-head { display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 22px 14px; }
+.ck-pnl-title { font-size: 14px; font-weight: 600; color: var(--cmc-text); letter-spacing: -0.01em; }
+.ck-pnl-icon { color: var(--cmc-text-faint); }
+
+/* Rows — spacing + warm hover separate them, minimal hairline */
+.ck-row { display: flex; align-items: center; gap: 13px; padding: 13px 22px;
+  text-decoration: none; color: inherit; transition: background var(--cmc-transition); }
+.ck-row + .ck-row { border-top: 1px solid var(--cmc-border-subtle); }
+.ck-row:hover { background: var(--cmc-canvas); }
+.ck-dot { width: 7px; height: 7px; border-radius: 999px; flex-shrink: 0; }
+.ck-row-title { font-size: 14px; font-weight: 500; color: var(--cmc-text); }
+.ck-row-meta { font-size: 12.5px; color: var(--cmc-text-muted); font-variant-numeric: tabular-nums; margin-top: 1px; }
+.ck-chev { color: #c7c7cc; flex-shrink: 0; }
+
+/* Funnel — thin pill bars, one solid accent, generous rows */
+.ck-fn { padding: 8px 22px 20px; display: flex; flex-direction: column; gap: 16px; }
+.ck-fn-row { display: flex; align-items: center; gap: 14px; }
+.ck-fn-label { width: 96px; flex-shrink: 0; font-size: 13px; color: var(--cmc-text-2); }
+.ck-fn-track { flex: 1; height: 8px; display: block; background: var(--cmc-surface-sunken); border-radius: 999px; overflow: hidden; }
+.ck-fn-fill { display: block; height: 100%; background: var(--cmc-brand); border-radius: 999px; transition: width 520ms var(--cmc-ease); }
+.ck-fn-count { width: 24px; text-align: right; font-size: 13px; font-weight: 600; color: var(--cmc-text); font-variant-numeric: tabular-nums; }
+
+/* Empty state — restrained, monochrome icon */
+.ck-empty { padding: 34px 22px; text-align: center; color: var(--cmc-text-muted);
+  font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.ck-empty-icon { color: var(--cmc-text-faint); }

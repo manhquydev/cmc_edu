@@ -12,12 +12,14 @@
       "default": "./dist/index.js"
     },
     "./tokens.css": "./src/tokens.css",
-    "./astryx-theme-cmc.css": "./src/astryx-theme-cmc.css"
+    "./astryx-theme-cmc.css": "./src/astryx-theme-cmc.css",
+    "./premium.css": "./src/premium.css"
   },
   "files": [
     "dist",
     "src/tokens.css",
-    "src/astryx-theme-cmc.css"
+    "src/astryx-theme-cmc.css",
+    "src/premium.css"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

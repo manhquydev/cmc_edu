@@ -7,21 +7,32 @@
 //   fallback form. No penalty warning shown here — penalty is server-side.
 // - Punch without an approved shift → backend records it; UI shows
 //   "ghi nhận, chờ review" note only (no penalty banner).
+// - HR remediation phase 5 (red-team #5): error branching reads
+//   `err.data.appCode` (IP_NOT_ALLOWED/COOLDOWN — trpc.ts's errorFormatter,
+//   apps/api/src/errors.ts's AppCodeError), NOT string-matching err.message.
 
 import { useEffect, useRef, useState } from 'react';
 import {
   Banner,
   Button,
   Card,
+  DataTable,
   FormPage,
   HStack,
   PageHeader,
   Stack,
+  StatusBadge,
   Text,
   TextArea,
   TextInput,
 } from '@cmc/ui';
+import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+
+function readAppCode(err: { data?: unknown; message?: string }): string | undefined {
+  const data = err.data as { appCode?: unknown } | null | undefined;
+  return typeof data?.appCode === 'string' ? data.appCode : undefined;
+}
 
 // ---------------------------------------------------------------------------
 // Live clock (ICT)
@@ -129,6 +140,65 @@ function ManualPunchForm({ onClose }: { onClose: () => void }) {
 }
 
 // ---------------------------------------------------------------------------
+// Phiếu của tôi — manualPunch.list({scope:'mine'})
+// ---------------------------------------------------------------------------
+interface MyTicketRow {
+  id: string;
+  ticketDate: string | Date;
+  status: string;
+  note: string;
+  [key: string]: unknown;
+}
+
+const TICKET_STATUS_LABELS: Record<string, string> = {
+  pending: 'Chờ duyệt',
+  resubmitted: 'Đã gửi lại',
+  approved: 'Đã duyệt',
+  rejected: 'Từ chối',
+};
+
+function MyTicketsSection() {
+  const { data, isLoading, error } = trpc.manualPunch.list.useQuery({ scope: 'mine' });
+
+  const columns: TableColumn<MyTicketRow>[] = [
+    {
+      key: 'ticketDate',
+      label: 'Ngày',
+      render: (v) => new Date(v as string).toLocaleDateString('vi-VN'),
+    },
+    {
+      key: 'status',
+      label: 'Trạng thái',
+      width: 140,
+      render: (v) => (
+        <StatusBadge status={String(v)} label={TICKET_STATUS_LABELS[String(v)] ?? String(v)} />
+      ),
+    },
+    { key: 'note', label: 'Lý do' },
+  ];
+
+  return (
+    <div>
+      <Text
+        type="supporting"
+        size="xsm"
+        weight="semibold"
+        style={{ textTransform: 'uppercase', marginBottom: 4 }}
+      >
+        Phiếu của tôi
+      </Text>
+      <DataTable<MyTicketRow>
+        columns={columns}
+        data={(data as MyTicketRow[] | undefined) ?? []}
+        loading={isLoading}
+        error={error?.message}
+        empty="Chưa có yêu cầu chấm công thủ công nào."
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 type PunchAlert =
@@ -154,14 +224,14 @@ export default function CheckInOutPage() {
       setPunchAlert({ kind: 'success', timeStr: at });
     },
     onError(err) {
-      const msg = err.message ?? '';
-      if (msg.includes('IP address not in any authorized network')) {
+      const appCode = readAppCode(err);
+      if (appCode === 'IP_NOT_ALLOWED') {
         setPunchAlert({ kind: 'ip_fail' });
         setShowManual(true);
-      } else if (msg.toLowerCase().includes('cooldown')) {
+      } else if (appCode === 'COOLDOWN') {
         setPunchAlert({ kind: 'cooldown' });
       } else {
-        setPunchAlert({ kind: 'error', msg });
+        setPunchAlert({ kind: 'error', msg: err.message ?? 'Lỗi không xác định.' });
       }
     },
   });
@@ -199,7 +269,7 @@ export default function CheckInOutPage() {
         <PageHeader
           title="Chấm công"
           subtitle="Điểm danh ca làm việc (IP cơ sở)"
-          breadcrumbs={[{ label: 'HR' }, { label: 'Chấm công' }]}
+          breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Chấm công' }]}
         />
       }
       result={resultContent}
@@ -247,6 +317,8 @@ export default function CheckInOutPage() {
         )}
 
         {showManual && <ManualPunchForm onClose={() => setShowManual(false)} />}
+
+        <MyTicketsSection />
       </Stack>
     </FormPage>
   );

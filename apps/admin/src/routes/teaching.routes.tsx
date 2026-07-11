@@ -7,6 +7,7 @@ const SchedulePage = lazy(() => import('../pages/teaching/schedule.js'));
 const AttendancePage = lazy(() => import('../pages/teaching/attendance.js'));
 const GradingPage = lazy(() => import('../pages/teaching/grading.js'));
 const SessionEvidencePage = lazy(() => import('../pages/teaching/session-evidence.js'));
+const SessionAssessmentPage = lazy(() => import('../pages/teaching/session-assessment.js'));
 const ExercisesPage = lazy(() => import('../pages/teaching/exercises.js'));
 
 function PageFallback() {
@@ -53,6 +54,14 @@ export const teachingRoutes: RouteObject[] = [
     element: (
       <Suspense fallback={<PageFallback />}>
         <SessionEvidencePage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'session-assessment',
+    element: (
+      <Suspense fallback={<PageFallback />}>
+        <SessionAssessmentPage />
       </Suspense>
     ),
   },

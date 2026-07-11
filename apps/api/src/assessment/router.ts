@@ -153,6 +153,17 @@ const listForChildInput = z.object({
   period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
 });
 
+// HR remediation phase 5 (R2 #C4 — màn nhận xét per-buổi): the staff-facing
+// UI needs to know which present students already have a draft/confirmed
+// assessment for a session before it can render per-student state. No such
+// read existed pre-phase-5 (only draftComment/confirm/discard mutations) —
+// added here as a minimal, same-permission (`assessment.draft`, teacher-
+// facing) companion read. Returns every non-discarded assessment for the
+// session (draft + confirmed) — the UI branches per student on `status`.
+const listBySessionInput = z.object({
+  classSessionId: z.string().uuid(),
+});
+
 const reportCardInput = z.object({
   studentId: z.string().uuid(),
   period: z.string().regex(/^\d{4}-\d{2}$/),
@@ -282,6 +293,24 @@ export const assessmentRouter = router({
           where: { id: input.assessmentId, facilityId },
         });
         return toAssessmentDto(updated!);
+      });
+    }),
+
+  // -------------------------------------------------------------------------
+  // assessment.listBySession — staff read (HR remediation phase 5, R2 #C4):
+  // draft/confirmed assessments for one session, so the per-session
+  // nhận-xét screen can render each present student's current state.
+  // -------------------------------------------------------------------------
+  listBySession: requirePermission('assessment', 'draft')
+    .input(listBySessionInput)
+    .query(async ({ ctx, input }): Promise<{ items: AssessmentDto[] }> => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const rows = await tx.qualitativeAssessment.findMany({
+          where: { facilityId, classSessionId: input.classSessionId, status: { in: ['draft', 'confirmed'] } },
+          orderBy: { createdAt: 'asc' },
+        });
+        return { items: rows.map(toAssessmentDto) };
       });
     }),
 

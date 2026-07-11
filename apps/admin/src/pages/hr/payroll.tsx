@@ -6,6 +6,13 @@
 // - Payslip access: own payslip or director/super_admin (server enforces;
 //   user.list requires user.manage so this page is naturally director-facing).
 //
+// HR remediation phase 5 (R3-2): the tier-based salary model REPLACED the old
+// formula (base + variable + kpiBonus). `variablePay` is now a deprecated
+// column that is always written 0 (payroll/router.ts) — the "Lương biến đổi"
+// row is REMOVED from this breakdown (showing a permanent 0 row would be
+// misleading, not merely stale). `kpiBonus` is REUSED to carry "PHẦN NHÂN"
+// (%côngca × %chỉ-số × đơn giá) — relabeled accordingly, value unchanged.
+//
 // Flow: staff list (user.list) → click employee → PayslipDetail for
 // selected employee × period. Period is synced to ?period= URL param.
 //
@@ -235,10 +242,13 @@ function PayslipDetail({
 
           {/* Line items */}
           <Stack gap={0} paddingInline={4}>
-            {/* Income components */}
+            {/* Income components — HR remediation phase 5 (R3-2): "Lương biến
+                đổi" row removed (variablePay is a deprecated column always
+                written 0 under the tier model); "Thưởng KPI" relabeled to
+                describe the tier formula (kpiBonus column reused, value
+                unchanged — see payroll/router.ts). */}
             <LineRow label="Lương cơ bản" value={fmtVND(data.baseSalary)} />
-            <LineRow label="Lương biến đổi" value={fmtVND(data.variablePay)} />
-            <LineRow label="Thưởng KPI" value={fmtVND(data.kpiBonus)} />
+            <LineRow label="Phần KPI (%côngca × %chỉ-số × đơn giá)" value={fmtVND(data.kpiBonus)} />
 
             {/* ---- Penalty row ---- MUST be a separate, distinct deduction */}
             <PenaltyRow
@@ -419,7 +429,7 @@ export default function PayrollPage() {
             title="Bảng lương"
             subtitle="Chi tiết phiếu lương nhân viên"
             breadcrumbs={[
-              { label: 'HR' },
+              { label: 'Nhân sự' },
               { label: 'Bảng lương' },
               { label: selectedUser.name },
             ]}
@@ -451,7 +461,7 @@ export default function PayrollPage() {
       <PageHeader
         title="Bảng lương"
         subtitle="Chọn nhân viên để xem / chốt lương theo tháng"
-        breadcrumbs={[{ label: 'HR' }, { label: 'Bảng lương' }]}
+        breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Bảng lương' }]}
         actions={
           <div style={{ width: 140 }}>
             <TextInput

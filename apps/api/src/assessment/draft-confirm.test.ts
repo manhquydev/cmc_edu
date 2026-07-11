@@ -224,6 +224,54 @@ describe('assessment (T3 US-018)', () => {
   });
 
   // -------------------------------------------------------------------------
+  // listBySession — staff read (HR remediation phase 5, R2 #C4)
+  // -------------------------------------------------------------------------
+
+  it('listBySession returns draft and confirmed assessments for the session, not discarded ones', async () => {
+    const session = await seedClassSession({ facilityId: facility.id, classBatchId: classBatch.id });
+
+    const draft = await teacher.assessment.draftComment({
+      studentId: enrollment.studentId,
+      classSessionId: session.id,
+    });
+
+    const other = await seedEnrolledStudentWithGuardian({
+      facilityId: facility.id,
+      classBatchId: classBatch.id,
+      parentAccountId: parent.id,
+      studentName: 'Học sinh khác',
+    });
+    const toConfirm = await teacher.assessment.draftComment({
+      studentId: other.studentId,
+      classSessionId: session.id,
+    });
+    await teacher.assessment.confirm({ assessmentId: toConfirm.id, content: 'Rất tốt.' });
+
+    const toDiscard = await teacher.assessment.draftComment({
+      studentId: enrollment.studentId,
+      classSessionId: session.id,
+      period: '2026-08',
+    });
+    await teacher.assessment.discard({ assessmentId: toDiscard.id });
+
+    const { items } = await teacher.assessment.listBySession({ classSessionId: session.id });
+    const ids = items.map((i) => i.id);
+    expect(ids).toContain(draft.id);
+    expect(ids).toContain(toConfirm.id);
+    expect(ids).not.toContain(toDiscard.id);
+  });
+
+  it('listBySession: role without assessment.draft permission is FORBIDDEN', async () => {
+    const session = await seedClassSession({ facilityId: facility.id, classBatchId: classBatch.id });
+    const sale = appRouter.createCaller(
+      buildStaffContext({ facilityId: facility.id, userId: 'sale-assess-1', roles: ['sale'] }),
+    );
+    await expect(
+      sale.assessment.listBySession({ classSessionId: session.id }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  // -------------------------------------------------------------------------
   // listForChild (LMS) — draft must NEVER appear
   // -------------------------------------------------------------------------
 

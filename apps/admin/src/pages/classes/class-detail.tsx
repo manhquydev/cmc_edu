@@ -9,6 +9,7 @@ import {
   DataTable,
   HStack,
   PageHeader,
+  Selector,
   Skeleton,
   Stack,
   StatusBadge,
@@ -16,6 +17,44 @@ import {
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+
+// HR remediation phase 5 (R2 #C5): teacher picker — AppUser role giao_vien.
+function TeacherPicker({ classBatchId, currentTeacherId }: { classBatchId: string; currentTeacherId: string | null }) {
+  const utils = trpc.useUtils();
+  const { data, isLoading } = trpc.user.list.useQuery();
+  const teachers = ((data?.items ?? []) as Array<{ id: string; fullName: string; roles: string[] }>).filter((u) =>
+    u.roles.includes('giao_vien'),
+  );
+  const options = teachers.map((t) => ({ value: t.id, label: t.fullName }));
+
+  const assignMut = trpc.classBatch.assignTeacher.useMutation({
+    onSuccess: () => void utils.classBatch.get.invalidate({ classBatchId }),
+  });
+
+  return (
+    <Stack gap={0.5}>
+      <Text type="supporting" size="2xs" weight="bold" style={{ textTransform: 'uppercase' }}>
+        Giáo viên
+      </Text>
+      <div style={{ width: 220 }}>
+        <Selector
+          label="Giáo viên"
+          isLabelHidden
+          placeholder={isLoading ? 'Đang tải…' : 'Chọn giáo viên'}
+          options={options}
+          value={currentTeacherId ?? undefined}
+          onChange={(v) => v && assignMut.mutate({ classBatchId, teacherAppUserId: v })}
+          hasClear={false}
+        />
+      </div>
+      {assignMut.error && (
+        <Text type="supporting" size="2xs" style={{ color: 'var(--cmc-danger)' }}>
+          {assignMut.error.message}
+        </Text>
+      )}
+    </Stack>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Sub-tabs
@@ -67,10 +106,11 @@ function StudentsTab({ classBatchId }: { classBatchId: string }) {
   );
 }
 
-const SESSION_STATUS_VARIANT: Record<string, 'neutral' | 'info' | 'error'> = {
+const SESSION_STATUS_VARIANT: Record<string, 'neutral' | 'info' | 'error' | 'success'> = {
   planned: 'neutral',
   confirmed: 'info',
   cancelled: 'error',
+  done: 'success',
 };
 
 interface SessionTabRow {
@@ -158,7 +198,7 @@ function SessionsTab({ classBatchId }: { classBatchId: string }) {
               onClick={() => confirmMut.mutate({ sessionId: row.id })}
             />
           )}
-          {row.status !== 'cancelled' && (
+          {row.status !== 'cancelled' && row.status !== 'done' && (
             <Button
               label="Huỷ"
               size="sm"
@@ -242,14 +282,7 @@ export default function ClassDetailPage() {
             </Text>
             <Text size="sm">{new Date(cls.endDate).toLocaleDateString('vi-VN')}</Text>
           </Stack>
-          {cls.teacherId && (
-            <Stack gap={0.5}>
-              <Text type="supporting" size="2xs" weight="bold" style={{ textTransform: 'uppercase' }}>
-                Giáo viên (ID)
-              </Text>
-              <Text size="sm">{cls.teacherId}</Text>
-            </Stack>
-          )}
+          <TeacherPicker classBatchId={cls.id} currentTeacherId={cls.teacherAppUserId} />
         </HStack>
       </Stack>
     );

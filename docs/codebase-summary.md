@@ -1,6 +1,6 @@
 # CMC EDU v2 — Codebase Summary
 
-**Status:** SSO landing complete (P1) · Flow audit complete (P3) · P2-P4 workflows BUILT & TESTED · UI migration Phases 3–5 COMPLETE (Astryx 100% in admin + lms, premium design-language layer in @cmc/ui, admin cockpit/shell/finance on premium components)  
+**Status:** SSO landing complete (P1) · Flow audit complete (P3) · P2-P4 workflows BUILT & TESTED · UI migration COMPLETE (Astryx 100% admin+lms, Mantine fully removed) + premium design-language layer promoted to @cmc/ui (admin cockpit/shell/finance on premium components)  
 **Last Updated:** 2026-07-11  
 **Build State:** 532 tests passing (0 skipped) in 64 test files + @cmc/ui vitest 40+ component tests; 26/26 typecheck packages green; apps build clean; UI e2e 5 passed + 1 fixme; API e2e 17 passed; ESLint one-door lint rule spans admin+lms. *(2026-07-11: a stale local `node_modules` briefly made this look broken — resolved via `pnpm install --frozen-lockfile`; not a real code regression. See `docs/project-changelog.md` `[2026-07-11]`.)*
 
@@ -23,7 +23,7 @@ D:\project\vip\CMC
 │   ├── db/              # Prisma schema, migrations, seed — 48 models
 │   ├── domain-finance/  # Finance domain logic (SO receipt codes, refund cap, phone dedup)
 │   ├── domain-identity/ # Identity domain logic (phone normalization)
-│   └── ui/              # Design system: Astryx barrel + premium design-language layer (Phase 5) — LineIcon, MetricCard, Panel, TaskRow, FunnelBar, AppFrame/SideNav, page templates; Inter Variable font; 40+ vitest component tests
+│   └── ui/              # Design system: Astryx barrel + premium design-language layer — LineIcon, MetricCard, Panel, TaskRow, FunnelBar, AppFrame/SideNav, page templates; Inter Variable font; 40+ vitest component tests (Mantine fully removed 2026-07-10)
 ├── docs/                # Design docs (TL00-TL31, frozen design corpus)
 └── plans/               # Session reports (audits, remediation, deep reviews)
 ```

@@ -18,6 +18,7 @@ import {
   CmcTabs,
   ConfirmDialog,
   Divider,
+  FormPage,
   HStack,
   PageHeader,
   Stack,
@@ -109,125 +110,139 @@ function SubmitTab() {
     setEntries((prev) => prev.filter((e) => e._key !== key));
   }
 
-  function handleSubmit() {
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canSubmit) return;
     mut.mutate({
       shiftGroupId: groupId,
       fromDate,
       toDate,
-      entries: entries.map((e) => ({
-        date: e.date,
-        shiftTemplateId: e.shiftTemplateId,
+      entries: entries.map((e2) => ({
+        date: e2.date,
+        shiftTemplateId: e2.shiftTemplateId,
       })),
     });
   }
 
+  // Result/error surfaces via plain `Banner` with `description` (always
+  // visible) — NOT `ResultPanel`, which routes `message` through Astryx
+  // `Banner` `children` and collapses behind a click (see receipt-create.tsx
+  // TODO(astryx-review)).
+  const resultContent = result ? (
+    <Banner status={result.ok ? 'success' : 'error'} title={result.text} />
+  ) : undefined;
+
   return (
-    <Stack gap={2} padding={4}>
-      <Banner
-        status="info"
-        title="Lưu ý khi đăng ký ca"
-        description={
-          <>
-            Nhập UUID nhóm ca và mẫu ca từ admin. Ngày bắt đầu phải{' '}
-            <Text type="body" size="xsm" weight="semibold" as="span">sau hôm nay (ICT)</Text>. Hệ thống cho phép tối đa 1 đăng ký
-            chờ duyệt tại một thời điểm (ticket-lock).
-          </>
-        }
-      />
-
-      <TextInput
-        label="Nhóm ca (shiftGroupId — UUID)"
-        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-        value={groupId}
-        onChange={(v) => setGroupId(v)}
-        status={groupId && !isValidUuid(groupId) ? { type: 'error', message: 'UUID không hợp lệ' } : undefined}
-        size="sm"
-      />
-
-      <HStack gap={1}>
-        <div style={{ flex: 1 }}>
-          <TextInput
-            label="Từ ngày (YYYY-MM-DD)"
-            placeholder="2026-07-08"
-            value={fromDate}
-            onChange={(v) => setFromDate(v)}
-            status={fromDateError ? { type: 'error', message: fromDateError } : undefined}
-            size="sm"
-          />
-        </div>
-        <div style={{ flex: 1 }}>
-          <TextInput
-            label="Đến ngày (YYYY-MM-DD)"
-            placeholder="2026-07-31"
-            value={toDate}
-            onChange={(v) => setToDate(v)}
-            status={
-              toDate && !/^\d{4}-\d{2}-\d{2}$/.test(toDate)
-                ? { type: 'error', message: 'Định dạng YYYY-MM-DD' }
-                : undefined
+    <form onSubmit={handleSubmit}>
+      <FormPage
+        header={
+          <Banner
+            status="info"
+            title="Lưu ý khi đăng ký ca"
+            description={
+              <>
+                Nhập UUID nhóm ca và mẫu ca từ admin. Ngày bắt đầu phải{' '}
+                <Text type="body" size="xsm" weight="semibold" as="span">sau hôm nay (ICT)</Text>. Hệ thống cho phép tối đa 1 đăng ký
+                chờ duyệt tại một thời điểm (ticket-lock).
+              </>
             }
+          />
+        }
+        result={resultContent}
+        actions={
+          <Button
+            label="Gửi đăng ký"
+            type="submit"
+            size="sm"
+            variant="primary"
+            isLoading={mut.isPending}
+            isDisabled={!canSubmit}
+          />
+        }
+      >
+        <Stack gap={2}>
+          <TextInput
+            label="Nhóm ca (shiftGroupId — UUID)"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            value={groupId}
+            onChange={(v) => setGroupId(v)}
+            status={groupId && !isValidUuid(groupId) ? { type: 'error', message: 'UUID không hợp lệ' } : undefined}
             size="sm"
           />
-        </div>
-      </HStack>
 
-      {/* TODO(astryx-review): Astryx Divider has no `labelPosition` prop — the
-          label always renders centered (the prior UI had it left-aligned). Cosmetic
-          only, no functional change. */}
-      <Divider label="Danh sách ngày đăng ký" />
+          <HStack gap={1}>
+            <div style={{ flex: 1 }}>
+              <TextInput
+                label="Từ ngày (YYYY-MM-DD)"
+                placeholder="2026-07-08"
+                value={fromDate}
+                onChange={(v) => setFromDate(v)}
+                status={fromDateError ? { type: 'error', message: fromDateError } : undefined}
+                size="sm"
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <TextInput
+                label="Đến ngày (YYYY-MM-DD)"
+                placeholder="2026-07-31"
+                value={toDate}
+                onChange={(v) => setToDate(v)}
+                status={
+                  toDate && !/^\d{4}-\d{2}-\d{2}$/.test(toDate)
+                    ? { type: 'error', message: 'Định dạng YYYY-MM-DD' }
+                    : undefined
+                }
+                size="sm"
+              />
+            </div>
+          </HStack>
 
-      {entries.map((entry) => (
-        <HStack key={entry._key} align="end" gap={1} wrap="nowrap">
-          <div style={{ flex: '0 0 160px' }}>
-            <TextInput
-              label="Ngày (YYYY-MM-DD)"
-              placeholder="2026-07-08"
-              value={entry.date}
-              onChange={(v) => updateEntry(entry._key, 'date', v)}
-              size="sm"
-            />
-          </div>
-          <div style={{ flex: 1 }}>
-            <TextInput
-              label="Mẫu ca (shiftTemplateId — UUID)"
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-              value={entry.shiftTemplateId}
-              onChange={(v) => updateEntry(entry._key, 'shiftTemplateId', v)}
-              size="sm"
-            />
-          </div>
-          {entries.length > 1 && (
-            <Button
-              label="Xóa"
-              variant="destructive"
-              size="sm"
-              onClick={() => removeEntry(entry._key)}
-            />
-          )}
-        </HStack>
-      ))}
+          {/* TODO(astryx-review): Astryx Divider has no `labelPosition` prop — the
+              label always renders centered (the prior UI had it left-aligned). Cosmetic
+              only, no functional change. */}
+          <Divider label="Danh sách ngày đăng ký" />
 
-      <Button
-        label="+ Thêm ngày"
-        variant="secondary"
-        size="sm"
-        style={{ alignSelf: 'flex-start' }}
-        onClick={() => setEntries((prev) => [...prev, newEntry()])}
-      />
+          {entries.map((entry) => (
+            <HStack key={entry._key} align="end" gap={1} wrap="nowrap">
+              <div style={{ flex: '0 0 160px' }}>
+                <TextInput
+                  label="Ngày (YYYY-MM-DD)"
+                  placeholder="2026-07-08"
+                  value={entry.date}
+                  onChange={(v) => updateEntry(entry._key, 'date', v)}
+                  size="sm"
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <TextInput
+                  label="Mẫu ca (shiftTemplateId — UUID)"
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  value={entry.shiftTemplateId}
+                  onChange={(v) => updateEntry(entry._key, 'shiftTemplateId', v)}
+                  size="sm"
+                />
+              </div>
+              {entries.length > 1 && (
+                <Button
+                  label="Xóa"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => removeEntry(entry._key)}
+                />
+              )}
+            </HStack>
+          ))}
 
-      {result && <Banner status={result.ok ? 'success' : 'error'} title={result.text} />}
-
-      <HStack justify="end">
-        <Button
-          label="Gửi đăng ký"
-          size="sm"
-          variant="primary"
-          isLoading={mut.isPending}
-          isDisabled={!canSubmit}
-          onClick={handleSubmit}
-        />
-      </HStack>
-    </Stack>
+          <Button
+            label="+ Thêm ngày"
+            variant="secondary"
+            size="sm"
+            style={{ alignSelf: 'flex-start' }}
+            onClick={() => setEntries((prev) => [...prev, newEntry()])}
+          />
+        </Stack>
+      </FormPage>
+    </form>
   );
 }
 
@@ -268,71 +283,83 @@ function ApproveTab() {
   const isBusy = approveMut.isPending || cancelMut.isPending;
   const shortId = regId.slice(0, 8);
 
+  // Result/error surfaces via plain `Banner` with `description` (always
+  // visible) — NOT `ResultPanel`, which routes `message` through Astryx
+  // `Banner` `children` and collapses behind a click (see receipt-create.tsx
+  // TODO(astryx-review)).
+  const resultContent = result ? (
+    <Banner status={result.ok ? 'success' : 'error'} title={result.text} />
+  ) : undefined;
+
   return (
-    <Stack gap={2} padding={4}>
-      <Text type="supporting" size="2xs">
-        Nhập ID đăng ký ca (UUID) để duyệt hoặc hủy. Nút "Duyệt" chỉ hiển thị với
-        GĐ có quyền <code>shift.approve</code>.
-      </Text>
+    <FormPage
+      header={
+        <Text type="supporting" size="2xs">
+          Nhập ID đăng ký ca (UUID) để duyệt hoặc hủy. Nút "Duyệt" chỉ hiển thị với
+          GĐ có quyền <code>shift.approve</code>.
+        </Text>
+      }
+      result={resultContent}
+      actions={
+        <HStack gap={1}>
+          {/* Approve: gated to shift.approve permission (GĐ only) */}
+          {canDo('shift', 'approve') && (
+            <Button
+              label="Duyệt ca"
+              size="sm"
+              variant="primary"
+              isDisabled={!idOk}
+              isLoading={isBusy}
+              onClick={() => setConfirmType('approve')}
+            />
+          )}
 
-      <div style={{ maxWidth: 440 }}>
-        <TextInput
-          label="ID đăng ký ca (registrationId — UUID)"
-          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          value={regId}
-          onChange={(v) => setRegId(v)}
-          status={regId && !idOk ? { type: 'error', message: 'UUID không hợp lệ' } : undefined}
-          size="sm"
-        />
-      </div>
-
-      {result && <Banner status={result.ok ? 'success' : 'error'} title={result.text} />}
-
-      <HStack gap={1}>
-        {/* Approve: gated to shift.approve permission (GĐ only) */}
-        {canDo('shift', 'approve') && (
+          {/* Cancel: owner or director */}
           <Button
-            label="Duyệt ca"
+            label="Hủy đăng ký"
             size="sm"
-            variant="primary"
+            variant="destructive"
             isDisabled={!idOk}
             isLoading={isBusy}
-            onClick={() => setConfirmType('approve')}
+            onClick={() => setConfirmType('cancel')}
           />
-        )}
+        </HStack>
+      }
+    >
+      <Stack gap={2}>
+        <div style={{ maxWidth: 440 }}>
+          <TextInput
+            label="ID đăng ký ca (registrationId — UUID)"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            value={regId}
+            onChange={(v) => setRegId(v)}
+            status={regId && !idOk ? { type: 'error', message: 'UUID không hợp lệ' } : undefined}
+            size="sm"
+          />
+        </div>
 
-        {/* Cancel: owner or director */}
-        <Button
-          label="Hủy đăng ký"
-          size="sm"
-          variant="destructive"
-          isDisabled={!idOk}
-          isLoading={isBusy}
-          onClick={() => setConfirmType('cancel')}
+        <ConfirmDialog
+          opened={confirmType === 'approve'}
+          title="Duyệt đăng ký ca"
+          message={`Duyệt đăng ký ca ${shortId}…? Hành động này không thể hoàn tác.`}
+          confirmLabel="Duyệt"
+          confirmColor="green"
+          loading={isBusy}
+          onConfirm={() => approveMut.mutate({ registrationId: regId })}
+          onCancel={() => setConfirmType(null)}
         />
-      </HStack>
-
-      <ConfirmDialog
-        opened={confirmType === 'approve'}
-        title="Duyệt đăng ký ca"
-        message={`Duyệt đăng ký ca ${shortId}…? Hành động này không thể hoàn tác.`}
-        confirmLabel="Duyệt"
-        confirmColor="green"
-        loading={isBusy}
-        onConfirm={() => approveMut.mutate({ registrationId: regId })}
-        onCancel={() => setConfirmType(null)}
-      />
-      <ConfirmDialog
-        opened={confirmType === 'cancel'}
-        title="Hủy đăng ký ca"
-        message={`Hủy đăng ký ca ${shortId}…? Hành động này không thể hoàn tác.`}
-        confirmLabel="Hủy ca"
-        confirmColor="red"
-        loading={isBusy}
-        onConfirm={() => cancelMut.mutate({ registrationId: regId })}
-        onCancel={() => setConfirmType(null)}
-      />
-    </Stack>
+        <ConfirmDialog
+          opened={confirmType === 'cancel'}
+          title="Hủy đăng ký ca"
+          message={`Hủy đăng ký ca ${shortId}…? Hành động này không thể hoàn tác.`}
+          confirmLabel="Hủy ca"
+          confirmColor="red"
+          loading={isBusy}
+          onConfirm={() => cancelMut.mutate({ registrationId: regId })}
+          onCancel={() => setConfirmType(null)}
+        />
+      </Stack>
+    </FormPage>
   );
 }
 

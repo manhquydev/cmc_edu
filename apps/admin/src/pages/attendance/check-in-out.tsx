@@ -13,6 +13,7 @@ import {
   Banner,
   Button,
   Card,
+  FormPage,
   HStack,
   PageHeader,
   Stack,
@@ -165,83 +166,88 @@ export default function CheckInOutPage() {
     },
   });
 
-  return (
-    <>
-      <PageHeader
-        title="Chấm công"
-        subtitle="Điểm danh ca làm việc (IP cơ sở)"
-        breadcrumbs={[{ label: 'HR' }, { label: 'Chấm công' }]}
+  // Result/error surfaces via plain `Banner` with `description` (always
+  // visible) — NOT `ResultPanel`, which routes `message` through Astryx
+  // `Banner` `children` and collapses behind a click (see receipt-create.tsx
+  // TODO(astryx-review)).
+  const resultContent =
+    punchAlert.kind === 'success' ? (
+      <Banner
+        status="success"
+        title="Đã ghi nhận"
+        description={`Chấm công lúc ${punchAlert.timeStr}. Nếu chưa có ca đã duyệt, hệ thống ghi nhận và chờ review — không áp phạt tự động.`}
       />
-      <div style={{ padding: 16, maxWidth: 520 }}>
-        <Stack gap={3}>
-          {/* Clock + punch action */}
-          <Card padding={6}>
-            <Stack hAlign="center" gap={4}>
-              <IctClock />
+    ) : punchAlert.kind === 'ip_fail' ? (
+      <Banner
+        status="warning"
+        title="Ngoài mạng cơ sở"
+        description="Thiết bị không khớp dải mạng WiFi cơ sở (máy chủ xác nhận). Dùng form chấm công thủ công bên dưới."
+      />
+    ) : punchAlert.kind === 'cooldown' ? (
+      <Banner
+        status="warning"
+        title="Chờ cooldown"
+        description="Đã chấm công trong vòng 5 phút. Thử lại sau."
+      />
+    ) : punchAlert.kind === 'error' ? (
+      <Banner status="error" title="Lỗi chấm công" description={punchAlert.msg} />
+    ) : undefined;
 
-              <Button
-                label="Chấm công"
-                size="lg"
-                isLoading={punchMut.isPending}
-                onClick={() => punchMut.mutate()}
-              />
+  return (
+    <FormPage
+      header={
+        <PageHeader
+          title="Chấm công"
+          subtitle="Điểm danh ca làm việc (IP cơ sở)"
+          breadcrumbs={[{ label: 'HR' }, { label: 'Chấm công' }]}
+        />
+      }
+      result={resultContent}
+      actions={
+        <Button
+          label="Chấm công"
+          size="lg"
+          isLoading={punchMut.isPending}
+          onClick={() => punchMut.mutate()}
+        />
+      }
+    >
+      <Stack gap={3} style={{ maxWidth: 520 }}>
+        {/* Clock */}
+        <Card padding={6}>
+          <Stack hAlign="center" gap={4}>
+            <IctClock />
+          </Stack>
+        </Card>
 
-              {punchAlert.kind === 'success' && (
-                <Banner
-                  status="success"
-                  title="Đã ghi nhận"
-                  description={`Chấm công lúc ${punchAlert.timeStr}. Nếu chưa có ca đã duyệt, hệ thống ghi nhận và chờ review — không áp phạt tự động.`}
-                />
-              )}
-              {punchAlert.kind === 'ip_fail' && (
-                <Banner
-                  status="warning"
-                  title="Ngoài mạng cơ sở"
-                  description="Thiết bị không khớp dải mạng WiFi cơ sở (máy chủ xác nhận). Dùng form chấm công thủ công bên dưới."
-                />
-              )}
-              {punchAlert.kind === 'cooldown' && (
-                <Banner
-                  status="warning"
-                  title="Chờ cooldown"
-                  description="Đã chấm công trong vòng 5 phút. Thử lại sau."
-                />
-              )}
-              {punchAlert.kind === 'error' && (
-                <Banner status="error" title="Lỗi chấm công" description={punchAlert.msg} />
-              )}
-            </Stack>
-          </Card>
+        {/* Punch-without-shift invariant note */}
+        <Banner
+          status="info"
+          title="Ghi nhận không cần ca"
+          description={
+            <>
+              Nếu chưa có ca đã duyệt, hệ thống{' '}
+              <Text type="body" size="sm" weight="semibold" as="span">
+                ghi nhận và chờ review
+              </Text>{' '}
+              — không tự áp phạt. Phạt (nếu có) chỉ được tính khi xử lý bảng lương cuối kỳ.
+            </>
+          }
+        />
 
-          {/* Punch-without-shift invariant note */}
-          <Banner
-            status="info"
-            title="Ghi nhận không cần ca"
-            description={
-              <>
-                Nếu chưa có ca đã duyệt, hệ thống{' '}
-                <Text type="body" size="sm" weight="semibold" as="span">
-                  ghi nhận và chờ review
-                </Text>{' '}
-                — không tự áp phạt. Phạt (nếu có) chỉ được tính khi xử lý bảng lương cuối kỳ.
-              </>
-            }
+        {/* Manual punch toggle */}
+        {!showManual && (
+          <Button
+            label="Gửi yêu cầu chấm công thủ công"
+            variant="ghost"
+            size="sm"
+            style={{ alignSelf: 'flex-start' }}
+            onClick={() => setShowManual(true)}
           />
+        )}
 
-          {/* Manual punch toggle */}
-          {!showManual && (
-            <Button
-              label="Gửi yêu cầu chấm công thủ công"
-              variant="ghost"
-              size="sm"
-              style={{ alignSelf: 'flex-start' }}
-              onClick={() => setShowManual(true)}
-            />
-          )}
-
-          {showManual && <ManualPunchForm onClose={() => setShowManual(false)} />}
-        </Stack>
-      </div>
-    </>
+        {showManual && <ManualPunchForm onClose={() => setShowManual(false)} />}
+      </Stack>
+    </FormPage>
   );
 }

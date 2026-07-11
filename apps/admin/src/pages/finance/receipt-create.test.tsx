@@ -1,0 +1,205 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { screen, fireEvent, act } from '@testing-library/react';
+import { renderWithProviders } from '../../test/render-with-providers.js';
+
+// Locks receipt-create's query hydration (opportunityGet/opportunityLookup/
+// classBatch.list) + `finance.receiptCreate.mutate` payload BEFORE the
+// FormPage refactor (TDD per phase-04). This is a money-writing mutation
+// (audited server-side) — the mutate payload MUST stay byte-identical; the
+// refactor only changes presentation (FormPage header/children/actions/
+// result slots).
+//
+// NOTE: jsdom does not synthesize a native form-submit event from a plain
+// `fireEvent.click` on a `type="submit"` button (unlike real browsers), so
+// tests submit via `fireEvent.submit(form)` — exercising the exact same
+// `onSubmit={handleSubmit}` handler a real click would trigger.
+const VALID_OPP_ID = '11111111-1111-4111-8111-111111111111';
+
+const OPP_DATA = {
+  contact: { id: 'c1', name: 'Nguyễn Văn A', phone: '0912345678', email: 'a@example.com' },
+};
+
+const BATCH_ROW = {
+  id: 'batch-1',
+  code: 'CB001',
+  program: 'IELTS Foundation',
+  startDate: '2026-08-01T00:00:00.000Z',
+};
+
+const classBatchState: { data: { items: (typeof BATCH_ROW)[] }; error: { message: string } | null } = {
+  data: { items: [BATCH_ROW] },
+  error: null,
+};
+const oppGetSpy = vi.fn();
+const oppLookupSpy = vi.fn();
+const classBatchSpy = vi.fn();
+const createMutate = vi.fn();
+let createOnSuccess: ((res: unknown) => void) | undefined;
+const createMutationState: { error: { message: string } | null; data: unknown } = {
+  error: null,
+  data: undefined,
+};
+
+vi.mock('../../lib/trpc.js', async () => {
+  const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
+  return {
+    trpc: buildTrpcMock({
+      'session.me.useQuery': queryResult({
+        userId: 'u1',
+        roles: ['sale'],
+        facilityId: 'f1',
+        config: { approvalSecondEyeThreshold: 20_000_000 },
+      }),
+      'crm.opportunityGet.useQuery': (input: unknown, opts: { enabled?: boolean } | undefined) => {
+        oppGetSpy(input, opts?.enabled);
+        if (!opts?.enabled) return queryResult(undefined, { isLoading: false });
+        return queryResult(OPP_DATA);
+      },
+      'crm.opportunityLookup.useQuery': (input: unknown, opts: { enabled?: boolean } | undefined) => {
+        oppLookupSpy(input, opts?.enabled);
+        if (!opts?.enabled) return queryResult(undefined);
+        return queryResult({ exists: false });
+      },
+      'classBatch.list.useQuery': (input: unknown) => {
+        classBatchSpy(input);
+        return queryResult(classBatchState.data, {
+          error: classBatchState.error,
+          isError: classBatchState.error !== null,
+        });
+      },
+      'finance.receiptCreate.useMutation': (options: {
+        onSuccess?: (res: unknown) => void;
+      }) => {
+        createOnSuccess = options?.onSuccess;
+        return mutationResult({
+          mutate: createMutate,
+          error: createMutationState.error,
+          isError: createMutationState.error !== null,
+          data: createMutationState.data,
+        });
+      },
+    }),
+    makeQueryClient: () => ({}),
+    makeTrpcClient: () => ({}),
+    getDevUserHeader: () => null,
+  };
+});
+
+import ReceiptCreatePage from './receipt-create.js';
+
+async function selectClassBatch() {
+  const trigger = screen.getByLabelText(/^Lớp học/);
+  fireEvent.click(trigger);
+  const option = await screen.findByRole('option', { name: /CB001/ });
+  fireEvent.click(option);
+}
+
+function submitForm() {
+  fireEvent.submit(document.querySelector('form')!);
+}
+
+describe('ReceiptCreatePage', () => {
+  beforeEach(() => {
+    classBatchState.data = { items: [BATCH_ROW] };
+    classBatchState.error = null;
+    oppGetSpy.mockClear();
+    oppLookupSpy.mockClear();
+    classBatchSpy.mockClear();
+    createMutate.mockClear();
+    createMutationState.error = null;
+    createMutationState.data = undefined;
+  });
+
+  it('does not query crm.opportunityGet when no opportunityId is present in the URL', () => {
+    renderWithProviders(<ReceiptCreatePage />, { route: '/finance/new' });
+    expect(oppGetSpy).toHaveBeenCalledWith({ opportunityId: undefined }, false);
+  });
+
+  it('queries crm.opportunityGet({opportunityId}) when a valid opportunityId is present', () => {
+    renderWithProviders(<ReceiptCreatePage />, { route: `/finance/new?opportunityId=${VALID_OPP_ID}` });
+    expect(oppGetSpy).toHaveBeenCalledWith({ opportunityId: VALID_OPP_ID }, true);
+  });
+
+  it('prefills studentName/parentPhone/parentEmail from opportunityGet data', () => {
+    renderWithProviders(<ReceiptCreatePage />, { route: `/finance/new?opportunityId=${VALID_OPP_ID}` });
+    expect(screen.getByDisplayValue('Nguyễn Văn A')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('0912345678')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('a@example.com')).toBeInTheDocument();
+  });
+
+  it('queries classBatch.list with the unchanged {pageSize: 100} input', () => {
+    renderWithProviders(<ReceiptCreatePage />);
+    expect(classBatchSpy).toHaveBeenCalledWith({ pageSize: 100 });
+  });
+
+  it('does not call finance.receiptCreate.mutate when required fields are missing', () => {
+    renderWithProviders(<ReceiptCreatePage />);
+    submitForm();
+    expect(createMutate).not.toHaveBeenCalled();
+  });
+
+  it('submits finance.receiptCreate.mutate with a byte-identical payload (no opportunityId)', async () => {
+    renderWithProviders(<ReceiptCreatePage />);
+
+    fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: '  Trần Thị B  ' } });
+    fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: ' 0987654321 ' } });
+    fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '5000000' } });
+    await selectClassBatch();
+
+    submitForm();
+
+    expect(createMutate).toHaveBeenCalledWith({
+      studentName: 'Trần Thị B',
+      parentPhone: '0987654321',
+      parentEmail: undefined,
+      classBatchId: 'batch-1',
+      amount: 5_000_000,
+      opportunityId: undefined,
+    });
+  });
+
+  it('submits with the opportunityId attached when deep-linked from an opportunity', async () => {
+    renderWithProviders(<ReceiptCreatePage />, { route: `/finance/new?opportunityId=${VALID_OPP_ID}` });
+
+    fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '3000000' } });
+    await selectClassBatch();
+
+    submitForm();
+
+    expect(createMutate).toHaveBeenCalledWith({
+      studentName: 'Nguyễn Văn A',
+      parentPhone: '0912345678',
+      parentEmail: 'a@example.com',
+      classBatchId: 'batch-1',
+      amount: 3_000_000,
+      opportunityId: VALID_OPP_ID,
+    });
+  });
+
+  it('renders an always-visible error banner when finance.receiptCreate fails', () => {
+    createMutationState.error = { message: 'Trùng SĐT phụ huynh' };
+    renderWithProviders(<ReceiptCreatePage />);
+    expect(screen.getByText('Lỗi tạo phiếu thu')).toBeInTheDocument();
+    expect(screen.getByText('Trùng SĐT phụ huynh')).toBeInTheDocument();
+  });
+
+  it('renders an always-visible warning banner when receiptCreate succeeds with a warning status', () => {
+    createMutationState.data = { status: 'warning', message: 'SĐT đã có hồ sơ' };
+    renderWithProviders(<ReceiptCreatePage />);
+    expect(screen.getByText('Cảnh báo')).toBeInTheDocument();
+    expect(screen.getByText('SĐT đã có hồ sơ')).toBeInTheDocument();
+  });
+
+  it('calls the receiptCreate onSuccess callback (navigates to the new receipt) after submit', async () => {
+    renderWithProviders(<ReceiptCreatePage />);
+    fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: 'Lê Văn C' } });
+    fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: '0900000009' } });
+    fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '1000000' } });
+    await selectClassBatch();
+    submitForm();
+    expect(createMutate).toHaveBeenCalled();
+    expect(createOnSuccess).toBeDefined();
+    act(() => createOnSuccess?.({ receipt: { id: 'new-receipt-1' } }));
+  });
+});

@@ -17,6 +17,7 @@ import {
   Card,
   ConfirmDialog,
   HStack,
+  ListPage,
   PageHeader,
   Selector,
   Stack,
@@ -216,82 +217,86 @@ export default function ReconciliationPage() {
 
   return (
     <>
-      <PageHeader
-        title="Đối soát tài chính"
-        subtitle="Cảnh báo từ agent phân tích tự động"
-        breadcrumbs={[{ label: 'Ops' }, { label: 'Đối soát' }]}
-      />
-
-      <Stack gap={4} padding={4}>
-        {/* ----------------------------------------------------------------
-            HOTL agent read-only banner — MUST be present and unambiguous.
-            The ai:recon worker is read-only per-facility; it cannot action
-            flags itself. Human review (dismiss / action) is gated to GĐ.
-        ---------------------------------------------------------------- */}
-        <Banner
-          status="warning"
-          title="Kết quả phân tích tự động từ AI agent — chỉ đọc"
-          description={
-            <>
-              Các cảnh báo bên dưới được tạo tự động bởi agent{' '}
-              <Text weight="bold" size="sm">
-                ai:recon
-              </Text>{' '}
-              dựa trên quy tắc nghiệp vụ. Agent{' '}
-              <Text weight="bold" size="sm">
-                không tự thực hiện hành động
-              </Text>{' '}
-              — mọi thao tác xử lý (bỏ qua / đã xử lý) đều yêu cầu GĐ xác nhận thủ công.
-              Kết quả chỉ mang tính tham khảo và cần được xác minh độc lập.
-            </>
-          }
-        />
-
-        {/* Kind filter */}
-        <div style={{ width: 260 }}>
-          <Selector
-            size="sm"
-            label="Lọc theo loại cảnh báo"
-            placeholder="Tất cả"
-            options={Object.entries(KIND_LABELS).map(([value, label]) => ({ value, label }))}
-            value={kindFilter || null}
-            onChange={handleKindFilter}
-            hasClear
+      <ListPage
+        header={
+          <PageHeader
+            title="Đối soát tài chính"
+            subtitle="Cảnh báo từ agent phân tích tự động"
+            breadcrumbs={[{ label: 'Ops' }, { label: 'Đối soát' }]}
           />
-        </div>
-
-        {error && (
-          <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
-        )}
-
-        {isLoading && (
-          <Text type="supporting" size="sm">
-            Đang tải cảnh báo…
-          </Text>
-        )}
-
-        {!isLoading && flags?.length === 0 && (
+        }
+        filters={
+          <div style={{ width: 260, padding: '12px 16px 0' }}>
+            <Selector
+              size="sm"
+              label="Lọc theo loại cảnh báo"
+              placeholder="Tất cả"
+              options={Object.entries(KIND_LABELS).map(([value, label]) => ({ value, label }))}
+              value={kindFilter || null}
+              onChange={handleKindFilter}
+              hasClear
+            />
+          </div>
+        }
+      >
+        <Stack gap={4} padding={4}>
+          {/* ----------------------------------------------------------------
+              HOTL agent read-only banner — MUST be present and unambiguous.
+              The ai:recon worker is read-only per-facility; it cannot action
+              flags itself. Human review (dismiss / action) is gated to GĐ.
+          ---------------------------------------------------------------- */}
           <Banner
-            status="success"
-            title={`Không có cảnh báo nào đang mở${kindFilter ? ` (loại: ${KIND_LABELS[kindFilter]})` : ''}.`}
+            status="warning"
+            title="Kết quả phân tích tự động từ AI agent — chỉ đọc"
+            description={
+              <>
+                Các cảnh báo bên dưới được tạo tự động bởi agent{' '}
+                <Text weight="bold" size="sm">
+                  ai:recon
+                </Text>{' '}
+                dựa trên quy tắc nghiệp vụ. Agent{' '}
+                <Text weight="bold" size="sm">
+                  không tự thực hiện hành động
+                </Text>{' '}
+                — mọi thao tác xử lý (bỏ qua / đã xử lý) đều yêu cầu GĐ xác nhận thủ công.
+                Kết quả chỉ mang tính tham khảo và cần được xác minh độc lập.
+              </>
+            }
           />
-        )}
 
-        {flags?.map((flag) => (
-          <FlagCard
-            key={flag.id}
-            flag={flag}
-            canReview={canReview}
-            isMutating={isMutating}
-            onDismiss={(id, kind) =>
-              setPendingAction({ type: 'dismiss', flagId: id, flagKind: kind })
-            }
-            onAction={(id, kind) =>
-              setPendingAction({ type: 'action', flagId: id, flagKind: kind })
-            }
-          />
-        ))}
-      </Stack>
+          {error && (
+            <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
+          )}
+
+          {isLoading && (
+            <Text type="supporting" size="sm">
+              Đang tải cảnh báo…
+            </Text>
+          )}
+
+          {!isLoading && flags?.length === 0 && (
+            <Banner
+              status="success"
+              title={`Không có cảnh báo nào đang mở${kindFilter ? ` (loại: ${KIND_LABELS[kindFilter]})` : ''}.`}
+            />
+          )}
+
+          {flags?.map((flag) => (
+            <FlagCard
+              key={flag.id}
+              flag={flag}
+              canReview={canReview}
+              isMutating={isMutating}
+              onDismiss={(id, kind) =>
+                setPendingAction({ type: 'dismiss', flagId: id, flagKind: kind })
+              }
+              onAction={(id, kind) =>
+                setPendingAction({ type: 'action', flagId: id, flagKind: kind })
+              }
+            />
+          ))}
+        </Stack>
+      </ListPage>
 
       {/* Confirm: dismiss */}
       <ConfirmDialog

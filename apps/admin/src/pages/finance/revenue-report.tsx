@@ -8,7 +8,7 @@
 // - Bar width proportional to group revenue vs. max group revenue.
 // - DateRange filter synced to URL query param ?range= (deep-linkable).
 
-import { Banner, Grid, HStack, PageHeader, Skeleton, Stack, StatCard, Text, tokens } from '@cmc/ui';
+import { Banner, Grid, HStack, PageHeader, Panel, Skeleton, Stack, StatCard, Text, tokens } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 // ---------------------------------------------------------------------------
@@ -22,9 +22,10 @@ interface RevenueGroup {
 }
 
 // ---------------------------------------------------------------------------
-// Aggregation
+// Aggregation — pure fn, unit-tested independent of render
+// (revenue-report-aggregate.test.ts), mirroring cockpit-counter.test.ts.
 // ---------------------------------------------------------------------------
-function aggregateByBatch(
+export function aggregateByBatch(
   items: { classBatchId: string | null; netAmount: number; status: string }[],
 ): RevenueGroup[] {
   const map = new Map<string, RevenueGroup>();
@@ -215,17 +216,11 @@ export default function RevenueReportPage() {
         </Grid>
 
         {/* Bar chart section */}
-        <div>
-          <Text
-            type="supporting"
-            size="2xs"
-            weight="semibold"
-            style={{ textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}
-          >
-            Doanh thu theo lớp học
-          </Text>
-          <RevenueBarChart rows={rows} loading={isLoading} />
-        </div>
+        <Panel title="Doanh thu theo lớp học" icon="dollar">
+          <div style={{ padding: '0 22px 20px' }}>
+            <RevenueBarChart rows={rows} loading={isLoading} />
+          </div>
+        </Panel>
       </Stack>
     </>
   );

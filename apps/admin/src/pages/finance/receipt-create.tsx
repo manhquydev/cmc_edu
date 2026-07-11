@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Banner,
   Button,
+  FormPage,
   HStack,
   NumberInput,
   PageHeader,
@@ -131,149 +132,155 @@ export default function ReceiptCreatePage() {
     });
   }
 
+  // TODO(astryx-review): `ResultPanel` passes `message` as Astryx `Banner`
+  // `children`, which renders behind a collapse/expand toggle (collapsed by
+  // default) — that would hide this money-write error/warning until the
+  // user clicks to expand, changing always-visible behavior. Same fallback
+  // already used in receipt-detail.tsx/reconciliation.tsx: plain `Banner`
+  // with `description` (always rendered) instead of `ResultPanel`.
+  const resultContent = createMutation.error ? (
+    <Banner status="error" title="Lỗi tạo phiếu thu" description={createMutation.error.message} />
+  ) : createMutation.data?.status === 'warning' ? (
+    <Banner status="warning" title="Cảnh báo" description={createMutation.data.message} />
+  ) : undefined;
+
   return (
-    <>
-      <PageHeader
-        title={opportunityId ? 'Tạo phiếu từ cơ hội' : 'Tạo phiếu thu mới'}
-        subtitle="Ghi danh học viên mới — tài khoản LMS sẽ tự động tạo sau khi duyệt"
-        breadcrumbs={[
-          { label: 'Kinh doanh' },
-          { label: 'Phiếu thu', href: '/finance' },
-          { label: opportunityId ? 'Tạo từ cơ hội' : 'Tạo mới' },
-        ]}
-        actions={
-          <Button
-            label="← Quay lại"
-            variant="secondary"
-            size="sm"
-            onClick={() => void navigate('/finance')}
+    <form onSubmit={handleSubmit}>
+      <FormPage
+        header={
+          <PageHeader
+            title={opportunityId ? 'Tạo phiếu từ cơ hội' : 'Tạo phiếu thu mới'}
+            subtitle="Ghi danh học viên mới — tài khoản LMS sẽ tự động tạo sau khi duyệt"
+            breadcrumbs={[
+              { label: 'Kinh doanh' },
+              { label: 'Phiếu thu', href: '/finance' },
+              { label: opportunityId ? 'Tạo từ cơ hội' : 'Tạo mới' },
+            ]}
+            actions={
+              <Button
+                label="← Quay lại"
+                variant="secondary"
+                size="sm"
+                onClick={() => void navigate('/finance')}
+              />
+            }
           />
         }
-      />
-
-      <div style={{ padding: 16, maxWidth: 560 }}>
-        <form onSubmit={handleSubmit}>
-          <Stack gap={4}>
-            {opportunityId && oppLoading && (
-              <Banner
-                status="info"
-                title="Đang tải thông tin cơ hội..."
-                icon={<Spinner size="sm" />}
-              />
-            )}
-
-            {opportunityId && oppData && (
-              <Banner
-                status="info"
-                title={`Tạo phiếu từ cơ hội — ${oppData.contact.name} (${oppData.contact.phone})`}
-              />
-            )}
-
-            {createMutation.error && (
-              <Banner status="error" title="Lỗi tạo phiếu thu" description={createMutation.error.message} />
-            )}
-
-            {createMutation.data?.status === 'warning' && (
-              <Banner status="warning" title="Cảnh báo" description={createMutation.data.message} />
-            )}
-
-            <TextInput
-              label="Họ tên học viên"
-              placeholder="Nguyễn Văn A"
-              isRequired
-              value={form.studentName}
-              onChange={(v) => handleField('studentName', v)}
-              status={errors.studentName ? { type: 'error', message: errors.studentName } : undefined}
+        result={resultContent}
+        actions={
+          <HStack gap={2}>
+            <Button
+              label="Tạo phiếu thu"
+              type="submit"
+              variant="primary"
+              isLoading={createMutation.isPending}
             />
-
-            <TextInput
-              label="SĐT phụ huynh"
-              placeholder="0912345678"
-              isRequired
-              value={form.parentPhone}
-              onChange={(v) => handleField('parentPhone', v)}
-              status={errors.parentPhone ? { type: 'error', message: errors.parentPhone } : undefined}
+            <Button
+              label="Hủy"
+              variant="secondary"
+              onClick={() => void navigate('/finance')}
+              isDisabled={createMutation.isPending}
             />
-
-            {dedupData?.exists && (
-              <Banner
-                status="warning"
-                title="SĐT phụ huynh đã có hồ sơ — vẫn tạo mới?"
-                description="Hệ thống dùng chung 1 tài khoản/SĐT."
-              />
-            )}
-
-            <TextInput
-              label="Email phụ huynh"
-              placeholder="phu-huynh@example.com (tuỳ chọn)"
-              description="Dùng cho đăng nhập LMS bằng email. Không bắt buộc."
-              value={form.parentEmail}
-              onChange={(v) => handleField('parentEmail', v)}
-              status={errors.parentEmail ? { type: 'error', message: errors.parentEmail } : undefined}
+          </HStack>
+        }
+      >
+        <Stack gap={4} style={{ maxWidth: 560 }}>
+          {opportunityId && oppLoading && (
+            <Banner
+              status="info"
+              title="Đang tải thông tin cơ hội..."
+              icon={<Spinner size="sm" />}
             />
+          )}
 
-            {classBatchError && (
-              <Banner status="warning" title="Không tải được danh sách lớp" description={classBatchError.message} />
-            )}
-
-            {/* TODO(astryx-review): Astryx Selector has no `nothingFoundMessage`
-                equivalent (empty search results use its own built-in "no
-                results" UI) — the prior custom message is dropped. */}
-            <Selector
-              label="Lớp học"
-              placeholder={classBatchLoading ? 'Đang tải danh sách lớp...' : 'Chọn lớp học'}
-              isRequired
-              options={classBatchOptions}
-              value={form.classBatchId || null}
-              onChange={(v) => handleField('classBatchId', v ?? '')}
-              hasSearch
-              hasClear
-              isDisabled={classBatchLoading}
-              status={errors.classBatchId ? { type: 'error', message: errors.classBatchId } : undefined}
+          {opportunityId && oppData && (
+            <Banner
+              status="info"
+              title={`Tạo phiếu từ cơ hội — ${oppData.contact.name} (${oppData.contact.phone})`}
             />
+          )}
 
-            {/* TODO(astryx-review): Astryx NumberInput has no thousand/decimal
-                separator formatting props (thousandSeparator/decimalSeparator) —
-                dropped; `isIntegerOnly` covers the allowDecimal={false} behavior.
-                Field stays numeric-only, just without live "5.000.000" grouping
-                as the user types. */}
-            <NumberInput
-              label="Học phí (VND)"
-              placeholder="5000000"
-              isRequired
-              min={1}
-              step={100000}
-              isIntegerOnly
-              units="đ"
-              description="Nhập số nguyên VND — không có xu"
-              hasClear
-              value={form.amount === '' ? null : form.amount}
-              onChange={(v) => handleField('amount', v ?? '')}
-              status={errors.amount ? { type: 'error', message: errors.amount } : undefined}
+          <TextInput
+            label="Họ tên học viên"
+            placeholder="Nguyễn Văn A"
+            isRequired
+            value={form.studentName}
+            onChange={(v) => handleField('studentName', v)}
+            status={errors.studentName ? { type: 'error', message: errors.studentName } : undefined}
+          />
+
+          <TextInput
+            label="SĐT phụ huynh"
+            placeholder="0912345678"
+            isRequired
+            value={form.parentPhone}
+            onChange={(v) => handleField('parentPhone', v)}
+            status={errors.parentPhone ? { type: 'error', message: errors.parentPhone } : undefined}
+          />
+
+          {dedupData?.exists && (
+            <Banner
+              status="warning"
+              title="SĐT phụ huynh đã có hồ sơ — vẫn tạo mới?"
+              description="Hệ thống dùng chung 1 tài khoản/SĐT."
             />
+          )}
 
-            <Text type="supporting" size="xsm">
-              Sau khi tạo, phiếu ở trạng thái <Text weight="bold" size="xsm">Nháp</Text>. GĐKD/GĐĐT/Kế toán duyệt để
-              kích hoạt tài khoản LMS tự động.
-            </Text>
+          <TextInput
+            label="Email phụ huynh"
+            placeholder="phu-huynh@example.com (tuỳ chọn)"
+            description="Dùng cho đăng nhập LMS bằng email. Không bắt buộc."
+            value={form.parentEmail}
+            onChange={(v) => handleField('parentEmail', v)}
+            status={errors.parentEmail ? { type: 'error', message: errors.parentEmail } : undefined}
+          />
 
-            <HStack gap={2}>
-              <Button
-                label="Tạo phiếu thu"
-                type="submit"
-                variant="primary"
-                isLoading={createMutation.isPending}
-              />
-              <Button
-                label="Hủy"
-                variant="secondary"
-                onClick={() => void navigate('/finance')}
-                isDisabled={createMutation.isPending}
-              />
-            </HStack>
-          </Stack>
-        </form>
-      </div>
-    </>
+          {classBatchError && (
+            <Banner status="warning" title="Không tải được danh sách lớp" description={classBatchError.message} />
+          )}
+
+          {/* TODO(astryx-review): Astryx Selector has no `nothingFoundMessage`
+              equivalent (empty search results use its own built-in "no
+              results" UI) — the prior custom message is dropped. */}
+          <Selector
+            label="Lớp học"
+            placeholder={classBatchLoading ? 'Đang tải danh sách lớp...' : 'Chọn lớp học'}
+            isRequired
+            options={classBatchOptions}
+            value={form.classBatchId || null}
+            onChange={(v) => handleField('classBatchId', v ?? '')}
+            hasSearch
+            hasClear
+            isDisabled={classBatchLoading}
+            status={errors.classBatchId ? { type: 'error', message: errors.classBatchId } : undefined}
+          />
+
+          {/* TODO(astryx-review): Astryx NumberInput has no thousand/decimal
+              separator formatting props (thousandSeparator/decimalSeparator) —
+              dropped; `isIntegerOnly` covers the allowDecimal={false} behavior.
+              Field stays numeric-only, just without live "5.000.000" grouping
+              as the user types. */}
+          <NumberInput
+            label="Học phí (VND)"
+            placeholder="5000000"
+            isRequired
+            min={1}
+            step={100000}
+            isIntegerOnly
+            units="đ"
+            description="Nhập số nguyên VND — không có xu"
+            hasClear
+            value={form.amount === '' ? null : form.amount}
+            onChange={(v) => handleField('amount', v ?? '')}
+            status={errors.amount ? { type: 'error', message: errors.amount } : undefined}
+          />
+
+          <Text type="supporting" size="xsm">
+            Sau khi tạo, phiếu ở trạng thái <Text weight="bold" size="xsm">Nháp</Text>. GĐKD/GĐĐT/Kế toán duyệt để
+            kích hoạt tài khoản LMS tự động.
+          </Text>
+        </Stack>
+      </FormPage>
+    </form>
   );
 }

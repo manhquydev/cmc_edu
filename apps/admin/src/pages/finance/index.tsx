@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { DataTable, PageHeader, StatusBadge } from '@cmc/ui';
+import { DataTable, ListPage, PageHeader, StatusBadge } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
@@ -45,12 +45,15 @@ export default function FinancePage() {
   const { data, isLoading, error } = trpc.finance.receiptList.useQuery({});
 
   return (
-    <>
-      <PageHeader
-        title="Phiếu thu"
-        subtitle="Danh sách phiếu thu học phí"
-        breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Phiếu thu' }]}
-      />
+    <ListPage
+      header={
+        <PageHeader
+          title="Phiếu thu"
+          subtitle="Danh sách phiếu thu học phí"
+          breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Phiếu thu' }]}
+        />
+      }
+    >
       <DataTable<ReceiptRow>
         columns={COLUMNS}
         data={(data?.items as ReceiptRow[] | undefined) ?? []}
@@ -59,6 +62,6 @@ export default function FinancePage() {
         empty="Chưa có phiếu thu nào"
         onRowClick={(row) => void navigate(`/finance/${row.id}`)}
       />
-    </>
+    </ListPage>
   );
 }

@@ -268,9 +268,13 @@ export default function ExercisesPage() {
               accept="application/pdf"
               style={{ display: 'none' }}
               onChange={async (e) => {
-                const file = e.currentTarget.files?.[0];
+                // Capture the input node before the await; React nulls
+                // `e.currentTarget` after the handler yields (same class of
+                // bug fixed in session-evidence.tsx during phase-07).
+                const input = e.currentTarget;
+                const file = input.files?.[0];
                 if (file) await handlePdfUpload(file);
-                e.currentTarget.value = '';
+                input.value = '';
               }}
             />
           </div>

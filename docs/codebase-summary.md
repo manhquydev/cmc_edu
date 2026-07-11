@@ -1,8 +1,8 @@
 # CMC EDU v2 — Codebase Summary
 
-**Status:** SSO landing complete (P1) · Flow audit complete (P3) · P2-P4 workflows BUILT & TESTED · UI migration COMPLETE (Astryx 100% admin+lms, Mantine fully removed) + premium design-language layer promoted to @cmc/ui (admin cockpit/shell/finance on premium components)  
-**Last Updated:** 2026-07-11  
-**Build State:** 532 tests passing (0 skipped) in 64 test files + @cmc/ui vitest 40+ component tests; 26/26 typecheck packages green; apps build clean; UI e2e 5 passed + 1 fixme; API e2e 17 passed; ESLint one-door lint rule spans admin+lms. *(2026-07-11: a stale local `node_modules` briefly made this look broken — resolved via `pnpm install --frozen-lockfile`; not a real code regression. See `docs/project-changelog.md` `[2026-07-11]`.)*
+**Status:** SSO landing complete (P1) · Flow audit complete (P3) · P2-P4 workflows BUILT & TESTED · UI migration COMPLETE (Astryx 100% admin+lms, Mantine fully removed) + premium design-language layer promoted to @cmc/ui + **premium ERP screen build-out merged to main** (21/21 non-blocked screens now on premium templates/composites, 8-phase TDD complete)  
+**Last Updated:** 2026-07-12  
+**Build State (2026-07-12, verified this session):** @cmc/admin 189 tests passing (25 test files — new component-test harness, first for admin) + @cmc/ui 45 component tests; 26/26 typecheck packages green; 14/14 apps build clean; lint clean. *(@cmc/api's 532-test / 64-file suite (2026-07-11 count) requires a live Postgres and was not re-run this session — treat as last-verified 2026-07-11, not re-confirmed today. UI e2e 5 passed + 1 fixme; API e2e 17 passed as of 2026-07-11. See `docs/project-changelog.md` `[2026-07-11]` and `[2026-07-12]`.)*
 
 ---
 
@@ -23,7 +23,7 @@ D:\project\vip\CMC
 │   ├── db/              # Prisma schema, migrations, seed — 48 models
 │   ├── domain-finance/  # Finance domain logic (SO receipt codes, refund cap, phone dedup)
 │   ├── domain-identity/ # Identity domain logic (phone normalization)
-│   └── ui/              # Design system: Astryx barrel + premium design-language layer — LineIcon, MetricCard, Panel, TaskRow, FunnelBar, AppFrame/SideNav, page templates; Inter Variable font; 40+ vitest component tests (Mantine fully removed 2026-07-10)
+│   └── ui/              # Design system: Astryx barrel + premium design-language layer — LineIcon (Feather + 5 premium icons: globe/clock/trophy/gift/star, data-icon attr), MetricCard, Panel, TaskRow, FunnelBar, AppFrame/SideNav, page templates (ListPage/DetailPage/FormPage); Inter Variable font; 45+ vitest component tests. **21/21 non-blocked admin ERP screens now on premium templates (2026-07-12).** (Mantine fully removed 2026-07-10)
 ├── docs/                # Design docs (TL00-TL31, frozen design corpus)
 └── plans/               # Session reports (audits, remediation, deep reviews)
 ```

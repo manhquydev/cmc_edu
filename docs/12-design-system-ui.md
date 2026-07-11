@@ -73,7 +73,9 @@ no emoji) · One accent (`#0071E3`) · Warm canvas (`#F7F6F3`) · Notion-subtle 
 type scale · radius pill (12px) · blur-nav sticky · near-black numerals.
 
 **Shared icon language:** `LineIcon` component + `IconName` union — replaced all emoji across shell 
-+ content layers. Monochrome outline (no fill), pairs seamlessly with text.
++ content layers. Monochrome outline (no fill), pairs seamlessly with text. **Icon set now includes 
+5 premium keys** (globe, clock, trophy, gift, star) added 2026-07 alongside existing Feather base. 
+All icons forward `data-icon` attribute for testing/analytics.
 
 **Composites (render props-only → CSS `.premium-` classes):**
 - `MetricCard`: số liệu dạng card (metric + trend + label) — dùng trong dashboard. Hỗ trợ `Tone` 
@@ -91,13 +93,21 @@ type scale · radius pill (12px) · blur-nav sticky · near-black numerals.
   - Exported: `NavModule`, `NavEntry` types; `activeModuleId()` helper.
   - Test: 40+ vitest cases encode shell invariants (frame layout, nav tree, active state, blur effect).
   
-**Page templates (thin slot-based composition, Phases 3–4):**
+**Page templates (thin slot-based composition, Phases 3–4; 21/21 non-blocked screens now adopted):**
 - `ListPage`: header + filter bar + table → standard list archetype. Props: `header` (PageHeader 
   slot), `filter` (FilterBar), `table` (DataTable slot), no data fetching.
 - `DetailPage`: header (record name + actions) + optional tabs + children → detail archetype. 
   Props: `header`, `tabs`, `children`.
 - `FormPage`: form container → form archetype. Caller owns validation/submit logic.
   All require `@cmc/ui/premium.css` (`.tpl-*` CSS classes).
+
+**Adoption Status (2026-07-12):** Toàn bộ 21/21 màn admin ERP non-blocked (8 phase TDD, engaged 
+via phase-00-phase-07) đã migrate từ legacy component lên premium template/composite architecture. 
+Áp dụng: ListPage, DetailPage, FormPage + MetricCard, Panel, TaskRow, FunnelBar + LineIcon 
+monochrome + premium token. Xem `plans/260711-1720-premium-erp-screen-buildout/plan.md`. 
+12 exemplar screen cũ (cockpit, finance-receipt-*, student-*, grading, etc.) đã xây sẵn premium 
+(không đổi lần này). 3 màn stub premium-coming-soon (leaderboard, network-ip, shift-config) 
+chờ backend + spec.
 
 **Deployment:** Import `@cmc/ui/premium.css` once per app root (admin + lms will share). 
 Classes encode paddings, gaps, shadows, blur effects — no inline styles in components.

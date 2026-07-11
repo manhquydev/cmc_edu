@@ -6,6 +6,22 @@
 
 ---
 
+## [2026-07-12] Premium ERP screen build-out merged to main — 21/21 non-blocked screens on premium templates
+
+**Context:** 8-phase TDD completion; all 21 admin ERP screens (non-blocked per phase-00–phase-07) migrated from legacy components to premium design-language templates + composites + LineIcon monochrome set. Phase-08 (3 màn stub: leaderboard/network-ip/shift-config) remains BLOCKED pending backend + product spec.
+
+**Build-out scope:**
+- **Screens:** engagement (gifts, **rewards feature REAL — staff redemption queue**), admin (facilities, users RBAC, **network-ip/shift-config still coming-soon**), crm (pipeline Kanban→dashboard), finance (receipt-create, reconciliation, revenue-report), attendance (check-in-out, shifts), hr (kpi, payroll), teaching (schedule, attendance, exercises, report-cards, session-evidence, pdf-annotator card wrapper)
+- **Premium adoption:** ListPage + DetailPage + FormPage + MetricCard + Panel + TaskRow + FunnelBar + LineIcon (Feather + 5 new: globe/clock/trophy/gift/star, data-icon attr) + premium CSS tokens
+- **Test harness:** vitest + jsdom + testing-library, 189 admin tests (25 file) PASSING — first test-harness for admin component layer
+- **Exemplar parity:** 12 exemplar screens (cockpit, finance/receipt-{list,detail}, students/{index,detail}, parents/index, classes/{index,detail}, courses/index, crm/opportunity-detail, enrollment/class-placement, teaching/grading) ĐÃ premium, unchanged
+- **Dead code cleanup:** `finance/index.tsx` (unrouted orphan pre-build-out) deleted post-merge
+- **Red-team validation:** payload audit + money-sensitive byte-identical, no API changes, all gates pass
+
+**Gates:** pnpm --filter @cmc/admin test 189 pass · pnpm --filter @cmc/ui test 45 pass · pnpm typecheck 26/26 · pnpm build 14/14 · pnpm lint clean. Backlog (ghi rõ chưa làm): rewards pagination (cap 50), payroll confirm-dialog, 12 exemplar emoji pre-existing cleanup.
+
+---
+
 ## [2026-07-11] Build regression found (Astryx `@cmc/lms`/`@cmc/admin`) + Brevo OTP root-cause fixed
 
 **Context:** Routine build-status scout (`pnpm build`/`typecheck`/`test`/`lint`) on `main` @ `b81710a`,

@@ -45,7 +45,7 @@ Ngoài các milestone dọc tuyến tính M0→M4, **UI migration spike đã ho�
 - **Phạm vi:** Strangler pattern qua Phase 4; bỏ Mantine ở Phase 5 (không chặn milestone trước). ESLint one-door rule spans admin+lms.
 - **Plan:** `plans/260710-0236-astryx-ui-migration/` (5 pha, gitignored).
 
-Công việc này **song song với M0-M4**, không kéo timeline M0 go-live. **Astryx migration đóng (Phase 5 xong 2026-07-10). Kế tiếp (workstream riêng):** premium design-language đã promote vào @cmc/ui (2026-07-11); còn build-out ~30 màn ERP lên template/composite premium + biến thể LMS warm.
+Công việc này **song song với M0-M4**, không kéo timeline M0 go-live. **Astryx migration đóng (Phase 5 xong 2026-07-10). Premium ERP screen build-out completed (2026-07-12):** 8-phase TDD, 21/21 non-blocked admin screens now on premium templates/composites + LineIcon (5 new icons) + premium tokens. 12 exemplar screens (cockpit, grading, receipt-detail, etc.) ĐÃ XỌN sẵn. 3 màn coming-soon stub (leaderboard, network-ip, shift-config) chờ phase-08 (backend + product spec). Plan: `plans/260711-1720-premium-erp-screen-buildout/`.
 
 ---
 

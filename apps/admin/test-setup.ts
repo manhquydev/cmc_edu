@@ -21,3 +21,22 @@ if (typeof HTMLDialogElement !== 'undefined') {
     };
   }
 }
+
+// jsdom lacks `window.matchMedia`; Astryx's `Spinner`/`useTheme` call it via
+// `useMediaQuery` (prefers-color-scheme). Any screen rendering a Spinner or
+// theme-aware control under jsdom needs it. No-op matcher (matches:false),
+// guarded so it is inert under the node-env logic tests.
+if (typeof window !== 'undefined' && !window.matchMedia) {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener() {},
+    removeListener() {},
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent() {
+      return false;
+    },
+  })) as unknown as typeof window.matchMedia;
+}

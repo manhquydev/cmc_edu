@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge, Banner, Button, HStack, PageHeader, Spinner, Stack, Text } from '@cmc/ui';
+import { Badge, Button, FunnelBar, HStack, LineIcon, PageHeader, Panel, Skeleton, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
-// Stage metadata — O5 is reached only via finance.receiptApprove, never via opportunityAdvance.
+// Stage metadata — O5 is reached only via finance.receiptApprove, never via
+// opportunityAdvance. Single local source of truth for label + ordering
+// (DRY-light: kept local per phase-03, not lifted into @cmc/ui since only
+// this page needs the `next` transition alongside the label).
 const STAGES = [
   { key: 'O1_LEAD', label: 'Tiếp cận', next: 'O2_CONTACTED' as const },
   { key: 'O2_CONTACTED', label: 'Đã liên hệ', next: 'O3_TEST_SCHEDULED' as const },
@@ -22,7 +25,7 @@ interface OpportunityItem {
   contact: { id: string; name: string; phone: string };
 }
 
-function KanbanCard({
+function OpportunityCard({
   opp,
   nextStage,
   onAdvance,
@@ -40,9 +43,8 @@ function KanbanCard({
     <div
       style={{
         background: 'var(--cmc-surface)',
-        border: '1px solid var(--cmc-border)',
-        borderRadius: 'var(--cmc-radius-xs)',
-        padding: '10px 12px',
+        borderBottom: '1px solid var(--cmc-border-subtle)',
+        padding: '10px 22px',
         cursor: 'pointer',
       }}
       onClick={() => void navigate(`/crm/opportunities/${opp.id}`)}
@@ -60,7 +62,8 @@ function KanbanCard({
 
         {nextStage && !isLost && (
           <Button
-            label="Chuyển lên →"
+            label="Chuyển lên"
+            endContent={<LineIcon name="chevron" size={12} />}
             size="sm"
             variant="secondary"
             isLoading={advancing}
@@ -91,7 +94,7 @@ export default function CrmPipelinePage() {
   const utils = trpc.useUtils();
   const [advancingId, setAdvancingId] = useState<string | null>(null);
 
-  // Load all opportunities across all stages (large pageSize — kanban shows all).
+  // Load all opportunities across all stages (large pageSize — dashboard shows all).
   const { data, isLoading, error } = trpc.crm.opportunityList.useQuery({ pageSize: 100 });
 
   const advanceMutation = trpc.crm.opportunityAdvance.useMutation({
@@ -128,25 +131,6 @@ export default function CrmPipelinePage() {
     );
   }
 
-  if (isLoading) {
-    return (
-      <Stack hAlign="center" gap={2} style={{ paddingBlock: 64 }}>
-        <Spinner size="md" />
-        <Text type="supporting" size="sm">
-          Đang tải pipeline CRM...
-        </Text>
-      </Stack>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ padding: 16 }}>
-        <Banner status="error" title="Lỗi tải pipeline" description={error.message} />
-      </div>
-    );
-  }
-
   const items = (data?.items ?? []) as OpportunityItem[];
 
   // Group opportunities by stage.
@@ -157,6 +141,9 @@ export default function CrmPipelinePage() {
     const bucket = byStage.get(item.stage as StageKey);
     if (bucket) bucket.push(item);
   }
+  const maxCount = Math.max(1, ...STAGES.map((s) => byStage.get(s.key)?.length ?? 0));
+
+  const ready = !isLoading && !error;
 
   return (
     <>
@@ -165,91 +152,64 @@ export default function CrmPipelinePage() {
         subtitle="Theo dõi cơ hội từ Tiếp cận đến Ghi danh"
         breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Pipeline CRM' }]}
       />
-      {/* Astryx has no dedicated scroll-container primitive (confirmed 0 direct
-          equivalent in the Phase 1 spike — ScrollArea gap) — native CSS
-          overflow replaces the prior ScrollArea, same visual result. */}
-      <div style={{ height: 'calc(100vh - 90px)', overflow: 'auto' }}>
-        <HStack
-          gap={4}
-          align="start"
-          wrap="nowrap"
-          style={{ paddingInline: 16, paddingBlock: 16, minWidth: 960 }}
-        >
-          {STAGES.map((stage) => {
-            const stageItems = byStage.get(stage.key) ?? [];
-            const hasItems = stageItems.length > 0;
+      <Stack gap={5} padding={4}>
+        <Panel title="Pipeline O1 → O5" icon="filter">
+          {isLoading ? (
+            <div style={{ padding: '0 22px 20px' }}>
+              <Skeleton height={120} radius={0} data-testid="crm-pipeline-skeleton" />
+            </div>
+          ) : error ? (
+            <div className="ck-empty">
+              <span className="ck-empty-icon"><LineIcon name="alert" size={22} /></span>
+              {error.message || 'Lỗi tải pipeline CRM'}
+            </div>
+          ) : (
+            <div className="ck-fn">
+              {STAGES.map((stage) => (
+                <FunnelBar
+                  key={stage.key}
+                  label={stage.label}
+                  value={byStage.get(stage.key)?.length ?? 0}
+                  max={maxCount}
+                />
+              ))}
+            </div>
+          )}
+        </Panel>
 
-            return (
-              <div
-                key={stage.key}
-                style={{
-                  width: 220,
-                  flexShrink: 0,
-                  background: 'var(--cmc-surface-2)',
-                  borderRadius: 'var(--cmc-radius-xs)',
-                  border: '1px solid var(--cmc-border)',
-                }}
-              >
-                {/* Column header — active stage uses brand blue per docs/12 §3. */}
-                <div
-                  style={{
-                    paddingInline: 12,
-                    paddingBlock: 8,
-                    borderBottom: '1px solid var(--cmc-border)',
-                    background: hasItems ? 'var(--cmc-brand-muted)' : undefined,
-                    borderRadius: 'var(--cmc-radius-xs) var(--cmc-radius-xs) 0 0',
-                  }}
-                >
-                  <HStack justify="between" align="center">
-                    {/* TODO(astryx-review): stage label color is brand-blue when
-                        active vs. a muted text token when empty — both CSS vars,
-                        no raw hex, but Text's color enum has no direct
-                        "brand"/"muted" slot distinct from primary/secondary, so
-                        this stays a plain <span> like StatCard's value line. */}
-                    <span
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                        color: hasItems ? 'var(--cmc-brand)' : 'var(--cmc-text-muted)',
-                      }}
-                    >
-                      {stage.label}
-                    </span>
-                    <Badge
-                      label={String(stageItems.length)}
-                      variant="neutral"
-                      style={{
-                        background: hasItems ? 'var(--cmc-brand)' : 'var(--cmc-border)',
-                        color: hasItems ? '#fff' : 'var(--cmc-text-muted)',
-                      }}
-                    />
-                  </HStack>
-                </div>
-
-                <Stack gap={2} padding={1}>
+        {ready && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: 16,
+            }}
+          >
+            {STAGES.map((stage) => {
+              const stageItems = byStage.get(stage.key) ?? [];
+              return (
+                <Panel key={stage.key} title={`${stage.label} · ${stageItems.length}`}>
                   {stageItems.length === 0 ? (
-                    <Text type="supporting" size="xsm" justify="center" display="block" style={{ paddingBlock: 8 }}>
-                      Chưa có
-                    </Text>
+                    <div className="ck-empty">Chưa có</div>
                   ) : (
-                    stageItems.map((opp) => (
-                      <KanbanCard
-                        key={opp.id}
-                        opp={opp}
-                        nextStage={stage.next as AdvanceableStage | null}
-                        onAdvance={handleAdvance}
-                        advancing={advancingId === opp.id}
-                      />
-                    ))
+                    <div>
+                      {stageItems.map((opp) => (
+                        <OpportunityCard
+                          key={opp.id}
+                          opp={opp}
+                          nextStage={stage.next as AdvanceableStage | null}
+                          onAdvance={handleAdvance}
+                          advancing={advancingId === opp.id}
+                        />
+                      ))}
+                    </div>
                   )}
-                </Stack>
-              </div>
-            );
-          })}
-        </HStack>
-      </div>
+                </Panel>
+              );
+            })}
+          </div>
+        )}
+      </Stack>
     </>
   );
 }

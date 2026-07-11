@@ -104,10 +104,16 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   'payslip.finalize': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   'payslip.reopen': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   'studentAccount.resetPassword': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
-  // KPI submission — active staff (ADR-D: hr removed).
-  'kpi.submit': ['giao_vien', 'sale', 'giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
+  // HR remediation phase 3 (docs/20): `kpi.submit` removed — auto-scored
+  // lifecycle replaces the manual-entry procedure (red-team #10).
+  // `kpi.refresh`/`kpi.submitSlip` — active staff, same roster `kpi.submit` had.
+  'kpi.refresh': ['giao_vien', 'sale', 'giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
+  'kpi.submitSlip': ['giao_vien', 'sale', 'giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
   'kpi.confirm': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
+  // `kpi.approve` key still gates `kpi.override` (standalone approve procedure
+  // removed — red-team #11, `approved` is reachable only via bulkApprove).
   'kpi.approve': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
+  'kpi.bulkApprove': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
   'gift.upsert': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   // Gift/reward/meeting/appointment — directors + sale (ADR-D: hr removed).
   'gift.list': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'],

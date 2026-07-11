@@ -1,16 +1,20 @@
 // KPI — P05 (QĐ0011, WF-P3-05).
 //
-// Key invariants:
-// - kpi.confirm button: gated to canDo('kpi','confirm') — direct manager.
-// - kpi.approve button: gated to canDo('kpi','approve') — GĐ only.
-// - Neither button is rendered for roles that lack the permission (server
-//   enforces as well; client gate is UI-only).
-//
-// Flow: staff list (user.list) → click employee → KpiDetail for
-// selected employee × period. Period is synced to ?period= URL param.
-//
-// Note: no kpi.list endpoint exists. The list is built from user.list
-// with per-user KPI queries opened on demand.
+// HR remediation phase 3 (docs/20) MINIMAL shim: `kpi.getForUser` and the
+// standalone `kpi.approve` procedure were REMOVED (auto-score lifecycle —
+// `approved` is now reachable ONLY via the bulk `kpi.bulkApprove({period})`
+// tất toán action, which has no per-employee UI yet). This file is patched
+// to the MINIMUM needed to keep `pnpm --filter @cmc/admin typecheck` green:
+//   - `kpi.getForUser.useQuery` -> `kpi.list.useQuery({period})`, client-side
+//     filtered to the selected employee (list is director/super_admin-only,
+//     matching this page's existing director-only usage).
+//   - The "Duyệt (GĐ)" single-score approve button + its mutation/dialog are
+//     REMOVED (no replacement procedure at this grain — bulkApprove operates
+//     on a whole period, not one score).
+//   - The retired `kpiMax` display row is dropped (KpiScore.kpiMax is
+//     nullable/unused under the tier model).
+// A full rebuild (kpi.refresh/submitSlip/override UI, bulkApprove screen) is
+// phase 5 scope — this shim intentionally does not add that surface.
 
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -73,15 +77,16 @@ interface KpiDetailProps {
 
 function KpiDetail({ appUserId, period, employeeName, onBack }: KpiDetailProps) {
   const { canDo } = useSession();
-  const [confirmAction, setConfirmAction] = useState<'confirm' | 'approve' | null>(
-    null,
-  );
+  const [confirmAction, setConfirmAction] = useState<'confirm' | null>(null);
   const [mutError, setMutError] = useState<string | null>(null);
 
-  const { data, isLoading, error, refetch } = trpc.kpi.getForUser.useQuery(
-    { appUserId, period },
+  // `kpi.getForUser` was removed (HR remediation phase 3) — `kpi.list` is the
+  // director/super_admin-only replacement; filter client-side to this employee.
+  const { data: listData, isLoading, error, refetch } = trpc.kpi.list.useQuery(
+    { period },
     { retry: false },
   );
+  const data = listData?.find((row) => row.appUserId === appUserId);
 
   const confirmMut = trpc.kpi.confirm.useMutation({
     onSuccess() {
@@ -95,19 +100,7 @@ function KpiDetail({ appUserId, period, employeeName, onBack }: KpiDetailProps) 
     },
   });
 
-  const approveMut = trpc.kpi.approve.useMutation({
-    onSuccess() {
-      setConfirmAction(null);
-      setMutError(null);
-      void refetch();
-    },
-    onError(err) {
-      setConfirmAction(null);
-      setMutError(err.message ?? 'Lỗi duyệt KPI.');
-    },
-  });
-
-  const isBusy = confirmMut.isPending || approveMut.isPending;
+  const isBusy = confirmMut.isPending;
 
   return (
     <Stack gap={3}>
@@ -136,14 +129,14 @@ function KpiDetail({ appUserId, period, employeeName, onBack }: KpiDetailProps) 
       )}
 
       {error && (
+        <Banner status="warning" title="Không tải được danh sách KPI" description={error.message} />
+      )}
+
+      {!isLoading && !error && !data && (
         <Banner
           status="warning"
           title="Chưa có điểm KPI"
-          description={
-            error.message.toLowerCase().includes('not found')
-              ? `Kỳ ${period} chưa có điểm KPI cho nhân viên này.`
-              : error.message
-          }
+          description={`Kỳ ${period} chưa có điểm KPI cho nhân viên này.`}
         />
       )}
 
@@ -173,16 +166,6 @@ function KpiDetail({ appUserId, period, employeeName, onBack }: KpiDetailProps) 
               <Text type="body" size="sm">Điểm KPI</Text>
               <Text type="body" size="xl" weight="bold" hasTabularNumbers>
                 {Number(data.value).toLocaleString('vi-VN')}
-              </Text>
-            </HStack>
-
-            {/* Max */}
-            <HStack justify="between">
-              <Text type="supporting" size="sm">
-                Tối đa (kpiMax)
-              </Text>
-              <Text type="supporting" size="sm" hasTabularNumbers>
-                {Number(data.kpiMax).toLocaleString('vi-VN')}
               </Text>
             </HStack>
 
@@ -216,15 +199,11 @@ function KpiDetail({ appUserId, period, employeeName, onBack }: KpiDetailProps) 
                 />
               )}
 
-              {/* Approve: GĐ only — gated to kpi.approve permission */}
-              {canDo('kpi', 'approve') && data.status === 'confirmed' && (
-                <Button
-                  label="Duyệt (GĐ)"
-                  size="sm"
-                  variant="primary"
-                  isDisabled={isBusy}
-                  onClick={() => setConfirmAction('approve')}
-                />
+              {/* Standalone per-score approve is gone (bulkApprove-only,
+                  HR remediation phase 3) — a confirmed score awaits the
+                  period-level "Tất toán" action (phase 5 UI, not built here). */}
+              {data.status === 'confirmed' && (
+                <Badge label="Chờ tất toán theo kỳ (bulkApprove)" variant="neutral" />
               )}
 
               {data.status === 'approved' && (
@@ -245,20 +224,6 @@ function KpiDetail({ appUserId, period, employeeName, onBack }: KpiDetailProps) 
         loading={isBusy}
         onConfirm={() => {
           if (data) confirmMut.mutate({ kpiScoreId: data.id });
-        }}
-        onCancel={() => setConfirmAction(null)}
-      />
-
-      {/* Confirm: GĐ approve */}
-      <ConfirmDialog
-        opened={confirmAction === 'approve'}
-        title="Duyệt điểm KPI"
-        message={`Duyệt điểm KPI của ${employeeName} cho kỳ ${period}? Hành động này khóa điểm KPI để tính lương.`}
-        confirmLabel="Duyệt"
-        confirmColor="green"
-        loading={isBusy}
-        onConfirm={() => {
-          if (data) approveMut.mutate({ kpiScoreId: data.id });
         }}
         onCancel={() => setConfirmAction(null)}
       />

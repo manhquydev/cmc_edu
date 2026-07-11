@@ -30,7 +30,10 @@ const classBatchCreateInput = z.object({
   endDate: dateOnlySchema,
   roomId: z.string().uuid().optional(),
   slots: z.array(slotInputSchema).min(1),
-  teacherId: z.string().min(1).optional(),
+  // HR remediation phase 1 (R2 #C5): teacherId is documented (schema.prisma)
+  // as an AppUser.id — tightened from `.min(1)` to `.uuid()` since `create`
+  // now resolves + validates it against a real AppUser row.
+  teacherId: z.string().uuid().optional(),
 });
 
 const classBatchListInput = z.object({
@@ -43,6 +46,15 @@ const classBatchGetInput = z.object({
   classBatchId: z.string().uuid(),
 });
 
+// HR remediation phase 1 (R2 #C5): `teacherAppUserId` has had zero writers
+// since it was added (P3-I) — this mutation is the first. `class.create`
+// (giam_doc_dao_tao) is reused rather than inventing a new `class.manage`
+// permission key the registry does not name.
+const classBatchAssignTeacherInput = z.object({
+  classBatchId: z.string().uuid(),
+  teacherAppUserId: z.string().uuid(),
+});
+
 export interface ClassBatchDto {
   id: string;
   code: string;
@@ -52,6 +64,9 @@ export interface ClassBatchDto {
   endDate: Date;
   roomId: string | null;
   teacherId: string | null;
+  /// HR remediation phase 1: the real AppUser FK (resolved by `create`/
+  /// `assignTeacher`) — `teacherId` is kept for back-compat display only.
+  teacherAppUserId: string | null;
   status: string;
   createdAt: Date;
 }
@@ -71,6 +86,7 @@ function toClassBatchDto(row: {
   endDate: Date;
   roomId: string | null;
   teacherId: string | null;
+  teacherAppUserId: string | null;
   status: string;
   createdAt: Date;
 }): ClassBatchDto {
@@ -83,6 +99,7 @@ function toClassBatchDto(row: {
     endDate: row.endDate,
     roomId: row.roomId,
     teacherId: row.teacherId,
+    teacherAppUserId: row.teacherAppUserId,
     status: row.status,
     createdAt: row.createdAt,
   };
@@ -117,6 +134,20 @@ export const classBatchRouter = router({
           }
         }
 
+        // HR remediation phase 1 (R2 #C5): when the caller supplies a
+        // teacher, resolve + validate the AppUser row in this facility and
+        // write BOTH the legacy scalar and the real FK — `teacherId` had
+        // zero writers before this phase (plan finding), so there is no
+        // back-compat data shape to preserve beyond keeping the column set.
+        let teacherAppUserId: string | null = null;
+        if (input.teacherId) {
+          const teacher = await tx.appUser.findFirst({ where: { id: input.teacherId, facilityId } });
+          if (!teacher) {
+            throw notFound('Teacher (AppUser) not found in this facility.');
+          }
+          teacherAppUserId = teacher.id;
+        }
+
         const year = Number(input.startDate.slice(0, 4));
 
         // Atomic per-(facility, program, year) counter -- same upsert-increment
@@ -140,6 +171,7 @@ export const classBatchRouter = router({
             endDate: ictToUtc(input.endDate, '00:00'),
             roomId: input.roomId ?? null,
             teacherId: input.teacherId ?? null,
+            teacherAppUserId,
             createdById: ctx.subject.userId,
           },
         });
@@ -256,5 +288,36 @@ export const classBatchRouter = router({
         throw notFound('ClassBatch not found.');
       }
       return toClassBatchDto(row);
+    }),
+
+  // HR remediation phase 1 (R2 #C5): the router had NO update mutation at
+  // all before this phase — `assignTeacher` is the first, scoped to just the
+  // teacher FK (a general classBatch.update is out of scope). UI picker
+  // lands in phase 5.
+  assignTeacher: requirePermission('class', 'create')
+    .input(classBatchAssignTeacherInput)
+    .mutation(async ({ ctx, input }): Promise<ClassBatchDto> => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const classBatch = await tx.classBatch.findFirst({
+          where: { id: input.classBatchId, facilityId },
+        });
+        if (!classBatch) {
+          throw notFound('ClassBatch not found.');
+        }
+
+        const teacher = await tx.appUser.findFirst({
+          where: { id: input.teacherAppUserId, facilityId },
+        });
+        if (!teacher) {
+          throw notFound('Teacher (AppUser) not found in this facility.');
+        }
+
+        const updated = await tx.classBatch.update({
+          where: { id: classBatch.id },
+          data: { teacherAppUserId: teacher.id, teacherId: teacher.id, updatedAt: new Date() },
+        });
+        return toClassBatchDto(updated);
+      });
     }),
 });

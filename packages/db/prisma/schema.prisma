@@ -130,11 +130,16 @@ enum Program {
 
 /// ClassSession lifecycle (docs/26 WF-P2-01). `cancelled` sessions are
 /// excluded from attendance (docs/19 §5) — enforced in the P2-Teaching phase,
-/// not here.
+/// not here. `done` (HR remediation phase 1, consumed by phase 7's
+/// session-done sweep engine): a session that has met the 3-condition
+/// done-criteria (attendance + confirmed assessments + published evidence).
+/// Added via `ALTER TYPE ... ADD VALUE` — see the migration's invariant note
+/// (must not be referenced in the same migration file that adds it).
 enum SessionStatus {
   planned
   confirmed
   cancelled
+  done
 }
 
 /// T1 attendance (docs/19 §5, WF-P2-02). Fixed 3-value set per spec.
@@ -234,17 +239,20 @@ model Facility {
 
   /// P3-I back-relations — added when AppUser/FacilityNetwork/TimePunch/
   /// ManualAttendanceTicket were introduced (P3-I HR/identity phase).
-  appUsers        AppUser[]
-  facilityNetworks FacilityNetwork[]
-  timePunches     TimePunch[]
-  manualTickets   ManualAttendanceTicket[]
+  appUsers           AppUser[]
+  facilityNetworks   FacilityNetwork[]
+  timePunches        TimePunch[]
+  manualTickets      ManualAttendanceTicket[]
   /// P3-II back-relations — HR shifts, payroll, and KPI.
-  shiftGroups          ShiftGroup[]
-  shiftTemplates       ShiftTemplate[]
-  shiftRegistrations   ShiftRegistration[]
-  salaryRates          SalaryRate[]
-  payslips             Payslip[]
-  kpiScores            KpiScore[]
+  shiftGroups        ShiftGroup[]
+  shiftTemplates     ShiftTemplate[]
+  shiftRegistrations ShiftRegistration[]
+  salaryRates        SalaryRate[]
+  payslips           Payslip[]
+  kpiScores          KpiScore[]
+  /// HR remediation phase 1 back-relations.
+  compensationPolicy CompensationPolicy?
+  salaryTiers        SalaryTier[]
 }
 
 model Contact {
@@ -298,39 +306,44 @@ model ReceiptCodeCounter {
 }
 
 model Receipt {
-  id            String        @id @default(uuid())
-  facilityId    String
-  code          String        @unique
+  id                  String        @id @default(uuid())
+  facilityId          String
+  code                String        @unique
   /// Frozen after approval (TL10 §4 invariant #2); SUM(RefundRecord.amount) <= netAmount.
-  netAmount     Decimal       @db.Decimal(14, 2)
-  status        ReceiptStatus @default(draft)
-  kind          ReceiptKind   @default(new)
-  opportunityId String?
+  netAmount           Decimal       @db.Decimal(14, 2)
+  status              ReceiptStatus @default(draft)
+  kind                ReceiptKind   @default(new)
+  opportunityId       String?
   /// Provenance for renewal reuse (H3 remediation): the Student this receipt
   /// belongs to, when known at creation time. Nullable — the renewal-reuse
   /// write path (reusing an existing Student instead of provisioning a new
   /// one) lands in the next remediation wave; this column only holds the
   /// shape for it.
-  studentId     String?
-  parentPhone   String
+  studentId           String?
+  parentPhone         String
   /// C1/phase-01b: optional email captured at receipt creation; provisioning
   /// upserts it onto ParentAccount so the parent can also log in via email-OTP.
-  parentEmail   String?
-  studentName   String
+  parentEmail         String?
+  studentName         String
   /// P2-Foundation: real (nullable) FK — WF-P2-05 "seam", `finance.receiptCreate`
   /// validates this points at a ClassBatch in the caller's facility (app-level
   /// NOT_FOUND check); nullable at the schema level only because `Receipt`
   /// predates `ClassBatch` (migration safety), not because the app allows it.
-  classBatchId  String?
+  classBatchId        String?
   /// Plain scalar — references AppUser.id (arrives with the HR/identity phase).
-  approvedById  String?
+  approvedById        String?
   /// Plain scalar — references AppUser.id (arrives with the HR/identity phase).
-  createdById   String
+  createdById         String
   /// P3-I: real FK to AppUser (nullable — backfill; old rows keep plain scalar).
   createdByAppUserId  String?
   approvedByAppUserId String?
-  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
+  /// HR remediation phase 1 (finding #6): the instant `finance.receiptApprove`
+  /// flipped this receipt to `approved`. Nullable — pre-existing `approved`
+  /// rows are backfilled from `updatedAt` (an approximation; see the migration
+  /// SQL comment and docs) since no writer captured this before.
+  approvedAt          DateTime?     @db.Timestamptz(3)
+  createdAt           DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime      @updatedAt @db.Timestamptz(3)
 
   opportunity       Opportunity?   @relation(fields: [opportunityId], references: [id])
   classBatch        ClassBatch?    @relation(fields: [classBatchId], references: [id])
@@ -347,13 +360,13 @@ model Receipt {
 
 /// Append-only ledger: corrections are new rows, never edits (TL10 §4).
 model RefundRecord {
-  id         String   @id @default(uuid())
-  receiptId  String
+  id             String   @id @default(uuid())
+  receiptId      String
   /// M5 remediation: the money ledger must be facility-scoped for RLS
   /// (defense-in-depth, ADR 0042) — denormalized from `Receipt.facilityId` at
   /// write time (see finance/router.ts `runRefundTransaction`).
-  facilityId String
-  amount     Decimal  @db.Decimal(14, 2)
+  facilityId     String
+  amount         Decimal  @db.Decimal(14, 2)
   /// M4 remediation (docs/11 §4 idempotency): caller-supplied key. A repeat
   /// `refundCreate` call with the same (receiptId, idempotencyKey) returns
   /// the existing row instead of appending a duplicate. Nullable — refunds
@@ -370,28 +383,28 @@ model RefundRecord {
 }
 
 model Student {
-  id         String           @id @default(uuid())
-  facilityId String
-  fullName   String
+  id                 String           @id @default(uuid())
+  facilityId         String
+  fullName           String
   /// Provenance: the Receipt whose approval provisioned this student. Nullable
   /// only for break-glass admin creation (separate admin surface, ADR 0041);
   /// application logic must not create "orphan" students outside that path.
-  createdByReceiptId String?  @unique
-  lifecycle           StudentLifecycle @default(active)
-  createdAt           DateTime         @default(now()) @db.Timestamptz(3)
-  updatedAt            DateTime        @updatedAt @db.Timestamptz(3)
+  createdByReceiptId String?          @unique
+  lifecycle          StudentLifecycle @default(active)
+  createdAt          DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime         @updatedAt @db.Timestamptz(3)
 
-  createdByReceipt      Receipt?               @relation(fields: [createdByReceiptId], references: [id])
-  enrollments           Enrollment[]
-  guardians             Guardian[]
-  studentAccount        StudentAccount?
-  attendances           Attendance[]
-  submissions           Submission[]
-  finalGrades           FinalGrade[]
-  starTransactions      StarTransaction[]
+  createdByReceipt       Receipt?                @relation(fields: [createdByReceiptId], references: [id])
+  enrollments            Enrollment[]
+  guardians              Guardian[]
+  studentAccount         StudentAccount?
+  attendances            Attendance[]
+  submissions            Submission[]
+  finalGrades            FinalGrade[]
+  starTransactions       StarTransaction[]
   qualitativeAssessments QualitativeAssessment[]
   /// P4: gift redemptions made by this student.
-  rewards               Reward[]
+  rewards                Reward[]
 
   @@index([facilityId])
 }
@@ -416,24 +429,24 @@ model ParentAccount {
 /// One row per Student's LMS login, owned by the ParentAccount that
 /// provisioned it (finance.receiptApprove auto-provisioning — ADR 0041).
 model StudentAccount {
-  id              String    @id @default(uuid())
-  studentId       String    @unique
-  parentAccountId String
+  id                 String    @id @default(uuid())
+  studentId          String    @unique
+  parentAccountId    String
   /// Hashed password for student direct login (C1/phase-01b). Nullable until
   /// provisioning sets the default; a null value means this account cannot log
   /// in directly yet (parent-only flow still works via ParentAccount).
-  passwordHash         String?
+  passwordHash       String?
   /// True when the student must change their password on next login (set to
   /// true on provisioning with the default password; cleared by the student on
   /// first change or by parent reset).
-  mustChangePassword   Boolean  @default(false)
+  mustChangePassword Boolean   @default(false)
   /// Count of consecutive failed student login attempts against this account.
   /// Reset to 0 on successful login. Used for rate-limiting (phase-01b).
-  loginAttempts        Int      @default(0)
+  loginAttempts      Int       @default(0)
   /// When set and in the future, direct student login for this account is locked
   /// out until this timestamp. Cleared on successful login.
-  loginLockedUntil     DateTime? @db.Timestamptz(3)
-  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  loginLockedUntil   DateTime? @db.Timestamptz(3)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(3)
 
   student       Student       @relation(fields: [studentId], references: [id])
   parentAccount ParentAccount @relation(fields: [parentAccountId], references: [id])
@@ -458,25 +471,25 @@ model StudentAccount {
 /// of which children appear in which photo is a deferred concern (decision
 /// note in phase-04 spec); this gate is the mandatory data-minimisation floor.
 model Guardian {
-  id                     String           @id @default(uuid())
-  facilityId             String
-  parentAccountId        String
-  studentId              String
-  relation               GuardianRelation
+  id                    String           @id @default(uuid())
+  facilityId            String
+  parentAccountId       String
+  studentId             String
+  relation              GuardianRelation
   /// C2 (TL08 §7): has this parent consented to photos of their child being
   /// shared in session evidence? Default false — opt-in, not opt-out.
-  photoConsent           Boolean          @default(false)
+  photoConsent          Boolean          @default(false)
   /// Set when photoConsent is granted (the instant, not just the date).
-  photoConsentAt         DateTime?        @db.Timestamptz(3)
+  photoConsentAt        DateTime?        @db.Timestamptz(3)
   /// Set when consent is revoked; photos are hidden immediately on revocation.
-  photoConsentRevokedAt  DateTime?        @db.Timestamptz(3)
-  createdAt              DateTime         @default(now()) @db.Timestamptz(3)
+  photoConsentRevokedAt DateTime?        @db.Timestamptz(3)
+  createdAt             DateTime         @default(now()) @db.Timestamptz(3)
 
   parentAccount ParentAccount @relation(fields: [parentAccountId], references: [id])
   student       Student       @relation(fields: [studentId], references: [id])
 
-  @@index([facilityId])
   @@unique([parentAccountId, studentId])
+  @@index([facilityId])
 }
 
 /// A parent's self-service request to link to a student, pending staff review
@@ -511,9 +524,9 @@ model GuardianLinkRequest {
 /// (facilityId, studentId, classBatchId), while still allowing re-enrollment
 /// after `withdrawn`/`completed`.
 model Enrollment {
-  id         String           @id @default(uuid())
-  facilityId String
-  studentId  String
+  id           String           @id @default(uuid())
+  facilityId   String
+  studentId    String
   /// P2-Foundation: real (required) FK — the WF-P2-05 "seam", `enrollment.enroll`
   /// validates this points at a ClassBatch in the caller's facility
   /// (app-level NOT_FOUND check) before the DB FK constraint is even reached.
@@ -522,8 +535,8 @@ model Enrollment {
   createdAt    DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime         @updatedAt @db.Timestamptz(3)
 
-  student    Student    @relation(fields: [studentId], references: [id])
-  classBatch ClassBatch @relation(fields: [classBatchId], references: [id])
+  student     Student      @relation(fields: [studentId], references: [id])
+  classBatch  ClassBatch   @relation(fields: [classBatchId], references: [id])
   attendances Attendance[]
 
   @@index([facilityId])
@@ -571,27 +584,27 @@ model Room {
 /// `{facility.code}-{program}-{year}-{seq}`, atomic per facility+program+year
 /// via `ClassBatchCodeCounter`). Facility-scoped, RLS.
 model ClassBatch {
-  id         String   @id @default(uuid())
-  facilityId String
-  code       String
-  courseId   String
-  program    Program
-  startDate  DateTime @db.Timestamptz(3)
-  endDate    DateTime @db.Timestamptz(3)
-  roomId     String?
+  id                 String   @id @default(uuid())
+  facilityId         String
+  code               String
+  courseId           String
+  program            Program
+  startDate          DateTime @db.Timestamptz(3)
+  endDate            DateTime @db.Timestamptz(3)
+  roomId             String?
   /// Plain scalar — references AppUser.id (arrives with the HR/identity phase).
-  teacherId  String?
+  teacherId          String?
   /// No dedicated enum (YAGNI — the spec names only `Program`/`SessionStatus`
   /// as new enums this phase): `active` while the batch is running, `closed`
   /// once it ends. Not exercised by any P2-Foundation procedure yet.
-  status      String   @default("active")
+  status             String   @default("active")
   /// Plain scalar — references AppUser.id (dev-session `userId`).
-  createdById String
+  createdById        String
   /// P3-I: real FK to AppUser (nullable — backfill; old rows keep plain scalar).
-  teacherAppUserId    String?
-  createdByAppUserId  String?
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  teacherAppUserId   String?
+  createdByAppUserId String?
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
 
   course           Course         @relation(fields: [courseId], references: [id])
   room             Room?          @relation(fields: [roomId], references: [id])
@@ -640,32 +653,47 @@ model ScheduleSlot {
 /// attendance-gate (later phase) checks can compare instants directly.
 /// Facility-scoped (denormalized from `ClassBatch`), RLS.
 model ClassSession {
-  id             String        @id @default(uuid())
-  facilityId     String
-  classBatchId   String
-  scheduleSlotId String?
+  id                 String        @id @default(uuid())
+  facilityId         String
+  classBatchId       String
+  scheduleSlotId     String?
   /// The session's calendar day, stored as ICT midnight (so `re-generate`
   /// idempotency and the docs/19 §5 "bucket by ICT month" gate compare a
   /// stable instant, not a naive date string).
-  sessionDate    DateTime      @db.Timestamptz(3)
-  startTime      DateTime      @db.Timestamptz(3)
-  endTime        DateTime      @db.Timestamptz(3)
-  status         SessionStatus @default(planned)
-  isMakeup       Boolean       @default(false)
+  sessionDate        DateTime      @db.Timestamptz(3)
+  startTime          DateTime      @db.Timestamptz(3)
+  endTime            DateTime      @db.Timestamptz(3)
+  status             SessionStatus @default(planned)
+  isMakeup           Boolean       @default(false)
   /// T2-I (`classSession.assignUnit`, docs/26 WF-P2-01 remainder): the
   /// curriculum unit taught in this session. Nullable — not every session has
   /// a unit assigned yet. References the GLOBAL `CurriculumUnit` catalog (no
   /// facilityId on that side), so no RLS cross-check applies to this FK.
-  curriculumUnitId String?
-  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime      @updatedAt @db.Timestamptz(3)
+  curriculumUnitId   String?
+  /// HR remediation phase 1 (consumed by phase 7's sweep engine): timestamp
+  /// the session transitioned to `done` — the LATEST of the 3 done-condition
+  /// timestamps, frozen once set (a `done` session never re-evaluates).
+  doneAt             DateTime?     @db.Timestamptz(3)
+  /// HR remediation phase 1 (R2 #2 — idempotent makeup generation): when this
+  /// session is an auto-generated makeup for a 0-present auto-cancelled
+  /// session, points at that original session. Self-FK, UNIQUE — enforces at
+  /// most one makeup session per original (the sweep worker's idempotency
+  /// guard, phase 7), not a general many-makeups-per-session relation.
+  makeupForSessionId String?       @unique
+  createdAt          DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime      @updatedAt @db.Timestamptz(3)
 
-  classBatch             ClassBatch             @relation(fields: [classBatchId], references: [id])
-  scheduleSlot           ScheduleSlot?          @relation(fields: [scheduleSlotId], references: [id])
-  curriculumUnit         CurriculumUnit?        @relation(fields: [curriculumUnitId], references: [id])
+  classBatch             ClassBatch              @relation(fields: [classBatchId], references: [id])
+  scheduleSlot           ScheduleSlot?           @relation(fields: [scheduleSlotId], references: [id])
+  curriculumUnit         CurriculumUnit?         @relation(fields: [curriculumUnitId], references: [id])
   attendances            Attendance[]
   qualitativeAssessments QualitativeAssessment[]
   sessionEvidence        SessionEvidence?
+  /// Self 1:1 relation: the original session this row is a makeup for
+  /// (nullable — most sessions are not makeups), and the reverse pointer
+  /// (the makeup session generated FROM this row, if any).
+  makeupForSession       ClassSession?           @relation("SessionMakeup", fields: [makeupForSessionId], references: [id])
+  makeupSession          ClassSession?           @relation("SessionMakeup")
 
   // Re-generate idempotency (WF-P2-01 acceptance: "re-generate không nhân
   // đôi"): at most one session per (classBatch, slot, calendar day).
@@ -738,10 +766,10 @@ model Exercise {
 /// WF-P2-05). One row per (exerciseId, studentId) — re-drafting updates the
 /// SAME row (`version` increments), it never creates a second Submission.
 model Submission {
-  id              String           @id @default(uuid())
-  facilityId      String
-  exerciseId      String
-  studentId       String
+  id                     String           @id @default(uuid())
+  facilityId             String
+  exerciseId             String
+  studentId              String
   /// The student's PDF annotation overlay (docs/19 §3) — capped at 1MB by the
   /// application (`submission.saveDraft`), not enforced at the DB layer.
   annotationLayer        Json
@@ -752,19 +780,19 @@ model Submission {
   /// teacher layers are never co-mingled (append-mindset, actor audit).
   teacherAnnotationLayer Json?
   answerText             String?
-  version         Int              @default(1)
-  status          SubmissionStatus @default(draft)
-  submittedAt     DateTime?        @db.Timestamptz(3)
+  version                Int              @default(1)
+  status                 SubmissionStatus @default(draft)
+  submittedAt            DateTime?        @db.Timestamptz(3)
   /// Addition beyond the phase-03 field list: the instant `submission.grade`
   /// last scored this row. Needed to bucket a (re)grade into the correct
   /// `FinalGrade.period` (ICT month) without conflating it with
   /// `submittedAt` — a regrade must re-bucket by WHEN IT WAS GRADED, not by
   /// the original submission time.
-  gradedAt        DateTime?        @db.Timestamptz(3)
-  score           Int?
-  gradedById      String?
-  createdAt       DateTime         @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime         @updatedAt @db.Timestamptz(3)
+  gradedAt               DateTime?        @db.Timestamptz(3)
+  score                  Int?
+  gradedById             String?
+  createdAt              DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime         @updatedAt @db.Timestamptz(3)
 
   exercise Exercise @relation(fields: [exerciseId], references: [id])
   student  Student  @relation(fields: [studentId], references: [id])
@@ -836,21 +864,21 @@ model StarTransaction {
 /// `markedById` is a plain scalar (references AppUser.id, arriving with the
 /// HR/identity phase — same deferral as `ClassBatch.teacherId`).
 model Attendance {
-  id           String           @id @default(uuid())
-  facilityId   String
-  classSessionId String
-  enrollmentId String
-  studentId    String
-  status       AttendanceStatus
-  markedById   String
-  markedAt     DateTime         @db.Timestamptz(3)
+  id                String           @id @default(uuid())
+  facilityId        String
+  classSessionId    String
+  enrollmentId      String
+  studentId         String
+  status            AttendanceStatus
+  markedById        String
+  markedAt          DateTime         @db.Timestamptz(3)
   /// P3-I: real FK to AppUser (nullable — backfill; old rows keep plain scalar).
   markedByAppUserId String?
 
-  classSession     ClassSession @relation(fields: [classSessionId], references: [id])
-  enrollment       Enrollment   @relation(fields: [enrollmentId], references: [id])
-  student          Student      @relation(fields: [studentId], references: [id])
-  markedByAppUser  AppUser?     @relation(fields: [markedByAppUserId], references: [id])
+  classSession    ClassSession @relation(fields: [classSessionId], references: [id])
+  enrollment      Enrollment   @relation(fields: [enrollmentId], references: [id])
+  student         Student      @relation(fields: [studentId], references: [id])
+  markedByAppUser AppUser?     @relation(fields: [markedByAppUserId], references: [id])
 
   @@unique([classSessionId, enrollmentId])
   @@index([facilityId])
@@ -966,8 +994,8 @@ model QualitativeAssessment {
   createdAt      DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
 
-  student       Student       @relation(fields: [studentId], references: [id])
-  classSession  ClassSession? @relation(fields: [classSessionId], references: [id])
+  student      Student       @relation(fields: [studentId], references: [id])
+  classSession ClassSession? @relation(fields: [classSessionId], references: [id])
 
   @@index([facilityId])
   @@index([studentId, period])
@@ -991,7 +1019,7 @@ model SessionEvidence {
   createdAt      DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
 
-  classSession ClassSession        @relation(fields: [classSessionId], references: [id])
+  classSession ClassSession           @relation(fields: [classSessionId], references: [id])
   photos       SessionEvidencePhoto[]
 
   @@index([facilityId])
@@ -1035,17 +1063,17 @@ model AppUser {
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 
-  facility         Facility               @relation(fields: [facilityId], references: [id])
-  manager          AppUser?               @relation("AppUserManager", fields: [managerId], references: [id])
-  subordinates     AppUser[]              @relation("AppUserManager")
-  timePunches      TimePunch[]
-  tickets          ManualAttendanceTicket[] @relation("AppUserTickets")
-  reviewedTickets  ManualAttendanceTicket[] @relation("AppUserReviewer")
-  markedAttendances    Attendance[]
-  createdReceipts      Receipt[]  @relation("ReceiptCreatedBy")
-  approvedReceipts     Receipt[]  @relation("ReceiptApprovedBy")
-  taughtBatches        ClassBatch[] @relation("ClassBatchTeacher")
-  createdBatches       ClassBatch[] @relation("ClassBatchCreatedBy")
+  facility           Facility                 @relation(fields: [facilityId], references: [id])
+  manager            AppUser?                 @relation("AppUserManager", fields: [managerId], references: [id])
+  subordinates       AppUser[]                @relation("AppUserManager")
+  timePunches        TimePunch[]
+  tickets            ManualAttendanceTicket[] @relation("AppUserTickets")
+  reviewedTickets    ManualAttendanceTicket[] @relation("AppUserReviewer")
+  markedAttendances  Attendance[]
+  createdReceipts    Receipt[]                @relation("ReceiptCreatedBy")
+  approvedReceipts   Receipt[]                @relation("ReceiptApprovedBy")
+  taughtBatches      ClassBatch[]             @relation("ClassBatchTeacher")
+  createdBatches     ClassBatch[]             @relation("ClassBatchCreatedBy")
   /// P3-II back-relations
   shiftRegistrations ShiftRegistration[]
   salaryRate         SalaryRate?
@@ -1129,17 +1157,21 @@ model ManualAttendanceTicket {
 /// GIAO_VIEN) and controls whether an employee may register multiple templates
 /// per day (MULTIPLE) or only one (SINGLE). Facility-scoped, RLS.
 model ShiftGroup {
-  id            String            @id @default(uuid())
+  id            String             @id @default(uuid())
   facilityId    String
   name          String
   type          ShiftGroupType
   selectionMode ShiftSelectionMode
-  createdAt     DateTime          @default(now()) @db.Timestamptz(3)
+  createdAt     DateTime           @default(now()) @db.Timestamptz(3)
 
   facility      Facility            @relation(fields: [facilityId], references: [id])
   templates     ShiftTemplate[]
   registrations ShiftRegistration[]
 
+  /// HR remediation phase 1 (R3-11): natural key for idempotent catalog seed
+  /// (`ON CONFLICT DO NOTHING`) + guards against duplicate group names per
+  /// facility.
+  @@unique([facilityId, name])
   @@index([facilityId])
 }
 
@@ -1161,6 +1193,9 @@ model ShiftTemplate {
   shiftGroup ShiftGroup               @relation(fields: [shiftGroupId], references: [id])
   entries    ShiftRegistrationEntry[]
 
+  /// HR remediation phase 1 (R3-11): natural key for idempotent catalog seed
+  /// + guards against duplicate template names within one group.
+  @@unique([shiftGroupId, name])
   @@index([facilityId])
   @@index([shiftGroupId])
 }
@@ -1179,10 +1214,14 @@ model ShiftRegistration {
   shiftGroupId  String
   fromDate      DateTime @db.Timestamptz(3)
   toDate        DateTime @db.Timestamptz(3)
-  /// draft | submitted | approved | cancelled
+  /// draft | submitted | approved | cancelled | rejected
   status        String   @default("draft")
   /// SINGLE | MULTIPLE — copied from ShiftGroup.selectionMode at submit time.
   selectionMode String
+  /// HR remediation phase 1 (phase 4 writer: `shift.reject`): required reason
+  /// text when a director rejects a submitted registration. Nullable — only
+  /// set on the `rejected` transition.
+  rejectReason  String?
   createdAt     DateTime @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime @updatedAt @db.Timestamptz(3)
 
@@ -1220,22 +1259,37 @@ model ShiftRegistrationEntry {
 /// Per-employee salary configuration. `appUserId` is UNIQUE (one rate per
 /// employee). Upserted by `compensation.upsertRate` (GĐKD/GĐĐT/super_admin).
 /// Facility-scoped, RLS.
+///
+/// HR remediation phase 1 (R3-4, greenfield salary-tier model, docs/20): the
+/// 3 legacy columns below are nullable-ized (no new writer sets them —
+/// `compensation.upsertRate` is removed in phase 2) and superseded by
+/// `tierId` — a per-employee assignment to a `SalaryTier` row that carries
+/// the actual baseSalary/unitRate/quota numbers. Existing rows keep their
+/// legacy values (not backfilled into a tier); reading code that still
+/// touches these 3 columns must treat them as optional.
 model SalaryRate {
   id              String   @id @default(uuid())
   facilityId      String
   appUserId       String   @unique
-  baseSalary      Decimal  @db.Decimal(14, 2)
+  baseSalary      Decimal? @db.Decimal(14, 2)
   /// Variable pay multiplier, 0–1. variablePay = baseSalary × variablePayRate.
-  variablePayRate Decimal  @db.Decimal(5, 4)
+  variablePayRate Decimal? @db.Decimal(5, 4)
   /// KPI bonus ceiling for this employee.
-  kpiMax          Decimal  @db.Decimal(14, 2)
+  kpiMax          Decimal? @db.Decimal(14, 2)
+  /// HR remediation phase 1: the SalaryTier this employee is assigned to
+  /// (phase 2 onboarding — `assignTier`, sale/giao_vien only). Nullable —
+  /// assembling a payslip without a tier assigned is a FORBIDDEN guard
+  /// (greenfield, no legacy fallback — validate session 4).
+  tierId          String?
   createdAt       DateTime @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @db.Timestamptz(3)
 
-  facility Facility @relation(fields: [facilityId], references: [id])
-  appUser  AppUser  @relation(fields: [appUserId], references: [id])
+  facility Facility    @relation(fields: [facilityId], references: [id])
+  appUser  AppUser     @relation(fields: [appUserId], references: [id])
+  tier     SalaryTier? @relation(fields: [tierId], references: [id])
 
   @@index([facilityId])
+  @@index([tierId])
 }
 
 /// Monthly payslip for one employee. Lifecycle: draft → finalized (append-like:
@@ -1276,28 +1330,108 @@ model Payslip {
 /// draft → submitted → confirmed → approved; `override` can be applied from
 /// any state by GĐKD/GĐĐT (audit: override=true + overrideReason recorded).
 /// Append-like: `cmc_app` has no DELETE grant. Facility-scoped, RLS.
+///
+/// HR remediation phase 1 (salary-tier model, docs/20): `kpiMax` is retired
+/// (nullable, no longer capped against — phase 2/3 compute `value` as the
+/// tier-based "PHẦN NHÂN" instead). The 6 new columns below are the
+/// self-reconstructible snapshot a phase-3 refresh writes so a submitted/
+/// confirmed slip's numbers stay stable even if the employee's tier or the
+/// underlying attendance/revenue data changes later (R3-9 audit requirement).
 model KpiScore {
-  id             String   @id @default(uuid())
-  facilityId     String
-  appUserId      String
+  id               String   @id @default(uuid())
+  facilityId       String
+  appUserId        String
   /// ICT calendar month `YYYY-MM`.
-  period         String
-  value          Decimal  @db.Decimal(14, 2)
-  kpiMax         Decimal  @db.Decimal(14, 2)
+  period           String
+  value            Decimal  @db.Decimal(14, 2)
+  /// Retired (nullable) — superseded by the tier-based "PHẦN NHÂN" formula.
+  kpiMax           Decimal? @db.Decimal(14, 2)
+  /// GV: giờ dạy thực (hours); Sale: doanh thu phê duyệt (VND). Raw metric
+  /// value at refresh time, before dividing by `quotaSnapshot`.
+  metricValue      Decimal? @db.Decimal(14, 2)
+  /// GV: giờ dạy yêu cầu; Sale: quota doanh thu — snapshotted from the
+  /// assigned SalaryTier's `requiredMetric` at refresh time.
+  quotaSnapshot    Decimal? @db.Decimal(14, 2)
+  /// Số ca công thực trong kỳ (both GV and sale — %côngca applies to both).
+  shiftActual      Int?
+  /// Số ca công yêu cầu — snapshotted from the assigned SalaryTier's
+  /// `requiredShifts` at refresh time.
+  shiftRequired    Int?
+  /// đơnGiá(bậc) snapshotted from the assigned SalaryTier's `unitRate` at
+  /// refresh time — so `value` stays reconstructible even if the tier's rate
+  /// changes later.
+  unitRateSnapshot Decimal? @db.Decimal(14, 2)
+  /// The SalaryTier.id this slip was computed against at refresh time
+  /// (snapshot, not a live FK — a later tier reassignment must not silently
+  /// alter an already-submitted/confirmed slip's provenance).
+  tierIdSnapshot   String?
   /// draft | submitted | confirmed | approved
-  status         String   @default("draft")
-  submittedBy    String?
-  confirmedBy    String?
-  approvedBy     String?
-  override       Boolean  @default(false)
-  overrideReason String?
-  createdAt      DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+  status           String   @default("draft")
+  submittedBy      String?
+  confirmedBy      String?
+  approvedBy       String?
+  override         Boolean  @default(false)
+  overrideReason   String?
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
 
   facility Facility @relation(fields: [facilityId], references: [id])
   appUser  AppUser  @relation(fields: [appUserId], references: [id])
 
   @@unique([appUserId, period])
+  @@index([facilityId])
+}
+
+/// HR remediation phase 1 (salary-tier model, docs/20): per-facility late/early
+/// punch penalty rates. One row per facility (`facilityId @unique`) — payroll
+/// assembly reads this with a 500/1000 VND-per-minute fallback when no row
+/// exists yet (docs/25 QĐ0025 default). `cmc_app` has SELECT/INSERT/UPDATE
+/// only (no DELETE — same append-like posture as Payslip/KpiScore; a facility
+/// should never lose its policy row, only update it). Facility-scoped, RLS.
+model CompensationPolicy {
+  id                        String   @id @default(uuid())
+  facilityId                String   @unique
+  penaltyRatePerLateMinute  Decimal  @default(500) @db.Decimal(14, 2)
+  penaltyRatePerEarlyMinute Decimal  @default(1000) @db.Decimal(14, 2)
+  createdAt                 DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime @updatedAt @db.Timestamptz(3)
+
+  facility Facility @relation(fields: [facilityId], references: [id])
+}
+
+/// HR remediation phase 1 (salary-tier model, docs/20 — validate session 3/4
+/// "Mô hình lương"): a named salary bậc per facility, carrying the numbers
+/// `totalNet = baseSalary + %côngca × %chỉ-số × unitRate − phạt` reads.
+/// `type` determines which metric formula applies (GIAO_VIEN: giờ dạy;
+/// KINH_DOANH: doanh thu — same catalog as ShiftGroupType, reused rather than
+/// inventing a parallel enum). `updatedById` is a plain audit scalar (no FK —
+/// same lightweight pattern as `ReconciliationFlag.resolvedById`), set by
+/// phase 2's tier-management procedures. `SalaryRate.tierId` is the
+/// per-employee assignment to one of these rows. Facility-scoped, RLS,
+/// `cmc_app` SELECT/INSERT/UPDATE only (no DELETE — tiers are audit-tracked,
+/// not deletable once assigned).
+model SalaryTier {
+  id             String         @id @default(uuid())
+  facilityId     String
+  name           String
+  type           ShiftGroupType
+  baseSalary     Decimal        @db.Decimal(14, 2)
+  /// đơnGiá(bậc) — multiplied by %côngca × %chỉ-số to get "PHẦN NHÂN".
+  unitRate       Decimal        @db.Decimal(14, 2)
+  /// côngCaYêuCầu(bậc) — required shift count for 100% %côngca.
+  requiredShifts Int
+  /// metricYêuCầu(bậc): GV = giờ dạy yêu cầu (hours); Sale = quota doanh thu (VND).
+  requiredMetric Decimal        @db.Decimal(14, 2)
+  /// Audit: AppUser.id of the director who last created/edited this tier
+  /// (plain scalar, no FK — see model doc comment).
+  updatedById    String?
+  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @db.Timestamptz(3)
+
+  facility    Facility     @relation(fields: [facilityId], references: [id])
+  salaryRates SalaryRate[]
+
+  @@unique([facilityId, name])
   @@index([facilityId])
 }
 
@@ -1365,14 +1499,14 @@ model ParentMeeting {
 /// P4: Entrance or periodic test appointment. Lifecycle: scheduled -> done | no_show.
 /// `entrance` type: records only — NEVER mutates any CRM/opportunity tables.
 model TestAppointment {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   facilityId  String
   studentId   String
   type        String
-  scheduledAt DateTime  @db.Timestamptz(3)
-  status      String    @default("scheduled")
-  notes       String?   @db.VarChar(2000)
-  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  scheduledAt DateTime @db.Timestamptz(3)
+  status      String   @default("scheduled")
+  notes       String?  @db.VarChar(2000)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([facilityId, scheduledAt])
 }

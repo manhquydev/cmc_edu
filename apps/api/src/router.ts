@@ -6,7 +6,12 @@ import { attendanceRouter } from './attendance/router.js';
 import { assessmentRouter, reportCardRouter } from './assessment/router.js';
 import { checkInOutRouter, manualPunchRouter } from './checkin/router.js';
 import { kpiRouter } from './kpi/router.js';
-import { compensationRouter, payslipRouter } from './payroll/router.js';
+import {
+  compensationPolicyRouter,
+  compensationRouter,
+  payslipRouter,
+  salaryTierRouter,
+} from './payroll/router.js';
 import { shiftRouter } from './shift/router.js';
 import { userRouter } from './user/router.js';
 import { classBatchRouter } from './class/class-batch-router.js';
@@ -80,8 +85,11 @@ export const appRouter = router({
   manualPunch: manualPunchRouter,
   // P3-II: HR shifts (registration + approval).
   shift: shiftRouter,
-  // P3-II: compensation (salary rates) and payslip lifecycle.
+  // P3-II: compensation (tier assignment) and payslip lifecycle.
   compensation: compensationRouter,
+  // HR remediation phase 2: per-facility late/early penalty rates + SalaryTier CRUD.
+  compensationPolicy: compensationPolicyRouter,
+  salaryTier: salaryTierRouter,
   payslip: payslipRouter,
   // P3-II: KPI scores (submit → confirm → approve → override).
   kpi: kpiRouter,

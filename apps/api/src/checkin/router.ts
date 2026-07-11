@@ -13,7 +13,12 @@
 // manualPunch.approve  — direct manager approves (anti-self-approve); also
 //   allows super_admin to review ANY ticket (HR remediation phase 4, R2 #H2)
 //   — otherwise a ticket whose owner has no manager (e.g. a director) could
-//   never be approved by anyone.
+//   never be approved by anyone. HR remediation phase 2 (red-team #13): if
+//   the ticket's own ICT-month period already has a FINALIZED Payslip, the
+//   ticket is still approved (a late-arriving correction should not be
+//   silently dropped) but the response carries `warning: 'PAYSLIP_FINALIZED'`
+//   so the UI can prompt a director to reopen the period if they want the
+//   penalty recomputed — approving here does NOT itself touch the payslip.
 // manualPunch.reject   — same gate as approve.
 // manualPunch.list     — `{scope:'inbox'|'mine', status?}`. `inbox` returns
 //   tickets of the caller's direct reports (or all, for super_admin); `mine`
@@ -26,7 +31,7 @@
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { ipMatchesCidr } from '@cmc/domain-identity';
-import { ictToUtc } from '@cmc/domain-time';
+import { ictDateOnlyOf, ictToUtc } from '@cmc/domain-time';
 import { AppCodeError, badRequest, forbidden, notFound } from '../errors.js';
 import { protectedProcedure, requirePermission, router, scoped } from '../trpc.js';
 
@@ -175,7 +180,7 @@ export const manualPunchRouter = router({
           throw forbidden('Only the direct manager can approve this ticket.');
         }
 
-        return tx.manualAttendanceTicket.update({
+        const updated = await tx.manualAttendanceTicket.update({
           where: { id: ticket.id },
           data: {
             status: 'approved',
@@ -184,6 +189,18 @@ export const manualPunchRouter = router({
             note: input.note || ticket.note,
           },
         });
+
+        // Red-team #13: warn (do not block) when this ticket's period was
+        // already finalized — the payslip is NOT recomputed here.
+        const period = ictDateOnlyOf(ticket.ticketDate).slice(0, 7);
+        const finalizedPayslip = await tx.payslip.findFirst({
+          where: { appUserId: ticket.appUserId, period, status: 'finalized' },
+          select: { id: true },
+        });
+        if (finalizedPayslip) {
+          return { ...updated, warning: 'PAYSLIP_FINALIZED' as const };
+        }
+        return updated;
       });
     }),
 

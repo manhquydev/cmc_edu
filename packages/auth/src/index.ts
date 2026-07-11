@@ -96,7 +96,10 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   'shift.manage': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
   'shift.submit': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh', 'giao_vien', 'sale'],
   'shift.approve': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
-  'compensation.upsertRate': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
+  // HR remediation phase 2 (R3-4): `compensation.upsertRate` removed — the
+  // sole baseSalary source is now `salaryTier.manage`'s SalaryTier catalog.
+  'compensationPolicy.manage': [],
+  'salaryTier.manage': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   'payslip.assemble': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   'payslip.finalize': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   'payslip.reopen': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],

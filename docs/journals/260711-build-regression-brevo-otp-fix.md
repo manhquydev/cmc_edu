@@ -60,7 +60,7 @@ Inspected tsconfig.json, exports maps, and barrel file — could not explain why
 
 **Root cause found:** `.env.prod` BREVO_API_KEY line was missing trailing newline and absorbed the next line:
 ```
-BREVO_API_KEY=xkeysib-...LzF69gryLpDVLie2GRAPH_TENANT_ID="4dd49669-..."
+BREVO_API_KEY=xkeysib-<REDACTED>GRAPH_TENANT_ID="<REDACTED>"
 ```
 
 Actual runtime value corrupted. Not a wrong/expired key — a malformed env-file line (likely from prior scripted write on 2026-07-09 that didn't preserve newline).

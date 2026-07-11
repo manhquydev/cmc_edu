@@ -165,6 +165,38 @@ describe('assessment (T3 US-018)', () => {
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
+  it('confirm: two concurrent confirms on the same draft — exactly one wins (atomic updateMany, single-winner)', async () => {
+    const draft = await teacher.assessment.draftComment({
+      studentId: enrollment.studentId,
+      period: '2026-08',
+    });
+
+    // A second caller holding `assessment.confirm` (giao_vien only) races the
+    // first. The atomic claim (updateMany WHERE status='draft') must let
+    // exactly one win; the loser gets BAD_REQUEST (either the pre-check or
+    // the `count === 0` concurrency guard) rather than overwriting the
+    // winner's confirmed content.
+    const teacher2 = appRouter.createCaller(
+      buildStaffContext({ facilityId: facility.id, userId: 'teacher-assess-2', roles: ['giao_vien'] }),
+    );
+    const results = await Promise.allSettled([
+      teacher.assessment.confirm({ assessmentId: draft.id, content: 'Bản của GV1.' }),
+      teacher2.assessment.confirm({ assessmentId: draft.id, content: 'Bản của GV2.' }),
+    ]);
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    const rejected = results.filter((r) => r.status === 'rejected');
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0] as PromiseRejectedResult).reason.code).toBe('BAD_REQUEST');
+
+    // The assessment is confirmed exactly once, with the winner's content.
+    const final = await testDbBypass((tx) =>
+      tx.qualitativeAssessment.findUniqueOrThrow({ where: { id: draft.id } }),
+    );
+    expect(final.status).toBe('confirmed');
+    expect([`Bản của GV1.`, `Bản của GV2.`]).toContain(final.content);
+  });
+
   // -------------------------------------------------------------------------
   // discard
   // -------------------------------------------------------------------------

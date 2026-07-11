@@ -1,8 +1,8 @@
 # CMC EDU v2 — Codebase Summary
 
-**Status:** SSO landing complete (P1) · Flow audit complete (P3) · UI migration Phases 3–4 COMPLETE (Astryx 100% in admin + lms)  
-**Last Updated:** 2026-07-10  
-**Build State:** 473 tests passing (13 skipped — lms-auth-two-tier suite); 26/26 typecheck packages green; apps build clean; UI e2e 5 passed + 1 fixme; API e2e 17 passed; ESLint one-door lint rule spans admin+lms
+**Status:** SSO landing complete (P1) · Flow audit complete (P3) · UI migration Phases 3–4 COMPLETE (Astryx 100% in admin + lms) · P2-P4 workflows BUILT & TESTED  
+**Last Updated:** 2026-07-11  
+**Build State:** 532 tests passing (0 skipped) in 64 test files; 26/26 typecheck packages green; apps build clean; UI e2e 5 passed + 1 fixme; API e2e 17 passed; ESLint one-door lint rule spans admin+lms. *(2026-07-11: a stale local `node_modules` briefly made this look broken — resolved via `pnpm install --frozen-lockfile`; not a real code regression. See `docs/project-changelog.md` `[2026-07-11]`.)*
 
 ---
 
@@ -144,6 +144,170 @@ Facility bootstrap (R2 remediation).
 
 ---
 
+## P2-P4 Routers (Class Operations, HR/Payroll, Redemption)
+
+All P2-P4 procedures are **authenticated** and **facility-scoped** per the same RLS enforcement as P1.
+
+### 8. Session Evidence Router (`apps/api/src/session-evidence/`)
+Teacher session summary & photo consent (WF-P2-08).
+
+**Procedures:**
+- `sessionEvidence.publish(sessionId, summary, photos)` → publish evidence  
+- Session-evidence photo access control (consent-gated read for parents)
+
+**Test Coverage:** `session-evidence/publish.test.ts` · `session-evidence/photo-access.test.ts`
+
+---
+
+### 9. Assessment Router (`apps/api/src/assessment/`)
+Student work review & AI-draft comments (WF-P2-07).
+
+**Procedures:**
+- `assessment.draftComment(studentId, submissionId)` → AI-generated draft  
+- `assessment.confirm(draftId)` → teacher-approved comment
+
+**Test Coverage:** `assessment/draft-confirm.test.ts`
+
+---
+
+### 10. Submission Router (`apps/api/src/submission/`)
+Student PDF exercise submissions & grading (WF-P2-05, WF-P2-06).
+
+**Procedures:**
+- `submission.saveDraft(exerciseId, annotations)` → local draft (browser-only)  
+- `submission.submit(exerciseId, pdfBytes)` → finalize & lock  
+- `submission.grade(submissionId, score, comment)` → teacher marks + star rewards  
+- `submission.listForChild(childId)` → student self-read
+
+**Test Coverage:** `submission/annotate-submit.test.ts` · `submission/grade.test.ts` · `submission/teacher-annotation.test.ts` · `submission/list-for-child.test.ts`
+
+---
+
+### 11. Attendance Router (`apps/api/src/attendance/`)
+Daily class attendance tracking (WF-P2-02).
+
+**Procedures:**
+- `attendance.mark(sessionId, studentId, present)` → mark one student  
+- `attendance.markAll(sessionId, presentStudents[])` → bulk mark
+
+**Test Coverage:** `attendance/gate.test.ts` · `attendance/list-for-child.test.ts`
+
+---
+
+### 12. Exercise Router (`apps/api/src/exercise/`)
+Curriculum exercise & tier-based unlock (WF-P2-03, WF-P2-04).
+
+**Procedures:**
+- `exercise.openForStudent(studentId, tier)` → unlock tier A/B based on progress  
+- `exercise.publish(unitId, pdfUrl)` → teacher uploads exercise
+
+**Test Coverage:** `exercise/open-tier.test.ts` · `exercise/publish.test.ts`
+
+---
+
+### 13. Check-In Router (`apps/api/src/checkin/`)
+Staff IP-based & manual punch tracking (WF-P3-01, WF-P3-02).
+
+**Procedures:**
+- `checkInOut.punch(ipAddress)` → geofence-aware punch (WiFi IP match)  
+- `manualPunch.create/approve(staffId, date)` → manager override
+
+**Test Coverage:** `checkin/ip-match.test.ts`
+
+---
+
+### 14. Shift Router (`apps/api/src/shift/`)
+Staff shift registration & approval (WF-P3-03, WF-P3-04).
+
+**Procedures:**
+- `shiftRegistration.submit(staffId, shiftId)` → register for shift  
+- `shiftRegistration.approve(requestId)` → manager approves or auto-fallback
+
+**Test Coverage:** `shift/register-approve.test.ts`
+
+---
+
+### 15. Payroll Router (`apps/api/src/payroll/`)
+Monthly salary finalization & post-tax penalties (WF-P3-05).
+
+**Procedures:**
+- `payroll.finalize(facilityId, month)` → lock & calculate  
+- `compensation.upsertRate(staffId, baseRate)` → set salary structure
+
+**Test Coverage:** `payroll/penalty-posttax.test.ts`
+
+---
+
+### 16. KPI Router (`apps/api/src/kpi/`)
+Staff performance scoring & tree override (WF-P3-06).
+
+**Procedures:**
+- `kpi.score(staffId, period)` → auto-calculate or manual input  
+- `kpi.approve(scoreId)` → manager approval
+
+**Test Coverage:** `kpi/override-tree.test.ts`
+
+---
+
+### 17. Rewards Router (`apps/api/src/rewards/`)
+Star redemption & gift catalog (WF-P4-01, WF-P4-02).
+
+**Procedures:**
+- `rewards.redeem(studentId, giftId)` → claim gift via stars  
+- `rewards.approve/deliver(redeemId)` → manager fulfills order  
+- `gift.upsert/archive(giftId)` → admin gift catalog mgmt
+
+**Test Coverage:** `rewards/redeem-refund.test.ts`
+
+---
+
+### 18. Meeting Router (`apps/api/src/meeting/`)
+Parent meeting scheduling & reminders (WF-P4-03).
+
+**Procedures:**
+- `parentMeeting.schedule(staffId, parentId, date)` → create meeting slot  
+- `parentMeeting.complete(meetingId)` → mark attended
+
+**Test Coverage:** `meeting/parent-meeting.test.ts`
+
+---
+
+### 19. Appointment Router (`apps/api/src/appointment/`)
+Entry test & periodic assessment scheduling (WF-P4-04).
+
+**Procedures:**
+- `testAppointment.schedule(opportunityId, date)` → schedule entry test  
+- `testAppointment.complete(appointmentId, result)` → record result
+
+**Test Coverage:** `appointment/appointment-lifecycle.test.ts`
+
+---
+
+### 20. After-Sale Router (`apps/api/src/after-sale/`)
+Post-enrollment case management (WF-P4-05).
+
+**Procedures:**
+- `afterSale.advance(caseId, status)` → case state machine  
+- `student.setLifecycle(studentId, status)` → mark withdrawn or blocked
+
+**Test Coverage:** `after-sale/after-sale.test.ts`
+
+---
+
+### 21. Course Router (`apps/api/src/course/`)
+Class/batch course definitions.
+
+**Test Coverage:** `course/course-crud.test.ts`
+
+---
+
+### 22. Room Router (`apps/api/src/room/`)
+Physical classroom & resource booking.
+
+**Test Coverage:** `room/room-crud.test.ts`
+
+---
+
 ## Worker/Background Jobs
 
 ### `apps/api/src/worker/reconcile-orphaned-receipts.ts`
@@ -281,7 +445,7 @@ Single RBAC source of truth. Consulted by every mutation via `requirePermission(
 ## Test Coverage & Validation
 
 **Test Framework:** Vitest  
-**Test Count:** 473 passing tests · 13 skipped (lms-auth-two-tier) · 54 test files (2026-07-08)
+**Test Count:** 532 passing tests · 0 skipped · 64 test files (2026-07-11, live run — `lms-auth-two-tier` stub deleted 2026-07-10, coverage moved to e2e)
 
 | Domain | Tests | Coverage (Statements) | Notes |
 |--------|-------|----------------------|-------|
@@ -293,6 +457,22 @@ Single RBAC source of truth. Consulted by every mutation via `requirePermission(
 | lms-auth | ~10 | (>90%) | OTP, enrollment retrieval |
 | auth | ~5 | (>90%) | Permission registry |
 | security/RLS | ~10 | (>90%) | Facility isolation, append-only enforcement |
+| **P2-P4 (built & tested)** | | | |
+| session-evidence | ~8 | (>90%) | Publish + photo access control |
+| assessment | ~5 | (>90%) | Draft-confirm workflow |
+| submission | ~15 | (>90%) | Annotate, submit, grade, list |
+| attendance | ~8 | (>90%) | Mark, bulk mark, list for child |
+| exercise | ~8 | (>90%) | Tier-based unlock, publish |
+| checkin | ~6 | (>90%) | IP-match, manual punch |
+| shift | ~6 | (>90%) | Register, approve, fallback |
+| payroll | ~5 | (>90%) | Finalize, rate upsert, penalty |
+| kpi | ~5 | (>90%) | Score, confirm, override-tree |
+| rewards | ~8 | (>90%) | Redeem, approve, gift catalog |
+| meeting | ~4 | (>90%) | Schedule, complete |
+| appointment | ~5 | (>90%) | Schedule, lifecycle |
+| after-sale | ~4 | (>90%) | Case state machine, lifecycle |
+| course | ~3 | (>90%) | CRUD |
+| room | ~3 | (>90%) | CRUD |
 
 **Gateway:** All test suites must pass before merge. Coverage thresholds: ≥90% statements / ≥80% branches.
 
@@ -358,7 +538,7 @@ pnpm build                      # turbo build (7 tasks)
 ```
 
 **Current State:**
-- ✅ 473/473 tests passing (13 skipped — lms-auth-two-tier, must un-skip before Phase 4 Run 1)
+- ✅ 532/532 tests passing (0 skipped — `lms-auth-two-tier` 0-assertion stub deleted 2026-07-10, coverage moved to e2e)
 - ✅ Type checking green (26 packages)
 - ✅ Build successful
 - ✅ Migrations applied & schema up-to-date

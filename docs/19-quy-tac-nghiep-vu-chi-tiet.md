@@ -68,6 +68,10 @@
   lên PDF gốc; kèm `answerText` (nếu có). `version` tăng theo lần lưu.
 - `status`: `draft` (đang làm, lưu nháp) → **`submitted`** (nộp) → **`graded`** (GV chấm).
 - `submittedAt` đóng dấu khi nộp.
+- **Nộp bài là hành động một chiều, KHÔNG idempotent:** `submit` chỉ chấp nhận khi
+  `submission.status === 'draft'`; gọi lại lần 2 trên bài đã `submitted`/`graded` → lỗi `BAD_REQUEST`
+  ("Only a draft submission can be submitted.") — bài không tự sửa được nữa qua `saveDraft` một khi đã
+  nộp (cùng thông điệp chặn ở cả hai endpoint) (`submission/router.ts`).
 
 **Luồng đầy đủ:**
 ```mermaid
@@ -116,8 +120,18 @@ Bài tập KHÔNG mở ngay khi `published`; mở theo **tiến độ dạy th�
 
 - Bài nộp `graded` → ghi `Grade`/`FinalGrade` (thang `maxScore`, mặc định 10) + **cộng sao**
   (`starReward`, mặc định 10) qua `StarTransaction` → dùng đổi quà (`Reward`/`Gift`).
+- **Cộng sao đúng một lần dù chấm lại (regrade idempotent):** `grade` (bao gồm chấm lại một bài đã
+  `graded`) chỉ tạo `StarTransaction` (`homework_completed`) **đúng một lần** trên mỗi `Submission` —
+  kiểm tra idempotent ngay trong cùng transaction chấm điểm, có unique index chặn ở DB làm lưới an
+  toàn thứ hai; chấm lại không cộng sao trùng (`submission/router.ts`).
 - Nhận xét định tính (`QualitativeAssessment`/`SessionStudentComment`) — agent soạn nháp, **GV chốt**
   (dữ liệu trẻ, TL08 §7).
+- **Chốt nhận xét (`confirm`) là hành động cuối cùng (terminal):** chỉ bản `status = draft` mới confirm
+  được; gọi lại trên bản đã `confirmed` → lỗi `BAD_REQUEST` ("Assessment is already confirmed; only
+  drafts can be confirmed.") — không có "chốt lại", không sửa nhận xét đã chốt qua endpoint này. Khi
+  2 GV cùng bấm chốt đồng thời, chỉ **một người thắng**: ghi bằng `updateMany WHERE status = 'draft'`
+  nguyên tử; người đến sau nhận `count === 0` → lỗi "Assessment was modified concurrently; please
+  retry." (không ghi đè bản đã chốt) (`assessment/router.ts`).
 
 ## 6b. Bằng chứng buổi học & ảnh lớp gửi phụ huynh (SessionEvidence)
 
@@ -129,6 +143,13 @@ Nghiệp vụ "ảnh lớp gửi PH" — giáo viên ghi lại buổi học, g�
   `publishedAt`/`publishedById`).
 - **Ranh giới dữ liệu trẻ (TL08 §7):** ảnh trẻ chỉ hiển thị cho PH của chính lớp/HS; cần đồng thuận;
   `internalNote` không lộ ra PH. KHÔNG gửi ảnh trẻ tới LLM ngoài để "phân tích" nếu không có kiểm soát.
+- **Điểm chặn ảnh nằm ở tầng truy vấn, không chỉ ở đăng nhập:** đăng nhập LMS hợp lệ là điều kiện
+  **cần nhưng chưa đủ** — mỗi lượt xem ảnh (`GET /upload/session-photo`) được `canAccessSessionPhoto`
+  kiểm tra lại: ảnh phải thuộc `SessionEvidence.status = 'published'`; PH/HS phải là guardian/con
+  **được duyệt** của đúng lớp chứa ảnh (`getApprovedChildren` + `Enrollment` cùng facility); và
+  **đồng thuận ảnh đang hiệu lực** (`Guardian.photoConsent = true` và `photoConsentRevokedAt IS
+  NULL`). Thiếu bất kỳ điều kiện nào → từ chối, fail-closed (trả `false` thay vì throw, để caller trả
+  403/404 đồng nhất, tránh lộ thông tin qua khác biệt lỗi) (`session-evidence/photo-access.ts`).
 
 ## 6c. Liên kết Phụ huynh – Con (Guardian & GuardianLinkRequest)
 
@@ -154,6 +175,9 @@ Nghiệp vụ "ảnh lớp gửi PH" — giáo viên ghi lại buổi học, g�
 | Bài tập PDF + annotation | `schema.prisma` (Exercise/Submission) |
 | Mở bài tập theo buổi học | `lib/exercise-open.ts` (Tier A/B) |
 | Cổng điểm danh | `routers/attendance.ts` |
+| Nộp bài một chiều + cộng sao idempotent | `submission/router.ts` (§3, §6) |
+| Chốt nhận xét terminal + concurrency một-người-thắng | `assessment/router.ts` (§6) |
+| Cổng ảnh buổi học ở tầng truy vấn | `session-evidence/photo-access.ts` (§6b) |
 
 > **Khuyến nghị:** các rule ở §4–§5 hiện chỉ sống trong code — nên nâng thành **ADR** để v2 tái mã
 > hoá chắc chắn (đúng nguyên tắc "port quyết định, không port code" — TL05 §0).

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Button,
@@ -58,10 +59,23 @@ export default function RewardsQueuePage() {
 
   const { data, isLoading, error } = trpc.rewards.list.useQuery({ status });
 
-  const invalidate = () => void utils.rewards.list.invalidate();
-  const approveMut = trpc.rewards.approve.useMutation({ onSuccess: invalidate });
-  const deliverMut = trpc.rewards.deliver.useMutation({ onSuccess: invalidate });
-  const rejectMut = trpc.rewards.reject.useMutation({ onSuccess: invalidate });
+  // Track which row triggered the current mutation so only that row's button
+  // spins — otherwise `isPending` from useMutation applies globally and every
+  // row's button flashes a spinner during one action.
+  const [pendingRewardId, setPendingRewardId] = useState<string | null>(null);
+  const clearPending = () => setPendingRewardId(null);
+  const invalidate = () => {
+    clearPending();
+    void utils.rewards.list.invalidate();
+  };
+  const approveMut = trpc.rewards.approve.useMutation({ onSuccess: invalidate, onError: clearPending });
+  const deliverMut = trpc.rewards.deliver.useMutation({ onSuccess: invalidate, onError: clearPending });
+  const rejectMut = trpc.rewards.reject.useMutation({ onSuccess: invalidate, onError: clearPending });
+
+  const runAction = (rewardId: string, mutate: (input: { rewardId: string }) => void) => {
+    setPendingRewardId(rewardId);
+    mutate({ rewardId });
+  };
 
   const COLUMNS: TableColumn<RewardRow>[] = [
     {
@@ -108,8 +122,8 @@ export default function RewardsQueuePage() {
                 label="Duyệt"
                 variant="primary"
                 size="sm"
-                isLoading={approveMut.isPending}
-                onClick={() => approveMut.mutate({ rewardId: row.id })}
+                isLoading={approveMut.isPending && pendingRewardId === row.id}
+                onClick={() => runAction(row.id, approveMut.mutate)}
               />
             )}
             {canDeliver && (
@@ -117,8 +131,8 @@ export default function RewardsQueuePage() {
                 label="Giao quà"
                 variant="primary"
                 size="sm"
-                isLoading={deliverMut.isPending}
-                onClick={() => deliverMut.mutate({ rewardId: row.id })}
+                isLoading={deliverMut.isPending && pendingRewardId === row.id}
+                onClick={() => runAction(row.id, deliverMut.mutate)}
               />
             )}
             {canReject && (
@@ -126,8 +140,8 @@ export default function RewardsQueuePage() {
                 label="Từ chối"
                 variant="secondary"
                 size="sm"
-                isLoading={rejectMut.isPending}
-                onClick={() => rejectMut.mutate({ rewardId: row.id })}
+                isLoading={rejectMut.isPending && pendingRewardId === row.id}
+                onClick={() => runAction(row.id, rejectMut.mutate)}
               />
             )}
           </HStack>

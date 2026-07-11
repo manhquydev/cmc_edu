@@ -104,10 +104,34 @@ function PayslipDetail({
   const anyMutating =
     assembleMut.isPending || finalizeMut.isPending || reopenMut.isPending;
 
-  const mutError =
-    assembleMut.error?.message ??
-    finalizeMut.error?.message ??
-    reopenMut.error?.message;
+  // Only surface the LAST-triggered mutation's error, and clear siblings
+  // before firing a new one — otherwise a stale error from a prior failed
+  // assemble sticks in the banner even when finalize/reopen succeed.
+  const activeMut =
+    assembleMut.isPending ? assembleMut
+    : finalizeMut.isPending ? finalizeMut
+    : reopenMut.isPending ? reopenMut
+    : (assembleMut.error ? assembleMut
+      : finalizeMut.error ? finalizeMut
+      : reopenMut.error ? reopenMut
+      : null);
+  const mutError = activeMut?.error?.message;
+
+  const runAssemble = () => {
+    finalizeMut.reset();
+    reopenMut.reset();
+    assembleMut.mutate({ appUserId, period });
+  };
+  const runFinalize = (payslipId: string) => {
+    assembleMut.reset();
+    reopenMut.reset();
+    finalizeMut.mutate({ payslipId });
+  };
+  const runReopen = (payslipId: string) => {
+    assembleMut.reset();
+    finalizeMut.reset();
+    reopenMut.mutate({ payslipId });
+  };
 
   return (
     <Stack gap={3}>
@@ -138,7 +162,7 @@ function PayslipDetail({
             variant="secondary"
             isLoading={anyMutating}
             isDisabled={anyMutating}
-            onClick={() => assembleMut.mutate({ appUserId, period })}
+            onClick={runAssemble}
           />
           {data && data.status === 'draft' && canDo('payslip', 'finalize') && (
             <Button
@@ -147,7 +171,7 @@ function PayslipDetail({
               variant="primary"
               isLoading={anyMutating}
               isDisabled={anyMutating}
-              onClick={() => finalizeMut.mutate({ payslipId: data.id })}
+              onClick={() => runFinalize(data.id)}
             />
           )}
           {data && data.status === 'finalized' && canDo('payslip', 'reopen') && (
@@ -157,7 +181,7 @@ function PayslipDetail({
               variant="secondary"
               isLoading={anyMutating}
               isDisabled={anyMutating}
-              onClick={() => reopenMut.mutate({ payslipId: data.id })}
+              onClick={() => runReopen(data.id)}
             />
           )}
         </HStack>

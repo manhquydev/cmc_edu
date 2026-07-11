@@ -22,7 +22,7 @@
  * are unchanged.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { trpc } from '../../lib/trpc.js';
 import { Badge, Banner, Button, Card, HStack, Text, TextArea } from '@cmc/ui';
 
@@ -70,10 +70,17 @@ export function PdfAnnotator({
     serializeLayer(teacherLayer),
   );
   const [parseError, setParseError] = useState<string | null>(null);
+  // Track the last server-known serialization so we only overwrite the
+  // editor when the SERVER value changed (e.g. after save) — not on every
+  // parent re-render, which would blow away in-progress teacher edits.
+  const lastServerText = useRef(serializeLayer(teacherLayer));
 
-  // Sync when parent refreshes the submission (e.g. after grade)
   useEffect(() => {
-    setTeacherText(serializeLayer(teacherLayer));
+    const nextServerText = serializeLayer(teacherLayer);
+    if (nextServerText !== lastServerText.current) {
+      lastServerText.current = nextServerText;
+      setTeacherText(nextServerText);
+    }
   }, [teacherLayer]);
 
   const saveAnnotation = trpc.submission.saveTeacherAnnotation.useMutation({

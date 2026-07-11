@@ -171,7 +171,9 @@ export default function RevenueReportPage() {
   const items = data?.items ?? [];
   const rows = aggregateByBatch(items);
   const totalRevenue = rows.reduce((s, r) => s + r.total, 0);
-  const totalApproved = items.filter((r) => r.status === 'approved').length;
+  // Server already filters by status: 'approved', so `items.length` is the
+  // approved count for the current page.
+  const totalApproved = items.length;
   const totalReceiptsAll = data?.total ?? 0;
   const isTruncated = data !== undefined && data.total > items.length;
 

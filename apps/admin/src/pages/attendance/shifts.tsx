@@ -11,7 +11,7 @@
 // submission + approval/cancel action forms. A full kanban view requires a
 // future shift.list procedure.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Banner,
   Button,
@@ -54,19 +54,21 @@ interface EntryRow {
   shiftTemplateId: string;
 }
 
-let _keyCounter = 0;
-function newEntry(): EntryRow {
-  return { _key: ++_keyCounter, date: '', shiftTemplateId: '' };
+function makeEntry(counter: { current: number }): EntryRow {
+  return { _key: ++counter.current, date: '', shiftTemplateId: '' };
 }
 
 // ---------------------------------------------------------------------------
 // Submit tab
 // ---------------------------------------------------------------------------
 function SubmitTab() {
+  // Per-mount key counter (was module-scoped; fragile under HMR + can't
+  // support multiple mounted SubmitTabs, unlikely though that is).
+  const keyCounter = useRef(0);
   const [groupId, setGroupId] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [entries, setEntries] = useState<EntryRow[]>([newEntry()]);
+  const [entries, setEntries] = useState<EntryRow[]>(() => [makeEntry(keyCounter)]);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   const mut = trpc.shift.submit.useMutation({
@@ -75,7 +77,7 @@ function SubmitTab() {
       setGroupId('');
       setFromDate('');
       setToDate('');
-      setEntries([newEntry()]);
+      setEntries([makeEntry(keyCounter)]);
     },
     onError(err) {
       setResult({ ok: false, text: err.message ?? 'Lỗi không xác định.' });
@@ -238,7 +240,7 @@ function SubmitTab() {
             variant="secondary"
             size="sm"
             style={{ alignSelf: 'flex-start' }}
-            onClick={() => setEntries((prev) => [...prev, newEntry()])}
+            onClick={() => setEntries((prev) => [...prev, makeEntry(keyCounter)])}
           />
         </Stack>
       </FormPage>

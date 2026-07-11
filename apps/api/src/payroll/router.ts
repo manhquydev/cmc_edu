@@ -15,6 +15,7 @@
 // payslip.finalize — locks a draft Payslip (status=finalized).
 // payslip.reopen  — reverts finalized → draft; re-derives is done via assemble.
 // payslip.getForUser — privacy-gated read (own or director/super_admin).
+// payslip.my — self-scoped read (own payslip for a period, null if not assembled).
 //
 // All writes are facility-scoped via `withFacility` (ADR 0042).
 // Payslip is append-like: cmc_app has no DELETE grant.
@@ -51,6 +52,10 @@ const reopenInput = z.object({
 
 const getForUserInput = z.object({
   appUserId: z.string().uuid(),
+  period: z.string().regex(PERIOD_RE, 'Expected YYYY-MM'),
+});
+
+const myInput = z.object({
   period: z.string().regex(PERIOD_RE, 'Expected YYYY-MM'),
 });
 
@@ -356,6 +361,25 @@ export const payslipRouter = router({
         });
         if (!payslip) throw notFound('Payslip not found for this period.');
         return payslip;
+      });
+    }),
+
+  // -------------------------------------------------------------------------
+  // payslip.my — self-scoped read: caller's own payslip for a period, or
+  // null if it hasn't been assembled yet. No dedicated permission key.
+  // -------------------------------------------------------------------------
+  my: protectedProcedure
+    .input(myInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const appUser = await tx.appUser.findFirst({
+          where: { userId: ctx.subject!.userId, facilityId },
+        });
+        if (!appUser) throw forbidden('Staff profile not found in this facility.');
+        return tx.payslip.findFirst({
+          where: { appUserId: appUser.id, period: input.period },
+        });
       });
     }),
 });

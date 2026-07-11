@@ -279,6 +279,75 @@ describe('shift.approve', () => {
   });
 });
 
+describe('shift.reject', () => {
+  let registrationId: string;
+
+  beforeEach(async () => {
+    const reg = await caller(employeeCtx()).shift.submit({
+      shiftGroupId,
+      fromDate: FUTURE_DATE,
+      toDate: FUTURE_DATE,
+      entries: [{ date: FUTURE_DATE, shiftTemplateId }],
+    });
+    registrationId = reg.id;
+  });
+
+  it('manager rejects with a reason → status becomes rejected, rejectReason stored', async () => {
+    const result = await caller(managerCtx()).shift.reject({
+      registrationId,
+      reason: 'Trùng lịch giảng dạy.',
+    });
+    expect(result.status).toBe('rejected');
+    expect(result.rejectReason).toBe('Trùng lịch giảng dạy.');
+  });
+
+  it('rejects with reason shorter than 3 chars → BAD_REQUEST (zod)', async () => {
+    await expect(
+      caller(managerCtx()).shift.reject({ registrationId, reason: 'ab' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('non-manager (wrong group type) → FORBIDDEN', async () => {
+    const kdManagerCtx = buildStaffContext({
+      facilityId,
+      userId: 'shift-reject-kdmgr-001',
+      roles: ['giam_doc_kinh_doanh'],
+    });
+    await expect(
+      caller(kdManagerCtx).shift.reject({ registrationId, reason: 'Sai nhóm ca.' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('anti-self-reject: employee cannot reject their own registration', async () => {
+    const selfDirectorCtx = buildStaffContext({
+      facilityId,
+      userId: EMPLOYEE_USER_ID,
+      roles: ['giam_doc_dao_tao'],
+    });
+    await expect(
+      caller(selfDirectorCtx).shift.reject({ registrationId, reason: 'Tự từ chối.' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('cannot reject an already-approved registration', async () => {
+    await caller(managerCtx()).shift.approve({ registrationId });
+    await expect(
+      caller(managerCtx()).shift.reject({ registrationId, reason: 'Quá muộn.' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('ticket-lock is freed after reject: employee can submit a new registration', async () => {
+    await caller(managerCtx()).shift.reject({ registrationId, reason: 'Không hợp lệ.' });
+    const newReg = await caller(employeeCtx()).shift.submit({
+      shiftGroupId,
+      fromDate: FUTURE_DATE2,
+      toDate: FUTURE_DATE2,
+      entries: [{ date: FUTURE_DATE2, shiftTemplateId }],
+    });
+    expect(newReg.status).toBe('submitted');
+  });
+});
+
 describe('shift.cancel', () => {
   it('owner can cancel a submitted registration', async () => {
     const reg = await caller(employeeCtx()).shift.submit({

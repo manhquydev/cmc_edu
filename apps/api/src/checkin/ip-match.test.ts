@@ -93,12 +93,12 @@ describe('checkInOut + manualPunch (P3-I integration)', () => {
     expect(result.method).toBe('ip');
   });
 
-  it('punch fails when IP is not in any active network', async () => {
+  it('punch fails when IP is not in any active network (appCode IP_NOT_ALLOWED)', async () => {
     await seedAppUser({ facilityId, userId: 'punch-badip-user' });
     await seedFacilityNetwork(facilityId, '192.168.1.0/24');
     await expect(
       caller(makeSuperCtx('punch-badip-user', '10.0.0.1')).checkInOut.punch(),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
   it('punch fails on cooldown (second punch within 5 minutes)', async () => {
@@ -180,9 +180,16 @@ describe('checkInOut + manualPunch (P3-I integration)', () => {
     const ticket = await caller(makeSaleCtx('mp-nonmgr-emp')).manualPunch.create({
       ticketDate: '2026-07-05',
     });
-    // `other` is not the direct manager of `emp`
+    // `other` has the manualPunch.approve permission (director role) but is
+    // not `emp`'s direct manager, and is NOT super_admin (which would now
+    // legitimately bypass the manager check — HR remediation phase 4).
+    const otherDirectorCtx = buildStaffContext({
+      facilityId,
+      userId: 'mp-nonmgr-other',
+      roles: ['giam_doc_kinh_doanh'],
+    });
     await expect(
-      caller(makeSuperCtx('mp-nonmgr-other')).manualPunch.approve({ ticketId: ticket.id }),
+      caller(otherDirectorCtx).manualPunch.approve({ ticketId: ticket.id }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
@@ -208,5 +215,80 @@ describe('checkInOut + manualPunch (P3-I integration)', () => {
       note: 'not valid',
     });
     expect(rejected.status).toBe('rejected');
+  });
+
+  // ---- HR remediation phase 4 (R2 #H2): super_admin bypass ----
+
+  it('manualPunch.approve — super_admin approves a ticket with no manager assigned (e.g. director)', async () => {
+    // No managerId set → owner.managerId is null, no direct manager exists.
+    await seedAppUser({ facilityId, userId: 'mp-director-no-mgr' });
+    const ticket = await caller(makeSaleCtx('mp-director-no-mgr')).manualPunch.create({
+      ticketDate: '2026-07-08',
+    });
+    const approved = await caller(makeSuperCtx('mp-super-approver')).manualPunch.approve({
+      ticketId: ticket.id,
+    });
+    expect(approved.status).toBe('approved');
+  });
+
+  it('manualPunch.approve — a non-super_admin director (not the manager) is still FORBIDDEN on a no-manager ticket', async () => {
+    // Confirms the bypass is super_admin-only: a director role does NOT get
+    // the same "no manager → approve anyway" pass.
+    await seedAppUser({ facilityId, userId: 'mp-nonsuper-emp' });
+    const ticket = await caller(makeSaleCtx('mp-nonsuper-emp')).manualPunch.create({
+      ticketDate: '2026-07-09',
+    });
+    const unrelatedDirectorCtx = buildStaffContext({
+      facilityId,
+      userId: 'mp-nonsuper-other',
+      roles: ['giam_doc_dao_tao'],
+    });
+    await expect(
+      caller(unrelatedDirectorCtx).manualPunch.approve({ ticketId: ticket.id }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  // ---- manualPunch.list ----
+
+  it('manualPunch.list — scope "mine" returns only the caller\'s own tickets', async () => {
+    const mgr = await seedAppUser({ facilityId, userId: 'mp-list-mgr' });
+    await seedAppUser({ facilityId, userId: 'mp-list-emp-a', managerId: mgr.id });
+    await seedAppUser({ facilityId, userId: 'mp-list-emp-b', managerId: mgr.id });
+
+    await caller(makeSaleCtx('mp-list-emp-a')).manualPunch.create({ ticketDate: '2026-07-10' });
+    await caller(makeSaleCtx('mp-list-emp-b')).manualPunch.create({ ticketDate: '2026-07-10' });
+
+    const mine = await caller(makeSaleCtx('mp-list-emp-a')).manualPunch.list({ scope: 'mine' });
+    expect(mine).toHaveLength(1);
+  });
+
+  it('manualPunch.list — scope "inbox" returns only direct reports\' tickets', async () => {
+    const mgr = await seedAppUser({ facilityId, userId: 'mp-list-inbox-mgr' });
+    await seedAppUser({ facilityId, userId: 'mp-list-inbox-emp', managerId: mgr.id });
+    await seedAppUser({ facilityId, userId: 'mp-list-inbox-unrelated' });
+
+    await caller(makeSaleCtx('mp-list-inbox-emp')).manualPunch.create({ ticketDate: '2026-07-11' });
+    await caller(makeSaleCtx('mp-list-inbox-unrelated')).manualPunch.create({ ticketDate: '2026-07-11' });
+
+    // A real director role (NOT super_admin, which sees every ticket).
+    const inboxMgrCtx = buildStaffContext({
+      facilityId,
+      userId: 'mp-list-inbox-mgr',
+      roles: ['giam_doc_kinh_doanh'],
+    });
+    const inbox = await caller(inboxMgrCtx).manualPunch.list({ scope: 'inbox' });
+    expect(inbox).toHaveLength(1);
+  });
+
+  it('manualPunch.list — scope "inbox" for super_admin returns every ticket', async () => {
+    const mgr = await seedAppUser({ facilityId, userId: 'mp-list-super-mgr' });
+    await seedAppUser({ facilityId, userId: 'mp-list-super-emp', managerId: mgr.id });
+    await seedAppUser({ facilityId, userId: 'mp-list-super-unrelated' });
+
+    await caller(makeSaleCtx('mp-list-super-emp')).manualPunch.create({ ticketDate: '2026-07-12' });
+    await caller(makeSaleCtx('mp-list-super-unrelated')).manualPunch.create({ ticketDate: '2026-07-12' });
+
+    const inbox = await caller(makeSuperCtx('mp-list-super-admin')).manualPunch.list({ scope: 'inbox' });
+    expect(inbox.length).toBeGreaterThanOrEqual(2);
   });
 });

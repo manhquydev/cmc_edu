@@ -12,11 +12,19 @@
  *
  * Size invariant: the teacher's layer payload must stay under 1MB (mirrored
  * from the server cap). This component validates before calling save.
+ *
+ * Premium framing (phase-07 batch B): this is an embedded widget inside
+ * grading.tsx's detail pane, not a routed page — it intentionally does NOT
+ * adopt the `FormPage` archetype (no header/route context here, and wrapping
+ * it would double up the page shell). Framing is limited to swapping the
+ * raw-styled containers for `Card` (matches the rest of the premium
+ * language) — the annotate/save surface and `saveTeacherAnnotation` payload
+ * are unchanged.
  */
 
 import { useEffect, useState } from 'react';
 import { trpc } from '../../lib/trpc.js';
-import { Badge, Banner, Button, HStack, Text, TextArea } from '@cmc/ui';
+import { Badge, Banner, Button, Card, HStack, Text, TextArea } from '@cmc/ui';
 
 export interface PdfAnnotatorProps {
   submissionId: string;
@@ -100,7 +108,7 @@ export function PdfAnnotator({
   }
 
   return (
-    <div>
+    <Card padding={3}>
       {/* Student layer — read-only display */}
       <div style={{ marginBottom: 16 }}>
         <HStack gap={1} style={{ marginBottom: 4 }}>
@@ -109,15 +117,9 @@ export function PdfAnnotator({
           </Text>
           <Badge label="Chỉ xem" variant="neutral" />
         </HStack>
-        <div
-          style={{
-            background: 'var(--cmc-surface-2)',
-            border: '1px solid var(--cmc-border)',
-            borderRadius: 4,
-            padding: '8px 12px',
-            maxHeight: 160,
-            overflowY: 'auto',
-          }}
+        <Card
+          padding={2}
+          style={{ background: 'var(--cmc-surface-2)', maxHeight: 160, overflowY: 'auto' }}
         >
           <Text
             type="supporting"
@@ -130,7 +132,7 @@ export function PdfAnnotator({
           >
             {serializeLayer(studentLayer) || '(chưa có lớp vẽ)'}
           </Text>
-        </div>
+        </Card>
       </div>
 
       {/* Teacher layer — editable textarea */}
@@ -187,6 +189,6 @@ export function PdfAnnotator({
           />
         </HStack>
       </div>
-    </div>
+    </Card>
   );
 }

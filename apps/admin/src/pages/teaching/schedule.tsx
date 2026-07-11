@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import type { ComponentProps } from 'react';
-import { Badge, Button, Card, DataTable, FilterBar, Grid, HStack, PageHeader, Skeleton, Stack, Text } from '@cmc/ui';
+import { Badge, Button, Card, DataTable, FilterBar, Grid, HStack, ListPage, PageHeader, Skeleton, Stack, Text } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
@@ -241,26 +241,29 @@ export default function SchedulePage() {
   }
 
   return (
-    <>
-      <PageHeader
-        title="Lịch dạy"
-        subtitle="Quản lý lịch giảng dạy"
-        breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Lịch dạy' }]}
-        actions={
-          <HStack gap={1}>
-            {VIEWS.map((v) => (
-              <Button
-                key={v}
-                label={VIEW_LABELS[v]}
-                size="sm"
-                variant={view === v ? 'primary' : 'secondary'}
-                onClick={() => setView(v)}
-              />
-            ))}
-          </HStack>
-        }
-      />
-      <FilterBar filters={FILTERS} />
+    <ListPage
+      header={
+        <PageHeader
+          title="Lịch dạy"
+          subtitle="Quản lý lịch giảng dạy"
+          breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Lịch dạy' }]}
+          actions={
+            <HStack gap={1}>
+              {VIEWS.map((v) => (
+                <Button
+                  key={v}
+                  label={VIEW_LABELS[v]}
+                  size="sm"
+                  variant={view === v ? 'primary' : 'secondary'}
+                  onClick={() => setView(v)}
+                />
+              ))}
+            </HStack>
+          }
+        />
+      }
+      filters={<FilterBar filters={FILTERS} />}
+    >
       {view === 'list' && (
         <DataTable<ClassBatchRow>
           columns={LIST_COLUMNS}
@@ -272,6 +275,6 @@ export default function SchedulePage() {
       )}
       {view === 'calendar' && <CalendarView rows={rows} loading={isLoading} />}
       {view === 'kanban' && <KanbanView rows={rows} loading={isLoading} />}
-    </>
+    </ListPage>
   );
 }

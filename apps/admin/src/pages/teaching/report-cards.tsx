@@ -10,7 +10,7 @@
 // Draft content is shown read-only in a separate area; editable copy is in the textarea.
 
 import { useState } from 'react';
-import { Banner, Button, DataTable, HStack, PageHeader, Stack, Text, TextArea, TextInput } from '@cmc/ui';
+import { Banner, Button, DataTable, FormPage, HStack, PageHeader, Stack, Text, TextArea, TextInput } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
@@ -113,44 +113,82 @@ export default function ReportCardsPage() {
     setConfirmed(false);
   }
 
-  return (
-    <>
-      <PageHeader
-        title="Học bạ / Nhận xét"
-        subtitle="Soạn và xác nhận nhận xét AI cho học viên"
-        breadcrumbs={[{ label: 'Quản trị' }, { label: 'Học bạ' }]}
+  // Bottom action bar mirrors the currently-active step's forward action —
+  // "Tìm" until a student is selected, "Tạo nháp AI" once selected (before a
+  // draft exists), then "Xác nhận & Phát hành" / "Hủy nháp" while a draft is
+  // under review. Same handlers/validation as before; only placement moved.
+  const actionsContent = draftId ? (
+    <HStack gap={2}>
+      <Button
+        label="Xác nhận & Phát hành"
+        variant="primary"
+        onClick={handleConfirm}
+        isLoading={confirmMut.isPending}
+        isDisabled={!editContent.trim()}
       />
+      <Button
+        label="Hủy nháp"
+        variant="secondary"
+        onClick={handleCancelDraft}
+        isDisabled={confirmMut.isPending}
+      />
+    </HStack>
+  ) : selectedStudent ? (
+    <Button
+      label="Tạo nháp AI"
+      variant="primary"
+      onClick={handleCreateDraft}
+      isLoading={draftMut.isPending}
+      isDisabled={!PERIOD_PATTERN.test(period)}
+    />
+  ) : (
+    <Button
+      label="Tìm"
+      variant="primary"
+      onClick={handleSearch}
+      isDisabled={searchInput.trim().length < 2}
+    />
+  );
 
-      <Stack gap={4} style={{ padding: 16, maxWidth: 680 }}>
+  const resultContent = draftMut.error ? (
+    <Banner status="error" title="Lỗi tạo nháp AI" description={draftMut.error.message} />
+  ) : confirmMut.error ? (
+    <Banner status="error" title="Lỗi phát hành" description={confirmMut.error.message} />
+  ) : confirmed ? (
+    <Banner status="success" title="Đã phát hành" description="Nhận xét đã được xác nhận. Phụ huynh có thể xem trong ứng dụng." />
+  ) : undefined;
+
+  return (
+    <FormPage
+      header={
+        <PageHeader
+          title="Học bạ / Nhận xét"
+          subtitle="Soạn và xác nhận nhận xét AI cho học viên"
+          breadcrumbs={[{ label: 'Quản trị' }, { label: 'Học bạ' }]}
+        />
+      }
+      result={resultContent}
+      actions={actionsContent}
+    >
+      <Stack gap={4} style={{ maxWidth: 680 }}>
 
         {/* ── Step 1: Search ──────────────────────────────────── */}
         <Stack gap={1}>
           <Text size="sm" weight="semibold">Bước 1 — Tìm học viên</Text>
-          <HStack gap={2}>
-            <div style={{ flex: 1 }}>
-              {/* TODO(astryx-review): `label` is required by TextInput's
-                  props but the step heading above already names the field —
-                  passed as an empty string to avoid a duplicate visible
-                  label; flagged for reviewer to confirm it renders without
-                  adding empty label spacing. */}
-              <TextInput
-                label="Tìm kiếm phụ huynh"
-                isLabelHidden
-                placeholder="Nhập tên hoặc SĐT phụ huynh…"
-                value={searchInput}
-                onChange={(value) => setSearchInput(value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                size="sm"
-              />
-            </div>
-            <Button
-              label="Tìm"
-              size="sm"
-              variant="primary"
-              onClick={handleSearch}
-              isDisabled={searchInput.trim().length < 2}
-            />
-          </HStack>
+          {/* TODO(astryx-review): `label` is required by TextInput's
+              props but the step heading above already names the field —
+              passed as an empty string to avoid a duplicate visible
+              label; flagged for reviewer to confirm it renders without
+              adding empty label spacing. */}
+          <TextInput
+            label="Tìm kiếm phụ huynh"
+            isLabelHidden
+            placeholder="Nhập tên hoặc SĐT phụ huynh…"
+            value={searchInput}
+            onChange={(value) => setSearchInput(value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            size="sm"
+          />
         </Stack>
 
         {/* Search results (only when no student is selected) */}
@@ -164,7 +202,7 @@ export default function ReportCardsPage() {
           />
         )}
 
-        {/* ── Step 2: Period + Draft ───────────────────────────── */}
+        {/* ── Step 2: Period ───────────────────────────────────── */}
         {selectedStudent && (
           <Stack gap={1}>
             <Text size="sm" weight="semibold">Bước 2 — Chọn kỳ và tạo nháp AI</Text>
@@ -174,33 +212,20 @@ export default function ReportCardsPage() {
               </Text>
               <Button label="Đổi" size="sm" variant="ghost" onClick={handleChangeStudent} />
             </HStack>
-            <HStack gap={2} align="end">
-              <div style={{ width: 160 }}>
-                <TextInput
-                  label="Kỳ (YYYY-MM)"
-                  placeholder="2026-07"
-                  value={period}
-                  onChange={(value) => setPeriod(value)}
-                  size="sm"
-                  status={period && !PERIOD_PATTERN.test(period) ? { type: 'error', message: 'Định dạng YYYY-MM' } : undefined}
-                />
-              </div>
-              <Button
-                label="Tạo nháp AI"
+            <div style={{ width: 160 }}>
+              <TextInput
+                label="Kỳ (YYYY-MM)"
+                placeholder="2026-07"
+                value={period}
+                onChange={(value) => setPeriod(value)}
                 size="sm"
-                variant="primary"
-                onClick={handleCreateDraft}
-                isLoading={draftMut.isPending}
-                isDisabled={!PERIOD_PATTERN.test(period) || Boolean(draftId)}
+                status={period && !PERIOD_PATTERN.test(period) ? { type: 'error', message: 'Định dạng YYYY-MM' } : undefined}
               />
-            </HStack>
-            {draftMut.error && (
-              <Banner status="error" title={draftMut.error.message} />
-            )}
+            </div>
           </Stack>
         )}
 
-        {/* ── Step 3: Review + Edit + Confirm ─────────────────── */}
+        {/* ── Step 3: Review + Edit ────────────────────────────── */}
         {draftId && (
           <Stack gap={2}>
             <Banner
@@ -251,35 +276,10 @@ export default function ReportCardsPage() {
                 placeholder="Chỉnh sửa nội dung nhận xét tại đây…"
               />
             </Stack>
-
-            {confirmMut.error && (
-              <Banner status="error" title={confirmMut.error.message} />
-            )}
-
-            <HStack gap={2}>
-              <Button
-                label="Xác nhận & Phát hành"
-                variant="primary"
-                onClick={handleConfirm}
-                isLoading={confirmMut.isPending}
-                isDisabled={!editContent.trim()}
-              />
-              <Button
-                label="Hủy nháp"
-                variant="secondary"
-                onClick={handleCancelDraft}
-                isDisabled={confirmMut.isPending}
-              />
-            </HStack>
           </Stack>
         )}
 
-        {/* ── Step 4: Success ─────────────────────────────────── */}
-        {confirmed && (
-          <Banner status="success" title="Đã phát hành" description="Nhận xét đã được xác nhận. Phụ huynh có thể xem trong ứng dụng." />
-        )}
-
       </Stack>
-    </>
+    </FormPage>
   );
 }

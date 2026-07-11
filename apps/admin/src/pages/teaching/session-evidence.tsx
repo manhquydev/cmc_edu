@@ -2,7 +2,7 @@
 // Flow: pick lớp → pick buổi → upsert evidence → add photos → publish.
 
 import { useRef, useState } from 'react';
-import { Badge, Banner, Button, Grid, HStack, PageHeader, Selector, Skeleton, Stack, Text, TextArea } from '@cmc/ui';
+import { Badge, Banner, Button, FormPage, Grid, HStack, LineIcon, PageHeader, Selector, Skeleton, Stack, Text, TextArea } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 const API_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? 'http://localhost:3000';
@@ -117,15 +117,56 @@ export default function SessionEvidencePage() {
     void utils.sessionEvidence.invalidate();
   }
 
-  return (
-    <>
-      <PageHeader
-        title="Nhật ký buổi học"
-        subtitle="Viết tóm tắt, upload ảnh, công bố cho phụ huynh"
-        breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Nhật ký buổi học' }]}
+  // Bottom action bar mirrors the currently-active forward action: "Lưu tóm
+  // tắt" (+ "Công bố cho phụ huynh" once evidence exists) while a session is
+  // selected and not yet published; a status badge once published. Same
+  // handlers/mutations as before; only placement moved for the FormPage
+  // archetype.
+  const actionsContent = !sessionId ? undefined : published ? (
+    <Badge label="Đã công bố" variant="success" />
+  ) : (
+    <HStack gap={2}>
+      <Button
+        label="Lưu tóm tắt"
+        size="sm"
+        variant="primary"
+        onClick={handleSave}
+        isLoading={evidenceQuery.isPending}
+        isDisabled={!summary.trim()}
       />
+      {evidenceId && (
+        <Button
+          label="Công bố cho phụ huynh"
+          size="sm"
+          variant="secondary"
+          onClick={handlePublish}
+          isLoading={publishMut.isPending}
+        />
+      )}
+    </HStack>
+  );
 
-      <Stack gap={4} style={{ padding: 16, maxWidth: 680 }}>
+  const resultContent = published ? (
+    <Banner
+      status="success"
+      title="Đã công bố"
+      description="Nhật ký buổi học đã được công bố. Phụ huynh có thể xem trong ứng dụng LMS."
+    />
+  ) : undefined;
+
+  return (
+    <FormPage
+      header={
+        <PageHeader
+          title="Nhật ký buổi học"
+          subtitle="Viết tóm tắt, upload ảnh, công bố cho phụ huynh"
+          breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Nhật ký buổi học' }]}
+        />
+      }
+      result={resultContent}
+      actions={actionsContent}
+    >
+      <Stack gap={4} style={{ maxWidth: 680 }}>
         {/* Step 1: pick class */}
         <div>
           <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>1. Chọn lớp</Text>
@@ -183,20 +224,12 @@ export default function SessionEvidencePage() {
               rows={4}
               isDisabled={published}
             />
-            <HStack gap={1} style={{ marginTop: 8 }}>
-              <Button
-                label="Lưu tóm tắt"
-                size="sm"
-                variant="primary"
-                onClick={handleSave}
-                isLoading={evidenceQuery.isPending}
-                isDisabled={published || !summary.trim()}
-              />
-              {saved && !published && (
-                <Text size="xsm" color="accent">✓ Đã lưu</Text>
-              )}
-              {published && <Badge label="Đã công bố" variant="success" />}
-            </HStack>
+            {saved && !published && (
+              <HStack gap={1} align="center" style={{ marginTop: 4 }}>
+                <LineIcon name="check-circle" size={14} />
+                <Text size="xsm" color="accent">Đã lưu</Text>
+              </HStack>
+            )}
           </div>
         )}
 
@@ -206,7 +239,7 @@ export default function SessionEvidencePage() {
             <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>4. Upload ảnh buổi học</Text>
             {uploadError && (
               <div style={{ marginBottom: 8 }}>
-                <Banner status="error" title={uploadError} />
+                <Banner status="error" title="Lỗi upload ảnh" description={uploadError} />
               </div>
             )}
             <Button
@@ -223,9 +256,13 @@ export default function SessionEvidencePage() {
               accept="image/jpeg,image/png,image/webp"
               style={{ display: 'none' }}
               onChange={async (e) => {
-                const file = e.currentTarget.files?.[0];
+                // Capture the input node synchronously — React's event object
+                // must not be dereferenced after an `await` (it may go stale
+                // once the surrounding fiber/DOM node is unmounted mid-upload).
+                const input = e.currentTarget;
+                const file = input.files?.[0];
                 if (file) await handleUploadPhoto(file);
-                e.currentTarget.value = '';
+                input.value = '';
               }}
             />
           </div>
@@ -248,26 +285,13 @@ export default function SessionEvidencePage() {
           </div>
         )}
 
-        {/* Step 5: publish */}
+        {/* Step 5: publish note */}
         {evidenceId && !published && (
-          <div>
-            <Text type="supporting" size="xsm" style={{ marginBottom: 4 }}>
-              Sau khi công bố, phụ huynh sẽ thấy tóm tắt và ảnh trong ứng dụng.
-            </Text>
-            <Button
-              label="Công bố cho phụ huynh"
-              size="sm"
-              variant="primary"
-              onClick={handlePublish}
-              isLoading={publishMut.isPending}
-            />
-          </div>
-        )}
-
-        {published && (
-          <Banner status="success" title="Nhật ký buổi học đã được công bố. Phụ huynh có thể xem trong ứng dụng LMS." />
+          <Text type="supporting" size="xsm">
+            Sau khi công bố, phụ huynh sẽ thấy tóm tắt và ảnh trong ứng dụng.
+          </Text>
         )}
       </Stack>
-    </>
+    </FormPage>
   );
 }

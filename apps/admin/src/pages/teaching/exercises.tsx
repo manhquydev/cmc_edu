@@ -11,6 +11,7 @@ import {
   Dialog,
   DialogHeader,
   HStack,
+  ListPage,
   PageHeader,
   Selector,
   Skeleton,
@@ -168,16 +169,18 @@ export default function ExercisesPage() {
   ];
 
   return (
-    <>
-      <PageHeader
-        title="Quản lý bài tập"
-        subtitle="Tạo và quản lý bài tập học viên"
-        breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Bài tập' }]}
-        actions={
-          <Button label="+ Tạo bài tập" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />
-        }
-      />
-
+    <ListPage
+      header={
+        <PageHeader
+          title="Quản lý bài tập"
+          subtitle="Tạo và quản lý bài tập học viên"
+          breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Bài tập' }]}
+          actions={
+            <Button label="+ Tạo bài tập" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />
+          }
+        />
+      }
+    >
       {isLoading && (
         <div style={{ margin: 16 }}>
           <Skeleton height={200} radius={1} />
@@ -292,6 +295,6 @@ export default function ExercisesPage() {
           </HStack>
         </Stack>
       </Dialog>
-    </>
+    </ListPage>
   );
 }

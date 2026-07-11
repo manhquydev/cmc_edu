@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Badge, Banner, Button, Grid, HStack, PageHeader, Skeleton, Stack, Text } from '@cmc/ui';
+import { Badge, Banner, Button, Grid, HStack, LineIcon, ListPage, PageHeader, Skeleton, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 // ---------------------------------------------------------------------------
@@ -224,24 +224,27 @@ export default function AttendancePage() {
   }
 
   return (
-    <>
-      <PageHeader
-        title="Điểm danh"
-        subtitle={`Buổi học: ${sessionId.slice(0, 8)}…`}
-        breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Điểm danh' }]}
-        actions={
-          <Button
-            label={saved ? '✓ Đã lưu' : 'Lưu điểm danh'}
-            size="sm"
-            variant="primary"
-            isLoading={markAll.isPending}
-            isDisabled={isLoading || total === 0}
-            onClick={handleSave}
-            style={{ minHeight: TOUCH_MIN_HEIGHT }}
-          />
-        }
-      />
-
+    <ListPage
+      header={
+        <PageHeader
+          title="Điểm danh"
+          subtitle={`Buổi học: ${sessionId.slice(0, 8)}…`}
+          breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Điểm danh' }]}
+          actions={
+            <Button
+              label={saved ? 'Đã lưu' : 'Lưu điểm danh'}
+              icon={saved ? <LineIcon name="check-circle" size={16} /> : undefined}
+              size="sm"
+              variant="primary"
+              isLoading={markAll.isPending}
+              isDisabled={isLoading || total === 0}
+              onClick={handleSave}
+              style={{ minHeight: TOUCH_MIN_HEIGHT }}
+            />
+          }
+        />
+      }
+    >
       {/* Count tiles */}
       <div
         style={{
@@ -316,6 +319,6 @@ export default function AttendancePage() {
           />
         </div>
       )}
-    </>
+    </ListPage>
   );
 }

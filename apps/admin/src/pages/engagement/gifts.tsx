@@ -7,6 +7,8 @@ import {
   Dialog,
   DialogHeader,
   HStack,
+  LineIcon,
+  ListPage,
   NumberInput,
   PageHeader,
   Stack,
@@ -32,9 +34,12 @@ const COLUMNS: TableColumn<GiftRow>[] = [
     label: 'Sao cần',
     width: 110,
     render: (v) => (
-      <Text type="body" size="sm" hasTabularNumbers>
-        ⭐ {String(v)}
-      </Text>
+      <HStack gap={0.5} align="center">
+        <LineIcon name="star" size={14} />
+        <Text type="body" size="sm" hasTabularNumbers>
+          {String(v)}
+        </Text>
+      </HStack>
     ),
   },
   {
@@ -97,26 +102,30 @@ export default function GiftsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Phần thưởng"
-        subtitle="Quản lý danh mục phần thưởng đổi sao"
-        breadcrumbs={[
-          { label: 'Quản trị' },
-          { label: 'Engagement' },
-          { label: 'Phần thưởng' },
-        ]}
-        actions={
-          <Button label="Thêm phần thưởng" variant="primary" size="sm" onClick={() => setModalOpen(true)} />
+      <ListPage
+        header={
+          <PageHeader
+            title="Phần thưởng"
+            subtitle="Quản lý danh mục phần thưởng đổi sao"
+            breadcrumbs={[
+              { label: 'Quản trị' },
+              { label: 'Engagement' },
+              { label: 'Phần thưởng' },
+            ]}
+            actions={
+              <Button label="Thêm phần thưởng" variant="primary" size="sm" onClick={() => setModalOpen(true)} />
+            }
+          />
         }
-      />
-
-      <DataTable<GiftRow>
-        columns={COLUMNS}
-        data={(data as GiftRow[] | undefined) ?? []}
-        loading={isLoading}
-        error={error?.message}
-        empty="Chưa có phần thưởng nào"
-      />
+      >
+        <DataTable<GiftRow>
+          columns={COLUMNS}
+          data={(data as GiftRow[] | undefined) ?? []}
+          loading={isLoading}
+          error={error?.message}
+          empty="Chưa có phần thưởng nào"
+        />
+      </ListPage>
 
       {/* TODO(astryx-review): Astryx `Dialog` (native <dialog>-based) manages
           its own focus-trap / auto-focus / Escape-dismiss internally —

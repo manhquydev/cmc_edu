@@ -55,39 +55,61 @@ export function mutationResult(over: Over = {}) {
  */
 // Spy-backed stand-in for `trpc.useUtils()` — nested so `utils.x.y.invalidate()`
 // resolves to a `vi.fn()` instead of crashing. Terminal cache methods are spies;
-// intermediate segments recurse.
+// intermediate segments recurse. Each level memoizes its children (a `Map`
+// cache keyed by property name) so repeated property access — e.g. the
+// screen's `utils.gift.list.invalidate()` call and a test's separate
+// `trpc.useUtils().gift.list.invalidate` lookup — resolve to the SAME `vi.fn()`
+// instance, letting tests assert on it. `buildTrpcMock` builds one root `utils`
+// object and returns it from every `useUtils()`/`useContext()` call (see below)
+// so the identity is stable across the whole mocked module instance.
 const UTIL_METHODS = new Set([
   'invalidate', 'refetch', 'reset', 'cancel', 'prefetch', 'fetch',
   'ensureData', 'getData', 'setData', 'getInfiniteData', 'setInfiniteData',
 ]);
 function makeUtils(): unknown {
-  return new Proxy(function noop() {} as unknown as Record<string, unknown>, {
-    get(_target, key) {
-      if (typeof key !== 'string') return undefined;
-      if (UTIL_METHODS.has(key)) return vi.fn();
-      return makeUtils();
-    },
-  });
+  function build(): unknown {
+    const cache = new Map<string, unknown>();
+    return new Proxy(function noop() {} as unknown as Record<string, unknown>, {
+      get(_target, key) {
+        if (typeof key !== 'string') return undefined;
+        if (!cache.has(key)) {
+          cache.set(key, UTIL_METHODS.has(key) ? vi.fn() : build());
+        }
+        return cache.get(key);
+      },
+    });
+  }
+  return build();
 }
 
 export function buildTrpcMock(handlers: Record<string, unknown> = {}) {
+  const utils = makeUtils();
   const make = (path: string): unknown =>
     new Proxy(function noop() {} as unknown as Record<string, unknown>, {
       get(_target, key) {
         if (typeof key !== 'string') return undefined;
+        // `at` forwards the hook's call-time args (query input / mutation
+        // options) to a configured handler. A plain object handler (the
+        // common case) ignores args and is returned as-is. A FUNCTION handler
+        // receives the args, so a test can (a) spy on the query input, or
+        // (b) capture a mutation's `onSuccess`/`onError` and invoke it from
+        // `mutate`'s implementation to exercise invalidate/reset flows.
         const at = (hook: string, fallback: () => unknown) =>
-          () => handlers[`${path}.${hook}`] ?? fallback();
+          (...args: unknown[]) => {
+            const configured = handlers[`${path}.${hook}`];
+            if (typeof configured === 'function') return configured(...args);
+            return configured ?? fallback();
+          };
         if (key === 'useQuery' || key === 'useSuspenseQuery')
           return at('useQuery', () => queryResult(undefined));
         if (key === 'useInfiniteQuery')
           return at('useInfiniteQuery', () => queryResult(undefined));
         if (key === 'useMutation') return at('useMutation', () => mutationResult());
         // `useSuspenseQuery` shares the `.useQuery` handler key (seed it as
-        // `<path>.useQuery`). Mutation `onSuccess`/`onError` callbacks are NOT
-        // fired by this stub — a screen phase testing invalidation flows should
-        // extend this then. `useUtils`/`useContext` return spy-backed no-ops so
-        // `trpc.useUtils().x.invalidate()` does not crash.
-        if (key === 'useUtils' || key === 'useContext') return () => makeUtils();
+        // `<path>.useQuery`). `useUtils`/`useContext` return the SAME
+        // memoized `utils` root every call so `trpc.useUtils().x.invalidate`
+        // is a stable, assertable `vi.fn()`.
+        if (key === 'useUtils' || key === 'useContext') return () => utils;
         if (key === 'Provider') return ({ children }: { children: unknown }) => children;
         return make(path ? `${path}.${key}` : key);
       },

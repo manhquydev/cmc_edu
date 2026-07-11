@@ -21,7 +21,9 @@ import {
   Card,
   ConfirmDialog,
   DataTable,
+  DetailPage,
   HStack,
+  LineIcon,
   PageHeader,
   Stack,
   StatusBadge,
@@ -111,7 +113,17 @@ function KpiDetail({ appUserId, period, employeeName, onBack }: KpiDetailProps) 
     <Stack gap={3}>
       {/* Back nav */}
       <HStack gap={2} align="center">
-        <Button label="← Danh sách nhân viên" variant="ghost" size="sm" onClick={onBack} />
+        <Button
+          label="Danh sách nhân viên"
+          icon={
+            <span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }}>
+              <LineIcon name="chevron" size={14} />
+            </span>
+          }
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+        />
         <Text type="supporting" size="sm" weight="semibold">
           {employeeName} · {period}
         </Text>
@@ -290,35 +302,36 @@ export default function KpiPage() {
 
   if (selectedUser) {
     return (
-      <>
-        <PageHeader
-          title="KPI"
-          subtitle="Chi tiết điểm KPI nhân viên"
-          breadcrumbs={[
-            { label: 'HR' },
-            { label: 'KPI' },
-            { label: selectedUser.name },
-          ]}
-          actions={
-            <div style={{ width: 110 }}>
-              <TextInput
-                size="sm"
-                label="Kỳ"
-                value={period}
-                onChange={(v) => setPeriod(v)}
-              />
-            </div>
-          }
-        />
-        <div style={{ padding: 16 }}>
-          <KpiDetail
-            appUserId={selectedUser.id}
-            period={period}
-            employeeName={selectedUser.name}
-            onBack={() => setSelectedUser(null)}
+      <DetailPage
+        header={
+          <PageHeader
+            title="KPI"
+            subtitle="Chi tiết điểm KPI nhân viên"
+            breadcrumbs={[
+              { label: 'HR' },
+              { label: 'KPI' },
+              { label: selectedUser.name },
+            ]}
+            actions={
+              <div style={{ width: 110 }}>
+                <TextInput
+                  size="sm"
+                  label="Kỳ"
+                  value={period}
+                  onChange={(v) => setPeriod(v)}
+                />
+              </div>
+            }
           />
-        </div>
-      </>
+        }
+      >
+        <KpiDetail
+          appUserId={selectedUser.id}
+          period={period}
+          employeeName={selectedUser.name}
+          onBack={() => setSelectedUser(null)}
+        />
+      </DetailPage>
     );
   }
 

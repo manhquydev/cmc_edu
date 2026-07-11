@@ -31,4 +31,20 @@ describe('LineIcon', () => {
     expect(svg).toHaveAttribute('width', '32');
     expect(svg).toHaveAttribute('stroke-width', '2.5');
   });
+
+  // Additive keys (globe/clock/trophy/gift/star) must render and hold the
+  // monochrome outline invariant — no filled star/gift polygons.
+  const newKeys = ['globe', 'clock', 'trophy', 'gift', 'star'] as const;
+  it.each(newKeys)('renders %s as a monochrome outline svg', (name) => {
+    const { container } = render(<LineIcon name={name} />);
+    const svg = container.querySelector('svg')!;
+    expect(svg).toBeInTheDocument();
+    expect(svg.querySelectorAll('path, rect, circle').length).toBeGreaterThan(0);
+    svg.querySelectorAll('path, rect, circle').forEach((el) => {
+      const fill = el.getAttribute('fill');
+      expect(fill === null || fill === 'none').toBe(true);
+      expect(el.getAttribute('stroke')).toBeNull();
+      expect(el.getAttribute('color')).toBeNull();
+    });
+  });
 });

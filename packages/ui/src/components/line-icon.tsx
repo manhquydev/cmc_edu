@@ -10,7 +10,8 @@ export type IconName =
   | 'grid' | 'book' | 'users' | 'card' | 'shield'
   | 'calendar' | 'check-circle' | 'edit' | 'camera' | 'clipboard'
   | 'receipt' | 'dollar' | 'search' | 'user' | 'building' | 'layers'
-  | 'target' | 'alert' | 'chevron' | 'chevron-down' | 'filter' | 'plus' | 'logout';
+  | 'target' | 'alert' | 'chevron' | 'chevron-down' | 'filter' | 'plus' | 'logout'
+  | 'globe' | 'clock' | 'trophy' | 'gift' | 'star';
 
 const PATHS: Record<IconName, ReactNode> = {
   grid: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></>,
@@ -36,6 +37,12 @@ const PATHS: Record<IconName, ReactNode> = {
   filter: <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />,
   plus: <><path d="M12 5v14M5 12h14" /></>,
   logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5M21 12H9" /></>,
+  // Feather (MIT), outline-only — inherit currentColor, no fill.
+  globe: <><circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></>,
+  clock: <><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></>,
+  trophy: <><circle cx="12" cy="8" r="7" /><path d="M8.21 13.89 7 23l5-3 5 3-1.21-9.12" /></>,
+  gift: <><path d="M20 12v10H4V12" /><rect x="2" y="7" width="20" height="5" rx="1" /><path d="M12 22V7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" /></>,
+  star: <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z" />,
 };
 
 export function LineIcon({ name, size = 18, strokeWidth = 1.75 }: { name: IconName; size?: number; strokeWidth?: number }) {

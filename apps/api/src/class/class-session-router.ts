@@ -108,6 +108,12 @@ export const classSessionRouter = router({
         if (session.status === 'cancelled') {
           throw badRequest('Session is already cancelled.');
         }
+        // HR remediation phase 7: `done` is one-way — the hours it represents
+        // have already been credited (payroll/KPI), so it can never be
+        // cancelled back out.
+        if (session.status === 'done') {
+          throw badRequest('A done session cannot be cancelled.');
+        }
 
         const updated = await tx.classSession.update({
           where: { id: session.id },

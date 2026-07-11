@@ -250,6 +250,13 @@ export const sessionEvidenceRouter = router({
         if (evidence.status === 'published') {
           throw badRequest('Evidence is already published.');
         }
+        // HR remediation phase 7 (R2 #H5): publishing with 0 photos was
+        // previously a dead end — addPhoto refuses to touch already-published
+        // evidence, so a 0-photo publish could never be completed afterward.
+        // It also permanently blocks session-done's evidence condition.
+        if (evidence.photos.length === 0) {
+          throw badRequest('Cannot publish evidence with 0 photos.');
+        }
 
         const updated = await tx.sessionEvidence.update({
           where: { id: evidence.id },

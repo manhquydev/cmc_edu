@@ -522,7 +522,7 @@ export interface SeedClassSessionOptions {
   classBatchId: string;
   curriculumUnitId?: string | null;
   isMakeup?: boolean;
-  status?: 'planned' | 'confirmed' | 'cancelled';
+  status?: 'planned' | 'confirmed' | 'cancelled' | 'done';
   sessionDate?: Date;
   startTime?: Date;
   endTime?: Date;

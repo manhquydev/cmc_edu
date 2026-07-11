@@ -35,29 +35,113 @@ Cơ chế: khớp **IP client với dải mạng cơ sở**, không phải GPS.
 - **ShiftTemplate:** các ca `code` = `CA_SANG`/`CA_CHIEU`/`CA_TOI`, `startTime`/`endTime`
   ("08:00"–"12:00"), màu, thứ tự — thuộc một ShiftGroup.
 - **ShiftEntryType:** `work` (đăng ký ca làm) | `leave` (đăng ký nghỉ).
-- **Vòng đời phiếu (`ShiftRegStatus`):** `draft` → `submitted` → `approved` | `cancelled`.
-  **Ticket-lock:** 1 phiếu Nháp/Chờ duyệt tại một thời điểm; `fromDate` phải tương lai (Asia/Saigon)
-  (QĐ 0035).
-- **Người duyệt (managerId + fallback theo nhóm):** cấp trên trực tiếp qua `managerId`; nếu hết chuỗi,
-  **fallback theo shift group** — nhóm `GIAO_VIEN` → **giám đốc đào tạo**; nhóm `KINH_DOANH` → **giám
-  đốc kinh doanh**. Chống tự-duyệt (QĐ 0027). (Role `bgd` cũ đã bỏ.)
+- **Vòng đời phiếu (`ShiftRegStatus`):** `draft` → `submitted` → `approved` | `rejected` | `cancelled`.
+  **Ticket-lock:** tối đa 1 phiếu `submitted` tại một thời điểm/nhân sự (unique partial index); `rejected`
+  **KHÔNG** tính vào ticket-lock — nộp lại ngay sau khi bị từ chối. `fromDate` phải là ngày ICT tương
+  lai tại thời điểm nộp (QĐ 0035).
+- **QĐ (HR remediation, docs/22 ADR 0042): overlap rule** — 1 người chỉ được giữ **một khoảng
+  `[fromDate,toDate]` `submitted`/`approved` tại một thời điểm, bất kể ShiftGroup nào** (chống đăng ký
+  chồng chéo giữa 2 nhóm ca khác nhau). `rejected`/`cancelled` không tính vào overlap.
+- **QĐ: gate duyệt ca = ROLE, không phải managerId chain.** `shift.approve`/`shift.reject` yêu cầu
+  role khớp `ShiftGroup.type` (`GIAO_VIEN` → `giam_doc_dao_tao`; `KINH_DOANH` → `giam_doc_kinh_doanh`;
+  `super_admin` bypass cả hai) + chống tự-duyệt (caller ≠ chủ phiếu). `reject` bắt buộc `reason` (≥3
+  ký tự), ghi vào `ShiftRegistration.rejectReason` — chủ phiếu đọc lại qua `shift.myRegistrations`.
 
-## 3. Lương (Payroll)
+## 3. Lương (Payroll) — mô hình lương bậc greenfield
 
-- **SalaryRate (các thành phần):** `baseSalary` + `mealAllowance` + `otherAllowance` + KPI (tối đa
-  `kpiMax`), `monthlyQuota` (định mức tháng), `effectiveFrom`. Tất cả **sửa được qua UI**, safe-default
-  cho tham số mơ hồ (QĐ 0012).
-- **Phạt:** 500đ/phút muộn, 1000đ/phút sớm; trừ **POST-TAX** (sau thuế, không méo thu nhập chịu thuế);
-  override miễn/giảm của giám đốc là **field riêng** (không dùng `variablePay`) — QĐ 0025.
-- **Payslip self-healing:** `assembleSlipData` gộp phạt từ punch **LIVE** mỗi lần gọi; `finalize`
-  khoá; `reopen` tính lại từ punch. Bucket theo **tháng ICT** (UTC+7).
-- **Báo cáo công tháng** (`checkInOut.monthlyReport`): giám đốc drill-down, aggregate server-side.
+> **QĐ (HR remediation): baseSalary/đơnGiá/quota nguồn duy nhất là `SalaryTier` catalog** — 3 cột cũ
+> trên `SalaryRate` (`baseSalary`, `variablePayRate`, `kpiMax`) đã **deprecated** (không writer mới
+> ghi). `compensation.upsertRate` (nhập tay từng người) đã **BỎ** — thay bằng `assignTier` (gán bậc).
+> Chi tiết công thức + rationale: **docs/22 ADR 0042**.
 
-## 4. KPI
+- **Công thức:** `totalNet = base(tier) + %côngca × %chỉ-số × đơnGiá(tier) − phạt`, trong đó:
+  - `%côngca = min(1, shiftActual/tier.requiredShifts)`.
+  - `%chỉ-số = min(1, metricValue/tier.requiredMetric)` — GV: giờ dạy quy đổi (`collectTeacherHours`,
+    có nhân `creditFactor` theo độ trễ session-done, xem §4b); Sale: doanh thu phê duyệt (§4).
+  - `phạt` luôn là dòng **độc lập** (không gộp vào `kpiBonus`/`baseSalary`), không bao giờ kéo
+    `totalNet` xuống âm (clamp ≥ 0).
+- **Công ca thực (`shiftActual`):** đếm DISTINCT `(date, shiftTemplateId)` từ entry `approved` trong
+  kỳ, ghép với punch **vào/ra** qua `assignPunchesToShifts` (@cmc/domain-payroll): in-punch = punch sớm
+  nhất trong `[start−2h, midpoint)`; out-punch = punch muộn nhất trong `[midpoint, end+2h]`. Thiếu 1
+  trong 2 nửa = "vắng" (không tính công, không phạt phút, đếm vào `unpunchedDays`). **`shortSpan`**:
+  khoảng vào→ra < 50% thời lượng ca danh nghĩa — cờ cảnh báo gian lận (không tự động chặn, GĐ review
+  khi duyệt KPI/lương).
+- **Phạt per-ca:** muộn/sớm tính **theo từng ca** (không gộp cả ngày) — `penaltyRatePerLateMinute`/
+  `penaltyRatePerEarlyMinute` từ `CompensationPolicy` **per-facility** (fallback 500đ/phút muộn,
+  1000đ/phút sớm khi cơ sở chưa cấu hình).
+- **Miễn phạt ngày có ticket duyệt:** `ManualAttendanceTicket` **`approved`** cho một ngày → miễn phạt
+  + miễn `unpunchedDays` cho **mọi** ca đăng ký ngày đó, bỏ qua bước ghép punch. `pending`/`rejected`
+  không miễn. Ticket duyệt **sau khi payslip đã finalize** không hồi tố bảng lương đã khoá —
+  `manualPunch.approve` trả `warning: 'PAYSLIP_FINALIZED'` để GĐ biết cần `payslip.reopen` + assemble
+  lại thủ công nếu muốn áp dụng.
+- **Gate duyệt ticket chấm công:** direct-manager (`managerId`) hoặc `super_admin` — chống tự-duyệt.
+- **Đổi bậc lương (tier) giữa kỳ:** cho phép — `assignTier` không khoá theo kỳ đang chạy.
+  `KpiScore.tierIdSnapshot`/`unitRateSnapshot` chụp tại thời điểm `kpi.refresh` giữ nguyên giá trị đã
+  tính cho các slip đã `submitted`+ (audit trail đầy đủ dù tier đổi sau đó).
+- **`payslip.assemble`:** tính lại `TOÀN BỘ` từ TimePunch/ShiftRegistration/KpiScore **live** mỗi lần
+  gọi (không self-heal ngầm); từ chối nếu chưa gán `SalaryTier` (FORBIDDEN, không fallback legacy).
+  `finalize` khoá; `reopen` mở lại để assemble tiếp. Bucket theo **tháng ICT** (UTC+7).
+- **GĐ/super_admin không có phiếu lương trong hệ thống** ("lương giám đốc ngoài hệ thống") —
+  `kpi.refresh`/`payslip.assemble` target GĐ/super_admin trả `BAD_REQUEST`.
 
-- **KpiScore vòng đời (`KpiStatus`):** `draft` → `submitted` → `confirmed` → `approved`.
-- **Cơ chế:** auto-score + **override theo cây quyền** + **audit** (QĐ 0011). KPI feed vào lương (cap
-  `kpiMax` trong SalaryRate). KPI sale có thể lấy số liệu gọi (Callio — QĐ 0010, khi bật).
+## 4. KPI — lifecycle auto-score
+
+> **QĐ (HR remediation): `kpi.submit`/`kpi.approve` (đơn lẻ)/`kpi.getForUser` đã BỎ** — thay bằng
+> lifecycle auto-score dưới đây. `approved` **chỉ** đạt được qua `kpi.bulkApprove` (không có đường
+> approve-1-phiếu nào khác ngoài `kpi.override` khi payslip đã reopen). Chi tiết: **docs/22 ADR 0042**.
+
+- **Vòng đời (`KpiScore.status`):** `draft` → `submitted` → `confirmed` → `approved`.
+  - `kpi.refresh`: recompute + upsert `draft` (idempotent, race-safe) — **không bao giờ ghi đè** một
+    slip đã `submitted`+. Tự làm cho chính mình; làm cho người khác cần role director.
+  - `kpi.submitSlip`: chủ phiếu tự nộp, **mở từ 00:00 ICT ngày 3 tháng kế tiếp** — tự `refresh` trong
+    cùng transaction trước khi chuyển `submitted` (residual: buổi `done` sau thời điểm nộp cần GĐ
+    override thủ công qua `kpi.override`).
+  - `kpi.confirm`: **direct manager** (qua `managerId`) hoặc `super_admin` xác nhận
+    (`submitted`→`confirmed`) — chống tự-xác-nhận.
+  - `kpi.override`: director set `value` trực tiếp (có `overrideReason`, audit `override=true`).
+    Sửa slip đã **`approved`** chỉ `super_admin`, **và chỉ khi** `Payslip` kỳ đó đã `reopen` về
+    `draft` (van an toàn — không sửa ngầm số đã tất toán).
+  - `kpi.bulkApprove`: 2 GĐ tất toán hàng loạt mọi slip `confirmed` **có `Payslip` đã `finalized`**
+    trong kỳ, loại trừ phiếu của chính người duyệt (idempotent — chỉ đụng `confirmed`).
+  - **Immutable sau finalize:** slip có `Payslip` kỳ đó `finalized` không sửa được (`confirm`/
+    `override`) — phải `payslip.reopen` trước.
+- **QĐ: branch-scope theo ROLE, không theo `position` free-text.** `kpi.bulkApprove`/`kpi.list` lọc
+  target theo `AppUser.roles` (`sale` → phạm vi `giam_doc_kinh_doanh`; `giao_vien` → phạm vi
+  `giam_doc_dao_tao`; `super_admin` thấy cả hai). Một GĐĐT gọi `bulkApprove` **không đụng** phiếu của
+  `sale`, dù cùng kỳ.
+- **Metric "doanh thu phê duyệt" (sale):** `SUM(Receipt.netAmount)` WHERE `status='approved'` AND
+  `approvedAt` trong kỳ ICT, gắn theo `createdByAppUserId` (namespace AppUser, không dùng
+  `createdById` legacy). **Đây là số GROSS** (chưa trừ `RefundRecord`) — nếu tương lai có transition
+  trạng thái mới (vd `approved`→`sent`), phải cập nhật lại filter status ở đây, không được để lệch
+  âm thầm.
+- **GĐ/super_admin không có phiếu KPI** — cùng lý do §3 (lương ngoài hệ thống).
+
+## 4b. Session-done engine (HR remediation) — chỉ chạy qua sweep worker
+
+> Chi tiết thuật toán + rationale (vì sao KHÔNG hook trực tiếp trên router điểm danh/đánh giá/bằng
+> chứng): **docs/22 ADR 0042**.
+
+- **3 điều kiện `done` (tất cả phải đủ, đánh giá bởi worker sweep, không phải event hook):**
+  1. **Điểm danh:** ≥1 dòng `present`.
+  2. **Đánh giá:** MỌI học sinh `present` có `QualitativeAssessment` (`classSessionId`) status
+     `confirmed`.
+  3. **Bằng chứng buổi học:** `SessionEvidence` status `published`, ≥1 ảnh.
+  - Gate thời gian: chỉ đánh giá khi `now >= session.endTime` (chặn "chốt trước giờ" để gian credit).
+- **`doneAt` = snapshot đóng băng** — lấy giá trị **muộn nhất** trong 3 mốc (điểm danh cuối, xác nhận
+  đánh giá cuối, publish bằng chứng) tại lúc `done`. Đánh dấu lại điểm danh/huỷ đánh giá **sau khi**
+  `done` **không** đổi `doneAt` — **không hồi tố** credit đã tính.
+- **`creditFactor(doneAt, endTime)` — hệ số tín chỉ giờ dạy theo độ trễ chốt buổi** (chỉ tính vào
+  `collectTeacherHours` cho KPI GV, §4): trễ ≤24h → **1.0** (đủ); ≤48h → **0.5**; >48h → **0**. Session
+  có `endTime` trước mốc kích hoạt engine (`SESSION_DONE_ACTIVATED_AT`) là lịch sử — backfill 1 lần,
+  credit **luôn 1.0** không phân biệt trễ.
+- **Auto-cancel 0-HS + buổi bù nối đuôi khóa:** session `planned`/`confirmed` quá `endTime + 24h` mà
+  **0 điểm danh `present`** → tự `cancelled`. Nếu session có `scheduleSlotId` (không phải buổi thêm
+  thủ công `addMakeup`), sweep **tự tạo buổi bù** nối vào **cuối** chuỗi slot lặp lại đó (cùng
+  `scheduleSlotId`, 7 ngày sau buổi cuối cùng đã có trong slot — **có thể kéo dài lịch học qua
+  `ClassBatch.endDate`** khi lớp nợ buổi). `ClassSession.makeupForSessionId` trỏ ngược về buổi gốc.
+- **Conflict phòng → bỏ qua, chờ người xử lý:** nếu phòng của lớp bận vào ngày bù dự kiến, sweep
+  **không tạo** buổi bù tự động, báo `roomConflict: true` trong kết quả — UI hiển thị buổi đã hủy
+  chưa có buổi bù để GĐĐT xếp lịch thủ công.
 
 ## 5. Đổi quà (Rewards) — GIỮ; sao thưởng
 
@@ -115,14 +199,30 @@ Học viên tích **sao** (star) từ bài tập → đổi quà.
 - **Template:** subject + template theo loại (đăng nhập PH, phiếu chờ duyệt, nhắc lịch…). Nội dung
   chạm dữ liệu trẻ tuân TL08 §7.
 
+## 8c. Runbook onboarding — trước kỳ lương ĐẦU TIÊN của một cơ sở
+
+> Greenfield (validate session 4): `payslip.assemble`/`kpi.refresh` từ chối chạy cho bất kỳ ai chưa có
+> `SalaryTier` gán — không có fallback từ lương cũ.
+
+1. `salaryTier.create` — tạo ít nhất 1 bậc `KINH_DOANH` và 1 bậc `GIAO_VIEN` cho cơ sở (GĐKD/GĐĐT).
+2. `compensation.assignTier` — gán bậc cho **TOÀN BỘ** nhân sự `sale`/`giao_vien` đang hoạt động của
+   cơ sở (bỏ sót ai → người đó không `submitSlip`/`assemble` được, chặn ngay ở `kpi.refresh` với
+   `tierMissing: true`).
+3. (Tuỳ chọn) `compensationPolicy.upsert` — cấu hình lại `penaltyRatePerLateMinute`/
+   `penaltyRatePerEarlyMinute` nếu khác mặc định 500đ/1000đ.
+4. Xác nhận `AppUser.managerId` đã set đúng cho mọi `sale`/`giao_vien` (chuỗi báo cáo lên
+   `giam_doc_kinh_doanh`/`giam_doc_dao_tao` tương ứng) — `kpi.confirm` cần đúng chuỗi này.
+
 ## 9. Truy vết nguồn
 
 | Nghiệp vụ | Nguồn |
 |---|---|
-| Chấm công WiFi/IP | `routers/check-in-out.ts` + `FacilityNetwork` |
-| Ca sale vs GV | `resolveShiftGroup()` + `ShiftGroup.selectionMode` + QĐ 0035/0027 |
-| Lương/phạt | QĐ 0025, 0012 + `SalaryRate` |
-| KPI | QĐ 0011, 0010 |
+| Chấm công WiFi/IP | `checkin/router.ts` (`checkInOut.punch`) + `FacilityNetwork` |
+| Phiếu chấm công thủ công | `checkin/router.ts` (`manualPunchRouter`) |
+| Ca sale vs GV | `resolveShiftGroup()` + `ShiftGroup.selectionMode` + `shift/router.ts` + docs/22 ADR 0042 |
+| Lương bậc (tier) | `payroll/router.ts` + `@cmc/domain-payroll` (`assembleSlip`, `assignPunchesToShifts`) + docs/22 ADR 0042 |
+| KPI auto-score + lifecycle | `kpi/router.ts` + `kpi/auto-score.ts` + docs/22 ADR 0042 |
+| Session-done engine | `class/session-done.ts` + `worker/session-done-sweep.ts` + docs/22 ADR 0042 |
 | Đổi quà | `StarTransaction`/`Gift`/`Reward` enums; từ chối ngay + khoá tuần tự theo `giftId` trong `rewards/reward-router.ts` |
 | Họp PH / test | `ParentMeeting`/`TestAppointment` |
 | After-sale | `AfterSaleCase` + QĐ 0027 |
@@ -130,4 +230,5 @@ Học viên tích **sao** (star) từ bài tập → đổi quà.
 > **Khuyến nghị (như TL19):** rule ca sale-vs-GV (`selectionMode`) và cổng chấm công IP hiện sống
 > trong code — nâng thành **ADR** để v2 tái mã hoá chắc chắn.
 
-> Liên kết: TL19 (P1) · TL14 (vai trò) · TL01 (bất biến lương/ca) · TL04 (agent nhắc lịch/đối soát).
+> Liên kết: TL19 (P1) · TL14 (vai trò) · TL01 (bất biến lương/ca) · TL04 (agent nhắc lịch/đối soát) ·
+> docs/22 ADR 0042 (KPI auto-score + session-done engine, chi tiết đầy đủ).

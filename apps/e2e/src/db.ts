@@ -20,6 +20,9 @@
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { createPrismaClient, withFacility, PrismaClient } from '@cmc/db';
+import { ictToUtc } from '@cmc/domain-time';
+import type { Role } from '@cmc/auth';
+import { randomVnPhone } from './random-vn-phone.js';
 
 let dbSingleton: PrismaClient | undefined;
 
@@ -151,8 +154,230 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
     { bypass: true },
   );
 
+  // HR remediation phases 1-3 (P3-II): KpiScore/Payslip/CompensationPolicy/
+  // SalaryTier/SalaryRate/Shift*/ManualAttendanceTicket/TimePunch/AppUser all
+  // grant cmc_app only SELECT/INSERT/UPDATE (wave-A default-privilege
+  // template, same as Attendance/RefundRecord above) — teardown runs on the
+  // privileged migration-role connection, same FK order as
+  // apps/api/src/test/db.ts's cleanupFacility. Must run AFTER the bypass
+  // block above (Receipt.createdByAppUserId / ClassBatch.createdByAppUserId/
+  // teacherAppUserId FK-reference AppUser) and BEFORE the Facility delete.
+  await privileged.kpiScore.deleteMany({ where: { facilityId } });
+  await privileged.payslip.deleteMany({ where: { facilityId } });
+  await privileged.compensationPolicy.deleteMany({ where: { facilityId } });
+  await privileged.salaryTier.deleteMany({ where: { facilityId } });
+  await privileged.salaryRate.deleteMany({ where: { facilityId } });
+  await privileged.shiftRegistrationEntry.deleteMany({ where: { facilityId } });
+  await privileged.shiftRegistration.deleteMany({ where: { facilityId } });
+  await privileged.shiftTemplate.deleteMany({ where: { facilityId } });
+  await privileged.shiftGroup.deleteMany({ where: { facilityId } });
+  await privileged.manualAttendanceTicket.deleteMany({ where: { facilityId } });
+  await privileged.timePunch.deleteMany({ where: { facilityId } });
+  await privileged.appUser.deleteMany({ where: { facilityId } });
+  await privileged.facilityNetwork.deleteMany({ where: { facilityId } });
+
   await db.receiptCodeCounter.deleteMany({ where: { facilityId } });
   await db.facility.deleteMany({ where: { id: facilityId } });
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6: HR remediation e2e seed helpers (shift-lifecycle / kpi-lifecycle)
+//
+// AppUser, ShiftRegistration (approved, past-period), TimePunch, and Receipt
+// (approvedAt backdated) all have write paths the tRPC surface deliberately
+// keeps narrow (shift.submit rejects a past `fromDate`; receiptApprove always
+// stamps `approvedAt: new Date()`) — these specs need past-period fixtures to
+// exercise `kpi.refresh`'s formula and `kpi.submitSlip`'s day-3 guard without
+// a mocked clock (docs/20, red-team #9: e2e must not claim boundary coverage,
+// it only needs a period that is ALREADY past `submitSlipOpensAt`). Same
+// `withFacility(..., { bypass: true })` pattern as `seedActiveEnrollment`
+// above — every insert here mirrors the shape apps/api/src/test/db.ts's
+// integration-test seeds already use for the same tables.
+// ---------------------------------------------------------------------------
+
+export interface SeedAppUserOptions {
+  facilityId: string;
+  userId: string;
+  fullName?: string;
+  position?: string;
+  managerId?: string;
+  /** AppUser.roles (DB truth used by target-categorization reads like
+   * `kpi.list`/`kpi.bulkApprove`'s `resolveKpiTargetRole`) — separate from
+   * the session roles a test passes to `createE2eStaffClient` (permission
+   * checks read `ctx.subject.roles` from the dev-header, not this column). */
+  roles?: Role[];
+}
+
+/** Seeds an AppUser row for e2e specs that write TimePunch/ShiftRegistration/
+ * KpiScore/Payslip FKs (all require a real AppUser, not just a session
+ * identity). `userId` MUST match the `DevStaffIdentity.userId` a spec later
+ * passes to `createE2eStaffClient` for the same actor. */
+export async function seedAppUser(opts: SeedAppUserOptions): Promise<{ id: string; employeeCode: string }> {
+  return withFacility(
+    getDb(),
+    null,
+    async (tx) => {
+      const counter = await tx.employeeCodeCounter.update({
+        where: { id: 1 },
+        data: { next: { increment: 1 } },
+      });
+      const employeeCode = `E2E${String(counter.next - 1).padStart(4, '0')}`;
+      return tx.appUser.create({
+        data: {
+          facilityId: opts.facilityId,
+          userId: opts.userId,
+          email: `${opts.userId}@e2e.cmc`,
+          fullName: opts.fullName ?? opts.userId,
+          position: opts.position ?? 'staff',
+          managerId: opts.managerId ?? null,
+          employeeCode,
+          roles: opts.roles ?? [],
+        },
+        select: { id: true, employeeCode: true },
+      });
+    },
+    { bypass: true },
+  );
+}
+
+export interface SeedApprovedReceiptOptions {
+  facilityId: string;
+  /** AppUser.id — attribution FK `kpi.refresh`'s `collectSaleRevenue` reads
+   * (NOT the legacy `createdById` userId scalar, R2 #2). */
+  createdByAppUserId: string;
+  netAmount: number;
+  /** Backdated finance mutation stamp — the KPI period this receipt's
+   * revenue should be attributed to. */
+  approvedAt: Date;
+  studentName?: string;
+  parentPhone?: string;
+}
+
+/** Seeds an already-`approved` Receipt with a caller-chosen `approvedAt`
+ * (bypassing `finance.receiptApprove`, which always stamps `now()`) — the
+ * only way to put revenue into a PAST KPI period without mocking the clock. */
+export async function seedApprovedReceipt(opts: SeedApprovedReceiptOptions): Promise<{ id: string }> {
+  return withFacility(
+    getDb(),
+    null,
+    (tx) =>
+      tx.receipt.create({
+        data: {
+          facilityId: opts.facilityId,
+          code: `E2E-RCP-${randomUUID().slice(0, 8).toUpperCase()}`,
+          netAmount: opts.netAmount,
+          status: 'approved',
+          parentPhone: opts.parentPhone ?? randomVnPhone(),
+          studentName: opts.studentName ?? 'E2E KPI Student',
+          createdById: 'e2e-seed',
+          createdByAppUserId: opts.createdByAppUserId,
+          approvedAt: opts.approvedAt,
+        },
+        select: { id: true },
+      }),
+    { bypass: true },
+  );
+}
+
+/** Reads back a Receipt's `approvedAt` (not exposed on `ReceiptDto` — see
+ * apps/api/src/finance/router.ts's `toReceiptDto`) for the kpi-lifecycle
+ * spec's DB-truth assertion that `finance.receiptApprove` stamps it. */
+export async function getReceiptApprovedAt(receiptId: string): Promise<Date | null> {
+  const receipt = await withFacility(
+    getDb(),
+    null,
+    (tx) => tx.receipt.findUnique({ where: { id: receiptId }, select: { approvedAt: true } }),
+    { bypass: true },
+  );
+  return receipt?.approvedAt ?? null;
+}
+
+export interface SeedApprovedShiftRegistrationOptions {
+  facilityId: string;
+  appUserId: string;
+  shiftGroupId: string;
+  shiftTemplateId: string;
+  /** ICT `YYYY-MM-DD` dates, one ShiftRegistrationEntry per date, all
+   * pointing at the same `shiftTemplateId`. */
+  dates: string[];
+}
+
+/** Seeds an already-`approved` ShiftRegistration + entries directly
+ * (bypassing `shift.submit`'s future-date guard) — `kpi.refresh`'s
+ * `collectActualShifts` and `payslip.assemble` both need "công ca thực" data
+ * anchored in a PAST period. */
+export async function seedApprovedShiftRegistration(
+  opts: SeedApprovedShiftRegistrationOptions,
+): Promise<{ id: string }> {
+  const sortedDates = [...opts.dates].sort();
+  return withFacility(
+    getDb(),
+    null,
+    async (tx) => {
+      const registration = await tx.shiftRegistration.create({
+        data: {
+          facilityId: opts.facilityId,
+          appUserId: opts.appUserId,
+          shiftGroupId: opts.shiftGroupId,
+          fromDate: ictToUtc(sortedDates[0]!, '00:00'),
+          toDate: ictToUtc(sortedDates[sortedDates.length - 1]!, '00:00'),
+          status: 'approved',
+          selectionMode: 'SINGLE',
+        },
+      });
+      await tx.shiftRegistrationEntry.createMany({
+        data: opts.dates.map((date) => ({
+          facilityId: opts.facilityId,
+          shiftRegistrationId: registration.id,
+          date: ictToUtc(date, '00:00'),
+          shiftTemplateId: opts.shiftTemplateId,
+        })),
+      });
+      return { id: registration.id };
+    },
+    { bypass: true },
+  );
+}
+
+export interface SeedTimePunchPairOptions {
+  facilityId: string;
+  appUserId: string;
+  /** ICT `YYYY-MM-DD`. */
+  date: string;
+  /** ICT `HH:mm` — punched exactly at the shift boundary so
+   * `assignPunchesToShifts` (@cmc/domain-payroll) computes zero late/early
+   * penalty (full credit, `present: true`, `shortSpan: false`). */
+  startTime: string;
+  endTime: string;
+}
+
+/** Seeds one in+out TimePunch pair for a calendar day, exactly at the given
+ * boundary times — the "đủ cặp midpoint" fixture `kpi.refresh`'s
+ * `collectActualShifts` and `payslip.assemble` both need to credit a shift
+ * with zero penalty. */
+export async function seedTimePunchPair(opts: SeedTimePunchPairOptions): Promise<void> {
+  await withFacility(
+    getDb(),
+    null,
+    (tx) =>
+      tx.timePunch.createMany({
+        data: [
+          {
+            facilityId: opts.facilityId,
+            appUserId: opts.appUserId,
+            method: 'e2e-seed',
+            punchAt: ictToUtc(opts.date, opts.startTime),
+          },
+          {
+            facilityId: opts.facilityId,
+            appUserId: opts.appUserId,
+            method: 'e2e-seed',
+            punchAt: ictToUtc(opts.date, opts.endTime),
+          },
+        ],
+      }),
+    { bypass: true },
+  );
 }
 
 // ---------------------------------------------------------------------------

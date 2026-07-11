@@ -35,10 +35,12 @@ Hệ quả: vì gác `ke_toan`, **cổng tiền do GĐKD** (sale tạo ≠ GĐKD
 
 ## 2. "Quản lý" là THUỘC TÍNH, không phải vai trò
 
-Duyệt ca không dựa vào một role "quản lý" — mà dựa vào **`managerId`** (trường trên hồ sơ nhân sự):
-người có `managerId` trỏ tới ai thì người đó là cấp trên duyệt ca. `assertAssignedApprover` chặn
-tự-duyệt; validate managerId cùng facility, chống cặp A↔B (QĐ 0027). → Khi nói "trưởng nhóm duyệt
-ca", đó là *quan hệ managerId*, không phải role. (Đây là điểm mình viết sai ở TL1/TL07 — xem audit TL15.)
+`managerId` (trường trên hồ sơ nhân sự) mã hoá quan hệ cấp trên–cấp dưới, dùng cho **`kpi.confirm`**
+(direct manager xác nhận phiếu KPI, chống tự-xác-nhận — docs/20 §4). **Duyệt CA** (`shift.approve`/
+`shift.reject`) là ngoại lệ đã sửa ở HR remediation: gate theo **ROLE khớp `ShiftGroup.type`**
+(`GIAO_VIEN`→`giam_doc_dao_tao`, `KINH_DOANH`→`giam_doc_kinh_doanh`, `super_admin` bypass cả hai) +
+chống tự-duyệt — **không còn** dựa vào chuỗi `managerId` (docs/17 §4, docs/20 §2). → Khi nói "trưởng
+nhóm duyệt ca", đó là *role*, không phải *quan hệ managerId* — chỉ `kpi.confirm` mới dùng `managerId`.
 
 ## 3. Mô hình uỷ quyền (delegation) & phạm vi
 
@@ -73,8 +75,12 @@ Plan `erp-rebuild-f0-f4` từng nhắc `quan_ly` + `head_teacher`, nhưng enum R
 | `assessment.*` | ✓ | | ✓ | | ✓ |
 | `checkIn.punch` / `manualPunch.create` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `shift.submit` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `kpi.submit` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `payslip.assemble` / `finalize` | ✓ | ✓ | ✓ | | |
+| `shift.approve` / `shift.manage` | ✓ | ✓ | ✓ | | |
+| `kpi.refresh` / `kpi.submitSlip` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `kpi.confirm` / `kpi.bulkApprove` / `kpi.approve` (override) | ✓ | ✓ | ✓ | | |
+| `salaryTier.manage` | ✓ | ✓ | ✓ | | |
+| `compensationPolicy.manage` | ✓ | | | | |
+| `payslip.assemble` / `finalize` / `reopen` | ✓ | ✓ | ✓ | | |
 | `gift.list` / `rewards.manage` | ✓ | ✓ | ✓ | ✓ | |
 
 > Bảng là *đại diện* (5 active roles, ADR-D amendment); nguồn đầy đủ = registry `@cmc/auth`.

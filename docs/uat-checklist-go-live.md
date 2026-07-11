@@ -192,28 +192,43 @@ Tester (GĐĐT + giao_vien): _________________ · Date: _________________
 
 ---
 
-### Kịch bản 4 — Chuỗi Nhân sự + Lương (P3-01 → P3-06)
+### Kịch bản 4 — Chuỗi Nhân sự + Lương (P3-01 → P3-06, P3-09) — HR remediation (ADR 0042)
 
 **Vai tham gia:** giao_vien · sale · giam_doc_kinh_doanh · giam_doc_dao_tao  
-**Mục tiêu:** Punch → manual ticket → ca → KPI → payslip finalized
+**Mục tiêu:** Punch → manual ticket → gán bậc lương → ca → KPI auto-score → payslip finalized → tất toán KPI
+
+> **Prerequisite (runbook onboarding, docs/20 §8c):** greenfield — nhân sự CHƯA có `SalaryTier` gán sẽ
+> bị chặn ở bước KPI/payslip (`FORBIDDEN`/`tierMissing`). Bước 5 dưới đây phải chạy trước bước 8.
+>
+> **Lưu ý thời gian:** `kpi.submitSlip` (bước 9) chỉ mở từ **00:00 ICT ngày 3 tháng kế tiếp** của kỳ
+> đang chấm. Nếu chạy UAT real-time trong tháng hiện tại, bước 9 sẽ trả `BAD_REQUEST` cho đến ngày đó
+> — đây là hành vi ĐÚNG (không phải lỗi), không phải kịch bản nào tester cũng chạy được ngay trong tháng.
 
 | Bước | Vai | Thao tác | URL / action | Expected state |
 |------|-----|----------|--------------|----------------|
-| 1 | giao_vien | Đăng nhập → chấm công (`checkIn.punch`) | Attendance → Check-in-out | punchId sinh |
-| 2 | sale | Đăng nhập → tạo manual punch ticket (`manualPunch.create`) | Attendance → Manual ticket → New | manualPunchId pending |
-| 3 | giao_vien | Tạo manual punch ticket (verify giao_vien cũng có quyền) | Attendance → Manual ticket → New | manualPunchId pending |
-| 4 | giam_doc_kinh_doanh | Duyệt các manual punch tickets (`manualPunch.approve`) | Attendance → Pending tickets → Approve | status = approved |
-| 5 | giao_vien | Đăng ký ca làm (`shift.submit`) | Attendance → Shifts → Register | shiftRegistration pending |
-| 6 | giao_vien | Submit KPI (`kpi.submit`) | HR → KPI → Submit | kpi pending |
-| 7 | giam_doc_dao_tao | Duyệt KPI (`kpi.approve`) | HR → KPI → Approve | kpi approved |
-| 8 | giam_doc_kinh_doanh | Assemble + finalize payslip (`payslip.assemble` → `payslip.finalize`) | HR → Payroll → Assemble → Finalize | payslip finalized |
+| 1 | giao_vien | Đăng nhập → chấm công (`checkInOut.punch`) | HR → Chấm công | punchId sinh |
+| 2 | sale | Đăng nhập → tạo manual punch ticket (`manualPunch.create`) | HR → Chấm công → Manual ticket | manualPunchId pending |
+| 3 | giao_vien | Tạo manual punch ticket (verify giao_vien cũng có quyền) | HR → Chấm công → Manual ticket | manualPunchId pending |
+| 4 | giam_doc_kinh_doanh | Duyệt các manual punch tickets (`manualPunch.approve`) | HR → Chấm công → Pending | status = approved |
+| 5 | giam_doc_kinh_doanh | Tạo `SalaryTier` + gán cho giao_vien/sale (`salaryTier.create` → `compensation.assignTier`) | HR → Bậc lương → New → Gán | tier gán cho cả 2 nhân sự |
+| 6 | giao_vien | Đăng ký ca làm (`shift.submit`) | HR → Đăng ký ca | shiftRegistration submitted |
+| 7 | giam_doc_dao_tao | Duyệt ca (`shift.approve`) | HR → Đăng ký ca → Pending | shiftRegistration approved |
+| 8 | giao_vien | Tính KPI tự động (`kpi.refresh`) → xem "PHẦN NHÂN" | HR → KPI | kpi draft, `value` khớp công thức |
+| 9 | giao_vien | Nộp phiếu KPI (`kpi.submitSlip`) — xem lưu ý thời gian trên | HR → KPI → Nộp | kpi submitted |
+| 10 | giam_doc_dao_tao | Xác nhận phiếu KPI (`kpi.confirm`, direct manager) | HR → KPI → Xác nhận | kpi confirmed |
+| 11 | giam_doc_kinh_doanh | Assemble + finalize payslip (`payslip.assemble` → `payslip.finalize`) | HR → Chốt lương → Assemble → Finalize | payslip finalized |
+| 12 | giam_doc_dao_tao | Tất toán KPI hàng loạt (`kpi.bulkApprove`) — chỉ chạy khi payslip đã finalized | HR → KPI → Tất toán | kpi approved |
 
 **Verify đặc biệt:**
 - Bước 2 & 3: sale VÀ giao_vien đều phải tạo được manual punch — confirm cả hai quyền hoạt động
-  (registry `index.ts:94` — `manualPunch.create` share cho cả 4 role active)
-- Bước 4 & 7: `manualPunch.approve`/`kpi.approve` chỉ GĐKD+GĐĐT giữ (`index.ts:95,107`) —
-  confirm sale/giao_vien KHÔNG duyệt được (thử bằng sale → phải FORBIDDEN)
-- Bước 8: `payslip.assemble`/`finalize` chỉ GĐKD+GĐĐT giữ (`index.ts:100-101`, thay ke_toan cũ)
+  (`manualPunch.create` share cho cả 4 role active)
+- Bước 4, 7, 10, 12: `manualPunch.approve`/`shift.approve`/`kpi.confirm`/`kpi.bulkApprove` chỉ
+  GĐKD+GĐĐT giữ — confirm sale/giao_vien KHÔNG duyệt được (thử bằng sale → phải `FORBIDDEN`)
+- Bước 7: GĐĐT duyệt vì `ShiftGroup.type = GIAO_VIEN` — thử GĐKD duyệt cùng phiếu → phải `FORBIDDEN`
+  (gate ROLE khớp group-type, docs/20 §2)
+- Bước 9: thiếu tier (bỏ qua bước 5) → `BAD_REQUEST` `tierMissing`
+- Bước 11: `payslip.assemble`/`finalize` chỉ GĐKD+GĐĐT giữ, FORBIDDEN nếu chưa gán tier
+- Bước 12: chạy trước khi finalize (bỏ qua bước 11) → `approved: 0`, `skippedUnfinalized` có phần tử
 
 Tester (giam_doc_kinh_doanh): _________________ · Date: _________________ · Tester (giam_doc_dao_tao): _________________
 
@@ -276,10 +291,10 @@ Mọi role active giữ ≥1 mutation phải xuất hiện trong ≥1 kịch b�
 
 | Role | Mutation permissions (key, không đầy đủ) | Kịch bản |
 |------|---------------------------|----------|
-| giam_doc_kinh_doanh | finance.receiptApprove · manualPunch.approve · kpi.approve · payslip.assemble/finalize · guardian.approveLink · gift.upsert · rewards/parentMeeting/testAppointment/afterSale.manage | KB1 · KB4 · KB5 |
-| giam_doc_dao_tao | class.create · schedule.generate · exercise.manage · payslip.assemble/finalize · kpi.approve | KB2 · KB3 · KB4 |
-| sale | crm.opportunityCreate · finance.receiptCreate · enrollment.enroll · parentAccount.updateEmail · manualPunch.create · rewards/parentMeeting/testAppointment/afterSale.manage | KB1 · KB4 · KB5 |
-| giao_vien | attendance.mark · exercise.manage · submission.grade · sessionEvidence.publish · manualPunch.create · shift.submit · kpi.submit | KB2 · KB3 · KB4 |
+| giam_doc_kinh_doanh | finance.receiptApprove · manualPunch.approve · shift.approve · kpi.confirm/bulkApprove/override(key kpi.approve) · salaryTier.manage · payslip.assemble/finalize · guardian.approveLink · gift.upsert · rewards/parentMeeting/testAppointment/afterSale.manage | KB1 · KB4 · KB5 |
+| giam_doc_dao_tao | class.create · schedule.generate · exercise.manage · shift.approve · kpi.confirm/bulkApprove/override(key kpi.approve) · salaryTier.manage · payslip.assemble/finalize | KB2 · KB3 · KB4 |
+| sale | crm.opportunityCreate · finance.receiptCreate · enrollment.enroll · parentAccount.updateEmail · manualPunch.create · shift.submit · kpi.refresh/submitSlip · rewards/parentMeeting/testAppointment/afterSale.manage | KB1 · KB4 · KB5 |
+| giao_vien | attendance.mark · exercise.manage · submission.grade · sessionEvidence.publish · manualPunch.create · shift.submit · kpi.refresh/submitSlip | KB2 · KB3 · KB4 |
 
 ✅ Không role active nào giữ mutation mà vắng khỏi kịch bản.
 

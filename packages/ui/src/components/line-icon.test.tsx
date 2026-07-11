@@ -39,6 +39,7 @@ describe('LineIcon', () => {
     const { container } = render(<LineIcon name={name} />);
     const svg = container.querySelector('svg')!;
     expect(svg).toBeInTheDocument();
+    expect(svg).toHaveAttribute('data-icon', name); // name is assertable downstream
     expect(svg.querySelectorAll('path, rect, circle').length).toBeGreaterThan(0);
     svg.querySelectorAll('path, rect, circle').forEach((el) => {
       const fill = el.getAttribute('fill');

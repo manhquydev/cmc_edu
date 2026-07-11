@@ -49,7 +49,7 @@ export function LineIcon({ name, size = 18, strokeWidth = 1.75 }: { name: IconNa
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"
-      aria-hidden="true" style={{ display: 'block', flexShrink: 0 }}>
+      aria-hidden="true" data-icon={name} style={{ display: 'block', flexShrink: 0 }}>
       {PATHS[name]}
     </svg>
   );

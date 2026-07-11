@@ -7,6 +7,8 @@ import {
   DialogHeader,
   EmptyState,
   HStack,
+  LineIcon,
+  ListPage,
   MultiSelector,
   PageHeader,
   Stack,
@@ -151,23 +153,27 @@ function UsersContent() {
 
   return (
     <>
-      <PageHeader
-        title="Nhân viên"
-        subtitle="Danh sách tài khoản nhân viên tại cơ sở"
-        breadcrumbs={[{ label: 'Quản trị' }, { label: 'Nhân viên' }]}
-        actions={
-          <Button label="Thêm nhân viên" size="sm" variant="primary" onClick={() => setModalOpen(true)} />
+      <ListPage
+        header={
+          <PageHeader
+            title="Nhân viên"
+            subtitle="Danh sách tài khoản nhân viên tại cơ sở"
+            breadcrumbs={[{ label: 'Quản trị' }, { label: 'Nhân viên' }]}
+            actions={
+              <Button label="Thêm nhân viên" size="sm" variant="primary" onClick={() => setModalOpen(true)} />
+            }
+          />
         }
-      />
-
-      <DataTable<UserRow>
-        columns={COLUMNS}
-        data={rows}
-        loading={isLoading}
-        error={error?.message}
-        empty="Chưa có nhân viên nào"
-        onRowClick={(row) => openRolesModal(row)}
-      />
+      >
+        <DataTable<UserRow>
+          columns={COLUMNS}
+          data={rows}
+          loading={isLoading}
+          error={error?.message}
+          empty="Chưa có nhân viên nào"
+          onRowClick={(row) => openRolesModal(row)}
+        />
+      </ListPage>
 
       {/* Create modal.
           TODO(astryx-review): Astryx Dialog manages its own focus-trap and
@@ -311,7 +317,7 @@ export default function UsersPage() {
         <EmptyState
           title="Không có quyền truy cập"
           description="Trang này yêu cầu quyền quản lý tài khoản (user.manage)."
-          icon="🔒"
+          icon={<LineIcon name="shield" size={28} />}
         />
       </>
     );

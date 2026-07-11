@@ -1,4 +1,4 @@
-import { DataTable, EmptyState, PageHeader } from '@cmc/ui';
+import { DataTable, EmptyState, LineIcon, ListPage, PageHeader } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
@@ -30,12 +30,15 @@ function FacilitiesContent() {
   });
 
   return (
-    <>
-      <PageHeader
-        title="Cơ sở"
-        subtitle="Danh sách cơ sở trong hệ thống (Super Admin)"
-        breadcrumbs={[{ label: 'Quản trị' }, { label: 'Cơ sở' }]}
-      />
+    <ListPage
+      header={
+        <PageHeader
+          title="Cơ sở"
+          subtitle="Danh sách cơ sở trong hệ thống (Super Admin)"
+          breadcrumbs={[{ label: 'Quản trị' }, { label: 'Cơ sở' }]}
+        />
+      }
+    >
       <DataTable<FacilityRow>
         columns={COLUMNS}
         data={(data?.items as FacilityRow[] | undefined) ?? []}
@@ -43,7 +46,7 @@ function FacilitiesContent() {
         error={error?.message}
         empty="Chưa có cơ sở nào"
       />
-    </>
+    </ListPage>
   );
 }
 
@@ -60,7 +63,7 @@ export default function FacilitiesPage() {
         <EmptyState
           title="Không có quyền truy cập"
           description="Trang này chỉ dành cho Super Admin."
-          icon="🔒"
+          icon={<LineIcon name="shield" size={28} />}
         />
       </>
     );

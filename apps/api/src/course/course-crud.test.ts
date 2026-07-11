@@ -47,4 +47,20 @@ describe('course.create / course.list (test backfill)', () => {
   it('forbids a role without course.manage permission from listing', async () => {
     await expect(sale.course.list({})).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
+
+  it('does not expose a course created in a different facility', async () => {
+    const otherFacility = await createTestFacility('Course CRUD Facility (other)');
+    try {
+      const otherGddt = appRouter.createCaller(
+        buildStaffContext({ facilityId: otherFacility.id, userId: 'gddt-course-2', roles: ['giam_doc_dao_tao'] }),
+      );
+      const created = await gddt.course.create({ program: 'UCREA', name: 'Facility A Course' });
+
+      const { items, total } = await otherGddt.course.list({});
+      expect(items.some((c) => c.id === created.id)).toBe(false);
+      expect(total).toBe(0);
+    } finally {
+      await cleanupFacility(otherFacility.id);
+    }
+  });
 });

@@ -6,6 +6,73 @@
 
 ---
 
+## [2026-07-11] Build regression found (Astryx `@cmc/lms`/`@cmc/admin`) + Brevo OTP root-cause fixed
+
+**Context:** Routine build-status scout (`pnpm build`/`typecheck`/`test`/`lint`) on `main` @ `b81710a`,
+requested to verify project state before UAT/Go-No-Go.
+
+**Build regression (unresolved, needs owner):**
+- `pnpm build`/`pnpm typecheck` FAIL at `@cmc/lms` — ~30x `TS2307 Cannot find module '@astryxdesign/core/*'`
+  (`packages/ui/src/primitives.ts` and most `packages/ui/src/components/*.tsx` import deep subpaths the
+  installed `@astryxdesign/core@0.1.4` doesn't expose). `pnpm test` FAILS at `@cmc/admin`
+  (`src/pages/cockpit-counter.test.ts`) with the same root cause at runtime via Vite — proves the defect is
+  real for admin too, even though admin's `tsc --noEmit` passes clean (unexplained — flagged as open question).
+  `pnpm lint` separately broken: `eslint` binary unresolved despite being a root devDependency.
+- No `pnpm-lock.yaml`/`packages/ui`/app `package.json` changes since the Astryx merge (#28, #29) — the
+  "typecheck + build clean" verification recorded in `docs/codebase-summary.md`/`system-architecture.md`/
+  `project-roadmap.md` (2026-07-10) most likely ran in a separate git worktree
+  (`D:\project\vip\worktrees\CMC-feat-astryx-migration`, visible in replayed turbo cache log paths) with a
+  different `node_modules` state, not representative of a clean `main` checkout.
+- `apps/lms` and `apps/admin` build from separate Dockerfiles (`Dockerfile.lms`/`Dockerfile.admin`). The
+  2026-07-11 `cmcv2-prod` redeploy record in `docs/uat-checklist-go-live.md` only confirms **admin SPA 200**
+  — LMS was never explicitly checked, so its live state on the VPS is unverified given this reproduces
+  deterministically here.
+- Full evidence: `plans/reports/build-status-260711-0141-astryx-typecheck-runtime-break-report.md`.
+
+**Brevo OTP 401 — root cause found + local fix applied:**
+- The 2026-07-10 journal's "`BREVO_API_KEY` returns `401 Key not found`" blocker was not a bad key — the
+  local `.env.prod`'s `BREVO_API_KEY` line was missing a trailing newline and had swallowed the next line's
+  `GRAPH_TENANT_ID=...` assignment, corrupting the actual key value sent to Brevo's API.
+- Fixed locally (`.env.prod`, not committed — gitignored secret file): split the line, no other values
+  changed. New key value verified against Brevo's `/v3/account` (read-only) — returns HTTP 200 once the
+  calling IP is allowlisted (Brevo has "Authorised IPs" security enabled on this account).
+- **Not yet applied to the live VPS** — needs: (1) VPS outbound IP added to Brevo's authorised-IPs list,
+  (2) `.env.prod` redeploy (`docker compose -p cmcv2-prod --env-file .env.prod -f docker-compose.prod.yml up -d --no-deps api worker`),
+  (3) log verification.
+- Side note: Brevo account is on the free plan, 300 sends/day cap — fine for pilot, a real ceiling at scale.
+
+**Action needed before Go/No-Go:** re-verify `apps/lms` build on a clean checkout / on the VPS directly; do
+not trust "build clean" claims dated 2026-07-10 without re-running.
+
+**Correction (same day, later investigation):** the "admin passes, only lms fails" split recorded above is
+WRONG. Running `tsc -p tsconfig.json --noEmit` directly inside `apps/admin` (bypassing turbo) reproduces the
+identical `TS2307` cascade. Root cause: the original `pnpm typecheck` run's task accounting was misleading —
+26 typecheck tasks total, 21 "successful" + 1 explicitly failed (`@cmc/lms`) = 22, leaving 4 tasks (including
+`@cmc/admin`) that were still in-flight when turbo stopped scheduling after lms's failure; their in-progress
+"cache miss, executing" banner was misread as a completed clean pass. **Confirmed via isolated
+`turbo run typecheck --filter=@cmc/admin --force`: `@cmc/ui#build` (admin's `^build` dependency) fails first
+with the same TS2307s, so admin's own typecheck never even runs in a full pipeline — it's blocked, not
+green.** This is a full regression across both apps, not an lms-only issue. Also ruled out: the
+`feat/premium-design-language` worktree (`D:\project\vip\worktrees\CMC-feat-astryx-migration`) pins the same
+`@astryxdesign/core@0.1.4` — not a version difference; its earlier "clean" verification is still unexplained
+(possibly a different resolved package-content fetch at install time) and not worth chasing further without
+registry-level access.
+
+**RESOLVED (same day, final root cause):** the entire "regression" above was a stale local `node_modules`
+on this dev machine, not a real bug in `@astryxdesign/core` or the Astryx migration code. Confirmed by:
+(1) `docker compose -p cmcv2-prod ps` showed the `lms` container genuinely UP and serving `200` on `/lms/` —
+its image was built inside `Dockerfile.lms` via a clean `pnpm install --frozen-lockfile` in a fresh
+`node:22-alpine` container, which should hit the identical TS2307 wall if the bug were real; (2) ran
+`pnpm install --frozen-lockfile` locally → 147 packages changed, including `eslint` being installed for the
+first time (explains the separate `pnpm lint` "binary not found" failure too — same root cause); (3) re-ran
+`pnpm build`/`pnpm typecheck`/`pnpm lint` after the fresh install → all fully green (14/14 build, 26/26
+typecheck, lint clean). Lesson: this dev machine's `node_modules` had silently drifted out of sync with
+`pnpm-lock.yaml` and nothing caught it until a routine build-status scout. All three "unresolved questions"
+from earlier are now closed: no code fix needed for `@astryxdesign/core`; LMS's live container is confirmed
+genuinely running Astryx code, not stale; the admin/lms tsc "asymmetry" was an artifact of the same stale
+install plus a turbo task-accounting misread, not a real tsc blind spot. Preventive follow-up worth
+considering: a CI or pre-push check that fails on a `node_modules`/lockfile mismatch.
+
 ## [2026-07-10] Premium design-language layer promoted to @cmc/ui (Phase 5)
 
 **Context:** Admin cockpit pilot (Phase 1–2) validated a LOCKED design-language layer: light mode only, 
@@ -34,7 +101,60 @@ icons; warm mobile frame deferred to Phase 6.
 **Docs:** Updated TL12 §4.5 (premium components overview), TL18 §1 (Inter + test harness), codebase-summary 
 (expanded @cmc/ui, test counts).
 
----
+## [2026-07-10] Reconcile migration↔schema.prisma drift (pre-P3-dump hygiene)
+
+**Context:** The M1 P4 review flagged that the committed migration history had silently
+diverged from `schema.prisma` (the source of truth). Left unfixed, the next
+`prisma migrate dev` would re-bundle it into an unrelated migration (as happened in P4),
+and the P3 cutover dump would ship a schema that doesn't match the declared model. This
+captures the divergence in one deliberate, reviewed migration
+(`20260710220000_reconcile_schema_drift`).
+
+**Drift categories (verified via `prisma migrate diff` on a fresh migrations-built DB):**
+- **id / updatedAt DB defaults dropped (18 tables)** — migrations set `DEFAULT CURRENT_TIMESTAMP` /
+  uuid defaults; `schema.prisma` generates these app-side (`@default(uuid())` / `@updatedAt`),
+  which Prisma does not back with DB defaults. Behaviourally inert — Prisma always supplies the value.
+- **FK `ON UPDATE NO ACTION → CASCADE` (7 FKs)** — hand-written migrations omitted `ON UPDATE`;
+  Prisma emits `ON UPDATE CASCADE`. Inert — every referenced key is an immutable UUID PK.
+- **`QualitativeAssessment.confidence` `REAL → DOUBLE PRECISION`** — safe widening (schema declares `Float`).
+- **`QualitativeAssessment.classSessionId` FK `ON DELETE RESTRICT → SET NULL`** — the only real
+  behavioural change; matches the already-merged optional-relation declaration
+  (`classSessionId String?` → Prisma default `onDelete: SetNull`). Dormant in practice: no prod
+  path deletes a `ClassSession`, and test teardown already deletes assessments first.
+
+**Verification:** migration applies cleanly on a fresh full-history deploy; `migrate status` = up to date;
+`migrate diff` residual = empty; `schema.prisma` unchanged so the generated Prisma client is identical
+(typecheck/build unaffected). Full suite validated in CI.
+
+## [2026-07-10] M1 P4 hardening: sweep write-amplification fix, EmailOutbox index+retention, RLS fixture
+
+**Context:** M1 pilot-stability plan (`plans/260710-0228-m1-pilot-stability-real-vps`) Phase 4 — closes
+3 tech-debt items surfaced by the 2026-07-10 red-team review, independent of the VPS/infra phases.
+
+- **Sweep NULL-trap fix (H1):** `sweepStaleOtpPayloads` matched any row with `payload.kind=='otp'`
+  regardless of scrub state, so every relay cycle re-`UPDATE`d the entire history of already-scrubbed
+  OTP rows (unbounded WAL/DB growth). Fixed with a whole-object `NOT: { payload: { equals:
+  SCRUBBED_OTP_PAYLOAD } } }` filter — a path-scoped check (`NOT path:['scrubbed'] equals true`) would
+  have been a NULL-trap instead (missing key on unscrubbed rows → 3-valued UNKNOWN → row silently never
+  scrubbed, the exact vulnerability this sweep exists to close).
+- **EmailOutbox index + retention:** added `@@index([status, createdAt])` (drain query was seq-scanning)
+  and `pruneTerminalOutbox()` — deletes `sent`/`dead` rows older than `EMAIL_OUTBOX_RETENTION_DAYS`
+  (default 30d, env-configurable), called each `relayEmailOutbox` cycle; result gained a `pruned` field
+  (additive, no breaking change — the only production caller discards the whole result today).
+- **receipt-get.test.ts fixture fix:** pre-existing RLS 42501 failure from a naked `db.receipt.create`
+  bypassing `withFacility`; wrapped in `testDbBypass` (the standard arrange-helper for direct writes to
+  RLS-protected tables).
+- **Migration hygiene finding:** the first `prisma migrate dev` auto-generated migration for the index
+  silently swept in ~121 lines of unrelated pre-existing drift (7 FK on-delete/on-update action
+  mismatches, 18 tables' `id`/`updatedAt` `DROP DEFAULT`, `QualitativeAssessment.confidence` REAL→DOUBLE
+  PRECISION type correction) between the historical migration files and `schema.prisma` — caught by
+  code review before landing. Stripped to a hand-authored migration containing only the `CREATE INDEX`
+  statement. The underlying drift is real but pre-existing and out of this phase's scope — **follow-up
+  needed**: a dedicated, reviewed migration to reconcile it, before it risks landing silently again on
+  a future `prisma migrate dev` run.
+- Gates: typecheck 26/26 · build 14/14 · unit suite 524/527 (3 fail = `assessment/draft-confirm.test.ts`
+  LLM/PII tests, confirmed pre-existing on unmodified `main`, unrelated) · e2e Mode-B 17 passed/1 skipped
+  (`TEST_OTP_SEAM`, expected off in prod).
 
 ## [2026-07-10] LMS gap closure: OTP email delivery + parent visibility + test backfill
 

@@ -6,7 +6,14 @@ Version: v2.0 · Stack: cmcv2-prod · Mode B (V3) session-injection
 
 ## Prerequisites before UAT
 
-- [ ] ENV phase complete: all services healthy (`docker compose -p cmcv2-prod ps`)
+> ℹ️ **2026-07-11:** scout build phát hiện `pnpm build`/`typecheck`/`lint` FAIL trên máy dev — **RESOLVED
+> cùng ngày**: root cause là `node_modules` cục bộ stale (147 gói lệch, thiếu `eslint`), không phải bug
+> Astryx thật. Sau `pnpm install --frozen-lockfile`: build/typecheck/lint 100% xanh. Đã verify trực tiếp
+> qua `docker compose -p cmcv2-prod ps` — container `lms` build độc lập trong `Dockerfile.lms` (fresh
+> install trong container) và **đang chạy, trả 200 trên `/lms/`** suốt — không hề bị ảnh hưởng bởi vấn đề
+> node_modules cục bộ này. Chi tiết: `docs/project-changelog.md` mục `[2026-07-11]`.
+
+- [x] ENV phase complete: all services healthy (`docker compose -p cmcv2-prod ps`) — **✅ REDEPLOYED 2026-07-11 from main `5c2cd2e`** (F-FM1 verdict: REDEPLOY DONE — images rebuilt with Astryx UI #28/#29 + P4 hardening #31 + schema reconcile #32; 2 pending migrations applied via socat sidecar; boot-checks no FATAL; env-check OK prod 22 vars; dev-seams absent; health 200; SSO smoke 302 → login.microsoftonline.com; admin SPA 200) — **✅ LMS SPA also verified up + 200 on `/lms/` (2026-07-11, this session)**
 - [x] Restore drill passed (RT-13): `./scripts/restore-drill.sh` exits 0, backup host ≠ deploy host — **✅ PASSED 2026-07-09** (49 tables, escrow decrypt OK, pg_restore clean)
 - [x] E2E critical green 1st run (see Section 1) — **✅ RUN 1 + RUN 2 PASSED 2026-07-09** (17/18, Mode-B)
 - [ ] All CRITICAL/HIGH findings from red-team (RT-1..15) resolved via merged PRs

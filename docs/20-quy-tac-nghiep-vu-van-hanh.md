@@ -67,10 +67,20 @@ Học viên tích **sao** (star) từ bài tập → đổi quà.
   `gift_redeemed` (tiêu sao đổi quà) · `gift_rejected_refund` (hoàn sao nếu quà bị từ chối) · `manual`
   (điều chỉnh tay).
 - **Gift (quà):** `name`, `imageUrl`, **`starsRequired`** (số sao cần), `stock` (**-1 = không giới
-  hạn**), `minLevel` (cấp độ tối thiểu để đổi), `isActive`.
+  hạn**), `isActive`. **KHÔNG có `minLevel`** — schema (`packages/db/prisma/schema.prisma`) không có
+  trường này; mọi mô tả trước đây về "cấp độ tối thiểu để đổi" là doc-drift, đã bỏ khỏi tài liệu
+  (product-decision 2026-07-11, YAGNI — không xây tier system khi chưa có yêu cầu sản phẩm cụ thể).
 - **Reward vòng đời (`RewardStatus`):** `pending` (HS yêu cầu đổi) → `approved` → `delivered` (đã
   trao) | `rejected` (từ chối → hoàn sao qua `gift_rejected_refund`).
 - Nguồn sao chính: bài tập `graded` cộng `starReward` (TL19 §6).
+- **Từ chối ngay, không xếp hàng chờ:** thiếu sao (`balance < starsRequired`) hoặc hết `stock`
+  (`stock === 0`, sau khi trừ dần từ giá trị dương; `-1` = vô hạn không bao giờ hết) → `redeem` trả lỗi
+  `BAD_REQUEST` **ngay lập tức** ("Insufficient stars." / "Out of stock.") — không có cơ chế giữ chỗ
+  hay xếp hàng chờ hàng về.
+- **Đổi quà đồng thời cho cùng một Gift được tuần tự hoá:** khoá giao dịch Postgres theo `giftId`
+  (`pg_advisory_xact_lock(hashtext(giftId))`) đảm bảo 2 HS đổi cùng lúc đơn vị `stock` cuối cùng của
+  **cùng một quà** không cùng đi qua được — `stock` và số dư sao được **đọc lại bên trong khoá** (sau
+  khi đã acquire) trước khi so sánh/trừ, chặn race giữa lúc pre-check và lúc ghi (`rewards/reward-router.ts`).
 
 ## 6. Họp phụ huynh & Lịch test
 
@@ -113,7 +123,7 @@ Học viên tích **sao** (star) từ bài tập → đổi quà.
 | Ca sale vs GV | `resolveShiftGroup()` + `ShiftGroup.selectionMode` + QĐ 0035/0027 |
 | Lương/phạt | QĐ 0025, 0012 + `SalaryRate` |
 | KPI | QĐ 0011, 0010 |
-| Đổi quà | `StarTransaction`/`Gift`/`Reward` enums |
+| Đổi quà | `StarTransaction`/`Gift`/`Reward` enums; từ chối ngay + khoá tuần tự theo `giftId` trong `rewards/reward-router.ts` |
 | Họp PH / test | `ParentMeeting`/`TestAppointment` |
 | After-sale | `AfterSaleCase` + QĐ 0027 |
 

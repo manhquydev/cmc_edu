@@ -47,4 +47,20 @@ describe('room.create / room.list (test backfill)', () => {
   it('forbids a role without room.manage permission from listing', async () => {
     await expect(sale.room.list({})).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
+
+  it('does not expose a room created in a different facility', async () => {
+    const otherFacility = await createTestFacility('Room CRUD Facility (other)');
+    try {
+      const otherGddt = appRouter.createCaller(
+        buildStaffContext({ facilityId: otherFacility.id, userId: 'gddt-room-2', roles: ['giam_doc_dao_tao'] }),
+      );
+      const created = await gddt.room.create({ code: 'R201', name: 'Facility A Room' });
+
+      const { items, total } = await otherGddt.room.list({});
+      expect(items.some((r) => r.id === created.id)).toBe(false);
+      expect(total).toBe(0);
+    } finally {
+      await cleanupFacility(otherFacility.id);
+    }
+  });
 });

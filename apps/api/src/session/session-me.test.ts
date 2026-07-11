@@ -4,7 +4,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { appRouter } from '../router.js';
 import { APPROVAL_SECOND_EYE_THRESHOLD } from '../finance/router.js';
-import { buildStaffContext, cleanupFacility, createTestFacility } from '../test/db.js';
+import { buildStaffContext, cleanupFacility, createTestFacility, testDb } from '../test/db.js';
+import type { Context } from '../trpc.js';
 
 describe('session.me (phase-01a M5)', () => {
   let facility: { id: string };
@@ -35,5 +36,29 @@ describe('session.me (phase-01a M5)', () => {
     const me = await caller.session.me();
     expect(me.roles).toContain('giam_doc_dao_tao');
     expect(me.roles).toContain('super_admin');
+  });
+
+  it('rejects an unauthenticated caller (no staff subject)', async () => {
+    const anonymousContext: Context = {
+      subject: null,
+      facilityId: null,
+      lmsSubject: null,
+      db: testDb(),
+      ip: null,
+    };
+    const caller = appRouter.createCaller(anonymousContext);
+    await expect(caller.session.me()).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+  });
+
+  it('rejects a staff caller with no resolved facility context', async () => {
+    const noFacilityContext: Context = {
+      subject: { userId: 'no-facility-me-1', roles: ['sale'] },
+      facilityId: null,
+      lmsSubject: null,
+      db: testDb(),
+      ip: null,
+    };
+    const caller = appRouter.createCaller(noFacilityContext);
+    await expect(caller.session.me()).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
   });
 });

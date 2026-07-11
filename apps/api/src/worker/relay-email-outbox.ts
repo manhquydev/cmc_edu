@@ -62,6 +62,11 @@ function isOtpKindPayload(payload: unknown): boolean {
 
 const SCRUBBED_OTP_PAYLOAD = { kind: 'otp', scrubbed: true };
 
+/** Configurable via env — default 30. Terminal (`sent`/`dead`) rows older
+ *  than this many days are pruned every drain cycle (see
+ *  `pruneTerminalOutbox`) to keep the table small. */
+const EMAIL_OUTBOX_RETENTION_DAYS = Number(process.env.EMAIL_OUTBOX_RETENTION_DAYS ?? 30);
+
 /**
  * Scrubs plaintext OTP codes from `EmailOutbox` rows older than
  * `OTP_PAYLOAD_TTL_MINUTES`, regardless of `status`. Covers the case where a
@@ -74,9 +79,47 @@ export async function sweepStaleOtpPayloads(db: PrismaClient): Promise<number> {
   const result = await db.emailOutbox.updateMany({
     where: {
       createdAt: { lt: cutoff },
-      payload: { path: ['kind'], equals: 'otp' },
+      AND: [
+        { payload: { path: ['kind'], equals: 'otp' } },
+        // Whole-object inequality, not `NOT path:['scrubbed'] equals true`:
+        // an unscrubbed row is MISSING the `scrubbed` key entirely, so a
+        // path-scoped check compares against NULL and Postgres 3-valued
+        // logic makes `NOT (NULL)` = UNKNOWN — the row is silently excluded
+        // from every future sweep and its OTP plaintext never gets scrubbed
+        // (the exact C1 hole this sweep exists to close). Comparing the
+        // whole payload object against SCRUBBED_OTP_PAYLOAD has no such
+        // trap: an unscrubbed row never equals it, so `NOT equals` stays
+        // true until the row is actually scrubbed — after which it drops
+        // out and stops being re-updated every cycle.
+        { NOT: { payload: { equals: SCRUBBED_OTP_PAYLOAD } } },
+      ],
     },
     data: { payload: SCRUBBED_OTP_PAYLOAD },
+  });
+  return result.count;
+}
+
+/**
+ * Deletes terminal (`sent`/`dead`) `EmailOutbox` rows older than
+ * `EMAIL_OUTBOX_RETENTION_DAYS`. Never touches `pending`/`failed`/`sending`
+ * — those still need to be drained or retried. Not a ledger table (unlike
+ * RefundRecord/AuditLog), so hard-delete is safe here.
+ *
+ * Retention is keyed off `createdAt`, not time-of-termination — a row that
+ * stays non-terminal past the retention window and only then reaches
+ * `sent`/`dead` gets pruned the same cycle it terminates (no grace period).
+ * Harmless in practice: `failed` rows are redrained every cycle regardless
+ * of `nextRetryAt`, so a row reaches `dead` within a handful of cycles under
+ * normal operation — this only matters after sustained (multi-week) worker
+ * downtime.
+ */
+export async function pruneTerminalOutbox(db: PrismaClient): Promise<number> {
+  const cutoff = new Date(Date.now() - EMAIL_OUTBOX_RETENTION_DAYS * 24 * 60 * 60_000);
+  const result = await db.emailOutbox.deleteMany({
+    where: {
+      status: { in: ['sent', 'dead'] },
+      createdAt: { lt: cutoff },
+    },
   });
   return result.count;
 }
@@ -99,6 +142,8 @@ export interface RelayEmailOutboxResult {
   reaped: number;
   /** Count of stale OTP-payload rows scrubbed this cycle (see sweepStaleOtpPayloads). */
   otpSwept: number;
+  /** Count of terminal (sent/dead) rows deleted this cycle (see pruneTerminalOutbox). */
+  pruned: number;
 }
 
 /**
@@ -239,5 +284,8 @@ export async function relayEmailOutbox(
   // `pending`/`failed`/`sending` and past the OTP's own login TTL).
   const otpSwept = await sweepStaleOtpPayloads(db);
 
-  return { sent, failed, dead, reaped, otpSwept };
+  // ── 4. Prune terminal rows past retention ──────────────────────────────────
+  const pruned = await pruneTerminalOutbox(db);
+
+  return { sent, failed, dead, reaped, otpSwept, pruned };
 }

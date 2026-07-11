@@ -8,7 +8,7 @@
 ## WF-P4-01 — Đổi quà (Reward)
 
 **Meta:** P4 · P1 · **HITL** (duyệt trao quà). **Actors:** học viên (đổi), nhân viên/GĐ (duyệt).
-**Trigger:** HS yêu cầu đổi quà bằng sao. **Precondition:** đủ `starsRequired`, đạt `minLevel`, còn `stock`.
+**Trigger:** HS yêu cầu đổi quà bằng sao. **Precondition:** đủ `starsRequired`, còn `stock`.
 
 **State machine (`RewardStatus`)**
 ```mermaid
@@ -20,13 +20,15 @@ stateDiagram-v2
 ```
 
 **Happy path:** HS đổi → trừ sao (`StarTransaction gift_redeemed`) → `pending` → duyệt → `delivered`.
-**Exceptions & edge:** thiếu sao / dưới `minLevel` / hết `stock` (`-1` = vô hạn) → chặn. Từ chối → **hoàn
-sao** (`gift_rejected_refund`). Sao nguồn từ bài tập `graded` (WF-P2-06).
+**Exceptions & edge:** thiếu sao / hết `stock` (`-1` = vô hạn) → chặn **ngay lập tức** (không xếp
+hàng chờ). Đổi đồng thời cùng một `Gift` tuần tự hoá qua khoá giao dịch theo `giftId`; `stock`/số dư
+sao đọc lại trong khoá trước khi trừ (TL20 §5). Từ chối → **hoàn sao** (`gift_rejected_refund`). Sao
+nguồn từ bài tập `graded` (WF-P2-06).
 **Rules/ADR:** TL20 §5 · StarTxnType · RewardStatus. **API:** `rewards.redeem/approve/reject/deliver`.
 **UI/URL:** `/engagement/rewards` · LMS `/child/:id/rewards`.
 **Traceability:** `học viên/nhân viên → WF-P4-01 → "Đổi quà bằng sao" → rewards.redeem/approve →
-/engagement/rewards → test/rewards/redeem-refund.spec → TL20§5`.
-**Acceptance:** thiếu sao/level/stock chặn; từ chối hoàn sao; trừ/hoàn qua StarTransaction đúng type.
+/engagement/rewards → apps/api/src/rewards/redeem-refund.test.ts → TL20§5`.
+**Acceptance:** thiếu sao/stock chặn ngay; từ chối hoàn sao; trừ/hoàn qua StarTransaction đúng type.
 
 ---
 
@@ -34,12 +36,15 @@ sao** (`gift_rejected_refund`). Sao nguồn từ bài tập `graded` (WF-P2-06).
 
 **Meta:** P4 · P2 · người (GĐ/quản trị). **Actors:** GĐ. **Trigger:** cấu hình quà. **Precondition:** —
 
-**Happy path:** tạo/sửa `Gift`: `name`, `imageUrl`, `starsRequired`, `stock` (`-1` vô hạn), `minLevel`,
-`isActive`.
+**Happy path:** tạo/sửa `Gift`: `name`, `imageUrl`, `starsRequired`, `stock` (`-1` vô hạn), `isActive`.
+**KHÔNG có `minLevel`** — trường này không tồn tại trong schema; mọi bản mô tả trước có nhắc
+`minLevel` là doc-drift, đã bỏ (product-decision 2026-07-11, xem TL20 §5).
 **Exceptions & edge:** archive thay xoá cứng; `stock` giảm khi `delivered`; `isActive=false` ẩn khỏi HS.
 **Rules/ADR:** TL20 §5. **API:** `gift.upsert/archive` (GĐ). **UI/URL:** `/engagement/rewards` (tab quản lý).
 **Traceability:** `GĐ → WF-P4-02 → "Cấu hình quà đổi sao" → gift.upsert → /engagement/rewards →
-test/gift/catalog.spec → TL20§5`.
+apps/api/src/rewards/redeem-refund.test.ts → TL20§5`. **Lưu ý test:** WF-P4-01 và WF-P4-02 dùng
+**chung một file test** (`rewards/redeem-refund.test.ts` bao phủ cả redeem lẫn gift.upsert/archive) —
+không có file `gift/catalog.spec` riêng.
 **Acceptance:** stock `-1` vô hạn; inactive ẩn; archive không xoá cứng.
 
 ---

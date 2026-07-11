@@ -1,16 +1,16 @@
 # CMC EDU v2 — System Architecture (As-Built)
 
-**Date:** 2026-07-10  
-**Phase:** P1–P3 complete (SSO landing · flow audit · Astryx UI Phase 3–4) · UI migration Phase 4 complete (apps/lms 100% Astryx) · Phase 5 (Mantine dep removal) next  
-**Build Status:** Merged to main · 473/473 tests passing (13 skipped — lms-auth-two-tier) · 26/26 typecheck green · e2e UI 5 passed · API e2e 17 passed
+**Date:** 2026-07-11  
+**Phase:** P1–P4 complete and tested (SSO landing · flow audit · Astryx UI Phase 3–4) · UI migration Phase 4 complete (apps/lms 100% Astryx) · Phase 5 (Mantine dep removal) next  
+**Build Status:** Merged to main · 532/532 tests passing (0 skipped) in 64 test files · 26/26 typecheck green · e2e UI 5 passed · API e2e 17 passed. *(2026-07-11: a stale local `node_modules` briefly made this look broken — resolved via `pnpm install --frozen-lockfile`; not a real code regression. See `docs/project-changelog.md` `[2026-07-11]`.)*
 
 ---
 
 ## Architecture Overview
 
 CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout:
-- **P1 (now):** Identity & enrollment pipeline (lead → opportunity → receipt → active enrollment)
-- **P2-P4:** Class operations, HR/payroll, redemption (designed, not built)
+- **P1 (complete):** Identity & enrollment pipeline (lead → opportunity → receipt → active enrollment)
+- **P2-P4 (built & tested):** Class operations (attendance, exercise, assessment, session evidence, course, room), HR/payroll (shift, payroll, KPI, check-in), and redemption (rewards, meeting, appointment, after-sale)
 
 ### C4 Model (TL09)
 
@@ -256,14 +256,19 @@ Policies applied to: Opportunity, Student, Enrollment, Receipt, RefundRecord, Au
 
 **Purpose:** Deliver queued emails from EmailOutbox.
 
-**Status:** Relay logic ready; **transport layer NOT WIRED** (Brevo/Graph deferred).
+**Status:** Relay logic + transport wired (Brevo for parent-facing, Graph for internal mailboxes).
 
 **Concurrency Safety (R3 remediation):**
 - Each worker replica claims rows via `updateMany({ where: { id, status: { in: ['pending','failed'] } }, data: { status: 'sending' } })`  
 - Only claimer (count=1) proceeds to send  
 - Prevents double-send in distributed setup
 
-**Tests:** 5 test cases (concurrent drain, idempotency, failed email retry, retry limit)
+**OTP payload hygiene (M1 P4):**
+- `sweepStaleOtpPayloads` scrubs plaintext OTP codes from rows past their login TTL, regardless of status — whole-object JSON equality against `SCRUBBED_OTP_PAYLOAD` (not a path-scoped check, which NULL-traps on rows missing the `scrubbed` key)
+- `pruneTerminalOutbox` deletes `sent`/`dead` rows older than `EMAIL_OUTBOX_RETENTION_DAYS` (default 30d)
+- `EmailOutbox` has `@@index([status, createdAt])` covering the drain query
+
+**Tests:** unit + integration suite in `relay-email-outbox.test.ts` (concurrent drain, idempotency, failed email retry, retry limit, OTP scrub/sweep, terminal-row prune)
 
 ---
 
@@ -542,7 +547,7 @@ This implementation strictly follows the frozen design:
 
 ## Phase 4 Pre-conditions
 
-- [ ] **lms-auth-two-tier** 13 skipped tests must un-skip green before Run 1
+- [x] **lms-auth-two-tier** — 0-assertion stub suite deleted 2026-07-10; coverage moved to e2e (satisfied)
 - [ ] Phase 2 (docker stack) must complete: WSL2, R2 S3 keypair, Entra seed email
 - [ ] ctv_mkt `manualPunch.create` decision: intentional or permission leak?
 - [ ] REDEPLOY NOT REQUIRED confirmed — no rebuild needed before Phase 4 Run 1
@@ -551,7 +556,7 @@ This implementation strictly follows the frozen design:
 
 1. **Phase 2** — complete docker stack setup (WSL2 confirmed, R2 keypair, Entra email)
 2. **Phase 4 Run 1** — UAT with real users against 5 kịch bản chuỗi liên vai (Section 2)
-3. **un-skip lms-auth-two-tier** — 13 tests must pass before GO/NO-GO decision
+3. ~~un-skip lms-auth-two-tier~~ — satisfied 2026-07-10 (suite deleted, coverage moved to e2e)
 4. **ctv_mkt manualPunch.create** — business decision before UAT sign-off
 
 ---

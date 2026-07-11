@@ -28,6 +28,14 @@ duyệt lên cấp. SaaS hoá/multi-tenant ngoài CMC: **không trong vision nà
 
 ## 2. UI Design System Migration: Phases 3–4 COMPLETE (2026-07-10)
 
+> ℹ️ **2026-07-11:** một scout build phát hiện `pnpm build`/`typecheck` FAIL với ~30x `TS2307`
+> (`@astryxdesign/core/*` subpath) trên máy dev này — **đã RESOLVED cùng ngày**: root cause là
+> `node_modules` cục bộ bị stale/thiếu gói (147 gói lệch, kể cả thiếu hẳn `eslint`), không phải bug
+> Astryx/code thật. Sau `pnpm install --frozen-lockfile` sạch: build/typecheck/lint 100% xanh trở lại.
+> Xác nhận thêm: container `cmcv2-prod-lms` (local self-host qua Docker) build thành công độc lập và đang
+> chạy tốt suốt — chưa từng bị ảnh hưởng vì `Dockerfile.lms` luôn cài fresh trong container. Chi tiết:
+> `docs/project-changelog.md` mục `[2026-07-11]`.
+
 Ngoài các milestone dọc tuyến tính M0→M4, **UI migration spike đã hoàn thành Phases 3–4**:
 - **Phase 1 (GO):** Mantine v7 → Astryx (beta) — verified không phá build, CSS footprint tốt hơn, zero supply-chain risk.
 - **Phase 2 (complete):** All 10 components migrated, theme rebuilt (cmcTheme → AstryxCmcProvider CSS-only), peerDependencies updated. MantineProvider + AstryxCmcProvider coexist (strangler). Workspace clean: build + typecheck + test green. Browser e2e: 4 passing, 1 fixme, 0 failing.
@@ -47,7 +55,7 @@ Công việc này **song song với M0-M4**, không kéo timeline M0 go-live. **
 |---|---|---|---|---|---|
 | **M0** | Go-live sprint | Land SSO (PR #24) → ENV `cmcv2-prod` local-sim → UAT 2-run + người thật | Biên bản GO ký; e2e critical 2/2 PASS prod-config; email live Brevo+Graph; tracker #8/#9/#10 completed | `plans/260707-2308-golive-sprint-land-sso-env-uat` | **Đang chạy** — Phase 1 PR #24 CI xanh |
 | **M1** | Pilot ổn định + VPS thật | Vận hành pilot 1 cơ sở; fix-forward; chuyển VPS thật + TLS/DNS thật; backup R2/S3 remote | ≥2 tuần không CRITICAL; stack trên VPS thật healthy; restore drill pass với R2/S3 remote; runbook cập nhật | tạo khi M0 GO | Chưa |
-| **M2** | P4 completion | Lịch test (WF-P4-04) · after-sale case (WF-P4-05) · họp PH audit đầy-cuối · đóng ô trống TL25 cụm P4 | Acceptance TL28 pass; trace matrix P4 không ô trống; gates xanh | tạo khi M1 gần xong | Chưa |
+| **M2** | P4 completion | Lịch test (WF-P4-04) · after-sale case (WF-P4-05) · họp PH audit đầy-cuối · ✅ test coverage P4-adjacent (CLOSED 2026-07-10 via commit 326dfcc) | Acceptance TL28 pass; trace matrix P4 không ô trống; gates xanh; TL25 P4 test refs verified | tạo khi M1 gần xong | Chưa — P4 test-gap sub-item DONE (2026-07-10); other sub-items remain open |
 | **M3** | P5 AI crawl→walk | Recon agent HOTL trên data pilot thật · teacher-assist draft→GV chốt · eval plan viết + chạy | Eval đạt ngưỡng TL29 §5; override-rate đo được; PII-guard verify; agent qua MCP chịu gate/RLS/audit | tạo khi M2 gần xong | Chưa |
 | **M4** | Multi-facility rollout | Onboard toàn bộ cơ sở CMC còn lại (seed + runbook per-facility) | Tất cả cơ sở live; cross-facility isolation audit pass trên vận hành thật | tạo khi M3 gần xong | Chưa |
 

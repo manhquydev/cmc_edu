@@ -1,8 +1,8 @@
-# Tài liệu 22 — ADR hoá 4 rule "chỉ-trong-code" (0038–0041)
+# Tài liệu 22 — ADR hoá rule "chỉ-trong-code" (0038–0042)
 
-> G1: nâng 4 quy tắc tinh vi hiện chỉ sống trong code thành **ADR chính thức** để bản viết lại v2
+> G1: nâng các quy tắc tinh vi hiện chỉ sống trong code thành **ADR chính thức** để bản viết lại v2
 > tái mã hoá chắc chắn (nguyên tắc "port quyết định, không port code"). Định dạng ADR chuẩn; đánh số
-> tiếp repo (`docs/decisions/0038…0041`). Đều **Status: Accepted** (mô tả hành vi hiện hữu, chốt cho v2).
+> tiếp repo (`docs/decisions/0038…0042`). Đều **Status: Accepted** (mô tả hành vi hiện hữu, chốt cho v2).
 
 ---
 
@@ -102,10 +102,89 @@ Mang nguyên QĐ 0024 (cổng tiền/auto-O5), 0033 (định danh phone), 0037 (
 
 ---
 
+## ADR 0042 — KPI auto-score + session-done engine (HR remediation)
+
+**Status:** Accepted (formalize `kpi/auto-score.ts`, `kpi/router.ts`, `payroll/router.ts`,
+`class/session-done.ts`, `worker/session-done-sweep.ts`).
+**Context.** Trước HR remediation, KPI là nhập tay (`kpi.submit`/`kpi.approve` đơn lẻ, không công
+thức chuẩn) và lương dùng `SalaryRate` per-employee tự do (`baseSalary`/`variablePayRate`/`kpiMax`
+gõ tay từng người, không catalog, không audit trail cho công thức). "Buổi học xong" cũng không có
+khái niệm hệ thống — chỉ dựa điểm danh thô, không phản ánh buổi đã hoàn thành đủ 3 khâu (điểm danh +
+đánh giá + bằng chứng), khiến giờ dạy GV tính KPI thiếu chính xác khi GV chốt buổi trễ.
+
+**Decision — mô hình lương bậc + công thức "PHẦN NHÂN".**
+- `SalaryTier` catalog per-facility (`type` KINH_DOANH\|GIAO_VIEN, `baseSalary`, `unitRate`,
+  `requiredShifts`, `requiredMetric`) thay thế nhập tay từng người. `compensation.assignTier` gán 1
+  `AppUser` (chỉ `sale`/`giao_vien`) vào 1 tier — `SalaryRate.tierId`. 3 cột cũ (`baseSalary`,
+  `variablePayRate`, `kpiMax` trên `SalaryRate`) nullable-deprecated, không writer mới ghi.
+- Công thức: `value = min(1, shiftActual/tier.requiredShifts) × min(1, metricValue/tier.requiredMetric)
+  × tier.unitRate` (`computeKpiValue`, làm tròn `roundVnd`) — cap 100% trên CẢ HAI tỉ lệ (không vượt
+  100% dù vượt chỉ tiêu), 0 nếu quota bằng 0 (không chia 0, không mặc định 100%).
+- `metricValue`: GV = giờ dạy quy đổi qua `creditFactor` (xem phần session-done bên dưới); Sale =
+  `SUM(Receipt.netAmount)` `approved` trong kỳ, gắn `createdByAppUserId` (namespace AppUser thật, R2
+  #2 — không dùng `createdById` legacy userId scalar).
+- `shiftActual`: DISTINCT `(date, shiftTemplateId)` từ `ShiftRegistrationEntry` `approved`, ghép với
+  punch vào/ra qua `assignPunchesToShifts` (@cmc/domain-payroll — CÙNG hàm phase lương dùng tính phạt
+  muộn/sớm, một nguồn sự thật duy nhất cho "công ca thực"). Ngày có `ManualAttendanceTicket` `approved`
+  miễn hoàn toàn (bỏ qua ghép punch).
+- Mọi giá trị snapshot tại thời điểm `kpi.refresh` (`quotaSnapshot`, `shiftRequired`,
+  `unitRateSnapshot`, `tierIdSnapshot`) — đổi tier sau đó KHÔNG làm trôi số đã tính cho slip đã nộp.
+- `Payslip.kpiBonus` tái dụng chứa "Phần KPI" (= `KpiScore.value` khi `confirmed`\|`approved`);
+  `Payslip.variablePay` deprecated, luôn 0 (`assembleSlip`, @cmc/domain-payroll).
+
+**Decision — vòng đời KPI (`draft→submitted→confirmed→approved`).**
+- `kpi.refresh`: idempotent upsert `draft`, không bao giờ ghi đè `submitted`+ (race-safe qua P2002/
+  P2025 catch — 2 request đồng thời hội tụ về cùng 1 row, không 500, không duplicate).
+- `kpi.submitSlip`: chủ phiếu tự nộp, mở từ **00:00 ICT ngày 3 tháng kế tiếp** (đủ thời gian
+  `creditFactor` 48h đóng băng trước khi số liệu "chốt"); tự `refresh` trong cùng transaction, kèm
+  inline done-evaluate các session GV quá hạn (bù lỗ nếu sweep worker chạy chậm — R3-14).
+- `kpi.confirm`: direct manager (qua `managerId`) hoặc `super_admin`, chống tự-xác-nhận.
+- `kpi.override`: director set `value` trực tiếp có lý do audit; sửa `approved` chỉ `super_admin` VÀ
+  chỉ khi `Payslip` kỳ đó đã reopen về `draft` — van duy nhất chạm số đã tất toán.
+- `kpi.bulkApprove`: branch-scope theo **`AppUser.roles`** (RBAC truth), KHÔNG theo `position`
+  free-text (`resolveShiftGroup` là công cụ SAI cho quyết định tiền — dùng cho phân loại ca, không
+  phải phân loại tiền); chỉ đụng `confirmed` có `Payslip` `finalized`; loại trừ phiếu của chính người
+  duyệt; idempotent.
+- GĐ/`super_admin` không có `KpiScore`/`Payslip` — "lương giám đốc ngoài hệ thống", `kpi.refresh`/
+  `payslip.assemble` target họ trả `BAD_REQUEST`.
+
+**Decision — session-done engine (chỉ sweep, không event hook).**
+- 3 điều kiện `done`: ≥1 điểm danh `present`; mọi HS `present` có `QualitativeAssessment` `confirmed`;
+  `SessionEvidence` `published` ≥1 ảnh. Chỉ đánh giá khi `now >= endTime` (chặn chốt sớm để gian
+  credit).
+- **Không hook trực tiếp trên router điểm danh/đánh giá/bằng chứng** — 3 điều kiện nằm ở 3 router
+  khác nhau, hook sẽ đua nhau qua các transaction riêng biệt không có consumer real-time nào biện
+  minh cho rủi ro (R2 #1). Worker sweep định kỳ (`session-done-sweep.ts`) đánh giá lại mọi session
+  `planned`/`confirmed` đã qua `endTime`.
+- `doneAt` = mốc muộn nhất trong 3 điều kiện, **đóng băng tại thời điểm `done`** — sửa điểm danh/huỷ
+  đánh giá sau đó không hồi tố.
+- `creditFactor(doneAt, endTime)`: trễ ≤24h → 1.0; ≤48h → 0.5; >48h → 0 — nhân vào giờ dạy GV tính KPI
+  (`collectTeacherHours`). Session trước mốc kích hoạt engine (`SESSION_DONE_ACTIVATED_AT`) là lịch
+  sử, backfill 1 lần, credit luôn 1.0 (không phạt hồi tố dữ liệu cũ chưa từng được thiết kế theo
+  cơ chế này — R2 Scope F3).
+- Sweep thứ hai: session quá `endTime + 24h` với 0 điểm danh `present` → tự `cancelled`; nếu có
+  `scheduleSlotId` (không phải buổi thêm tay), tự tạo buổi bù nối vào **cuối** chuỗi slot lặp lại
+  (có thể kéo dài lịch học qua `ClassBatch.endDate` khi lớp nợ buổi); phòng bận → bỏ qua tạo tự động,
+  báo `roomConflict: true`, người xử lý thủ công.
+
+**Consequences.** Lương/KPI có công thức tường minh, kiểm chứng được, audit trail đầy đủ (snapshot
+mọi input); loại bỏ hoàn toàn nhập tay dễ sai/khó audit. Session-done engine phụ thuộc worker sweep
+chạy đều đặn (không real-time) — độ trễ giữa lúc 3 điều kiện đủ và lúc `done` thực sự set phụ thuộc
+chu kỳ sweep, chấp nhận được vì `creditFactor` đã có biên 24h/48h đủ rộng để hấp thụ độ trễ vận hành
+bình thường.
+
+**Alternatives bỏ.** Event hook trực tiếp trên 3 router (điểm danh/đánh giá/bằng chứng) để `done` set
+ngay lập tức — bị loại vì đua transaction xuyên router, không có nhu cầu real-time nào biện minh cho
+rủi ro. Giữ `SalaryRate` nhập tay từng người — bị loại vì không audit được công thức, dễ lệch giữa
+các nhân viên cùng vị trí.
+
+---
+
 ## Ghi chú triển khai
 
-4 ADR này **bỏ thẳng vào `docs/decisions/0038…0041`** của repo v2. Chúng là "carry-forward spec"
+5 ADR này **bỏ thẳng vào `docs/decisions/0038…0042`** của repo v2. Chúng là "carry-forward spec"
 (TL05 §3) — khi build lại, đọc trước khi code cụm tương ứng. Ma trận Truy vết (TL00) sẽ trỏ cột ADR
 tới đúng số này.
 
-> Liên kết: TL19 §4 (0038) · TL20 §1 (0039) · TL20 §2 (0040) · TL01/17 (0041) · TL16 (ADR A–D).
+> Liên kết: TL19 §4 (0038) · TL20 §1 (0039) · TL20 §2 (0040) · TL01/17 (0041) · docs/20 §2-4b, docs/25
+> P3 (0042).

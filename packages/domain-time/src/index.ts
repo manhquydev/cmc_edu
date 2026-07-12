@@ -115,3 +115,30 @@ export function ictMonthBounds(period: string): [Date, Date] {
   const end = ictToUtc(`${String(nextYear).padStart(4, '0')}-${String(nextMonth).padStart(2, '0')}-01`, '00:00');
   return [start, end];
 }
+
+const ONE_HOUR_MS = 60 * 60 * 1_000;
+
+/**
+ * HR remediation phase 7: the fixed instant the session-done engine went
+ * live. A session whose `endTime` predates this is a historical event with
+ * no sweep-evaluated `doneAt` — the one-time backfill script (not this
+ * function) sets `done` for those and their credit is unconditionally 1.0.
+ * Hardcoded (not env — R2 Scope F3: this is an immutable historical marker,
+ * not environment config that should vary between deploys).
+ */
+export const SESSION_DONE_ACTIVATED_AT: Date = new Date('2026-07-12T00:00:00.000Z');
+
+/**
+ * Wage credit multiplier for a `done` session, based on how late it was
+ * marked done relative to its own `endTime` (docs/20, phase 7 Requirements):
+ * within 24h -> full credit; within 48h -> half; beyond -> none. The session
+ * still transitions to `done` when its 3 conditions are met however late —
+ * only the payroll credit is zeroed, never the `done` status itself.
+ * Boundaries are inclusive of the lower bucket (`<=24h` -> 1.0, `<=48h` -> 0.5).
+ */
+export function creditFactor(doneAt: Date, endTime: Date): number {
+  const lateMs = doneAt.getTime() - endTime.getTime();
+  if (lateMs <= 24 * ONE_HOUR_MS) return 1.0;
+  if (lateMs <= 48 * ONE_HOUR_MS) return 0.5;
+  return 0;
+}

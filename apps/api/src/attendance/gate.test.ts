@@ -42,7 +42,7 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
    * auto-generation engine — the gates/lifecycle tests only need a real
    * session row to point at). */
   async function seedSession(overrides?: {
-    status?: 'planned' | 'confirmed' | 'cancelled';
+    status?: 'planned' | 'confirmed' | 'cancelled' | 'done';
     startTime?: Date;
     endTime?: Date;
   }) {
@@ -244,6 +244,17 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
     const session = await seedSession({ status: 'confirmed' });
     const cancelled = await gddt.classSession.cancel({ sessionId: session.id });
     expect(cancelled.status).toBe('cancelled');
+
+    await expect(gddt.classSession.cancel({ sessionId: session.id })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+  });
+
+  it('classSession.cancel rejects a done session with BAD_REQUEST (HR remediation phase 7 — done is one-way)', async () => {
+    const session = await seedSession({ status: 'confirmed' });
+    await testDbBypass((tx) =>
+      tx.classSession.update({ where: { id: session.id }, data: { status: 'done', doneAt: new Date() } }),
+    );
 
     await expect(gddt.classSession.cancel({ sessionId: session.id })).rejects.toMatchObject({
       code: 'BAD_REQUEST',

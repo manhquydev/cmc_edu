@@ -10,7 +10,8 @@
   "dependencies": {
     "@cmc/auth": "workspace:*",
     "@cmc/db": "workspace:*",
-    "@cmc/domain-identity": "workspace:*"
+    "@cmc/domain-identity": "workspace:*",
+    "@cmc/domain-time": "workspace:*"
   },
   "devDependencies": {
     "@cmc/domain-finance": "workspace:*",

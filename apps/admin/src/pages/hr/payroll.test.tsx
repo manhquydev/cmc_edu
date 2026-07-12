@@ -10,7 +10,12 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // firing directly on click (the current screen has no ConfirmDialog gating
 // on these mutations; the refactor is presentation-only and must not add
 // one). The penalty row MUST stay a visually distinct, separate deduction
-// line item (QĐ0025) — never merged into base/variable/KPI rows.
+// line item (QĐ0025) — never merged into base/KPI rows.
+//
+// HR remediation phase 5 (R3-2, R2 #M1): tier-based salary model REWRITE —
+// "Lương biến đổi" row REMOVED (variablePay is a deprecated column, always 0
+// under the tier model); "Thưởng KPI" RELABELED to "Phần KPI (%côngca ×
+// %chỉ-số × đơn giá)" (kpiBonus column reused, value unchanged).
 const STAFF = {
   id: 'u-1',
   fullName: 'Nguyễn Văn A',
@@ -28,13 +33,13 @@ let payslipData: Record<string, unknown> | undefined = {
   id: 'ps-1',
   status: 'draft',
   baseSalary: 10_000_000,
-  variablePay: 2_000_000,
+  variablePay: 0,
   kpiBonus: 500_000,
   penaltyAmount: 100_000,
   lateMinutes: 15,
   earlyMinutes: 0,
   unpunchedDays: 0,
-  totalNet: 12_400_000,
+  totalNet: 10_400_000,
   flaggedPunches: 1,
 };
 let payslipError: { message: string } | null = null;
@@ -121,13 +126,13 @@ describe('PayrollPage', () => {
       id: 'ps-1',
       status: 'draft',
       baseSalary: 10_000_000,
-      variablePay: 2_000_000,
+      variablePay: 0,
       kpiBonus: 500_000,
       penaltyAmount: 100_000,
       lateMinutes: 15,
       earlyMinutes: 0,
       unpunchedDays: 0,
-      totalNet: 12_400_000,
+      totalNet: 10_400_000,
       flaggedPunches: 1,
     };
     payslipError = null;
@@ -277,13 +282,14 @@ describe('PayrollPage', () => {
     expect(screen.getByText('Đi muộn 15 phút')).toBeInTheDocument();
   });
 
-  it('renders the income line items and the net total', () => {
+  it('renders the income line items (relabeled KPI row, no "Lương biến đổi") and the net total', () => {
     renderWithProviders(<PayrollPage />);
     selectStaff();
     expect(screen.getByText('10.000.000 đ')).toBeInTheDocument();
-    expect(screen.getByText('2.000.000 đ')).toBeInTheDocument();
+    expect(screen.getByText('Phần KPI (%côngca × %chỉ-số × đơn giá)')).toBeInTheDocument();
     expect(screen.getByText('500.000 đ')).toBeInTheDocument();
-    expect(screen.getByText('12.400.000 đ')).toBeInTheDocument();
+    expect(screen.getByText('10.400.000 đ')).toBeInTheDocument();
+    expect(screen.queryByText('Lương biến đổi')).toBeNull();
   });
 
   it('navigates back to the staff list via the back button', () => {

@@ -1,20 +1,44 @@
-// Payroll router — P3-II (QĐ0025/0012, WF-P3-05/06).
+// Payroll router — P3-II (QĐ0025/0012, WF-P3-05/06), salary-tier model
+// (HR remediation phase 2, validate session 3/4).
 //
-// compensation.upsertRate — set/update a staff member's SalaryRate.
-//   - Perm: giam_doc_kinh_doanh | giam_doc_dao_tao | super_admin.
+// compensation.assignTier — assigns an AppUser (sale/giao_vien ONLY) to a
+//   SalaryTier. Target role must be sale|giao_vien (GĐ/super_admin have no
+//   payslip, "lương GĐ ngoài hệ thống") and the tier's `type` must match the
+//   target's role (GIAO_VIEN tier ↔ giao_vien, KINH_DOANH tier ↔ sale).
+//   Perm: key `salaryTier.manage` (giam_doc_kinh_doanh|giam_doc_dao_tao).
 //
-// payslip.assemble — compute a draft Payslip from live TimePunch data.
-//   - Reads approved ShiftRegistrationEntries + ShiftTemplates for the period.
-//   - Pairs punches by ICT day (first=clock-in, last=clock-out).
-//   - lateMinutes: clock-in > shift startTime; earlyMinutes: clock-out < endTime.
-//   - unpunchedDays: approved shift entry with no punch that day.
-//   - flaggedPunches: punch day with NO approved shift entry (NOT penalized).
+// compensationPolicy.get/upsert — per-facility late/early penalty rates.
+//   Perm: key `compensationPolicy.manage` (super_admin only).
+//
+// salaryTier.list/create/update — SalaryTier CRUD (audit: updatedById).
+//   Perm: key `salaryTier.manage` (giam_doc_kinh_doanh|giam_doc_dao_tao).
+//
+// payslip.assemble — compute a draft Payslip from live TimePunch + KpiScore
+//   + SalaryTier data:
+//   - Target role must be sale|giao_vien (GĐ/super_admin excluded, BAD_REQUEST).
+//   - Target must have a SalaryTier assigned (SalaryRate.tierId) — FORBIDDEN
+//     otherwise (greenfield: no legacy fallback, validate session 4).
+//   - baseSalary = the assigned SalaryTier's baseSalary.
+//   - kpiPartAmount = KpiScore.value for a period slip in status
+//     confirmed|approved, else 0 ("PHẦN NHÂN" — phase 3 computes `value`).
+//   - Per-shift late/early penalty (R3-6/R3-7): each ShiftRegistrationEntry
+//     of a day is paired against that day's punches via
+//     `assignPunchesToShifts` (@cmc/domain-payroll) — punches are not reused
+//     across shifts, entries are processed in ShiftTemplate.startTime order.
+//     A shift missing either half of its punch pair is "vắng": no wage, no
+//     minute penalty, counted into `unpunchedDays`.
+//   - A day with an APPROVED ManualAttendanceTicket is fully exempted: every
+//     shift registered that day is credited (no unpunched, no penalty),
+//     bypassing the punch-pairing pass entirely for that date.
+//   - Penalty rates come from the facility's CompensationPolicy row, falling
+//     back to 500/1000 VND/minute when none exists.
 //   - Calls assembleSlip() from @cmc/domain-payroll for the arithmetic.
 //   - Creates or updates a draft Payslip (rejects if currently finalized).
 //
 // payslip.finalize — locks a draft Payslip (status=finalized).
 // payslip.reopen  — reverts finalized → draft; re-derives is done via assemble.
 // payslip.getForUser — privacy-gated read (own or director/super_admin).
+// payslip.my — self-scoped read (own payslip for a period, null if not assembled).
 //
 // All writes are facility-scoped via `withFacility` (ADR 0042).
 // Payslip is append-like: cmc_app has no DELETE grant.
@@ -22,18 +46,62 @@
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { ictMonthBounds, ictDateOnlyOf, ictToUtc } from '@cmc/domain-time';
-import { assembleSlip } from '@cmc/domain-payroll';
-import { badRequest, forbidden, notFound } from '../errors.js';
+import { assembleSlip, assignPunchesToShifts, type ShiftWindow } from '@cmc/domain-payroll';
+import { AppCodeError, badRequest, forbidden, notFound } from '../errors.js';
 import { protectedProcedure, requirePermission, router, scoped } from '../trpc.js';
 
 const PERIOD_RE = /^\d{4}-\d{2}$/;
 
-const upsertRateInput = z.object({
+/** R3-13/docs: named fallback used ONLY when a facility has no CompensationPolicy row. */
+const FALLBACK_PENALTY_RATE_PER_LATE_MINUTE = 500;
+const FALLBACK_PENALTY_RATE_PER_EARLY_MINUTE = 1000;
+
+/**
+ * Payslip/KpiScore/tier target roles (validate session 4 — "lương GĐ ngoài
+ * hệ thống"). Deliberately checks `AppUser.roles` (RBAC truth), NOT
+ * `AppUser.position` free text — `resolveShiftGroup(position)` from
+ * @cmc/domain-time is the WRONG tool for money-scope decisions (R2-6).
+ */
+function resolvePayrollTargetRole(roles: readonly string[]): 'sale' | 'giao_vien' | null {
+  if (roles.includes('sale')) return 'sale';
+  if (roles.includes('giao_vien')) return 'giao_vien';
+  return null;
+}
+
+const GD_OUTSIDE_PAYROLL_MESSAGE =
+  'Lương giám đốc/super_admin ngoài hệ thống — chỉ áp dụng cho sale/giáo viên.';
+
+// ---------------------------------------------------------------------------
+// Input schemas
+// ---------------------------------------------------------------------------
+
+const assignTierInput = z.object({
   appUserId: z.string().uuid(),
+  tierId: z.string().uuid(),
+});
+
+const policyUpsertInput = z.object({
+  penaltyRatePerLateMinute: z.number().nonnegative(),
+  penaltyRatePerEarlyMinute: z.number().nonnegative(),
+});
+
+const salaryTierCreateInput = z.object({
+  name: z.string().min(1).max(200),
+  type: z.enum(['KINH_DOANH', 'GIAO_VIEN']),
   baseSalary: z.number().nonnegative(),
-  /** 0–1 multiplier: variablePay = baseSalary × variablePayRate */
-  variablePayRate: z.number().min(0).max(1),
-  kpiMax: z.number().nonnegative(),
+  unitRate: z.number().nonnegative(),
+  requiredShifts: z.number().int().nonnegative(),
+  requiredMetric: z.number().nonnegative(),
+});
+
+const salaryTierUpdateInput = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).max(200).optional(),
+  type: z.enum(['KINH_DOANH', 'GIAO_VIEN']).optional(),
+  baseSalary: z.number().nonnegative().optional(),
+  unitRate: z.number().nonnegative().optional(),
+  requiredShifts: z.number().int().nonnegative().optional(),
+  requiredMetric: z.number().nonnegative().optional(),
 });
 
 const assembleInput = z.object({
@@ -54,35 +122,165 @@ const getForUserInput = z.object({
   period: z.string().regex(PERIOD_RE, 'Expected YYYY-MM'),
 });
 
+const myInput = z.object({
+  period: z.string().regex(PERIOD_RE, 'Expected YYYY-MM'),
+});
+
 // ---------------------------------------------------------------------------
-// Compensation sub-router
+// Compensation sub-router — tier assignment (upsertRate REMOVED, R3-4)
 // ---------------------------------------------------------------------------
 
 export const compensationRouter = router({
-  upsertRate: requirePermission('compensation', 'upsertRate')
-    .input(upsertRateInput)
+  assignTier: requirePermission('salaryTier', 'manage')
+    .input(assignTierInput)
     .mutation(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
       return withFacility(ctx.db, facilityId, async (tx) => {
-        // Validate the target AppUser belongs to this facility
         const appUser = await tx.appUser.findFirst({
           where: { id: input.appUserId, facilityId },
         });
         if (!appUser) throw notFound('AppUser not found in this facility.');
+
+        const targetRole = resolvePayrollTargetRole(appUser.roles);
+        if (!targetRole) throw badRequest(GD_OUTSIDE_PAYROLL_MESSAGE);
+
+        const tier = await tx.salaryTier.findFirst({
+          where: { id: input.tierId, facilityId },
+        });
+        if (!tier) throw notFound('SalaryTier not found in this facility.');
+
+        // Branch-scope (R2-6): caller's director ROLE must match the
+        // tier's `type` — GĐKD may only assign KINH_DOANH tiers, GĐĐT only
+        // GIAO_VIEN tiers; super_admin bypasses (any tier).
+        if (!ctx.subject!.roles.includes('super_admin')) {
+          const isGdkd = ctx.subject!.roles.includes('giam_doc_kinh_doanh');
+          const isGddt = ctx.subject!.roles.includes('giam_doc_dao_tao');
+          const allowed =
+            (isGdkd && tier.type === 'KINH_DOANH') || (isGddt && tier.type === 'GIAO_VIEN');
+          if (!allowed) {
+            throw forbidden(
+              `Director branch scope: cannot assign a ${tier.type} salary tier outside your scope.`,
+            );
+          }
+        }
+
+        // Defense-in-depth: tier.type must still match the target's own
+        // role (kept even though the branch-scope check above already
+        // constrains most mismatches).
+        const requiredType = targetRole === 'giao_vien' ? 'GIAO_VIEN' : 'KINH_DOANH';
+        if (tier.type !== requiredType) {
+          throw badRequest(
+            `Bậc lương "${tier.name}" (${tier.type}) không khớp vai trò ${targetRole}.`,
+          );
+        }
 
         return tx.salaryRate.upsert({
           where: { appUserId: input.appUserId },
           create: {
             facilityId,
             appUserId: input.appUserId,
-            baseSalary: input.baseSalary,
-            variablePayRate: input.variablePayRate,
-            kpiMax: input.kpiMax,
+            tierId: tier.id,
           },
           update: {
+            tierId: tier.id,
+            updatedAt: new Date(),
+          },
+        });
+      });
+    }),
+});
+
+// ---------------------------------------------------------------------------
+// CompensationPolicy sub-router — per-facility late/early penalty rates
+// ---------------------------------------------------------------------------
+
+export const compensationPolicyRouter = router({
+  get: requirePermission('compensationPolicy', 'manage')
+    .query(async ({ ctx }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, (tx) =>
+        tx.compensationPolicy.findUnique({ where: { facilityId } }),
+      );
+    }),
+
+  upsert: requirePermission('compensationPolicy', 'manage')
+    .input(policyUpsertInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, (tx) =>
+        tx.compensationPolicy.upsert({
+          where: { facilityId },
+          create: {
+            facilityId,
+            penaltyRatePerLateMinute: input.penaltyRatePerLateMinute,
+            penaltyRatePerEarlyMinute: input.penaltyRatePerEarlyMinute,
+          },
+          update: {
+            penaltyRatePerLateMinute: input.penaltyRatePerLateMinute,
+            penaltyRatePerEarlyMinute: input.penaltyRatePerEarlyMinute,
+            updatedAt: new Date(),
+          },
+        }),
+      );
+    }),
+});
+
+// ---------------------------------------------------------------------------
+// SalaryTier sub-router — tier CRUD (audit: updatedById)
+// ---------------------------------------------------------------------------
+
+export const salaryTierRouter = router({
+  list: requirePermission('salaryTier', 'manage')
+    .query(async ({ ctx }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, (tx) =>
+        tx.salaryTier.findMany({ where: { facilityId }, orderBy: { name: 'asc' } }),
+      );
+    }),
+
+  create: requirePermission('salaryTier', 'manage')
+    .input(salaryTierCreateInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const caller = await tx.appUser.findFirst({
+          where: { userId: ctx.subject!.userId, facilityId },
+        });
+        return tx.salaryTier.create({
+          data: {
+            facilityId,
+            name: input.name,
+            type: input.type,
             baseSalary: input.baseSalary,
-            variablePayRate: input.variablePayRate,
-            kpiMax: input.kpiMax,
+            unitRate: input.unitRate,
+            requiredShifts: input.requiredShifts,
+            requiredMetric: input.requiredMetric,
+            updatedById: caller?.id ?? null,
+          },
+        });
+      });
+    }),
+
+  update: requirePermission('salaryTier', 'manage')
+    .input(salaryTierUpdateInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const existing = await tx.salaryTier.findFirst({
+          where: { id: input.id, facilityId },
+        });
+        if (!existing) throw notFound('SalaryTier not found in this facility.');
+
+        const caller = await tx.appUser.findFirst({
+          where: { userId: ctx.subject!.userId, facilityId },
+        });
+
+        const { id, ...patch } = input;
+        return tx.salaryTier.update({
+          where: { id },
+          data: {
+            ...patch,
+            updatedById: caller?.id ?? null,
             updatedAt: new Date(),
           },
         });
@@ -96,24 +294,33 @@ export const compensationRouter = router({
 
 export const payslipRouter = router({
   // -------------------------------------------------------------------------
-  // payslip.assemble — build draft from live TimePunch data
+  // payslip.assemble — build draft from live TimePunch/KpiScore/tier data
   // -------------------------------------------------------------------------
   assemble: requirePermission('payslip', 'assemble')
     .input(assembleInput)
     .mutation(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
       return withFacility(ctx.db, facilityId, async (tx) => {
-        // Validate target AppUser
+        // Validate target AppUser + role scope (GĐ/super_admin excluded)
         const appUser = await tx.appUser.findFirst({
           where: { id: input.appUserId, facilityId },
         });
         if (!appUser) throw notFound('AppUser not found in this facility.');
+        if (!resolvePayrollTargetRole(appUser.roles)) {
+          throw badRequest(GD_OUTSIDE_PAYROLL_MESSAGE);
+        }
 
-        // Salary configuration must exist
+        // Salary tier must be assigned (greenfield — no legacy fallback)
         const salaryRate = await tx.salaryRate.findUnique({
           where: { appUserId: input.appUserId },
         });
-        if (!salaryRate) throw notFound('SalaryRate not configured for this user.');
+        if (!salaryRate?.tierId) {
+          throw forbidden('Chưa gán bậc lương cho nhân viên này.');
+        }
+        const tier = await tx.salaryTier.findFirst({
+          where: { id: salaryRate.tierId, facilityId },
+        });
+        if (!tier) throw forbidden('Chưa gán bậc lương cho nhân viên này.');
 
         // Block reassembly of a finalized payslip
         const existing = await tx.payslip.findFirst({
@@ -126,7 +333,7 @@ export const payslipRouter = router({
         // Get period bounds in ICT
         const [periodStart, periodEnd] = ictMonthBounds(input.period);
 
-        // Get all TimePunches for this user in the period
+        // Live TimePunches for the period, grouped by ICT calendar date
         const punches = await tx.timePunch.findMany({
           where: {
             appUserId: input.appUserId,
@@ -134,8 +341,17 @@ export const payslipRouter = router({
           },
           orderBy: { punchAt: 'asc' },
         });
+        const punchesByDate = new Map<string, Date[]>();
+        for (const punch of punches) {
+          const dateKey = ictDateOnlyOf(punch.punchAt);
+          const list = punchesByDate.get(dateKey);
+          if (list) list.push(punch.punchAt);
+          else punchesByDate.set(dateKey, [punch.punchAt]);
+        }
 
-        // Get approved ShiftRegistrations for this user (any that have entries in period)
+        // Approved ShiftRegistrationEntries for the period, grouped by ICT
+        // date and sorted by ShiftTemplate.startTime ascending (R3-6
+        // determinism — pool depletion order).
         const approvedRegs = await tx.shiftRegistration.findMany({
           where: { appUserId: input.appUserId, facilityId, status: 'approved' },
           include: {
@@ -145,83 +361,100 @@ export const payslipRouter = router({
             },
           },
         });
-
-        // Build map: ICT date string → { startTime, endTime } from approved entries
-        const entryByDate = new Map<string, { startTime: string; endTime: string }>();
+        const entriesByDate = new Map<
+          string,
+          { id: string; startTime: string; start: Date; end: Date }[]
+        >();
         for (const reg of approvedRegs) {
           for (const entry of reg.entries) {
             const dateKey = ictDateOnlyOf(entry.date);
-            // Last-write: if multiple entries for same date (MULTIPLE mode), use first
-            if (!entryByDate.has(dateKey)) {
-              entryByDate.set(dateKey, {
-                startTime: entry.shiftTemplate.startTime,
-                endTime: entry.shiftTemplate.endTime,
-              });
-            }
+            const list = entriesByDate.get(dateKey) ?? [];
+            list.push({
+              id: entry.id,
+              startTime: entry.shiftTemplate.startTime,
+              start: ictToUtc(dateKey, entry.shiftTemplate.startTime),
+              end: ictToUtc(dateKey, entry.shiftTemplate.endTime),
+            });
+            entriesByDate.set(dateKey, list);
           }
         }
-
-        // Build map: ICT date string → sorted punches
-        const punchesByDate = new Map<string, Date[]>();
-        for (const punch of punches) {
-          const dateKey = ictDateOnlyOf(punch.punchAt);
-          if (!punchesByDate.has(dateKey)) punchesByDate.set(dateKey, []);
-          punchesByDate.get(dateKey)!.push(punch.punchAt);
+        for (const list of entriesByDate.values()) {
+          list.sort((a, b) => a.startTime.localeCompare(b.startTime));
         }
+
+        // Approved ManualAttendanceTicket dates → full exemption for every
+        // shift registered that day (bypass unpunched + penalty entirely).
+        const approvedTickets = await tx.manualAttendanceTicket.findMany({
+          where: {
+            appUserId: input.appUserId,
+            facilityId,
+            status: 'approved',
+            ticketDate: { gte: periodStart, lt: periodEnd },
+          },
+        });
+        const exemptDates = new Set(approvedTickets.map((t) => ictDateOnlyOf(t.ticketDate)));
 
         let lateMinutes = 0;
         let earlyMinutes = 0;
         let unpunchedDays = 0;
         let flaggedPunches = 0;
 
-        // Process each approved entry date
-        for (const [dateKey, shift] of entryByDate) {
-          const dayPunches = punchesByDate.get(dateKey);
-          if (!dayPunches || dayPunches.length === 0) {
-            unpunchedDays++;
-          } else {
-            const shiftStart = ictToUtc(dateKey, shift.startTime);
-            const shiftEnd = ictToUtc(dateKey, shift.endTime);
-            const clockIn = dayPunches[0];
-            const clockOut = dayPunches[dayPunches.length - 1];
+        for (const [dateKey, entries] of entriesByDate) {
+          if (exemptDates.has(dateKey)) continue; // ticket-approved: fully credited
 
-            // Late: clock-in after shift start
-            if (clockIn.getTime() > shiftStart.getTime()) {
-              lateMinutes += Math.round(
-                (clockIn.getTime() - shiftStart.getTime()) / 60_000,
-              );
-            }
-            // Early departure: only if there are at least 2 punches (in + out)
-            if (dayPunches.length > 1 && clockOut.getTime() < shiftEnd.getTime()) {
-              earlyMinutes += Math.round(
-                (shiftEnd.getTime() - clockOut.getTime()) / 60_000,
-              );
+          const dayPunches = punchesByDate.get(dateKey) ?? [];
+          const windows: ShiftWindow[] = entries.map((e) => ({
+            id: e.id,
+            start: e.start,
+            end: e.end,
+          }));
+          const result = assignPunchesToShifts(windows, dayPunches);
+          for (const outcome of result.shifts) {
+            if (!outcome.present) {
+              unpunchedDays++;
+            } else {
+              lateMinutes += outcome.lateMinutes;
+              earlyMinutes += outcome.earlyMinutes;
             }
           }
+          flaggedPunches += result.unassignedPunches.length;
         }
 
-        // Count punch days without an approved entry → flagged (NOT penalized)
+        // Punches on days with NO registered shift entry at all → flagged
+        // (NOT penalized — same posture as the pre-remediation behavior).
         for (const [dateKey, dayPunches] of punchesByDate) {
-          if (!entryByDate.has(dateKey)) {
+          if (!entriesByDate.has(dateKey)) {
             flaggedPunches += dayPunches.length;
           }
         }
 
-        // Get approved KPI bonus for this period (0 if none or not yet approved)
+        // KpiScore "PHẦN NHÂN" — confirmed|approved slips only.
         const kpiScore = await tx.kpiScore.findFirst({
-          where: { appUserId: input.appUserId, period: input.period, status: 'approved' },
+          where: {
+            appUserId: input.appUserId,
+            period: input.period,
+            status: { in: ['confirmed', 'approved'] },
+          },
         });
-        const kpiBonus = kpiScore ? Number(kpiScore.value) : 0;
+        const kpiPartAmount = kpiScore ? Number(kpiScore.value) : 0;
 
-        // Compute payslip using pure function
+        // Penalty rates from CompensationPolicy, fallback 500/1000.
+        const policy = await tx.compensationPolicy.findUnique({ where: { facilityId } });
+        const penaltyRatePerLateMinute = policy
+          ? Number(policy.penaltyRatePerLateMinute)
+          : FALLBACK_PENALTY_RATE_PER_LATE_MINUTE;
+        const penaltyRatePerEarlyMinute = policy
+          ? Number(policy.penaltyRatePerEarlyMinute)
+          : FALLBACK_PENALTY_RATE_PER_EARLY_MINUTE;
+
+        // Compute payslip using the pure function
         const slip = assembleSlip({
-          baseSalary: Number(salaryRate.baseSalary),
-          variablePayRate: Number(salaryRate.variablePayRate),
-          kpiBonus,
+          baseSalary: Number(tier.baseSalary),
+          kpiPartAmount,
           lateMinutes,
           earlyMinutes,
-          penaltyRatePerLateMinute: 500,
-          penaltyRatePerEarlyMinute: 1000,
+          penaltyRatePerLateMinute,
+          penaltyRatePerEarlyMinute,
         });
 
         // Upsert the Payslip
@@ -338,7 +571,13 @@ export const payslipRouter = router({
         const targetAppUser = await tx.appUser.findFirst({
           where: { id: input.appUserId, facilityId },
         });
-        if (!targetAppUser) throw notFound('AppUser not found in this facility.');
+        if (!targetAppUser) {
+          throw new AppCodeError({
+            code: 'NOT_FOUND',
+            appCode: 'APP_USER_NOT_FOUND',
+            message: 'AppUser not found in this facility.',
+          });
+        }
 
         // Privacy gate: caller must be the owner OR a director
         const callerUserId = ctx.subject!.userId;
@@ -354,8 +593,33 @@ export const payslipRouter = router({
         const payslip = await tx.payslip.findFirst({
           where: { appUserId: input.appUserId, period: input.period },
         });
-        if (!payslip) throw notFound('Payslip not found for this period.');
+        if (!payslip) {
+          throw new AppCodeError({
+            code: 'NOT_FOUND',
+            appCode: 'PAYSLIP_NOT_FOUND',
+            message: 'Payslip not found for this period.',
+          });
+        }
         return payslip;
+      });
+    }),
+
+  // -------------------------------------------------------------------------
+  // payslip.my — self-scoped read: caller's own payslip for a period, or
+  // null if it hasn't been assembled yet. No dedicated permission key.
+  // -------------------------------------------------------------------------
+  my: protectedProcedure
+    .input(myInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const appUser = await tx.appUser.findFirst({
+          where: { userId: ctx.subject!.userId, facilityId },
+        });
+        if (!appUser) throw forbidden('Staff profile not found in this facility.');
+        return tx.payslip.findFirst({
+          where: { appUserId: appUser.id, period: input.period },
+        });
       });
     }),
 });

@@ -6,6 +6,8 @@ const CheckInOutPage = lazy(() => import('../pages/attendance/check-in-out.js'))
 const ShiftsPage = lazy(() => import('../pages/attendance/shifts.js'));
 const PayrollPage = lazy(() => import('../pages/hr/payroll.js'));
 const KpiPage = lazy(() => import('../pages/hr/kpi.js'));
+const MyHrPage = lazy(() => import('../pages/hr/my-hr.js'));
+const SalaryTiersPage = lazy(() => import('../pages/hr/salary-tiers.js'));
 
 function Fallback() {
   return <ComingSoon />;
@@ -42,6 +44,22 @@ export const hrRoutes: RouteObject[] = [
     element: (
       <Suspense fallback={<Fallback />}>
         <KpiPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'my',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <MyHrPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'salary-tiers',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <SalaryTiersPage />
       </Suspense>
     ),
   },

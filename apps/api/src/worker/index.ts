@@ -18,6 +18,7 @@ import { createServer } from 'node:http';
 import { createPrismaClient } from '@cmc/db';
 import { reconcileOrphanedReceipts } from './reconcile-orphaned-receipts.js';
 import { relayEmailOutbox, CONSOLE_TRANSPORT_PROD_FORBIDDEN } from './relay-email-outbox.js';
+import { runCancelSweep, runDoneSweep } from './session-done-sweep.js';
 import {
   BrevoEmailTransport,
   ConsoleEmailTransport,
@@ -116,6 +117,8 @@ export async function drainOnce(
 ): Promise<void> {
   await reconcileOrphanedReceipts(db);
   await relayEmailOutbox(db, transportMap);
+  await runDoneSweep(db);
+  await runCancelSweep(db);
 }
 
 async function runForever(): Promise<never> {

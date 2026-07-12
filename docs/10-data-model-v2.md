@@ -69,7 +69,7 @@ erDiagram
 ### Nhân sự – Lương – Ca – Gắn kết
 | Model | Vai trò |
 |---|---|
-| `Payslip` · `SalaryRate` · `CompensationPolicy` · `KpiScore` · `TimePunch` | Lương · mức · chính sách · KPI · chấm công |
+| `Payslip` · `SalaryRate` · `SalaryTier` · `CompensationPolicy` · `KpiScore` · `TimePunch` | Lương · gán bậc · catalog bậc lương · chính sách phạt · KPI · chấm công |
 | `ShiftTemplate` · `ShiftGroup` · `ShiftRegistration` · `ShiftRegistrationEntry` | Ca · nhóm ca · đăng ký · dòng đăng ký |
 | `Badge` · `StudentBadge` · `Reward` · `Gift` · `StarTransaction` · `Notification` · `EmailOutbox` · `ParentMeeting` | Huy hiệu · quà · sao · thông báo · outbox · họp PH |
 | `RecordEvent` · `RecordFollower` · `Audit`(log) | Chatter · follower · kiểm toán |
@@ -85,6 +85,10 @@ erDiagram
 | V5 | Thêm `oversightMode` + trường cờ escalate trên các thực thể agent chạm (receipt, opportunity) | TL4 |
 | V6 | Mã hoá cột PII (`nationalId`, `bankAccount`) | trả nợ QĐ 0026 |
 | V7 | `AI Agent` như principal: bảng `AgentPrincipal` + role `ai_agent_*` + audit actor | TL4 §4 |
+| V8 | **Mô hình lương bậc greenfield**: `SalaryTier` (catalog `baseSalary`/`unitRate`/`requiredShifts`/`requiredMetric` theo `type` KINH_DOANH\|GIAO_VIEN, `@@unique([facilityId,name])`) + `SalaryRate.tierId` (FK, gán qua `compensation.assignTier`). 3 cột cũ trên `SalaryRate` (`baseSalary`, `variablePayRate`, `kpiMax`) **nullable-deprecated** — không writer mới ghi, giữ lại chỉ để đọc dữ liệu cũ. `CompensationPolicy` (per-facility `penaltyRatePerLateMinute`/`penaltyRatePerEarlyMinute`, fallback 500/1000đ khi chưa có row) | docs/20, docs/22 ADR 0042 |
+| V9 | `KpiScore` mở rộng cho công thức auto-score: `metricValue`/`quotaSnapshot`/`shiftActual`/`shiftRequired`/`unitRateSnapshot`/`tierIdSnapshot` (snapshot tại thời điểm `kpi.refresh` — không đổi khi tier đổi sau đó); `kpiMax` cũ chuyển **nullable, retired**. `Payslip.kpiBonus` tái dụng làm "Phần KPI" (= `KpiScore.value` khi status confirmed\|approved); `Payslip.variablePay` **deprecated, luôn 0** (`assembleSlip`, @cmc/domain-payroll) | docs/20, docs/22 ADR 0042 |
+| V10 | `ShiftGroup`/`ShiftTemplate` có `@@unique` natural key (`[facilityId,name]` / `[shiftGroupId,name]`) cho idempotent catalog seed. `ShiftRegistration` thêm status `rejected` + cột `rejectReason` (bắt buộc khi `shift.reject`) — `rejected` KHÔNG tính vào ticket-lock (unique partial index `WHERE status='submitted'`) lẫn overlap-range guard, cho phép nộp lại ngay | docs/20 |
+| V11 | `Receipt.approvedAt` (timestamp riêng, ghi bởi `finance.receiptApprove`) — nguồn duy nhất `kpi.refresh`'s `collectSaleRevenue` dùng để bucket doanh thu vào đúng kỳ ICT, tách khỏi `updatedAt`. `ClassSession`/`SessionStatus` thêm `done` + `doneAt` (đóng băng tại thời điểm session-done engine đánh giá) + `makeupForSessionId` (buổi bù trỏ về buổi gốc) | docs/20, docs/22 ADR 0042 |
 
 ## 4. Bất biến dữ liệu phải giữ (từ TL1)
 
@@ -96,6 +100,8 @@ erDiagram
 - `Opportunity.stage=O5` ⇔ có phiếu đã duyệt auto-advance; cancel ⇒ revert O4 + clear `closedAt`.
 - Mọi bảng nghiệp vụ có `facilityId` (RLS); bảng curriculum/exercise global (không RLS — QĐ 0021/0022).
 - Sổ tiền append-only: sửa = thêm dòng.
+- `KpiScore`/`Payslip`/`CompensationPolicy`/`SalaryTier`/`ManualAttendanceTicket`/`TimePunch` append-like: `cmc_app` không có quyền DELETE (chỉ SELECT/INSERT/UPDATE) — sửa = tạo bản ghi mới hoặc UPDATE tại chỗ, không xoá.
+- `payslip.assemble` từ chối chạy khi `AppUser` chưa có `SalaryRate.tierId` (FORBIDDEN, không fallback legacy — greenfield). GĐ/super_admin không có `KpiScore`/`Payslip` (lương ngoài hệ thống, docs/20).
 
 ## 5. Quy ước & migration
 

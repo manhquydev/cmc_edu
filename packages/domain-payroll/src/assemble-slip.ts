@@ -1,24 +1,33 @@
-// assembleSlip — pure payroll calculation (QĐ0025/0012, P3-II).
+// assembleSlip — pure payroll calculation, salary-tier model (QĐ0025,
+// validate session 3/4 — HR remediation phase 2).
 //
-// Invariants (pre-resolved in plan.md, never to be changed):
-//   1. penalty = lateMinutes×500 + earlyMinutes×1000 — INDEPENDENT line item.
-//   2. penaltyAmount is NEVER added to variablePay, baseSalary, or kpiBonus.
-//   3. totalNet = baseSalary + variablePay + kpiBonus − penaltyAmount, clamped ≥ 0.
-//   4. variablePay = baseSalary × variablePayRate (fixed multiplier, no tax).
-//   5. Punches without an approved shift → flaggedPunches (caller-computed),
-//      NOT penalized here — caller must NOT include those minutes in lateMinutes
-//      or earlyMinutes.
+// Invariants:
+//   1. totalNet = max(0, baseSalary + kpiPartAmount − penaltyAmount).
+//   2. `kpiPartAmount` is the tier-based "PHẦN NHÂN" the caller already
+//      computed (`KpiScore.value` for a `confirmed`/`approved` slip this
+//      period) — this function does NOT recompute
+//      %côngca × %chỉ-số × unitRate; that lives in phase 3's KPI refresh.
+//   3. `variablePay` is ALWAYS 0 — the column is deprecated (R3-2) but
+//      `Payslip.variablePay` is still NOT NULL, so callers must persist a
+//      value; this pure function's output supplies that value.
+//   4. `kpiBonus` in the output is the REPURPOSED column: it carries
+//      `kpiPartAmount` (UI/docs label "Phần KPI", R3-2), not a
+//      separately-capped bonus.
+//   5. `penaltyAmount` = lateMinutes×rate + earlyMinutes×rate — an
+//      INDEPENDENT deduction line, never merged into baseSalary or
+//      kpiPartAmount before the final subtraction.
+//   6. Both `penaltyAmount` and `totalNet` are rounded half-up to whole VND
+//      before being returned (R3-13 precision contract — no fractional đồng
+//      persisted).
 
 export interface AssembleSlipInput {
-  /** Monthly base salary (VND). */
+  /** Monthly base salary from the employee's assigned SalaryTier (VND). */
   baseSalary: number;
-  /** Variable pay multiplier, 0–1. variablePay = baseSalary × variablePayRate. */
-  variablePayRate: number;
-  /** KPI bonus awarded this period (VND). Independent of penalty calculation. */
-  kpiBonus: number;
-  /** Total minutes of late clock-in across all approved shift entries this period. */
+  /** "PHẦN NHÂN" — KpiScore.value for a confirmed/approved slip this period (VND). 0 if none. */
+  kpiPartAmount: number;
+  /** Total minutes of late clock-in across all counted (present) shifts this period. */
   lateMinutes: number;
-  /** Total minutes of early clock-out across all approved shift entries this period. */
+  /** Total minutes of early clock-out across all counted (present) shifts this period. */
   earlyMinutes: number;
   /** Penalty per late minute (VND). Caller supplies from CompensationPolicy; default 500. */
   penaltyRatePerLateMinute: number;
@@ -29,13 +38,13 @@ export interface AssembleSlipInput {
 export interface PayslipData {
   /** Unchanged from input — stored as its own field in Payslip. */
   baseSalary: number;
-  /** baseSalary × variablePayRate — NEVER includes penalty. */
+  /** Deprecated column — ALWAYS 0 (R3-2). Payslip.variablePay is NOT NULL. */
   variablePay: number;
-  /** Passed through from input — stored as its own field in Payslip. */
+  /** Repurposed column: holds kpiPartAmount ("Phần KPI" in UI/docs, R3-2). */
   kpiBonus: number;
-  /** lateMinutes×rate + earlyMinutes×rate — INDEPENDENT deduction line. */
+  /** lateMinutes×rate + earlyMinutes×rate, rounded half-up to whole VND. */
   penaltyAmount: number;
-  /** baseSalary + variablePay + kpiBonus − penaltyAmount, clamped ≥ 0. */
+  /** max(0, baseSalary + kpiBonus − penaltyAmount), whole VND. */
   totalNet: number;
 }
 
@@ -45,38 +54,36 @@ function assertNonNegative(value: number, name: string): void {
   }
 }
 
-function assertRate(value: number, name: string): void {
-  if (!Number.isFinite(value) || value < 0 || value > 1) {
-    throw new RangeError(`${name} must be within [0, 1], got ${value}.`);
-  }
+/** Half-up rounding to the nearest whole VND (R3-13 precision contract). */
+export function roundVnd(value: number): number {
+  return value >= 0 ? Math.floor(value + 0.5) : -Math.floor(-value + 0.5);
 }
 
 /**
  * Assembles a payslip from the given inputs. Pure — no DB access, no side
- * effects. Callers gather inputs from live TimePunch / ShiftRegistration data;
- * this function only encodes the arithmetic invariants.
+ * effects. Callers gather inputs from live TimePunch / ShiftRegistration /
+ * KpiScore / SalaryTier data; this function only encodes the arithmetic
+ * invariants.
  */
 export function assembleSlip(input: AssembleSlipInput): PayslipData {
   assertNonNegative(input.baseSalary, 'baseSalary');
-  assertRate(input.variablePayRate, 'variablePayRate');
-  assertNonNegative(input.kpiBonus, 'kpiBonus');
+  assertNonNegative(input.kpiPartAmount, 'kpiPartAmount');
   assertNonNegative(input.lateMinutes, 'lateMinutes');
   assertNonNegative(input.earlyMinutes, 'earlyMinutes');
   assertNonNegative(input.penaltyRatePerLateMinute, 'penaltyRatePerLateMinute');
   assertNonNegative(input.penaltyRatePerEarlyMinute, 'penaltyRatePerEarlyMinute');
 
-  const variablePay = input.baseSalary * input.variablePayRate;
-  // Penalty is the ONLY deduction — computed from approved-shift deviation only.
-  const penaltyAmount =
+  const penaltyAmount = roundVnd(
     input.lateMinutes * input.penaltyRatePerLateMinute +
-    input.earlyMinutes * input.penaltyRatePerEarlyMinute;
+      input.earlyMinutes * input.penaltyRatePerEarlyMinute,
+  );
   // Floor at 0: an employee cannot owe the company money via payroll.
-  const totalNet = Math.max(0, input.baseSalary + variablePay + input.kpiBonus - penaltyAmount);
+  const totalNet = Math.max(0, roundVnd(input.baseSalary + input.kpiPartAmount - penaltyAmount));
 
   return {
     baseSalary: input.baseSalary,
-    variablePay,
-    kpiBonus: input.kpiBonus,
+    variablePay: 0,
+    kpiBonus: input.kpiPartAmount,
     penaltyAmount,
     totalNet,
   };

@@ -6,6 +6,25 @@
 
 ---
 
+## [2026-07-12] HR remediation (shift/KPI/payroll) phases 1-6 — salary-tier model, KPI auto-score lifecycle, session-done engine, e2e verify loop
+
+**Context:** `plans/260711-1752-hr-kpi-shift-attendance-remediation/` (docs/22 ADR 0042, docs/20 §2-4b).
+
+**BREAKING (no shim):** `kpi.submit`/`kpi.approve`(standalone)/`kpi.getForUser` REMOVED → replaced by
+`kpi.refresh/submitSlip/confirm/override/bulkApprove/list/myScore` (`approved` only via `bulkApprove`).
+`compensation.upsertRate` REMOVED → `salaryTier.create/update` + `compensation.assignTier`.
+
+**New:** salary-tier model `totalNet = base(tier) + %côngca × %chỉ-số × đơnGiá − phạt` (`SalaryTier`
+catalog, `CompensationPolicy`, GĐ outside system); shift `rejected`+reason, ROLE-gated approval
+(`ShiftGroup.type`, not `managerId`); session-done engine (`creditFactor` 24h/48h/0, auto-cancel+makeup);
+new admin nav `/hr/{salary-tiers,payroll,kpi,shifts,checkin,my}` (docs/14 §5).
+
+**Phase 6:** `apps/e2e/tests/{shift,kpi}-lifecycle.spec.ts` + `apps/e2e/src/db.ts` seed helpers;
+rebuilt `@cmc/auth`'s stale `dist/` (pre-existing bug, permission rows missing from compiled output).
+Gates: e2e 19 passed +1 skip · api 695 passed · admin 229 passed · `pnpm build` 14/14.
+
+---
+
 ## [2026-07-12] Premium ERP screen build-out merged to main — 21/21 non-blocked screens on premium templates
 
 **Context:** 8-phase TDD completion; all 21 admin ERP screens (non-blocked per phase-00–phase-07) migrated from legacy components to premium design-language templates + composites + LineIcon monochrome set. Phase-08 (3 màn stub: leaderboard/network-ip/shift-config) remains BLOCKED pending backend + product spec.

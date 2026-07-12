@@ -28,3 +28,26 @@ export function notFound(message: string): TRPCError {
 export function unauthorized(message: string): TRPCError {
   return new TRPCError({ code: 'UNAUTHORIZED', message });
 }
+
+/**
+ * HR remediation phase 4: a TRPCError subclass that carries a stable,
+ * machine-readable `appCode` alongside the standard `code`. `trpc.ts`'s
+ * errorFormatter copies `appCode` onto `shape.data` ONLY for instances of
+ * this class (instanceof check) — never from a generic `error.cause.code` —
+ * so an unrelated raw error (e.g. a rethrown Prisma `P2xxx`, see
+ * payroll/router.ts) can never leak an `appCode` to the client. Use this only
+ * for errors a UI needs to branch on beyond the 5 standard TRPCError codes
+ * (e.g. `IP_NOT_ALLOWED`, `COOLDOWN`).
+ */
+export class AppCodeError extends TRPCError {
+  readonly appCode: string;
+
+  constructor(opts: {
+    code: ConstructorParameters<typeof TRPCError>[0]['code'];
+    appCode: string;
+    message: string;
+  }) {
+    super({ code: opts.code, message: opts.message });
+    this.appCode = opts.appCode;
+  }
+}

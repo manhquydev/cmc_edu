@@ -6,6 +6,10 @@ const ReceiptListPage = lazy(() => import('../pages/finance/receipt-list.js'));
 const ReceiptDetailPage = lazy(() => import('../pages/finance/receipt-detail.js'));
 const ReceiptCreatePage = lazy(() => import('../pages/finance/receipt-create.js'));
 const ClassPlacementPage = lazy(() => import('../pages/enrollment/class-placement.js'));
+// Residual EmptyState screen rolled in from `260707-0915-ui-implementation`
+// phase-06 (HR remediation phase 5, 2026-07-12) — see the page file's own
+// header comment for why it stays an EmptyState (flagged reason).
+const RefundPage = lazy(() => import('../pages/finance/refund.js'));
 
 function Fallback() {
   return <ComingSoon />;
@@ -35,6 +39,14 @@ export const financeRoutes: RouteObject[] = [
     element: (
       <Suspense fallback={<Fallback />}>
         <ClassPlacementPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'refund',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <RefundPage />
       </Suspense>
     ),
   },

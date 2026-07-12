@@ -130,14 +130,17 @@ const ACTIVE_ROLE_MATRIX: Array<{ key: string; allowed: readonly string[] }> = [
   { key: 'shift.manage', allowed: ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'] },
   { key: 'shift.submit', allowed: ['giam_doc_dao_tao', 'giam_doc_kinh_doanh', 'giao_vien', 'sale'] },
   { key: 'shift.approve', allowed: ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'] },
-  { key: 'compensation.upsertRate', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
+  { key: 'compensationPolicy.manage', allowed: [] },
+  { key: 'salaryTier.manage', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'payslip.assemble', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'payslip.finalize', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'payslip.reopen', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'studentAccount.resetPassword', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
-  { key: 'kpi.submit', allowed: ['giao_vien', 'sale', 'giam_doc_dao_tao', 'giam_doc_kinh_doanh'] },
+  { key: 'kpi.refresh', allowed: ['giao_vien', 'sale', 'giam_doc_dao_tao', 'giam_doc_kinh_doanh'] },
+  { key: 'kpi.submitSlip', allowed: ['giao_vien', 'sale', 'giam_doc_dao_tao', 'giam_doc_kinh_doanh'] },
   { key: 'kpi.confirm', allowed: ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'] },
   { key: 'kpi.approve', allowed: ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'] },
+  { key: 'kpi.bulkApprove', allowed: ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'] },
   { key: 'gift.upsert', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'gift.list', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'] },
   { key: 'rewards.manage', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'] },
@@ -173,6 +176,13 @@ describe('active-role matrix (ADR-D amendment)', () => {
     expect(can(admin, 'facility', 'create')).toBe(true);
     expect(can(admin, 'user', 'manage')).toBe(true);
     expect(can(admin, 'facilityNetwork', 'manage')).toBe(true);
+  });
+
+  it('compensationPolicy.manage: super_admin-only empty roster (HR remediation phase 2)', () => {
+    const admin = { userId: 'u-admin', roles: ['super_admin'] as const };
+    const gdkd = { userId: 'u-gdkd', roles: ['giam_doc_kinh_doanh'] as const };
+    expect(can(admin, 'compensationPolicy', 'manage')).toBe(true);
+    expect(can(gdkd, 'compensationPolicy', 'manage')).toBe(false);
   });
 
   it('sale CANNOT approve/list/get receipts (SoD — ADR-B money gate)', () => {

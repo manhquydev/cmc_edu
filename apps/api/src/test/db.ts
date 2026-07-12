@@ -110,6 +110,12 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
   // ShiftGroup must be deleted before AppUser (FK RESTRICT chains).
   await privilegedDb().kpiScore.deleteMany({ where: { facilityId } });
   await privilegedDb().payslip.deleteMany({ where: { facilityId } });
+  // HR remediation phase 1: CompensationPolicy/SalaryTier are also
+  // append-like (no DELETE grant to cmc_app, same posture as Payslip/
+  // KpiScore). SalaryRate.tierId is ON DELETE SET NULL, so SalaryTier can be
+  // deleted in any order relative to SalaryRate below.
+  await privilegedDb().compensationPolicy.deleteMany({ where: { facilityId } });
+  await privilegedDb().salaryTier.deleteMany({ where: { facilityId } });
   await privilegedDb().salaryRate.deleteMany({ where: { facilityId } });
   await privilegedDb().shiftRegistrationEntry.deleteMany({ where: { facilityId } });
   await privilegedDb().shiftRegistration.deleteMany({ where: { facilityId } });
@@ -516,7 +522,7 @@ export interface SeedClassSessionOptions {
   classBatchId: string;
   curriculumUnitId?: string | null;
   isMakeup?: boolean;
-  status?: 'planned' | 'confirmed' | 'cancelled';
+  status?: 'planned' | 'confirmed' | 'cancelled' | 'done';
   sessionDate?: Date;
   startTime?: Date;
   endTime?: Date;

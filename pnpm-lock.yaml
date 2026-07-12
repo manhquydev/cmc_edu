@@ -166,6 +166,9 @@ importers:
       '@cmc/domain-identity':
         specifier: workspace:*
         version: link:../../packages/domain-identity
+      '@cmc/domain-time':
+        specifier: workspace:*
+        version: link:../../packages/domain-time
     devDependencies:
       '@cmc/domain-finance':
         specifier: workspace:*

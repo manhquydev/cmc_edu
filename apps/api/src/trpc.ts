@@ -8,7 +8,7 @@
 import { initTRPC } from '@trpc/server';
 import { can, type AuthSubject } from '@cmc/auth';
 import type { PrismaClient } from '@cmc/db';
-import { badRequest, forbidden, unauthorized } from './errors.js';
+import { AppCodeError, badRequest, forbidden, unauthorized } from './errors.js';
 
 /**
  * LMS session subject (parent/student, TL11 §1). A distinct identity space
@@ -46,7 +46,22 @@ export interface Context {
   ip: string | null;
 }
 
-const t = initTRPC.context<Context>().create();
+/**
+ * HR remediation phase 4 (red-team #5): additive-only `errorFormatter` — it
+ * spreads the default `shape` untouched and only ADDS `data.appCode`, and
+ * ONLY when the thrown error is an `AppCodeError` instance (never from a
+ * generic `error.cause.code`, which would leak raw Prisma `P2xxx` codes —
+ * see payroll/router.ts's rethrown-cause path). Every other error's shape is
+ * byte-for-byte identical to the pre-phase-4 default formatter's output.
+ */
+const t = initTRPC.context<Context>().create({
+  errorFormatter({ shape, error }) {
+    if (error instanceof AppCodeError) {
+      return { ...shape, data: { ...shape.data, appCode: error.appCode } };
+    }
+    return shape;
+  },
+});
 
 export const router = t.router;
 export const createCallerFactory = t.createCallerFactory;

@@ -96,8 +96,8 @@ Quy tắc:
 | Nhân sự | `/hr/staff` → `/hr/staff/{id}` | `/{id}/profile` · `/payslips` · `/shifts` |
 | Lương | `/hr/payroll?month=2026-07` → `/hr/payroll/{payslipId}` | — |
 | KPI | `/hr/kpi?period=` | — |
-| Cơ cấu lương | `/hr/salary-structure` | — |
-| Phiếu lương của tôi | `/hr/my-payslip?month=` | — |
+| Bậc lương | `/hr/salary-tiers` | — |
+| Của tôi (KPI + Lương) | `/hr/my?period=` | tab KPI / Lương |
 | Chấm công | `/attendance/check-in-out` | — |
 | Đăng ký ca | `/attendance/shifts?view=kanban` → `/attendance/shifts/{id}` | — |
 | Danh mục ca | `/settings/shift-config` | — |

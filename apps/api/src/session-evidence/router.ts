@@ -134,6 +134,10 @@ const publishInput = z.object({
   sessionEvidenceId: z.string().uuid(),
 });
 
+const getBySessionInput = z.object({
+  classSessionId: z.string().uuid(),
+});
+
 const listForChildInput = z.object({
   studentId: z.string().uuid(),
 });
@@ -201,6 +205,39 @@ export const sessionEvidenceRouter = router({
     }),
 
   // -------------------------------------------------------------------------
+  // sessionEvidence.getBySession — giao_vien (staff read companion added
+  // post-audit; upsert/addPhoto/publish previously had no read query, so a
+  // UI could not show ảnh ✓/✗ status without re-deriving it client-side).
+  // Same permission gate as upsert — null when no evidence row exists yet.
+  // -------------------------------------------------------------------------
+  getBySession: requirePermission('sessionEvidence', 'upsert')
+    .input(getBySessionInput)
+    .query(async ({ ctx, input }): Promise<{ status: string; photos: EvidencePhotoDto[] } | null> => {
+      const { facilityId } = scoped(ctx);
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const session = await tx.classSession.findFirst({
+          where: { id: input.classSessionId, facilityId },
+          select: { id: true },
+        });
+        if (!session) {
+          throw notFound('ClassSession not found in this facility.');
+        }
+
+        const evidence = await tx.sessionEvidence.findUnique({
+          where: { classSessionId: input.classSessionId },
+          include: { photos: { orderBy: { createdAt: 'asc' } } },
+        });
+        if (!evidence) return null;
+
+        return {
+          status: evidence.status,
+          photos: evidence.photos.map((p) => ({ id: p.id, blobRef: p.blobRef, createdAt: p.createdAt })),
+        };
+      });
+    }),
+
+  // -------------------------------------------------------------------------
   // sessionEvidence.addPhoto — giao_vien
   // -------------------------------------------------------------------------
   addPhoto: requirePermission('sessionEvidence', 'upsert')
@@ -249,6 +286,13 @@ export const sessionEvidenceRouter = router({
         }
         if (evidence.status === 'published') {
           throw badRequest('Evidence is already published.');
+        }
+        // HR remediation phase 7 (R2 #H5): publishing with 0 photos was
+        // previously a dead end — addPhoto refuses to touch already-published
+        // evidence, so a 0-photo publish could never be completed afterward.
+        // It also permanently blocks session-done's evidence condition.
+        if (evidence.photos.length === 0) {
+          throw badRequest('Cannot publish evidence with 0 photos.');
         }
 
         const updated = await tx.sessionEvidence.update({

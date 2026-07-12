@@ -1,8 +1,8 @@
 # CMC EDU v2 — Codebase Summary
 
-**Status:** SSO landing complete (P1) · Flow audit complete (P3) · P2-P4 workflows BUILT & TESTED · UI migration COMPLETE (Astryx 100% admin+lms, Mantine fully removed) + premium design-language layer promoted to @cmc/ui + **premium ERP screen build-out merged to main** (21/21 non-blocked screens now on premium templates/composites, 8-phase TDD complete)  
+**Status:** SSO landing complete (P1) · Flow audit complete (P3) · P2-P4 workflows BUILT & TESTED · UI migration COMPLETE (Astryx 100% admin+lms, Mantine fully removed) + premium design-language layer promoted to @cmc/ui + **premium ERP screen build-out merged to main** (21/21 non-blocked screens now on premium templates/composites, 8-phase TDD complete) + **HR remediation (shift/KPI/payroll) phases 1-6 complete**: salary-tier model, KPI auto-score lifecycle, session-done engine, e2e verify loop  
 **Last Updated:** 2026-07-12  
-**Build State (2026-07-12, verified this session):** @cmc/admin 189 tests passing (25 test files — new component-test harness, first for admin) + @cmc/ui 45 component tests; 26/26 typecheck packages green; 14/14 apps build clean; lint clean. *(@cmc/api's 532-test / 64-file suite (2026-07-11 count) requires a live Postgres and was not re-run this session — treat as last-verified 2026-07-11, not re-confirmed today. UI e2e 5 passed + 1 fixme; API e2e 17 passed as of 2026-07-11. See `docs/project-changelog.md` `[2026-07-11]` and `[2026-07-12]`.)*
+**Build State (2026-07-12, verified this session — HR remediation phase 6):** @cmc/api 695 tests passing (81 test files, live Postgres); @cmc/admin 229 tests passing (32 test files); @cmc/e2e 19 passed + 1 pre-existing skip (20 spec files, incl. new `shift-lifecycle.spec.ts` + `kpi-lifecycle.spec.ts`, dev-header mode); 14/14 apps build clean. See `docs/project-changelog.md` for the dated entry.
 
 ---
 
@@ -209,43 +209,82 @@ Curriculum exercise & tier-based unlock (WF-P2-03, WF-P2-04).
 Staff IP-based & manual punch tracking (WF-P3-01, WF-P3-02).
 
 **Procedures:**
-- `checkInOut.punch(ipAddress)` → geofence-aware punch (WiFi IP match)  
-- `manualPunch.create/approve(staffId, date)` → manager override
+- `checkInOut.punch()` → WiFi/IP-CIDR match against `FacilityNetwork` (not GPS); mismatched IP falls
+  back to `method: 'manual'`; cooldown guards double-punch. `appCode` `IP_NOT_ALLOWED`/`COOLDOWN`.
+- `manualPunch.create(ticketDate, note?)` → manual correction ticket
+- `manualPunch.approve/reject(ticketId, note?)` → direct-manager or `super_admin`, anti-self-approve;
+  approving after the period's Payslip is `finalized` returns `warning: 'PAYSLIP_FINALIZED'`
+- `manualPunch.list({scope: 'inbox'|'mine', status?})` → inbox (direct reports) or own tickets
 
-**Test Coverage:** `checkin/ip-match.test.ts`
-
----
-
-### 14. Shift Router (`apps/api/src/shift/`)
-Staff shift registration & approval (WF-P3-03, WF-P3-04).
-
-**Procedures:**
-- `shiftRegistration.submit(staffId, shiftId)` → register for shift  
-- `shiftRegistration.approve(requestId)` → manager approves or auto-fallback
-
-**Test Coverage:** `shift/register-approve.test.ts`
+**Test Coverage:** `checkin/ip-match.test.ts` · `checkin/status-check.test.ts` · `payroll/manual-ticket-exemption.test.ts`
 
 ---
 
-### 15. Payroll Router (`apps/api/src/payroll/`)
-Monthly salary finalization & post-tax penalties (WF-P3-05).
+### 14. Shift Router (`apps/api/src/shift/`) — HR remediation
+Staff shift registration & approval, gated by ROLE + ShiftGroup type (WF-P3-03, WF-P3-04, WF-P3-07; ADR 0040).
 
 **Procedures:**
-- `payroll.finalize(facilityId, month)` → lock & calculate  
-- `compensation.upsertRate(staffId, baseRate)` → set salary structure
+- `shift.createGroup/createTemplate` → ShiftGroup/ShiftTemplate catalog (`shift.manage`, GĐKD/GĐĐT)
+- `shift.submit({shiftGroupId, fromDate, toDate, entries[]})` → ticket-lock (1 `submitted`/employee),
+  overlap guard (1 active date-range/person regardless of group), group-type must match
+  `resolveShiftGroup(position)`, `fromDate` must be a future ICT date
+- `shift.approve/reject(registrationId, reason?)` → gate = role matching `ShiftGroup.type`
+  (`GIAO_VIEN`→`giam_doc_dao_tao`, `KINH_DOANH`→`giam_doc_kinh_doanh`, `super_admin` bypasses both) +
+  anti-self; `reject` requires a reason, frees the ticket-lock + overlap guard
+- `shift.listGroups` / `myRegistrations` / `pendingForApproval` → catalog / self-scoped / approval inbox
 
-**Test Coverage:** `payroll/penalty-posttax.test.ts`
+**Test Coverage:** `shift/register-approve.test.ts` · `shift/reject-validate.test.ts` · `shift/status-check.test.ts` · `shift/list-procedures.test.ts` · `apps/e2e/tests/shift-lifecycle.spec.ts`
 
 ---
 
-### 16. KPI Router (`apps/api/src/kpi/`)
-Staff performance scoring & tree override (WF-P3-06).
+### 15. Payroll Router (`apps/api/src/payroll/`) — salary-tier model (HR remediation, ADR 0042)
+Monthly payslip assembly from a per-facility `SalaryTier` catalog (WF-P3-05).
 
 **Procedures:**
-- `kpi.score(staffId, period)` → auto-calculate or manual input  
-- `kpi.approve(scoreId)` → manager approval
+- `salaryTier.list/create/update` → tier catalog (`baseSalary`, `unitRate`, `requiredShifts`,
+  `requiredMetric`, `type`), `salaryTier.manage` (GĐKD/GĐĐT)
+- `compensation.assignTier({appUserId, tierId})` → assigns a sale/giao_vien employee to a tier
+  (tier.type must match target role); `compensation.upsertRate` REMOVED
+- `compensationPolicy.get/upsert` → per-facility late/early penalty rates (`super_admin` only,
+  fallback 500đ/phút muộn, 1000đ/phút sớm)
+- `payslip.assemble({appUserId, period})` → live recompute from TimePunch + ShiftRegistration +
+  KpiScore + SalaryTier: `baseSalary(tier) + kpiBonus(KpiScore.value) − penaltyAmount` (per-shift
+  late/early via `assignPunchesToShifts`, ManualAttendanceTicket-exempt days); FORBIDDEN if no tier assigned
+- `payslip.finalize/reopen` → lock/unlock a period; `payslip.my/getForUser` → self/privacy-gated read
 
-**Test Coverage:** `kpi/override-tree.test.ts`
+**Test Coverage:** `payroll/policy-model.test.ts` · `payroll/policy-rates.test.ts` · `payroll/penalty-posttax.test.ts` · `payroll/manual-ticket-exemption.test.ts` · `payroll/payslip-my.test.ts` · `apps/e2e/tests/kpi-lifecycle.spec.ts`
+
+---
+
+### 16. KPI Router (`apps/api/src/kpi/`) — auto-score lifecycle (HR remediation, ADR 0042)
+Auto-scored KPI lifecycle: `draft → submitted → confirmed → approved` (WF-P3-06, WF-P3-08, WF-P3-09).
+`kpi.submit`/`kpi.approve` (standalone)/`kpi.getForUser` REMOVED — `approved` is reachable ONLY via `bulkApprove`.
+
+**Procedures:**
+- `kpi.refresh({period, appUserId?})` → recompute + upsert `draft` (idempotent, never overwrites
+  `submitted`+); formula `value = min(1,shiftActual/requiredShifts) × min(1,metricValue/requiredMetric)
+  × unitRate` (`auto-score.ts`'s `computeKpiValue`)
+- `kpi.submitSlip({period})` → owner submits own draft, opens day 3 of next ICT month; auto-refreshes first
+- `kpi.confirm({kpiScoreId})` → direct manager (`managerId`) or `super_admin`, anti-self
+- `kpi.override({kpiScoreId, value, overrideReason})` → director sets value directly; editing an
+  `approved` slip requires `super_admin` AND the period's Payslip reopened to `draft`
+- `kpi.bulkApprove({period})` → 2 GĐ tất toán every `confirmed` slip whose Payslip is `finalized`,
+  branch-scoped by target `AppUser.roles` (not `position`), excludes caller's own slip, idempotent
+- `kpi.list({period, status?})` / `kpi.myScore({period})` → director inbox (branch-scoped) / self read
+
+**Test Coverage:** `kpi/auto-score.test.ts` · `kpi/lifecycle.test.ts` · `kpi/override-tree.test.ts` · `apps/e2e/tests/kpi-lifecycle.spec.ts`
+
+---
+
+### 16b. Session-done engine (`apps/api/src/class/session-done.ts`, `apps/api/src/worker/session-done-sweep.ts`) — HR remediation, ADR 0042
+Sweep-only (no event hooks) worker that marks a session `done` once 3 conditions hold (≥1 `present`
+attendance, every `present` student has a `confirmed` QualitativeAssessment, `published` SessionEvidence
+with ≥1 photo) and `now >= endTime`. `doneAt` freezes at the latest condition's timestamp. Feeds
+`creditFactor(doneAt, endTime)` (24h→1.0, 48h→0.5, else 0) into KPI's `collectTeacherHours`. A second
+sweep auto-cancels 0-`present` sessions past `endTime + 24h` and tail-appends a makeup session onto the
+recurring slot (room conflict skips auto-creation, reported for manual handling).
+
+**Test Coverage:** `class/session-done.test.ts` · `worker/session-done-sweep.test.ts`
 
 ---
 

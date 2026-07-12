@@ -13,15 +13,22 @@
 //   - KINH_DOANH registrations: caller must have giam_doc_kinh_doanh role.
 //   - super_admin bypasses the group-type check.
 //   - cancelled status is terminal — cannot be approved.
+// shift.reject        — director rejects (same gate as approve); requires a
+//   reason (min 3 chars, stored in `rejectReason`); frees the ticket-lock
+//   (rejected ∉ the partial unique index's `WHERE status='submitted'`).
 // shift.cancel        — owner or director cancels (approved state cancellable).
+// shift.listGroups     — any active staff session: groups + nested templates.
+// shift.myRegistrations — self-scoped read: caller's own registrations + entries.
+// shift.pendingForApproval — key `shift.approve`: submitted registrations
+//   scoped to the caller's group-type (super_admin sees both).
 //
 // All writes are facility-scoped via `withFacility` (ADR 0042).
 
 import { z } from 'zod';
-import { withFacility } from '@cmc/db';
+import { withFacility, type Prisma } from '@cmc/db';
 import { ictToUtc, resolveShiftGroup } from '@cmc/domain-time';
-import { badRequest, forbidden, notFound } from '../errors.js';
-import { protectedProcedure, requirePermission, router, scoped } from '../trpc.js';
+import { badRequest, conflict, forbidden, notFound } from '../errors.js';
+import { protectedProcedure, requirePermission, router, scoped, type Context } from '../trpc.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -62,9 +69,50 @@ const approveInput = z.object({
   registrationId: z.string().uuid(),
 });
 
+const rejectInput = z.object({
+  registrationId: z.string().uuid(),
+  reason: z.string().min(3),
+});
+
 const cancelInput = z.object({
   registrationId: z.string().uuid(),
 });
+
+// ---------------------------------------------------------------------------
+// Shared review gate (approve + reject)
+// ---------------------------------------------------------------------------
+
+/**
+ * Anti-self-review + group-type gate shared by `shift.approve` and
+ * `shift.reject`: caller cannot review their own registration, and (unless
+ * super_admin) must hold the director role matching the registration's
+ * shift-group type.
+ */
+async function assertCanReview(
+  tx: Prisma.TransactionClient,
+  ctx: Context,
+  facilityId: string,
+  registration: { appUserId: string; shiftGroup: { type: 'KINH_DOANH' | 'GIAO_VIEN' } },
+  action: 'approve' | 'reject',
+): Promise<void> {
+  const reviewer = await tx.appUser.findFirst({
+    where: { userId: ctx.subject!.userId, facilityId },
+  });
+  if (reviewer && reviewer.id === registration.appUserId) {
+    throw forbidden(`Cannot ${action} your own shift registration.`);
+  }
+
+  const roles = ctx.subject!.roles;
+  if (!roles.includes('super_admin')) {
+    const groupType = registration.shiftGroup.type;
+    if (groupType === 'GIAO_VIEN' && !roles.includes('giam_doc_dao_tao')) {
+      throw forbidden('GIAO_VIEN shift registrations require giam_doc_dao_tao role.');
+    }
+    if (groupType === 'KINH_DOANH' && !roles.includes('giam_doc_kinh_doanh')) {
+      throw forbidden('KINH_DOANH shift registrations require giam_doc_kinh_doanh role.');
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Router
@@ -147,6 +195,17 @@ export const shiftRouter = router({
         if (fromDateUtc.getTime() <= Date.now()) {
           throw badRequest('fromDate must be a future ICT date.');
         }
+        const toDateUtc = ictToUtc(input.toDate, '00:00');
+
+        // Every entry date must fall within [fromDate, toDate] (YYYY-MM-DD
+        // strings compare lexicographically the same as chronologically).
+        for (const entry of input.entries) {
+          if (entry.date < input.fromDate || entry.date > input.toDate) {
+            throw badRequest(
+              `Entry date ${entry.date} is outside the registration range [${input.fromDate}, ${input.toDate}].`,
+            );
+          }
+        }
 
         // Ticket-lock: at most 1 submitted registration per appUser at a time
         const existingSubmitted = await tx.shiftRegistration.findFirst({
@@ -155,6 +214,24 @@ export const shiftRouter = router({
         if (existingSubmitted) {
           throw badRequest(
             'You already have a submitted registration. Cancel it before submitting a new one.',
+          );
+        }
+
+        // Overlap: user may not hold a submitted|approved registration whose
+        // date range overlaps this one, regardless of shift group (docs/20 —
+        // one active date range per person). cancelled/rejected don't count.
+        const overlapping = await tx.shiftRegistration.findFirst({
+          where: {
+            appUserId: appUser.id,
+            facilityId,
+            status: { in: ['submitted', 'approved'] },
+            fromDate: { lte: toDateUtc },
+            toDate: { gte: fromDateUtc },
+          },
+        });
+        if (overlapping) {
+          throw conflict(
+            'You already have a submitted or approved registration overlapping this date range.',
           );
         }
 
@@ -178,7 +255,20 @@ export const shiftRouter = router({
           }
         }
 
-        const toDateUtc = ictToUtc(input.toDate, '00:00');
+        // MULTIPLE mode: no duplicate (date, shiftTemplateId) pair within the
+        // same registration (R3-8 — blocks inflating comp via a repeated entry).
+        if (group.selectionMode === 'MULTIPLE') {
+          const seen = new Set<string>();
+          for (const entry of input.entries) {
+            const key = `${entry.date}|${entry.shiftTemplateId}`;
+            if (seen.has(key)) {
+              throw badRequest(
+                'MULTIPLE mode: duplicate (date, shiftTemplateId) entry in the same registration.',
+              );
+            }
+            seen.add(key);
+          }
+        }
 
         // Create the registration
         const registration = await tx.shiftRegistration.create({
@@ -230,29 +320,7 @@ export const shiftRouter = router({
           throw badRequest('Only submitted registrations can be approved.');
         }
 
-        // Resolve the approver's AppUser for anti-self-approve check
-        const approver = await tx.appUser.findFirst({
-          where: { userId: ctx.subject!.userId, facilityId },
-        });
-
-        // Anti-self-approve: caller cannot approve their own registration
-        // (compare by AppUser.id if approver exists; super_admin may not have AppUser)
-        if (approver && approver.id === registration.appUserId) {
-          throw forbidden('Cannot approve your own shift registration.');
-        }
-
-        // Group-type gating: GIAO_VIEN → giam_doc_dao_tao; KINH_DOANH → giam_doc_kinh_doanh
-        // super_admin bypasses this check (already passed requirePermission)
-        const roles = ctx.subject!.roles;
-        if (!roles.includes('super_admin')) {
-          const groupType = registration.shiftGroup.type;
-          if (groupType === 'GIAO_VIEN' && !roles.includes('giam_doc_dao_tao')) {
-            throw forbidden('GIAO_VIEN shift registrations require giam_doc_dao_tao role.');
-          }
-          if (groupType === 'KINH_DOANH' && !roles.includes('giam_doc_kinh_doanh')) {
-            throw forbidden('KINH_DOANH shift registrations require giam_doc_kinh_doanh role.');
-          }
-        }
+        await assertCanReview(tx, ctx, facilityId, registration, 'approve');
 
         return tx.shiftRegistration.update({
           where: { id: registration.id },
@@ -260,6 +328,86 @@ export const shiftRouter = router({
         });
       });
     }),
+
+  // -------------------------------------------------------------------------
+  // shift.reject — director rejects a submitted registration (requires reason)
+  // -------------------------------------------------------------------------
+  reject: requirePermission('shift', 'approve')
+    .input(rejectInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const registration = await tx.shiftRegistration.findFirst({
+          where: { id: input.registrationId, facilityId },
+          include: { shiftGroup: true },
+        });
+        if (!registration) throw notFound('ShiftRegistration not found.');
+        if (registration.status !== 'submitted') {
+          throw badRequest('Only submitted registrations can be rejected.');
+        }
+
+        await assertCanReview(tx, ctx, facilityId, registration, 'reject');
+
+        return tx.shiftRegistration.update({
+          where: { id: registration.id },
+          data: { status: 'rejected', rejectReason: input.reason, updatedAt: new Date() },
+        });
+      });
+    }),
+
+  // -------------------------------------------------------------------------
+  // shift.listGroups — any active staff session: groups + nested templates
+  // -------------------------------------------------------------------------
+  listGroups: protectedProcedure.query(async ({ ctx }) => {
+    const { facilityId } = scoped(ctx);
+    return withFacility(ctx.db, facilityId, (tx) =>
+      tx.shiftGroup.findMany({
+        where: { facilityId },
+        include: { templates: true },
+        orderBy: { name: 'asc' },
+      }),
+    );
+  }),
+
+  // -------------------------------------------------------------------------
+  // shift.myRegistrations — self-scoped read, no dedicated permission key
+  // -------------------------------------------------------------------------
+  myRegistrations: protectedProcedure.query(async ({ ctx }) => {
+    const { facilityId } = scoped(ctx);
+    return withFacility(ctx.db, facilityId, async (tx) => {
+      const appUser = await tx.appUser.findFirst({
+        where: { userId: ctx.subject!.userId, facilityId },
+      });
+      if (!appUser) throw forbidden('Staff profile not found in this facility.');
+      return tx.shiftRegistration.findMany({
+        where: { appUserId: appUser.id, facilityId },
+        include: { entries: true },
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+  }),
+
+  // -------------------------------------------------------------------------
+  // shift.pendingForApproval — submitted registrations for the caller's
+  // group-type (super_admin sees both types)
+  // -------------------------------------------------------------------------
+  pendingForApproval: requirePermission('shift', 'approve').query(async ({ ctx }) => {
+    const { facilityId } = scoped(ctx);
+    return withFacility(ctx.db, facilityId, (tx) => {
+      const roles = ctx.subject!.roles;
+      const groupTypes: Array<'GIAO_VIEN' | 'KINH_DOANH'> = roles.includes('super_admin')
+        ? ['GIAO_VIEN', 'KINH_DOANH']
+        : [
+            ...(roles.includes('giam_doc_dao_tao') ? (['GIAO_VIEN'] as const) : []),
+            ...(roles.includes('giam_doc_kinh_doanh') ? (['KINH_DOANH'] as const) : []),
+          ];
+      return tx.shiftRegistration.findMany({
+        where: { facilityId, status: 'submitted', shiftGroup: { type: { in: groupTypes } } },
+        include: { appUser: { select: { fullName: true } }, shiftGroup: true, entries: true },
+        orderBy: { createdAt: 'asc' },
+      });
+    });
+  }),
 
   // -------------------------------------------------------------------------
   // shift.cancel — owner or director cancels (approved state is cancellable)

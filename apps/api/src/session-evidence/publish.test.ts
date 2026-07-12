@@ -115,11 +115,52 @@ describe('sessionEvidence (T3 US-019)', () => {
       classSessionId: session.id,
       summary: 'Tóm tắt.',
     });
+    await teacher.sessionEvidence.addPhoto({ sessionEvidenceId: evidence.id, blobRef: 'photos/upsert-guard.jpg' });
     await teacher.sessionEvidence.publish({ sessionEvidenceId: evidence.id });
 
     await expect(
       teacher.sessionEvidence.upsert({ classSessionId: session.id, summary: 'Sửa sau publish.' }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  // -------------------------------------------------------------------------
+  // getBySession
+  // -------------------------------------------------------------------------
+
+  it('getBySession returns null when no evidence row exists yet', async () => {
+    const result = await teacher.sessionEvidence.getBySession({ classSessionId: session.id });
+    expect(result).toBeNull();
+  });
+
+  it('getBySession returns status + photos for a draft evidence record', async () => {
+    const evidence = await teacher.sessionEvidence.upsert({
+      classSessionId: session.id,
+      summary: 'Buổi học vui.',
+    });
+    await teacher.sessionEvidence.addPhoto({ sessionEvidenceId: evidence.id, blobRef: 'photos/get-by-session.jpg' });
+
+    const result = await teacher.sessionEvidence.getBySession({ classSessionId: session.id });
+    expect(result?.status).toBe('draft');
+    expect(result?.photos).toHaveLength(1);
+    expect(result?.photos[0]?.blobRef).toBe('photos/get-by-session.jpg');
+  });
+
+  it('getBySession reflects published status after publish', async () => {
+    const evidence = await teacher.sessionEvidence.upsert({
+      classSessionId: session.id,
+      summary: 'Buổi học vui.',
+    });
+    await teacher.sessionEvidence.addPhoto({ sessionEvidenceId: evidence.id, blobRef: 'photos/get-by-session-2.jpg' });
+    await teacher.sessionEvidence.publish({ sessionEvidenceId: evidence.id });
+
+    const result = await teacher.sessionEvidence.getBySession({ classSessionId: session.id });
+    expect(result?.status).toBe('published');
+  });
+
+  it('getBySession: unknown classSessionId in this facility → NOT_FOUND', async () => {
+    await expect(
+      teacher.sessionEvidence.getBySession({ classSessionId: randomUUID() }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   // -------------------------------------------------------------------------
@@ -145,6 +186,7 @@ describe('sessionEvidence (T3 US-019)', () => {
       classSessionId: session.id,
       summary: 'Buổi học đã kết thúc.',
     });
+    await teacher.sessionEvidence.addPhoto({ sessionEvidenceId: evidence.id, blobRef: 'photos/pre-publish.jpg' });
     await teacher.sessionEvidence.publish({ sessionEvidenceId: evidence.id });
 
     await expect(
@@ -164,6 +206,7 @@ describe('sessionEvidence (T3 US-019)', () => {
       classSessionId: session.id,
       summary: 'Tóm tắt buổi học.',
     });
+    await teacher.sessionEvidence.addPhoto({ sessionEvidenceId: evidence.id, blobRef: 'photos/publish-happy.jpg' });
 
     const published = await teacher.sessionEvidence.publish({ sessionEvidenceId: evidence.id });
 
@@ -177,7 +220,19 @@ describe('sessionEvidence (T3 US-019)', () => {
       classSessionId: session.id,
       summary: 'Tóm tắt.',
     });
+    await teacher.sessionEvidence.addPhoto({ sessionEvidenceId: evidence.id, blobRef: 'photos/publish-twice.jpg' });
     await teacher.sessionEvidence.publish({ sessionEvidenceId: evidence.id });
+
+    await expect(
+      teacher.sessionEvidence.publish({ sessionEvidenceId: evidence.id }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('publish: rejects publishing with 0 photos (HR remediation phase 7 — R2 #H5, was a dead end)', async () => {
+    const evidence = await teacher.sessionEvidence.upsert({
+      classSessionId: session.id,
+      summary: 'Chưa có ảnh.',
+    });
 
     await expect(
       teacher.sessionEvidence.publish({ sessionEvidenceId: evidence.id }),
@@ -208,6 +263,7 @@ describe('sessionEvidence (T3 US-019)', () => {
       classSessionId: session.id,
       summary: 'Buổi học tuyệt vời.',
     });
+    await teacher.sessionEvidence.addPhoto({ sessionEvidenceId: evidence.id, blobRef: 'photos/list-for-child.jpg' });
     await teacher.sessionEvidence.publish({ sessionEvidenceId: evidence.id });
 
     const { items } = await lmsParent.sessionEvidence.listForChild({
@@ -226,6 +282,7 @@ describe('sessionEvidence (T3 US-019)', () => {
       summary: 'Tóm tắt cho PH.',
       internalNote: 'GHI CHÚ NỘI BỘ KHÔNG ĐƯỢC LỘ.',
     });
+    await teacher.sessionEvidence.addPhoto({ sessionEvidenceId: evidence.id, blobRef: 'photos/internal-note-guard.jpg' });
     await teacher.sessionEvidence.publish({ sessionEvidenceId: evidence.id });
 
     const { items } = await lmsParent.sessionEvidence.listForChild({

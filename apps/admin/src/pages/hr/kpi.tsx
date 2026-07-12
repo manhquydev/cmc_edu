@@ -1,33 +1,31 @@
-// KPI — P05 (QĐ0011, WF-P3-05).
+// Duyệt KPI — HR remediation phase 5 (R3-10, red-team #24). Rebuilt on the
+// auto-score lifecycle procedures added in phase 3:
+//   kpi.list         — GĐ/super_admin inbox, already branch-scoped server-side.
+//   kpi.confirm      — direct manager confirms a submitted slip (no reason).
+//   kpi.override     — director sets `value` directly (reason required).
+//   kpi.bulkApprove  — "Đã trả lương kỳ X" tất toán action (period-level).
 //
-// Key invariants:
-// - kpi.confirm button: gated to canDo('kpi','confirm') — direct manager.
-// - kpi.approve button: gated to canDo('kpi','approve') — GĐ only.
-// - Neither button is rendered for roles that lack the permission (server
-//   enforces as well; client gate is UI-only).
-//
-// Flow: staff list (user.list) → click employee → KpiDetail for
-// selected employee × period. Period is synced to ?period= URL param.
-//
-// Note: no kpi.list endpoint exists. The list is built from user.list
-// with per-user KPI queries opened on demand.
+// Migrated inventory (red-team #24 — the OLD getForUser/approve callers this
+// file used to have are GONE from the API): getForUser → list (client no
+// longer filters to one employee — this IS the inbox), single-score approve →
+// bulkApprove (period-level, no per-score procedure exists), confirm kept
+// as-is.
 
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
-  Badge,
   Banner,
   Button,
-  Card,
   ConfirmDialog,
   DataTable,
-  DetailPage,
+  Dialog,
+  DialogHeader,
   HStack,
-  LineIcon,
+  NumberInput,
   PageHeader,
+  Selector,
   Stack,
   StatusBadge,
-  Text,
+  TextArea,
   TextInput,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
@@ -35,25 +33,12 @@ import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
 
 // ---------------------------------------------------------------------------
-// Staff list types
+// Helpers
 // ---------------------------------------------------------------------------
-interface StaffRow {
-  id: string;
-  fullName: string;
-  employeeCode: string;
-  position: string;
-  [key: string]: unknown;
+function defaultPeriodICT(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 7);
 }
 
-const STAFF_COLS: TableColumn<StaffRow>[] = [
-  { key: 'employeeCode', label: 'Mã NV', width: 100 },
-  { key: 'fullName', label: 'Họ tên' },
-  { key: 'position', label: 'Chức vụ' },
-];
-
-// ---------------------------------------------------------------------------
-// KPI status helpers
-// ---------------------------------------------------------------------------
 const KPI_STATUS_LABELS: Record<string, string> = {
   draft: 'Nháp',
   submitted: 'Chờ xác nhận',
@@ -61,208 +46,90 @@ const KPI_STATUS_LABELS: Record<string, string> = {
   approved: 'Đã duyệt',
 };
 
-// ---------------------------------------------------------------------------
-// KPI detail (per employee × period)
-// ---------------------------------------------------------------------------
-interface KpiDetailProps {
+const STATUS_FILTER_OPTIONS = [
+  { value: 'submitted', label: 'Chờ xác nhận' },
+  { value: 'confirmed', label: 'Đã xác nhận' },
+  { value: 'approved', label: 'Đã duyệt' },
+  { value: 'draft', label: 'Nháp' },
+];
+
+interface KpiRow {
+  id: string;
   appUserId: string;
-  period: string;
-  employeeName: string;
-  onBack: () => void;
+  status: string;
+  value: unknown;
+  override: boolean;
+  overrideReason: string | null;
+  tierMissing: boolean;
+  fullName: string;
+  position: string;
+  [key: string]: unknown;
 }
 
-function KpiDetail({ appUserId, period, employeeName, onBack }: KpiDetailProps) {
-  const { canDo } = useSession();
-  const [confirmAction, setConfirmAction] = useState<'confirm' | 'approve' | null>(
-    null,
-  );
-  const [mutError, setMutError] = useState<string | null>(null);
+// ---------------------------------------------------------------------------
+// Override modal
+// ---------------------------------------------------------------------------
+function OverrideModal({
+  target,
+  onClose,
+}: {
+  target: KpiRow | null;
+  onClose: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const [value, setValue] = useState<number | undefined>(undefined);
+  const [reason, setReason] = useState('');
 
-  const { data, isLoading, error, refetch } = trpc.kpi.getForUser.useQuery(
-    { appUserId, period },
-    { retry: false },
-  );
-
-  const confirmMut = trpc.kpi.confirm.useMutation({
+  const overrideMut = trpc.kpi.override.useMutation({
     onSuccess() {
-      setConfirmAction(null);
-      setMutError(null);
-      void refetch();
-    },
-    onError(err) {
-      setConfirmAction(null);
-      setMutError(err.message ?? 'Lỗi xác nhận KPI.');
+      void utils.kpi.list.invalidate();
+      setValue(undefined);
+      setReason('');
+      onClose();
     },
   });
 
-  const approveMut = trpc.kpi.approve.useMutation({
-    onSuccess() {
-      setConfirmAction(null);
-      setMutError(null);
-      void refetch();
-    },
-    onError(err) {
-      setConfirmAction(null);
-      setMutError(err.message ?? 'Lỗi duyệt KPI.');
-    },
-  });
-
-  const isBusy = confirmMut.isPending || approveMut.isPending;
+  const canSubmit = value !== undefined && value >= 0 && reason.trim().length > 0;
 
   return (
-    <Stack gap={3}>
-      {/* Back nav */}
-      <HStack gap={2} align="center">
-        <Button
-          label="Danh sách nhân viên"
-          icon={
-            <span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }}>
-              <LineIcon name="chevron" size={14} />
-            </span>
-          }
-          variant="ghost"
-          size="sm"
-          onClick={onBack}
-        />
-        <Text type="supporting" size="sm" weight="semibold">
-          {employeeName} · {period}
-        </Text>
-      </HStack>
-
-      {isLoading && (
-        <Text type="supporting" size="sm">
-          Đang tải…
-        </Text>
-      )}
-
-      {error && (
-        <Banner
-          status="warning"
-          title="Chưa có điểm KPI"
-          description={
-            error.message.toLowerCase().includes('not found')
-              ? `Kỳ ${period} chưa có điểm KPI cho nhân viên này.`
-              : error.message
-          }
-        />
-      )}
-
-      {mutError && <Banner status="error" title={mutError} />}
-
-      {data && (
-        <Card padding={3}>
-          <Stack gap={2}>
-            {/* Status */}
-            <HStack justify="between">
-              <Text
-                type="supporting"
-                size="2xs"
-                weight="semibold"
-                style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
-              >
-                Trạng thái
-              </Text>
-              <StatusBadge
-                status={data.status}
-                label={KPI_STATUS_LABELS[data.status] ?? data.status}
-              />
-            </HStack>
-
-            {/* Score */}
-            <HStack justify="between">
-              <Text type="body" size="sm">Điểm KPI</Text>
-              <Text type="body" size="xl" weight="bold" hasTabularNumbers>
-                {Number(data.value).toLocaleString('vi-VN')}
-              </Text>
-            </HStack>
-
-            {/* Max */}
-            <HStack justify="between">
-              <Text type="supporting" size="sm">
-                Tối đa (kpiMax)
-              </Text>
-              <Text type="supporting" size="sm" hasTabularNumbers>
-                {Number(data.kpiMax).toLocaleString('vi-VN')}
-              </Text>
-            </HStack>
-
-            {/* Override badge */}
-            {data.override && (
-              <Banner
-                status="warning"
-                title="Đã ghi đè (override)"
-                description={
-                  data.overrideReason
-                    ? String(data.overrideReason)
-                    : 'Giá trị đã được GĐ ghi đè.'
-                }
-              />
-            )}
-
-            {/* Action buttons — gated per role */}
-            <HStack
-              gap={1}
-              paddingBlock={1}
-              style={{ borderTop: '1px solid var(--cmc-border)' }}
-            >
-              {/* Confirm: direct manager */}
-              {canDo('kpi', 'confirm') && data.status === 'submitted' && (
-                <Button
-                  label="Xác nhận (Quản lý)"
-                  size="sm"
-                  variant="primary"
-                  isDisabled={isBusy}
-                  onClick={() => setConfirmAction('confirm')}
-                />
-              )}
-
-              {/* Approve: GĐ only — gated to kpi.approve permission */}
-              {canDo('kpi', 'approve') && data.status === 'confirmed' && (
-                <Button
-                  label="Duyệt (GĐ)"
-                  size="sm"
-                  variant="primary"
-                  isDisabled={isBusy}
-                  onClick={() => setConfirmAction('approve')}
-                />
-              )}
-
-              {data.status === 'approved' && (
-                <Badge label="Đã duyệt — hoàn tất" variant="success" />
-              )}
-            </HStack>
-          </Stack>
-        </Card>
-      )}
-
-      {/* Confirm: manager confirm */}
-      <ConfirmDialog
-        opened={confirmAction === 'confirm'}
-        title="Xác nhận điểm KPI"
-        message={`Xác nhận điểm KPI của ${employeeName} cho kỳ ${period}? Bạn là quản lý trực tiếp của nhân viên này.`}
-        confirmLabel="Xác nhận"
-        confirmColor="blue"
-        loading={isBusy}
-        onConfirm={() => {
-          if (data) confirmMut.mutate({ kpiScoreId: data.id });
-        }}
-        onCancel={() => setConfirmAction(null)}
+    <Dialog
+      isOpen={target !== null}
+      onOpenChange={(next) => { if (!next && !overrideMut.isPending) { onClose(); overrideMut.reset(); } }}
+      width={420}
+      purpose="form"
+    >
+      <DialogHeader
+        title={`Ghi đè điểm KPI — ${target?.fullName ?? ''}`}
+        onOpenChange={(next) => { if (!next) onClose(); }}
       />
-
-      {/* Confirm: GĐ approve */}
-      <ConfirmDialog
-        opened={confirmAction === 'approve'}
-        title="Duyệt điểm KPI"
-        message={`Duyệt điểm KPI của ${employeeName} cho kỳ ${period}? Hành động này khóa điểm KPI để tính lương.`}
-        confirmLabel="Duyệt"
-        confirmColor="green"
-        loading={isBusy}
-        onConfirm={() => {
-          if (data) approveMut.mutate({ kpiScoreId: data.id });
-        }}
-        onCancel={() => setConfirmAction(null)}
-      />
-    </Stack>
+      <Stack gap={2}>
+        <NumberInput label="Giá trị mới (VND)" min={0} value={value} onChange={setValue} />
+        <TextArea
+          label="Lý do ghi đè"
+          placeholder="Nêu lý do ghi đè điểm KPI…"
+          value={reason}
+          onChange={setReason}
+          rows={3}
+          maxLength={2000}
+        />
+        {overrideMut.error && <Banner status="error" title={overrideMut.error.message} />}
+        <HStack justify="end" gap={1}>
+          <Button label="Hủy" variant="secondary" size="sm" onClick={onClose} />
+          <Button
+            label="Ghi đè"
+            size="sm"
+            variant="primary"
+            isLoading={overrideMut.isPending}
+            isDisabled={!canSubmit}
+            onClick={() =>
+              target &&
+              value !== undefined &&
+              overrideMut.mutate({ kpiScoreId: target.id, value, overrideReason: reason.trim() })
+            }
+          />
+        </HStack>
+      </Stack>
+    </Dialog>
   );
 }
 
@@ -270,101 +137,159 @@ function KpiDetail({ appUserId, period, employeeName, onBack }: KpiDetailProps) 
 // Page root
 // ---------------------------------------------------------------------------
 export default function KpiPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const defaultPeriod = new Date()
-    .toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })
-    .slice(0, 7);
-  const period = searchParams.get('period') ?? defaultPeriod;
+  const { canDo } = useSession();
+  const utils = trpc.useUtils();
+  const [period, setPeriod] = useState(defaultPeriodICT());
+  const [statusFilter, setStatusFilter] = useState<string | undefined>('submitted');
+  const [confirmTarget, setConfirmTarget] = useState<KpiRow | null>(null);
+  const [overrideTarget, setOverrideTarget] = useState<KpiRow | null>(null);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const [selectedUser, setSelectedUser] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const { data, isLoading, error } = trpc.kpi.list.useQuery({
+    period,
+    ...(statusFilter ? { status: statusFilter as 'draft' | 'submitted' | 'confirmed' | 'approved' } : {}),
+  });
 
-  const { data, isLoading, error } = trpc.user.list.useQuery();
+  const confirmMut = trpc.kpi.confirm.useMutation({
+    onSuccess() {
+      setConfirmTarget(null);
+      void utils.kpi.list.invalidate();
+    },
+    onError(err) {
+      setConfirmTarget(null);
+      setResult({ ok: false, text: err.message ?? 'Lỗi xác nhận KPI.' });
+    },
+  });
 
-  const staffRows: StaffRow[] = (data?.items ?? []).map((u) => ({
-    id: u.id,
-    fullName: u.fullName,
-    employeeCode: u.employeeCode,
-    position: u.position,
-  }));
+  const bulkApproveMut = trpc.kpi.bulkApprove.useMutation({
+    onSuccess(res) {
+      setBulkConfirmOpen(false);
+      setResult({
+        ok: true,
+        text: `Đã tất toán ${res.approved} phiếu KPI. ${res.skippedSelf > 0 ? `${res.skippedSelf} phiếu của bạn bị loại tự động. ` : ''}${res.skippedUnfinalized.length > 0 ? `${res.skippedUnfinalized.length} phiếu chưa chốt lương, bỏ qua.` : ''}`,
+      });
+      void utils.kpi.list.invalidate();
+    },
+    onError(err) {
+      setBulkConfirmOpen(false);
+      setResult({ ok: false, text: err.message ?? 'Lỗi tất toán KPI.' });
+    },
+  });
 
-  function setPeriod(value: string) {
-    const p = new URLSearchParams(searchParams);
-    if (value) {
-      p.set('period', value);
-    } else {
-      p.delete('period');
-    }
-    setSearchParams(p, { replace: true });
-  }
+  const rows: KpiRow[] = (data as KpiRow[] | undefined) ?? [];
+  const confirmedRows = rows.filter((r) => r.status === 'confirmed');
+  const bulkMessage =
+    confirmedRows.length > 0
+      ? `Sẽ tất toán ${confirmedRows.length} phiếu KPI đã xác nhận (kỳ ${period}): ${confirmedRows.map((r) => r.fullName).join(', ')}. Chỉ phiếu đã chốt lương mới được duyệt; phiếu của chính bạn (nếu có) sẽ tự động bị loại.`
+      : `Không có phiếu KPI đã xác nhận nào ở kỳ ${period}.`;
 
-  if (selectedUser) {
-    return (
-      <DetailPage
-        header={
-          <PageHeader
-            title="KPI"
-            subtitle="Chi tiết điểm KPI nhân viên"
-            breadcrumbs={[
-              { label: 'HR' },
-              { label: 'KPI' },
-              { label: selectedUser.name },
-            ]}
-            actions={
-              <div style={{ width: 110 }}>
-                <TextInput
-                  size="sm"
-                  label="Kỳ"
-                  value={period}
-                  onChange={(v) => setPeriod(v)}
-                />
-              </div>
-            }
-          />
-        }
-      >
-        <KpiDetail
-          appUserId={selectedUser.id}
-          period={period}
-          employeeName={selectedUser.name}
-          onBack={() => setSelectedUser(null)}
-        />
-      </DetailPage>
-    );
-  }
+  const columns: TableColumn<KpiRow>[] = [
+    { key: 'fullName', label: 'Họ tên' },
+    { key: 'position', label: 'Chức vụ', width: 140 },
+    {
+      key: 'status',
+      label: 'Trạng thái',
+      width: 140,
+      render: (v) => <StatusBadge status={String(v)} label={KPI_STATUS_LABELS[String(v)] ?? String(v)} />,
+    },
+    {
+      key: 'value',
+      label: 'Phần KPI',
+      width: 140,
+      render: (v) => `${Number(v).toLocaleString('vi-VN')} đ`,
+    },
+    {
+      key: 'tierMissing',
+      label: '',
+      width: 110,
+      render: (v) => (v ? <StatusBadge status="warning" label="Chưa gán bậc" /> : null),
+    },
+    {
+      key: '_actions',
+      label: '',
+      width: 200,
+      render: (_v, row) => (
+        <HStack gap={1}>
+          {row.status === 'submitted' && canDo('kpi', 'confirm') && (
+            <Button label="Xác nhận" size="sm" variant="primary" onClick={() => setConfirmTarget(row)} />
+          )}
+          {(row.status === 'submitted' || row.status === 'confirmed') && canDo('kpi', 'approve') && (
+            <Button label="Ghi đè" size="sm" variant="secondary" onClick={() => setOverrideTarget(row)} />
+          )}
+        </HStack>
+      ),
+    },
+  ];
 
   return (
     <>
       <PageHeader
-        title="KPI"
-        subtitle="Xem và duyệt điểm KPI nhân viên theo kỳ"
-        breadcrumbs={[{ label: 'HR' }, { label: 'KPI' }]}
+        title="Duyệt KPI"
+        subtitle="Xác nhận, ghi đè và tất toán điểm KPI theo kỳ"
+        breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Duyệt KPI' }]}
         actions={
-          <div style={{ width: 130 }}>
-            <TextInput
-              size="sm"
-              label="Kỳ (YYYY-MM)"
-              placeholder={defaultPeriod}
-              value={period}
-              onChange={(v) => setPeriod(v)}
-            />
-          </div>
+          <HStack gap={1} align="end">
+            <div style={{ width: 160 }}>
+              <Selector
+                label="Trạng thái"
+                options={STATUS_FILTER_OPTIONS}
+                value={statusFilter}
+                onChange={(v) => setStatusFilter(v)}
+              />
+            </div>
+            <div style={{ width: 130 }}>
+              <TextInput size="sm" label="Kỳ (YYYY-MM)" value={period} onChange={(v) => setPeriod(v)} />
+            </div>
+            {canDo('kpi', 'bulkApprove') && (
+              <Button
+                label={`Đã trả lương kỳ ${period}`}
+                size="sm"
+                variant="primary"
+                onClick={() => setBulkConfirmOpen(true)}
+              />
+            )}
+          </HStack>
         }
       />
+
       <div style={{ padding: 16 }}>
-        <DataTable<StaffRow>
-          columns={STAFF_COLS}
-          data={staffRows}
-          loading={isLoading}
-          error={error?.message}
-          empty="Chưa có nhân viên nào"
-          onRowClick={(row) =>
-            setSelectedUser({ id: row.id, name: row.fullName })
-          }
-        />
+        <Stack gap={2}>
+          {result && <Banner status={result.ok ? 'success' : 'error'} title={result.text} />}
+
+          <DataTable<KpiRow>
+            columns={columns}
+            data={rows}
+            loading={isLoading}
+            error={error?.message}
+            empty="Không có phiếu KPI nào phù hợp bộ lọc."
+          />
+        </Stack>
       </div>
+
+      <ConfirmDialog
+        opened={confirmTarget !== null}
+        title="Xác nhận điểm KPI"
+        message={`Xác nhận điểm KPI của ${confirmTarget?.fullName ?? ''} cho kỳ ${period}?`}
+        confirmLabel="Xác nhận"
+        confirmColor="blue"
+        loading={confirmMut.isPending}
+        onConfirm={() => confirmTarget && confirmMut.mutate({ kpiScoreId: confirmTarget.id })}
+        onCancel={() => setConfirmTarget(null)}
+      />
+
+      <OverrideModal target={overrideTarget} onClose={() => setOverrideTarget(null)} />
+
+      <ConfirmDialog
+        opened={bulkConfirmOpen}
+        title={`Đã trả lương kỳ ${period}`}
+        message={bulkMessage}
+        confirmLabel="Tất toán"
+        confirmColor="red"
+        loading={bulkApproveMut.isPending}
+        onConfirm={() => bulkApproveMut.mutate({ period })}
+        onCancel={() => setBulkConfirmOpen(false)}
+      />
     </>
   );
 }

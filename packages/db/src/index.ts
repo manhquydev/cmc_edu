@@ -63,11 +63,19 @@ export async function withFacility<T>(
   if (!opts.bypass && !facilityId) {
     throw new Error('withFacility requires a facilityId unless { bypass: true } is set.');
   }
-  return db.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT set_config('app.current_facility_id', ${facilityId ?? ''}, true)`;
-    if (opts.bypass) {
-      await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
-    }
-    return fn(tx);
-  });
+  return db.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.current_facility_id', ${facilityId ?? ''}, true)`;
+      if (opts.bypass) {
+        await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+      }
+      return fn(tx);
+    },
+    // Prisma default is 5000ms — under full-suite parallel DB load (Vitest
+    // spawns many concurrent request-shaped transactions against one Postgres),
+    // legitimate KPI-refresh transactions with per-shift punch collection can
+    // race the deadline. Prod transactions complete in ms; a raised ceiling
+    // costs nothing there and eliminates a class of infra-load flakes.
+    { timeout: 15_000 },
+  );
 }

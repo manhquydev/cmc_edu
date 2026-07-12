@@ -83,20 +83,21 @@ nháp nhận xét (GV chốt — dữ liệu trẻ, TL08 §7).
 
 ---
 
-## 4. Luồng lõi 3 — Duyệt ca (managerId, không role "quản lý")
+## 4. Luồng lõi 3 — Duyệt ca (gate theo ROLE + group-type, không phải managerId)
 
 ```mermaid
 flowchart LR
-    A["Nhân viên tạo phiếu ca<br/>(ticket-lock 1 phiếu)"] --> B{"Người duyệt = managerId"}
-    B -->|sale| C["GĐKD duyệt"]
-    B -->|giáo viên| D["GĐĐT duyệt"]
-    B -.->|fallback| E["super_admin"]
-    C & D --> F["Chốt (chống tự-duyệt, QĐ 0027)"]
+    A["Nhân viên tạo phiếu ca<br/>(ticket-lock 1 phiếu submitted/người)"] --> B{"ShiftGroup.type"}
+    B -->|KINH_DOANH| C["role giam_doc_kinh_doanh duyệt/từ chối"]
+    B -->|GIAO_VIEN| D["role giam_doc_dao_tao duyệt/từ chối"]
+    B -.->|bypass| E["super_admin (cả 2 loại)"]
+    C & D --> F["Chốt (chống tự-duyệt) — approved | rejected (reason, giải phóng ticket-lock)"]
     classDef x fill:#FFF8E1,stroke:#F9A825,color:#F57F17;
     class A,B,C,D,E,F x;
 ```
 
-Cấp trên–cấp dưới theo `managerId`: sale→GĐKD, giáo viên→GĐĐT. Không có role `quan_ly`.
+Gate = role của caller khớp `ShiftGroup.type` (không phải `managerId` chain — HR remediation
+sửa lại, xem docs/20 §2 + docs/22 ADR 0042 cho công thức lương bậc/KPI liên quan).
 
 ---
 
@@ -108,7 +109,7 @@ Cấp trên–cấp dưới theo `managerId`: sale→GĐKD, giáo viên→GĐĐT
 | GĐKD | Kích hoạt provisioning (tự động) | Hệ thống → PH | `receiptApprove` |
 | GĐĐT | Tạo lớp → auto sinh buổi | Giáo viên | `class.create` |
 | Giáo viên | Điểm danh/nhận xét | PH (LMS) | `attendance/assessment` |
-| Nhân viên | Phiếu ca | managerId (GĐKD/GĐĐT) | `shiftRegistration.approve` |
+| Nhân viên | Phiếu ca | GĐKD/GĐĐT (role khớp group-type) | `shift.approve`/`shift.reject` |
 
 > Liên kết: TL14 (vai trò) · TL16 (ADR) · TL01 (bất biến) · TL04/13 (agent) · TL06 (URL escalate).
 

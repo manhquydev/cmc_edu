@@ -244,7 +244,10 @@ async function runMoneyTransaction(
   // the two calls so the winner's commit is visible to the loser's predicate.
   const claim = await tx.receipt.updateMany({
     where: { id: receipt.id, facilityId, status: 'draft' },
-    data: { status: 'approved', approvedById: approverId, kind },
+    // HR remediation phase 1 (finding #6): capture the real approval instant
+    // instead of relying on `updatedAt` (which any later touch, e.g.
+    // receiptCancel, would shift).
+    data: { status: 'approved', approvedById: approverId, kind, approvedAt: new Date() },
   });
   if (claim.count !== 1) {
     throw conflict('Receipt was already approved by a concurrent request.');
@@ -685,6 +688,18 @@ export const financeRouter = router({
           });
           const code = nextReceiptCode(counter.value - 1);
 
+          // HR remediation phase 1 (finding #2): resolve the caller's AppUser
+          // for the real attribution FK (`createdByAppUserId`, namespace
+          // AppUser.id) alongside the legacy `createdById` (dev-session
+          // userId). Best-effort — a caller with no AppUser row in this
+          // facility (e.g. a test fixture, or a not-yet-provisioned staff
+          // account) still creates the receipt; `createdByAppUserId` just
+          // stays null (same nullable contract the backfill migration uses).
+          const callerAppUser = await tx.appUser.findFirst({
+            where: { userId: ctx.subject.userId, facilityId },
+            select: { id: true },
+          });
+
           const created = await tx.receipt.create({
             data: {
               facilityId,
@@ -699,6 +714,7 @@ export const financeRouter = router({
               studentName: input.studentName,
               classBatchId: input.classBatchId,
               createdById: ctx.subject.userId,
+              createdByAppUserId: callerAppUser?.id ?? null,
             },
           });
 

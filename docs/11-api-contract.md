@@ -40,6 +40,12 @@ Dùng `TRPCError` với 5 mã (theo tần suất thật trong repo):
 `{ status: 'success' | 'warning', ... }` (vd `receiptCreate` khi trùng SĐT — QĐ 0037). FE **phải
 narrow `status==='success'`** trước khi đọc payload. Đây là hợp đồng, không phải tuỳ chọn.
 
+**`data.appCode` (HR remediation phase 4):** `errorFormatter` (apps/api/src/trpc.ts) additive-only
+copy `appCode` từ `AppCodeError` (apps/api/src/errors.ts) sang `shape.data.appCode` khi lỗi mang mã
+máy-đọc-được cụ thể hơn `code` chuẩn (vd `IP_NOT_ALLOWED`, `COOLDOWN` — `checkInOut.punch`). Lỗi
+thường (`TRPCError`/Prisma rethrow) không có `appCode` — FE kiểm `data?.appCode` optional, không suy
+diễn từ message.
+
 ## 3. Phân trang, lọc, sắp xếp (khớp URL query — TL6)
 
 - Input list chuẩn: `{ q?, filter?, sort?, page?, pageSize? }` — ánh xạ 1-1 với query param URL.
@@ -77,15 +83,40 @@ narrow `status==='success'`** trước khi đọc payload. Đây là hợp đồ
 | `schedule.generateSessions` | mutation | `schedule.generate` | `{ classBatchId }` | re-generate (mở rộng/đổi lịch) |
 | `attendance.mark` / `markAll` | mutation | `attendance.mark` | `{ sessionId, studentId, status }` | cần ClassSession tồn tại |
 | `assessment.*` | mutation | `assessment.*` | `{ studentId, sessionId, content }` | draft agent → GV chốt |
+| `assessment.listBySession` | query | `assessment.draft` | `{ sessionId }` | staff read — nhận xét định tính của 1 buổi (HR remediation phase 5) |
+| `classBatch.assignTeacher` | mutation | `class.create` (GĐĐT) | `{ classBatchId, teacherAppUserId }` | gán GV dạy lớp (FK `teacherAppUserId`, thay `teacherId` free-text) |
 
-### HR / Payroll / Shift
+### HR / Payroll / Shift — auto-score + salary-tier lifecycle (docs/20, ADR 0042)
+> `kpi.submit` / `kpi.approve` (đơn lẻ) / `kpi.getForUser` / `compensation.upsertRate` đã **BỎ**
+> (HR remediation): lifecycle auto-score thay thế nhập tay; `approved` chỉ đạt được qua `bulkApprove`;
+> baseSalary/unitRate/quota nguồn duy nhất là `SalaryTier` catalog qua `assignTier`.
+
 | Procedure | Loại | Quyền | Ghi chú |
 |---|---|---|---|
-| `checkInOut.punch` | mutation | `checkInOut.punch` | trong WiFi/IP facility |
-| `checkInOut.monthlyReport` | query | giám đốc | aggregate server-side |
-| `payroll.assembleSlip` | query/mutation | `payroll.*` | self-healing từ punch live; phạt post-tax |
-| `shiftRegistration.submit` | mutation | `shift.register` | ticket-lock 1 phiếu |
-| `shiftRegistration.approve` | mutation | managerId/HR/GĐ | `assertAssignedApprover`, chống tự-duyệt |
+| `checkInOut.punch` | mutation | `checkInOut.punch` | trong WiFi/IP facility; lỗi mang `appCode` `IP_NOT_ALLOWED`/`COOLDOWN` |
+| `manualPunch.create` | mutation | `manualPunch.create` | `{ ticketDate, note? }` — phiếu bù chấm công quên |
+| `manualPunch.approve` / `reject` | mutation | `manualPunch.approve` | direct-manager hoặc super_admin; anti-self-approve |
+| `manualPunch.list` | query | protected | `{ scope: 'inbox'\|'mine', status? }` — inbox = cấp dưới trực tiếp (hoặc mọi ticket nếu super_admin) |
+| `shift.createGroup` / `createTemplate` | mutation | `shift.manage` (GĐKD/GĐĐT) | catalog ShiftGroup/ShiftTemplate |
+| `shift.submit` | mutation | `shift.submit` | `{ shiftGroupId, fromDate, toDate, entries[] }` — ticket-lock 1 `submitted`/appUser, `fromDate` phải tương lai, group-type khớp `resolveShiftGroup(position)` |
+| `shift.approve` / `reject` | mutation | `shift.approve` | anti-self + gate group-type (GIAO_VIEN↔`giam_doc_dao_tao`, KINH_DOANH↔`giam_doc_kinh_doanh`, super_admin bypass); `reject` bắt buộc `reason` (≥3 ký tự), ghi `rejectReason`, giải phóng ticket-lock + overlap |
+| `shift.listGroups` | query | protected | catalog nhóm ca + template lồng nhau |
+| `shift.myRegistrations` | query | protected (self) | phiếu đăng ký của chính caller + `rejectReason` nếu bị từ chối |
+| `shift.pendingForApproval` | query | `shift.approve` | hàng đợi `submitted`, scoped theo group-type quyền caller |
+| `salaryTier.list` / `create` / `update` | query/mutation | `salaryTier.manage` (GĐKD/GĐĐT) | catalog bậc lương (`baseSalary`, `unitRate`, `requiredShifts`, `requiredMetric`, `type`) |
+| `compensation.assignTier` | mutation | `salaryTier.manage` | `{ appUserId, tierId }` — target phải sale/giao_vien, tier.type phải khớp role |
+| `compensationPolicy.get` / `upsert` | query/mutation | `compensationPolicy.manage` (super_admin) | `{ penaltyRatePerLateMinute, penaltyRatePerEarlyMinute }` per-facility |
+| `kpi.refresh` | mutation | `kpi.refresh` | `{ period, appUserId? }` — recompute + upsert draft (idempotent); tự = mình, khác người cần role director |
+| `kpi.submitSlip` | mutation | `kpi.submitSlip` | `{ period }` — chủ phiếu tự nộp, mở từ ngày 3 tháng kế tiếp ICT; tự refresh trước khi nộp |
+| `kpi.confirm` | mutation | `kpi.confirm` | `{ kpiScoreId }` — direct manager xác nhận (submitted→confirmed), anti-self |
+| `kpi.override` (khoá quyền `kpi.approve`) | mutation | `kpi.approve` | `{ kpiScoreId, value, overrideReason }` — director set trực tiếp; sửa slip `approved` chỉ super_admin khi payslip đã reopen |
+| `kpi.bulkApprove` | mutation | `kpi.bulkApprove` | `{ period }` — 2 GĐ tất toán mọi `confirmed` có Payslip `finalized`, branch-scope theo ROLE (không theo `position`), loại trừ phiếu của chính mình |
+| `kpi.list` | query | protected (director) | `{ period, status? }` — inbox branch-scope theo ROLE |
+| `kpi.myScore` | query | protected (self) | `{ period }` — đọc phiếu KPI của chính mình |
+| `payslip.assemble` | mutation | `payslip.assemble` (GĐKD/GĐĐT) | `{ appUserId, period }` — base(tier) + %côngca×%chỉ-số×đơnGiá − phạt, từ chối nếu chưa gán tier |
+| `payslip.finalize` / `reopen` | mutation | `payslip.finalize`/`reopen` | khoá/mở lại bảng lương tháng |
+| `payslip.getForUser` | query | protected | `{ appUserId, period }` — riêng tư: chủ sở hữu hoặc director |
+| `payslip.my` | query | protected (self) | `{ period }` — bảng lương của chính mình, `null` nếu chưa assemble |
 
 ### Identity / Platform
 | Procedure | Loại | Quyền | Ghi chú |

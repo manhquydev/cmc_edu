@@ -20,6 +20,9 @@ export const NAV_MODULES: NavModule[] = [
       { id: 'attendance', label: 'Điểm danh', path: '/teaching/attendance', icon: 'check-circle', permission: { module: 'attendance', action: 'mark' } },
       { id: 'grading', label: 'Chấm bài', path: '/teaching/grading', icon: 'edit', permission: { module: 'submission', action: 'grade' } },
       { id: 'session-evidence', label: 'Nhật ký buổi học', path: '/teaching/session-evidence', icon: 'camera' },
+      // HR remediation phase 5 (R2 #C4): per-session assessment screen — same
+      // permission as assessment.draftComment (giao_vien|giam_doc_dao_tao).
+      { id: 'session-assessment', label: 'Nhận xét buổi học', path: '/teaching/session-assessment', icon: 'edit', permission: { module: 'assessment', action: 'draft' } },
       { id: 'exercises', label: 'Bài tập', path: '/teaching/exercises', icon: 'clipboard', permission: { module: 'exercise', action: 'manage' } },
     ],
   },
@@ -43,6 +46,31 @@ export const NAV_MODULES: NavModule[] = [
       { id: 'crm', label: 'CRM', path: '/crm', icon: 'target', permission: { module: 'crm', action: 'opportunityList' } },
       { id: 'revenue', label: 'Doanh thu', path: '/ops/revenue', icon: 'card' },
       { id: 'recon', label: 'Đối soát', path: '/ops/recon', icon: 'search', permission: { module: 'reconciliation', action: 'review' } },
+      // Residual EmptyState screens rolled in from `260707-0915-ui-implementation`
+      // phase-06 (2026-07-12) — no backend build here, see the page files.
+      { id: 'post-sale-meeting', label: 'Họp sau bán', path: '/crm/post-sale-meeting', icon: 'users', permission: { module: 'parentMeeting', action: 'manage' } },
+      { id: 'aftersale', label: 'Sau bán', path: '/crm/aftersale', icon: 'alert', permission: { module: 'afterSale', action: 'manage' } },
+      { id: 'refund', label: 'Hoàn tiền', path: '/finance/refund', icon: 'card', permission: { module: 'finance', action: 'refundCreate' } },
+    ],
+  },
+  {
+    // HR remediation phase 5 (R3-10, red-team #22): 5-role nav matrix.
+    // Chấm công / Đăng ký ca / Của tôi carry no `permission` gate — visible to
+    // every active role (self-scoped procedures, no dedicated permission key).
+    // Duyệt KPI / Chốt lương / Bậc lương gate on the 2-GĐ+super_admin
+    // permission keys already in the registry (kpi.confirm, payslip.assemble,
+    // salaryTier.manage) — no new permission keys invented here.
+    id: 'hr',
+    label: 'Nhân sự',
+    icon: 'users',
+    path: '/hr',
+    children: [
+      { id: 'checkin', label: 'Chấm công', path: '/hr/checkin', icon: 'clock' },
+      { id: 'shifts', label: 'Đăng ký ca', path: '/hr/shifts', icon: 'calendar' },
+      { id: 'my', label: 'Của tôi', path: '/hr/my', icon: 'user' },
+      { id: 'kpi', label: 'Duyệt KPI', path: '/hr/kpi', icon: 'target', permission: { module: 'kpi', action: 'confirm' } },
+      { id: 'payroll', label: 'Chốt lương', path: '/hr/payroll', icon: 'dollar', permission: { module: 'payslip', action: 'assemble' } },
+      { id: 'salary-tiers', label: 'Bậc lương', path: '/hr/salary-tiers', icon: 'layers', permission: { module: 'salaryTier', action: 'manage' } },
     ],
   },
   {
@@ -54,6 +82,9 @@ export const NAV_MODULES: NavModule[] = [
     children: [
       { id: 'users', label: 'Người dùng', path: '/admin/users', icon: 'user', permission: { module: 'user', action: 'manage' } },
       { id: 'facilities', label: 'Cơ sở', path: '/admin/facilities', icon: 'building', permission: { module: 'facility', action: 'list' } },
+      // super_admin-only (compensationPolicy.manage has an empty role list —
+      // only the super_admin bypass in can() satisfies it).
+      { id: 'shift-config', label: 'Ca làm việc', path: '/admin/shift-config', icon: 'clock', permission: { module: 'compensationPolicy', action: 'manage' } },
     ],
   },
 ];

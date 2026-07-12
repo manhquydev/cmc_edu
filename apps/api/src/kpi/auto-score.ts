@@ -79,9 +79,9 @@ export interface ComputeKpiValueInput {
  * rounding contract).
  */
 export function computeKpiValue(input: ComputeKpiValueInput): number {
-  const shiftActual = Number(input.shiftActual) || 0;
+  const shiftActual = Math.max(0, Number(input.shiftActual) || 0);
   const shiftRequired = Number(input.shiftRequired) || 0;
-  const metricValue = Number(input.metricValue) || 0;
+  const metricValue = Math.max(0, Number(input.metricValue) || 0);
   const metricRequired = Number(input.metricRequired) || 0;
   const unitRate = Number(input.unitRate) || 0;
 

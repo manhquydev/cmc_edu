@@ -389,4 +389,58 @@ describe('session-done-sweep (HR remediation phase 7)', () => {
     );
     expect(makeups).toHaveLength(1);
   });
+
+  it('chained makeup convergence: a makeup itself that is 0-present chains correctly to a second makeup', async () => {
+    // Create initial session that will be cancelled.
+    const { sessionId, classBatchId, scheduleSlotId } = await seedRealSession({
+      sessionDateOnly: '2026-08-03', // Monday
+      weekday: 1,
+      startTime: '18:00',
+      endTime: '19:30',
+    });
+
+    // First sweep: cancel original, create makeup A (makeupForSessionId = original session id)
+    const now1 = new Date('2026-08-05T00:00:00.000Z'); // > 24h past original endTime
+    const outcomes1 = await runCancelSweep(testDb(), now1);
+    expect(outcomes1).toHaveLength(1);
+    const makeupAId = outcomes1[0]!.makeupSessionId;
+    expect(makeupAId).not.toBeNull();
+
+    // Verify makeup A was created and points to the original session
+    const makeupA = await testDbBypass((tx) =>
+      tx.classSession.findUniqueOrThrow({ where: { id: makeupAId! } }),
+    );
+    expect(makeupA.makeupForSessionId).toBe(sessionId);
+    expect(makeupA.scheduleSlotId).toBe(scheduleSlotId);
+
+    // Second sweep: makeup A is now past its own endTime + 24h with 0-present,
+    // so it should also cancel and create makeup B (makeupForSessionId = makeup A id).
+    // Makeup A's endTime is the same as original (18:00-19:30 ICT).
+    // Schedule slot repeats every 7 days (Monday), so makeup A is on 2026-08-10,
+    // and makeup B would be on 2026-08-17.
+    const now2 = new Date('2026-08-12T00:00:00.000Z'); // > 24h past makeup A's endTime
+    const outcomes2 = await runCancelSweep(testDb(), now2);
+
+    // Expect exactly one more outcome: makeup A cancellation + makeup B creation
+    expect(outcomes2).toHaveLength(1);
+    expect(outcomes2[0]!.sessionId).toBe(makeupAId);
+    const makeupBId = outcomes2[0]!.makeupSessionId;
+    expect(makeupBId).not.toBeNull();
+
+    // Verify makeup A is now cancelled
+    const makeupAAfterCancel = await testDbBypass((tx) =>
+      tx.classSession.findUniqueOrThrow({ where: { id: makeupAId! } }),
+    );
+    expect(makeupAAfterCancel.status).toBe('cancelled');
+
+    // Verify makeup B was created and chains to makeup A (not back to original)
+    const makeupB = await testDbBypass((tx) =>
+      tx.classSession.findUniqueOrThrow({ where: { id: makeupBId! } }),
+    );
+    expect(makeupB.makeupForSessionId).toBe(makeupAId); // chains to makeup A
+    expect(makeupB.scheduleSlotId).toBe(scheduleSlotId);
+    expect(makeupB.classBatchId).toBe(classBatchId);
+    // Makeup B should be 7 days after makeup A (both Mondays in ICT)
+    expect(makeupB.sessionDate.toISOString()).toBe('2026-08-16T17:00:00.000Z'); // 2026-08-17 00:00 ICT
+  });
 });

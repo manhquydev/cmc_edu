@@ -15,13 +15,15 @@
 
 import { randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ictToUtc } from '@cmc/domain-time';
+import { ictDateOnlyOf, ictToUtc } from '@cmc/domain-time';
 import {
   collectActualShifts,
   collectSaleRevenue,
   collectTeacherHours,
   computeKpiValue,
   refreshKpiScore,
+  resolveKpiTargetRole,
+  submitSlipOpensAt,
 } from './auto-score.js';
 import {
   cleanupFacility,
@@ -97,6 +99,93 @@ describe('computeKpiValue', () => {
       unitRate: 100_000,
     });
     expect(value).toBe(33_333);
+  });
+
+  it('clamps negative shiftActual to 0 (corrupted upstream data guard)', () => {
+    const value = computeKpiValue({
+      shiftActual: -5, // negative input
+      shiftRequired: 20,
+      metricValue: 100,
+      metricRequired: 100,
+      unitRate: 1_000_000,
+    });
+    expect(value).toBe(0); // clamped to 0, shiftPct becomes 0
+  });
+
+  it('clamps negative metricValue to 0 (corrupted upstream data guard)', () => {
+    const value = computeKpiValue({
+      shiftActual: 20,
+      shiftRequired: 20,
+      metricValue: -50, // negative input
+      metricRequired: 100,
+      unitRate: 1_000_000,
+    });
+    expect(value).toBe(0); // clamped to 0, metricPct becomes 0
+  });
+
+  it('clamps both negative shiftActual and metricValue to 0', () => {
+    const value = computeKpiValue({
+      shiftActual: -10,
+      shiftRequired: 20,
+      metricValue: -100,
+      metricRequired: 100,
+      unitRate: 1_000_000,
+    });
+    expect(value).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// submitSlipOpensAt — guard boundary (day 3 of next month ICT)
+// ---------------------------------------------------------------------------
+
+describe('submitSlipOpensAt', () => {
+  it('returns the ICT midnight instant of day 3 of the FOLLOWING month', () => {
+    // For period '2026-07', the guard opens on 2026-08-03 00:00 ICT
+    const openAt = submitSlipOpensAt('2026-07');
+    const dateOnly = ictDateOnlyOf(openAt);
+    expect(dateOnly).toBe('2026-08-03');
+  });
+
+  it('handles December -> January year rollover', () => {
+    // For period '2026-12', the guard opens on 2027-01-03 00:00 ICT
+    const openAt = submitSlipOpensAt('2026-12');
+    const dateOnly = ictDateOnlyOf(openAt);
+    expect(dateOnly).toBe('2027-01-03');
+  });
+
+  it('throws RangeError on malformed period format', () => {
+    expect(() => submitSlipOpensAt('2026-7')).toThrow(RangeError); // single-digit month
+    expect(() => submitSlipOpensAt('not-a-period')).toThrow(RangeError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resolveKpiTargetRole — target role discriminator
+// ---------------------------------------------------------------------------
+
+describe('resolveKpiTargetRole', () => {
+  it('returns sale when roles include sale', () => {
+    expect(resolveKpiTargetRole(['sale'])).toBe('sale');
+  });
+
+  it('returns giao_vien when roles include giao_vien', () => {
+    expect(resolveKpiTargetRole(['giao_vien'])).toBe('giao_vien');
+  });
+
+  it('prefers sale when both sale and giao_vien are present (documented precedence)', () => {
+    // sale is checked first in the implementation, so it takes precedence
+    expect(resolveKpiTargetRole(['sale', 'giao_vien'])).toBe('sale');
+  });
+
+  it('returns null for director/super_admin roles (no KPI slip)', () => {
+    expect(resolveKpiTargetRole(['giam_doc_kinh_doanh'])).toBeNull();
+    expect(resolveKpiTargetRole(['giam_doc_dao_tao'])).toBeNull();
+    expect(resolveKpiTargetRole(['super_admin'])).toBeNull();
+  });
+
+  it('returns null for empty roles array', () => {
+    expect(resolveKpiTargetRole([])).toBeNull();
   });
 });
 

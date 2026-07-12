@@ -108,6 +108,35 @@ describe('checkInOut + manualPunch (P3-I integration)', () => {
     await expect(caller(ctx).checkInOut.punch()).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
+  it('punch fails at 4:59.9 (well within cooldown, near boundary)', async () => {
+    const user = await seedAppUser({ facilityId, userId: 'punch-cooldown-boundary-within' });
+    // Seed a punch ~299000ms ago (4:59) — definitely within the 5-min window
+    const wellWithinCooldown = new Date(Date.now() - 299 * 1000);
+    await testDbBypass((tx) =>
+      tx.timePunch.create({
+        data: { facilityId, appUserId: user.id, method: 'ip', punchAt: wellWithinCooldown },
+      }),
+    );
+    // Attempt to punch now should trigger COOLDOWN (punchAt >= now - 5min)
+    await expect(
+      caller(makeSuperCtx('punch-cooldown-boundary-within')).checkInOut.punch(),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', appCode: 'COOLDOWN' });
+  });
+
+  it('punch succeeds after 5:00.1 (well past cooldown, near boundary)', async () => {
+    const user = await seedAppUser({ facilityId, userId: 'punch-cooldown-boundary-past' });
+    // Seed a punch ~301000ms ago (5:01) — definitely past the cooldown window
+    const wellPastCooldown = new Date(Date.now() - 301 * 1000);
+    await testDbBypass((tx) =>
+      tx.timePunch.create({
+        data: { facilityId, appUserId: user.id, method: 'ip', punchAt: wellPastCooldown },
+      }),
+    );
+    // Attempt to punch now should succeed
+    const result = await caller(makeSuperCtx('punch-cooldown-boundary-past')).checkInOut.punch();
+    expect(result.method).toBe('ip');
+  });
+
   it('punch fails when no AppUser row in facility', async () => {
     await expect(
       caller(makeSuperCtx('no-app-user-here')).checkInOut.punch(),

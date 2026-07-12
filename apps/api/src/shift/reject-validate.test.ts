@@ -197,6 +197,59 @@ describe('shift.submit — overlap (submitted|approved, cross-group)', () => {
     });
     expect(result.status).toBe('submitted');
   });
+
+  it('CONFLICT when new submission touches existing approved registration on the same day (inclusive boundary)', async () => {
+    // First: submit + approve a registration with toDate = '2099-02-10'
+    const reg = await caller(saleCtx()).shift.submit({
+      shiftGroupId: mkShiftGroupId,
+      fromDate: '2099-02-08',
+      toDate: '2099-02-10', // ends on Feb 10
+      entries: [{ date: '2099-02-10', shiftTemplateId: mkTemplateAId }],
+    });
+    const managerCtx = buildStaffContext({
+      facilityId,
+      userId: 'reject-validate-kdmgr-003',
+      roles: ['giam_doc_kinh_doanh'],
+    });
+    await caller(managerCtx).shift.approve({ registrationId: reg.id });
+
+    // Second: employee tries to submit a registration starting on '2099-02-10' (same day).
+    // This should CONFLICT because the overlap check is inclusive on both ends.
+    await expect(
+      caller(saleCtx()).shift.submit({
+        shiftGroupId: mkShiftGroupId,
+        fromDate: '2099-02-10', // starts on Feb 10 — same day as existing toDate
+        toDate: '2099-02-12',
+        entries: [{ date: '2099-02-10', shiftTemplateId: mkTemplateAId }],
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('succeeds when new submission starts the day after existing approved registration ends (no boundary touch)', async () => {
+    // First: submit + approve a registration with toDate = '2099-02-10'
+    const reg = await caller(saleCtx()).shift.submit({
+      shiftGroupId: mkShiftGroupId,
+      fromDate: '2099-02-08',
+      toDate: '2099-02-10',
+      entries: [{ date: '2099-02-10', shiftTemplateId: mkTemplateAId }],
+    });
+    const managerCtx = buildStaffContext({
+      facilityId,
+      userId: 'reject-validate-kdmgr-004',
+      roles: ['giam_doc_kinh_doanh'],
+    });
+    await caller(managerCtx).shift.approve({ registrationId: reg.id });
+
+    // Second: employee submits a registration starting on '2099-02-11' (day after).
+    // This should succeed — no overlap because 2099-02-11 is strictly after 2099-02-10.
+    const result = await caller(saleCtx()).shift.submit({
+      shiftGroupId: mkShiftGroupId,
+      fromDate: '2099-02-11', // day after existing toDate
+      toDate: '2099-02-13',
+      entries: [{ date: '2099-02-11', shiftTemplateId: mkTemplateAId }],
+    });
+    expect(result.status).toBe('submitted');
+  });
 });
 
 describe('shift.submit — MULTIPLE mode duplicate (date, shiftTemplateId)', () => {

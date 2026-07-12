@@ -124,6 +124,46 @@ describe('sessionEvidence (T3 US-019)', () => {
   });
 
   // -------------------------------------------------------------------------
+  // getBySession
+  // -------------------------------------------------------------------------
+
+  it('getBySession returns null when no evidence row exists yet', async () => {
+    const result = await teacher.sessionEvidence.getBySession({ classSessionId: session.id });
+    expect(result).toBeNull();
+  });
+
+  it('getBySession returns status + photos for a draft evidence record', async () => {
+    const evidence = await teacher.sessionEvidence.upsert({
+      classSessionId: session.id,
+      summary: 'Buổi học vui.',
+    });
+    await teacher.sessionEvidence.addPhoto({ sessionEvidenceId: evidence.id, blobRef: 'photos/get-by-session.jpg' });
+
+    const result = await teacher.sessionEvidence.getBySession({ classSessionId: session.id });
+    expect(result?.status).toBe('draft');
+    expect(result?.photos).toHaveLength(1);
+    expect(result?.photos[0]?.blobRef).toBe('photos/get-by-session.jpg');
+  });
+
+  it('getBySession reflects published status after publish', async () => {
+    const evidence = await teacher.sessionEvidence.upsert({
+      classSessionId: session.id,
+      summary: 'Buổi học vui.',
+    });
+    await teacher.sessionEvidence.addPhoto({ sessionEvidenceId: evidence.id, blobRef: 'photos/get-by-session-2.jpg' });
+    await teacher.sessionEvidence.publish({ sessionEvidenceId: evidence.id });
+
+    const result = await teacher.sessionEvidence.getBySession({ classSessionId: session.id });
+    expect(result?.status).toBe('published');
+  });
+
+  it('getBySession: unknown classSessionId in this facility → NOT_FOUND', async () => {
+    await expect(
+      teacher.sessionEvidence.getBySession({ classSessionId: randomUUID() }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  // -------------------------------------------------------------------------
   // addPhoto
   // -------------------------------------------------------------------------
 

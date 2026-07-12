@@ -138,4 +138,58 @@ describe('trpc.ts errorFormatter — client-visible shape', () => {
       expect(shape.data?.appCode).toBeUndefined();
     });
   });
+
+  // ---- Real procedure round-trip: payslip.getForUser (post-audit fix — was
+  // a plain notFound(), now carries a machine-readable appCode) ----
+
+  describe('payslip.getForUser — real thrown errors carry appCode in the client shape', () => {
+    let facilityId: string;
+    let employeeAppUserId: string;
+
+    beforeEach(async () => {
+      const facility = await createTestFacility('ErrFormatter-Payslip-Facility');
+      facilityId = facility.id;
+      const employee = await seedAppUser({ facilityId, userId: 'errfmt-payslip-employee', position: 'giao_vien' });
+      employeeAppUserId = employee.id;
+    });
+
+    afterEach(async () => {
+      await cleanupFacility(facilityId);
+    });
+
+    it('unknown appUserId → appCode APP_USER_NOT_FOUND', async () => {
+      const ctx = buildStaffContext({ facilityId, userId: 'errfmt-payslip-employee', roles: ['giao_vien'] });
+
+      let thrown: TRPCError | undefined;
+      try {
+        await caller(ctx).payslip.getForUser({
+          appUserId: '00000000-0000-0000-0000-000000000000',
+          period: '2099-01',
+        });
+      } catch (err) {
+        thrown = err as TRPCError;
+      }
+      expect(thrown).toBeInstanceOf(TRPCError);
+
+      const shape = clientShapeFor(thrown!, 'payslip.getForUser');
+      expect(shape.data?.appCode).toBe('APP_USER_NOT_FOUND');
+      expect(shape.data?.code).toBe('NOT_FOUND');
+    });
+
+    it("own appUserId, no payslip assembled yet → appCode PAYSLIP_NOT_FOUND", async () => {
+      const ctx = buildStaffContext({ facilityId, userId: 'errfmt-payslip-employee', roles: ['giao_vien'] });
+
+      let thrown: TRPCError | undefined;
+      try {
+        await caller(ctx).payslip.getForUser({ appUserId: employeeAppUserId, period: '2099-01' });
+      } catch (err) {
+        thrown = err as TRPCError;
+      }
+      expect(thrown).toBeInstanceOf(TRPCError);
+
+      const shape = clientShapeFor(thrown!, 'payslip.getForUser');
+      expect(shape.data?.appCode).toBe('PAYSLIP_NOT_FOUND');
+      expect(shape.data?.code).toBe('NOT_FOUND');
+    });
+  });
 });

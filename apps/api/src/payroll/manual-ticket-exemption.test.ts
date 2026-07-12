@@ -32,6 +32,11 @@ const caller = (ctx: ReturnType<typeof buildStaffContext>) => appRouter.createCa
 const directorCtx = () =>
   buildStaffContext({ facilityId, userId: DIRECTOR_USER_ID, roles: ['giam_doc_kinh_doanh'] });
 const directorCaller = () => caller(directorCtx());
+// super_admin bypasses the caller-vs-tier branch-scope check (R2-6 post-audit
+// fix) — directorCtx is giam_doc_kinh_doanh and would be out-of-branch for
+// the GIAO_VIEN tier this file assigns.
+const superAdminCaller = () =>
+  caller(buildStaffContext({ facilityId, userId: 'ticket-exempt-superadmin-001', roles: ['super_admin'] }));
 
 async function seedRegisteredShift(dateOnly: string): Promise<void> {
   const reg = await testDbBypass((tx) =>
@@ -122,7 +127,7 @@ beforeEach(async () => {
     requiredShifts: 20,
     requiredMetric: 120,
   });
-  await directorCaller().compensation.assignTier({ appUserId: employeeAppUserId, tierId: tier.id });
+  await superAdminCaller().compensation.assignTier({ appUserId: employeeAppUserId, tierId: tier.id });
 });
 
 afterEach(async () => {

@@ -102,7 +102,10 @@ beforeEach(async () => {
     requiredShifts: 20,
     requiredMetric: 120,
   });
-  await caller(gdkdACtx()).compensation.assignTier({ appUserId: employeeAppUserId, tierId: tier.id });
+  // GIAO_VIEN tier assigned via super_admin (bypasses the caller-vs-tier
+  // branch-scope check, R2-6 post-audit fix) — gdkdACtx is giam_doc_kinh_doanh
+  // and would be out-of-branch for a GIAO_VIEN tier.
+  await caller(superAdminACtx()).compensation.assignTier({ appUserId: employeeAppUserId, tierId: tier.id });
 });
 
 afterEach(async () => {

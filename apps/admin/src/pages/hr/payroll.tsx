@@ -50,6 +50,15 @@ function fmtInt(raw: unknown): number {
   return Number(raw);
 }
 
+// HR remediation (post-audit fix): branch on `err.data.appCode`
+// (PAYSLIP_NOT_FOUND — trpc.ts's errorFormatter, apps/api/src/errors.ts's
+// AppCodeError), NOT string-matching err.message (same posture as
+// attendance/check-in-out.tsx's `readAppCode`).
+function readAppCode(err: { data?: unknown; message?: string } | null | undefined): string | undefined {
+  const data = err?.data as { appCode?: unknown } | null | undefined;
+  return typeof data?.appCode === 'string' ? data.appCode : undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Staff list types
 // ---------------------------------------------------------------------------
@@ -207,7 +216,7 @@ function PayslipDetail({
           status="warning"
           title="Chưa có bảng lương"
           description={
-            error.message.toLowerCase().includes('not found')
+            readAppCode(error) === 'PAYSLIP_NOT_FOUND'
               ? `Kỳ ${period} chưa có bảng lương. Nhấn "Tính lương" để tạo bản nháp.`
               : error.message
           }

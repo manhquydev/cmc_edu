@@ -6,6 +6,13 @@
 //
 // Read companion added this phase: `assessment.listBySession` (no such read
 // existed pre-phase-5 — only draft/confirm/discard mutations).
+//
+// Post-audit fix: tri-state progress display mirrors the 3 session-done
+// conditions (session-done.ts's `evaluateSessionDone`) — điểm danh (≥1
+// present), nhận xét (x/y confirmed), ảnh (evidence published + ≥1 photo,
+// sessionEvidence.getBySession). This is a UI hint only — the server-side
+// gate (the sweep worker / inline done-evaluate) is the actual source of
+// truth for when a session flips to `done`.
 
 import { useState } from 'react';
 import {
@@ -59,6 +66,10 @@ export default function SessionAssessmentPage() {
     { classSessionId: sessionId! },
     { enabled: Boolean(sessionId) },
   );
+  const { data: evidenceData, isLoading: evidenceLoading } = trpc.sessionEvidence.getBySession.useQuery(
+    { classSessionId: sessionId! },
+    { enabled: Boolean(sessionId) },
+  );
 
   const draftMut = trpc.assessment.draftComment.useMutation({
     onSuccess: () => void refetchAssessments(),
@@ -82,7 +93,9 @@ export default function SessionAssessmentPage() {
       s.fullName,
     ]),
   );
-  const roster: RosterEntry[] = ((rosterData?.items ?? []) as Array<{ studentId: string; status: string | null }>)
+  const attendanceItems = (rosterData?.items ?? []) as Array<{ studentId: string; status: string | null }>;
+  const hasPresentAttendance = attendanceItems.some((r) => r.status === 'present');
+  const roster: RosterEntry[] = attendanceItems
     .filter((r) => r.status === 'present')
     .map((r) => ({ studentId: r.studentId, fullName: nameByStudentId.get(r.studentId) ?? r.studentId.slice(0, 8) }));
 
@@ -98,6 +111,10 @@ export default function SessionAssessmentPage() {
 
   const confirmedCount = roster.filter((r) => assessmentByStudentId.get(r.studentId)?.status === 'confirmed').length;
   const draftPending = roster.filter((r) => assessmentByStudentId.get(r.studentId)?.status === 'draft');
+  const allCommentsConfirmed = roster.length > 0 && confirmedCount === roster.length;
+  const evidencePublished =
+    evidenceData?.status === 'published' && (evidenceData.photos?.length ?? 0) >= 1;
+  const allDoneConditionsMet = hasPresentAttendance && allCommentsConfirmed && evidencePublished;
 
   function resetSession() {
     setSessionId(null);
@@ -135,19 +152,14 @@ export default function SessionAssessmentPage() {
       }
       actions={
         sessionId && roster.length > 0 ? (
-          <HStack gap={1} align="center">
-            <Text type="supporting" size="sm">
-              Nhận xét: {confirmedCount}/{roster.length}
-            </Text>
-            <Button
-              label="Xác nhận tất cả"
-              size="sm"
-              variant="primary"
-              isLoading={confirmAllBusy}
-              isDisabled={draftPending.length === 0}
-              onClick={handleConfirmAll}
-            />
-          </HStack>
+          <Button
+            label="Xác nhận tất cả"
+            size="sm"
+            variant="primary"
+            isLoading={confirmAllBusy}
+            isDisabled={draftPending.length === 0}
+            onClick={handleConfirmAll}
+          />
         ) : undefined
       }
       result={confirmAllError ? <Banner status="error" title={confirmAllError} /> : undefined}
@@ -202,6 +214,26 @@ export default function SessionAssessmentPage() {
             <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
               3. Nhận xét học sinh có mặt
             </Text>
+
+            {!rosterLoading && !assessLoading && !evidenceLoading && (
+              <HStack gap={1} align="center" style={{ marginBottom: 8, flexWrap: 'wrap' }}>
+                <Badge
+                  label={hasPresentAttendance ? 'Điểm danh ✓' : 'Điểm danh ✗'}
+                  variant={hasPresentAttendance ? 'success' : 'neutral'}
+                />
+                <Badge
+                  label={`Nhận xét: ${confirmedCount}/${roster.length}`}
+                  variant={allCommentsConfirmed ? 'success' : 'neutral'}
+                />
+                <Badge
+                  label={evidencePublished ? 'Ảnh ✓' : 'Ảnh ✗'}
+                  variant={evidencePublished ? 'success' : 'neutral'}
+                />
+                {allDoneConditionsMet && (
+                  <Badge label="Đủ điều kiện buổi tự chuyển done" variant="success" />
+                )}
+              </HStack>
+            )}
 
             {(rosterLoading || assessLoading) && <Skeleton height={80} radius={1} />}
 

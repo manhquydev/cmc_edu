@@ -258,7 +258,10 @@ describe('kpi.override', () => {
   });
 
   it('director overrides value → override=true + overrideReason set + status confirmed', async () => {
-    const result = await directorCaller().kpi.override({
+    // Branch-scope (R2-6, post-audit fix): the employee is giao_vien, so the
+    // in-branch director is the GĐĐT (managerCaller), not the unrelated GĐKD
+    // (directorCaller) — see the dedicated branch-scope tests below.
+    const result = await managerCaller().kpi.override({
       kpiScoreId,
       value: 3_500_000,
       overrideReason: 'Điều chỉnh theo kết quả đánh giá hội đồng',
@@ -268,7 +271,13 @@ describe('kpi.override', () => {
     expect(result.override).toBe(true);
     expect(result.overrideReason).toBe('Điều chỉnh theo kết quả đánh giá hội đồng');
     expect(result.status).toBe('confirmed');
-    expect(result.confirmedBy).toBe(DIRECTOR_USER_ID);
+    expect(result.confirmedBy).toBe(MANAGER_USER_ID);
+  });
+
+  it('GĐKD (out-of-branch director) cannot override a giao_vien score → FORBIDDEN', async () => {
+    await expect(
+      directorCaller().kpi.override({ kpiScoreId, value: 1, overrideReason: 'x' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
   it('overriding an already-approved score requires super_admin AND a reopened (draft) payslip', async () => {

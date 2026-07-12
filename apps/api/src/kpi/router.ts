@@ -49,6 +49,24 @@ function isDirectorRole(roles: readonly string[]): boolean {
   return roles.some((r) => (DIRECTOR_ROLES as readonly string[]).includes(r));
 }
 
+/**
+ * Branch-scope (R2-6): which target KPI-bucket ROLEs a caller may act on —
+ * super_admin any, GĐKD sale-only, GĐĐT giao_vien-only. Same set bulkApprove
+ * and list already build inline; override reuses it (red-team follow-up —
+ * override previously had no branch check at all).
+ */
+function allowedKpiTargetRoles(roles: readonly string[]): Set<'sale' | 'giao_vien'> {
+  const set = new Set<'sale' | 'giao_vien'>();
+  if (roles.includes('super_admin')) {
+    set.add('sale');
+    set.add('giao_vien');
+    return set;
+  }
+  if (roles.includes('giam_doc_kinh_doanh')) set.add('sale');
+  if (roles.includes('giam_doc_dao_tao')) set.add('giao_vien');
+  return set;
+}
+
 const GD_NO_KPI_MESSAGE = 'Lương giám đốc/super_admin ngoài hệ thống — không có phiếu KPI.';
 
 // ---------------------------------------------------------------------------
@@ -267,6 +285,21 @@ export const kpiRouter = router({
           where: { id: input.kpiScoreId, facilityId },
         });
         if (!kpiScore) throw notFound('KpiScore not found.');
+
+        // Branch-scope (R2-6): director's ROLE must match target's
+        // KPI-bucket ROLE — a GĐKD can only override sale slips, a GĐĐT
+        // only giao_vien slips; super_admin bypasses (any target).
+        if (!ctx.subject!.roles.includes('super_admin')) {
+          const scoreOwner = await tx.appUser.findFirst({
+            where: { id: kpiScore.appUserId, facilityId },
+          });
+          if (!scoreOwner) throw notFound('Score owner not found.');
+          const targetRole = resolveKpiTargetRole(scoreOwner.roles);
+          const allowedRoles = allowedKpiTargetRoles(ctx.subject!.roles);
+          if (!targetRole || !allowedRoles.has(targetRole)) {
+            throw forbidden('Director branch scope: cannot override a KPI score outside your scope.');
+          }
+        }
 
         // May legitimately be absent (super_admin with no staff profile) —
         // a caller with no AppUser can never equal the score owner.

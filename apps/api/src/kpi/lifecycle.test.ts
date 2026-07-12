@@ -268,13 +268,22 @@ describe('kpi lifecycle (HR remediation phase 3)', () => {
 
   describe('kpi.override', () => {
     let gvAppUserId: string;
+    let saleAppUserId: string;
     let gdkd: Caller;
+    let gddt: Caller;
     let superAdmin: Caller;
     let gv: Caller;
 
-    async function seedScore(status: 'draft' | 'submitted' | 'confirmed' | 'approved', period: string): Promise<string> {
+    // Branch-scope (R2-6, post-audit fix): a director's ROLE must match the
+    // target's KPI-bucket ROLE — GĐKD↔sale, GĐĐT↔giao_vien, super_admin↔any.
+    // `gvAppUserId`'s correct branch is `gddt`; `saleAppUserId`'s is `gdkd`.
+    async function seedScore(
+      appUserId: string,
+      status: 'draft' | 'submitted' | 'confirmed' | 'approved',
+      period: string,
+    ): Promise<string> {
       const score = await testDbBypass((tx) =>
-        tx.kpiScore.create({ data: { facilityId, appUserId: gvAppUserId, period, value: 500_000, status } }),
+        tx.kpiScore.create({ data: { facilityId, appUserId, period, value: 500_000, status } }),
       );
       return score.id;
     }
@@ -287,47 +296,56 @@ describe('kpi lifecycle (HR remediation phase 3)', () => {
       gvAppUserId = gvUser.id;
       await testDbBypass((tx) => tx.appUser.update({ where: { id: gvUser.id }, data: { roles: ['giao_vien'] } }));
 
+      const saleUser = await seedAppUser({ facilityId, userId: 'kpi-lc-override-sale-001', position: 'sale' });
+      saleAppUserId = saleUser.id;
+      await testDbBypass((tx) => tx.appUser.update({ where: { id: saleUser.id }, data: { roles: ['sale'] } }));
+
       await seedAppUser({ facilityId, userId: 'kpi-lc-override-gdkd-001', position: 'giam_doc_kinh_doanh' });
       await testDbBypass((tx) =>
         tx.appUser.updateMany({ where: { userId: 'kpi-lc-override-gdkd-001' }, data: { roles: ['giam_doc_kinh_doanh'] } }),
       );
+      await seedAppUser({ facilityId, userId: 'kpi-lc-override-gddt-001', position: 'giam_doc_dao_tao' });
+      await testDbBypass((tx) =>
+        tx.appUser.updateMany({ where: { userId: 'kpi-lc-override-gddt-001' }, data: { roles: ['giam_doc_dao_tao'] } }),
+      );
 
       gdkd = callerFor(facilityId, 'kpi-lc-override-gdkd-001', ['giam_doc_kinh_doanh']);
+      gddt = callerFor(facilityId, 'kpi-lc-override-gddt-001', ['giam_doc_dao_tao']);
       superAdmin = callerFor(facilityId, 'kpi-lc-override-superadmin-001', ['super_admin']);
       gv = callerFor(facilityId, 'kpi-lc-override-gv-001', ['giao_vien']);
     });
 
     it('overrides a submitted score → confirmed, override=true, overrideReason set', async () => {
-      const id = await seedScore('submitted', '2099-06');
-      const result = await gdkd.kpi.override({ kpiScoreId: id, value: 1_234_000, overrideReason: 'Điều chỉnh' });
+      const id = await seedScore(gvAppUserId, 'submitted', '2099-06');
+      const result = await gddt.kpi.override({ kpiScoreId: id, value: 1_234_000, overrideReason: 'Điều chỉnh' });
       expect(result.status).toBe('confirmed');
       expect(result.override).toBe(true);
       expect(Number(result.value)).toBe(1_234_000);
     });
 
     it('overrides a confirmed score → stays confirmed with new value', async () => {
-      const id = await seedScore('confirmed', '2099-07');
-      const result = await gdkd.kpi.override({ kpiScoreId: id, value: 2_000_000, overrideReason: 'Sửa số liệu' });
+      const id = await seedScore(gvAppUserId, 'confirmed', '2099-07');
+      const result = await gddt.kpi.override({ kpiScoreId: id, value: 2_000_000, overrideReason: 'Sửa số liệu' });
       expect(result.status).toBe('confirmed');
       expect(Number(result.value)).toBe(2_000_000);
     });
 
     it('a draft score cannot be overridden', async () => {
-      const id = await seedScore('draft', '2099-08');
+      const id = await seedScore(gvAppUserId, 'draft', '2099-08');
       await expect(
-        gdkd.kpi.override({ kpiScoreId: id, value: 1, overrideReason: 'x' }),
+        gddt.kpi.override({ kpiScoreId: id, value: 1, overrideReason: 'x' }),
       ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
     });
 
     it('anti-self: the score owner cannot override their own slip', async () => {
-      const id = await seedScore('submitted', '2099-09');
+      const id = await seedScore(gvAppUserId, 'submitted', '2099-09');
       await expect(
         gv.kpi.override({ kpiScoreId: id, value: 1, overrideReason: 'x' }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 
     it('payslip finalized → FORBIDDEN for submitted/confirmed source', async () => {
-      const id = await seedScore('confirmed', '2099-10');
+      const id = await seedScore(gvAppUserId, 'confirmed', '2099-10');
       await testDbBypass((tx) =>
         tx.payslip.create({
           data: {
@@ -337,21 +355,21 @@ describe('kpi lifecycle (HR remediation phase 3)', () => {
         }),
       );
       await expect(
-        gdkd.kpi.override({ kpiScoreId: id, value: 1, overrideReason: 'x' }),
+        gddt.kpi.override({ kpiScoreId: id, value: 1, overrideReason: 'x' }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 
     it('approved source: only super_admin, and only when the payslip has been reopened to draft', async () => {
-      const id = await seedScore('approved', '2099-11');
+      const id = await seedScore(gvAppUserId, 'approved', '2099-11');
 
       // No payslip at all → BAD_REQUEST even for super_admin.
       await expect(
         superAdmin.kpi.override({ kpiScoreId: id, value: 1, overrideReason: 'x' }),
       ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
 
-      // A non-super_admin director → FORBIDDEN regardless of payslip state.
+      // A non-super_admin director (even in-branch) → FORBIDDEN regardless of payslip state.
       await expect(
-        gdkd.kpi.override({ kpiScoreId: id, value: 1, overrideReason: 'x' }),
+        gddt.kpi.override({ kpiScoreId: id, value: 1, overrideReason: 'x' }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
 
       const payslip = await testDbBypass((tx) =>
@@ -371,6 +389,39 @@ describe('kpi lifecycle (HR remediation phase 3)', () => {
       const result = await superAdmin.kpi.override({ kpiScoreId: id, value: 999_999, overrideReason: 'Sửa sau tất toán' });
       expect(result.status).toBe('confirmed');
       expect(Number(result.value)).toBe(999_999);
+    });
+
+    // ---------------------------------------------------------------------
+    // Branch-scope (post-audit fix): caller's director ROLE must match the
+    // target's KPI-bucket ROLE.
+    // ---------------------------------------------------------------------
+
+    it('GĐKD (sale branch) cannot override a giao_vien score → FORBIDDEN', async () => {
+      const id = await seedScore(gvAppUserId, 'submitted', '2099-13');
+      await expect(
+        gdkd.kpi.override({ kpiScoreId: id, value: 1, overrideReason: 'x' }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('GĐĐT (giao_vien branch) cannot override a sale score → FORBIDDEN', async () => {
+      const id = await seedScore(saleAppUserId, 'submitted', '2099-14');
+      await expect(
+        gddt.kpi.override({ kpiScoreId: id, value: 1, overrideReason: 'x' }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('super_admin overrides either branch — sale', async () => {
+      const id = await seedScore(saleAppUserId, 'submitted', '2099-15');
+      const result = await superAdmin.kpi.override({ kpiScoreId: id, value: 1_500_000, overrideReason: 'x' });
+      expect(result.status).toBe('confirmed');
+      expect(Number(result.value)).toBe(1_500_000);
+    });
+
+    it('super_admin overrides either branch — giao_vien', async () => {
+      const id = await seedScore(gvAppUserId, 'submitted', '2099-16');
+      const result = await superAdmin.kpi.override({ kpiScoreId: id, value: 1_600_000, overrideReason: 'x' });
+      expect(result.status).toBe('confirmed');
+      expect(Number(result.value)).toBe(1_600_000);
     });
   });
 

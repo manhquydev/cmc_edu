@@ -23,6 +23,7 @@ let rosterItems: Array<{ enrollmentId: string; studentId: string; status: string
 ];
 
 let assessmentItems: Array<{ id: string; studentId: string; status: string; content: string }> = [];
+let evidenceResult: { status: string; photos: Array<{ id: string; blobRef: string }> } | null = null;
 
 const draftMutate = vi.fn();
 const confirmMutateAsync = vi.fn().mockResolvedValue(undefined);
@@ -46,6 +47,8 @@ vi.mock('../../lib/trpc.js', async () => {
         opts?.enabled ? queryResult({ items: rosterItems, total: rosterItems.length }) : queryResult(undefined),
       'assessment.listBySession.useQuery': (_input: unknown, opts: { enabled?: boolean } | undefined) =>
         opts?.enabled ? queryResult({ items: assessmentItems }) : queryResult(undefined),
+      'sessionEvidence.getBySession.useQuery': (_input: unknown, opts: { enabled?: boolean } | undefined) =>
+        opts?.enabled ? queryResult(evidenceResult) : queryResult(undefined),
       'assessment.draftComment.useMutation': (opts: { onSuccess?: () => void }) =>
         mutationResult({ mutate: (...a: unknown[]) => { draftMutate(...a); opts?.onSuccess?.(); } }),
       'assessment.confirm.useMutation': () =>
@@ -69,6 +72,7 @@ async function pickClassAndSession() {
 describe('SessionAssessmentPage', () => {
   beforeEach(() => {
     assessmentItems = [];
+    evidenceResult = null;
     rosterItems = [
       { enrollmentId: 'e1', studentId: 'st-1', status: 'present', markedAt: null },
       { enrollmentId: 'e2', studentId: 'st-2', status: 'absent', markedAt: null },
@@ -148,5 +152,46 @@ describe('SessionAssessmentPage', () => {
     renderWithProviders(<SessionAssessmentPage />);
     await pickClassAndSession();
     expect(await screen.findByText('Chưa có học sinh có mặt')).toBeInTheDocument();
+  });
+
+  // ---------------------------------------------------------------------
+  // Tri-state progress display (post-audit fix): Điểm danh / Nhận xét / Ảnh
+  // ---------------------------------------------------------------------
+
+  it('shows Điểm danh ✓ when at least one student is present, Ảnh ✗ when no evidence exists', async () => {
+    renderWithProviders(<SessionAssessmentPage />);
+    await pickClassAndSession();
+    expect(await screen.findByText('Điểm danh ✓')).toBeInTheDocument();
+    expect(screen.getByText('Ảnh ✗')).toBeInTheDocument();
+  });
+
+  it('shows Ảnh ✓ when evidence is published with at least one photo', async () => {
+    evidenceResult = { status: 'published', photos: [{ id: 'p1', blobRef: 'photos/a.jpg' }] };
+    renderWithProviders(<SessionAssessmentPage />);
+    await pickClassAndSession();
+    expect(await screen.findByText('Ảnh ✓')).toBeInTheDocument();
+  });
+
+  it('shows Ảnh ✗ when evidence exists but is still draft (not yet published)', async () => {
+    evidenceResult = { status: 'draft', photos: [{ id: 'p1', blobRef: 'photos/a.jpg' }] };
+    renderWithProviders(<SessionAssessmentPage />);
+    await pickClassAndSession();
+    expect(await screen.findByText('Ảnh ✗')).toBeInTheDocument();
+  });
+
+  it('shows the eligibility badge only when all 3 done-conditions are met', async () => {
+    assessmentItems = [{ id: 'a-1', studentId: 'st-1', status: 'confirmed', content: 'Rất tốt.' }];
+    evidenceResult = { status: 'published', photos: [{ id: 'p1', blobRef: 'photos/a.jpg' }] };
+    renderWithProviders(<SessionAssessmentPage />);
+    await pickClassAndSession();
+    expect(await screen.findByText('Đủ điều kiện buổi tự chuyển done')).toBeInTheDocument();
+  });
+
+  it('does NOT show the eligibility badge when evidence is missing', async () => {
+    assessmentItems = [{ id: 'a-1', studentId: 'st-1', status: 'confirmed', content: 'Rất tốt.' }];
+    renderWithProviders(<SessionAssessmentPage />);
+    await pickClassAndSession();
+    await screen.findByText('Nhận xét: 1/1');
+    expect(screen.queryByText('Đủ điều kiện buổi tự chuyển done')).toBeNull();
   });
 });

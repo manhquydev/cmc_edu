@@ -134,6 +134,10 @@ const publishInput = z.object({
   sessionEvidenceId: z.string().uuid(),
 });
 
+const getBySessionInput = z.object({
+  classSessionId: z.string().uuid(),
+});
+
 const listForChildInput = z.object({
   studentId: z.string().uuid(),
 });
@@ -197,6 +201,39 @@ export const sessionEvidenceRouter = router({
           include: { photos: { orderBy: { createdAt: 'asc' } } },
         });
         return toStaffDto(created);
+      });
+    }),
+
+  // -------------------------------------------------------------------------
+  // sessionEvidence.getBySession — giao_vien (staff read companion added
+  // post-audit; upsert/addPhoto/publish previously had no read query, so a
+  // UI could not show ảnh ✓/✗ status without re-deriving it client-side).
+  // Same permission gate as upsert — null when no evidence row exists yet.
+  // -------------------------------------------------------------------------
+  getBySession: requirePermission('sessionEvidence', 'upsert')
+    .input(getBySessionInput)
+    .query(async ({ ctx, input }): Promise<{ status: string; photos: EvidencePhotoDto[] } | null> => {
+      const { facilityId } = scoped(ctx);
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const session = await tx.classSession.findFirst({
+          where: { id: input.classSessionId, facilityId },
+          select: { id: true },
+        });
+        if (!session) {
+          throw notFound('ClassSession not found in this facility.');
+        }
+
+        const evidence = await tx.sessionEvidence.findUnique({
+          where: { classSessionId: input.classSessionId },
+          include: { photos: { orderBy: { createdAt: 'asc' } } },
+        });
+        if (!evidence) return null;
+
+        return {
+          status: evidence.status,
+          photos: evidence.photos.map((p) => ({ id: p.id, blobRef: p.blobRef, createdAt: p.createdAt })),
+        };
       });
     }),
 

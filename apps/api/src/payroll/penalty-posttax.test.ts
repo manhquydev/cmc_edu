@@ -171,7 +171,7 @@ beforeEach(async () => {
     requiredMetric: 120,
   });
   gvTierId = tier.id;
-  await directorCaller().compensation.assignTier({
+  await superAdminCaller().compensation.assignTier({
     appUserId: employeeAppUserId,
     tierId: gvTierId,
   });
@@ -212,6 +212,17 @@ function otherEmployeeCtx() {
 const directorCaller = () => appRouter.createCaller(directorCtx());
 const employeeCaller = () => appRouter.createCaller(employeeCtx());
 const otherCaller = () => appRouter.createCaller(otherEmployeeCtx());
+// super_admin bypasses the caller-vs-tier branch-scope check (R2-6 post-audit
+// fix) — directorCtx is giam_doc_kinh_doanh and would be out-of-branch for
+// the GIAO_VIEN tiers this file assigns in beforeEach.
+const superAdminCaller = () =>
+  appRouter.createCaller(
+    buildStaffContext({ facilityId, userId: 'payroll-test-superadmin-001', roles: ['super_admin'] }),
+  );
+const gddtCaller = () =>
+  appRouter.createCaller(
+    buildStaffContext({ facilityId, userId: 'payroll-test-gddt-001', roles: ['giam_doc_dao_tao'] }),
+  );
 
 // ---------------------------------------------------------------------------
 // Tests — salaryTier.create + compensation.assignTier
@@ -273,6 +284,75 @@ describe('salaryTier.create + compensation.assignTier', () => {
       directorCaller().compensation.assignTier({ appUserId: director2.id, tierId: gvTierId }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
+
+  // -------------------------------------------------------------------------
+  // Branch-scope (R2-6, post-audit fix): caller's director ROLE must match
+  // the tier's `type` — independent of the existing target-role↔tier.type
+  // defense-in-depth check above.
+  // -------------------------------------------------------------------------
+
+  it('GĐKD (sale branch) assigning a GIAO_VIEN tier → FORBIDDEN', async () => {
+    // employeeAppUserId + gvTierId are both giao_vien/GIAO_VIEN — the target
+    // role matches the tier, but the CALLER (gdkd) is out of branch scope.
+    await expect(
+      directorCaller().compensation.assignTier({ appUserId: employeeAppUserId, tierId: gvTierId }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('GĐĐT (giao_vien branch) assigning a KINH_DOANH tier → FORBIDDEN', async () => {
+    const saleUser = await seedAppUser({
+      facilityId,
+      userId: 'payroll-test-branch-sale-001',
+      fullName: 'Đỗ Nhân Viên Sale',
+      position: 'sale',
+    });
+    await testDbBypass((tx) =>
+      tx.appUser.update({ where: { id: saleUser.id }, data: { roles: ['sale'] } }),
+    );
+    const saleTier = await directorCaller().salaryTier.create({
+      name: 'Bậc Sale Branch Test',
+      type: 'KINH_DOANH',
+      baseSalary: 8_000_000,
+      unitRate: 50_000,
+      requiredShifts: 22,
+      requiredMetric: 100_000_000,
+    });
+    await expect(
+      gddtCaller().compensation.assignTier({ appUserId: saleUser.id, tierId: saleTier.id }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('super_admin assigns tiers across both branches', async () => {
+    const saleUser = await seedAppUser({
+      facilityId,
+      userId: 'payroll-test-branch-sale-002',
+      fullName: 'Bùi Nhân Viên Sale',
+      position: 'sale',
+    });
+    await testDbBypass((tx) =>
+      tx.appUser.update({ where: { id: saleUser.id }, data: { roles: ['sale'] } }),
+    );
+    const saleTier = await directorCaller().salaryTier.create({
+      name: 'Bậc Sale Superadmin Test',
+      type: 'KINH_DOANH',
+      baseSalary: 8_000_000,
+      unitRate: 50_000,
+      requiredShifts: 22,
+      requiredMetric: 100_000_000,
+    });
+
+    const saleRate = await superAdminCaller().compensation.assignTier({
+      appUserId: saleUser.id,
+      tierId: saleTier.id,
+    });
+    expect(saleRate.tierId).toBe(saleTier.id);
+
+    const gvRate = await superAdminCaller().compensation.assignTier({
+      appUserId: employeeAppUserId,
+      tierId: gvTierId,
+    });
+    expect(gvRate.tierId).toBe(gvTierId);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -325,7 +405,7 @@ describe('payslip.assemble', () => {
       requiredShifts: 22,
       requiredMetric: 150,
     });
-    await directorCaller().compensation.assignTier({
+    await superAdminCaller().compensation.assignTier({
       appUserId: employeeAppUserId,
       tierId: biggerTier.id,
     });

@@ -47,7 +47,7 @@ import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { ictMonthBounds, ictDateOnlyOf, ictToUtc } from '@cmc/domain-time';
 import { assembleSlip, assignPunchesToShifts, type ShiftWindow } from '@cmc/domain-payroll';
-import { badRequest, forbidden, notFound } from '../errors.js';
+import { AppCodeError, badRequest, forbidden, notFound } from '../errors.js';
 import { protectedProcedure, requirePermission, router, scoped } from '../trpc.js';
 
 const PERIOD_RE = /^\d{4}-\d{2}$/;
@@ -149,6 +149,24 @@ export const compensationRouter = router({
         });
         if (!tier) throw notFound('SalaryTier not found in this facility.');
 
+        // Branch-scope (R2-6): caller's director ROLE must match the
+        // tier's `type` — GĐKD may only assign KINH_DOANH tiers, GĐĐT only
+        // GIAO_VIEN tiers; super_admin bypasses (any tier).
+        if (!ctx.subject!.roles.includes('super_admin')) {
+          const isGdkd = ctx.subject!.roles.includes('giam_doc_kinh_doanh');
+          const isGddt = ctx.subject!.roles.includes('giam_doc_dao_tao');
+          const allowed =
+            (isGdkd && tier.type === 'KINH_DOANH') || (isGddt && tier.type === 'GIAO_VIEN');
+          if (!allowed) {
+            throw forbidden(
+              `Director branch scope: cannot assign a ${tier.type} salary tier outside your scope.`,
+            );
+          }
+        }
+
+        // Defense-in-depth: tier.type must still match the target's own
+        // role (kept even though the branch-scope check above already
+        // constrains most mismatches).
         const requiredType = targetRole === 'giao_vien' ? 'GIAO_VIEN' : 'KINH_DOANH';
         if (tier.type !== requiredType) {
           throw badRequest(
@@ -553,7 +571,13 @@ export const payslipRouter = router({
         const targetAppUser = await tx.appUser.findFirst({
           where: { id: input.appUserId, facilityId },
         });
-        if (!targetAppUser) throw notFound('AppUser not found in this facility.');
+        if (!targetAppUser) {
+          throw new AppCodeError({
+            code: 'NOT_FOUND',
+            appCode: 'APP_USER_NOT_FOUND',
+            message: 'AppUser not found in this facility.',
+          });
+        }
 
         // Privacy gate: caller must be the owner OR a director
         const callerUserId = ctx.subject!.userId;
@@ -569,7 +593,13 @@ export const payslipRouter = router({
         const payslip = await tx.payslip.findFirst({
           where: { appUserId: input.appUserId, period: input.period },
         });
-        if (!payslip) throw notFound('Payslip not found for this period.');
+        if (!payslip) {
+          throw new AppCodeError({
+            code: 'NOT_FOUND',
+            appCode: 'PAYSLIP_NOT_FOUND',
+            message: 'Payslip not found for this period.',
+          });
+        }
         return payslip;
       });
     }),

@@ -90,8 +90,11 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   'user.manage': [],
   'facilityNetwork.manage': [],
   // All active staff roles can punch in (ADR-D: dormant roles removed).
+  // ADR 0043 phase 4: `manualPunch.create` key removed — the procedure it
+  // gated was deleted (tickets now only originate from checkInOut.punch's
+  // ensureDayTicket); `manualPunch.resubmit` uses an owner check instead of
+  // a permission key (protectedProcedure), same posture as `shift.cancel`.
   'checkIn.punch': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'],
-  'manualPunch.create': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'],
   'manualPunch.approve': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   'shift.manage': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'],
   'shift.submit': ['giam_doc_dao_tao', 'giam_doc_kinh_doanh', 'giao_vien', 'sale'],

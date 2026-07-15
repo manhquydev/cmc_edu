@@ -6,7 +6,6 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ipMatchesCidr } from '@cmc/domain-identity';
-import { ictToUtc } from '@cmc/domain-time';
 import { appRouter } from '../router.js';
 import {
   buildStaffContext,
@@ -62,9 +61,6 @@ describe('checkInOut + manualPunch (P3-I integration)', () => {
   const makeSuperCtx = (userId: string, ip: string | null = '10.0.0.1') =>
     buildStaffContext({ facilityId, userId, roles: ['super_admin'], ip });
 
-  const makeSaleCtx = (userId: string, ip: string | null = '10.0.0.1') =>
-    buildStaffContext({ facilityId, userId, roles: ['sale'], ip });
-
   const caller = (ctx: ReturnType<typeof buildStaffContext>) =>
     appRouter.createCaller(ctx);
 
@@ -93,48 +89,26 @@ describe('checkInOut + manualPunch (P3-I integration)', () => {
     expect(result.method).toBe('ip');
   });
 
-  it('punch fails when IP is not in any active network (appCode IP_NOT_ALLOWED)', async () => {
-    await seedAppUser({ facilityId, userId: 'punch-badip-user' });
+  // ADR 0043: offsite punches are no longer rejected (IP_NOT_ALLOWED is gone) —
+  // they're recorded with withinNetwork=false. With no shift registered this
+  // day (E2), no ticket/reason is involved either. See
+  // src/checkin/punch-offsite.test.ts for the full offsite+reason/ticket
+  // matrix, including the exact-10s cooldown boundary (tests 10-11 there
+  // supersede this file's old 5-minute boundary tests).
+  it('punch succeeds when IP is not in any active network (offsite, no shift today → no ticket)', async () => {
+    const user = await seedAppUser({ facilityId, userId: 'punch-badip-user' });
     await seedFacilityNetwork(facilityId, '192.168.1.0/24');
-    await expect(
-      caller(makeSuperCtx('punch-badip-user', '10.0.0.1')).checkInOut.punch(),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    const result = await caller(makeSuperCtx('punch-badip-user', '10.0.0.1')).checkInOut.punch();
+    expect(result.method).toBe('ip');
+    const punch = await testDbBypass((tx) => tx.timePunch.findFirstOrThrow({ where: { appUserId: user.id } }));
+    expect(punch.withinNetwork).toBe(false);
   });
 
-  it('punch fails on cooldown (second punch within 5 minutes)', async () => {
+  it('punch fails on cooldown (second punch within 10 seconds)', async () => {
     await seedAppUser({ facilityId, userId: 'punch-cooldown-user' });
     const ctx = makeSuperCtx('punch-cooldown-user');
     await caller(ctx).checkInOut.punch();
     await expect(caller(ctx).checkInOut.punch()).rejects.toMatchObject({ code: 'BAD_REQUEST' });
-  });
-
-  it('punch fails at 4:59.9 (well within cooldown, near boundary)', async () => {
-    const user = await seedAppUser({ facilityId, userId: 'punch-cooldown-boundary-within' });
-    // Seed a punch ~299000ms ago (4:59) — definitely within the 5-min window
-    const wellWithinCooldown = new Date(Date.now() - 299 * 1000);
-    await testDbBypass((tx) =>
-      tx.timePunch.create({
-        data: { facilityId, appUserId: user.id, method: 'ip', punchAt: wellWithinCooldown },
-      }),
-    );
-    // Attempt to punch now should trigger COOLDOWN (punchAt >= now - 5min)
-    await expect(
-      caller(makeSuperCtx('punch-cooldown-boundary-within')).checkInOut.punch(),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST', appCode: 'COOLDOWN' });
-  });
-
-  it('punch succeeds after 5:00.1 (well past cooldown, near boundary)', async () => {
-    const user = await seedAppUser({ facilityId, userId: 'punch-cooldown-boundary-past' });
-    // Seed a punch ~301000ms ago (5:01) — definitely past the cooldown window
-    const wellPastCooldown = new Date(Date.now() - 301 * 1000);
-    await testDbBypass((tx) =>
-      tx.timePunch.create({
-        data: { facilityId, appUserId: user.id, method: 'ip', punchAt: wellPastCooldown },
-      }),
-    );
-    // Attempt to punch now should succeed
-    const result = await caller(makeSuperCtx('punch-cooldown-boundary-past')).checkInOut.punch();
-    expect(result.method).toBe('ip');
   });
 
   it('punch fails when no AppUser row in facility', async () => {
@@ -143,181 +117,11 @@ describe('checkInOut + manualPunch (P3-I integration)', () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
-  // ---- manualPunch.create ----
-
-  it('manualPunch.create — creates a pending ticket', async () => {
-    await seedAppUser({ facilityId, userId: 'mp-create-user' });
-    const result = await caller(makeSaleCtx('mp-create-user')).manualPunch.create({
-      ticketDate: '2026-07-01',
-      note: 'Was in office, forgot to punch',
-    });
-    expect(result.status).toBe('pending');
-    expect(result.note).toBe('Was in office, forgot to punch');
-  });
-
-  it('manualPunch.create — creates resubmitted ticket after rejection', async () => {
-    const user = await seedAppUser({ facilityId, userId: 'mp-resubmit-user' });
-    // Seed a rejected ticket directly (bypass RLS) to simulate prior rejection
-    await testDbBypass(async (tx) => {
-      await tx.manualAttendanceTicket.create({
-        data: {
-          facilityId,
-          appUserId: user.id,
-          ticketDate: ictToUtc('2026-07-02', '00:00'),
-          status: 'rejected',
-          note: 'first attempt',
-        },
-      });
-    });
-    const result = await caller(makeSaleCtx('mp-resubmit-user')).manualPunch.create({
-      ticketDate: '2026-07-02',
-    });
-    expect(result.status).toBe('resubmitted');
-  });
-
-  it('manualPunch.create — BAD_REQUEST when pending already exists for date', async () => {
-    await seedAppUser({ facilityId, userId: 'mp-dup-user' });
-    const ctx = makeSaleCtx('mp-dup-user');
-    await caller(ctx).manualPunch.create({ ticketDate: '2026-07-03' });
-    await expect(
-      caller(ctx).manualPunch.create({ ticketDate: '2026-07-03' }),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
-  });
-
-  // ---- manualPunch.approve / reject ----
-
-  it('manualPunch.approve — direct manager approves ticket', async () => {
-    const mgr = await seedAppUser({ facilityId, userId: 'mp-mgr-approve' });
-    await seedAppUser({ facilityId, userId: 'mp-emp-approve', managerId: mgr.id });
-
-    const ticket = await caller(makeSaleCtx('mp-emp-approve')).manualPunch.create({
-      ticketDate: '2026-07-04',
-    });
-    const approved = await caller(makeSuperCtx('mp-mgr-approve')).manualPunch.approve({
-      ticketId: ticket.id,
-      note: 'approved',
-    });
-    expect(approved.status).toBe('approved');
-    expect(approved.reviewedById).toBe(mgr.id);
-  });
-
-  it('manualPunch.approve — FORBIDDEN for non-manager', async () => {
-    const mgr = await seedAppUser({ facilityId, userId: 'mp-nonmgr-mgr' });
-    await seedAppUser({ facilityId, userId: 'mp-nonmgr-emp', managerId: mgr.id });
-    await seedAppUser({ facilityId, userId: 'mp-nonmgr-other' });
-
-    const ticket = await caller(makeSaleCtx('mp-nonmgr-emp')).manualPunch.create({
-      ticketDate: '2026-07-05',
-    });
-    // `other` has the manualPunch.approve permission (director role) but is
-    // not `emp`'s direct manager, and is NOT super_admin (which would now
-    // legitimately bypass the manager check — HR remediation phase 4).
-    const otherDirectorCtx = buildStaffContext({
-      facilityId,
-      userId: 'mp-nonmgr-other',
-      roles: ['giam_doc_kinh_doanh'],
-    });
-    await expect(
-      caller(otherDirectorCtx).manualPunch.approve({ ticketId: ticket.id }),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
-  });
-
-  it('manualPunch.approve — FORBIDDEN for self-approve (no manager assigned)', async () => {
-    // emp has no managerId → owner.managerId is null, never equals reviewer.id
-    await seedAppUser({ facilityId, userId: 'mp-selfapprove-emp' });
-    const ctx = makeSaleCtx('mp-selfapprove-emp');
-    const ticket = await caller(ctx).manualPunch.create({ ticketDate: '2026-07-06' });
-    await expect(
-      caller(ctx).manualPunch.approve({ ticketId: ticket.id }),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
-  });
-
-  it('manualPunch.reject — direct manager rejects ticket', async () => {
-    const mgr = await seedAppUser({ facilityId, userId: 'mp-mgr-reject' });
-    await seedAppUser({ facilityId, userId: 'mp-emp-reject', managerId: mgr.id });
-
-    const ticket = await caller(makeSaleCtx('mp-emp-reject')).manualPunch.create({
-      ticketDate: '2026-07-07',
-    });
-    const rejected = await caller(makeSuperCtx('mp-mgr-reject')).manualPunch.reject({
-      ticketId: ticket.id,
-      note: 'not valid',
-    });
-    expect(rejected.status).toBe('rejected');
-  });
-
-  // ---- HR remediation phase 4 (R2 #H2): super_admin bypass ----
-
-  it('manualPunch.approve — super_admin approves a ticket with no manager assigned (e.g. director)', async () => {
-    // No managerId set → owner.managerId is null, no direct manager exists.
-    await seedAppUser({ facilityId, userId: 'mp-director-no-mgr' });
-    const ticket = await caller(makeSaleCtx('mp-director-no-mgr')).manualPunch.create({
-      ticketDate: '2026-07-08',
-    });
-    const approved = await caller(makeSuperCtx('mp-super-approver')).manualPunch.approve({
-      ticketId: ticket.id,
-    });
-    expect(approved.status).toBe('approved');
-  });
-
-  it('manualPunch.approve — a non-super_admin director (not the manager) is still FORBIDDEN on a no-manager ticket', async () => {
-    // Confirms the bypass is super_admin-only: a director role does NOT get
-    // the same "no manager → approve anyway" pass.
-    await seedAppUser({ facilityId, userId: 'mp-nonsuper-emp' });
-    const ticket = await caller(makeSaleCtx('mp-nonsuper-emp')).manualPunch.create({
-      ticketDate: '2026-07-09',
-    });
-    const unrelatedDirectorCtx = buildStaffContext({
-      facilityId,
-      userId: 'mp-nonsuper-other',
-      roles: ['giam_doc_dao_tao'],
-    });
-    await expect(
-      caller(unrelatedDirectorCtx).manualPunch.approve({ ticketId: ticket.id }),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
-  });
-
-  // ---- manualPunch.list ----
-
-  it('manualPunch.list — scope "mine" returns only the caller\'s own tickets', async () => {
-    const mgr = await seedAppUser({ facilityId, userId: 'mp-list-mgr' });
-    await seedAppUser({ facilityId, userId: 'mp-list-emp-a', managerId: mgr.id });
-    await seedAppUser({ facilityId, userId: 'mp-list-emp-b', managerId: mgr.id });
-
-    await caller(makeSaleCtx('mp-list-emp-a')).manualPunch.create({ ticketDate: '2026-07-10' });
-    await caller(makeSaleCtx('mp-list-emp-b')).manualPunch.create({ ticketDate: '2026-07-10' });
-
-    const mine = await caller(makeSaleCtx('mp-list-emp-a')).manualPunch.list({ scope: 'mine' });
-    expect(mine).toHaveLength(1);
-  });
-
-  it('manualPunch.list — scope "inbox" returns only direct reports\' tickets', async () => {
-    const mgr = await seedAppUser({ facilityId, userId: 'mp-list-inbox-mgr' });
-    await seedAppUser({ facilityId, userId: 'mp-list-inbox-emp', managerId: mgr.id });
-    await seedAppUser({ facilityId, userId: 'mp-list-inbox-unrelated' });
-
-    await caller(makeSaleCtx('mp-list-inbox-emp')).manualPunch.create({ ticketDate: '2026-07-11' });
-    await caller(makeSaleCtx('mp-list-inbox-unrelated')).manualPunch.create({ ticketDate: '2026-07-11' });
-
-    // A real director role (NOT super_admin, which sees every ticket).
-    const inboxMgrCtx = buildStaffContext({
-      facilityId,
-      userId: 'mp-list-inbox-mgr',
-      roles: ['giam_doc_kinh_doanh'],
-    });
-    const inbox = await caller(inboxMgrCtx).manualPunch.list({ scope: 'inbox' });
-    expect(inbox).toHaveLength(1);
-  });
-
-  it('manualPunch.list — scope "inbox" for super_admin returns every ticket', async () => {
-    const mgr = await seedAppUser({ facilityId, userId: 'mp-list-super-mgr' });
-    await seedAppUser({ facilityId, userId: 'mp-list-super-emp', managerId: mgr.id });
-    await seedAppUser({ facilityId, userId: 'mp-list-super-unrelated' });
-
-    await caller(makeSaleCtx('mp-list-super-emp')).manualPunch.create({ ticketDate: '2026-07-12' });
-    await caller(makeSaleCtx('mp-list-super-unrelated')).manualPunch.create({ ticketDate: '2026-07-12' });
-
-    const inbox = await caller(makeSuperCtx('mp-list-super-admin')).manualPunch.list({ scope: 'inbox' });
-    expect(inbox.length).toBeGreaterThanOrEqual(2);
-  });
+  // manualPunch.create/approve/reject/list (managerId-gated) tests formerly
+  // here are REMOVED — ADR 0043 phase 4 deleted `manualPunch.create` entirely
+  // and replaced the managerId-based approve/reject/list gate with GĐ-track
+  // authorization. Full replacement coverage (create-via-punch, track
+  // approve/reject, anti-self, super_admin bypass, TOCTOU, resubmit,
+  // track-filtered inbox) lives in
+  // src/checkin/manual-punch-approval-track.test.ts.
 });

@@ -123,10 +123,11 @@ khái niệm hệ thống — chỉ dựa điểm danh thô, không phản ánh 
 - `metricValue`: GV = giờ dạy quy đổi qua `creditFactor` (xem phần session-done bên dưới); Sale =
   `SUM(Receipt.netAmount)` `approved` trong kỳ, gắn `createdByAppUserId` (namespace AppUser thật, R2
   #2 — không dùng `createdById` legacy userId scalar).
-- `shiftActual`: DISTINCT `(date, shiftTemplateId)` từ `ShiftRegistrationEntry` `approved`, ghép với
-  punch vào/ra qua `assignPunchesToShifts` (@cmc/domain-payroll — CÙNG hàm phase lương dùng tính phạt
-  muộn/sớm, một nguồn sự thật duy nhất cho "công ca thực"). Ngày có `ManualAttendanceTicket` `approved`
-  miễn hoàn toàn (bỏ qua ghép punch).
+- `shiftActual` (ADR 0043, thay thế đoạn ghép ±2h/ca cũ): mỗi ngày có cặp vào/ra hợp lệ (punch trong
+  mạng, hoặc phiếu offsite `approved` mang `checkInAt`/`checkOutAt` đóng băng) qua `resolveDayCredit`
+  (`apps/api/src/attendance/`, dùng chung `computeDayAttendance` @cmc/domain-payroll với phase lương —
+  một nguồn sự thật duy nhất cho "công ca thực") — mọi ca đăng ký ngày đó có khung **giao** với cặp
+  vào/ra được tính công. Xem `docs/decisions/0043-attendance-daily-inout-pairing.md`.
 - Mọi giá trị snapshot tại thời điểm `kpi.refresh` (`quotaSnapshot`, `shiftRequired`,
   `unitRateSnapshot`, `tierIdSnapshot`) — đổi tier sau đó KHÔNG làm trôi số đã tính cho slip đã nộp.
 - `Payslip.kpiBonus` tái dụng chứa "Phần KPI" (= `KpiScore.value` khi `confirmed`\|`approved`);

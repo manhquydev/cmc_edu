@@ -205,18 +205,26 @@ Curriculum exercise & tier-based unlock (WF-P2-03, WF-P2-04).
 
 ---
 
-### 13. Check-In Router (`apps/api/src/checkin/`)
-Staff IP-based & manual punch tracking (WF-P3-01, WF-P3-02).
+### 13. Check-In Router (`apps/api/src/checkin/`) — daily in/out pairing (ADR 0043)
+Staff daily punch pair tracking (WF-P3-01, WF-P3-02).
 
 **Procedures:**
-- `checkInOut.punch()` → WiFi/IP-CIDR match against `FacilityNetwork` (not GPS); mismatched IP falls
-  back to `method: 'manual'`; cooldown guards double-punch. `appCode` `IP_NOT_ALLOWED`/`COOLDOWN`.
-- `manualPunch.create(ticketDate, note?)` → manual correction ticket
-- `manualPunch.approve/reject(ticketId, note?)` → direct-manager or `super_admin`, anti-self-approve;
-  approving after the period's Payslip is `finalized` returns `warning: 'PAYSLIP_FINALIZED'`
-- `manualPunch.list({scope: 'inbox'|'mine', status?})` → inbox (direct reports) or own tickets
+- `checkInOut.punch({reason?})` → appends a `TimePunch` (day's first = in, last = out).
+  `withinNetwork` = true when no active `FacilityNetwork` exists OR caller IP matches one (not GPS).
+  Offsite is never rejected; the first offsite punch of a day with a registered shift and no ticket
+  yet requires `reason` (`appCode: OFFSITE_REASON_REQUIRED`) and auto-creates a `pending`
+  `ManualAttendanceTicket` carrying that day's first/last punch as `checkInAt`/`checkOutAt`. A ticket
+  that has left `pending`/`resubmitted` is frozen — later punches never retroactively change it.
+  10s cooldown (`appCode: COOLDOWN`).
+- `manualPunch.approve/reject(ticketId, note?)` → GĐ of the ticket owner's role track
+  (sale→`giam_doc_kinh_doanh`, giao_vien→`giam_doc_dao_tao`) or `super_admin`, anti-self-approve,
+  TOCTOU-safe; approving after the period's Payslip is `finalized` returns `warning: 'PAYSLIP_FINALIZED'`
+- `manualPunch.resubmit({ticketId, reason})` → ticket owner only, only from `rejected`, updates the
+  same row (no new-row path — `manualPunch.create` was removed, no arbitrary-date manual ticket anymore)
+- `manualPunch.list({scope: 'inbox'|'mine', status?})` → inbox = tickets in caller's track (or all for
+  `super_admin`), mine = own tickets
 
-**Test Coverage:** `checkin/ip-match.test.ts` · `checkin/status-check.test.ts` · `payroll/manual-ticket-exemption.test.ts`
+**Test Coverage:** `checkin/punch-offsite.test.ts` · `checkin/manual-punch-approval-track.test.ts` · `checkin/ip-match.test.ts` · `checkin/status-check.test.ts` · `apps/e2e/tests/attendance-lifecycle.spec.ts`
 
 ---
 
@@ -248,8 +256,10 @@ Monthly payslip assembly from a per-facility `SalaryTier` catalog (WF-P3-05).
 - `compensationPolicy.get/upsert` → per-facility late/early penalty rates (`super_admin` only,
   fallback 500đ/phút muộn, 1000đ/phút sớm)
 - `payslip.assemble({appUserId, period})` → live recompute from TimePunch + ShiftRegistration +
-  KpiScore + SalaryTier: `baseSalary(tier) + kpiBonus(KpiScore.value) − penaltyAmount` (per-shift
-  late/early via `assignPunchesToShifts`, ManualAttendanceTicket-exempt days); FORBIDDEN if no tier assigned
+  KpiScore + SalaryTier: `baseSalary(tier) + kpiBonus(KpiScore.value) − penaltyAmount` (day-level
+  in/out pairing via `resolveDayCredit`/`computeDayAttendance`, ADR 0043 — a day's punch pair or an
+  approved offsite ticket's frozen checkInAt/checkOutAt credits every registered shift it overlaps);
+  FORBIDDEN if no tier assigned
 - `payslip.finalize/reopen` → lock/unlock a period; `payslip.my/getForUser` → self/privacy-gated read
 
 **Test Coverage:** `payroll/policy-model.test.ts` · `payroll/policy-rates.test.ts` · `payroll/penalty-posttax.test.ts` · `payroll/manual-ticket-exemption.test.ts` · `payroll/payslip-my.test.ts` · `apps/e2e/tests/kpi-lifecycle.spec.ts`

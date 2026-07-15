@@ -441,6 +441,30 @@ describe('payslip.assemble', () => {
     expect(Number(payslip.penaltyAmount)).toBe(EXPECTED_PENALTY); // unchanged
   });
 
+  it('ADR 0043 — an extra mid-day punch on a day WITH a registered shift does NOT inflate flaggedPunches', async () => {
+    // TEST_DATE already has one registered shift + 2 punches (09:30/16:30,
+    // seeded in beforeEach). Add a 3rd stray punch mid-day — under the new
+    // day-level model only the day's first/last punch matter for pairing,
+    // and flaggedPunches is scoped ONLY to days with NO registered shift at
+    // all (router.ts's separate loop) — a mid-day punch on a shift-day is
+    // simply invisible, not flagged (deliberate narrowing vs the old
+    // per-shift `unassignedPunches` count, ledger item R5).
+    await testDbBypass((tx) =>
+      tx.timePunch.create({
+        data: { facilityId, appUserId: employeeAppUserId, method: 'ip', punchAt: ictToUtc(TEST_DATE, '12:00') },
+      }),
+    );
+
+    const payslip = await directorCaller().payslip.assemble({
+      appUserId: employeeAppUserId,
+      period: TEST_PERIOD,
+    });
+
+    expect(payslip.flaggedPunches).toBe(0);
+    expect(payslip.lateMinutes).toBe(EXPECTED_LATE_MINUTES);
+    expect(payslip.earlyMinutes).toBe(EXPECTED_EARLY_MINUTES);
+  });
+
   it('no tier assigned → FORBIDDEN ("chưa gán bậc lương")', async () => {
     const noTierUser = await seedAppUser({
       facilityId,
@@ -577,14 +601,18 @@ describe('payslip.assemble — per-shift penalty (GV MULTIPLE mode)', () => {
     expect(Number(payslip.penaltyAmount)).toBe(EXPECTED_PENALTY);
   });
 
-  it('a late punch on ONE shift of a 2-shift day only penalizes that shift', async () => {
+  it('ADR 0043 — a mid-day late punch on shift 2 is invisible to day-level late/early (only day\'s first/last punch matter)', async () => {
     await seedTwoShiftDay();
     await testDbBypass((tx) =>
       tx.timePunch.createMany({
         data: [
           { facilityId, appUserId: employeeAppUserId, method: 'ip', punchAt: ictToUtc(TWO_SHIFT_DATE, '07:55') },
           { facilityId, appUserId: employeeAppUserId, method: 'ip', punchAt: ictToUtc(TWO_SHIFT_DATE, '12:00') },
-          // ca2: clock-in 20 min late (13:20)
+          // ca2's in-punch (13:20) is 20 min "late" relative to ca2 alone, but
+          // under the day-level model only the day's absolute FIRST (07:55)
+          // and LAST (17:00) punch determine late/early — this mid-day punch
+          // no longer produces a penalty on its own (ADR 0043 §1, deliberate
+          // loosening vs the old per-shift model — see plan Validation Log #1).
           { facilityId, appUserId: employeeAppUserId, method: 'ip', punchAt: ictToUtc(TWO_SHIFT_DATE, '13:20') },
           { facilityId, appUserId: employeeAppUserId, method: 'ip', punchAt: ictToUtc(TWO_SHIFT_DATE, '17:00') },
         ],
@@ -596,8 +624,10 @@ describe('payslip.assemble — per-shift penalty (GV MULTIPLE mode)', () => {
       period: TEST_PERIOD,
     });
 
-    // TEST_DATE(30 late) + TWO_SHIFT_DATE ca2(20 late) = 50
-    expect(payslip.lateMinutes).toBe(EXPECTED_LATE_MINUTES + 20);
+    // TWO_SHIFT_DATE's day-level pair is [07:55, 17:00] — checkin before ca1's
+    // 08:00 start (not late) and checkout after ca2's 17:00 end (not early),
+    // so this day contributes 0. Only TEST_DATE's 30/30 shows.
+    expect(payslip.lateMinutes).toBe(EXPECTED_LATE_MINUTES);
     expect(payslip.earlyMinutes).toBe(EXPECTED_EARLY_MINUTES);
     expect(payslip.unpunchedDays).toBe(0);
   });

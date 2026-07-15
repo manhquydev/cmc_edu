@@ -3,5 +3,5 @@
 
 export { assembleSlip, roundVnd } from './assemble-slip.js';
 export type { AssembleSlipInput, PayslipData } from './assemble-slip.js';
-export { assignPunchesToShifts } from './shift-attendance.js';
-export type { ShiftWindow, ShiftAttendanceOutcome, AssignPunchesResult } from './shift-attendance.js';
+export { computeDayAttendance } from './day-attendance.js';
+export type { ShiftWindow, DayAttendanceInput, DayAttendanceResult } from './day-attendance.js';

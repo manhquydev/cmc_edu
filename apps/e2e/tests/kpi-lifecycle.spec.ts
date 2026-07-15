@@ -105,7 +105,8 @@ test.describe('kpi + payroll lifecycle: refresh -> submitSlip -> confirm -> asse
     // -------------------------------------------------------------------
     // Seed: SalaryTier + assignTier, past-period revenue, approved shift
     // registration + full in/out punch pairs at the shift boundary (zero
-    // penalty — @cmc/domain-payroll's `assignPunchesToShifts`).
+    // penalty — ADR 0043 day-level pairing, @cmc/domain-payroll's
+    // `computeDayAttendance` via apps/api/src/attendance/resolve-day-credit.ts).
     // -------------------------------------------------------------------
     const tier = await gdkd.salaryTier.create.mutate({
       name: `E2E KPI Tier ${suffix}`,
@@ -152,7 +153,6 @@ test.describe('kpi + payroll lifecycle: refresh -> submitSlip -> confirm -> asse
     // -------------------------------------------------------------------
     const refreshed = await sale.kpi.refresh.mutate({ period: PERIOD });
     expect(refreshed.tierMissing).toBe(false);
-    expect(refreshed.shortSpanShifts).toBe(false);
     expect(refreshed.shiftActual).toBe(TIER_REQUIRED_SHIFTS);
     expect(Number(refreshed.metricValue)).toBe(RECEIPT_NET_AMOUNT);
     expect(Number(refreshed.value)).toBe(TIER_UNIT_RATE); // 1.0 × 1.0 × unitRate

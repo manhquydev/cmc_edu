@@ -206,10 +206,10 @@ Tester (GĐĐT + giao_vien): _________________ · Date: _________________
 
 | Bước | Vai | Thao tác | URL / action | Expected state |
 |------|-----|----------|--------------|----------------|
-| 1 | giao_vien | Đăng nhập → chấm công (`checkInOut.punch`) | HR → Chấm công | punchId sinh |
-| 2 | sale | Đăng nhập → tạo manual punch ticket (`manualPunch.create`) | HR → Chấm công → Manual ticket | manualPunchId pending |
-| 3 | giao_vien | Tạo manual punch ticket (verify giao_vien cũng có quyền) | HR → Chấm công → Manual ticket | manualPunchId pending |
-| 4 | giam_doc_kinh_doanh | Duyệt các manual punch tickets (`manualPunch.approve`) | HR → Chấm công → Pending | status = approved |
+| 1 | giao_vien | Đăng nhập → chấm công trong mạng cơ sở (`checkInOut.punch`) | HR → Chấm công | punch ghi nhận, không phiếu |
+| 2 | sale | Chấm công ngoài mạng cơ sở → modal yêu cầu lý do → xác nhận (`checkInOut.punch({reason})`) | HR → Chấm công | phiếu `pending` tự sinh, mang `checkInAt` |
+| 3 | giao_vien | Chấm công ngoài mạng cơ sở (verify giao_vien cũng sinh phiếu được) | HR → Chấm công | phiếu `pending` tự sinh |
+| 4 | giam_doc_kinh_doanh + giam_doc_dao_tao | Mỗi GĐ duyệt phiếu **đúng track của mình** — GĐKD duyệt phiếu sale (bước 2), GĐĐT duyệt phiếu giao_vien (bước 3) (`manualPunch.approve`) | HR → Chấm công → Duyệt chấm công | cả 2 phiếu status = approved |
 | 5 | giam_doc_kinh_doanh | Tạo `SalaryTier` + gán cho giao_vien/sale (`salaryTier.create` → `compensation.assignTier`) | HR → Bậc lương → New → Gán | tier gán cho cả 2 nhân sự |
 | 6 | giao_vien | Đăng ký ca làm (`shift.submit`) | HR → Đăng ký ca | shiftRegistration submitted |
 | 7 | giam_doc_dao_tao | Duyệt ca (`shift.approve`) | HR → Đăng ký ca → Pending | shiftRegistration approved |
@@ -220,8 +220,10 @@ Tester (GĐĐT + giao_vien): _________________ · Date: _________________
 | 12 | giam_doc_dao_tao | Tất toán KPI hàng loạt (`kpi.bulkApprove`) — chỉ chạy khi payslip đã finalized | HR → KPI → Tất toán | kpi approved |
 
 **Verify đặc biệt:**
-- Bước 2 & 3: sale VÀ giao_vien đều phải tạo được manual punch — confirm cả hai quyền hoạt động
-  (`manualPunch.create` share cho cả 4 role active)
+- Bước 2 & 3: sale VÀ giao_vien đều chấm công ngoài mạng được, mỗi lần đều tự sinh phiếu — confirm
+  `checkInOut.punch` hoạt động như nhau cho cả 2 role (ADR 0043)
+- Bước 4: đúng track mới duyệt được — thử GĐKD duyệt phiếu giao_vien (hoặc ngược lại) → phải
+  `FORBIDDEN` (gate ROLE khớp track chủ phiếu, docs/20 §1)
 - Bước 4, 7, 10, 12: `manualPunch.approve`/`shift.approve`/`kpi.confirm`/`kpi.bulkApprove` chỉ
   GĐKD+GĐĐT giữ — confirm sale/giao_vien KHÔNG duyệt được (thử bằng sale → phải `FORBIDDEN`)
 - Bước 7: GĐĐT duyệt vì `ShiftGroup.type = GIAO_VIEN` — thử GĐKD duyệt cùng phiếu → phải `FORBIDDEN`
@@ -293,8 +295,8 @@ Mọi role active giữ ≥1 mutation phải xuất hiện trong ≥1 kịch b�
 |------|---------------------------|----------|
 | giam_doc_kinh_doanh | finance.receiptApprove · manualPunch.approve · shift.approve · kpi.confirm/bulkApprove/override(key kpi.approve) · salaryTier.manage · payslip.assemble/finalize · guardian.approveLink · gift.upsert · rewards/parentMeeting/testAppointment/afterSale.manage | KB1 · KB4 · KB5 |
 | giam_doc_dao_tao | class.create · schedule.generate · exercise.manage · shift.approve · kpi.confirm/bulkApprove/override(key kpi.approve) · salaryTier.manage · payslip.assemble/finalize | KB2 · KB3 · KB4 |
-| sale | crm.opportunityCreate · finance.receiptCreate · enrollment.enroll · parentAccount.updateEmail · manualPunch.create · shift.submit · kpi.refresh/submitSlip · rewards/parentMeeting/testAppointment/afterSale.manage | KB1 · KB4 · KB5 |
-| giao_vien | attendance.mark · exercise.manage · submission.grade · sessionEvidence.publish · manualPunch.create · shift.submit · kpi.refresh/submitSlip | KB2 · KB3 · KB4 |
+| sale | crm.opportunityCreate · finance.receiptCreate · enrollment.enroll · parentAccount.updateEmail · checkIn.punch · shift.submit · kpi.refresh/submitSlip · rewards/parentMeeting/testAppointment/afterSale.manage | KB1 · KB4 · KB5 |
+| giao_vien | attendance.mark · exercise.manage · submission.grade · sessionEvidence.publish · checkIn.punch · shift.submit · kpi.refresh/submitSlip | KB2 · KB3 · KB4 |
 
 ✅ Không role active nào giữ mutation mà vắng khỏi kịch bản.
 

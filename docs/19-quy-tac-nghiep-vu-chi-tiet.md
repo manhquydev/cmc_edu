@@ -114,7 +114,8 @@ Bài tập KHÔNG mở ngay khi `published`; mở theo **tiến độ dạy th�
 - **Học viên phải `active`** (đã đóng phí — ADR-A) và lifecycle hợp lệ.
 - `facilityId` **suy từ session server-side**, không tin client (chống rò chéo cơ sở).
 - Điểm danh bucket theo **tháng ICT** của thời điểm kết thúc buổi (biên tháng chuẩn UTC+7).
-- Ngoài WiFi/giờ → **phiếu chấm công thủ công theo ngày** (khác điểm danh HS; QĐ 0034).
+- Ngoài WiFi cơ sở → vẫn ghi nhận + **phiếu chấm công theo ngày** cần GĐ track duyệt (khác điểm danh
+  HS; ADR 0043 — xem TL20 §1).
 
 ## 6. Sao thưởng & điểm
 

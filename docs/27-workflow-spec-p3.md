@@ -6,53 +6,79 @@
 
 ---
 
-## WF-P3-01 — Chấm công check-in/out (ADR 0039)
+## WF-P3-01 — Chấm công cặp vào/ra mỗi ngày (ADR 0043, supersedes ADR 0039)
 
-**Meta:** P3 · P0 · người (nhân viên). **Actors:** nhân viên. **Trigger:** bấm chấm công. **Precondition:**
-cơ sở có `FacilityNetwork` khai báo.
+**Meta:** P3 · P0 · người (nhân viên). **Actors:** nhân viên. **Trigger:** bấm "Chấm công". **Precondition:**
+không có — hoạt động cả khi cơ sở chưa khai báo `FacilityNetwork` (chế độ mở).
 
 **Swimlane**
 ```mermaid
 flowchart LR
-    A["Nhân viên bấm chấm công"] --> B["Lấy ctx.ip → ipMatchesCidr<br/>với dải active cơ sở"]
-    B -->|Khớp| C["method: 'ip' (hợp lệ)"]
-    B -->|Không khớp| D["method: 'manual'<br/>→ phiếu thủ công (WF-P3-02)"]
-    C & D --> E["Lưu TimePunch (ip, method)"]
+    A["Nhân viên bấm Chấm công"] --> B["Cooldown 10s?"]
+    B -->|Có| Z["BAD_REQUEST appCode=COOLDOWN"]
+    B -->|Không| C["Tính withinNetwork:<br/>không có FacilityNetwork active,<br/>hoặc IP khớp 1 dải"]
+    C --> D{"Offsite + ngày có<br/>đăng ký ca (submitted/approved)<br/>+ chưa có phiếu?"}
+    D -->|Có, thiếu lý do| E["BAD_REQUEST<br/>appCode=OFFSITE_REASON_REQUIRED"]
+    D -->|Có, đủ lý do| F["Ghi TimePunch(withinNetwork=false)"]
+    D -->|Không| G["Ghi TimePunch"]
+    F & G --> H["ensureDayTicket: có ca + có punch<br/>offsite trong ngày?"]
+    H -->|Có| I["Tạo/cập nhật phiếu ngày đó<br/>(checkInAt=mốc đầu, checkOutAt=mốc cuối)"]
+    H -->|Không| J["Kết thúc — không phiếu"]
 ```
 
-**Happy path:** bấm → khớp IP dải cơ sở → `method: ip` → lưu punch.
-**Exceptions & edge:** IP không khớp → `manual` (cần phiếu). **Cooldown** double-punch → `CONFLICT`. IP
-giả: phụ thuộc `x-forwarded-for` cấu hình đúng (ADR 0039 caveat).
-**Rules/ADR:** **ADR 0039** · TL20 §1. **API:** `checkInOut.punch` (`checkInOut.punch`). **UI/URL:**
-`/attendance/check-in-out`.
-**Traceability:** `nhân viên → WF-P3-01 → "Chấm công qua WiFi công ty" → checkInOut.punch →
-/attendance/check-in-out → test/checkin/ip-match.spec → ADR0039`.
-**Acceptance:** IP khớp → `ip`; ngoài dải → `manual`; cooldown chặn double-punch; punch lưu ip+method.
+**Happy path:** trong mạng (hoặc cơ sở chưa khai báo dải IP nào) → ghi nhận ngay, không phiếu.
+**Exceptions & edge:**
+- Offsite + có ca đăng ký + chưa có phiếu ngày đó + thiếu `reason` → `OFFSITE_REASON_REQUIRED`, KHÔNG ghi punch.
+- Offsite + không có ca đăng ký nào (kể cả `submitted`) → vẫn ghi punch, KHÔNG tạo phiếu, KHÔNG cần lý do (E2).
+- Cooldown 10 giây (không phải 5 phút như ADR 0039) → `COOLDOWN`.
+- Phiếu đã rời `pending`/`resubmitted` (đã `approved`/`rejected`) → punch mới cùng ngày vẫn được ghi (lịch sử) nhưng **không** ghi đè `checkInAt`/`checkOutAt` của phiếu (đóng băng, chống gian lận checkin-nhà/checkout-công-ty-sau-duyệt — F1).
+**Rules/ADR:** **ADR 0043** (supersedes ADR 0039) · `docs/decisions/0043-attendance-daily-inout-pairing.md`.
+**API:** `checkInOut.punch({reason?: string})`. **UI/URL:** `/hr/checkin` (nav-registry thực tế — không phải `/attendance/check-in-out`).
+**Traceability:** `nhân viên → WF-P3-01 → "Chấm công" → checkInOut.punch → /hr/checkin →
+apps/api/src/checkin/punch-offsite.test.ts → ADR0043`.
+**Acceptance:** trong mạng → ghi nhận; offsite lần đầu (có ca) không lý do → OFFSITE_REASON_REQUIRED; có lý
+do → ghi + phiếu; offsite không ca → ghi, không phiếu; cooldown 10s; phiếu đã duyệt/từ chối bất biến trước punch sau.
 
 ---
 
-## WF-P3-02 — Phiếu chấm công thủ công → manager duyệt (ADR 0039)
+## WF-P3-02 — Phiếu chấm công offsite → GĐ theo track duyệt (ADR 0043, supersedes ADR 0039)
 
-**Meta:** P3 · P0 · **HITL** (manager). **Actors:** nhân viên (tạo), manager trực tiếp (duyệt).
-**Trigger:** chấm ngoài WiFi → tạo phiếu thủ công theo ngày. **Precondition:** `method: manual`.
+**Meta:** P3 · P0 · **HITL** (GĐ theo track). **Actors:** nhân viên (tạo tự động qua WF-P3-01), GĐ Kinh
+doanh (phiếu của sale) hoặc GĐ Đào tạo (phiếu của giáo viên), super_admin (mọi phiếu).
+**Trigger:** WF-P3-01 tạo phiếu tự động (không còn thủ tục tạo phiếu thủ công riêng — `manualPunch.create`
+đã bị xóa, ADR 0043 §10).
 
 **State machine**
 ```mermaid
 stateDiagram-v2
-    [*] --> pending: nhân viên gửi (theo ngày, 1 lý do)
-    pending --> approved: manager trực tiếp duyệt
-    pending --> rejected: từ chối
-    rejected --> resubmitted: gửi lại
+    [*] --> pending: checkInOut.punch tạo phiếu (offsite + có ca)
+    pending --> approved: GĐ track duyệt (đóng băng checkInAt/checkOutAt)
+    pending --> rejected: GĐ track từ chối
+    rejected --> resubmitted: chủ phiếu gửi lại lý do (manualPunch.resubmit)
     resubmitted --> approved
+    resubmitted --> rejected
 ```
 
-**Happy path:** tạo phiếu ngày + lý do → manager trực tiếp duyệt.
-**Exceptions & edge:** **không tự duyệt của mình** (`FORBIDDEN`); **chỉ manager trực tiếp** (khác →
-`FORBIDDEN`). Notif `manual_punch_pending/resubmitted/rejected` (TL20 §8b).
-**Rules/ADR:** **ADR 0039** · QĐ 0034 · TL20 §1. **API:** `manualPunch.create/approve/reject`
-(manager). **UI/URL:** `/attendance/check-in-out` (phiếu) · notif.
-**Traceability:** `nhân viên/manager → WF-P3-02 → "Duyệt chấm công thủ công" → manualPunch.approve →
-/attendance/check-in-out → test/checkin/manual-ticket.spec → ADR0039, QĐ0034`.
+**Happy path:** phiếu sinh tự động từ WF-P3-01 → GĐ đúng track duyệt → cặp giờ trên phiếu được dùng để
+tính công + muộn/sớm y như punch thật (payroll + KPI dùng chung `resolveDayCredit`).
+**Exceptions & edge:**
+- **Không tự duyệt phiếu của chính mình** (kể cả kiêm nhiệm 2 role) → `FORBIDDEN`.
+- **Track phải khớp**: chủ phiếu là `sale` → chỉ `giam_doc_kinh_doanh` (hoặc `super_admin`) duyệt được;
+  `giao_vien` → chỉ `giam_doc_dao_tao`. Chủ phiếu không có track (GĐ/super_admin) → chỉ `super_admin` duyệt.
+- **TOCTOU**: 2 GĐ duyệt đồng thời cùng phiếu → 1 thành công, 1 nhận `BAD_REQUEST` (conditional
+  `updateMany WHERE status IN (pending,resubmitted)`, không đọc-rồi-ghi).
+- **Không còn `manualPunch.create`** (chấm bù ngày tùy ý) — bỏ hẳn theo ADR 0043 §10.
+- **Gửi lại**: `manualPunch.resubmit({ticketId, reason})` — chỉ chủ phiếu, chỉ khi `rejected`, cập nhật
+  dòng cũ (KHÔNG tạo dòng mới — unique `(appUserId, ticketDate)` từ phase 1 chặn dòng thứ 2).
+- Duyệt sau khi payslip kỳ đó đã finalize → vẫn duyệt được, response kèm `warning: PAYSLIP_FINALIZED`
+  (không tự tính lại lương — hành vi giữ nguyên từ trước ADR 0043).
+**Rules/ADR:** **ADR 0043** (supersedes ADR 0039, thay gate `managerId` → GĐ track). **API:**
+`manualPunch.approve/reject/resubmit/list`. **UI/URL:** `/hr/checkin` (tab "Duyệt chấm công", chỉ hiện khi
+`canDo('manualPunch','approve')`).
+**Traceability:** `GĐ → WF-P3-02 → "Duyệt chấm công offsite" → manualPunch.approve →
+/hr/checkin → apps/api/src/checkin/manual-punch-approval-track.test.ts → ADR0043`.
+**Acceptance:** track khớp → duyệt/từ chối OK; sai track → FORBIDDEN; tự duyệt → FORBIDDEN; TOCTOU race →
+1 thắng 1 BAD_REQUEST; resubmit chỉ chủ phiếu + chỉ từ rejected; không còn đường tạo phiếu thủ công.
 **Acceptance:** không tự duyệt; chỉ manager trực tiếp; phiếu theo ngày; resubmit được.
 
 ---

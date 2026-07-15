@@ -132,14 +132,14 @@ export const kpiRouter = router({
         });
         if (!targetAppUser) throw notFound('AppUser not found in this facility.');
 
-        const { score, tierMissing, shortSpanShifts } = await refreshKpiScore(tx, {
+        const { score, tierMissing } = await refreshKpiScore(tx, {
           facilityId,
           appUserId: targetAppUser.id,
           roles: targetAppUser.roles,
           period: input.period,
         });
 
-        return { ...score, tierMissing, shortSpanShifts };
+        return { ...score, tierMissing };
       });
     }),
 

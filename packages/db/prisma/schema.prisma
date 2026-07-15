@@ -1110,13 +1110,20 @@ model EmployeeCodeCounter {
 
 /// Clock-in/out record for one staff member at one facility. Append-only:
 /// `cmc_app` has no DELETE/UPDATE grant (see migration). Facility-scoped, RLS.
+/// ADR 0043: `withinNetwork` records whether this punch matched an active
+/// FacilityNetwork CIDR at write time — the daily in/out pairing model
+/// (packages/domain-payroll `computeDayAttendance`) and the offsite-ticket
+/// flow (`checkInOut.punch`) both read this flag. Rows written before ADR
+/// 0043 default to `true` (pre-0043 the app rejected offsite punches
+/// outright, so every pre-existing row is, by construction, within-network).
 model TimePunch {
-  id         String   @id @default(uuid())
-  facilityId String
-  appUserId  String
-  punchAt    DateTime @default(now()) @db.Timestamptz(3)
-  method     String
-  ip         String?
+  id            String   @id @default(uuid())
+  facilityId    String
+  appUserId     String
+  punchAt       DateTime @default(now()) @db.Timestamptz(3)
+  method        String
+  ip            String?
+  withinNetwork Boolean  @default(true)
 
   facility Facility @relation(fields: [facilityId], references: [id])
   appUser  AppUser  @relation(fields: [appUserId], references: [id])
@@ -1126,8 +1133,13 @@ model TimePunch {
 
 /// Manual attendance correction ticket. `status` lifecycle:
 /// `pending` → `approved` | `rejected` → `resubmitted` (then re-enters the
-/// `pending`/`approved`/`rejected` cycle). Approved by the ticket owner's
-/// direct manager (anti-self-approve, `manualPunch.approve`).
+/// `pending`/`approved`/`rejected` cycle). ADR 0043: approved by the GĐ of
+/// the ticket owner's role track (sale→giam_doc_kinh_doanh, giao_vien→
+/// giam_doc_dao_tao), not the owner's `managerId`. `checkInAt`/`checkOutAt`
+/// are populated from the day's TimePunch pair when the ticket is created by
+/// `checkInOut.punch` (ADR 0043) and frozen once the ticket leaves
+/// pending/resubmitted — see phase-03/05/06 "freeze on approve" invariant.
+/// At most one ticket per (appUserId, ticketDate) — ADR 0043 §1 phiếu/ngày.
 /// Facility-scoped, RLS.
 model ManualAttendanceTicket {
   id           String    @id @default(uuid())
@@ -1136,6 +1148,8 @@ model ManualAttendanceTicket {
   ticketDate   DateTime  @db.Timestamptz(3)
   status       String    @default("pending")
   note         String    @default("")
+  checkInAt    DateTime? @db.Timestamptz(3)
+  checkOutAt   DateTime? @db.Timestamptz(3)
   reviewedById String?
   reviewedAt   DateTime? @db.Timestamptz(3)
   createdAt    DateTime  @default(now()) @db.Timestamptz(3)
@@ -1145,6 +1159,7 @@ model ManualAttendanceTicket {
   appUser    AppUser  @relation("AppUserTickets", fields: [appUserId], references: [id])
   reviewedBy AppUser? @relation("AppUserReviewer", fields: [reviewedById], references: [id])
 
+  @@unique([appUserId, ticketDate])
   @@index([facilityId, appUserId])
 }
 

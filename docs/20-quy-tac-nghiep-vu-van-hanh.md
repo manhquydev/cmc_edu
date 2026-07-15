@@ -7,20 +7,35 @@
 
 ---
 
-## 1. Chấm công (Check-in / Check-out) — cơ chế WiFi/IP
+## 1. Chấm công (Check-in / Check-out) — cặp vào/ra mỗi ngày (ADR 0043, thay ADR 0039/QĐ 0034)
 
-Cơ chế: khớp **IP client với dải mạng cơ sở**, không phải GPS.
+Cơ chế: khớp **IP client với dải mạng cơ sở** (không phải GPS) để phân biệt trong/ngoài mạng, nhưng
+**không còn từ chối** lần bấm ngoài mạng — chỉ ghi nhận có kiểm soát. Chi tiết đầy đủ:
+`docs/decisions/0043-attendance-daily-inout-pairing.md`.
 
-- **FacilityNetwork:** mỗi cơ sở khai báo các dải IP hợp lệ — `ipAddress` dạng **CIDR**
-  (`192.168.1.0/24`) hoặc IP đơn (`152.42.167.189`), có `label` ("WiFi VP chính"), `isActive`.
-- **Khi chấm công:** lấy IP client (`ctx.ip`, từ header proxy) → hàm `ipMatchesCidr` so với các dải
-  active của cơ sở.
-  - IP khớp → chấm công **`method: 'ip'`** (hợp lệ tự động, đang trong WiFi công ty).
-  - IP không khớp → **`method: 'manual'`** → phải qua **phiếu chấm công thủ công** (QĐ 0034).
-- **Cooldown:** vừa chấm xong phải đợi một chút mới chấm lại (chống double-punch) → lỗi `CONFLICT`.
-- **Duyệt phiếu thủ công:** **không tự duyệt của mình** (`FORBIDDEN`); **chỉ manager trực tiếp**
-  duyệt/từ chối (`FORBIDDEN` nếu không phải). Phiếu theo **ngày**, 1 lý do, 1 lần duyệt (QĐ 0034).
-- Bản ghi lưu `ipAddress` + `method` để audit.
+- **FacilityNetwork:** mỗi cơ sở khai báo các dải IP hợp lệ — cột `cidr` dạng **CIDR**
+  (`192.168.1.0/24`) hoặc IP đơn (`152.42.167.189`), có `label` ("WiFi VP chính"), `isActive`. Cơ sở
+  **chưa khai báo dải nào** → mọi lần bấm coi như trong mạng (`withinNetwork = true`, chế độ mở).
+- **1 lần bấm = 1 mốc** (`TimePunch`, append-only, `withinNetwork: boolean`). Trong ngày: **mốc đầu =
+  giờ vào, mốc cuối = giờ ra**; các mốc giữa lưu nhưng không dùng tính công/muộn-sớm.
+- **Trong mạng** → ghi nhận thẳng, không phiếu.
+- **Ngoài mạng:**
+  - Có đăng ký ca ngày đó (kể cả `submitted` chưa duyệt) + chưa có phiếu → bắt buộc `reason`, tạo
+    `ManualAttendanceTicket` (`status: pending`) mang `checkInAt`/`checkOutAt` = mốc đầu/cuối ngày đó.
+  - Không có đăng ký ca nào ngày đó → chỉ ghi punch, **không** tạo phiếu, **không** ép lý do.
+  - Phiếu đã rời `pending`/`resubmitted` (đã `approved`/`rejected`) → punch mới cùng ngày vẫn ghi
+    (lịch sử) nhưng **không đè** `checkInAt`/`checkOutAt` của phiếu — chống gian lận checkin-ở-nhà rồi
+    checkout-tại-công-ty để "tự duyệt" bằng cách quay lại mạng công ty.
+- **Cooldown:** 10 giây chặn double-tap → `appCode: COOLDOWN`.
+- **Duyệt phiếu:** **không tự duyệt của mình** (`FORBIDDEN`); người duyệt = **GĐ theo track** của chủ
+  phiếu (sale → `giam_doc_kinh_doanh`; giáo viên → `giam_doc_dao_tao`; không có track → chỉ
+  `super_admin`) — không còn dựa vào `managerId` gán tay.
+- **Từ chối → gửi lại:** phiếu `rejected` không bị mất; chủ phiếu `manualPunch.resubmit` sửa lý do,
+  ghi đè lại **dòng cũ** (không tạo phiếu mới — unique `(appUserId, ticketDate)`).
+- **Không còn chấm bù ngày tùy ý:** `manualPunch.create` đã bị xóa (ADR 0043 §10) — phiếu chỉ sinh tự
+  động từ lần bấm ngoài mạng, không nhập ngày quá khứ thủ công.
+- Bản ghi vẫn lưu `ip`+`method` (audit lịch sử) và thêm cột mới `withinNetwork` — cột dùng để tính
+  công/tạo phiếu là `withinNetwork`, không phải `method` nữa.
 
 ## 2. Cơ chế ca & Đăng ký công ca — **sale vs giáo viên KHÁC nhau**
 
@@ -60,21 +75,27 @@ Cơ chế: khớp **IP client với dải mạng cơ sở**, không phải GPS.
     có nhân `creditFactor` theo độ trễ session-done, xem §4b); Sale: doanh thu phê duyệt (§4).
   - `phạt` luôn là dòng **độc lập** (không gộp vào `kpiBonus`/`baseSalary`), không bao giờ kéo
     `totalNet` xuống âm (clamp ≥ 0).
-- **Công ca thực (`shiftActual`):** đếm DISTINCT `(date, shiftTemplateId)` từ entry `approved` trong
-  kỳ, ghép với punch **vào/ra** qua `assignPunchesToShifts` (@cmc/domain-payroll): in-punch = punch sớm
-  nhất trong `[start−2h, midpoint)`; out-punch = punch muộn nhất trong `[midpoint, end+2h]`. Thiếu 1
-  trong 2 nửa = "vắng" (không tính công, không phạt phút, đếm vào `unpunchedDays`). **`shortSpan`**:
-  khoảng vào→ra < 50% thời lượng ca danh nghĩa — cờ cảnh báo gian lận (không tự động chặn, GĐ review
-  khi duyệt KPI/lương).
-- **Phạt per-ca:** muộn/sớm tính **theo từng ca** (không gộp cả ngày) — `penaltyRatePerLateMinute`/
-  `penaltyRatePerEarlyMinute` từ `CompensationPolicy` **per-facility** (fallback 500đ/phút muộn,
-  1000đ/phút sớm khi cơ sở chưa cấu hình).
-- **Miễn phạt ngày có ticket duyệt:** `ManualAttendanceTicket` **`approved`** cho một ngày → miễn phạt
-  + miễn `unpunchedDays` cho **mọi** ca đăng ký ngày đó, bỏ qua bước ghép punch. `pending`/`rejected`
-  không miễn. Ticket duyệt **sau khi payslip đã finalize** không hồi tố bảng lương đã khoá —
-  `manualPunch.approve` trả `warning: 'PAYSLIP_FINALIZED'` để GĐ biết cần `payslip.reopen` + assemble
-  lại thủ công nếu muốn áp dụng.
-- **Gate duyệt ticket chấm công:** direct-manager (`managerId`) hoặc `super_admin` — chống tự-duyệt.
+- **Công ca thực (`shiftActual`, ADR 0043):** cặp vào/ra **mỗi ngày** (mốc đầu/cuối `TimePunch` hợp lệ
+  trong mạng, hoặc `checkInAt`/`checkOutAt` của phiếu `approved`) tính qua `computeDayAttendance`
+  (`@cmc/domain-payroll`) + `resolveDayCredit` (`apps/api/src/attendance/resolve-day-credit.ts`, dùng
+  chung payroll+KPI để không lệch số giữa 2 module). Một ca đăng ký được tính công nếu khung ca **giao**
+  với cặp `[checkin,checkout]` ngày đó (`start<checkout && end>checkin`) — nhiều ca cách quãng cùng
+  ngày chỉ cần 1 cặp bao trùm là đủ công tất cả (đánh đổi có ý thức, ưu tiên đơn giản — không còn
+  ghép riêng từng ca ±2h). Không có cặp vào/ra hợp lệ ngày đó = "vắng" (không công, không phạt phút,
+  đếm `unpunchedDays`). **Đã bỏ cờ `shortSpan`** (không còn cảnh báo khoảng vào→ra ngắn).
+- **Muộn/sớm so với khung ngoài cùng:** giờ vào so với giờ bắt đầu ca **sớm nhất** đăng ký ngày đó (vào
+  sau = muộn); giờ ra so với giờ kết thúc ca **muộn nhất** (ra trước = về sớm) — 1 kết luận chung áp
+  cho toàn bộ ca trong ngày, không tính riêng từng ca như trước.
+- **Phạt:** `penaltyRatePerLateMinute`/`penaltyRatePerEarlyMinute` từ `CompensationPolicy`
+  **per-facility** (fallback 500đ/phút muộn, 1000đ/phút sớm khi cơ sở chưa cấu hình); `penaltyAmount`
+  bị **cap** tại `baseSalary+kpiPartAmount` (không chỉ floor `totalNet` ở 0) để tránh hiển thị số phạt
+  "ảo" lớn hơn phần thực sự bị trừ.
+- **Phiếu ngoài mạng đã duyệt = cặp giờ hợp lệ:** `ManualAttendanceTicket.approved` cho một ngày →
+  `checkInAt`/`checkOutAt` trên phiếu được `resolveDayCredit` dùng y như cặp punch thật (không còn
+  "miễn phạt cả ngày bất kể giờ" như model cũ). `pending`/`rejected`/`resubmitted` không có công. Ticket
+  duyệt **sau khi payslip đã finalize** không hồi tố bảng lương đã khoá — `manualPunch.approve` trả
+  `warning: 'PAYSLIP_FINALIZED'` để GĐ biết cần `payslip.reopen` + assemble lại thủ công nếu muốn áp dụng.
+- **Gate duyệt ticket chấm công:** GĐ theo track của chủ phiếu (không còn `managerId`) — xem mục 1.
 - **Đổi bậc lương (tier) giữa kỳ:** cho phép — `assignTier` không khoá theo kỳ đang chạy.
   `KpiScore.tierIdSnapshot`/`unitRateSnapshot` chụp tại thời điểm `kpi.refresh` giữ nguyên giá trị đã
   tính cho các slip đã `submitted`+ (audit trail đầy đủ dù tier đổi sau đó).
@@ -217,10 +238,10 @@ Học viên tích **sao** (star) từ bài tập → đổi quà.
 
 | Nghiệp vụ | Nguồn |
 |---|---|
-| Chấm công WiFi/IP | `checkin/router.ts` (`checkInOut.punch`) + `FacilityNetwork` |
-| Phiếu chấm công thủ công | `checkin/router.ts` (`manualPunchRouter`) |
+| Chấm công cặp vào/ra | `checkin/router.ts` (`checkInOutRouter.punch`) + `FacilityNetwork` + ADR 0043 |
+| Phiếu chấm công offsite | `checkin/router.ts` (`manualPunchRouter`) + `attendance/resolve-target-role.ts` + ADR 0043 |
 | Ca sale vs GV | `resolveShiftGroup()` + `ShiftGroup.selectionMode` + `shift/router.ts` + docs/22 ADR 0042 |
-| Lương bậc (tier) | `payroll/router.ts` + `@cmc/domain-payroll` (`assembleSlip`, `assignPunchesToShifts`) + docs/22 ADR 0042 |
+| Lương bậc (tier) | `payroll/router.ts` + `@cmc/domain-payroll` (`assembleSlip`, `computeDayAttendance`) + `attendance/resolve-day-credit.ts` + docs/22 ADR 0042, ADR 0043 |
 | KPI auto-score + lifecycle | `kpi/router.ts` + `kpi/auto-score.ts` + docs/22 ADR 0042 |
 | Session-done engine | `class/session-done.ts` + `worker/session-done-sweep.ts` + docs/22 ADR 0042 |
 | Đổi quà | `StarTransaction`/`Gift`/`Reward` enums; từ chối ngay + khoá tuần tự theo `giftId` trong `rewards/reward-router.ts` |

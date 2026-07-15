@@ -496,7 +496,6 @@ describe('auto-score collectors', () => {
 
       const result = await testDbBypass((tx) => collectActualShifts(tx, facilityId, gvAppUserId, PERIOD));
       expect(result.shiftActual).toBe(1);
-      expect(result.shortSpanShifts).toBe(false);
     });
 
     it('duplicate (date, shiftTemplateId) entries collapse to DISTINCT 1 (R3-8)', async () => {
@@ -520,12 +519,24 @@ describe('auto-score collectors', () => {
       expect(result.shiftActual).toBe(0);
     });
 
-    it('a ticket-approved day credits every shift registered that day, no punches required', async () => {
+    it('ADR 0043 — a ticket-approved day with frozen hours covering both shifts credits both', async () => {
       const date = '2099-11-08';
       await seedApprovedRegistration(date, [ca1Id, ca2Id]);
+      // Frozen hours must actually cover the shifts to credit them (R1/E3) —
+      // an approved ticket with no checkInAt/checkOutAt credits nothing
+      // (structurally impossible from the real checkInOut.punch flow, which
+      // always populates these; a bare status:'approved' with null hours,
+      // as this test used to seed pre-0043, is no longer a valid fixture).
       await testDbBypass((tx) =>
         tx.manualAttendanceTicket.create({
-          data: { facilityId, appUserId: gvAppUserId, ticketDate: ictToUtc(date, '00:00'), status: 'approved' },
+          data: {
+            facilityId,
+            appUserId: gvAppUserId,
+            ticketDate: ictToUtc(date, '00:00'),
+            status: 'approved',
+            checkInAt: ictToUtc(date, '08:00'),
+            checkOutAt: ictToUtc(date, '17:00'),
+          },
         }),
       );
 
@@ -533,10 +544,13 @@ describe('auto-score collectors', () => {
       expect(result.shiftActual).toBe(2);
     });
 
-    it('back-to-back GV shifts: punches are not reused across shifts', async () => {
+    it('ADR 0043 — 2 shifts/day, checkin=day\'s first punch + checkout=day\'s last punch overlap both → both credited', async () => {
       const date = '2099-11-09';
       await seedApprovedRegistration(date, [ca1Id, ca2Id]);
-      // 4 punches: ca1 in/out, ca2 in/out — each shift needs its OWN pair.
+      // Day-level pairing (not per-shift, ADR 0043 §1): checkin=07:55 (first),
+      // checkout=17:05 (last) — a window wide enough to overlap both ca1 and
+      // ca2, so both are credited even though the middle 2 punches (12:00,
+      // 13:00) are not separately used for anything.
       await punch(date, '07:55');
       await punch(date, '12:00');
       await punch(date, '13:00');
@@ -546,17 +560,23 @@ describe('auto-score collectors', () => {
       expect(result.shiftActual).toBe(2);
     });
 
-    it('a short in→out span (<50% of shift duration) sets shortSpanShifts', async () => {
+    it('ADR 0043 — a cặp vào/ra that only overlaps ONE of two registered shifts credits only that one (E3)', async () => {
       const date = '2099-11-10';
-      await seedApprovedRegistration(date, [ca1Id]); // 08:00-12:00 = 4h nominal
-      // In at 09:50, out at 10:10 -> 20min span, well under 50% of 4h.
-      await punch(date, '09:50');
-      await punch(date, '10:10');
+      await seedApprovedRegistration(date, [ca1Id, ca2Id]); // ca1 08-12, ca2 13-17
+      // checkin=13:50 (after ca1 already ended) → ca1 not credited; checkout=16:10 → ca2 credited.
+      await punch(date, '13:50');
+      await punch(date, '16:10');
 
       const result = await testDbBypass((tx) => collectActualShifts(tx, facilityId, gvAppUserId, PERIOD));
       expect(result.shiftActual).toBe(1);
-      expect(result.shortSpanShifts).toBe(true);
     });
+
+    // ADR 0043 R5 (accepted risk, plan.md Edge Case Ledger): the `shortSpan`
+    // anti-gaming flag (<50% of nominal shift duration) has no equivalent in
+    // the day-level in/out pairing model and was removed entirely — a
+    // checkin+checkout pair ~10s apart (past the cooldown) now credits the
+    // shift with no flag raised. Deliberate simplification, not an oversight
+    // — see plan.md "Open Questions" for the accepted trade-off.
   });
 
   // -------------------------------------------------------------------------

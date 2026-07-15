@@ -39,8 +39,10 @@ Hệ quả: vì gác `ke_toan`, **cổng tiền do GĐKD** (sale tạo ≠ GĐKD
 (direct manager xác nhận phiếu KPI, chống tự-xác-nhận — docs/20 §4). **Duyệt CA** (`shift.approve`/
 `shift.reject`) là ngoại lệ đã sửa ở HR remediation: gate theo **ROLE khớp `ShiftGroup.type`**
 (`GIAO_VIEN`→`giam_doc_dao_tao`, `KINH_DOANH`→`giam_doc_kinh_doanh`, `super_admin` bypass cả hai) +
-chống tự-duyệt — **không còn** dựa vào chuỗi `managerId` (docs/17 §4, docs/20 §2). → Khi nói "trưởng
-nhóm duyệt ca", đó là *role*, không phải *quan hệ managerId* — chỉ `kpi.confirm` mới dùng `managerId`.
+chống tự-duyệt — **không còn** dựa vào chuỗi `managerId` (docs/17 §4, docs/20 §2). **Duyệt phiếu chấm
+công** (`manualPunch.approve`/`reject`) cũng đổi sang gate ROLE-theo-track y hệt shift (ADR 0043, docs/20
+§1) — không còn dựa vào `managerId`. → Khi nói "trưởng nhóm duyệt ca/duyệt chấm công", đó là *role*,
+không phải *quan hệ managerId* — chỉ `kpi.confirm` mới dùng `managerId`.
 
 ## 3. Mô hình uỷ quyền (delegation) & phạm vi
 
@@ -73,7 +75,8 @@ Plan `erp-rebuild-f0-f4` từng nhắc `quan_ly` + `head_teacher`, nhưng enum R
 | `class.create` / `schedule.generate` | ✓ | | ✓ | | |
 | `attendance.mark` | ✓ | | ✓ | | ✓ |
 | `assessment.*` | ✓ | | ✓ | | ✓ |
-| `checkIn.punch` / `manualPunch.create` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `checkIn.punch` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `manualPunch.approve` (ADR 0043, GĐ-track — `manualPunch.create` đã bỏ) | ✓ | ✓ | ✓ | | |
 | `shift.submit` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `shift.approve` / `shift.manage` | ✓ | ✓ | ✓ | | |
 | `kpi.refresh` / `kpi.submitSlip` | ✓ | ✓ | ✓ | ✓ | ✓ |

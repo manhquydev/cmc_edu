@@ -22,19 +22,25 @@ describe('ManualAttendanceTicket.status CHECK constraint (HR remediation phase 1
     await cleanupFacility(facilityId);
   });
 
-  function baseData(status: string) {
+  function baseData(status: string, day = 1) {
     return {
       facilityId,
       appUserId,
-      ticketDate: new Date('2026-07-01T00:00:00.000Z'),
+      ticketDate: new Date(`2026-07-${String(day).padStart(2, '0')}T00:00:00.000Z`),
       status,
     };
   }
 
   it('accepts every documented status value', async () => {
-    for (const status of ['pending', 'approved', 'rejected', 'resubmitted']) {
-      const row = await testDbBypass((tx) => tx.manualAttendanceTicket.create({ data: baseData(status) }));
-      expect(row.status).toBe(status);
+    // ADR 0043: unique (appUserId, ticketDate) — one ticket per day, so each
+    // status here gets its own date; this test only exercises the CHECK
+    // constraint, not the daily-uniqueness invariant (covered elsewhere).
+    const statuses = ['pending', 'approved', 'rejected', 'resubmitted'];
+    for (let i = 0; i < statuses.length; i++) {
+      const row = await testDbBypass((tx) =>
+        tx.manualAttendanceTicket.create({ data: baseData(statuses[i]!, i + 1) }),
+      );
+      expect(row.status).toBe(statuses[i]);
     }
   });
 

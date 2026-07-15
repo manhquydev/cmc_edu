@@ -1,22 +1,31 @@
-// Chấm công IP — P05 (US-021).
+// Chấm công — ADR 0043 (docs/decisions/0043-attendance-daily-inout-pairing.md),
+// plans/260713-1706-attendance-daily-inout-pairing/phase-07-frontend-punch-ticket-ui.md.
 //
 // Key invariants:
-// - IP-match state comes from backend (checkInOut.punch response). UI never
-//   self-calculates whether the caller's IP is in any facility network.
-// - On IP mismatch the backend returns an error; UI surfaces the manual-punch
-//   fallback form. No penalty warning shown here — penalty is server-side.
-// - Punch without an approved shift → backend records it; UI shows
-//   "ghi nhận, chờ review" note only (no penalty banner).
-// - HR remediation phase 5 (red-team #5): error branching reads
-//   `err.data.appCode` (IP_NOT_ALLOWED/COOLDOWN — trpc.ts's errorFormatter,
-//   apps/api/src/errors.ts's AppCodeError), NOT string-matching err.message.
+// - Bấm "Chấm công" → checkInOut.punch.mutate({}) (reason optional). UI never
+//   self-calculates withinNetwork — server decides.
+// - Success → nút hiện "Đã ghi nhận" ~5 giây rồi tự về "Chấm công" (bấm tiếp
+//   được). Timer huỷ khi unmount hoặc bấm lại.
+// - appCode OFFSITE_REASON_REQUIRED → mở modal nhập lý do; xác nhận gọi lại
+//   punch({reason}). appCode COOLDOWN → banner cooldown, không mở modal.
+// - KHÔNG còn form "chấm bù ngày quên" (manualPunch.create đã bị xoá ở backend
+//   phase 4 — ADR 0043 §10).
+// - "Phiếu của tôi" hiện Giờ vào/Giờ ra (checkInAt/checkOutAt); phiếu `rejected`
+//   có nút "Gửi lại" → manualPunch.resubmit.mutate({ticketId, reason}).
+// - Tab "Duyệt chấm công" chỉ hiện khi canDo('manualPunch','approve') — inbox
+//   GĐ theo track (manualPunch.list({scope:'inbox'})), duyệt/từ chối qua
+//   ConfirmDialog/Dialog (không tự gọi mutation khi chỉ bấm trigger).
 
 import { useEffect, useRef, useState } from 'react';
 import {
   Banner,
   Button,
   Card,
+  CmcTabs,
+  ConfirmDialog,
   DataTable,
+  Dialog,
+  DialogHeader,
   FormPage,
   HStack,
   PageHeader,
@@ -24,14 +33,36 @@ import {
   StatusBadge,
   Text,
   TextArea,
-  TextInput,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
+import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
+
+const PUNCH_RECORDED_DISPLAY_MS = 5_000;
 
 function readAppCode(err: { data?: unknown; message?: string }): string | undefined {
   const data = err.data as { appCode?: unknown } | null | undefined;
   return typeof data?.appCode === 'string' ? data.appCode : undefined;
+}
+
+function fmtTime(v: unknown): string {
+  return new Date(v as string).toLocaleTimeString('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
+function fmtDateTime(v: unknown): string {
+  if (!v) return '—';
+  return new Date(v as string).toLocaleString('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -66,76 +97,105 @@ function IctClock() {
 }
 
 // ---------------------------------------------------------------------------
-// Manual punch form
+// Offsite reason modal
 // ---------------------------------------------------------------------------
-function ManualPunchForm({ onClose }: { onClose: () => void }) {
-  const [ticketDate, setTicketDate] = useState('');
-  const [note, setNote] = useState('');
-  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
-
-  const mut = trpc.manualPunch.create.useMutation({
-    onSuccess() {
-      setResult({ ok: true, text: 'Yêu cầu đã gửi, chờ quản lý trực tiếp duyệt.' });
-      setTicketDate('');
-      setNote('');
-    },
-    onError(err) {
-      setResult({ ok: false, text: err.message ?? 'Lỗi không xác định.' });
-    },
-  });
-
-  const dateFormatOk = /^\d{4}-\d{2}-\d{2}$/.test(ticketDate);
-
+function OffsiteReasonDialog({
+  isOpen,
+  isPending,
+  reason,
+  onReasonChange,
+  onConfirm,
+  onClose,
+}: {
+  isOpen: boolean;
+  isPending: boolean;
+  reason: string;
+  onReasonChange: (reason: string) => void;
+  onConfirm: (reason: string) => void;
+  onClose: () => void;
+}) {
   return (
-    <Card padding={3}>
+    <Dialog
+      isOpen={isOpen}
+      onOpenChange={(next) => { if (!next && !isPending) onClose(); }}
+      width={420}
+      purpose="form"
+    >
+      <DialogHeader title="Ngoài mạng cơ sở — nhập lý do" onOpenChange={(next) => { if (!next) onClose(); }} />
       <Stack gap={2}>
-        <Text type="body" size="sm" weight="semibold">
-          Yêu cầu chấm công thủ công
-        </Text>
         <Text type="supporting" size="2xs">
-          Dùng khi thiết bị nằm ngoài mạng WiFi cơ sở. Quản lý trực tiếp sẽ xét duyệt.
+          Thiết bị không khớp dải mạng WiFi cơ sở. Nhập lý do để ghi nhận — quản lý sẽ xét duyệt.
         </Text>
-        <TextInput
-          label="Ngày cần chấm (YYYY-MM-DD)"
-          placeholder="2026-07-07"
-          value={ticketDate}
-          onChange={(v) => setTicketDate(v)}
-          status={
-            ticketDate && !dateFormatOk
-              ? { type: 'error', message: 'Định dạng không hợp lệ — dùng YYYY-MM-DD' }
-              : undefined
-          }
-          size="sm"
-        />
         <TextArea
           label="Lý do"
-          placeholder="Nêu lý do không thể chấm công qua IP cơ sở..."
-          value={note}
-          onChange={(v) => setNote(v)}
-          size="sm"
+          placeholder="Nêu lý do không thể chấm công qua IP cơ sở…"
+          value={reason}
+          onChange={onReasonChange}
           rows={3}
           maxLength={2000}
         />
-        {result && (
-          <Banner status={result.ok ? 'success' : 'error'} title={result.text} />
-        )}
         <HStack justify="end" gap={1}>
+          <Button label="Hủy" variant="secondary" size="sm" onClick={onClose} />
           <Button
-            label="Đóng"
-            variant="secondary"
+            label="Xác nhận"
             size="sm"
-            onClick={() => { onClose(); setResult(null); }}
-          />
-          <Button
-            label="Gửi yêu cầu"
-            size="sm"
-            isLoading={mut.isPending}
-            isDisabled={!dateFormatOk}
-            onClick={() => mut.mutate({ ticketDate, note })}
+            isLoading={isPending}
+            isDisabled={reason.trim().length === 0}
+            onClick={() => onConfirm(reason.trim())}
           />
         </HStack>
       </Stack>
-    </Card>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Resubmit dialog (rejected ticket → gửi lại lý do)
+// ---------------------------------------------------------------------------
+function ResubmitDialog({
+  ticketId,
+  isPending,
+  reason,
+  onReasonChange,
+  onConfirm,
+  onClose,
+}: {
+  ticketId: string | null;
+  isPending: boolean;
+  reason: string;
+  onReasonChange: (reason: string) => void;
+  onConfirm: (ticketId: string, reason: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog
+      isOpen={ticketId !== null}
+      onOpenChange={(next) => { if (!next && !isPending) onClose(); }}
+      width={420}
+      purpose="form"
+    >
+      <DialogHeader title="Gửi lại yêu cầu chấm công" onOpenChange={(next) => { if (!next) onClose(); }} />
+      <Stack gap={2}>
+        <TextArea
+          label="Lý do gửi lại"
+          placeholder="Bổ sung lý do để gửi lại xét duyệt…"
+          value={reason}
+          onChange={onReasonChange}
+          rows={3}
+          maxLength={2000}
+        />
+        <HStack justify="end" gap={1}>
+          <Button label="Hủy" variant="secondary" size="sm" onClick={onClose} />
+          <Button
+            label="Gửi lại yêu cầu"
+            size="sm"
+            isLoading={isPending}
+            isDisabled={reason.trim().length === 0}
+            onClick={() => { if (ticketId) onConfirm(ticketId, reason.trim()); }}
+          />
+        </HStack>
+      </Stack>
+    </Dialog>
   );
 }
 
@@ -147,6 +207,8 @@ interface MyTicketRow {
   ticketDate: string | Date;
   status: string;
   note: string;
+  checkInAt: string | Date | null;
+  checkOutAt: string | Date | null;
   [key: string]: unknown;
 }
 
@@ -158,7 +220,28 @@ const TICKET_STATUS_LABELS: Record<string, string> = {
 };
 
 function MyTicketsSection() {
+  const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.manualPunch.list.useQuery({ scope: 'mine' });
+  const [resubmitTarget, setResubmitTarget] = useState<string | null>(null);
+  const [resubmitReason, setResubmitReason] = useState('');
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const resubmitMut = trpc.manualPunch.resubmit.useMutation({
+    onSuccess() {
+      // Clear ONLY on success — code-review finding: clearing on the confirm
+      // click itself lost the user's typed reason if the mutation then failed
+      // (dialog stayed open with an empty textarea).
+      setResult({ ok: true, text: 'Đã gửi lại yêu cầu, chờ duyệt.' });
+      setResubmitTarget(null);
+      setResubmitReason('');
+      void utils.manualPunch.list.invalidate();
+    },
+    onError(err) {
+      setResult({ ok: false, text: err.message ?? 'Lỗi không xác định.' });
+    },
+  });
+
+  const rows = (data as MyTicketRow[] | undefined) ?? [];
 
   const columns: TableColumn<MyTicketRow>[] = [
     {
@@ -166,15 +249,26 @@ function MyTicketsSection() {
       label: 'Ngày',
       render: (v) => new Date(v as string).toLocaleDateString('vi-VN'),
     },
+    { key: 'checkInAt', label: 'Giờ vào', render: fmtDateTime },
+    { key: 'checkOutAt', label: 'Giờ ra', render: fmtDateTime },
     {
       key: 'status',
       label: 'Trạng thái',
-      width: 140,
+      width: 130,
       render: (v) => (
         <StatusBadge status={String(v)} label={TICKET_STATUS_LABELS[String(v)] ?? String(v)} />
       ),
     },
     { key: 'note', label: 'Lý do' },
+    {
+      key: '_actions',
+      label: '',
+      width: 100,
+      render: (_v, row) =>
+        row.status === 'rejected' ? (
+          <Button label="Gửi lại" size="sm" variant="ghost" onClick={() => setResubmitTarget(row.id)} />
+        ) : null,
+    },
   ];
 
   return (
@@ -187,47 +281,204 @@ function MyTicketsSection() {
       >
         Phiếu của tôi
       </Text>
+      {result && <Banner status={result.ok ? 'success' : 'error'} title={result.text} />}
       <DataTable<MyTicketRow>
         columns={columns}
-        data={(data as MyTicketRow[] | undefined) ?? []}
+        data={rows}
         loading={isLoading}
         error={error?.message}
         empty="Chưa có yêu cầu chấm công thủ công nào."
+      />
+      <ResubmitDialog
+        ticketId={resubmitTarget}
+        isPending={resubmitMut.isPending}
+        reason={resubmitReason}
+        onReasonChange={setResubmitReason}
+        onConfirm={(ticketId, reason) => resubmitMut.mutate({ ticketId, reason })}
+        onClose={() => { setResubmitTarget(null); setResubmitReason(''); }}
       />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Main page
+// Duyệt chấm công — inbox GĐ theo track (manualPunch.list scope=inbox)
+// ---------------------------------------------------------------------------
+interface InboxTicketRow {
+  id: string;
+  ticketDate: string | Date;
+  checkInAt: string | Date | null;
+  checkOutAt: string | Date | null;
+  note: string;
+  appUser: { fullName: string };
+  [key: string]: unknown;
+}
+
+function ApproveTicketsTab() {
+  const utils = trpc.useUtils();
+  const { data, isLoading, error } = trpc.manualPunch.list.useQuery({ scope: 'inbox' });
+  const [approveTarget, setApproveTarget] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  function invalidate() {
+    void utils.manualPunch.list.invalidate();
+  }
+
+  const approveMut = trpc.manualPunch.approve.useMutation({
+    onSuccess() {
+      setResult({ ok: true, text: 'Đã duyệt yêu cầu chấm công.' });
+      setApproveTarget(null);
+      invalidate();
+    },
+    onError(err) {
+      setResult({ ok: false, text: err.message ?? 'Lỗi không xác định.' });
+      setApproveTarget(null);
+    },
+  });
+
+  const rejectMut = trpc.manualPunch.reject.useMutation({
+    onSuccess() {
+      setResult({ ok: true, text: 'Đã từ chối yêu cầu chấm công.' });
+      setRejectTarget(null);
+      setRejectReason('');
+      invalidate();
+    },
+    onError(err) {
+      setResult({ ok: false, text: err.message ?? 'Lỗi không xác định.' });
+    },
+  });
+
+  const rows = (data as InboxTicketRow[] | undefined) ?? [];
+
+  const columns: TableColumn<InboxTicketRow>[] = [
+    { key: 'appUser', label: 'Nhân viên', render: (_v, row) => row.appUser.fullName },
+    {
+      key: 'ticketDate',
+      label: 'Ngày',
+      render: (v) => new Date(v as string).toLocaleDateString('vi-VN'),
+    },
+    { key: 'checkInAt', label: 'Giờ vào', render: fmtDateTime },
+    { key: 'checkOutAt', label: 'Giờ ra', render: fmtDateTime },
+    { key: 'note', label: 'Lý do' },
+    {
+      key: '_actions',
+      label: '',
+      width: 180,
+      render: (_v, row) => (
+        <HStack gap={1}>
+          <Button label="Duyệt" size="sm" variant="primary" onClick={() => setApproveTarget(row.id)} />
+          <Button
+            label="Từ chối"
+            size="sm"
+            variant="destructive"
+            onClick={() => { setRejectTarget(row.id); setRejectReason(''); }}
+          />
+        </HStack>
+      ),
+    },
+  ];
+
+  return (
+    <Stack gap={2} padding={4}>
+      {result && <Banner status={result.ok ? 'success' : 'error'} title={result.text} />}
+      <DataTable<InboxTicketRow>
+        columns={columns}
+        data={rows}
+        loading={isLoading}
+        error={error?.message}
+        empty="Không có yêu cầu chờ duyệt."
+      />
+
+      <ConfirmDialog
+        opened={approveTarget !== null}
+        title="Duyệt yêu cầu chấm công"
+        message="Duyệt yêu cầu chấm công này? Giờ vào/ra sẽ được ghi nhận hợp lệ."
+        confirmLabel="Duyệt"
+        confirmColor="blue"
+        loading={approveMut.isPending}
+        onConfirm={() => approveTarget && approveMut.mutate({ ticketId: approveTarget })}
+        onCancel={() => setApproveTarget(null)}
+      />
+
+      <Dialog
+        isOpen={rejectTarget !== null}
+        onOpenChange={(next) => { if (!next && !rejectMut.isPending) { setRejectTarget(null); setRejectReason(''); } }}
+        width={420}
+        purpose="form"
+      >
+        <DialogHeader
+          title="Từ chối yêu cầu chấm công"
+          onOpenChange={(next) => { if (!next) { setRejectTarget(null); setRejectReason(''); } }}
+        />
+        <Stack gap={2}>
+          <TextArea
+            label="Lý do từ chối"
+            placeholder="Nêu lý do từ chối…"
+            value={rejectReason}
+            onChange={(v) => setRejectReason(v)}
+            rows={3}
+            maxLength={2000}
+          />
+          <HStack justify="end" gap={1}>
+            <Button label="Hủy" variant="secondary" size="sm" onClick={() => { setRejectTarget(null); setRejectReason(''); }} />
+            <Button
+              label="Từ chối"
+              size="sm"
+              variant="destructive"
+              isLoading={rejectMut.isPending}
+              isDisabled={rejectReason.trim().length === 0}
+              onClick={() => rejectTarget && rejectMut.mutate({ ticketId: rejectTarget, note: rejectReason.trim() })}
+            />
+          </HStack>
+        </Stack>
+      </Dialog>
+    </Stack>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Chấm công tab (main punch UI)
 // ---------------------------------------------------------------------------
 type PunchAlert =
   | { kind: 'none' }
   | { kind: 'success'; timeStr: string }
-  | { kind: 'ip_fail' }
+  | { kind: 'offsite_reason_required' }
   | { kind: 'cooldown' }
   | { kind: 'error'; msg: string };
 
-export default function CheckInOutPage() {
+function CheckInTab() {
+  const utils = trpc.useUtils();
   const [punchAlert, setPunchAlert] = useState<PunchAlert>({ kind: 'none' });
-  const [showManual, setShowManual] = useState(false);
+  const [recorded, setRecorded] = useState(false);
+  const [offsiteModalOpen, setOffsiteModalOpen] = useState(false);
+  const [offsiteReason, setOffsiteReason] = useState('');
+  const revertTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => () => {
+    if (revertTimerRef.current) clearTimeout(revertTimerRef.current);
+  }, []);
 
   const punchMut = trpc.checkInOut.punch.useMutation({
     onSuccess(data) {
-      // data.punchAt is a Date in the tRPC type, serialized as ISO string over HTTP.
-      const at = new Date(data.punchAt as unknown as string).toLocaleTimeString('vi-VN', {
-        timeZone: 'Asia/Ho_Chi_Minh',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
-      setPunchAlert({ kind: 'success', timeStr: at });
+      setPunchAlert({ kind: 'success', timeStr: fmtTime((data as { punchAt: unknown }).punchAt) });
+      // Code-review finding: Astryx's Dialog.onOpenChange only fires on
+      // user-initiated dismissal (Escape/backdrop), not this programmatic
+      // close — clear the reason HERE (not relying on the dialog's own
+      // close handler) so stale text can't reappear on the next offsite punch.
+      setOffsiteModalOpen(false);
+      setOffsiteReason('');
+      setRecorded(true);
+      if (revertTimerRef.current) clearTimeout(revertTimerRef.current);
+      revertTimerRef.current = setTimeout(() => setRecorded(false), PUNCH_RECORDED_DISPLAY_MS);
+      void utils.manualPunch.list.invalidate();
     },
     onError(err) {
       const appCode = readAppCode(err);
-      if (appCode === 'IP_NOT_ALLOWED') {
-        setPunchAlert({ kind: 'ip_fail' });
-        setShowManual(true);
+      if (appCode === 'OFFSITE_REASON_REQUIRED') {
+        setPunchAlert({ kind: 'offsite_reason_required' });
+        setOffsiteModalOpen(true);
       } else if (appCode === 'COOLDOWN') {
         setPunchAlert({ kind: 'cooldown' });
       } else {
@@ -236,10 +487,6 @@ export default function CheckInOutPage() {
     },
   });
 
-  // Result/error surfaces via plain `Banner` with `description` (always
-  // visible) — NOT `ResultPanel`, which routes `message` through Astryx
-  // `Banner` `children` and collapses behind a click (see receipt-create.tsx
-  // TODO(astryx-review)).
   const resultContent =
     punchAlert.kind === 'success' ? (
       <Banner
@@ -247,17 +494,17 @@ export default function CheckInOutPage() {
         title="Đã ghi nhận"
         description={`Chấm công lúc ${punchAlert.timeStr}. Nếu chưa có ca đã duyệt, hệ thống ghi nhận và chờ review — không áp phạt tự động.`}
       />
-    ) : punchAlert.kind === 'ip_fail' ? (
+    ) : punchAlert.kind === 'offsite_reason_required' ? (
       <Banner
         status="warning"
-        title="Ngoài mạng cơ sở"
-        description="Thiết bị không khớp dải mạng WiFi cơ sở (máy chủ xác nhận). Dùng form chấm công thủ công bên dưới."
+        title="Ngoài mạng cơ sở — cần nhập lý do"
+        description="Thiết bị không khớp dải mạng WiFi cơ sở. Nhập lý do trong hộp thoại để ghi nhận."
       />
     ) : punchAlert.kind === 'cooldown' ? (
       <Banner
         status="warning"
         title="Chờ cooldown"
-        description="Đã chấm công trong vòng 5 phút. Thử lại sau."
+        description="Vừa chấm công trong 10 giây gần đây. Thử lại sau."
       />
     ) : punchAlert.kind === 'error' ? (
       <Banner status="error" title="Lỗi chấm công" description={punchAlert.msg} />
@@ -265,32 +512,25 @@ export default function CheckInOutPage() {
 
   return (
     <FormPage
-      header={
-        <PageHeader
-          title="Chấm công"
-          subtitle="Điểm danh ca làm việc (IP cơ sở)"
-          breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Chấm công' }]}
-        />
-      }
+      header={null}
       result={resultContent}
       actions={
         <Button
-          label="Chấm công"
+          label={recorded ? 'Đã chấm công ✓' : 'Chấm công'}
           size="lg"
           isLoading={punchMut.isPending}
-          onClick={() => punchMut.mutate()}
+          isDisabled={recorded}
+          onClick={() => punchMut.mutate({})}
         />
       }
     >
-      <Stack gap={3} style={{ maxWidth: 520 }}>
-        {/* Clock */}
+      <Stack gap={3} style={{ maxWidth: 560 }}>
         <Card padding={6}>
           <Stack hAlign="center" gap={4}>
             <IctClock />
           </Stack>
         </Card>
 
-        {/* Punch-without-shift invariant note */}
         <Banner
           status="info"
           title="Ghi nhận không cần ca"
@@ -305,21 +545,43 @@ export default function CheckInOutPage() {
           }
         />
 
-        {/* Manual punch toggle */}
-        {!showManual && (
-          <Button
-            label="Gửi yêu cầu chấm công thủ công"
-            variant="ghost"
-            size="sm"
-            style={{ alignSelf: 'flex-start' }}
-            onClick={() => setShowManual(true)}
-          />
-        )}
-
-        {showManual && <ManualPunchForm onClose={() => setShowManual(false)} />}
-
         <MyTicketsSection />
       </Stack>
+
+      <OffsiteReasonDialog
+        isOpen={offsiteModalOpen}
+        isPending={punchMut.isPending}
+        reason={offsiteReason}
+        onReasonChange={setOffsiteReason}
+        onConfirm={(reason) => punchMut.mutate({ reason })}
+        onClose={() => { setOffsiteModalOpen(false); setOffsiteReason(''); }}
+      />
     </FormPage>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page root
+// ---------------------------------------------------------------------------
+export default function CheckInOutPage() {
+  const { canDo } = useSession();
+  const [activeTab, setActiveTab] = useState('checkin');
+
+  const tabs = [
+    { id: 'checkin', label: 'Tự chấm công', content: <CheckInTab /> },
+    ...(canDo('manualPunch', 'approve')
+      ? [{ id: 'approve', label: 'Duyệt chấm công', content: <ApproveTicketsTab /> }]
+      : []),
+  ];
+
+  return (
+    <>
+      <PageHeader
+        title="Chấm công"
+        subtitle="Điểm danh ca làm việc"
+        breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Chấm công' }]}
+      />
+      <CmcTabs activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />
+    </>
   );
 }

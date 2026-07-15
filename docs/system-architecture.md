@@ -542,14 +542,16 @@ This implementation strictly follows the frozen design:
 
 **HIGH findings (non-blocking, addressed in UAT):**
 - HIGH-1: cskh had no UAT scenarios → added to KB1+KB4
-- HIGH-2: ctv_mkt `manualPunch.create` suspicious — added to KB4; user must decide if remove
+- HIGH-2: ctv_mkt `manualPunch.create` suspicious — added to KB4; user must decide if remove.
+  **Resolved 2026-07-13 (ADR 0043):** `manualPunch.create` key deleted entirely (tickets now only
+  auto-generate from `checkInOut.punch`) — the permission this finding flagged no longer exists.
 - HIGH-3: hr had no UAT scenarios → added to KB4+KB5
 
 ## Phase 4 Pre-conditions
 
 - [x] **lms-auth-two-tier** — 0-assertion stub suite deleted 2026-07-10; coverage moved to e2e (satisfied)
 - [ ] Phase 2 (docker stack) must complete: WSL2, R2 S3 keypair, Entra seed email
-- [ ] ctv_mkt `manualPunch.create` decision: intentional or permission leak?
+- [x] ctv_mkt `manualPunch.create` decision — moot, key deleted by ADR 0043 (2026-07-13)
 - [ ] REDEPLOY NOT REQUIRED confirmed — no rebuild needed before Phase 4 Run 1
 
 ## Next Session Priorities
@@ -557,7 +559,7 @@ This implementation strictly follows the frozen design:
 1. **Phase 2** — complete docker stack setup (WSL2 confirmed, R2 keypair, Entra email)
 2. **Phase 4 Run 1** — UAT with real users against 5 kịch bản chuỗi liên vai (Section 2)
 3. ~~un-skip lms-auth-two-tier~~ — satisfied 2026-07-10 (suite deleted, coverage moved to e2e)
-4. **ctv_mkt manualPunch.create** — business decision before UAT sign-off
+4. ~~ctv_mkt manualPunch.create~~ — moot, key deleted by ADR 0043 (2026-07-13)
 
 ---
 

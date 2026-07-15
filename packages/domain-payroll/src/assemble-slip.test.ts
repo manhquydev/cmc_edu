@@ -61,17 +61,46 @@ describe('assembleSlip — happy path', () => {
     expect(r2.penaltyAmount).toBe(60_000);
   });
 
-  it('totalNet is floored at 0 — massive penalty cannot produce negative net', () => {
+  it('ADR 0043 E1 — penaltyAmount is capped at (baseSalary + kpiPartAmount); totalNet floors at 0', () => {
     const result = assembleSlip({
       baseSalary: 1_000_000,
       kpiPartAmount: 0,
-      lateMinutes: 10_000, // 10000 × 500 = 5M > 1M base
+      lateMinutes: 10_000, // raw penalty 10000 × 500 = 5M — far exceeds 1M base+kpi
       earlyMinutes: 0,
       penaltyRatePerLateMinute: 500,
       penaltyRatePerEarlyMinute: 1000,
     });
-    expect(result.penaltyAmount).toBe(5_000_000);
+    // Capped, not the raw 5,000,000 — so penaltyAmount and totalNet reconcile
+    // exactly (base+kpi-penalty=net) instead of showing an inflated "phantom"
+    // deduction next to a floored net.
+    expect(result.penaltyAmount).toBe(1_000_000);
     expect(result.totalNet).toBe(0);
+  });
+
+  it('ADR 0043 E1 — cap includes kpiPartAmount in the ceiling, not just baseSalary', () => {
+    const result = assembleSlip({
+      baseSalary: 1_000_000,
+      kpiPartAmount: 500_000,
+      lateMinutes: 10_000,
+      earlyMinutes: 0,
+      penaltyRatePerLateMinute: 500,
+      penaltyRatePerEarlyMinute: 1000,
+    });
+    expect(result.penaltyAmount).toBe(1_500_000); // 1,000,000 + 500,000
+    expect(result.totalNet).toBe(0);
+  });
+
+  it('ADR 0043 E1 — penalty under the cap is unaffected (no over-capping)', () => {
+    const result = assembleSlip({
+      baseSalary: 10_000_000,
+      kpiPartAmount: 500_000,
+      lateMinutes: 60,
+      earlyMinutes: 0,
+      penaltyRatePerLateMinute: 500,
+      penaltyRatePerEarlyMinute: 1000,
+    });
+    expect(result.penaltyAmount).toBe(30_000); // well under the 10.5M cap
+    expect(result.totalNet).toBe(10_500_000 - 30_000);
   });
 
   it('zero baseSalary + zero kpiPartAmount: totalNet = 0', () => {

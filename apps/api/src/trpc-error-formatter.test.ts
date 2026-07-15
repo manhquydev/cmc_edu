@@ -4,14 +4,20 @@
 // server-side `.rejects.toMatchObject({code})` assertions alone don't prove
 // anything about what a browser client actually receives).
 //
-// Covers: `data.appCode` appears for AppCodeError (IP_NOT_ALLOWED, COOLDOWN);
-// the base shape (message/code/httpStatus/path) is unchanged; and — the
-// negative test the phase spec requires — a raw/unknown cause (e.g. a
+// Covers: `data.appCode` appears for AppCodeError (OFFSITE_REASON_REQUIRED,
+// COOLDOWN); the base shape (message/code/httpStatus/path) is unchanged; and
+// — the negative test the phase spec requires — a raw/unknown cause (e.g. a
 // rethrown Prisma error) never leaks an appCode.
+//
+// ADR 0043 (attendance daily in/out pairing) removed `IP_NOT_ALLOWED`
+// entirely — an offsite punch is recorded (never rejected); the only
+// `checkInOut.punch` appCode error left is `OFFSITE_REASON_REQUIRED` (first
+// offsite punch of a day with a registered shift, no reason given).
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { TRPCError } from '@trpc/server';
 import { getErrorShape, getTRPCErrorFromUnknown } from '@trpc/server/unstable-core-do-not-import';
+import { ictDateOnlyOf, ictToUtc } from '@cmc/domain-time';
 import { appRouter } from './router.js';
 import { AppCodeError } from './errors.js';
 import {
@@ -20,6 +26,7 @@ import {
   createTestFacility,
   seedAppUser,
   seedFacilityNetwork,
+  testDbBypass,
 } from './test/db.js';
 
 // `appRouter._def._config` is the same RootConfig the HTTP adapters read to
@@ -35,11 +42,11 @@ const caller = (ctx: ReturnType<typeof buildStaffContext>) => appRouter.createCa
 
 describe('trpc.ts errorFormatter — client-visible shape', () => {
   it('AppCodeError → shape.data.appCode is set, base fields unchanged', () => {
-    const error = new AppCodeError({ code: 'FORBIDDEN', appCode: 'IP_NOT_ALLOWED', message: 'blocked' });
+    const error = new AppCodeError({ code: 'BAD_REQUEST', appCode: 'OFFSITE_REASON_REQUIRED', message: 'blocked' });
     const shape = clientShapeFor(error, 'checkInOut.punch');
 
-    expect(shape.data?.appCode).toBe('IP_NOT_ALLOWED');
-    expect(shape.data?.code).toBe('FORBIDDEN');
+    expect(shape.data?.appCode).toBe('OFFSITE_REASON_REQUIRED');
+    expect(shape.data?.code).toBe('BAD_REQUEST');
     expect(shape.data?.path).toBe('checkInOut.punch');
     expect(shape.message).toBe('blocked');
   });
@@ -80,39 +87,60 @@ describe('trpc.ts errorFormatter — client-visible shape', () => {
       await cleanupFacility(facilityId);
     });
 
-    it('IP mismatch → appCode IP_NOT_ALLOWED, message unchanged', async () => {
-      await seedAppUser({ facilityId, userId: 'errfmt-badip-user' });
+    it('offsite + registered shift + no reason → appCode OFFSITE_REASON_REQUIRED, message unchanged (ADR 0043)', async () => {
+      const appUser = await seedAppUser({ facilityId, userId: 'errfmt-offsite-user' });
       await seedFacilityNetwork(facilityId, '192.168.1.0/24');
+      const dateKey = ictDateOnlyOf(new Date());
+      await testDbBypass(async (tx) => {
+        const group = await tx.shiftGroup.create({
+          data: { facilityId, name: 'ErrFmt Shift Group', type: 'KINH_DOANH', selectionMode: 'SINGLE' },
+        });
+        const template = await tx.shiftTemplate.create({
+          data: { facilityId, shiftGroupId: group.id, name: 'Ca ngày', startTime: '09:00', endTime: '17:00' },
+        });
+        const reg = await tx.shiftRegistration.create({
+          data: {
+            facilityId,
+            appUserId: appUser.id,
+            shiftGroupId: group.id,
+            fromDate: ictToUtc(dateKey, '00:00'),
+            toDate: ictToUtc(dateKey, '00:00'),
+            status: 'approved',
+            selectionMode: 'SINGLE',
+          },
+        });
+        await tx.shiftRegistrationEntry.create({
+          data: { facilityId, shiftRegistrationId: reg.id, date: ictToUtc(dateKey, '00:00'), shiftTemplateId: template.id },
+        });
+      });
       const ctx = buildStaffContext({
         facilityId,
-        userId: 'errfmt-badip-user',
+        userId: 'errfmt-offsite-user',
         roles: ['sale'],
-        ip: '10.0.0.1',
+        ip: '10.0.0.1', // outside the seeded 192.168.1.0/24 FacilityNetwork
       });
 
       let thrown: TRPCError | undefined;
       try {
-        await caller(ctx).checkInOut.punch();
+        await caller(ctx).checkInOut.punch({});
       } catch (err) {
         thrown = err as TRPCError;
       }
       expect(thrown).toBeInstanceOf(TRPCError);
 
       const shape = clientShapeFor(thrown!, 'checkInOut.punch');
-      expect(shape.data?.appCode).toBe('IP_NOT_ALLOWED');
-      expect(shape.message).toBe(
-        'IP address not in any authorized network. Submit a manual punch request instead.',
-      );
+      expect(shape.data?.appCode).toBe('OFFSITE_REASON_REQUIRED');
+      expect(shape.message).toBe('Ngoài mạng cơ sở — cần nhập lý do cho lần chấm công đầu tiên trong ngày.');
     });
 
-    it('cooldown → appCode COOLDOWN, message unchanged', async () => {
+    it('cooldown → appCode COOLDOWN, message unchanged (ADR 0043: 10s, not 5min)', async () => {
       await seedAppUser({ facilityId, userId: 'errfmt-cooldown-user' });
       const ctx = buildStaffContext({ facilityId, userId: 'errfmt-cooldown-user', roles: ['sale'] });
-      await caller(ctx).checkInOut.punch();
+      await caller(ctx).checkInOut.punch({});
 
       let thrown: TRPCError | undefined;
       try {
-        await caller(ctx).checkInOut.punch();
+        await caller(ctx).checkInOut.punch({});
       } catch (err) {
         thrown = err as TRPCError;
       }
@@ -120,7 +148,7 @@ describe('trpc.ts errorFormatter — client-visible shape', () => {
 
       const shape = clientShapeFor(thrown!, 'checkInOut.punch');
       expect(shape.data?.appCode).toBe('COOLDOWN');
-      expect(shape.message).toBe('Cooldown: last punch was less than 5 minutes ago.');
+      expect(shape.message).toBe('Cooldown: last punch was less than 10 seconds ago.');
     });
 
     it('unrelated FORBIDDEN error (no AppUser row) → appCode stays undefined', async () => {

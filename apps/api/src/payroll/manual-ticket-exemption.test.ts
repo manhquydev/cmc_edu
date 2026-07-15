@@ -1,8 +1,13 @@
-// HR remediation phase 2 (red-team #13, Implementation Step 1): an approved
-// ManualAttendanceTicket for a calendar date exempts EVERY shift registered
-// that date from both `unpunchedDays` and per-shift late/early penalty —
-// pending/rejected tickets do NOT exempt. A ticket approved AFTER a payslip
-// was finalized does not retroactively change the payslip, but
+// ADR 0043 phase 5 (supersedes HR remediation phase 2 / red-team #13): an
+// APPROVED ManualAttendanceTicket makes an offsite day VALID for pairing —
+// its FROZEN checkInAt/checkOutAt are used exactly like real live punches
+// (R1 "freeze on approve"), NOT a blanket unconditional exemption. So an
+// approved ticket with on-time hours credits the day with zero penalty, but
+// an approved ticket whose frozen hours show a late/early punch STILL
+// produces the corresponding penalty — approval means "this offsite day now
+// counts", not "no penalty regardless of actual hours". Pending/rejected
+// tickets never count (day stays unpunched). A ticket approved AFTER a
+// payslip was finalized does not retroactively change the payslip, but
 // `manualPunch.approve`'s response carries `warning: 'PAYSLIP_FINALIZED'`.
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -67,6 +72,7 @@ async function seedRegisteredShift(dateOnly: string): Promise<void> {
 async function seedTicket(
   dateOnly: string,
   status: 'pending' | 'approved' | 'rejected',
+  hours?: { checkIn: string; checkOut: string },
 ): Promise<{ id: string }> {
   return testDbBypass((tx) =>
     tx.manualAttendanceTicket.create({
@@ -76,6 +82,8 @@ async function seedTicket(
         ticketDate: ictToUtc(dateOnly, '00:00'),
         status,
         note: '',
+        checkInAt: hours ? ictToUtc(dateOnly, hours.checkIn) : null,
+        checkOutAt: hours ? ictToUtc(dateOnly, hours.checkOut) : null,
       },
     }),
   );
@@ -135,10 +143,12 @@ afterEach(async () => {
 });
 
 describe('manual ticket exemption — no punches at all', () => {
-  it('approved ticket exempts a fully-unpunched day from unpunchedDays', async () => {
+  it('approved ticket with on-time frozen hours credits the day, zero penalty', async () => {
     const date = '2099-08-05';
     await seedRegisteredShift(date);
-    await seedTicket(date, 'approved');
+    // Frozen hours matching the shift exactly (09:00-17:00) — director
+    // confirms the employee worked the full shift despite the offsite punch.
+    await seedTicket(date, 'approved', { checkIn: SHIFT_START, checkOut: SHIFT_END });
 
     const payslip = await directorCaller().payslip.assemble({
       appUserId: employeeAppUserId,
@@ -189,51 +199,63 @@ describe('manual ticket exemption — no punches at all', () => {
 });
 
 describe('manual ticket exemption — late/early punches present', () => {
-  it('approved ticket exempts a late-punch day from penalty entirely (full credit)', async () => {
+  it('ADR 0043 R1 — approved ticket uses its FROZEN hours for real pairing: late/early still penalized', async () => {
     const date = '2099-08-10';
     await seedRegisteredShift(date);
+    // Live punches exist (offsite, withinNetwork defaults true here since
+    // these are raw testDbBypass seeds — the point of this test is the
+    // TICKET's frozen hours, not the live punch rows) matching the ticket.
     await testDbBypass((tx) =>
       tx.timePunch.createMany({
         data: [
-          { facilityId, appUserId: employeeAppUserId, method: 'ip', punchAt: ictToUtc(date, '10:00') }, // 60 min late
-          { facilityId, appUserId: employeeAppUserId, method: 'ip', punchAt: ictToUtc(date, '15:00') }, // 120 min early
+          { facilityId, appUserId: employeeAppUserId, method: 'ip', punchAt: ictToUtc(date, '10:00'), withinNetwork: false }, // 60 min late
+          { facilityId, appUserId: employeeAppUserId, method: 'ip', punchAt: ictToUtc(date, '15:00'), withinNetwork: false }, // 120 min early
         ],
       }),
     );
-    await seedTicket(date, 'approved');
+    await seedTicket(date, 'approved', { checkIn: '10:00', checkOut: '15:00' });
 
     const payslip = await directorCaller().payslip.assemble({
       appUserId: employeeAppUserId,
       period: TEST_PERIOD,
     });
 
-    expect(payslip.lateMinutes).toBe(0);
-    expect(payslip.earlyMinutes).toBe(0);
-    expect(Number(payslip.penaltyAmount)).toBe(0);
+    // Approval made the day VALID for pairing — it did NOT erase the real
+    // late/early hours frozen on the ticket. Same numbers as the "pending"
+    // case below would show IF pending also counted (it doesn't — this test
+    // proves approval ≠ blanket exemption, it means "this day's frozen hours
+    // now count exactly like live on-network punches would").
+    expect(payslip.lateMinutes).toBe(60);
+    expect(payslip.earlyMinutes).toBe(120);
+    expect(Number(payslip.penaltyAmount)).toBe(60 * 500 + 120 * 1000);
     expect(payslip.unpunchedDays).toBe(0);
   });
 
-  it('pending ticket does NOT exempt — late/early punches are still penalized', async () => {
+  it('ADR 0043 — offsite punches + pending ticket → day is NOT valid: unpunched, no late/early penalty', async () => {
     const date = '2099-08-11';
     await seedRegisteredShift(date);
     await testDbBypass((tx) =>
       tx.timePunch.createMany({
         data: [
-          { facilityId, appUserId: employeeAppUserId, method: 'ip', punchAt: ictToUtc(date, '10:00') }, // 60 min late
-          { facilityId, appUserId: employeeAppUserId, method: 'ip', punchAt: ictToUtc(date, '15:00') }, // 120 min early
+          { facilityId, appUserId: employeeAppUserId, method: 'ip', punchAt: ictToUtc(date, '10:00'), withinNetwork: false },
+          { facilityId, appUserId: employeeAppUserId, method: 'ip', punchAt: ictToUtc(date, '15:00'), withinNetwork: false },
         ],
       }),
     );
-    await seedTicket(date, 'pending');
+    await seedTicket(date, 'pending', { checkIn: '10:00', checkOut: '15:00' });
 
     const payslip = await directorCaller().payslip.assemble({
       appUserId: employeeAppUserId,
       period: TEST_PERIOD,
     });
 
-    expect(payslip.lateMinutes).toBe(60);
-    expect(payslip.earlyMinutes).toBe(120);
-    expect(Number(payslip.penaltyAmount)).toBe(60 * 500 + 120 * 1000);
+    // Not approved → day is invalid for pairing entirely (ADR 0043 Edge Case
+    // Ledger: "phiếu pending → không công, dù có 2 punch") — unpunched, NOT
+    // a late/early penalty on the raw punch times.
+    expect(payslip.unpunchedDays).toBe(1);
+    expect(payslip.lateMinutes).toBe(0);
+    expect(payslip.earlyMinutes).toBe(0);
+    expect(Number(payslip.penaltyAmount)).toBe(0);
   });
 });
 
@@ -251,13 +273,22 @@ describe('manual ticket approved AFTER finalize', () => {
     const finalized = await directorCaller().payslip.finalize({ payslipId: assembled.id });
     expect(finalized.status).toBe('finalized');
 
-    // Employee submits a manual ticket for that date AFTER the period was finalized.
-    const ticket = await caller(
-      buildStaffContext({ facilityId, userId: EMPLOYEE_USER_ID, roles: ['giao_vien'] }),
-    ).manualPunch.create({ ticketDate: date, note: 'Quên chấm công' });
+    // Employee's manual ticket for that date, created AFTER the period was
+    // finalized. ADR 0043 phase 4 removed manualPunch.create (tickets now
+    // only originate from checkInOut.punch's ensureDayTicket) — seed directly.
+    const ticket = await testDbBypass((tx) =>
+      tx.manualAttendanceTicket.create({
+        data: { facilityId, appUserId: employeeAppUserId, ticketDate: ictToUtc(date, '00:00'), note: 'Quên chấm công' },
+      }),
+    );
     expect(ticket.status).toBe('pending');
 
-    const approveResult = await directorCaller().manualPunch.approve({ ticketId: ticket.id, note: '' });
+    // ADR 0043 phase 4: approval is gated by GĐ track (owner is giao_vien →
+    // requires giam_doc_dao_tao), and this file's directorCtx is deliberately
+    // giam_doc_kinh_doanh (out-of-branch here, same as elsewhere in this
+    // file) — use superAdminCaller() to bypass, consistent with the file's
+    // existing branch-scope workaround convention.
+    const approveResult = await superAdminCaller().manualPunch.approve({ ticketId: ticket.id, note: '' });
     expect(approveResult.status).toBe('approved');
     expect((approveResult as { warning?: string }).warning).toBe('PAYSLIP_FINALIZED');
 
@@ -274,11 +305,14 @@ describe('manual ticket approved AFTER finalize', () => {
     const date = '2099-08-16';
     await seedRegisteredShift(date);
 
-    const ticket = await caller(
-      buildStaffContext({ facilityId, userId: EMPLOYEE_USER_ID, roles: ['giao_vien'] }),
-    ).manualPunch.create({ ticketDate: date, note: 'Quên chấm công' });
+    const ticket = await testDbBypass((tx) =>
+      tx.manualAttendanceTicket.create({
+        data: { facilityId, appUserId: employeeAppUserId, ticketDate: ictToUtc(date, '00:00'), note: 'Quên chấm công' },
+      }),
+    );
 
-    const approveResult = await directorCaller().manualPunch.approve({ ticketId: ticket.id, note: '' });
+    // See branch-scope note above — same GĐKD-vs-giao_vien-owner mismatch.
+    const approveResult = await superAdminCaller().manualPunch.approve({ ticketId: ticket.id, note: '' });
     expect(approveResult.status).toBe('approved');
     expect((approveResult as { warning?: string }).warning).toBeUndefined();
   });

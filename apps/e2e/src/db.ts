@@ -345,8 +345,9 @@ export interface SeedTimePunchPairOptions {
   /** ICT `YYYY-MM-DD`. */
   date: string;
   /** ICT `HH:mm` — punched exactly at the shift boundary so
-   * `assignPunchesToShifts` (@cmc/domain-payroll) computes zero late/early
-   * penalty (full credit, `present: true`, `shortSpan: false`). */
+   * `computeDayAttendance` (@cmc/domain-payroll, via
+   * apps/api/src/attendance/resolve-day-credit.ts) computes zero late/early
+   * penalty (full credit, `present: true`). */
   startTime: string;
   endTime: string;
 }
@@ -375,6 +376,35 @@ export async function seedTimePunchPair(opts: SeedTimePunchPairOptions): Promise
             punchAt: ictToUtc(opts.date, opts.endTime),
           },
         ],
+      }),
+    { bypass: true },
+  );
+}
+
+/** Seeds an active `FacilityNetwork` row so `checkInOut.punch` treats a
+ * caller whose IP does not match `cidr` as offsite (ADR 0043) — without this,
+ * a facility with zero rows is "open mode" (every punch counts as
+ * within-network). Loopback (`127.0.0.1`/`::1`, what an e2e HTTP client hits)
+ * deliberately does NOT match the default `cidr` below, so seeding this with
+ * no arguments is enough to flip every subsequent punch in this facility to
+ * offsite for the rest of the run. */
+export async function seedFacilityNetwork(opts: {
+  facilityId: string;
+  cidr?: string;
+  label?: string;
+}): Promise<{ id: string }> {
+  return withFacility(
+    getDb(),
+    null,
+    (tx) =>
+      tx.facilityNetwork.create({
+        data: {
+          facilityId: opts.facilityId,
+          cidr: opts.cidr ?? '10.0.0.0/24',
+          label: opts.label ?? 'E2E office WiFi (does not match loopback)',
+          isActive: true,
+        },
+        select: { id: true },
       }),
     { bypass: true },
   );

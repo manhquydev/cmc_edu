@@ -125,7 +125,6 @@ const ACTIVE_ROLE_MATRIX: Array<{ key: string; allowed: readonly string[] }> = [
   { key: 'user.manage', allowed: [] },
   { key: 'facilityNetwork.manage', allowed: [] },
   { key: 'checkIn.punch', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'] },
-  { key: 'manualPunch.create', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'] },
   { key: 'manualPunch.approve', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'shift.manage', allowed: ['giam_doc_dao_tao', 'giam_doc_kinh_doanh'] },
   { key: 'shift.submit', allowed: ['giam_doc_dao_tao', 'giam_doc_kinh_doanh', 'giao_vien', 'sale'] },

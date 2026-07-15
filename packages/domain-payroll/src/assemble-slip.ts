@@ -73,11 +73,19 @@ export function assembleSlip(input: AssembleSlipInput): PayslipData {
   assertNonNegative(input.penaltyRatePerLateMinute, 'penaltyRatePerLateMinute');
   assertNonNegative(input.penaltyRatePerEarlyMinute, 'penaltyRatePerEarlyMinute');
 
-  const penaltyAmount = roundVnd(
+  const penaltyRaw = roundVnd(
     input.lateMinutes * input.penaltyRatePerLateMinute +
       input.earlyMinutes * input.penaltyRatePerEarlyMinute,
   );
-  // Floor at 0: an employee cannot owe the company money via payroll.
+  // ADR 0043 E1: cap the deduction at (baseSalary + kpiPartAmount) so
+  // `penaltyAmount` and `totalNet` reconcile — an employee cannot owe the
+  // company money via payroll, and the displayed penalty never implies a
+  // larger deduction than what was actually withheld. Reconciliation holds
+  // to whole-VND rounding tolerance (roundVnd(x−n) = roundVnd(x)−n for
+  // integer n), not sub-đồng exactness — immaterial since VND has no
+  // sub-unit currency.
+  const earningsCeiling = roundVnd(input.baseSalary + input.kpiPartAmount);
+  const penaltyAmount = Math.min(penaltyRaw, earningsCeiling);
   const totalNet = Math.max(0, roundVnd(input.baseSalary + input.kpiPartAmount - penaltyAmount));
 
   return {

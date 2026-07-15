@@ -15,14 +15,17 @@
 //                          into a concurrency-safe draft upsert (R2 #8: never
 //                          overwrites submitted+, P2002/P2025 race-safe).
 //
-// `tierMissing`/`shortSpanShifts` are informational flags surfaced on the
-// mutation RESPONSE only — KpiScore carries no dedicated columns for them
-// (phase 1's migration did not add any; schema.prisma is outside this
-// phase's file ownership). `tierMissing` is always re-derivable from
-// `tierIdSnapshot === null` on any already-persisted row; `shortSpanShifts`
-// is refresh-time-only signal for the director reviewing a freshly
-// refreshed draft (documented limitation — a full persisted audit trail is
-// a phase 5+ schema follow-up, not invented here).
+// `tierMissing` is an informational flag surfaced on the mutation RESPONSE
+// only — KpiScore carries no dedicated column for it (phase 1's migration
+// did not add one; schema.prisma is outside this phase's file ownership).
+// Always re-derivable from `tierIdSnapshot === null` on any already-
+// persisted row.
+//
+// ADR 0043 phase 6: `shortSpanShifts` REMOVED entirely (the span-based
+// anti-gaming flag had no equivalent in the day-level in/out pairing model
+// — see plan.md Validation Log #6 / Edge Case Ledger). `resolveKpiTargetRole`
+// re-exports the shared attendance resolver (R3 dedup — was duplicated with
+// payroll/router.ts's own copy, now a single implementation both import).
 
 import type { Prisma } from '@cmc/db';
 import {
@@ -33,23 +36,16 @@ import {
   ictToUtc,
   SESSION_DONE_ACTIVATED_AT,
 } from '@cmc/domain-time';
-import { assignPunchesToShifts, roundVnd, type ShiftWindow } from '@cmc/domain-payroll';
+import { roundVnd, type ShiftWindow } from '@cmc/domain-payroll';
+import { resolveDayCredit, type DayPunch, type DayTicket } from '../attendance/resolve-day-credit.js';
+import { resolveTargetRole } from '../attendance/resolve-target-role.js';
 import { badRequest } from '../errors.js';
 
 const PERIOD_RE = /^(\d{4})-(\d{2})$/;
 
-/**
- * Money-scope discriminator (R2-6): caller/target role, NEVER
- * `resolveShiftGroup(position)` (free-text, wrong tool for KPI/payroll
- * money decisions — same rationale as payroll/router.ts's
- * `resolvePayrollTargetRole`, duplicated here rather than imported since
- * payroll/router.ts does not export it and is owned by a different phase).
- */
-export function resolveKpiTargetRole(roles: readonly string[]): 'sale' | 'giao_vien' | null {
-  if (roles.includes('sale')) return 'sale';
-  if (roles.includes('giao_vien')) return 'giao_vien';
-  return null;
-}
+/** Re-exported under its original name — kpi/router.ts's 4 call sites and
+ * this module's own callers are unaffected by the R3 dedup. */
+export const resolveKpiTargetRole = resolveTargetRole;
 
 /** Narrow Prisma error-code check (same inline shape payroll/router.ts uses for P2025). */
 export function isPrismaErrorCode(err: unknown, code: string): boolean {
@@ -171,20 +167,20 @@ export async function collectTeacherHours(
 
 export interface CollectActualShiftsResult {
   shiftActual: number;
-  /** True when ANY counted shift's punch span was < 50% of nominal duration
-   * (R3-7 anti-gaming) — surfaced to the director reviewing the refreshed draft. */
-  shortSpanShifts: boolean;
 }
 
 /**
- * Công ca thực: DISTINCT (date, shiftTemplateId) pairs from `approved`
- * ShiftRegistration entries this ICT period that are either (a) fully
- * exempted by an `approved` ManualAttendanceTicket that date, or (b) paired
- * with a real in+out punch via `assignPunchesToShifts` (@cmc/domain-payroll
- * — the SAME module phase 2's per-shift late/early penalty uses, so punch↔ca
- * assignment has exactly one source of truth). Duplicate entries for the
- * same (date, shiftTemplateId) — across registrations or within one — are
- * collapsed to a single shift window before pairing (R3-8: no double count).
+ * Công ca thực (ADR 0043 phase 6): DISTINCT (date, shiftTemplateId) pairs
+ * from `approved` ShiftRegistration entries this ICT period, credited via
+ * `resolveDayCredit` (apps/api/src/attendance/resolve-day-credit.ts) — the
+ * SAME shared helper phase 5's payroll penalty uses, so payroll and KPI can
+ * never disagree on which days/shifts count (red-team R2). A day only
+ * credits the shifts whose window overlaps the day's [checkin,checkout)
+ * pair (E3) — live punches when every punch that day is within network, or
+ * the FROZEN checkInAt/checkOutAt of an approved ManualAttendanceTicket
+ * otherwise (R1). Duplicate entries for the same (date, shiftTemplateId) —
+ * across registrations or within one — are collapsed to a single shift
+ * window before crediting (R3-8: no double count).
  */
 export async function collectActualShifts(
   tx: Prisma.TransactionClient,
@@ -227,56 +223,46 @@ export async function collectActualShifts(
     }
   }
 
-  if (entriesByDate.size === 0) return { shiftActual: 0, shortSpanShifts: false };
+  if (entriesByDate.size === 0) return { shiftActual: 0 };
 
   const punches = await tx.timePunch.findMany({
     where: { appUserId, facilityId, punchAt: { gte: periodStart, lt: periodEnd } },
     orderBy: { punchAt: 'asc' },
   });
-  const punchesByDate = new Map<string, Date[]>();
+  const punchesByDate = new Map<string, DayPunch[]>();
   for (const punch of punches) {
     const dateKey = ictDateOnlyOf(punch.punchAt);
+    const entry: DayPunch = { punchAt: punch.punchAt, withinNetwork: punch.withinNetwork };
     const list = punchesByDate.get(dateKey);
-    if (list) list.push(punch.punchAt);
-    else punchesByDate.set(dateKey, [punch.punchAt]);
+    if (list) list.push(entry);
+    else punchesByDate.set(dateKey, [entry]);
   }
 
-  const approvedTickets = await tx.manualAttendanceTicket.findMany({
-    where: {
-      appUserId,
-      facilityId,
-      status: 'approved',
-      ticketDate: { gte: periodStart, lt: periodEnd },
-    },
+  const tickets = await tx.manualAttendanceTicket.findMany({
+    where: { appUserId, facilityId, ticketDate: { gte: periodStart, lt: periodEnd } },
   });
-  const exemptDates = new Set(approvedTickets.map((t) => ictDateOnlyOf(t.ticketDate)));
+  const ticketByDate = new Map<string, DayTicket>();
+  for (const t of tickets) {
+    ticketByDate.set(ictDateOnlyOf(t.ticketDate), { status: t.status, checkInAt: t.checkInAt, checkOutAt: t.checkOutAt });
+  }
 
   let shiftActual = 0;
-  let shortSpanShifts = false;
 
   for (const [dateKey, byTemplate] of entriesByDate) {
-    if (exemptDates.has(dateKey)) {
-      // Ticket-approved day = full credit for every shift registered that day.
-      shiftActual += byTemplate.size;
-      continue;
-    }
-
-    const dayWindows = [...byTemplate.entries()]
-      .map(([templateId, w]) => ({ templateId, ...w }))
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
-    const windows: ShiftWindow[] = dayWindows.map((w) => ({ id: w.templateId, start: w.start, end: w.end }));
-
-    const dayPunches = punchesByDate.get(dateKey) ?? [];
-    const result = assignPunchesToShifts(windows, dayPunches);
-    for (const outcome of result.shifts) {
-      if (outcome.present) {
-        shiftActual++;
-        if (outcome.shortSpan) shortSpanShifts = true;
-      }
-    }
+    const windows: ShiftWindow[] = [...byTemplate.entries()].map(([templateId, w]) => ({
+      id: templateId,
+      start: w.start,
+      end: w.end,
+    }));
+    const credit = resolveDayCredit({
+      shifts: windows,
+      dayPunches: punchesByDate.get(dateKey) ?? [],
+      ticket: ticketByDate.get(dateKey),
+    });
+    shiftActual += credit.creditedShiftIds.length;
   }
 
-  return { shiftActual, shortSpanShifts };
+  return { shiftActual };
 }
 
 // ---------------------------------------------------------------------------
@@ -313,7 +299,6 @@ export interface RefreshKpiScoreParams {
 export interface RefreshKpiScoreResult {
   score: Prisma.KpiScoreGetPayload<Record<string, never>>;
   tierMissing: boolean;
-  shortSpanShifts: boolean;
 }
 
 /**
@@ -391,7 +376,7 @@ export async function refreshKpiScore(
     score = existing; // never overwrite submitted+
   }
 
-  return { score, tierMissing, shortSpanShifts: shiftResult.shortSpanShifts };
+  return { score, tierMissing };
 }
 
 async function draftUpdateOrCurrent(

@@ -42,7 +42,7 @@ narrow `status==='success'`** trước khi đọc payload. Đây là hợp đồ
 
 **`data.appCode` (HR remediation phase 4):** `errorFormatter` (apps/api/src/trpc.ts) additive-only
 copy `appCode` từ `AppCodeError` (apps/api/src/errors.ts) sang `shape.data.appCode` khi lỗi mang mã
-máy-đọc-được cụ thể hơn `code` chuẩn (vd `IP_NOT_ALLOWED`, `COOLDOWN` — `checkInOut.punch`). Lỗi
+máy-đọc-được cụ thể hơn `code` chuẩn (vd `OFFSITE_REASON_REQUIRED`, `COOLDOWN` — `checkInOut.punch`). Lỗi
 thường (`TRPCError`/Prisma rethrow) không có `appCode` — FE kiểm `data?.appCode` optional, không suy
 diễn từ message.
 
@@ -93,10 +93,10 @@ diễn từ message.
 
 | Procedure | Loại | Quyền | Ghi chú |
 |---|---|---|---|
-| `checkInOut.punch` | mutation | `checkInOut.punch` | trong WiFi/IP facility; lỗi mang `appCode` `IP_NOT_ALLOWED`/`COOLDOWN` |
-| `manualPunch.create` | mutation | `manualPunch.create` | `{ ticketDate, note? }` — phiếu bù chấm công quên |
-| `manualPunch.approve` / `reject` | mutation | `manualPunch.approve` | direct-manager hoặc super_admin; anti-self-approve |
-| `manualPunch.list` | query | protected | `{ scope: 'inbox'\|'mine', status? }` — inbox = cấp dưới trực tiếp (hoặc mọi ticket nếu super_admin) |
+| `checkInOut.punch` | mutation | `checkInOut.punch` | `{ reason?: string }` — ghi mốc vào/ra ngày (ADR 0043); ngoài mạng lần đầu trong ngày (có ca đăng ký, chưa có phiếu) mà thiếu `reason` → `appCode: OFFSITE_REASON_REQUIRED`; double-tap <10s → `appCode: COOLDOWN` |
+| `manualPunch.resubmit` | mutation | `manualPunch.resubmit` | `{ ticketId, reason }` — chỉ chủ phiếu, chỉ khi `rejected`; cập nhật dòng cũ (không tạo dòng mới) |
+| `manualPunch.approve` / `reject` | mutation | `manualPunch.approve` | GĐ theo track của chủ phiếu (sale→`giam_doc_kinh_doanh`, giáo viên→`giam_doc_dao_tao`, `super_admin` mọi phiếu); anti-self-approve; TOCTOU-safe (`updateMany WHERE status IN (pending,resubmitted)`) |
+| `manualPunch.list` | query | protected | `{ scope: 'inbox'\|'mine', status? }` — inbox = phiếu track caller có quyền duyệt (hoặc mọi ticket nếu super_admin) |
 | `shift.createGroup` / `createTemplate` | mutation | `shift.manage` (GĐKD/GĐĐT) | catalog ShiftGroup/ShiftTemplate |
 | `shift.submit` | mutation | `shift.submit` | `{ shiftGroupId, fromDate, toDate, entries[] }` — ticket-lock 1 `submitted`/appUser, `fromDate` phải tương lai, group-type khớp `resolveShiftGroup(position)` |
 | `shift.approve` / `reject` | mutation | `shift.approve` | anti-self + gate group-type (GIAO_VIEN↔`giam_doc_dao_tao`, KINH_DOANH↔`giam_doc_kinh_doanh`, super_admin bypass); `reject` bắt buộc `reason` (≥3 ký tự), ghi `rejectReason`, giải phóng ticket-lock + overlap |

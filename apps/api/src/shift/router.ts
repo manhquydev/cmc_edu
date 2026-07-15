@@ -43,12 +43,23 @@ const createGroupInput = z.object({
   selectionMode: z.enum(['SINGLE', 'MULTIPLE']),
 });
 
-const createTemplateInput = z.object({
-  shiftGroupId: z.string().uuid(),
-  name: z.string().min(1).max(200),
-  startTime: z.string().regex(TIME_RE, 'Expected HH:mm'),
-  endTime: z.string().regex(TIME_RE, 'Expected HH:mm'),
-});
+const createTemplateInput = z
+  .object({
+    shiftGroupId: z.string().uuid(),
+    name: z.string().min(1).max(200),
+    startTime: z.string().regex(TIME_RE, 'Expected HH:mm'),
+    endTime: z.string().regex(TIME_RE, 'Expected HH:mm'),
+  })
+  // ADR 0043 phase 8 edge case: overnight shifts (end <= start) are not
+  // supported by the day-level attendance model (`computeDayAttendance`
+  // assumes a same-day [start,end) window) — reject at creation instead of
+  // producing a negative-duration window that corrupts overlap/late-minute
+  // math downstream. HH:mm strings compare correctly as plain strings since
+  // both are zero-padded to the same width.
+  .refine((input) => input.endTime > input.startTime, {
+    message: 'endTime must be after startTime (overnight shifts are not supported).',
+    path: ['endTime'],
+  });
 
 const submitInput = z.object({
   shiftGroupId: z.string().uuid(),

@@ -21,15 +21,26 @@
 //   - baseSalary = the assigned SalaryTier's baseSalary.
 //   - kpiPartAmount = KpiScore.value for a period slip in status
 //     confirmed|approved, else 0 ("PHẦN NHÂN" — phase 3 computes `value`).
-//   - Per-shift late/early penalty (R3-6/R3-7): each ShiftRegistrationEntry
-//     of a day is paired against that day's punches via
-//     `assignPunchesToShifts` (@cmc/domain-payroll) — punches are not reused
-//     across shifts, entries are processed in ShiftTemplate.startTime order.
-//     A shift missing either half of its punch pair is "vắng": no wage, no
-//     minute penalty, counted into `unpunchedDays`.
-//   - A day with an APPROVED ManualAttendanceTicket is fully exempted: every
-//     shift registered that day is credited (no unpunched, no penalty),
-//     bypassing the punch-pairing pass entirely for that date.
+//   - Daily in/out pairing (ADR 0043, docs/decisions/0043-attendance-daily-inout-pairing.md):
+//     for each registered day, `resolveDayCredit` (shared with KPI, phase 6 —
+//     apps/api/src/attendance/resolve-day-credit.ts) decides validity + credit:
+//       - every punch that day within network → pairs against the LIVE
+//         punches (day's first punch = checkin, last = checkout — see
+//         `computeDayAttendance`, @cmc/domain-payroll).
+//       - any offsite punch + an APPROVED ticket for that day → pairs
+//         against the ticket's FROZEN checkInAt/checkOutAt instead (never
+//         live punches — a punch arriving after review can't retroactively
+//         change an already-reviewed day).
+//       - otherwise (offsite + no ticket, or ticket pending/resubmitted/
+//         rejected) → the day is NOT valid: every entry that date counts
+//         into `unpunchedDays`, zero late/early.
+//     A shift is only credited if its window overlaps [checkin,checkout)
+//     (E3) — a shift the pair never touches counts into `unpunchedDays`
+//     without distorting the day's late/early minutes. Late/early are
+//     computed ONCE per day against the tightest window covering only the
+//     CREDITED shifts, not per-shift.
+//   - `flaggedPunches` counts punches on days with NO registered shift entry
+//     at all (display-only, never penalized) — unrelated to the credit loop.
 //   - Penalty rates come from the facility's CompensationPolicy row, falling
 //     back to 500/1000 VND/minute when none exists.
 //   - Calls assembleSlip() from @cmc/domain-payroll for the arithmetic.
@@ -46,7 +57,9 @@
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { ictMonthBounds, ictDateOnlyOf, ictToUtc } from '@cmc/domain-time';
-import { assembleSlip, assignPunchesToShifts, type ShiftWindow } from '@cmc/domain-payroll';
+import { assembleSlip, type ShiftWindow } from '@cmc/domain-payroll';
+import { resolveDayCredit, type DayPunch, type DayTicket } from '../attendance/resolve-day-credit.js';
+import { resolveTargetRole } from '../attendance/resolve-target-role.js';
 import { AppCodeError, badRequest, forbidden, notFound } from '../errors.js';
 import { protectedProcedure, requirePermission, router, scoped } from '../trpc.js';
 
@@ -55,18 +68,6 @@ const PERIOD_RE = /^\d{4}-\d{2}$/;
 /** R3-13/docs: named fallback used ONLY when a facility has no CompensationPolicy row. */
 const FALLBACK_PENALTY_RATE_PER_LATE_MINUTE = 500;
 const FALLBACK_PENALTY_RATE_PER_EARLY_MINUTE = 1000;
-
-/**
- * Payslip/KpiScore/tier target roles (validate session 4 — "lương GĐ ngoài
- * hệ thống"). Deliberately checks `AppUser.roles` (RBAC truth), NOT
- * `AppUser.position` free text — `resolveShiftGroup(position)` from
- * @cmc/domain-time is the WRONG tool for money-scope decisions (R2-6).
- */
-function resolvePayrollTargetRole(roles: readonly string[]): 'sale' | 'giao_vien' | null {
-  if (roles.includes('sale')) return 'sale';
-  if (roles.includes('giao_vien')) return 'giao_vien';
-  return null;
-}
 
 const GD_OUTSIDE_PAYROLL_MESSAGE =
   'Lương giám đốc/super_admin ngoài hệ thống — chỉ áp dụng cho sale/giáo viên.';
@@ -141,7 +142,7 @@ export const compensationRouter = router({
         });
         if (!appUser) throw notFound('AppUser not found in this facility.');
 
-        const targetRole = resolvePayrollTargetRole(appUser.roles);
+        const targetRole = resolveTargetRole(appUser.roles);
         if (!targetRole) throw badRequest(GD_OUTSIDE_PAYROLL_MESSAGE);
 
         const tier = await tx.salaryTier.findFirst({
@@ -306,7 +307,7 @@ export const payslipRouter = router({
           where: { id: input.appUserId, facilityId },
         });
         if (!appUser) throw notFound('AppUser not found in this facility.');
-        if (!resolvePayrollTargetRole(appUser.roles)) {
+        if (!resolveTargetRole(appUser.roles)) {
           throw badRequest(GD_OUTSIDE_PAYROLL_MESSAGE);
         }
 
@@ -334,6 +335,8 @@ export const payslipRouter = router({
         const [periodStart, periodEnd] = ictMonthBounds(input.period);
 
         // Live TimePunches for the period, grouped by ICT calendar date
+        // (ADR 0043: kept WITH the withinNetwork flag — resolveDayCredit
+        // decides live-vs-frozen-ticket pairing per day).
         const punches = await tx.timePunch.findMany({
           where: {
             appUserId: input.appUserId,
@@ -341,12 +344,13 @@ export const payslipRouter = router({
           },
           orderBy: { punchAt: 'asc' },
         });
-        const punchesByDate = new Map<string, Date[]>();
+        const punchesByDate = new Map<string, DayPunch[]>();
         for (const punch of punches) {
           const dateKey = ictDateOnlyOf(punch.punchAt);
           const list = punchesByDate.get(dateKey);
-          if (list) list.push(punch.punchAt);
-          else punchesByDate.set(dateKey, [punch.punchAt]);
+          const entry: DayPunch = { punchAt: punch.punchAt, withinNetwork: punch.withinNetwork };
+          if (list) list.push(entry);
+          else punchesByDate.set(dateKey, [entry]);
         }
 
         // Approved ShiftRegistrationEntries for the period, grouped by ICT
@@ -382,17 +386,21 @@ export const payslipRouter = router({
           list.sort((a, b) => a.startTime.localeCompare(b.startTime));
         }
 
-        // Approved ManualAttendanceTicket dates → full exemption for every
-        // shift registered that day (bypass unpunched + penalty entirely).
-        const approvedTickets = await tx.manualAttendanceTicket.findMany({
-          where: {
-            appUserId: input.appUserId,
-            facilityId,
-            status: 'approved',
-            ticketDate: { gte: periodStart, lt: periodEnd },
-          },
+        // ManualAttendanceTickets this period, keyed by ICT date (ADR 0043:
+        // resolveDayCredit needs status + frozen checkInAt/checkOutAt for
+        // ANY status, not just approved — pending/rejected days are simply
+        // "not valid", handled inside resolveDayCredit).
+        const tickets = await tx.manualAttendanceTicket.findMany({
+          where: { appUserId: input.appUserId, facilityId, ticketDate: { gte: periodStart, lt: periodEnd } },
         });
-        const exemptDates = new Set(approvedTickets.map((t) => ictDateOnlyOf(t.ticketDate)));
+        const ticketByDate = new Map<string, DayTicket>();
+        for (const t of tickets) {
+          ticketByDate.set(ictDateOnlyOf(t.ticketDate), {
+            status: t.status,
+            checkInAt: t.checkInAt,
+            checkOutAt: t.checkOutAt,
+          });
+        }
 
         let lateMinutes = 0;
         let earlyMinutes = 0;
@@ -400,24 +408,19 @@ export const payslipRouter = router({
         let flaggedPunches = 0;
 
         for (const [dateKey, entries] of entriesByDate) {
-          if (exemptDates.has(dateKey)) continue; // ticket-approved: fully credited
-
-          const dayPunches = punchesByDate.get(dateKey) ?? [];
           const windows: ShiftWindow[] = entries.map((e) => ({
             id: e.id,
             start: e.start,
             end: e.end,
           }));
-          const result = assignPunchesToShifts(windows, dayPunches);
-          for (const outcome of result.shifts) {
-            if (!outcome.present) {
-              unpunchedDays++;
-            } else {
-              lateMinutes += outcome.lateMinutes;
-              earlyMinutes += outcome.earlyMinutes;
-            }
-          }
-          flaggedPunches += result.unassignedPunches.length;
+          const credit = resolveDayCredit({
+            shifts: windows,
+            dayPunches: punchesByDate.get(dateKey) ?? [],
+            ticket: ticketByDate.get(dateKey),
+          });
+          unpunchedDays += entries.length - credit.creditedShiftIds.length;
+          lateMinutes += credit.lateMinutes;
+          earlyMinutes += credit.earlyMinutes;
         }
 
         // Punches on days with NO registered shift entry at all → flagged

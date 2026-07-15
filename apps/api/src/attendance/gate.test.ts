@@ -11,6 +11,7 @@ import {
   cleanupFacility,
   createTestFacility,
   seedActiveEnrollment,
+  seedAppUser,
   seedClassBatch,
   testDbBypass,
 } from '../test/db.js';
@@ -32,6 +33,14 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
       buildStaffContext({ facilityId: facility.id, userId: 'gddt-att-1', roles: ['giam_doc_dao_tao'] }),
     );
     classBatch = await seedClassBatch({ facilityId: facility.id });
+    // Teacher class-scoping remediation (2026-07-15): every write now checks
+    // ClassBatch.teacherAppUserId — seed the teacher's AppUser + assign it as
+    // this class's teacher so the existing gate/lifecycle tests (which are
+    // NOT about scoping) keep exercising the happy path.
+    const teacherAppUser = await seedAppUser({ facilityId: facility.id, userId: 'teacher-att-1' });
+    await testDbBypass((tx) =>
+      tx.classBatch.update({ where: { id: classBatch.id }, data: { teacherAppUserId: teacherAppUser.id } }),
+    );
   });
 
   afterEach(async () => {
@@ -169,6 +178,51 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
     expect(rows[0]?.status).toBe('late');
   });
 
+  it('Metric & Data Integrity remediation (scenario audit): correcting attendance (absent -> present) refreshes an already-computed FinalGrade', async () => {
+    const session = await seedSession();
+    const enrollment = await seedActiveEnrollment({ facilityId: facility.id, classBatchId: classBatch.id });
+
+    await teacher.attendance.mark({ sessionId: session.id, enrollmentId: enrollment.id, status: 'absent' });
+    const period = ictMonthOf(session.endTime);
+    const afterAbsent = await testDbBypass((tx) =>
+      tx.finalGrade.findUniqueOrThrow({
+        where: { studentId_classBatchId_period: { studentId: enrollment.studentId, classBatchId: classBatch.id, period } },
+      }),
+    );
+
+    // Correct the mistake: the student was actually present.
+    await teacher.attendance.mark({ sessionId: session.id, enrollmentId: enrollment.id, status: 'present' });
+    const afterPresent = await testDbBypass((tx) =>
+      tx.finalGrade.findUniqueOrThrow({
+        where: { studentId_classBatchId_period: { studentId: enrollment.studentId, classBatchId: classBatch.id, period } },
+      }),
+    );
+
+    // attendanceRate went 0 -> 1 for this student's only session this
+    // period, so the score component must have risen too — no stale
+    // "rate looks right but score is from before the correction" report.
+    expect(Number(afterPresent.score)).toBeGreaterThan(Number(afterAbsent.score));
+  });
+
+  it('markAll recomputes FinalGrade once per student (not once per entry) when marking a whole roster', async () => {
+    const session = await seedSession();
+    const enrollment = await seedActiveEnrollment({ facilityId: facility.id, classBatchId: classBatch.id });
+
+    await teacher.attendance.markAll({
+      sessionId: session.id,
+      entries: [{ enrollmentId: enrollment.id, status: 'present' }],
+    });
+
+    const period = ictMonthOf(session.endTime);
+    const finalGrade = await testDbBypass((tx) =>
+      tx.finalGrade.findUnique({
+        where: { studentId_classBatchId_period: { studentId: enrollment.studentId, classBatchId: classBatch.id, period } },
+      }),
+    );
+    expect(finalGrade).not.toBeNull();
+    expect(Number(finalGrade!.score)).toBeGreaterThan(0); // full attendance this period
+  });
+
   it('forbids a role without attendance.mark permission', async () => {
     const session = await seedSession();
     const enrollment = await seedActiveEnrollment({ facilityId: facility.id, classBatchId: classBatch.id });
@@ -304,6 +358,17 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
     const persisted = await testDbBypass((tx) => tx.classSession.findUniqueOrThrow({ where: { id: result.id } }));
     expect(persisted.isMakeup).toBe(true);
     expect(persisted.status).toBe('planned');
+  });
+
+  it('Low-Severity Hygiene remediation (scenario audit): addMakeup rejects a sessionDate outside [classBatch.startDate, endDate]', async () => {
+    await expect(
+      gddt.classSession.addMakeup({
+        classBatchId: classBatch.id,
+        sessionDate: '2026-09-15', // batch runs 2026-08-01..2026-08-31
+        startTime: '18:00',
+        endTime: '19:30',
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
   it('classSession.addMakeup rejects an overlapping room booking with CONFLICT (shared assertNoRoomConflict)', async () => {

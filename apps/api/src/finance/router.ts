@@ -11,10 +11,12 @@ import {
   nextReceiptCode,
   RefundCapExceededError,
 } from '@cmc/domain-finance';
+import { InvalidPhoneError, normalizeLoginPhone } from '@cmc/domain-identity';
 import { withFacility, type Prisma, type PrismaClient } from '@cmc/db';
 import { can } from '@cmc/auth';
 import type { AuthSubject, Role } from '@cmc/auth';
 import { badRequest, conflict, forbidden, notFound } from '../errors.js';
+import { ReceiptNoLongerApprovedError } from '../enrollment/activate-enrollment.js';
 import { provisionFromReceipt } from '../provisioning/provision-from-receipt.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
@@ -63,6 +65,27 @@ const GLOBAL_RECEIPT_CODE_COUNTER_KEY = 'GLOBAL_RECEIPT_CODE';
  */
 const vndAmountSchema = z.number().int().positive().max(1_000_000_000_000);
 
+/**
+ * `ParentAccount.phone` is always stored NORMALIZED (see
+ * ../provisioning/provision-from-receipt.ts's `findOrCreateParentAccount`),
+ * but `Receipt.parentPhone`/`receiptCreateInput.parentPhone` is the RAW value
+ * sale typed — a plain `findUnique({where:{phone: input.parentPhone}})` would
+ * silently miss a real existing ParentAccount whenever the raw and normalized
+ * forms differ (e.g. `0994000001` vs its normalized form). `receiptCreate`'s
+ * phone field has no format validation (legacy/foreign numbers are allowed
+ * through), so an unparseable phone is treated as "no match" here rather than
+ * rejecting the receipt — this lookup is a best-effort dedup aid, not a
+ * validation gate.
+ */
+function tryNormalizePhone(raw: string): string | null {
+  try {
+    return normalizeLoginPhone(raw);
+  } catch (error) {
+    if (error instanceof InvalidPhoneError) return null;
+    throw error;
+  }
+}
+
 const receiptCreateInput = z.object({
   opportunityId: z.string().uuid().optional(),
   /** H3 remediation: the existing Student being renewed, when this receipt
@@ -77,6 +100,12 @@ const receiptCreateInput = z.object({
   parentEmail: z.string().email().optional(),
   amount: vndAmountSchema,
   classBatchId: z.string().min(1).optional(),
+  /** Metric & Data Integrity remediation (scenario audit, PO round 3): set
+   * ONLY when the caller has confirmed this phone genuinely has a NEW child
+   * despite already owning ≥1 provisioned Student in this facility — bypasses
+   * the `needs_confirmation` gate below. Ignored/harmless on a phone with no
+   * existing students. */
+  confirmNewStudent: z.boolean().optional().default(false),
 });
 
 export interface ReceiptDto {
@@ -101,7 +130,13 @@ export interface ReceiptDto {
 
 export type ReceiptCreateResult =
   | { status: 'success'; receipt: ReceiptDto }
-  | { status: 'warning'; receipt: ReceiptDto; message: string };
+  | { status: 'warning'; receipt: ReceiptDto; message: string }
+  /** Metric & Data Integrity remediation (scenario audit, PO round 3): the
+   * phone already owns ≥1 provisioned Student in this facility and the
+   * caller did not disambiguate. No Receipt is created — resubmit the SAME
+   * call with either `studentId` (an entry from `existingStudents`, existing
+   * child) or `confirmNewStudent: true` (genuinely a new child). */
+  | { status: 'needs_confirmation'; message: string; existingStudents: { id: string; fullName: string }[] };
 
 /** Shape returned by Prisma for a Receipt row (Decimal netAmount). */
 interface ReceiptRow {
@@ -180,7 +215,12 @@ const receiptApproveInput = z.object({
 export interface ReceiptApproveResult {
   receipt: ReceiptDto;
   opportunityStage: string | null;
-  provisioning: 'ok' | 'pending';
+  /** C1 remediation: 'aborted' means provisioning correctly refused to run
+   * because the receipt was no longer 'approved' by the time it started
+   * (e.g. cancelled in the same window) — distinct from 'pending', which
+   * means a genuine, retryable failure (missing classBatchId, transient
+   * error) recorded a `retry_pending` marker for the reconciler to replay. */
+  provisioning: 'ok' | 'pending' | 'aborted';
 }
 
 /**
@@ -225,16 +265,32 @@ async function runMoneyTransaction(
   }
 
   // Kind MUST be computed before the stage/status mutation below.
-  const priorApprovedReceipt = await tx.receipt.findFirst({
-    where: {
-      facilityId,
-      parentPhone: receipt.parentPhone,
-      status: 'approved',
-      id: { not: receipt.id },
-    },
-    select: { id: true },
-  });
-  const kind = computeReceiptKind(priorApprovedReceipt !== null);
+  //
+  // Metric & Data Integrity remediation (scenario audit): student-scoped, not
+  // phone-scoped — 2 siblings paid under the same phone must each be 'new'
+  // on their own first receipt, not the second sibling wrongly labelled
+  // 'renewal' just because the phone repeats. A receipt with no `studentId`
+  // is, by construction (the duplicate-student gate in `receiptCreate`
+  // above), always establishing a brand-new Student — inherently 'new', no
+  // query needed. Only an explicit renewal (`studentId` set) can be 'renewal',
+  // and only if THAT student has a prior approved receipt of their own.
+  const priorApprovedReceiptForStudent = receipt.studentId
+    ? await tx.receipt.findFirst({
+        where: {
+          facilityId,
+          status: 'approved',
+          id: { not: receipt.id },
+          // A student's very first ("new") receipt never had `studentId` set
+          // on itself (only later renewal receipts explicitly name it) — it
+          // is instead the one Student.createdByReceiptId points back to.
+          // Match either shape so a student's SECOND receipt (their first
+          // real renewal) actually finds the first one.
+          OR: [{ studentId: receipt.studentId }, { student: { id: receipt.studentId } }],
+        },
+        select: { id: true },
+      })
+    : null;
+  const kind = computeReceiptKind(priorApprovedReceiptForStudent !== null);
 
   // Atomic claim: the `status: 'draft'` predicate in the WHERE means only one
   // concurrent transaction can flip draft -> approved. Under a concurrent
@@ -264,9 +320,16 @@ async function runMoneyTransaction(
     if (!opportunity) {
       throw notFound('Linked opportunity not found.');
     }
+    // Metric & Data Integrity remediation (scenario audit): a SECOND
+    // approved receipt on the same opportunity (e.g. a sibling enrolled via
+    // the same opportunity) must not overwrite the opportunity's original
+    // `closedAt` — only the transition INTO O5_ENROLLED sets it.
     const advanced = await tx.opportunity.update({
       where: { id: opportunity.id },
-      data: { stage: 'O5_ENROLLED', closedAt: new Date() },
+      data: {
+        stage: 'O5_ENROLLED',
+        ...(opportunity.stage !== 'O5_ENROLLED' ? { closedAt: new Date() } : {}),
+      },
     });
     opportunityStage = advanced.stage;
   }
@@ -622,7 +685,7 @@ export const financeRouter = router({
         throw badRequest('classBatchId is required to create a receipt.');
       }
 
-      const { created, dupWarning, opportunityNotAtO4Warning } = await withFacility(
+      const result = await withFacility(
         ctx.db,
         facilityId,
         async (tx) => {
@@ -665,14 +728,46 @@ export const financeRouter = router({
             }
           }
 
+          const normalizedPhone = tryNormalizePhone(input.parentPhone);
           const [existingParentAccount, existingReceiptForPhone] = await Promise.all([
-            tx.parentAccount.findUnique({ where: { phone: input.parentPhone } }),
+            normalizedPhone ? tx.parentAccount.findUnique({ where: { phone: normalizedPhone } }) : null,
             tx.receipt.findFirst({ where: { facilityId, parentPhone: input.parentPhone } }),
           ]);
+
+          // Metric & Data Integrity remediation (scenario audit, PO round 3):
+          // once this phone owns ≥1 REAL (provisioned — Guardian only ever
+          // exists after a receipt actually provisioned a Student, see
+          // ../provisioning/provision-from-receipt.ts) Student in this
+          // facility, a fresh receipt for this phone MUST disambiguate
+          // (studentId = existing child, or confirmNewStudent = genuinely
+          // new) before anything is created. Activates on EVERY repeat —
+          // matching name is NOT exempted (2 real kids can share a common
+          // Vietnamese name; more likely sale simply forgot to pick).
+          const existingStudents = existingParentAccount
+            ? await tx.student.findMany({
+                where: { facilityId, guardians: { some: { parentAccountId: existingParentAccount.id } } },
+                select: { id: true, fullName: true },
+              })
+            : [];
+
+          // The old soft dup-phone warning is redundant (and confusing —
+          // "please confirm" right after the caller JUST confirmed) once the
+          // stronger gate below either blocked this phone or the caller
+          // explicitly disambiguated it (studentId/confirmNewStudent). Only
+          // warn on the phone-repeats facts when there is NO student-level
+          // signal to act on them (e.g. a parent account / prior draft
+          // receipt with no provisioned children yet).
           const dupWarning = duplicatePhoneWarning(
-            existingParentAccount !== null,
-            existingReceiptForPhone !== null,
+            existingParentAccount !== null && existingStudents.length === 0,
+            existingReceiptForPhone !== null && existingStudents.length === 0,
           );
+
+          if (!input.studentId && !input.confirmNewStudent && existingStudents.length > 0) {
+            return {
+              needsConfirmation: true as const,
+              existingStudents,
+            };
+          }
 
           // Atomic code assignment: a single upsert/increment avoids a
           // read-then-write race on `ReceiptCodeCounter.value` (docs/11 §4).
@@ -718,9 +813,19 @@ export const financeRouter = router({
             },
           });
 
-          return { created, dupWarning, opportunityNotAtO4Warning };
+          return { needsConfirmation: false as const, created, dupWarning, opportunityNotAtO4Warning };
         },
       );
+
+      if (result.needsConfirmation) {
+        return {
+          status: 'needs_confirmation',
+          message:
+            'Số điện thoại này đã có học sinh trong hệ thống — vui lòng chọn bé đã có hoặc xác nhận đây là bé mới.',
+          existingStudents: result.existingStudents,
+        };
+      }
+      const { created, dupWarning, opportunityNotAtO4Warning } = result;
 
       const dto = toReceiptDto(created, ctx.subject ?? undefined);
 
@@ -751,7 +856,7 @@ export const financeRouter = router({
       // manages its own per-step RLS scoping internally (see that file) —
       // its find-or-create steps must NOT share one transaction, so partial
       // progress survives a later mid-provisioning failure (ADR 0041 replay).
-      let provisioning: 'ok' | 'pending' = 'ok';
+      let provisioning: 'ok' | 'pending' | 'aborted' = 'ok';
       try {
         await provisionFromReceipt(ctx.db, {
           id: receipt.id,
@@ -763,16 +868,35 @@ export const financeRouter = router({
           studentId: receipt.studentId,
         });
       } catch (error) {
-        provisioning = 'pending';
-        await ctx.db.auditLog.create({
-          data: {
-            actor: 'system',
-            action: 'provisioning.retry_pending',
-            entity: 'Receipt',
-            entityId: receipt.id,
-            data: { error: error instanceof Error ? error.message : String(error) },
-          },
-        });
+        // C1 remediation: a receipt cancelled in the window between this
+        // money-commit and provisioning's enrollment step is NOT a retryable
+        // failure — replaying provisioning for a cancelled receipt would be
+        // wrong (and the guard would keep aborting it anyway). Record
+        // `aborted`, not `retry_pending`, so the reconciler never attempts a
+        // pointless replay and the audit trail reads correctly.
+        if (error instanceof ReceiptNoLongerApprovedError) {
+          provisioning = 'aborted';
+          await ctx.db.auditLog.create({
+            data: {
+              actor: 'system',
+              action: 'provisioning.aborted_receipt_not_approved',
+              entity: 'Receipt',
+              entityId: receipt.id,
+              data: { error: error.message },
+            },
+          });
+        } else {
+          provisioning = 'pending';
+          await ctx.db.auditLog.create({
+            data: {
+              actor: 'system',
+              action: 'provisioning.retry_pending',
+              entity: 'Receipt',
+              entityId: receipt.id,
+              data: { error: error instanceof Error ? error.message : String(error) },
+            },
+          });
+        }
       }
 
       // R5 remediation (deep-review adversarial verification): email enqueue

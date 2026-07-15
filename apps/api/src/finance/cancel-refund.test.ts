@@ -68,6 +68,9 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       amount: opts.amount ?? 5_000_000,
       classBatchId: opts.classBatchId ?? classBatch.id,
     });
+    if (result.status === 'needs_confirmation') {
+      throw new Error(`draftReceipt: phone ${opts.parentPhone} needs disambiguation — this helper caller must pass a fresh phone`);
+    }
     return { opportunityId, receipt: result.receipt };
   }
 
@@ -167,6 +170,7 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
         amount: 5_000_000,
         classBatchId: classBatch.id,
       });
+      if (first.status === 'needs_confirmation') throw new Error('unexpected needs_confirmation');
       const firstApproved = await gdkd.finance.receiptApprove({ receiptId: first.receipt.id });
       const student = await testDbBypass((tx) =>
         tx.student.findUniqueOrThrow({ where: { createdByReceiptId: first.receipt.id } }),
@@ -181,6 +185,7 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
         amount: 5_000_000,
         classBatchId: classBatch.id,
       });
+      if (second.status === 'needs_confirmation') throw new Error('unexpected needs_confirmation');
       const secondApproved = await gdkd.finance.receiptApprove({ receiptId: second.receipt.id });
 
       const enrollment = await testDbBypass((tx) =>
@@ -251,7 +256,7 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       expect(enrollment.status).toBe('withdrawn');
     });
 
-    it('revokes LMS visibility: after cancel, the paying parent no longer sees the child via enrollment.mine — K9', async () => {
+    it('K9 REVERSED (scenario audit, PO round 3): a REGULAR cancel keeps LMS visibility — parent still sees the child via enrollment.mine', async () => {
       const parentPhone = '0980000021';
       const { receipt } = await draftAndApprove({ contactPhone: '0970000021', parentPhone });
 
@@ -270,13 +275,38 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
 
       await gdkd.finance.receiptCancel({ receiptId: receipt.id, reason: 'refund, revoke access' });
 
-      // The Guardian row still exists (cancel does not delete it), but the
-      // student's only Enrollment is now withdrawn — the read gate must hide
-      // the child, not just the withdrawn enrollment row.
+      // Guardian row still exists (cancel does not delete it) AND
+      // Student.lifecycle stays `active` (a regular, non-void cancel) — the
+      // read gate (getApprovedChildren) is now keyed purely on
+      // Student.lifecycle, not enrollment status, so the parent keeps seeing
+      // the child (their history) even though the Enrollment itself withdrew.
       const guardianStillExists = await testDb().guardian.findUnique({
         where: { parentAccountId_studentId: { parentAccountId: parentAccount.id, studentId: student.id } },
       });
       expect(guardianStillExists).not.toBeNull();
+      const studentAfterCancel = await testDbBypass((tx) => tx.student.findUniqueOrThrow({ where: { id: student.id } }));
+      expect(studentAfterCancel.lifecycle).toBe('active');
+
+      const mineAfterCancel = await parent.enrollment.mine();
+      expect(mineAfterCancel.some((e) => e.studentId === student.id)).toBe(true);
+    });
+
+    it('void:true cancel DOES revoke LMS visibility — parent no longer sees the child via enrollment.mine', async () => {
+      const parentPhone = '0980000022';
+      const { receipt } = await draftAndApprove({ contactPhone: '0970000022', parentPhone });
+
+      const parentAccount = await testDb().parentAccount.findUniqueOrThrow({
+        where: { phone: normalizeLoginPhone(parentPhone) },
+      });
+      const student = await testDbBypass((tx) =>
+        tx.student.findUniqueOrThrow({ where: { createdByReceiptId: receipt.id } }),
+      );
+      const parent = appRouter.createCaller(buildLmsContext({ parentAccountId: parentAccount.id }));
+
+      const mineBeforeCancel = await parent.enrollment.mine();
+      expect(mineBeforeCancel.some((e) => e.studentId === student.id)).toBe(true);
+
+      await gdkd.finance.receiptCancel({ receiptId: receipt.id, reason: 'entered by mistake', void: true });
 
       const mineAfterCancel = await parent.enrollment.mine();
       expect(mineAfterCancel.some((e) => e.studentId === student.id)).toBe(false);

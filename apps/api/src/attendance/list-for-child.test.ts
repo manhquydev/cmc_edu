@@ -16,10 +16,12 @@ import {
   cleanupParentAccountsByPhone,
   createTestFacility,
   seedActiveEnrollment,
+  seedAppUser,
   seedClassBatch,
   seedClassSession,
   seedEnrolledStudentWithGuardian,
   seedParentAccount,
+  testDbBypass,
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
@@ -39,6 +41,12 @@ describe('attendance.listForChild (gap-closure 260710-0005 Phase 2)', () => {
     );
     classBatch = await seedClassBatch({ facilityId: facility.id });
     session = await seedClassSession({ facilityId: facility.id, classBatchId: classBatch.id });
+    // Teacher class-scoping remediation (2026-07-15): teacher.attendance.mark
+    // is used as setup below — assign this teacher to the class so it passes.
+    const teacherAppUser = await seedAppUser({ facilityId: facility.id, userId: 'teacher-lfc-1' });
+    await testDbBypass((tx) =>
+      tx.classBatch.update({ where: { id: classBatch.id }, data: { teacherAppUserId: teacherAppUser.id } }),
+    );
 
     const phone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
     parent = await seedParentAccount(phone);
@@ -71,6 +79,24 @@ describe('attendance.listForChild (gap-closure 260710-0005 Phase 2)', () => {
     expect(result.items[0]?.sessionDate).toBeInstanceOf(Date);
     // childB's 'present' row must never appear in childA's parent's response.
     expect(result.items.some((i) => i.status === 'present')).toBe(false);
+  });
+
+  it('status & lifecycle guards (scenario audit pattern #2): excludes attendance for a since-cancelled session', async () => {
+    const child = await seedEnrolledStudentWithGuardian({
+      facilityId: facility.id,
+      classBatchId: classBatch.id,
+      parentAccountId: parent.id,
+    });
+    await teacher.attendance.mark({ sessionId: session.id, enrollmentId: child.id, status: 'present' });
+    // Session cancelled AFTER attendance was marked — consistent with
+    // recomputeFinalGrade's attendance-rate denominator (../submission/router.ts),
+    // which already excludes cancelled sessions.
+    await testDbBypass((tx) => tx.classSession.update({ where: { id: session.id }, data: { status: 'cancelled' } }));
+
+    const parentCaller = appRouter.createCaller(buildLmsContext({ parentAccountId: parent.id, kind: 'parent' }));
+    const result = await parentCaller.attendance.listForChild({ studentId: child.studentId });
+
+    expect(result.items).toHaveLength(0);
   });
 
   it('FORBIDDEN: a parent without an approved Guardian link for this student', async () => {

@@ -17,6 +17,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedAppUser,
   seedClassBatch,
   seedClassSession,
   seedCurriculumUnit,
@@ -49,6 +50,13 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
       buildStaffContext({ facilityId: facility.id, userId: 'teacher-grade-1', roles: ['giao_vien'] }),
     );
     classBatch = await seedClassBatch({ facilityId: facility.id });
+    // Teacher class-scoping remediation (2026-07-15): submission.grade now
+    // resolves scope via the student's active Enrollment's classBatchId —
+    // assign this teacher to the class the student below gets enrolled in.
+    const teacherAppUser = await seedAppUser({ facilityId: facility.id, userId: 'teacher-grade-1' });
+    await testDbBypass((tx) =>
+      tx.classBatch.update({ where: { id: classBatch.id }, data: { teacherAppUserId: teacherAppUser.id } }),
+    );
     unit = await seedCurriculumUnit();
     seededUnitIds.push(unit.id);
 
@@ -111,6 +119,30 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
     expect(graded.status).toBe('graded');
     expect(graded.score).toBe(8);
     expect(graded.gradedAt).not.toBeNull();
+  });
+
+  it('atomic-lock standardization (scenario audit pattern #3): 2 concurrent grades on the SAME submission → 1 succeeds, 1 CONFLICT (no silent overwrite)', async () => {
+    const { submissionId } = await seedSubmittedSubmission();
+
+    const results = await Promise.allSettled([
+      teacher.submission.grade({ submissionId, score: 7 }),
+      teacher.submission.grade({ submissionId, score: 9 }),
+    ]);
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    const rejected = results.filter((r) => r.status === 'rejected');
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('a sequential regrade (submitted->graded, then graded->graded) is NOT a conflict — each call re-reads fresh state', async () => {
+    const { submissionId } = await seedSubmittedSubmission();
+
+    const first = await teacher.submission.grade({ submissionId, score: 6 });
+    expect(first.status).toBe('graded');
+    const regraded = await teacher.submission.grade({ submissionId, score: 9 });
+    expect(regraded.status).toBe('graded');
+    expect(regraded.score).toBe(9);
   });
 
   it('rejects grading a draft (not yet submitted) submission', async () => {

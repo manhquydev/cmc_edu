@@ -21,6 +21,7 @@ import {
   seedCurriculumUnit,
   seedEnrolledStudentWithGuardian,
   seedParentAccount,
+  testDbBypass,
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
@@ -118,6 +119,22 @@ describe('submission.saveDraft / submission.submit (US-016, TL19 §3)', () => {
     const submitted = await student.submission.submit({ exerciseId: exercise.id });
     expect(submitted.status).toBe('submitted');
     expect(submitted.submittedAt).not.toBeNull();
+  });
+
+  it('Metric & Data Integrity remediation (scenario audit): rejects submit() once the exercise has been closed after the draft was saved', async () => {
+    const enrollment = await seedStudent();
+    const student = studentCaller(enrollment.studentId);
+    const draft = await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: {} });
+
+    await gddt.exercise.close({ exerciseId: exercise.id });
+
+    await expect(student.submission.submit({ exerciseId: exercise.id })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+
+    // The draft itself is untouched (still draft, not silently submitted).
+    const row = await testDbBypass((tx) => tx.submission.findUniqueOrThrow({ where: { id: draft.id } }));
+    expect(row.status).toBe('draft');
   });
 
   it('blocks saveDraft once the submission has been submitted (immutable)', async () => {

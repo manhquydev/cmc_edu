@@ -213,6 +213,43 @@ describe('gift catalog + rewards lifecycle (P4)', () => {
     expect(refundTxns[0]?.amount).toBe(10);
   });
 
+  it('Low-Severity Hygiene remediation (scenario audit): refund uses the price PAID at redeem time, not the CURRENT gift price', async () => {
+    await giveStars(student.id, 20);
+    const gift = await gdkd.gift.upsert({ name: 'Price Drift Gift', starsRequired: 10 });
+    const { reward } = await studentCaller.rewards.redeem({ giftId: gift.id });
+
+    // Price changes AFTER redemption, before reject — the refund must still
+    // match the 10 stars actually deducted, not the new price.
+    await gdkd.gift.upsert({ id: gift.id, name: gift.name, starsRequired: 25 });
+
+    const rejected = await gdkd.rewards.reject({ rewardId: reward.id });
+    expect(rejected.status).toBe('rejected');
+
+    const refundTxns = await testDbBypass((tx) =>
+      tx.starTransaction.findMany({ where: { studentId: student.id, type: 'gift_rejected_refund' } }),
+    );
+    expect(refundTxns).toHaveLength(1);
+    expect(refundTxns[0]?.amount).toBe(10); // the ORIGINAL price, not the new 25
+  });
+
+  it('Low-Severity Hygiene remediation: rejecting an already-DELIVERED reward is rejected — BAD_REQUEST (regression, guard already correct)', async () => {
+    await giveStars(student.id, 20);
+    const gift = await gdkd.gift.upsert({ name: 'Deliver Then Reject Gift', starsRequired: 10 });
+    const { reward } = await studentCaller.rewards.redeem({ giftId: gift.id });
+    await gdkd.rewards.approve({ rewardId: reward.id });
+    await gdkd.rewards.deliver({ rewardId: reward.id });
+
+    await expect(gdkd.rewards.reject({ rewardId: reward.id })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+
+    // No refund was created for a delivered gift.
+    const refundTxns = await testDbBypass((tx) =>
+      tx.starTransaction.findMany({ where: { studentId: student.id, type: 'gift_rejected_refund' } }),
+    );
+    expect(refundTxns).toHaveLength(0);
+  });
+
   it('reject: concurrent reject calls produce exactly one refund (race-safe)', async () => {
     await giveStars(student.id, 20);
     const gift = await gdkd.gift.upsert({ name: 'Race Reject Gift', starsRequired: 10 });

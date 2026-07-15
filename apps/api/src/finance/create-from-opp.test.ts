@@ -3,6 +3,7 @@
 // BAD_REQUEST, and FORBIDDEN for a role without finance.receiptCreate.
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { normalizeLoginPhone } from '@cmc/domain-identity';
 import { appRouter } from '../router.js';
 import {
   buildStaffContext,
@@ -35,7 +36,7 @@ describe('finance.receiptCreate from opportunity (WF-P1-02)', () => {
 
   afterEach(async () => {
     await cleanupFacility(facility.id);
-    await cleanupParentAccountsByPhone(...phonesToClean);
+    await cleanupParentAccountsByPhone(...phonesToClean.map((p) => normalizeLoginPhone(p)));
     phonesToClean.length = 0;
   });
 
@@ -67,7 +68,10 @@ describe('finance.receiptCreate from opportunity (WF-P1-02)', () => {
   it('warns on a duplicate parent phone; the caller must narrow status==="success" before reading receipt', async () => {
     const dupPhone = '0922000002';
     phonesToClean.push(dupPhone);
-    await testDb().parentAccount.create({ data: { phone: dupPhone } });
+    // ParentAccount.phone is always stored NORMALIZED in real provisioning
+    // (../provisioning/provision-from-receipt.ts) — seed it the same way so
+    // this fixture matches what receiptCreate's normalized lookup expects.
+    await testDb().parentAccount.create({ data: { phone: normalizeLoginPhone(dupPhone) } });
 
     const result = await sale.finance.receiptCreate({
       studentName: 'Someone',
@@ -77,7 +81,7 @@ describe('finance.receiptCreate from opportunity (WF-P1-02)', () => {
     });
 
     expect(result.status).toBe('warning');
-    if (result.status === 'success') throw new Error('expected status warning, narrowing must be required');
+    if (result.status !== 'warning') throw new Error('expected status warning, narrowing must be required');
     expect(result.message.length).toBeGreaterThan(0);
     expect(result.receipt.parentPhone).toBe(dupPhone);
   });

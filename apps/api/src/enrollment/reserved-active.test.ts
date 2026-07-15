@@ -4,6 +4,7 @@
 // `activateEnrollmentForReceipt`, exercised directly here plus end-to-end in
 // ../provisioning/idempotent.test.ts) — never settable by a direct mutation.
 
+import { randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { appRouter } from '../router.js';
 import { activateEnrollmentForReceipt } from './activate-enrollment.js';
@@ -23,6 +24,10 @@ describe('enrollment reserved -> active (WF-P1-05, ADR-A)', () => {
   let gdkd: Caller;
   let student: { id: string };
   let classBatch: { id: string };
+  // C1 remediation: activateEnrollmentForReceipt now locks + re-checks
+  // Receipt.status before granting access — every direct call in this file
+  // needs a real `approved` Receipt row to activate on behalf of.
+  let receipt: { id: string };
 
   beforeEach(async () => {
     facility = await createTestFacility('Enrollment Facility');
@@ -39,6 +44,20 @@ describe('enrollment reserved -> active (WF-P1-05, ADR-A)', () => {
     // one seeded batch (they never enroll the same student into two
     // DIFFERENT classes within one test, so sharing it is safe).
     classBatch = await seedClassBatch({ facilityId: facility.id });
+    receipt = await testDbBypass((tx) =>
+      tx.receipt.create({
+        data: {
+          facilityId: facility.id,
+          code: `ENR-TEST-${randomUUID().slice(0, 8).toUpperCase()}`,
+          parentPhone: '0991000000',
+          studentName: 'Existing Student',
+          classBatchId: classBatch.id,
+          netAmount: 5_000_000,
+          status: 'approved',
+          createdById: 'test-seed',
+        },
+      }),
+    );
   });
 
   afterEach(async () => {
@@ -67,6 +86,7 @@ describe('enrollment reserved -> active (WF-P1-05, ADR-A)', () => {
       facilityId: facility.id,
       studentId: student.id,
       classBatchId: classBatch.id,
+      receiptId: receipt.id,
     });
     expect(activated.id).toBe(enrollment.id);
     expect(activated.status).toBe('active');
@@ -82,6 +102,7 @@ describe('enrollment reserved -> active (WF-P1-05, ADR-A)', () => {
       facilityId: facility.id,
       studentId: student.id,
       classBatchId: classBatch.id,
+      receiptId: receipt.id,
     });
     expect(activated.status).toBe('active');
 
@@ -96,11 +117,13 @@ describe('enrollment reserved -> active (WF-P1-05, ADR-A)', () => {
       facilityId: facility.id,
       studentId: student.id,
       classBatchId: classBatch.id,
+      receiptId: receipt.id,
     });
     const second = await activateEnrollmentForReceipt(testDb(), {
       facilityId: facility.id,
       studentId: student.id,
       classBatchId: classBatch.id,
+      receiptId: receipt.id,
     });
 
     expect(second.id).toBe(first.id);
@@ -116,6 +139,7 @@ describe('enrollment reserved -> active (WF-P1-05, ADR-A)', () => {
       facilityId: facility.id,
       studentId: student.id,
       classBatchId: classBatch.id,
+      receiptId: receipt.id,
     });
     expect(activated.status).toBe('active');
 
@@ -127,6 +151,7 @@ describe('enrollment reserved -> active (WF-P1-05, ADR-A)', () => {
       facilityId: facility.id,
       studentId: student.id,
       classBatchId: classBatch.id,
+      receiptId: receipt.id,
     });
 
     expect(reactivated.id).not.toBe(activated.id);

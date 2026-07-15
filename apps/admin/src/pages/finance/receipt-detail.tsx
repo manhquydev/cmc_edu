@@ -120,7 +120,11 @@ export default function ReceiptDetailPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [approveOpen, setApproveOpen] = useState(false);
   const [approveResult, setApproveResult] = useState<{
-    provisioning: 'ok' | 'pending';
+    // C1 remediation: 'aborted' means provisioning correctly refused to run
+    // because the receipt was no longer approved (e.g. cancelled) by the
+    // time it started — distinct from 'pending' (transient failure, will
+    // auto-retry).
+    provisioning: 'ok' | 'pending' | 'aborted';
   } | null>(null);
 
   const {
@@ -174,12 +178,16 @@ export default function ReceiptDetailPage() {
           title={
             approveResult.provisioning === 'ok'
               ? 'Phiếu đã được duyệt — tài khoản LMS đã tạo và email thông báo đã gửi'
-              : 'Phiếu đã được duyệt — tài khoản LMS đang được xử lý (provisioning: pending)'
+              : approveResult.provisioning === 'aborted'
+                ? 'Phiếu đã bị huỷ trước khi cấp tài khoản LMS — không tạo tài khoản'
+                : 'Phiếu đã được duyệt — tài khoản LMS đang được xử lý (provisioning: pending)'
           }
           message={
             approveResult.provisioning === 'pending'
               ? 'Hệ thống sẽ tự động hoàn tất sau vài phút. Kiểm tra lại trạng thái nếu cần.'
-              : undefined
+              : approveResult.provisioning === 'aborted'
+                ? 'Phiếu thu này đã bị huỷ đúng lúc hệ thống chuẩn bị cấp tài khoản — không có gì cần làm thêm, hệ thống sẽ không tự thử lại.'
+                : undefined
           }
         />
       )}

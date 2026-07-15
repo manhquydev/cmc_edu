@@ -56,6 +56,17 @@ const OTP_REQUEST_COOLDOWN_SECONDS = 30;
 const MAX_OTP_VERIFY_ATTEMPTS = 5;
 
 /**
+ * Atomic-lock standardization (scenario audit pattern #3, NS #6/#7): caps how
+ * many OTP requests one identifier (phone or email) may make in a rolling
+ * window — closes the gap where an attacker who can't beat the 30s cooldown
+ * simply waits it out repeatedly. Pilot-scale placeholder (same convention as
+ * GLOBAL_OTP_ENQUEUE_CAP_PER_HOUR below) — a rolling-window count naturally
+ * produces a ~15-minute soft-block once hit, without a separate block flag.
+ */
+const OTP_RATE_LIMIT_MAX_PER_WINDOW = 5;
+const OTP_RATE_LIMIT_WINDOW_MINUTES = 15;
+
+/**
  * Gap-closure 260710-0005 Phase 1 red-team C2: per-email cooldown alone is
  * bypassable by rotating the target email (email-bomb / Brevo-quota-drain
  * against the LMS's only login gate). This is a system-wide ceiling on how
@@ -183,29 +194,50 @@ export const lmsAuthRouter = router({
     .mutation(async ({ ctx, input }): Promise<{ ok: true; _testSeamCode?: string }> => {
       const phone = normalizeOrReject(input.phone);
 
-      // H5 cooldown: time-based against the most recent LoginOtp for this phone.
-      const mostRecent = await ctx.db.loginOtp.findFirst({
-        where: { phone },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (mostRecent) {
-        const elapsedMs = Date.now() - mostRecent.createdAt.getTime();
-        if (elapsedMs < OTP_REQUEST_COOLDOWN_SECONDS * 1000) {
+      const code = await ctx.db.$transaction(async (tx) => {
+        // Atomic-lock standardization (scenario audit pattern #3): serialize
+        // concurrent requests for the SAME identifier (advisory lock, same
+        // pattern as rewards.redeem's per-gift lock) — without this, 2
+        // concurrent calls can both pass the cooldown/rate-limit checks
+        // before either commits, leaving 2 "most recent" pending codes
+        // racing each other instead of a clean invalidate-then-insert.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${phone}))`;
+
+        // H5 cooldown: time-based against the most recent LoginOtp for this phone.
+        const mostRecent = await tx.loginOtp.findFirst({
+          where: { phone },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (mostRecent) {
+          const elapsedMs = Date.now() - mostRecent.createdAt.getTime();
+          if (elapsedMs < OTP_REQUEST_COOLDOWN_SECONDS * 1000) {
+            throw badRequest(GENERIC_COOLDOWN_FAILURE);
+          }
+        }
+
+        // NS #6/#7: rolling-window rate-limit per identifier.
+        const windowStart = new Date(Date.now() - OTP_RATE_LIMIT_WINDOW_MINUTES * 60_000);
+        const recentRequestCount = await tx.loginOtp.count({
+          where: { phone, createdAt: { gte: windowStart } },
+        });
+        if (recentRequestCount >= OTP_RATE_LIMIT_MAX_PER_WINDOW) {
           throw badRequest(GENERIC_COOLDOWN_FAILURE);
         }
-      }
 
-      // H5: invalidate any still-pending prior code for this phone.
-      await ctx.db.loginOtp.updateMany({
-        where: { phone, status: 'pending' },
-        data: { status: 'expired' },
-      });
+        // H5: invalidate any still-pending prior code for this phone.
+        await tx.loginOtp.updateMany({
+          where: { phone, status: 'pending' },
+          data: { status: 'expired' },
+        });
 
-      const code = generateOtpCode();
-      const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
+        const code = generateOtpCode();
+        const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
 
-      await ctx.db.loginOtp.create({
-        data: { phone, codeHash: hashOtpCode(code), status: 'pending', expiresAt },
+        await tx.loginOtp.create({
+          data: { phone, codeHash: hashOtpCode(code), status: 'pending', expiresAt },
+        });
+
+        return code;
       });
 
       await ctx.db.auditLog.create({
@@ -295,23 +327,13 @@ export const lmsAuthRouter = router({
     .mutation(async ({ ctx, input }): Promise<{ ok: true; _testSeamCode?: string }> => {
       const email = input.email.toLowerCase();
 
-      // H5 cooldown: purely time-based against the most recent email-OTP row.
-      const mostRecent = await ctx.db.loginOtp.findFirst({
-        where: { email },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (mostRecent) {
-        const elapsedMs = Date.now() - mostRecent.createdAt.getTime();
-        if (elapsedMs < OTP_REQUEST_COOLDOWN_SECONDS * 1000) {
-          throw badRequest(GENERIC_COOLDOWN_FAILURE);
-        }
-      }
-
       // Gap-closure C2: global fail-closed ceiling on outbound OTP email
       // volume, independent of per-email cooldown (which an attacker can
       // bypass by rotating the target address). Counts EmailOutbox rows
       // enqueued in the last rolling hour, not LoginOtp rows — this caps
       // actual outbound Brevo sends, which is the resource being protected.
+      // Checked BEFORE the per-identifier lock below (system-wide, not keyed
+      // on `email`, so it doesn't need to be serialized against it).
       const hourAgo = new Date(Date.now() - 60 * 60_000);
       const recentOtpEnqueueCount = await ctx.db.emailOutbox.count({
         where: { transport: 'brevo', payload: { path: ['kind'], equals: 'otp' }, createdAt: { gte: hourAgo } },
@@ -320,18 +342,50 @@ export const lmsAuthRouter = router({
         throw badRequest(GENERIC_COOLDOWN_FAILURE);
       }
 
-      // Invalidate any still-pending prior code for this email.
-      await ctx.db.loginOtp.updateMany({
-        where: { email, status: 'pending' },
-        data: { status: 'expired' },
+      const code = await ctx.db.$transaction(async (tx) => {
+        // Atomic-lock standardization (scenario audit pattern #3): same
+        // per-identifier advisory lock as requestOtp above.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${email}))`;
+
+        // H5 cooldown: purely time-based against the most recent email-OTP row.
+        const mostRecent = await tx.loginOtp.findFirst({
+          where: { email },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (mostRecent) {
+          const elapsedMs = Date.now() - mostRecent.createdAt.getTime();
+          if (elapsedMs < OTP_REQUEST_COOLDOWN_SECONDS * 1000) {
+            throw badRequest(GENERIC_COOLDOWN_FAILURE);
+          }
+        }
+
+        // NS #6/#7: rolling-window rate-limit per identifier.
+        const windowStart = new Date(Date.now() - OTP_RATE_LIMIT_WINDOW_MINUTES * 60_000);
+        const recentRequestCount = await tx.loginOtp.count({
+          where: { email, createdAt: { gte: windowStart } },
+        });
+        if (recentRequestCount >= OTP_RATE_LIMIT_MAX_PER_WINDOW) {
+          throw badRequest(GENERIC_COOLDOWN_FAILURE);
+        }
+
+        // Invalidate any still-pending prior code for this email.
+        await tx.loginOtp.updateMany({
+          where: { email, status: 'pending' },
+          data: { status: 'expired' },
+        });
+
+        const code = generateOtpCode();
+        const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
+
+        // phone is nullable (schema phase-01b migration); email-OTP rows set
+        // phone=null and populate the email column instead.
+        await tx.loginOtp.create({
+          data: { phone: null, email, codeHash: hashOtpCode(code), status: 'pending', expiresAt },
+        });
+
+        return code;
       });
 
-      const code = generateOtpCode();
-      const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
-
-      // phone is nullable (schema phase-01b migration); email-OTP rows set
-      // phone=null and populate the email column instead.
-      //
       // Ordering (red-team M1): LoginOtp is ALWAYS created first, regardless
       // of whether a ParentAccount exists for this email — this preserves the
       // no-leak response below (identical `{ok:true}` either way). The
@@ -340,9 +394,6 @@ export const lmsAuthRouter = router({
       // pattern elsewhere): if it fails, the request throws and the mint'd
       // LoginOtp row simply expires unused after its 5-minute TTL. It does
       // NOT strand a "verify-able but never emailed" code indefinitely.
-      await ctx.db.loginOtp.create({
-        data: { phone: null, email, codeHash: hashOtpCode(code), status: 'pending', expiresAt },
-      });
 
       // Gap-closure gate (red-team C2 email-bomb defense): the send decision
       // (not the response) is allowed to depend on account existence — only

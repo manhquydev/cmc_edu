@@ -9,8 +9,9 @@
 
 import { randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { withFacility } from '@cmc/db';
 import { appRouter } from '../router.js';
-import { scanFacility } from './reconcile-finance-flags.js';
+import { maybeCreateFlag, scanFacility } from './reconcile-finance-flags.js';
 import {
   buildStaffContext,
   cleanupFacility,
@@ -330,6 +331,33 @@ describe('reconcile-finance-flags worker', () => {
 
       const count = await countOpenFlags(facilityA.id, receipt.id, 'self_approved');
       expect(count).toBe(1); // still exactly 1, not 2
+    });
+
+    it('atomic-lock standardization (scenario audit pattern #3, H5): 2 CONCURRENT maybeCreateFlag calls for the same (facilityId,receiptId,kind) create only 1 open flag', async () => {
+      const receipt = await seedApprovedReceipt({
+        facilityId: facilityA.id,
+        createdById: 'concurrent-dup-user',
+        approvedById: 'concurrent-dup-user',
+      });
+      const opts = {
+        facilityId: facilityA.id,
+        receiptId: receipt.id,
+        kind: 'self_approved',
+        detail: { netAmount: 5_000_000 },
+        deepLink: null,
+      };
+
+      // Two SEPARATE transactions racing on the same dedup key — the
+      // findFirst-then-create in maybeCreateFlag has a TOCTOU gap that only a
+      // real unique constraint (+ P2002 catch) closes.
+      const results = await Promise.allSettled([
+        withFacility(testDb(), facilityA.id, (tx) => maybeCreateFlag(tx, opts)),
+        withFacility(testDb(), facilityA.id, (tx) => maybeCreateFlag(tx, opts)),
+      ]);
+      expect(results.every((r) => r.status === 'fulfilled')).toBe(true);
+
+      const count = await countOpenFlags(facilityA.id, receipt.id, 'self_approved');
+      expect(count).toBe(1);
     });
   });
 

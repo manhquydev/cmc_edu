@@ -299,6 +299,8 @@ export const manualPunchRouter = router({
         if (result.count === 0) throw badRequest('Ticket is not pending.');
         const updated = await tx.manualAttendanceTicket.findUniqueOrThrow({ where: { id: ticket.id } });
 
+        const warnings: string[] = [];
+
         // Red-team #13 (pre-0043, unchanged): warn (do not block) when this
         // ticket's period was already finalized — the payslip is NOT
         // recomputed here.
@@ -307,10 +309,16 @@ export const manualPunchRouter = router({
           where: { appUserId: ticket.appUserId, period, status: 'finalized' },
           select: { id: true },
         });
-        if (finalizedPayslip) {
-          return { ...updated, warning: 'PAYSLIP_FINALIZED' as const };
-        }
-        return updated;
+        if (finalizedPayslip) warnings.push('PAYSLIP_FINALIZED');
+
+        // C2 (scenario audit, 2026-07-15): a single-punch ticket (checkOutAt
+        // still null) is approved as-is — resolveDayCredit's 0-credit rule
+        // for this case is intentional (ADR 0043) and stays unchanged. This
+        // only signals the reviewer that "approved" here does NOT mean the
+        // day earns credit.
+        if (updated.checkOutAt === null) warnings.push('SINGLE_PUNCH_NO_CREDIT');
+
+        return { ...updated, warnings };
       });
     }),
 

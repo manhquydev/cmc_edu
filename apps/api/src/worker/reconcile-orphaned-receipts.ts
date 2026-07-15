@@ -35,6 +35,7 @@
 
 import { withFacility, type PrismaClient } from '@cmc/db';
 import { provisionFromReceipt, type ProvisionResult } from '../provisioning/provision-from-receipt.js';
+import { maybeCreateFlag } from './reconcile-finance-flags.js';
 
 interface OrphanReceiptRow {
   id: string;
@@ -157,6 +158,101 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
         },
       });
     }
+  }
+  return outcomes;
+}
+
+interface CancelledButProvisionedRow {
+  receiptId: string;
+  facilityId: string;
+  enrollmentId: string;
+}
+
+export interface ReconcileCancelledOutcome {
+  receiptId: string;
+  enrollmentId: string;
+  flagCreated: boolean;
+}
+
+/**
+ * C1 remediation, layer 2 (scenario audit, 2026-07-15): finds `cancelled`
+ * Receipts that still have an ACTIVE Enrollment for their own
+ * `classBatchId` — the state left behind if a `receiptCancel` won the race
+ * against provisioning's enrollment step BEFORE the `FOR UPDATE` guard in
+ * `activate-enrollment.ts` was added (or any other path that produced this
+ * inconsistency). Layer 1 (the guard) is the primary defense; this is a
+ * cleanup net for anything that slipped through before the fix, or from a
+ * gap this reconciliation hasn't anticipated — it does NOT touch
+ * StudentAccount/login (PO decision: a cancelled receipt withdraws the
+ * class seat but keeps LMS access so the family can review history, same as
+ * every other cancel path — see `finance/router.ts`'s `runCancelTransaction`).
+ *
+ * Withdraws the stray Enrollment and raises a `ReconciliationFlag` (kind
+ * `cancelled_receipt_active_enrollment`) for staff visibility — same dedup
+ * mechanism as `reconcile-finance-flags.ts`'s rules, so re-running this scan
+ * never raises a duplicate flag for the same receipt.
+ *
+ * Runs with the RLS bypass GUC (ADR 0042): a system/background job scanning
+ * across every facility, same posture as `reconcileOrphanedReceipts` above.
+ */
+export async function reconcileCancelledButProvisioned(db: PrismaClient): Promise<ReconcileCancelledOutcome[]> {
+  const rows = await withFacility(
+    db,
+    null,
+    (tx) =>
+      tx.$queryRaw<CancelledButProvisionedRow[]>`
+        WITH resolved AS (
+          SELECT
+            r."id" AS "receiptId",
+            r."facilityId",
+            r."classBatchId",
+            COALESCE(s_new."id", s_renewal."id") AS "resolvedStudentId"
+          FROM "Receipt" r
+          LEFT JOIN "Student" s_new ON s_new."createdByReceiptId" = r."id"
+          LEFT JOIN "Student" s_renewal ON s_renewal."id" = r."studentId"
+          WHERE r."status" = 'cancelled'
+        )
+        SELECT resolved."receiptId" AS "receiptId", resolved."facilityId", e."id" AS "enrollmentId"
+        FROM resolved
+        JOIN "Enrollment" e
+          ON e."studentId" = resolved."resolvedStudentId"
+         AND e."classBatchId" = resolved."classBatchId"
+         AND e."status" = 'active'
+        WHERE resolved."resolvedStudentId" IS NOT NULL
+          AND resolved."classBatchId" IS NOT NULL
+      `,
+    { bypass: true },
+  );
+
+  const outcomes: ReconcileCancelledOutcome[] = [];
+  for (const row of rows) {
+    await withFacility(db, null, (tx) =>
+      tx.enrollment.update({ where: { id: row.enrollmentId }, data: { status: 'withdrawn' } }),
+      { bypass: true },
+    );
+    const flagCreated = await withFacility(
+      db,
+      null,
+      (tx) =>
+        maybeCreateFlag(tx, {
+          facilityId: row.facilityId,
+          receiptId: row.receiptId,
+          kind: 'cancelled_receipt_active_enrollment',
+          detail: { enrollmentId: row.enrollmentId },
+          deepLink: `/finance/receipts/${row.receiptId}?flag=cancelled_receipt_active_enrollment`,
+        }),
+      { bypass: true },
+    );
+    await db.auditLog.create({
+      data: {
+        actor: 'system',
+        action: 'worker.reconcileCancelledButProvisioned.withdrawn',
+        entity: 'Receipt',
+        entityId: row.receiptId,
+        data: { enrollmentId: row.enrollmentId },
+      },
+    });
+    outcomes.push({ receiptId: row.receiptId, enrollmentId: row.enrollmentId, flagCreated });
   }
   return outcomes;
 }

@@ -199,6 +199,26 @@ describe('exercise.create/publish/close + classSession.assignUnit (T2-I, TL19 §
       }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
+
+  it('status & lifecycle guards (scenario audit pattern #2): assignUnit rejects a done session', async () => {
+    const session = await seedSession();
+    await testDbBypass((tx) => tx.classSession.update({ where: { id: session.id }, data: { status: 'done' } }));
+
+    await expect(
+      gddt.classSession.assignUnit({ sessionId: session.id, curriculumUnitId: unit.id }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('status & lifecycle guards: assignUnit rejects a cancelled session too', async () => {
+    const session = await seedSession();
+    await testDbBypass((tx) =>
+      tx.classSession.update({ where: { id: session.id }, data: { status: 'cancelled' } }),
+    );
+
+    await expect(
+      gddt.classSession.assignUnit({ sessionId: session.id, curriculumUnitId: unit.id }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
 });
 
 // ---------------------------------------------------------------------------

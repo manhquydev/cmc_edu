@@ -6,10 +6,31 @@
 
 import { withFacility, type Prisma, type PrismaClient } from '@cmc/db';
 
+/**
+ * C1 remediation (scenario audit, 2026-07-15): thrown when `Receipt.status`
+ * is no longer `approved` at the moment this function is about to grant an
+ * active Enrollment. Provisioning runs AFTER the money transaction commits
+ * (ADR 0041), outside that transaction — if `finance.receiptCancel` wins a
+ * race in that window, provisioning must not finish on the stale `approved`
+ * snapshot it started with. The caller (`finance.receiptApprove`) catches
+ * this specifically to record `provisioning: 'aborted'` (not
+ * `retry_pending` — retrying is pointless once the receipt is cancelled).
+ */
+export class ReceiptNoLongerApprovedError extends Error {
+  constructor(receiptId: string, actualStatus: string) {
+    super(`Receipt ${receiptId} is "${actualStatus}", not "approved"; aborting enrollment activation.`);
+    this.name = 'ReceiptNoLongerApprovedError';
+  }
+}
+
 export interface ActivateEnrollmentParams {
   facilityId: string;
   studentId: string;
   classBatchId: string;
+  /** The Receipt this activation is provisioning on behalf of. Locked with
+   * `FOR UPDATE` and re-checked before granting the enrollment (see
+   * `ReceiptNoLongerApprovedError`). */
+  receiptId: string;
 }
 
 /** Duck-types a Prisma `P2002` (unique constraint violation) — same check as
@@ -71,6 +92,20 @@ export async function activateEnrollmentForReceipt(
 
   try {
     return await withFacility(db, params.facilityId, async (tx) => {
+      // C1 guard: lock the Receipt row and re-check its status in the SAME
+      // transaction as the enrollment write, immediately before granting
+      // access. `receiptCancel`'s own atomic claim (`updateMany WHERE
+      // status='approved'`) holds this same row lock, so the two calls
+      // serialize instead of racing — whichever commits first, the other
+      // observes the committed status, not a stale in-memory snapshot.
+      const locked = await tx.$queryRaw<{ status: string }[]>`
+        SELECT "status" FROM "Receipt" WHERE "id" = ${params.receiptId} AND "facilityId" = ${params.facilityId} FOR UPDATE
+      `;
+      const receiptStatus = locked[0]?.status;
+      if (receiptStatus !== 'approved') {
+        throw new ReceiptNoLongerApprovedError(params.receiptId, receiptStatus ?? 'not found');
+      }
+
       const openRow = await findOpenRow(tx);
 
       if (openRow) {

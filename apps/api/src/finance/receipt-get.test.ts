@@ -50,6 +50,7 @@ describe('finance.receiptGet — classBatchCode', () => {
       amount: 5_000_000,
       classBatchId: classBatch.id,
     });
+    if (created.status === 'needs_confirmation') throw new Error('unexpected needs_confirmation');
 
     const receipt = await director.finance.receiptGet({
       receiptId: created.receipt.id,

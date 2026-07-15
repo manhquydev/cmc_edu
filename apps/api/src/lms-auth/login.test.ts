@@ -273,6 +273,49 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
     expect(otpCount).toBe(1);
   });
 
+  it('atomic-lock standardization (scenario audit pattern #3, NS #6/#7): rate-limits OTP requests — 6th request within the window is rejected, no new row created', async () => {
+    const phone = '0992000010';
+    const normalized = normalizeLoginPhone(phone);
+    phonesToClean.push(normalized);
+
+    // 5 prior requests, each spaced 1 minute apart (well outside the 30s
+    // cooldown) but all inside the 15-minute rate-limit window.
+    for (let i = 0; i < 5; i++) {
+      await testDb().loginOtp.create({
+        data: {
+          phone: normalized,
+          codeHash: `${'a'.repeat(32)}:${'b'.repeat(64)}`,
+          status: 'expired',
+          expiresAt: new Date(Date.now() + 5 * 60_000),
+          createdAt: new Date(Date.now() - (10 - i) * 60_000),
+        },
+      });
+    }
+
+    await expect(anon.lmsAuth.requestOtp({ phone })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    const otpCount = await testDb().loginOtp.count({ where: { phone: normalized } });
+    expect(otpCount).toBe(5); // the 6th request never created a new row
+  });
+
+  it('atomic-lock standardization: 2 concurrent requestOtp calls for the SAME phone leave exactly 1 pending row, not 2', async () => {
+    const phone = '0992000011';
+    const normalized = normalizeLoginPhone(phone);
+    phonesToClean.push(normalized);
+
+    const results = await Promise.allSettled([
+      anon.lmsAuth.requestOtp({ phone }),
+      anon.lmsAuth.requestOtp({ phone }),
+    ]);
+    // Both calls return the caller-facing no-leak {ok:true} regardless of
+    // which one "won" the race — the invariant under test is DB state, not
+    // which promise settles which way.
+    expect(results.some((r) => r.status === 'fulfilled')).toBe(true);
+
+    const pendingCount = await testDb().loginOtp.count({ where: { phone: normalized, status: 'pending' } });
+    expect(pendingCount).toBe(1);
+  });
+
   it('issuing a new code invalidates the prior pending code for the same phone — H5', async () => {
     const phone = '0992000009';
     const normalized = normalizeLoginPhone(phone);
@@ -378,5 +421,28 @@ describe('lmsAuth.requestOtpEmail — EmailOutbox enqueue (gap-closure 260710-00
     } finally {
       await testDb().emailOutbox.deleteMany({ where: { to: { in: fillerEmails } } });
     }
+  });
+
+  it('atomic-lock standardization (scenario audit pattern #3, NS #6/#7): per-identifier rate-limit rejects the 6th request within the window', async () => {
+    const email = 'otp-ratelimit-test@test.com';
+    emailsToClean.push(email);
+
+    for (let i = 0; i < 5; i++) {
+      await testDb().loginOtp.create({
+        data: {
+          phone: null,
+          email,
+          codeHash: `${'a'.repeat(32)}:${'b'.repeat(64)}`,
+          status: 'expired',
+          expiresAt: new Date(Date.now() + 5 * 60_000),
+          createdAt: new Date(Date.now() - (10 - i) * 60_000),
+        },
+      });
+    }
+
+    await expect(anon.lmsAuth.requestOtpEmail({ email })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    const otpCount = await testDb().loginOtp.count({ where: { email } });
+    expect(otpCount).toBe(5);
   });
 });

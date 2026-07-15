@@ -17,6 +17,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedAppUser,
   seedClassBatch,
   seedClassSession,
   seedCurriculumUnit,
@@ -47,6 +48,12 @@ describe('exercise.openForStudent / listForStudent (US-015, ADR 0038 Tier A/B)',
       buildStaffContext({ facilityId: facility.id, userId: 'gddt-ot-1', roles: ['giam_doc_dao_tao'] }),
     );
     classBatch = await seedClassBatch({ facilityId: facility.id });
+    // Teacher class-scoping remediation (2026-07-15): the Tier B tests below
+    // call attendance.mark as setup — assign a shared teacher to the class.
+    const teacherAppUser = await seedAppUser({ facilityId: facility.id, userId: 'teacher-ot-shared' });
+    await testDbBypass((tx) =>
+      tx.classBatch.update({ where: { id: classBatch.id }, data: { teacherAppUserId: teacherAppUser.id } }),
+    );
     // Real ParentAccount needed for Guardian FK (F1 remediation).
     const phone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
     parent = await seedParentAccount(phone);
@@ -200,21 +207,24 @@ describe('exercise.openForStudent / listForStudent (US-015, ADR 0038 Tier A/B)',
 
   // ---- Tier B ----
 
-  it('Tier B: a makeup session the student attended present/late opens the unit ONLY for that student', async () => {
+  it('Tier B: a makeup session (already ENDED) the student attended present/late opens the unit ONLY for that student', async () => {
     const unit = await seedUnit();
     const exercise = await publishedExerciseFor(unit.id);
+    // Metric & Data Integrity remediation (scenario audit): Tier B now
+    // mirrors Tier A's "session must have ended" gate — explicit PAST so this
+    // positive-outcome test isolates the attendance-status variable only.
     const makeup = await seedClassSession({
       facilityId: facility.id,
       classBatchId: classBatch.id,
       curriculumUnitId: unit.id,
       isMakeup: true,
-      endTime: FUTURE,
+      endTime: PAST,
     });
     const present = await seedStudent();
     const bystander = await seedStudent();
 
     const teacher = appRouter.createCaller(
-      buildStaffContext({ facilityId: facility.id, userId: 'teacher-ot-1', roles: ['giao_vien'] }),
+      buildStaffContext({ facilityId: facility.id, userId: 'teacher-ot-shared', roles: ['giao_vien'] }),
     );
     await teacher.attendance.mark({ sessionId: makeup.id, enrollmentId: present.id, status: 'present' });
 
@@ -225,7 +235,7 @@ describe('exercise.openForStudent / listForStudent (US-015, ADR 0038 Tier A/B)',
     expect(resultBystander.items.find((e) => e.id === exercise.id)).toBeUndefined();
   });
 
-  it('Tier B: a makeup session the student attended LATE also opens the unit for them', async () => {
+  it('Tier B: a makeup session the student attended LATE also opens the unit for them (once ended)', async () => {
     const unit = await seedUnit();
     const exercise = await publishedExerciseFor(unit.id);
     const makeup = await seedClassSession({
@@ -233,10 +243,11 @@ describe('exercise.openForStudent / listForStudent (US-015, ADR 0038 Tier A/B)',
       classBatchId: classBatch.id,
       curriculumUnitId: unit.id,
       isMakeup: true,
+      endTime: PAST,
     });
     const late = await seedStudent();
     const teacher = appRouter.createCaller(
-      buildStaffContext({ facilityId: facility.id, userId: 'teacher-ot-2', roles: ['giao_vien'] }),
+      buildStaffContext({ facilityId: facility.id, userId: 'teacher-ot-shared', roles: ['giao_vien'] }),
     );
     await teacher.attendance.mark({ sessionId: makeup.id, enrollmentId: late.id, status: 'late' });
 
@@ -252,14 +263,35 @@ describe('exercise.openForStudent / listForStudent (US-015, ADR 0038 Tier A/B)',
       classBatchId: classBatch.id,
       curriculumUnitId: unit.id,
       isMakeup: true,
+      endTime: PAST,
     });
     const absent = await seedStudent();
     const teacher = appRouter.createCaller(
-      buildStaffContext({ facilityId: facility.id, userId: 'teacher-ot-3', roles: ['giao_vien'] }),
+      buildStaffContext({ facilityId: facility.id, userId: 'teacher-ot-shared', roles: ['giao_vien'] }),
     );
     await teacher.attendance.mark({ sessionId: makeup.id, enrollmentId: absent.id, status: 'absent' });
 
     const result = await studentCaller(absent.studentId).exercise.openForStudent();
+    expect(result.items.find((e) => e.id === exercise.id)).toBeUndefined();
+  });
+
+  it('Metric & Data Integrity remediation (scenario audit): a makeup session marked present in ADVANCE (endTime in the future) does NOT open the unit yet', async () => {
+    const unit = await seedUnit();
+    const exercise = await publishedExerciseFor(unit.id);
+    const makeup = await seedClassSession({
+      facilityId: facility.id,
+      classBatchId: classBatch.id,
+      curriculumUnitId: unit.id,
+      isMakeup: true,
+      endTime: FUTURE,
+    });
+    const student = await seedStudent();
+    const teacher = appRouter.createCaller(
+      buildStaffContext({ facilityId: facility.id, userId: 'teacher-ot-shared', roles: ['giao_vien'] }),
+    );
+    await teacher.attendance.mark({ sessionId: makeup.id, enrollmentId: student.id, status: 'present' });
+
+    const result = await studentCaller(student.studentId).exercise.openForStudent();
     expect(result.items.find((e) => e.id === exercise.id)).toBeUndefined();
   });
 
@@ -275,7 +307,7 @@ describe('exercise.openForStudent / listForStudent (US-015, ADR 0038 Tier A/B)',
     });
     const enrollment = await seedStudent();
     const teacher = appRouter.createCaller(
-      buildStaffContext({ facilityId: facility.id, userId: 'teacher-ot-4', roles: ['giao_vien'] }),
+      buildStaffContext({ facilityId: facility.id, userId: 'teacher-ot-shared', roles: ['giao_vien'] }),
     );
     await teacher.attendance.mark({ sessionId: regular.id, enrollmentId: enrollment.id, status: 'present' });
 

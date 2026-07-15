@@ -4,6 +4,7 @@
 // ../security/rls-enforcement.test.ts with the actual finance procedures.
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { normalizeLoginPhone } from '@cmc/domain-identity';
 import { appRouter } from '../router.js';
 import {
   buildStaffContext,
@@ -42,7 +43,7 @@ describe('finance cross-facility RLS negative tests (M10)', () => {
   afterEach(async () => {
     await cleanupFacility(facilityA.id);
     await cleanupFacility(facilityB.id);
-    await cleanupParentAccountsByPhone(...phonesToClean);
+    await cleanupParentAccountsByPhone(...phonesToClean.map((p) => normalizeLoginPhone(p)));
     phonesToClean.length = 0;
   });
 
@@ -52,13 +53,15 @@ describe('finance cross-facility RLS negative tests (M10)', () => {
     await saleA.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O3_TEST_SCHEDULED' });
     await saleA.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O4_TESTED' });
     phonesToClean.push(opts.parentPhone);
-    return saleA.finance.receiptCreate({
+    const result = await saleA.finance.receiptCreate({
       opportunityId: opp.id,
       studentName: 'RLS Student',
       parentPhone: opts.parentPhone,
       amount: 5_000_000,
       classBatchId: opts.classBatchId,
     });
+    if (result.status === 'needs_confirmation') throw new Error('unexpected needs_confirmation');
+    return result;
   }
 
   async function draftAndApproveInA(opts: { contactPhone: string; parentPhone: string; classBatchId: string }) {

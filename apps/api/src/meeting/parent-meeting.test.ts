@@ -88,4 +88,33 @@ describe('parentMeeting lifecycle (P4)', () => {
     const done = await sale.parentMeeting.complete({ meetingId: meeting.id, result: 'Sale notes.' });
     expect(done.status).toBe('done');
   });
+
+  it('status & lifecycle guards (scenario audit pattern #2): schedule rejects a withdrawn student', async () => {
+    await testDbBypass((tx) => tx.student.update({ where: { id: studentId }, data: { lifecycle: 'withdrawn' } }));
+
+    await expect(
+      manager.parentMeeting.schedule({ studentId, scheduledAt: FUTURE }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('status & lifecycle guards: schedule allows a blocked_lms student (staff-side, not an LMS read)', async () => {
+    await testDbBypass((tx) => tx.student.update({ where: { id: studentId }, data: { lifecycle: 'blocked_lms' } }));
+
+    const meeting = await manager.parentMeeting.schedule({ studentId, scheduledAt: FUTURE });
+    expect(meeting.status).toBe('scheduled');
+  });
+
+  it('Low-Severity Hygiene remediation (scenario audit): scheduling a SECOND meeting for the same student at the same time carries a warning but still creates it', async () => {
+    const first = await manager.parentMeeting.schedule({ studentId, scheduledAt: FUTURE });
+    expect(first.warning).toBeUndefined();
+
+    const second = await manager.parentMeeting.schedule({ studentId, scheduledAt: FUTURE });
+    expect(second.status).toBe('scheduled'); // still created — soft warning, not a block
+    expect(second.warning).toMatch(/trùng giờ|double.?book/i);
+
+    const meetings = await testDbBypass((tx) =>
+      tx.parentMeeting.findMany({ where: { studentId, status: 'scheduled' } }),
+    );
+    expect(meetings).toHaveLength(2);
+  });
 });

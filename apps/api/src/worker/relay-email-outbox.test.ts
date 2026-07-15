@@ -97,6 +97,40 @@ describe('relayEmailOutbox (K6)', () => {
     expect(unchanged.status).toBe('sent');
   });
 
+  it('atomic-lock standardization (scenario audit pattern #3, Gắn kết #2): a "sending" row updated 6 min ago (still slow, not crashed) is NOT reaped', async () => {
+    const row = await testDb().emailOutbox.create({
+      data: { to: '84900000001', transport: 'brevo', status: 'sending', payload: { receiptId: 'reap-slow-test' } },
+    });
+    outboxIdsToClean.push(row.id);
+    // `updatedAt` is Prisma-managed (@updatedAt) — backdate via raw SQL, same
+    // pattern as the Receipt backdate in finance/cancel-refund.test.ts.
+    await testDb().$executeRaw`UPDATE "EmailOutbox" SET "updatedAt" = now() - interval '6 minutes' WHERE id = ${row.id}`;
+
+    const result = await relayEmailOutbox(testDb(), { brevo: new RecordingTransport() });
+
+    expect(result.reaped).toBe(0);
+    const stillSending = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
+    expect(stillSending.status).toBe('sending');
+  });
+
+  it('atomic-lock standardization: a "sending" row updated 20 min ago (crashed worker) IS reaped back to pending', async () => {
+    const row = await testDb().emailOutbox.create({
+      data: { to: '84900000002', transport: 'brevo', status: 'sending', payload: { receiptId: 'reap-crash-test' } },
+    });
+    outboxIdsToClean.push(row.id);
+    await testDb().$executeRaw`UPDATE "EmailOutbox" SET "updatedAt" = now() - interval '20 minutes' WHERE id = ${row.id}`;
+
+    const result = await relayEmailOutbox(testDb(), { brevo: new RecordingTransport() });
+
+    expect(result.reaped).toBeGreaterThanOrEqual(1);
+    const reset = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
+    // Reset to 'pending' means it's eligible for the drain in a LATER cycle —
+    // this same cycle's drain loop already ran past the reap step, so it may
+    // now be 'sent'/'failed'/'dead' too depending on the injected transport;
+    // the only invariant this test needs is "no longer stuck in sending".
+    expect(reset.status).not.toBe('sending');
+  });
+
   it('R3: two concurrent drains never double-send the same row (atomic claim)', async () => {
     const row = await seedOutbox('pending');
     const transportA = new RecordingTransport();

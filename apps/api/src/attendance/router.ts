@@ -21,6 +21,8 @@ import { withFacility, type Prisma } from '@cmc/db';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { lmsProcedure, requireLmsParent, requirePermission, router, scoped } from '../trpc.js';
 import { auditChildDataAccess, getApprovedChildren } from '../guardian/approved-children.js';
+import { recomputeFinalGrade } from '../submission/router.js';
+import { assertTeacherOwnsClass } from './assert-teacher-owns-class.js';
 
 const attendanceStatusSchema = z.enum(['present', 'absent', 'late']);
 
@@ -129,6 +131,7 @@ export const attendanceRouter = router({
 
       return withFacility(ctx.db, facilityId, async (tx) => {
         const session = await loadGatedSession(tx, facilityId, input.sessionId);
+        await assertTeacherOwnsClass(tx, facilityId, ctx.subject, session.classBatchId);
         const enrollment = await loadGatedEnrollment(tx, facilityId, input.enrollmentId, session);
 
         const markedAt = new Date();
@@ -165,6 +168,18 @@ export const attendanceRouter = router({
           },
         });
 
+        // Metric & Data Integrity remediation (scenario audit): a correction
+        // (e.g. absent -> present) after FinalGrade was already computed for
+        // this period must refresh it — otherwise the report shows a stale
+        // score alongside the new attendance rate. Anchored on the SESSION's
+        // own endTime (not "now") so a correction to a PAST session refreshes
+        // THAT month, not the current one.
+        await recomputeFinalGrade(tx, {
+          facilityId,
+          studentId: enrollment.studentId,
+          periodAnchor: session.endTime,
+        });
+
         return toAttendanceDto(attendance);
       });
     }),
@@ -178,10 +193,17 @@ export const attendanceRouter = router({
 
       return withFacility(ctx.db, facilityId, async (tx) => {
         const session = await loadGatedSession(tx, facilityId, input.sessionId);
+        await assertTeacherOwnsClass(tx, facilityId, ctx.subject, session.classBatchId);
 
         const items: AttendanceDto[] = [];
+        // Metric & Data Integrity remediation (scenario audit): every entry
+        // in one markAll call shares the same session, so the same
+        // period — dedupe by studentId and recompute FinalGrade once per
+        // student, not once per entry.
+        const studentIdsToRecompute = new Set<string>();
         for (const entry of input.entries) {
           const enrollment = await loadGatedEnrollment(tx, facilityId, entry.enrollmentId, session);
+          studentIdsToRecompute.add(enrollment.studentId);
           const markedAt = new Date();
           const attendance = await tx.attendance.upsert({
             where: {
@@ -219,16 +241,21 @@ export const attendanceRouter = router({
           items.push(toAttendanceDto(attendance));
         }
 
+        for (const studentId of studentIdsToRecompute) {
+          await recomputeFinalGrade(tx, { facilityId, studentId, periodAnchor: session.endTime });
+        }
+
         return { items };
       });
     }),
 
   // Roster read: every `active` enrollment in the session's class, with its
   // attendance status for THIS session (`null` when not yet marked).
-  // H4 fix (teacher-scoping): giao_vien callers are restricted to sessions
-  // where their AppUser is the class's teacherAppUserId. Callers without an
-  // AppUser row (e.g. synthetic test userId) are let through to avoid
-  // breaking existing tests.
+  // H4/teacher-scoping remediation (2026-07-15): now shares
+  // `assertTeacherOwnsClass` with every write procedure below — no more
+  // bespoke inline check, and no more fail-open when the caller's AppUser
+  // can't be resolved (see that helper's doc comment for why fail-closed is
+  // safe for real staff sessions).
   listBySession: requirePermission('attendance', 'mark')
     .input(listBySessionInput)
     .query(async ({ ctx, input }) => {
@@ -236,27 +263,7 @@ export const attendanceRouter = router({
 
       return withFacility(ctx.db, facilityId, async (tx) => {
         const session = await loadGatedSessionForRead(tx, facilityId, input.sessionId);
-
-        // H4: teacher-scoping — restrict giao_vien-only callers to their own
-        // classes. Users who ALSO hold a director role get broad access.
-        const hasDirectorRole = ctx.subject!.roles.some((r) =>
-          ['super_admin', 'giam_doc_dao_tao', 'giam_doc_kinh_doanh'].includes(r),
-        );
-        if (ctx.subject!.roles.includes('giao_vien') && !hasDirectorRole) {
-          const callerAppUser = await tx.appUser.findFirst({
-            where: { userId: ctx.subject!.userId, facilityId },
-            select: { id: true },
-          });
-          if (callerAppUser) {
-            const batch = await tx.classBatch.findFirst({
-              where: { id: session.classBatchId, facilityId },
-              select: { teacherAppUserId: true },
-            });
-            if (batch?.teacherAppUserId && batch.teacherAppUserId !== callerAppUser.id) {
-              throw forbidden('Teachers may only view attendance for their own classes.');
-            }
-          }
-        }
+        await assertTeacherOwnsClass(tx, facilityId, ctx.subject, session.classBatchId);
 
         const [enrollments, attendances] = await Promise.all([
           tx.enrollment.findMany({
@@ -317,7 +324,11 @@ export const attendanceRouter = router({
 
       return withFacility(ctx.db, student.facilityId, async (tx) => {
         const items = await tx.attendance.findMany({
-          where: { studentId: input.studentId },
+          // Exclude cancelled sessions — a cancelled session never ran, so
+          // showing it as a normal attendance entry would contradict
+          // recomputeFinalGrade's attendance-rate denominator (../submission/
+          // router.ts), which already excludes cancelled sessions.
+          where: { studentId: input.studentId, classSession: { status: { not: 'cancelled' } } },
           orderBy: { markedAt: 'desc' },
           take: 100,
           select: { classSessionId: true, status: true, classSession: { select: { sessionDate: true } } },

@@ -54,6 +54,7 @@ describe('finance.receiptCreate renewal reuse (H3)', () => {
       amount: 5_000_000,
       classBatchId: classBatchOne.id,
     });
+    if (firstReceipt.status === 'needs_confirmation') throw new Error('unexpected needs_confirmation');
     const firstApproved = await gdkd.finance.receiptApprove({ receiptId: firstReceipt.receipt.id });
     expect(firstApproved.provisioning).toBe('ok');
 
@@ -69,6 +70,7 @@ describe('finance.receiptCreate renewal reuse (H3)', () => {
       amount: 6_000_000,
       classBatchId: classBatchTwo.id,
     });
+    if (renewalReceipt.status === 'needs_confirmation') throw new Error('unexpected needs_confirmation');
     const renewalApproved = await gdkd.finance.receiptApprove({ receiptId: renewalReceipt.receipt.id });
     expect(renewalApproved.provisioning).toBe('ok');
 

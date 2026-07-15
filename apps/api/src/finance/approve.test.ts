@@ -55,26 +55,50 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
   /** Draft a receipt through the full O1..O4 -> receiptCreate flow. */
   async function draftReceipt(
     creator: Caller,
-    opts: { contactPhone: string; parentPhone: string; parentEmail?: string; amount?: number; classBatchId?: string },
+    opts: {
+      contactPhone: string;
+      parentPhone: string;
+      parentEmail?: string;
+      amount?: number;
+      classBatchId?: string;
+      studentId?: string;
+      confirmNewStudent?: boolean;
+      opportunityId?: string;
+    },
   ) {
-    const opp = await creator.crm.opportunityCreate({ contactName: 'Contact ' + opts.contactPhone, phone: opts.contactPhone });
-    await creator.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O2_CONTACTED' });
-    await creator.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O3_TEST_SCHEDULED' });
-    await creator.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O4_TESTED' });
+    let opportunityId = opts.opportunityId;
+    if (!opportunityId) {
+      const opp = await creator.crm.opportunityCreate({ contactName: 'Contact ' + opts.contactPhone, phone: opts.contactPhone });
+      await creator.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O2_CONTACTED' });
+      await creator.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O3_TEST_SCHEDULED' });
+      await creator.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O4_TESTED' });
+      opportunityId = opp.id;
+    }
 
     phonesToClean.push(opts.parentPhone);
     const result = await creator.finance.receiptCreate({
-      opportunityId: opp.id,
+      opportunityId,
       studentName: 'Student for ' + opts.parentPhone,
       parentPhone: opts.parentPhone,
       parentEmail: opts.parentEmail,
       amount: opts.amount ?? 5_000_000,
       classBatchId: opts.classBatchId ?? classBatch.id,
+      studentId: opts.studentId,
+      confirmNewStudent: opts.confirmNewStudent,
     });
-    // A repeat parentPhone (e.g. the renewal-kind test) legitimately returns
-    // `status: 'warning'` (soft dup-phone warning, docs/24 WF-P1-02) — both
-    // branches of the discriminated union still carry a usable `receipt`.
-    return { opportunityId: opp.id, receipt: result.receipt };
+    // A repeat parentPhone with no existing Student for it yet (or an
+    // explicitly disambiguated studentId/confirmNewStudent) legitimately
+    // returns `status: 'warning'` (soft dup-phone warning, docs/24 WF-P1-02).
+    // `needs_confirmation` (scenario audit, PO round 3) means the caller
+    // forgot to disambiguate an existing-student phone — a test bug, not a
+    // valid draftReceipt outcome, so it throws here instead of silently
+    // returning an unusable receipt.
+    if (result.status === 'needs_confirmation') {
+      throw new Error(
+        `draftReceipt: phone ${opts.parentPhone} needs disambiguation (studentId or confirmNewStudent) — this helper caller must pass one.`,
+      );
+    }
+    return { opportunityId, receipt: result.receipt };
   }
 
   it('forbids sale (the drafter role) from approving — I1', async () => {
@@ -104,6 +128,32 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     );
     expect(opportunity.stage).toBe('O5_ENROLLED');
     expect(opportunity.closedAt).not.toBeNull();
+  });
+
+  it('Metric & Data Integrity remediation (scenario audit): a SECOND approval on the same opportunity does NOT overwrite closedAt', async () => {
+    const first = await draftReceipt(sale, { contactPhone: '0930000017', parentPhone: '0940000017' });
+    const firstApproved = await gdkd.finance.receiptApprove({ receiptId: first.receipt.id });
+    expect(firstApproved.opportunityStage).toBe('O5_ENROLLED');
+    const originalClosedAt = (
+      await testDbBypass((tx) => tx.opportunity.findUniqueOrThrow({ where: { id: first.opportunityId } }))
+    ).closedAt;
+    expect(originalClosedAt).not.toBeNull();
+
+    // A second receipt on the SAME opportunity (different phone — a sibling
+    // enrolled via the same opportunity), approved later.
+    const second = await draftReceipt(sale, {
+      contactPhone: '0930000017',
+      parentPhone: '0940000018',
+      classBatchId: classBatch.id,
+      opportunityId: first.opportunityId,
+    });
+    await gdkd.finance.receiptApprove({ receiptId: second.receipt.id });
+
+    const opportunity = await testDbBypass((tx) =>
+      tx.opportunity.findUniqueOrThrow({ where: { id: first.opportunityId } }),
+    );
+    expect(opportunity.stage).toBe('O5_ENROLLED');
+    expect(opportunity.closedAt?.getTime()).toBe(originalClosedAt?.getTime());
   });
 
   it('rejects approving a non-draft receipt (already approved)', async () => {
@@ -226,19 +276,45 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     expect(result.receipt.status).toBe('approved');
   });
 
-  it('computes kind=renewal for a second approved receipt on the same parent phone, kind=new for the first', async () => {
+  it('computes kind=renewal for a SECOND receipt naming the SAME student (studentId), kind=new for the first', async () => {
     const parentPhone = '0940000006';
     const first = await draftReceipt(sale, { contactPhone: '0930000006', parentPhone });
     const firstApproved = await gdkd.finance.receiptApprove({ receiptId: first.receipt.id });
     expect(firstApproved.receipt.kind).toBe('new');
 
+    const student = await testDbBypass((tx) =>
+      tx.student.findUniqueOrThrow({ where: { createdByReceiptId: first.receipt.id } }),
+    );
+
+    // Metric & Data Integrity remediation (scenario audit, PO round 3): kind
+    // is now STUDENT-scoped, not phone-scoped — a repeat phone with no
+    // studentId is a duplicate-student gate case (see
+    // duplicate-student-gate.test.ts), not an automatic 'renewal'. This test
+    // now exercises the real renewal path: same phone AND explicit studentId.
     const second = await draftReceipt(sale, {
       contactPhone: '0930000007',
       parentPhone,
       classBatchId: classBatch.id,
+      studentId: student.id,
     });
     const secondApproved = await gdkd.finance.receiptApprove({ receiptId: second.receipt.id });
     expect(secondApproved.receipt.kind).toBe('renewal');
+  });
+
+  it('computes kind=new for a SECOND receipt on the same phone naming a genuinely different child (confirmNewStudent)', async () => {
+    const parentPhone = '0940000015';
+    const first = await draftReceipt(sale, { contactPhone: '0930000015', parentPhone });
+    const firstApproved = await gdkd.finance.receiptApprove({ receiptId: first.receipt.id });
+    expect(firstApproved.receipt.kind).toBe('new');
+
+    const second = await draftReceipt(sale, {
+      contactPhone: '0930000016',
+      parentPhone,
+      classBatchId: classBatch.id,
+      confirmNewStudent: true,
+    });
+    const secondApproved = await gdkd.finance.receiptApprove({ receiptId: second.receipt.id });
+    expect(secondApproved.receipt.kind).toBe('new');
   });
 
   it('forbids a role without finance.receiptApprove permission', async () => {

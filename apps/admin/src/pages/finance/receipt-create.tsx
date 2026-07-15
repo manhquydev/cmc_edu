@@ -71,6 +71,16 @@ export default function ReceiptCreatePage() {
   const [submitted, setSubmitted] = useState(false);
   const prefilled = useRef(false);
 
+  // Metric & Data Integrity remediation (scenario audit, PO round 3): the
+  // phone already owns ≥1 provisioned Student — sale must pick the existing
+  // child or confirm this is genuinely a new one before the receipt is
+  // actually created (finance.receiptCreate returns `needs_confirmation`
+  // instead of creating anything in this case).
+  const [needsConfirmation, setNeedsConfirmation] = useState<{
+    message: string;
+    existingStudents: { id: string; fullName: string }[];
+  } | null>(null);
+
   const { data: oppData, isLoading: oppLoading } = trpc.crm.opportunityGet.useQuery(
     { opportunityId: opportunityId! },
     { enabled: Boolean(opportunityId) },
@@ -99,9 +109,25 @@ export default function ReceiptCreatePage() {
 
   const createMutation = trpc.finance.receiptCreate.useMutation({
     onSuccess: (res) => {
+      if (res.status === 'needs_confirmation') {
+        setNeedsConfirmation({ message: res.message, existingStudents: res.existingStudents });
+        return;
+      }
       void navigate(`/finance/${res.receipt.id}`);
     },
   });
+
+  function submitReceipt(extra?: { studentId?: string; confirmNewStudent?: boolean }) {
+    createMutation.mutate({
+      studentName: form.studentName.trim(),
+      parentPhone: form.parentPhone.trim(),
+      parentEmail: form.parentEmail.trim() || undefined,
+      classBatchId: form.classBatchId,
+      amount: Number(form.amount),
+      opportunityId,
+      ...extra,
+    });
+  }
 
   const classBatchOptions = (classBatchData?.items ?? []).map((b) => ({
     value: b.id,
@@ -112,6 +138,9 @@ export default function ReceiptCreatePage() {
     const next = { ...form, [key]: value };
     setForm(next);
     if (submitted) setErrors(validate(next));
+    // Editing the form after a needs_confirmation response invalidates that
+    // pending choice (different studentName/phone means a different lookup).
+    if (needsConfirmation) setNeedsConfirmation(null);
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -122,14 +151,7 @@ export default function ReceiptCreatePage() {
     if (Object.keys(errs).length > 0) return;
     if (form.amount === '') return;
 
-    createMutation.mutate({
-      studentName: form.studentName.trim(),
-      parentPhone: form.parentPhone.trim(),
-      parentEmail: form.parentEmail.trim() || undefined,
-      classBatchId: form.classBatchId,
-      amount: Number(form.amount),
-      opportunityId,
-    });
+    submitReceipt();
   }
 
   // TODO(astryx-review): `ResultPanel` passes `message` as Astryx `Banner`
@@ -185,6 +207,31 @@ export default function ReceiptCreatePage() {
         }
       >
         <Stack gap={4} style={{ maxWidth: 560 }}>
+          {needsConfirmation && (
+            <Stack gap={2}>
+              {/* Interactive follow-up, not just informational — kept OUT of
+                  Banner's `children` slot (Astryx collapses children behind a
+                  toggle, hidden by default; see the ResultPanel TODO below),
+                  so these buttons are always visible. */}
+              <Banner status="warning" title="Cần xác nhận học sinh" description={needsConfirmation.message} />
+              {needsConfirmation.existingStudents.map((s) => (
+                <Button
+                  key={s.id}
+                  label={`Đây là bé đã có: ${s.fullName}`}
+                  variant="secondary"
+                  isLoading={createMutation.isPending}
+                  onClick={() => submitReceipt({ studentId: s.id })}
+                />
+              ))}
+              <Button
+                label="Đây là bé mới (khác với các bé ở trên)"
+                variant="primary"
+                isLoading={createMutation.isPending}
+                onClick={() => submitReceipt({ confirmNewStudent: true })}
+              />
+            </Stack>
+          )}
+
           {opportunityId && oppLoading && (
             <Banner
               status="info"

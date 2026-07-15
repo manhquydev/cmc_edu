@@ -25,6 +25,8 @@ import {
   auditChildDataAccess,
   getApprovedChildren,
 } from '../guardian/approved-children.js';
+import { assertTeacherOwnsClass, assertTeacherOwnsSessionClass } from '../attendance/assert-teacher-owns-class.js';
+import { assertSessionActive } from '../class/assert-session-active.js';
 
 // ---------------------------------------------------------------------------
 // DTOs
@@ -165,11 +167,13 @@ export const sessionEvidenceRouter = router({
         // Verify the session belongs to this facility.
         const session = await tx.classSession.findFirst({
           where: { id: input.classSessionId, facilityId },
-          select: { id: true },
+          select: { id: true, classBatchId: true, status: true },
         });
         if (!session) {
           throw notFound('ClassSession not found in this facility.');
         }
+        assertSessionActive(session);
+        await assertTeacherOwnsClass(tx, facilityId, ctx.subject, session.classBatchId);
 
         const existing = await tx.sessionEvidence.findUnique({
           where: { classSessionId: input.classSessionId },
@@ -248,7 +252,7 @@ export const sessionEvidenceRouter = router({
       return withFacility(ctx.db, facilityId, async (tx) => {
         const evidence = await tx.sessionEvidence.findFirst({
           where: { id: input.sessionEvidenceId, facilityId },
-          select: { id: true, status: true },
+          select: { id: true, status: true, classSessionId: true },
         });
         if (!evidence) {
           throw notFound('SessionEvidence not found in this facility.');
@@ -256,6 +260,12 @@ export const sessionEvidenceRouter = router({
         if (evidence.status === 'published') {
           throw badRequest('Cannot add photos to published evidence.');
         }
+        const session = await tx.classSession.findFirst({
+          where: { id: evidence.classSessionId, facilityId },
+          select: { status: true },
+        });
+        if (session) assertSessionActive(session);
+        await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, evidence.classSessionId);
 
         const photo = await tx.sessionEvidencePhoto.create({
           data: {
@@ -287,6 +297,12 @@ export const sessionEvidenceRouter = router({
         if (evidence.status === 'published') {
           throw badRequest('Evidence is already published.');
         }
+        const session = await tx.classSession.findFirst({
+          where: { id: evidence.classSessionId, facilityId },
+          select: { status: true },
+        });
+        if (session) assertSessionActive(session);
+        await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, evidence.classSessionId);
         // HR remediation phase 7 (R2 #H5): publishing with 0 photos was
         // previously a dead end — addPhoto refuses to touch already-published
         // evidence, so a 0-photo publish could never be completed afterward.

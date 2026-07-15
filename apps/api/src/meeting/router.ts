@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { badRequest, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
+import { assertStudentActive } from '../student/assert-student-active.js';
 
 const scheduleInput = z.object({
   studentId: z.string().uuid(),
@@ -34,15 +35,32 @@ export const parentMeetingRouter = router({
           where: { id: input.studentId, facilityId },
         });
         if (!student) throw notFound('Student not found in this facility.');
+        assertStudentActive(student);
 
-        return tx.parentMeeting.create({
+        const scheduledAt = new Date(input.scheduledAt);
+
+        // Low-Severity Hygiene remediation (scenario audit): a double-booked
+        // slot for the same student is CHỐT as a soft warning, not a block —
+        // scheduling meetings is a low-stakes action, and hard-blocking would
+        // just annoy staff coordinating around a parent's availability.
+        const doubleBooked = await tx.parentMeeting.findFirst({
+          where: { facilityId, studentId: input.studentId, scheduledAt, status: 'scheduled' },
+          select: { id: true },
+        });
+
+        const created = await tx.parentMeeting.create({
           data: {
             facilityId,
             studentId: input.studentId,
-            scheduledAt: new Date(input.scheduledAt),
+            scheduledAt,
             status: 'scheduled',
           },
         });
+
+        return {
+          ...created,
+          warning: doubleBooked ? 'Học sinh này đã có 1 lịch họp trùng giờ — vui lòng xác nhận.' : undefined,
+        };
       });
     }),
 

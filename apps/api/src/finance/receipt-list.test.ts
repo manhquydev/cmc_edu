@@ -5,6 +5,7 @@
 // `receiptApprove`, facility-scoped, and status-filterable.
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { normalizeLoginPhone } from '@cmc/domain-identity';
 import { appRouter } from '../router.js';
 import {
   buildStaffContext,
@@ -43,18 +44,20 @@ describe('finance.receiptList / finance.receiptGet (K3)', () => {
   afterEach(async () => {
     await cleanupFacility(facilityA.id);
     await cleanupFacility(facilityB.id);
-    await cleanupParentAccountsByPhone(...phonesToClean);
+    await cleanupParentAccountsByPhone(...phonesToClean.map((p) => normalizeLoginPhone(p)));
     phonesToClean.length = 0;
   });
 
   async function draftReceipt(caller: Caller, parentPhone: string, classBatchId: string) {
     phonesToClean.push(parentPhone);
-    return caller.finance.receiptCreate({
+    const result = await caller.finance.receiptCreate({
       studentName: 'Receipt List Student',
       parentPhone,
       amount: 3_000_000,
       classBatchId,
     });
+    if (result.status === 'needs_confirmation') throw new Error('unexpected needs_confirmation');
+    return result;
   }
 
   it('an approver (GĐKD) can list draft receipts awaiting approval, facility-scoped', async () => {

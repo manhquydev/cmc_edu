@@ -16,6 +16,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedAppUser,
   seedClassBatch,
   seedClassSession,
   seedEnrolledStudentWithGuardian,
@@ -51,6 +52,12 @@ describe('sessionEvidence (T3 US-019)', () => {
     );
 
     classBatch = await seedClassBatch({ facilityId: facility.id });
+    // Teacher class-scoping remediation (2026-07-15): assign this teacher to
+    // the class so upsert/addPhoto/publish (all now scope-checked) pass.
+    const teacherAppUser = await seedAppUser({ facilityId: facility.id, userId: 'teacher-evid-1' });
+    await testDbBypass((tx) =>
+      tx.classBatch.update({ where: { id: classBatch.id }, data: { teacherAppUserId: teacherAppUser.id } }),
+    );
 
     const phone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
     parent = await seedParentAccount(phone);
@@ -120,6 +127,14 @@ describe('sessionEvidence (T3 US-019)', () => {
 
     await expect(
       teacher.sessionEvidence.upsert({ classSessionId: session.id, summary: 'Sửa sau publish.' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('status & lifecycle guards (scenario audit pattern #2): upsert rejects a cancelled session', async () => {
+    await testDbBypass((tx) => tx.classSession.update({ where: { id: session.id }, data: { status: 'cancelled' } }));
+
+    await expect(
+      teacher.sessionEvidence.upsert({ classSessionId: session.id, summary: 'Không được tạo.' }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
@@ -197,6 +212,18 @@ describe('sessionEvidence (T3 US-019)', () => {
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
+  it('status & lifecycle guards: addPhoto rejects once the session is cancelled', async () => {
+    const evidence = await teacher.sessionEvidence.upsert({
+      classSessionId: session.id,
+      summary: 'Buổi học sắp huỷ.',
+    });
+    await testDbBypass((tx) => tx.classSession.update({ where: { id: session.id }, data: { status: 'cancelled' } }));
+
+    await expect(
+      teacher.sessionEvidence.addPhoto({ sessionEvidenceId: evidence.id, blobRef: 'photos/after-cancel.jpg' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
   // -------------------------------------------------------------------------
   // publish
   // -------------------------------------------------------------------------
@@ -233,6 +260,19 @@ describe('sessionEvidence (T3 US-019)', () => {
       classSessionId: session.id,
       summary: 'Chưa có ảnh.',
     });
+
+    await expect(
+      teacher.sessionEvidence.publish({ sessionEvidenceId: evidence.id }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('status & lifecycle guards: publish rejects once the session is cancelled', async () => {
+    const evidence = await teacher.sessionEvidence.upsert({
+      classSessionId: session.id,
+      summary: 'Buổi học sắp huỷ.',
+    });
+    await teacher.sessionEvidence.addPhoto({ sessionEvidenceId: evidence.id, blobRef: 'photos/before-cancel.jpg' });
+    await testDbBypass((tx) => tx.classSession.update({ where: { id: session.id }, data: { status: 'cancelled' } }));
 
     await expect(
       teacher.sessionEvidence.publish({ sessionEvidenceId: evidence.id }),

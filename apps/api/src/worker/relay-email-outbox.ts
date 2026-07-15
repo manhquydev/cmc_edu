@@ -37,9 +37,21 @@ export const CONSOLE_TRANSPORT_PROD_FORBIDDEN = true;
  *  failures transitions to `dead` (permanent terminal state). */
 const EMAIL_MAX_ATTEMPTS = Number(process.env.EMAIL_MAX_ATTEMPTS ?? 5);
 
-/** Rows still in `sending` after this long are presumed from a crashed worker
- *  and are reset to `pending` before the main drain loop. */
-const SENDING_REAP_TIMEOUT_MS = 5 * 60 * 1_000;
+/**
+ * Rows still in `sending` after this long are presumed from a crashed worker
+ * and are reset to `pending` before the main drain loop.
+ *
+ * Atomic-lock standardization (scenario audit "Gắn kết #2", validated
+ * decision): raised from 5 to 15 minutes — a merely-SLOW Brevo/Graph call
+ * (not crashed) reaped too early gets resent by the next cycle, producing a
+ * duplicate email to the parent. Neither transport's REST API exposes a
+ * client-supplied idempotency key we could rely on for true dedup, so this is
+ * accepted as at-least-once delivery (CHỐT via /ck:plan validate,
+ * 2026-07-15): duplicate sends are rare (only when a real crash coincides
+ * with an in-flight call) and harmless (a duplicate notification email, not
+ * a financial/critical action) — not worth a distributed lock for this.
+ */
+const SENDING_REAP_TIMEOUT_MS = 15 * 60 * 1_000;
 
 /** Must stay in sync with `OTP_TTL_MINUTES` in `lms-auth/router.ts`. Sweep
  *  window for orphaned OTP payloads (row stuck in `failed`/`pending` — e.g.

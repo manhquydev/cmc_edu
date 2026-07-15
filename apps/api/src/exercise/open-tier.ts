@@ -110,11 +110,21 @@ async function resolveOpenCurriculumUnitIds(
   // Tier B: makeup sessions THIS student attended present/late — keyed on
   // Attendance.studentId, so this query is inherently per-student already
   // (no batch-wide leak possible from this branch).
+  //
+  // Metric & Data Integrity remediation (scenario audit): mirror Tier A's
+  // `endTime < now` gate — a makeup session marked present in advance (or
+  // live, mid-session) must not open the unit before the session has
+  // actually ended, same reasoning as Tier A.
   const tierBAttendances = await tx.attendance.findMany({
     where: {
       studentId: student.id,
       status: { in: ['present', 'late'] },
-      classSession: { isMakeup: true, status: { not: 'cancelled' }, curriculumUnitId: { not: null } },
+      classSession: {
+        isMakeup: true,
+        status: { not: 'cancelled' },
+        curriculumUnitId: { not: null },
+        endTime: { lt: new Date() },
+      },
     },
     select: { classSession: { select: { curriculumUnitId: true } } },
   });

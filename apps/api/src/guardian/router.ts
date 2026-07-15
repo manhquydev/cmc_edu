@@ -22,6 +22,7 @@ import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { badRequest, conflict, notFound } from '../errors.js';
 import { lmsProcedure, requirePermission, router, scoped } from '../trpc.js';
+import { assertStudentActive } from '../student/assert-student-active.js';
 
 const requestLinkInput = z.object({
   studentRef: z.string().uuid(),
@@ -139,6 +140,13 @@ export const guardianRouter = router({
           );
         }
 
+        const student = await tx.student.findFirst({
+          where: { id: request.studentRef, facilityId },
+          select: { lifecycle: true },
+        });
+        if (!student) throw notFound('Student not found in this facility.');
+        assertStudentActive(student);
+
         // Atomic claim: only one concurrent approve/reject on the same
         // request can flip it out of `pending` (same shape as
         // finance.receiptApprove's claim — see finance/router.ts).
@@ -149,6 +157,16 @@ export const guardianRouter = router({
         if (claim.count !== 1) {
           throw conflict('Request was already reviewed by a concurrent call.');
         }
+
+        // Low-Severity Hygiene remediation (scenario audit): a student having
+        // multiple approved guardians is VALID (co-parents/legal guardians) —
+        // this is a soft heads-up for staff to double-check identity, not a
+        // block. Checked BEFORE creating this approval's own Guardian row so
+        // it never counts itself.
+        const existingOtherGuardian = await tx.guardian.findFirst({
+          where: { studentId: request.studentRef, parentAccountId: { not: request.parentAccountId } },
+          select: { id: true },
+        });
 
         const guardian = await tx.guardian.upsert({
           where: {
@@ -166,7 +184,14 @@ export const guardianRouter = router({
           update: {},
         });
 
-        return { requestId: request.id, status: 'approved' as const, guardianId: guardian.id };
+        return {
+          requestId: request.id,
+          status: 'approved' as const,
+          guardianId: guardian.id,
+          warning: existingOtherGuardian
+            ? 'Học sinh này đã có phụ huynh/giám hộ khác được duyệt — vui lòng xác nhận đây là đồng giám hộ hợp lệ.'
+            : undefined,
+        };
       });
     }),
 

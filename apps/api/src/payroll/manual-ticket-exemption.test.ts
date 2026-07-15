@@ -290,7 +290,7 @@ describe('manual ticket approved AFTER finalize', () => {
     // existing branch-scope workaround convention.
     const approveResult = await superAdminCaller().manualPunch.approve({ ticketId: ticket.id, note: '' });
     expect(approveResult.status).toBe('approved');
-    expect((approveResult as { warning?: string }).warning).toBe('PAYSLIP_FINALIZED');
+    expect((approveResult as { warnings: string[] }).warnings).toContain('PAYSLIP_FINALIZED');
 
     // The payslip itself is untouched — assemble() was never called again.
     const stillFinalized = await directorCaller().payslip.getForUser({
@@ -301,7 +301,7 @@ describe('manual ticket approved AFTER finalize', () => {
     expect(stillFinalized.unpunchedDays).toBe(1);
   });
 
-  it('approve() has NO warning when the ticket period is still a draft payslip (or unassembled)', async () => {
+  it('approve() has NO PAYSLIP_FINALIZED warning when the ticket period is still a draft payslip (or unassembled)', async () => {
     const date = '2099-08-16';
     await seedRegisteredShift(date);
 
@@ -314,6 +314,39 @@ describe('manual ticket approved AFTER finalize', () => {
     // See branch-scope note above — same GĐKD-vs-giao_vien-owner mismatch.
     const approveResult = await superAdminCaller().manualPunch.approve({ ticketId: ticket.id, note: '' });
     expect(approveResult.status).toBe('approved');
-    expect((approveResult as { warning?: string }).warning).toBeUndefined();
+    // This ticket has no checkOutAt (never punched at all) — C2's
+    // checkOutAt===null condition still fires SINGLE_PUNCH_NO_CREDIT here;
+    // only PAYSLIP_FINALIZED is what this test asserts is absent.
+    expect((approveResult as { warnings: string[] }).warnings).not.toContain('PAYSLIP_FINALIZED');
+  });
+
+  it('C2: a ticket both finalized-period AND single-punch (checkOutAt=null) carries BOTH warnings, neither is swallowed', async () => {
+    const date = '2099-08-17';
+    await seedRegisteredShift(date);
+    const assembled = await directorCaller().payslip.assemble({
+      appUserId: employeeAppUserId,
+      period: TEST_PERIOD,
+    });
+    await directorCaller().payslip.finalize({ payslipId: assembled.id });
+
+    // Single-punch ticket (checkInAt set, checkOutAt null) for the already-finalized period.
+    const ticket = await testDbBypass((tx) =>
+      tx.manualAttendanceTicket.create({
+        data: {
+          facilityId,
+          appUserId: employeeAppUserId,
+          ticketDate: ictToUtc(date, '00:00'),
+          note: 'Chỉ bấm 1 lần',
+          checkInAt: ictToUtc(date, '09:00'),
+        },
+      }),
+    );
+
+    const approveResult = await superAdminCaller().manualPunch.approve({ ticketId: ticket.id, note: '' });
+    expect(approveResult.status).toBe('approved');
+    const warnings = (approveResult as { warnings: string[] }).warnings;
+    expect(warnings).toContain('PAYSLIP_FINALIZED');
+    expect(warnings).toContain('SINGLE_PUNCH_NO_CREDIT');
+    expect(warnings).toHaveLength(2);
   });
 });

@@ -23,10 +23,23 @@ describe('manualPunch.approve/reject/list/resubmit — GĐ track (ADR 0043 phase
     await cleanupFacility(facilityId);
   });
 
-  async function seedTicket(appUserId: string, dateKey: string, status = 'pending') {
+  async function seedTicket(
+    appUserId: string,
+    dateKey: string,
+    status = 'pending',
+    hours?: { checkIn: string; checkOut?: string },
+  ) {
     return testDbBypass((tx) =>
       tx.manualAttendanceTicket.create({
-        data: { facilityId, appUserId, ticketDate: ictToUtc(dateKey, '00:00'), status, note: 'offsite' },
+        data: {
+          facilityId,
+          appUserId,
+          ticketDate: ictToUtc(dateKey, '00:00'),
+          status,
+          note: 'offsite',
+          checkInAt: hours ? ictToUtc(dateKey, hours.checkIn) : null,
+          checkOutAt: hours?.checkOut ? ictToUtc(dateKey, hours.checkOut) : null,
+        },
       }),
     );
   }
@@ -172,6 +185,28 @@ describe('manualPunch.approve/reject/list/resubmit — GĐ track (ADR 0043 phase
     const rejected = results.filter((r) => r.status === 'rejected');
     expect(fulfilled).toHaveLength(1);
     expect(rejected).toHaveLength(1);
+  });
+
+  it('11. C2: duyệt phiếu 1-mốc (checkOutAt=null) → warnings có SINGLE_PUNCH_NO_CREDIT; vẫn approved (không chặn)', async () => {
+    const sale = await seedAppUser({ facilityId, userId: 'p4-single-punch' });
+    await testDbBypass((tx) => tx.appUser.update({ where: { id: sale.id }, data: { roles: ['sale'] } }));
+    const ticket = await seedTicket(sale.id, '2026-08-12', 'pending', { checkIn: '09:00' });
+
+    const gdkd = ctxFor('p4-single-punch-gdkd', ['giam_doc_kinh_doanh']);
+    const approved = await caller(gdkd).manualPunch.approve({ ticketId: ticket.id });
+    expect(approved.status).toBe('approved');
+    expect((approved as { warnings: string[] }).warnings).toContain('SINGLE_PUNCH_NO_CREDIT');
+  });
+
+  it('12. C2: duyệt phiếu đủ cặp (checkInAt+checkOutAt) → warnings KHÔNG có SINGLE_PUNCH_NO_CREDIT', async () => {
+    const sale = await seedAppUser({ facilityId, userId: 'p4-full-pair' });
+    await testDbBypass((tx) => tx.appUser.update({ where: { id: sale.id }, data: { roles: ['sale'] } }));
+    const ticket = await seedTicket(sale.id, '2026-08-13', 'pending', { checkIn: '09:00', checkOut: '17:00' });
+
+    const gdkd = ctxFor('p4-full-pair-gdkd', ['giam_doc_kinh_doanh']);
+    const approved = await caller(gdkd).manualPunch.approve({ ticketId: ticket.id });
+    expect(approved.status).toBe('approved');
+    expect((approved as { warnings: string[] }).warnings).not.toContain('SINGLE_PUNCH_NO_CREDIT');
   });
 
   it('10. chủ phiếu role null (không sale/giao_vien) → chỉ super_admin duyệt được', async () => {

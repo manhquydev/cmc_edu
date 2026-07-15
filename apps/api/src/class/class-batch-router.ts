@@ -29,7 +29,10 @@ const classBatchCreateInput = z.object({
   startDate: dateOnlySchema,
   endDate: dateOnlySchema,
   roomId: z.string().uuid().optional(),
-  slots: z.array(slotInputSchema).min(1),
+  // Low-Severity Hygiene remediation (scenario audit): resource guard — a
+  // real weekly schedule never needs more than a handful of slots (mirrors
+  // markAllInput's bounded-batch pattern, ../attendance/router.ts).
+  slots: z.array(slotInputSchema).min(1).max(20),
   // HR remediation phase 1 (R2 #C5): teacherId is documented (schema.prisma)
   // as an AppUser.id — tightened from `.min(1)` to `.uuid()` since `create`
   // now resolves + validates it against a real AppUser row.

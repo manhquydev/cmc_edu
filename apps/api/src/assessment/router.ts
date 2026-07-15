@@ -24,6 +24,7 @@ import {
   auditChildDataAccess,
   getApprovedChildren,
 } from '../guardian/approved-children.js';
+import { assertTeacherOwnsSessionClass } from '../attendance/assert-teacher-owns-class.js';
 
 // Singleton LLM client — created once at module load time. The stub is used
 // when LLM_API_KEY is not set (deterministic, offline, no network calls).
@@ -204,6 +205,8 @@ export const assessmentRouter = router({
       const draftContent = await llmClient.draftAssessment(prompt);
 
       return withFacility(ctx.db, facilityId, async (tx) => {
+        await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, input.classSessionId ?? null);
+
         const assessment = await tx.qualitativeAssessment.create({
           data: {
             facilityId,
@@ -230,7 +233,7 @@ export const assessmentRouter = router({
       return withFacility(ctx.db, facilityId, async (tx) => {
         const existing = await tx.qualitativeAssessment.findFirst({
           where: { id: input.assessmentId, facilityId },
-          select: { id: true, status: true },
+          select: { id: true, status: true, classSessionId: true },
         });
         if (!existing) {
           throw notFound('Assessment not found.');
@@ -238,6 +241,7 @@ export const assessmentRouter = router({
         if (existing.status !== 'draft') {
           throw badRequest(`Assessment is already ${existing.status}; only drafts can be confirmed.`);
         }
+        await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, existing.classSessionId);
 
         // Atomic write — the WHERE status:'draft' means a concurrent confirm/discard
         // that already committed will produce count=0 here.
@@ -272,7 +276,7 @@ export const assessmentRouter = router({
       return withFacility(ctx.db, facilityId, async (tx) => {
         const existing = await tx.qualitativeAssessment.findFirst({
           where: { id: input.assessmentId, facilityId },
-          select: { id: true, status: true },
+          select: { id: true, status: true, classSessionId: true },
         });
         if (!existing) {
           throw notFound('Assessment not found.');
@@ -280,6 +284,7 @@ export const assessmentRouter = router({
         if (existing.status !== 'draft') {
           throw badRequest(`Assessment is already ${existing.status}; only drafts can be discarded.`);
         }
+        await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, existing.classSessionId);
 
         const result = await tx.qualitativeAssessment.updateMany({
           where: { id: input.assessmentId, facilityId, status: 'draft' },

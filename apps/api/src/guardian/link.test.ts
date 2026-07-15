@@ -158,6 +158,39 @@ describe('guardian.requestLink / approveLink / rejectLink (WF-P1-06)', () => {
     expect((audit!.data as { via: string }).via).toBe('enrollment.mine');
   });
 
+  it('Low-Severity Hygiene remediation (scenario audit): approveLink warns staff when the student already has another approved guardian (still creates it — multi-guardian is valid)', async () => {
+    // First parent already approved.
+    const first = await parent.guardian.requestLink({ studentRef: student.id });
+    const firstRequestId = first.status === 'created' ? first.requestId : undefined;
+    const firstApproved = await sale.guardian.approveLink({ requestId: firstRequestId!, relation: 'mother' });
+    expect((firstApproved as { warning?: string }).warning).toBeUndefined();
+
+    // A second, different parent requests + gets approved for the SAME student.
+    const secondPhone = normalizeLoginPhone('0991000002');
+    phonesToClean.push(secondPhone);
+    const secondParentAccount = await seedParentAccount(secondPhone);
+    const secondParent = appRouter.createCaller(buildLmsContext({ parentAccountId: secondParentAccount.id }));
+    const second = await secondParent.guardian.requestLink({ studentRef: student.id });
+    const secondRequestId = second.status === 'created' ? second.requestId : undefined;
+
+    const secondApproved = await sale.guardian.approveLink({ requestId: secondRequestId!, relation: 'father' });
+    expect(secondApproved.status).toBe('approved'); // still created — co-parents are valid
+    expect((secondApproved as { warning?: string }).warning).toMatch(/giám hộ|guardian/i);
+
+    const guardianCount = await testDb().guardian.count({ where: { studentId: student.id } });
+    expect(guardianCount).toBe(2);
+  });
+
+  it('status & lifecycle guards (scenario audit pattern #2): approveLink rejects a withdrawn (void) student', async () => {
+    const requested = await parent.guardian.requestLink({ studentRef: student.id });
+    const requestId = requested.status === 'created' ? requested.requestId : undefined;
+    await testDbBypass((tx) => tx.student.update({ where: { id: student.id }, data: { lifecycle: 'withdrawn' } }));
+
+    await expect(
+      sale.guardian.approveLink({ requestId: requestId!, relation: 'mother' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
   it('a duplicate pending requestLink is a no-op (reuses the existing pending request)', async () => {
     const first = await parent.guardian.requestLink({ studentRef: student.id });
     const second = await parent.guardian.requestLink({ studentRef: student.id });

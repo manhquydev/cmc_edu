@@ -95,7 +95,7 @@ diễn từ message.
 |---|---|---|---|
 | `checkInOut.punch` | mutation | `checkInOut.punch` | `{ reason?: string }` — ghi mốc vào/ra ngày (ADR 0043); ngoài mạng lần đầu trong ngày (có ca đăng ký, chưa có phiếu) mà thiếu `reason` → `appCode: OFFSITE_REASON_REQUIRED`; double-tap <10s → `appCode: COOLDOWN` |
 | `manualPunch.resubmit` | mutation | `manualPunch.resubmit` | `{ ticketId, reason }` — chỉ chủ phiếu, chỉ khi `rejected`; cập nhật dòng cũ (không tạo dòng mới) |
-| `manualPunch.approve` / `reject` | mutation | `manualPunch.approve` | GĐ theo track của chủ phiếu (sale→`giam_doc_kinh_doanh`, giáo viên→`giam_doc_dao_tao`, `super_admin` mọi phiếu); anti-self-approve; TOCTOU-safe (`updateMany WHERE status IN (pending,resubmitted)`) |
+| `manualPunch.approve` / `reject` | mutation | `manualPunch.approve` | GĐ theo track của chủ phiếu (sale→`giam_doc_kinh_doanh`, giáo viên→`giam_doc_dao_tao`, `super_admin` mọi phiếu); anti-self-approve; TOCTOU-safe (`updateMany WHERE status IN (pending,resubmitted)`); `approve` trả thêm `warnings: string[]` (rỗng khi không có) — `PAYSLIP_FINALIZED` và/hoặc `SINGLE_PUNCH_NO_CREDIT` (phiếu 1-mốc, `checkOutAt=null`, vẫn approved nhưng KHÔNG có công — rule không đổi, chỉ thêm tín hiệu) |
 | `manualPunch.list` | query | protected | `{ scope: 'inbox'\|'mine', status? }` — inbox = phiếu track caller có quyền duyệt (hoặc mọi ticket nếu super_admin) |
 | `shift.createGroup` / `createTemplate` | mutation | `shift.manage` (GĐKD/GĐĐT) | catalog ShiftGroup/ShiftTemplate |
 | `shift.submit` | mutation | `shift.submit` | `{ shiftGroupId, fromDate, toDate, entries[] }` — ticket-lock 1 `submitted`/appUser, `fromDate` phải tương lai, group-type khớp `resolveShiftGroup(position)` |

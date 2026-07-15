@@ -207,13 +207,24 @@ export const rewardRouter = router({
         // rejectionRefundedAt=null. If the second insert races and hits the unique
         // constraint (P2002), we treat it as a no-op — the refund already exists.
         if (!reward.rejectionRefundedAt) {
+          // Low-Severity Hygiene remediation (scenario audit): refund the
+          // price actually PAID at redeem time, not `reward.gift.starsRequired`
+          // (a live join — would drift if the gift's price changed between
+          // redeem and reject). The `gift_redeemed` StarTransaction this
+          // reward's `redeem` call created is the durable snapshot of what was
+          // really deducted; read it back instead of re-deriving from Gift.
+          const originalDeduction = await tx.starTransaction.findFirst({
+            where: { refType: 'reward', refId: reward.id, type: 'gift_redeemed' },
+            select: { amount: true },
+          });
+          const refundAmount = originalDeduction ? Math.abs(originalDeduction.amount) : reward.gift.starsRequired;
           try {
             await tx.starTransaction.create({
               data: {
                 facilityId: reward.facilityId,
                 studentId: reward.studentId,
                 type: 'gift_rejected_refund',
-                amount: reward.gift.starsRequired,
+                amount: refundAmount,
                 refType: 'reward',
                 refId: reward.id,
               },

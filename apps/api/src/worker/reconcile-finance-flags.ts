@@ -31,8 +31,11 @@ export interface ScanFacilityResult {
 /**
  * Creates a ReconciliationFlag if no open flag of the same (facilityId,
  * receiptId, kind) already exists. Returns true if a flag was created.
+ * Exported for reuse by other reconcile workers (e.g.
+ * `reconcile-orphaned-receipts.ts`'s cancelled-but-provisioned scan) — same
+ * dedup semantics apply regardless of which worker raises the flag.
  */
-async function maybeCreateFlag(
+export async function maybeCreateFlag(
   tx: Parameters<Parameters<typeof withFacility>[2]>[0],
   opts: {
     facilityId: string;

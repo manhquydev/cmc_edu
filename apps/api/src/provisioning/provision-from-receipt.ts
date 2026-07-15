@@ -286,6 +286,7 @@ export async function provisionFromReceipt(
     facilityId: receipt.facilityId,
     studentId: student.id,
     classBatchId: receipt.classBatchId,
+    receiptId: receipt.id,
   });
 
   const studentAccount = await findOrCreateStudentAccount(

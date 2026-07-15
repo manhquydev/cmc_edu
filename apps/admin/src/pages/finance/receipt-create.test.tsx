@@ -202,4 +202,75 @@ describe('ReceiptCreatePage', () => {
     expect(createOnSuccess).toBeDefined();
     act(() => createOnSuccess?.({ receipt: { id: 'new-receipt-1' } }));
   });
+
+  // Metric & Data Integrity remediation (scenario audit, PO round 3):
+  // finance.receiptCreate now returns `status: 'needs_confirmation'` (no
+  // receipt created) when the phone already owns ≥1 provisioned Student —
+  // the UI must present a picker instead of crashing on `res.receipt.id`.
+  describe('needs_confirmation (duplicate-student gate)', () => {
+    it('does NOT navigate and shows a picker with the existing students + a "bé mới" option', async () => {
+      renderWithProviders(<ReceiptCreatePage />);
+      fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: 'Bé Hai' } });
+      fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: '0900000010' } });
+      fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '1000000' } });
+      await selectClassBatch();
+      submitForm();
+
+      act(() =>
+        createOnSuccess?.({
+          status: 'needs_confirmation',
+          message: 'Số điện thoại này đã có học sinh trong hệ thống.',
+          existingStudents: [{ id: 'student-1', fullName: 'Bé Một' }],
+        }),
+      );
+
+      expect(screen.getByText('Cần xác nhận học sinh')).toBeInTheDocument();
+      expect(screen.getByText('Đây là bé đã có: Bé Một')).toBeInTheDocument();
+      expect(screen.getByText('Đây là bé mới (khác với các bé ở trên)')).toBeInTheDocument();
+    });
+
+    it('picking an existing student resubmits with studentId', async () => {
+      renderWithProviders(<ReceiptCreatePage />);
+      fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: 'Bé Hai' } });
+      fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: '0900000011' } });
+      fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '1000000' } });
+      await selectClassBatch();
+      submitForm();
+      act(() =>
+        createOnSuccess?.({
+          status: 'needs_confirmation',
+          message: 'msg',
+          existingStudents: [{ id: 'student-1', fullName: 'Bé Một' }],
+        }),
+      );
+      createMutate.mockClear();
+
+      fireEvent.click(screen.getByText('Đây là bé đã có: Bé Một'));
+
+      expect(createMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ studentId: 'student-1', studentName: 'Bé Hai', parentPhone: '0900000011' }),
+      );
+    });
+
+    it('confirming a new student resubmits with confirmNewStudent:true', async () => {
+      renderWithProviders(<ReceiptCreatePage />);
+      fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: 'Bé Hai' } });
+      fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: '0900000012' } });
+      fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '1000000' } });
+      await selectClassBatch();
+      submitForm();
+      act(() =>
+        createOnSuccess?.({
+          status: 'needs_confirmation',
+          message: 'msg',
+          existingStudents: [{ id: 'student-1', fullName: 'Bé Một' }],
+        }),
+      );
+      createMutate.mockClear();
+
+      fireEvent.click(screen.getByText('Đây là bé mới (khác với các bé ở trên)'));
+
+      expect(createMutate).toHaveBeenCalledWith(expect.objectContaining({ confirmNewStudent: true }));
+    });
+  });
 });

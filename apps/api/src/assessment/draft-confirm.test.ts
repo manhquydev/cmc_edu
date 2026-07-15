@@ -15,6 +15,7 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedAppUser,
   seedClassBatch,
   seedClassSession,
   seedEnrolledStudentWithGuardian,
@@ -53,6 +54,13 @@ describe('assessment (T3 US-018)', () => {
     );
 
     classBatch = await seedClassBatch({ facilityId: facility.id });
+    // Teacher class-scoping remediation (2026-07-15): draftComment/confirm/
+    // discard now scope-check via classSessionId → classBatchId when a
+    // session is given — assign this teacher to the class.
+    const teacherAppUser = await seedAppUser({ facilityId: facility.id, userId: 'teacher-assess-1' });
+    await testDbBypass((tx) =>
+      tx.classBatch.update({ where: { id: classBatch.id }, data: { teacherAppUserId: teacherAppUser.id } }),
+    );
 
     const phone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
     parent = await seedParentAccount(phone);

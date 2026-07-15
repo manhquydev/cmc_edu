@@ -6,6 +6,7 @@
 // backfill-only concerns).
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { normalizeLoginPhone } from '@cmc/domain-identity';
 import { appRouter } from '../router.js';
 import {
   buildStaffContext,
@@ -52,7 +53,7 @@ describe('finance.receiptCreate / receiptApprove attribution writers (HR remedia
 
   afterEach(async () => {
     await cleanupFacility(facility.id);
-    await cleanupParentAccountsByPhone(...phonesToClean);
+    await cleanupParentAccountsByPhone(...phonesToClean.map((p) => normalizeLoginPhone(p)));
     phonesToClean.length = 0;
   });
 

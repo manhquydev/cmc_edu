@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { computeFinalGrade } from '@cmc/domain-grading';
 import { withFacility, type Prisma } from '@cmc/db';
 import { ictMonthOf, ictMonthBounds } from '@cmc/domain-time';
-import { badRequest, forbidden, notFound } from '../errors.js';
+import { badRequest, conflict, forbidden, notFound } from '../errors.js';
 import {
   lmsProcedure,
   requirePermission,
@@ -23,6 +23,7 @@ import {
   scoped,
 } from '../trpc.js';
 import { assertExerciseOpenForStudent, loadLmsStudent } from '../exercise/open-tier.js';
+import { assertTeacherOwnsClass } from '../attendance/assert-teacher-owns-class.js';
 import { auditChildDataAccess, getApprovedChildren } from '../guardian/approved-children.js';
 
 /** TL19 §3: the annotation layer is capped at 1MB — enforced here (app
@@ -135,28 +136,33 @@ function assertAnnotationLayerSize(annotationLayer: unknown): void {
 
 /**
  * Recomputes `FinalGrade` for `(studentId, classBatchId, period)` after a
- * grade — best-effort: if the student has no `active` Enrollment in this
- * facility right now, there is no classBatch to attribute the grade to, so
- * this silently no-ops rather than failing the whole `submission.grade` call
- * (grading a submission must succeed even for a student whose enrollment
- * later lapsed — the star award and the Submission's own `score` are the
- * durable record either way).
+ * grade OR an attendance correction — best-effort: if the student has no
+ * `active` Enrollment in this facility right now, there is no classBatch to
+ * attribute the grade to, so this silently no-ops rather than failing the
+ * caller (grading a submission, or correcting attendance, must succeed even
+ * for a student whose enrollment later lapsed — the star award / Submission
+ * score / Attendance row are the durable record either way).
  *
  * ASSUMPTION (TL19 §6 does not pin an exact period grain): `period` = the ICT
- * calendar month of the grading instant (`gradedAt`) — the SAME monthly
- * bucket `Attendance` uses, so one `computeFinalGrade` call combines this
- * student's exercise scores and attendance rate for that one month.
+ * calendar month of `periodAnchor` — the SAME monthly bucket `Attendance`
+ * uses, so one `computeFinalGrade` call combines this student's exercise
+ * scores and attendance rate for that one month. Callers pass the instant
+ * that actually determines WHICH month is affected: `submission.grade` passes
+ * the grading instant; `attendance.mark`/`markAll` (Metric & Data Integrity
+ * remediation, scenario audit) pass the corrected session's own `endTime` —
+ * an attendance correction for a PAST session must refresh THAT month, not
+ * the current one.
  */
-async function recomputeFinalGrade(
+export async function recomputeFinalGrade(
   tx: Prisma.TransactionClient,
-  opts: { facilityId: string; studentId: string; gradedAt: Date },
+  opts: { facilityId: string; studentId: string; periodAnchor: Date },
 ): Promise<void> {
   const enrollment = await tx.enrollment.findFirst({
     where: { facilityId: opts.facilityId, studentId: opts.studentId, status: 'active' },
   });
   if (!enrollment) return;
 
-  const period = ictMonthOf(opts.gradedAt);
+  const period = ictMonthOf(opts.periodAnchor);
   const [periodStart, periodEnd] = ictMonthBounds(period);
 
   const gradedSubmissions = await tx.submission.findMany({
@@ -256,6 +262,16 @@ export const submissionRouter = router({
     await assertPasswordNotExpired(ctx, studentId);
     const student = await loadLmsStudent(ctx.db, studentId, parentAccountId);
 
+    // Metric & Data Integrity remediation (scenario audit): the exercise may
+    // have closed (or its Tier window ended) between saveDraft and submit —
+    // re-check the same gate saveDraft already enforces, closing the "submit
+    // a stale draft after the deadline" gap.
+    const exercise = await ctx.db.exercise.findUnique({ where: { id: input.exerciseId } });
+    if (!exercise) {
+      throw notFound('Exercise not found.');
+    }
+    await assertExerciseOpenForStudent(ctx.db, student, exercise);
+
     return withFacility(ctx.db, student.facilityId, async (tx) => {
       const submission = await tx.submission.findUnique({
         where: { exerciseId_studentId: { exerciseId: input.exerciseId, studentId } },
@@ -302,11 +318,43 @@ export const submissionRouter = router({
           throw badRequest(`score (${input.score}) exceeds exercise.maxScore (${exercise.maxScore}).`);
         }
 
+        // Teacher class-scoping (scenario audit H2, 2026-07-15): a Submission
+        // carries no classBatchId of its own (Exercise is curriculum-unit-based,
+        // not class-based) — resolve scope via the student's ACTIVE
+        // enrollment(s) instead. A teacher-only caller may grade when they own
+        // AT LEAST ONE of the student's active classes; no active enrollment at
+        // all means nothing to scope against (allowed, same precedent as
+        // assessment's null-classSessionId case below).
+        const activeEnrollments = await tx.enrollment.findMany({
+          where: { facilityId, studentId: submission.studentId, status: 'active' },
+          select: { classBatchId: true },
+        });
+        if (activeEnrollments.length > 0) {
+          const checks = await Promise.allSettled(
+            activeEnrollments.map((e) => assertTeacherOwnsClass(tx, facilityId, ctx.subject, e.classBatchId)),
+          );
+          if (!checks.some((r) => r.status === 'fulfilled')) {
+            throw forbidden('Teachers may only grade submissions for students in their own classes.');
+          }
+        }
+
+        // Atomic-lock standardization (scenario audit pattern #3): compare-and-swap
+        // on the status value THIS transaction read — mirrors assessment.confirm's
+        // `updateMany` claim, but against the dynamic read value (not a hardcoded
+        // literal) since both 'submitted'->'graded' and 'graded'->'graded'
+        // (regrade) are legitimate starting states. A concurrent grade that
+        // committed first flips `status` out from under this WHERE clause, so
+        // `count===0` reliably means "modified since I read it", not a false
+        // positive on the intentional regrade path (each call re-reads fresh).
         const gradedAt = new Date();
-        const updated = await tx.submission.update({
-          where: { id: submission.id },
+        const claim = await tx.submission.updateMany({
+          where: { id: submission.id, facilityId, status: submission.status },
           data: { status: 'graded', score: input.score, gradedById: ctx.subject.userId, gradedAt },
         });
+        if (claim.count === 0) {
+          throw conflict('Submission was modified concurrently; please retry.');
+        }
+        const updated = await tx.submission.findUniqueOrThrow({ where: { id: submission.id } });
 
         const existingStarTxn = await tx.starTransaction.findFirst({
           where: { facilityId, type: 'homework_completed', refType: 'submission', refId: submission.id },
@@ -324,7 +372,7 @@ export const submissionRouter = router({
           });
         }
 
-        await recomputeFinalGrade(tx, { facilityId, studentId: submission.studentId, gradedAt });
+        await recomputeFinalGrade(tx, { facilityId, studentId: submission.studentId, periodAnchor: gradedAt });
 
         return toSubmissionDto(updated);
       });

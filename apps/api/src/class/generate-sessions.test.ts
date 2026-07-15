@@ -69,6 +69,22 @@ describe('classBatch.create / schedule.generateSessions (WF-P2-01, US-011)', () 
     expect(sessions).toHaveLength(4);
   });
 
+  it('Low-Severity Hygiene remediation (scenario audit): rejects more than 20 slots with BAD_REQUEST (resource guard)', async () => {
+    const tooManySlots = Array.from({ length: 21 }, (_, i) => ({
+      weekday: i % 7,
+      startTime: '06:00',
+      endTime: '06:30',
+    }));
+    await expect(
+      gddt.classBatch.create({
+        courseId,
+        startDate: '2026-08-03',
+        endDate: '2026-08-03',
+        slots: tooManySlots,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
   it('rejects startDate > endDate with BAD_REQUEST -- edge case 1', async () => {
     await expect(
       gddt.classBatch.create({

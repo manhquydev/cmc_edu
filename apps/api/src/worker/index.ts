@@ -16,7 +16,7 @@
 
 import { createServer } from 'node:http';
 import { createPrismaClient } from '@cmc/db';
-import { reconcileOrphanedReceipts } from './reconcile-orphaned-receipts.js';
+import { reconcileOrphanedReceipts, reconcileCancelledButProvisioned } from './reconcile-orphaned-receipts.js';
 import { relayEmailOutbox, CONSOLE_TRANSPORT_PROD_FORBIDDEN } from './relay-email-outbox.js';
 import { runCancelSweep, runDoneSweep } from './session-done-sweep.js';
 import {
@@ -116,6 +116,10 @@ export async function drainOnce(
   transportMap: Record<string, EmailTransport> = {},
 ): Promise<void> {
   await reconcileOrphanedReceipts(db);
+  // Post-implementation hardening (H2): this backstop (C1 layer 2) was built
+  // and unit-tested via direct calls only — never wired into the real drain
+  // cycle, so it was dead code in production. See drain-once.test.ts.
+  await reconcileCancelledButProvisioned(db);
   await relayEmailOutbox(db, transportMap);
   await runDoneSweep(db);
   await runCancelSweep(db);

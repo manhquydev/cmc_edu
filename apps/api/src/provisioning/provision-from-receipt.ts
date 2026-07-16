@@ -21,7 +21,7 @@
 // Only the two RLS-protected steps (Student, Enrollment) need `withFacility`;
 // ParentAccount/StudentAccount carry no facilityId/RLS policy at all.
 
-import { withFacility, type PrismaClient } from '@cmc/db';
+import { withFacility, type Prisma, type PrismaClient } from '@cmc/db';
 import { normalizeLoginPhone } from '@cmc/domain-identity';
 import { activateEnrollmentForReceipt } from '../enrollment/activate-enrollment.js';
 import { hashPassword } from '../lms-auth/password-hash.js';
@@ -45,6 +45,13 @@ export interface ReceiptForProvisioning {
    * renewal reuse) can omit it.
    */
   studentId?: string | null;
+  /** Post-implementation hardening (H3): mirrors `Receipt.confirmNewStudent`
+   * — when true, the caller already confirmed this is a genuinely different
+   * child despite a phone match, so `findOrCreateStudent` must NOT reuse
+   * another Student found for the same phone. Defaults to false (safe side:
+   * prefer reuse over a duplicate) for call sites built before this field
+   * existed. */
+  confirmNewStudent?: boolean;
 }
 
 export interface ProvisionResult {
@@ -126,8 +133,17 @@ async function findOrCreateParentAccount(
  * `withFacility` transaction; on a `P2002` race, the refetch runs in a
  * SEPARATE fresh transaction, since Postgres aborts the entire transaction on
  * the first error and refuses further statements on it (error 25P02).
+ *
+ * `parentAccountId` is the paying parent's ALREADY-resolved ParentAccount
+ * (find-or-created by `provisionFromReceipt` before this call) — used for
+ * the H3 dedup lock/reuse check below, keyed on the parent, not the raw phone
+ * string (avoids re-normalizing it here).
  */
-async function findOrCreateStudent(db: PrismaClient, receipt: ReceiptForProvisioning) {
+async function findOrCreateStudent(
+  db: PrismaClient,
+  receipt: ReceiptForProvisioning,
+  parentAccountId: string,
+) {
   if (receipt.studentId) {
     // H3 remediation (renewal reuse): the receipt already names the Student
     // to reuse — read-only, RLS-protected, no create. Deliberately not
@@ -152,13 +168,48 @@ async function findOrCreateStudent(db: PrismaClient, receipt: ReceiptForProvisio
       });
       if (existing) return existing;
 
-      return tx.student.create({
+      // Post-implementation hardening (H3): `finance.receiptCreate`'s
+      // duplicate-student gate only sees PROVISIONED students (via Guardian,
+      // which only exists post-approval) — two receipts for the same
+      // brand-new phone, both submitted (and both left in `draft` for
+      // hours/days — approve needs a different role) before either is
+      // approved, both pass that gate as "new". The real fix has to live
+      // here, at approve/provisioning time, where the full picture (every
+      // sibling receipt's approval state) is finally available. Serialize
+      // per (facility, parent) so two approvals racing close together can't
+      // both pass the reuse check before either commits, then reuse an
+      // existing Student already linked to this SAME paying parent in this
+      // facility — UNLESS the caller already confirmed (`confirmNewStudent`)
+      // this is a genuinely different child (e.g. siblings sharing a phone),
+      // in which case reuse would silently and irreversibly merge two
+      // distinct children's records — worse than the duplicate this fix
+      // targets, so it must never override an explicit confirmation.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${receipt.facilityId} || ${parentAccountId}))`;
+
+      if (!receipt.confirmNewStudent) {
+        const reusable = await tx.student.findFirst({
+          where: { facilityId: receipt.facilityId, guardians: { some: { parentAccountId } } },
+        });
+        if (reusable) {
+          // The lock only protects the DECISION made in this transaction — if
+          // Guardian creation happened afterward, outside the lock, a second
+          // concurrent approval could still race past this same reuse check
+          // before the first one's Guardian row lands, and create a second
+          // Student anyway. Create it here, still holding the lock.
+          await findOrCreateGuardian(tx, receipt.facilityId, parentAccountId, reusable.id);
+          return reusable;
+        }
+      }
+
+      const created = await tx.student.create({
         data: {
           facilityId: receipt.facilityId,
           fullName: receipt.studentName,
           createdByReceiptId: receipt.id,
         },
       });
+      await findOrCreateGuardian(tx, receipt.facilityId, parentAccountId, created.id);
+      return created;
     });
   } catch (error) {
     // Concurrent replay of the same receipt (approve retry racing the outbox
@@ -227,7 +278,7 @@ async function findOrCreateStudentAccount(
  * same pattern as every other find-or-create step in this file).
  */
 async function findOrCreateGuardian(
-  db: PrismaClient,
+  db: PrismaClient | Prisma.TransactionClient,
   facilityId: string,
   parentAccountId: string,
   studentId: string,
@@ -273,7 +324,7 @@ export async function provisionFromReceipt(
   receipt: ReceiptForProvisioning,
 ): Promise<ProvisionResult> {
   const parentAccount = await findOrCreateParentAccount(db, receipt.parentPhone, receipt.parentEmail);
-  const student = await findOrCreateStudent(db, receipt);
+  const student = await findOrCreateStudent(db, receipt, parentAccount.id);
   const guardian = await findOrCreateGuardian(db, receipt.facilityId, parentAccount.id, student.id);
 
   if (!receipt.classBatchId) {

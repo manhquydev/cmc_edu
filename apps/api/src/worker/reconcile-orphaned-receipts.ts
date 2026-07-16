@@ -48,6 +48,10 @@ interface OrphanReceiptRow {
    * `provisionFromReceipt`, which uses it to decide reuse vs.
    * `createdByReceiptId` lookup (see findOrCreateStudent). */
   studentId: string | null;
+  /** H3 post-implementation hardening: passed through to `provisionFromReceipt`
+   * so a replayed orphan-recovery never bypasses the caller's original
+   * new-vs-existing-child confirmation. */
+  confirmNewStudent: boolean;
 }
 
 export type ReconcileOutcome =
@@ -90,6 +94,7 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
             r."studentName",
             r."classBatchId",
             r."studentId",
+            r."confirmNewStudent",
             COALESCE(s_new."id", s_renewal."id") AS "resolvedStudentId"
           FROM "Receipt" r
           LEFT JOIN "Student" s_new ON s_new."createdByReceiptId" = r."id"
@@ -102,7 +107,8 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
           resolved."parentPhone",
           resolved."studentName",
           resolved."classBatchId",
-          resolved."studentId"
+          resolved."studentId",
+          resolved."confirmNewStudent"
         FROM resolved
         WHERE resolved."resolvedStudentId" IS NULL
            OR NOT EXISTS (
@@ -134,6 +140,7 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
         studentName: receipt.studentName,
         classBatchId: receipt.classBatchId,
         studentId: receipt.studentId,
+        confirmNewStudent: receipt.confirmNewStudent,
       });
       outcomes.push({ receiptId: receipt.id, status: 'recovered', result });
       await db.auditLog.create({
@@ -206,7 +213,8 @@ export async function reconcileCancelledButProvisioned(db: PrismaClient): Promis
             r."id" AS "receiptId",
             r."facilityId",
             r."classBatchId",
-            COALESCE(s_new."id", s_renewal."id") AS "resolvedStudentId"
+            COALESCE(s_new."id", s_renewal."id") AS "resolvedStudentId",
+            COALESCE(s_new."createdByReceiptId", s_renewal."createdByReceiptId") AS "resolvedCreatedByReceiptId"
           FROM "Receipt" r
           LEFT JOIN "Student" s_new ON s_new."createdByReceiptId" = r."id"
           LEFT JOIN "Student" s_renewal ON s_renewal."id" = r."studentId"
@@ -220,6 +228,20 @@ export async function reconcileCancelledButProvisioned(db: PrismaClient): Promis
          AND e."status" = 'active'
         WHERE resolved."resolvedStudentId" IS NOT NULL
           AND resolved."classBatchId" IS NOT NULL
+          -- M9 (same invariant as finance/router.ts runCancelTransaction):
+          -- do not withdraw a seat another still-approved receipt legitimately
+          -- paid for (e.g. a duplicate/renewal receipt for the same student+class).
+          AND NOT EXISTS (
+                SELECT 1 FROM "Receipt" other
+                WHERE other."facilityId" = resolved."facilityId"
+                  AND other."classBatchId" = resolved."classBatchId"
+                  AND other."status" = 'approved'
+                  AND other."id" <> resolved."receiptId"
+                  AND (
+                        other."studentId" = resolved."resolvedStudentId"
+                        OR other."id" = resolved."resolvedCreatedByReceiptId"
+                      )
+              )
       `,
     { bypass: true },
   );

@@ -225,6 +225,63 @@ describe('C1: receiptCancel race vs provisioning enrollment step', () => {
       expect(flag?.status).toBe('open');
     });
 
+    it('M9: does NOT withdraw the enrollment when another approved receipt still covers the same student+class', async () => {
+      // Two receipts paid into the SAME student+class (e.g. a duplicate
+      // payment) — one later cancelled, one still approved. The approved
+      // receipt legitimately paid for this seat; the reconciler must not
+      // strand it just because a sibling receipt was cancelled.
+      const cancelledReceipt = await testDbBypass((tx) =>
+        tx.receipt.create({
+          data: {
+            facilityId: facility.id,
+            code: `C1-RECON-M9-CANCEL-${randomUUID().slice(0, 8).toUpperCase()}`,
+            parentPhone: '0990000007',
+            studentName: 'M9 Covered Student',
+            classBatchId: classBatch.id,
+            netAmount: 5_000_000,
+            status: 'cancelled',
+            createdById: 'test-seed',
+          },
+        }),
+      );
+      const student = await testDbBypass((tx) =>
+        tx.student.create({
+          data: { facilityId: facility.id, fullName: 'M9 Covered Student', createdByReceiptId: cancelledReceipt.id },
+        }),
+      );
+      // The still-approved sibling receipt — a renewal-style row pointing at
+      // the same student, same class (mirrors runCancelTransaction's own M9
+      // lookup: `OR: [{ studentId }, { id: student.createdByReceiptId }]`).
+      await testDbBypass((tx) =>
+        tx.receipt.create({
+          data: {
+            facilityId: facility.id,
+            code: `C1-RECON-M9-APPROVED-${randomUUID().slice(0, 8).toUpperCase()}`,
+            parentPhone: '0990000007',
+            studentName: 'M9 Covered Student',
+            classBatchId: classBatch.id,
+            studentId: student.id,
+            netAmount: 5_000_000,
+            status: 'approved',
+            createdById: 'test-seed',
+          },
+        }),
+      );
+      const enrollment = await testDbBypass((tx) =>
+        tx.enrollment.create({
+          data: { facilityId: facility.id, studentId: student.id, classBatchId: classBatch.id, status: 'active' },
+        }),
+      );
+
+      const outcomes = await reconcileCancelledButProvisioned(testDb());
+
+      expect(outcomes.find((o) => o.receiptId === cancelledReceipt.id)).toBeUndefined();
+      const unchangedEnrollment = await testDbBypass((tx) =>
+        tx.enrollment.findUniqueOrThrow({ where: { id: enrollment.id } }),
+      );
+      expect(unchangedEnrollment.status).toBe('active');
+    });
+
     it('is a no-op for a cancelled receipt with no lingering active Enrollment (already withdrawn normally)', async () => {
       const receipt = await testDbBypass((tx) =>
         tx.receipt.create({

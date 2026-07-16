@@ -225,6 +225,59 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
       createRawApprovedReceipt({ parentPhone, studentName: 'Sibling B', classBatchId: classBatch.id }),
     ]);
 
+    // Post-implementation hardening (H3): `confirmNewStudent: true` declares
+    // these are genuinely 2 DIFFERENT children sharing a phone (siblings) —
+    // in the real flow this comes from `finance.receiptCreate`'s caller;
+    // without it, provisioning would (correctly, for the TOCTOU bug H3
+    // fixes) treat the second concurrent receipt as a duplicate of the first
+    // and reuse the same Student instead of creating a distinct sibling.
+    const [resultA, resultB] = await Promise.all([
+      provisionFromReceipt(testDb(), {
+        id: receiptA.id,
+        facilityId: facility.id,
+        parentPhone,
+        studentName: receiptA.studentName,
+        classBatchId: receiptA.classBatchId,
+        confirmNewStudent: true,
+      }),
+      provisionFromReceipt(testDb(), {
+        id: receiptB.id,
+        facilityId: facility.id,
+        parentPhone,
+        studentName: receiptB.studentName,
+        classBatchId: receiptB.classBatchId,
+        confirmNewStudent: true,
+      }),
+    ]);
+
+    expect(resultA.parentAccountId).toBe(resultB.parentAccountId);
+    expect(resultA.studentId).not.toBe(resultB.studentId);
+
+    const parentAccountCount = await testDb().parentAccount.count({
+      where: { phone: normalizeLoginPhone(parentPhone) },
+    });
+    expect(parentAccountCount).toBe(1);
+  });
+
+  it('H3 (post-implementation hardening): two DIFFERENT receipts for the SAME brand-new phone, both confirmNewStudent:false, provisioned CONCURRENTLY, converge to exactly ONE Student and ONE Guardian', async () => {
+    // Reproduces the TOCTOU gap directly at the layer where it's actually
+    // closed: 2 receipts for a phone with zero provisioned students yet
+    // (both legitimately passed `receiptCreate`'s gate — see
+    // duplicate-student-gate.test.ts's sequential version of this scenario)
+    // get approved at the exact same instant. Without the fix, both
+    // `provisionFromReceipt` calls would independently create a Student
+    // (the original H3 bug); the fix's advisory lock + reuse-by-parent check
+    // must also cover Guardian creation (not just Student), or a narrower
+    // race window between "Student decided" and "Guardian created" reopens
+    // the same bug (see High finding #1 from the post-implementation review).
+    const parentPhone = '0960000006';
+    phonesToClean.push(parentPhone);
+
+    const [receiptA, receiptB] = await Promise.all([
+      createRawApprovedReceipt({ parentPhone, studentName: 'Duplicate Race Child', classBatchId: classBatch.id }),
+      createRawApprovedReceipt({ parentPhone, studentName: 'Duplicate Race Child', classBatchId: classBatch.id }),
+    ]);
+
     const [resultA, resultB] = await Promise.all([
       provisionFromReceipt(testDb(), {
         id: receiptA.id,
@@ -242,13 +295,15 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
       }),
     ]);
 
-    expect(resultA.parentAccountId).toBe(resultB.parentAccountId);
-    expect(resultA.studentId).not.toBe(resultB.studentId);
+    expect(resultA.studentId).toBe(resultB.studentId);
+    expect(resultA.guardianId).toBe(resultB.guardianId);
 
-    const parentAccountCount = await testDb().parentAccount.count({
-      where: { phone: normalizeLoginPhone(parentPhone) },
-    });
-    expect(parentAccountCount).toBe(1);
+    const studentCount = await testDbBypass((tx) =>
+      tx.student.count({ where: { facilityId: facility.id, fullName: 'Duplicate Race Child' } }),
+    );
+    expect(studentCount).toBe(1);
+    const guardianCount = await testDb().guardian.count({ where: { studentId: resultA.studentId } });
+    expect(guardianCount).toBe(1);
   });
 
   it('resolves a race when the SAME receipt is provisioned concurrently (Student + StudentAccount P2002 recovery)', async () => {

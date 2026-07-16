@@ -218,6 +218,28 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
     expect(queue.items.map((s) => s.id)).toContain(submissionId);
   });
 
+  it('listForGrading filters out a submission from a class the teacher does not own (post-implementation hardening MH1)', async () => {
+    const { submissionId } = await seedSubmittedSubmission();
+
+    const otherClassBatch = await seedClassBatch({ facilityId: facility.id });
+    const otherTeacherAppUser = await seedAppUser({ facilityId: facility.id, userId: 'teacher-grade-other' });
+    await testDbBypass((tx) =>
+      tx.classBatch.update({ where: { id: otherClassBatch.id }, data: { teacherAppUserId: otherTeacherAppUser.id } }),
+    );
+    const otherTeacher = appRouter.createCaller(
+      buildStaffContext({ facilityId: facility.id, userId: 'teacher-grade-other', roles: ['giao_vien'] }),
+    );
+
+    const queue = await otherTeacher.submission.listForGrading({});
+    expect(queue.items.find((s) => s.id === submissionId)).toBeUndefined();
+
+    // The owning teacher (and a director) still see it.
+    const ownerQueue = await teacher.submission.listForGrading({});
+    expect(ownerQueue.items.map((s) => s.id)).toContain(submissionId);
+    const gddtQueue = await gddt.submission.listForGrading({});
+    expect(gddtQueue.items.map((s) => s.id)).toContain(submissionId);
+  });
+
   it('listForGrading no longer includes a submission once graded (default status filter)', async () => {
     const { submissionId } = await seedSubmittedSubmission();
     await teacher.submission.grade({ submissionId, score: 6 });

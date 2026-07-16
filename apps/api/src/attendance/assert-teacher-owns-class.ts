@@ -15,6 +15,7 @@
 
 import type { AuthSubject } from '@cmc/auth';
 import type { Prisma, PrismaClient } from '@cmc/db';
+import { TRPCError } from '@trpc/server';
 import { forbidden } from '../errors.js';
 
 const DIRECTOR_ROLES = ['super_admin', 'giam_doc_dao_tao', 'giam_doc_kinh_doanh'];
@@ -77,4 +78,50 @@ export async function assertTeacherOwnsSessionClass(
   });
   if (!session) return;
   await assertTeacherOwnsClass(db, facilityId, subject, session.classBatchId);
+}
+
+/**
+ * Post-implementation hardening (scenario audit round 2): convenience wrapper
+ * for callers that only have a `studentId` on hand (`Submission` carries no
+ * `classBatchId` of its own — `Exercise` is curriculum-unit-based, not
+ * class-based). Resolves scope via the student's ACTIVE enrollment(s): a
+ * teacher-only caller may act when they own AT LEAST ONE of the student's
+ * active classes; no active enrollment at all means nothing to scope against
+ * (allowed — same precedent as `assertTeacherOwnsSessionClass`'s
+ * null-session case). Originally inlined in `submission.grade` only; shared
+ * here so `saveTeacherAnnotation` and `listForGrading` apply the identical
+ * rule instead of drifting.
+ */
+export async function assertTeacherOwnsStudentClass(
+  db: Prisma.TransactionClient,
+  facilityId: string,
+  subject: AuthSubject | null,
+  studentId: string,
+): Promise<void> {
+  const roles = subject?.roles ?? [];
+  if (roles.some((r) => DIRECTOR_ROLES.includes(r))) return;
+  if (!roles.includes('giao_vien')) return;
+
+  const activeEnrollments = await db.enrollment.findMany({
+    where: { facilityId, studentId, status: 'active' },
+    select: { classBatchId: true },
+  });
+  if (activeEnrollments.length === 0) return;
+
+  const checks = await Promise.allSettled(
+    activeEnrollments.map((e) => assertTeacherOwnsClass(db, facilityId, subject, e.classBatchId)),
+  );
+  if (checks.some((r) => r.status === 'fulfilled')) return;
+
+  // Post-implementation hardening: a genuine non-FORBIDDEN failure (DB error,
+  // RLS blip) inside one of the per-enrollment checks must propagate, not be
+  // silently reinterpreted as "not your class" — only report FORBIDDEN when
+  // every rejection actually was one.
+  const unexpected = checks.find(
+    (r): r is PromiseRejectedResult =>
+      r.status === 'rejected' && !(r.reason instanceof TRPCError && r.reason.code === 'FORBIDDEN'),
+  );
+  if (unexpected) throw unexpected.reason;
+
+  throw forbidden('Teachers may only act on submissions for students in their own classes.');
 }

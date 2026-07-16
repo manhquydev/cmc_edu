@@ -12,11 +12,13 @@ import {
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
+  seedAppUser,
   seedClassBatch,
   seedClassSession,
   seedCurriculumUnit,
   seedEnrolledStudentWithGuardian,
   seedParentAccount,
+  testDbBypass,
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
@@ -42,6 +44,13 @@ describe('submission.saveTeacherAnnotation (phase-01a C3)', () => {
       buildStaffContext({ facilityId: facility.id, userId: 'teacher-ta-1', roles: ['giao_vien'] }),
     );
     classBatch = await seedClassBatch({ facilityId: facility.id });
+    // Teacher class-scoping (post-implementation hardening H1): saveTeacherAnnotation
+    // now resolves scope via the student's enrolled classBatch — assign this
+    // teacher to the class the student below gets enrolled in.
+    const teacherAppUser = await seedAppUser({ facilityId: facility.id, userId: 'teacher-ta-1' });
+    await testDbBypass((tx) =>
+      tx.classBatch.update({ where: { id: classBatch.id }, data: { teacherAppUserId: teacherAppUser.id } }),
+    );
     unit = await seedCurriculumUnit();
     seededUnitIds.push(unit.id);
 
@@ -146,6 +155,29 @@ describe('submission.saveTeacherAnnotation (phase-01a C3)', () => {
         teacherAnnotationLayer: bigLayer,
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('forbids a teacher who does not own the student\'s class (cross-teacher annotation bypass, post-implementation hardening H1)', async () => {
+    const { submissionId } = await seedSubmittedSubmission();
+
+    const otherClassBatch = await seedClassBatch({ facilityId: facility.id });
+    const otherTeacherAppUser = await seedAppUser({ facilityId: facility.id, userId: 'teacher-ta-other' });
+    await testDbBypass((tx) =>
+      tx.classBatch.update({
+        where: { id: otherClassBatch.id },
+        data: { teacherAppUserId: otherTeacherAppUser.id },
+      }),
+    );
+    const otherTeacher = appRouter.createCaller(
+      buildStaffContext({ facilityId: facility.id, userId: 'teacher-ta-other', roles: ['giao_vien'] }),
+    );
+
+    await expect(
+      otherTeacher.submission.saveTeacherAnnotation({
+        submissionId,
+        teacherAnnotationLayer: { x: 1 },
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
   it('rejects a sale role (no submission.grade permission)', async () => {

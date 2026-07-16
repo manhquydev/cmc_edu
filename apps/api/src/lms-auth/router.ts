@@ -194,51 +194,59 @@ export const lmsAuthRouter = router({
     .mutation(async ({ ctx, input }): Promise<{ ok: true; _testSeamCode?: string }> => {
       const phone = normalizeOrReject(input.phone);
 
-      const code = await ctx.db.$transaction(async (tx) => {
-        // Atomic-lock standardization (scenario audit pattern #3): serialize
-        // concurrent requests for the SAME identifier (advisory lock, same
-        // pattern as rewards.redeem's per-gift lock) — without this, 2
-        // concurrent calls can both pass the cooldown/rate-limit checks
-        // before either commits, leaving 2 "most recent" pending codes
-        // racing each other instead of a clean invalidate-then-insert.
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${phone}))`;
+      const code = await ctx.db.$transaction(
+        async (tx) => {
+          // Atomic-lock standardization (scenario audit pattern #3): serialize
+          // concurrent requests for the SAME identifier (advisory lock, same
+          // pattern as rewards.redeem's per-gift lock) — without this, 2
+          // concurrent calls can both pass the cooldown/rate-limit checks
+          // before either commits, leaving 2 "most recent" pending codes
+          // racing each other instead of a clean invalidate-then-insert.
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${phone}))`;
 
-        // H5 cooldown: time-based against the most recent LoginOtp for this phone.
-        const mostRecent = await tx.loginOtp.findFirst({
-          where: { phone },
-          orderBy: { createdAt: 'desc' },
-        });
-        if (mostRecent) {
-          const elapsedMs = Date.now() - mostRecent.createdAt.getTime();
-          if (elapsedMs < OTP_REQUEST_COOLDOWN_SECONDS * 1000) {
+          // H5 cooldown: time-based against the most recent LoginOtp for this phone.
+          const mostRecent = await tx.loginOtp.findFirst({
+            where: { phone },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (mostRecent) {
+            const elapsedMs = Date.now() - mostRecent.createdAt.getTime();
+            if (elapsedMs < OTP_REQUEST_COOLDOWN_SECONDS * 1000) {
+              throw badRequest(GENERIC_COOLDOWN_FAILURE);
+            }
+          }
+
+          // NS #6/#7: rolling-window rate-limit per identifier.
+          const windowStart = new Date(Date.now() - OTP_RATE_LIMIT_WINDOW_MINUTES * 60_000);
+          const recentRequestCount = await tx.loginOtp.count({
+            where: { phone, createdAt: { gte: windowStart } },
+          });
+          if (recentRequestCount >= OTP_RATE_LIMIT_MAX_PER_WINDOW) {
             throw badRequest(GENERIC_COOLDOWN_FAILURE);
           }
-        }
 
-        // NS #6/#7: rolling-window rate-limit per identifier.
-        const windowStart = new Date(Date.now() - OTP_RATE_LIMIT_WINDOW_MINUTES * 60_000);
-        const recentRequestCount = await tx.loginOtp.count({
-          where: { phone, createdAt: { gte: windowStart } },
-        });
-        if (recentRequestCount >= OTP_RATE_LIMIT_MAX_PER_WINDOW) {
-          throw badRequest(GENERIC_COOLDOWN_FAILURE);
-        }
+          // H5: invalidate any still-pending prior code for this phone.
+          await tx.loginOtp.updateMany({
+            where: { phone, status: 'pending' },
+            data: { status: 'expired' },
+          });
 
-        // H5: invalidate any still-pending prior code for this phone.
-        await tx.loginOtp.updateMany({
-          where: { phone, status: 'pending' },
-          data: { status: 'expired' },
-        });
+          const code = generateOtpCode();
+          const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
 
-        const code = generateOtpCode();
-        const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
+          await tx.loginOtp.create({
+            data: { phone, codeHash: hashOtpCode(code), status: 'pending', expiresAt },
+          });
 
-        await tx.loginOtp.create({
-          data: { phone, codeHash: hashOtpCode(code), status: 'pending', expiresAt },
-        });
-
-        return code;
-      });
+          return code;
+        },
+        // Post-implementation hardening (H4): this table (LoginOtp) has no
+        // facilityId/RLS, so it can't go through `withFacility` — but it
+        // holds an advisory lock across a public, unauthenticated endpoint,
+        // same connection-pool-exhaustion risk `withFacility` raised its
+        // timeout for (packages/db/src/index.ts). Match that ceiling directly.
+        { timeout: 15_000 },
+      );
 
       await ctx.db.auditLog.create({
         data: {
@@ -342,49 +350,53 @@ export const lmsAuthRouter = router({
         throw badRequest(GENERIC_COOLDOWN_FAILURE);
       }
 
-      const code = await ctx.db.$transaction(async (tx) => {
-        // Atomic-lock standardization (scenario audit pattern #3): same
-        // per-identifier advisory lock as requestOtp above.
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${email}))`;
+      const code = await ctx.db.$transaction(
+        async (tx) => {
+          // Atomic-lock standardization (scenario audit pattern #3): same
+          // per-identifier advisory lock as requestOtp above.
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${email}))`;
 
-        // H5 cooldown: purely time-based against the most recent email-OTP row.
-        const mostRecent = await tx.loginOtp.findFirst({
-          where: { email },
-          orderBy: { createdAt: 'desc' },
-        });
-        if (mostRecent) {
-          const elapsedMs = Date.now() - mostRecent.createdAt.getTime();
-          if (elapsedMs < OTP_REQUEST_COOLDOWN_SECONDS * 1000) {
+          // H5 cooldown: purely time-based against the most recent email-OTP row.
+          const mostRecent = await tx.loginOtp.findFirst({
+            where: { email },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (mostRecent) {
+            const elapsedMs = Date.now() - mostRecent.createdAt.getTime();
+            if (elapsedMs < OTP_REQUEST_COOLDOWN_SECONDS * 1000) {
+              throw badRequest(GENERIC_COOLDOWN_FAILURE);
+            }
+          }
+
+          // NS #6/#7: rolling-window rate-limit per identifier.
+          const windowStart = new Date(Date.now() - OTP_RATE_LIMIT_WINDOW_MINUTES * 60_000);
+          const recentRequestCount = await tx.loginOtp.count({
+            where: { email, createdAt: { gte: windowStart } },
+          });
+          if (recentRequestCount >= OTP_RATE_LIMIT_MAX_PER_WINDOW) {
             throw badRequest(GENERIC_COOLDOWN_FAILURE);
           }
-        }
 
-        // NS #6/#7: rolling-window rate-limit per identifier.
-        const windowStart = new Date(Date.now() - OTP_RATE_LIMIT_WINDOW_MINUTES * 60_000);
-        const recentRequestCount = await tx.loginOtp.count({
-          where: { email, createdAt: { gte: windowStart } },
-        });
-        if (recentRequestCount >= OTP_RATE_LIMIT_MAX_PER_WINDOW) {
-          throw badRequest(GENERIC_COOLDOWN_FAILURE);
-        }
+          // Invalidate any still-pending prior code for this email.
+          await tx.loginOtp.updateMany({
+            where: { email, status: 'pending' },
+            data: { status: 'expired' },
+          });
 
-        // Invalidate any still-pending prior code for this email.
-        await tx.loginOtp.updateMany({
-          where: { email, status: 'pending' },
-          data: { status: 'expired' },
-        });
+          const code = generateOtpCode();
+          const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
 
-        const code = generateOtpCode();
-        const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
+          // phone is nullable (schema phase-01b migration); email-OTP rows set
+          // phone=null and populate the email column instead.
+          await tx.loginOtp.create({
+            data: { phone: null, email, codeHash: hashOtpCode(code), status: 'pending', expiresAt },
+          });
 
-        // phone is nullable (schema phase-01b migration); email-OTP rows set
-        // phone=null and populate the email column instead.
-        await tx.loginOtp.create({
-          data: { phone: null, email, codeHash: hashOtpCode(code), status: 'pending', expiresAt },
-        });
-
-        return code;
-      });
+          return code;
+        },
+        // Post-implementation hardening (H4): same rationale as requestOtp above.
+        { timeout: 15_000 },
+      );
 
       // Ordering (red-team M1): LoginOtp is ALWAYS created first, regardless
       // of whether a ParentAccount exists for this email — this preserves the

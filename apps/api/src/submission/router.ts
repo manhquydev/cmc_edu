@@ -9,6 +9,7 @@
 // ../exercise/open-tier.ts `loadLmsStudent`).
 
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { computeFinalGrade } from '@cmc/domain-grading';
 import { withFacility, type Prisma } from '@cmc/db';
 import { ictMonthOf, ictMonthBounds } from '@cmc/domain-time';
@@ -23,7 +24,7 @@ import {
   scoped,
 } from '../trpc.js';
 import { assertExerciseOpenForStudent, loadLmsStudent } from '../exercise/open-tier.js';
-import { assertTeacherOwnsClass } from '../attendance/assert-teacher-owns-class.js';
+import { assertTeacherOwnsStudentClass } from '../attendance/assert-teacher-owns-class.js';
 import { auditChildDataAccess, getApprovedChildren } from '../guardian/approved-children.js';
 
 /** TL19 §3: the annotation layer is capped at 1MB — enforced here (app
@@ -321,22 +322,8 @@ export const submissionRouter = router({
         // Teacher class-scoping (scenario audit H2, 2026-07-15): a Submission
         // carries no classBatchId of its own (Exercise is curriculum-unit-based,
         // not class-based) — resolve scope via the student's ACTIVE
-        // enrollment(s) instead. A teacher-only caller may grade when they own
-        // AT LEAST ONE of the student's active classes; no active enrollment at
-        // all means nothing to scope against (allowed, same precedent as
-        // assessment's null-classSessionId case below).
-        const activeEnrollments = await tx.enrollment.findMany({
-          where: { facilityId, studentId: submission.studentId, status: 'active' },
-          select: { classBatchId: true },
-        });
-        if (activeEnrollments.length > 0) {
-          const checks = await Promise.allSettled(
-            activeEnrollments.map((e) => assertTeacherOwnsClass(tx, facilityId, ctx.subject, e.classBatchId)),
-          );
-          if (!checks.some((r) => r.status === 'fulfilled')) {
-            throw forbidden('Teachers may only grade submissions for students in their own classes.');
-          }
-        }
+        // enrollment(s) instead. See assertTeacherOwnsStudentClass.
+        await assertTeacherOwnsStudentClass(tx, facilityId, ctx.subject, submission.studentId);
 
         // Atomic-lock standardization (scenario audit pattern #3): compare-and-swap
         // on the status value THIS transaction read — mirrors assessment.confirm's
@@ -400,6 +387,11 @@ export const submissionRouter = router({
           throw badRequest('Cannot annotate a submission that has not been submitted yet.');
         }
 
+        // Post-implementation hardening (H1): sibling `grade` scopes by class
+        // ownership — this writer must too, or a teacher outside the class can
+        // overwrite another teacher's annotation on a known submissionId.
+        await assertTeacherOwnsStudentClass(tx, facilityId, ctx.subject, submission.studentId);
+
         const updated = await tx.submission.update({
           where: { id: submission.id },
           data: { teacherAnnotationLayer: input.teacherAnnotationLayer as Prisma.InputJsonValue },
@@ -432,7 +424,29 @@ export const submissionRouter = router({
           take: 100,
           include: { exercise: { select: { basePdfRef: true } } },
         });
-        return { items: items.map(toSubmissionDto) };
+
+        // Post-implementation hardening (MH1): sibling `grade`/`saveTeacherAnnotation`
+        // are class-scoped — this read queue was returning every submission in
+        // the facility regardless of exercise/class, leaking other classes'
+        // basePdfRef + scores to a teacher not assigned to them. Director
+        // roles/non-teacher roles pass through instantly (assertTeacherOwnsStudentClass
+        // no-ops for them); a teacher-only caller is filtered per submission.
+        const scoped = await Promise.all(
+          items.map(async (item) => {
+            try {
+              await assertTeacherOwnsStudentClass(tx, facilityId, ctx.subject, item.studentId);
+              return item;
+            } catch (error) {
+              // Only a real ownership denial filters the item out — a genuine
+              // DB/infra error (e.g. RLS connection blip) must propagate, not
+              // be silently misread as "not your class" and dropped.
+              if (error instanceof TRPCError && error.code === 'FORBIDDEN') return null;
+              throw error;
+            }
+          }),
+        );
+
+        return { items: scoped.filter((item) => item !== null).map(toSubmissionDto) };
       });
     }),
 

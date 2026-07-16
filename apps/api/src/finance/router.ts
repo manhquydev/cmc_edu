@@ -147,6 +147,9 @@ interface ReceiptRow {
   opportunityId: string | null;
   /** H3 remediation: the Student this receipt renews, when known. */
   studentId: string | null;
+  /** Post-implementation hardening (H3): persisted `confirmNewStudent` from
+   * `receiptCreate`, read back at approve/provisioning time. */
+  confirmNewStudent: boolean;
   parentPhone: string;
   /** C1/phase-01b: optional parent email captured at receipt creation. */
   parentEmail: string | null;
@@ -729,6 +732,17 @@ export const financeRouter = router({
           }
 
           const normalizedPhone = tryNormalizePhone(input.parentPhone);
+
+          // Post-implementation hardening (H3): the duplicate-student gate
+          // below only sees PROVISIONED students (via Guardian, which only
+          // exists post-approval) — two receiptCreate calls for the same
+          // phone, both submitted before either is approved, both observe
+          // zero existing students and both pass the gate, later becoming 2
+          // separate Students for the same child once approved. A lock HERE
+          // cannot close that gap (Student is never created in this mutation
+          // — only at approve/provisioning time, hours/days later), so the
+          // real fix lives in `provisionFromReceipt`'s reuse-by-phone check
+          // instead (see provisioning/provision-from-receipt.ts).
           const [existingParentAccount, existingReceiptForPhone] = await Promise.all([
             normalizedPhone ? tx.parentAccount.findUnique({ where: { phone: normalizedPhone } }) : null,
             tx.receipt.findFirst({ where: { facilityId, parentPhone: input.parentPhone } }),
@@ -804,6 +818,7 @@ export const financeRouter = router({
               kind: 'new',
               opportunityId: input.opportunityId,
               studentId: input.studentId,
+              confirmNewStudent: input.confirmNewStudent,
               parentPhone: input.parentPhone,
               parentEmail: input.parentEmail ?? null,
               studentName: input.studentName,
@@ -866,6 +881,7 @@ export const financeRouter = router({
           studentName: receipt.studentName,
           classBatchId: receipt.classBatchId,
           studentId: receipt.studentId,
+          confirmNewStudent: receipt.confirmNewStudent,
         });
       } catch (error) {
         // C1 remediation: a receipt cancelled in the window between this

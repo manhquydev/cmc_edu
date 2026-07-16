@@ -320,6 +320,12 @@ model Receipt {
   /// one) lands in the next remediation wave; this column only holds the
   /// shape for it.
   studentId           String?
+  /// Post-implementation hardening (H3): persists the caller's `confirmNewStudent`
+  /// disambiguation from `finance.receiptCreate` so `provisionFromReceipt` can
+  /// respect it at approve time — without this, a phone-match found during
+  /// provisioning cannot tell "genuinely a different child, caller confirmed"
+  /// from "the create-time gate's TOCTOU window let a duplicate slip through".
+  confirmNewStudent   Boolean       @default(false)
   parentPhone         String
   /// C1/phase-01b: optional email captured at receipt creation; provisioning
   /// upserts it onto ParentAccount so the parent can also log in via email-OTP.
@@ -356,6 +362,10 @@ model Receipt {
   @@index([facilityId, parentPhone])
   @@index([opportunityId])
   @@index([classBatchId])
+  /// M4 (post-implementation hardening): renewal/reuse lookups filter
+  /// Receipt by facilityId + studentId (M9's other-approved-receipt check,
+  /// H3's provisioning-time dedup) — was scanning `@@index([facilityId])` only.
+  @@index([facilityId, studentId])
 }
 
 /// Append-only ledger: corrections are new rows, never edits (TL10 §4).

@@ -153,4 +153,83 @@ describe('finance.receiptCreate — duplicate-student confirmation gate (scenari
 
     expect(result.status).toBe('success');
   });
+
+  describe('H3 TOCTOU (post-implementation hardening): the gate only sees PROVISIONED students', () => {
+    it('two receipts for the same brand-new phone, both created before either is approved, converge to ONE Student on approval (no confirmNewStudent)', async () => {
+      const phone = '0994000006';
+      phonesToClean.push(phone);
+
+      // Both receipts see existingStudents=[] at create time (correct per PO
+      // gate design — neither Student exists yet, since Student is only ever
+      // created at approve/provisioning time) — so both legitimately pass as
+      // 'new', exactly the TOCTOU window H3 describes.
+      const first = await sale.finance.receiptCreate({
+        studentName: 'Bé TOCTOU Một',
+        parentPhone: phone,
+        amount: 4_000_000,
+        classBatchId: classBatch.id,
+      });
+      expect(first.status).toBe('success');
+      if (first.status !== 'success') throw new Error('expected success');
+
+      // Soft dup-phone warning (existing draft receipt for this phone) still
+      // fires here — it does NOT block, unlike the provisioned-student gate.
+      const second = await sale.finance.receiptCreate({
+        studentName: 'Bé TOCTOU Một', // same sale, forgot to disambiguate — realistic
+        parentPhone: phone,
+        amount: 4_000_000,
+        classBatchId: classBatch.id,
+      });
+      if (second.status !== 'success' && second.status !== 'warning') {
+        throw new Error(`expected success or warning, got ${second.status}`);
+      }
+
+      await gdkd.finance.receiptApprove({ receiptId: first.receipt.id });
+      await gdkd.finance.receiptApprove({ receiptId: second.receipt.id });
+
+      const studentCount = await testDbBypass((tx) =>
+        tx.student.count({ where: { facilityId: facility.id, fullName: 'Bé TOCTOU Một' } }),
+      );
+      expect(studentCount).toBe(1); // provisioning-time dedup reused the same Student
+
+      const firstStudent = await testDbBypass((tx) =>
+        tx.student.findUniqueOrThrow({ where: { createdByReceiptId: first.receipt.id } }),
+      );
+      const guardianCount = await testDbBypass((tx) =>
+        tx.guardian.count({ where: { studentId: firstStudent.id } }),
+      );
+      expect(guardianCount).toBe(1); // second approval reused the Guardian too (idempotent find-or-create)
+    });
+
+    it('confirmNewStudent:true on the SECOND receipt still creates a genuinely different sibling, even under the TOCTOU window', async () => {
+      const phone = '0994000007';
+      phonesToClean.push(phone);
+
+      const first = await sale.finance.receiptCreate({
+        studentName: 'Bé TOCTOU Anh',
+        parentPhone: phone,
+        amount: 4_000_000,
+        classBatchId: classBatch.id,
+      });
+      expect(first.status).toBe('success');
+      if (first.status !== 'success') throw new Error('expected success');
+
+      const second = await sale.finance.receiptCreate({
+        studentName: 'Bé TOCTOU Em',
+        parentPhone: phone,
+        amount: 4_000_000,
+        classBatchId: classBatch.id,
+        confirmNewStudent: true,
+      });
+      if (second.status !== 'success' && second.status !== 'warning') {
+        throw new Error(`expected success or warning, got ${second.status}`);
+      }
+
+      await gdkd.finance.receiptApprove({ receiptId: first.receipt.id });
+      await gdkd.finance.receiptApprove({ receiptId: second.receipt.id });
+
+      const studentCount = await testDbBypass((tx) => tx.student.count({ where: { facilityId: facility.id } }));
+      expect(studentCount).toBe(2); // confirmNewStudent must never be silently overridden by the reuse fix
+    });
+  });
 });

@@ -14,6 +14,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { badRequest } from '../errors.js';
 import { requirePermission, router } from '../trpc.js';
 
 const facilityCreateInput = z.object({
@@ -28,6 +29,23 @@ const facilityListInput = z.object({
   page: z.number().int().positive().default(1),
   pageSize: z.number().int().positive().max(100).default(20),
 });
+
+const facilityUpdateInput = z.object({
+  id: z.string().min(1),
+  /** `code` is deliberately NOT accepted here — it is baked into every
+   * already-issued class-code (`{facility.code}-...`), so it is immutable
+   * after creation. Only `name` may change. */
+  name: z.string().min(1),
+});
+
+function isPrismaP2002(err: unknown): boolean {
+  return (
+    err !== null &&
+    typeof err === 'object' &&
+    'code' in err &&
+    (err as { code: unknown }).code === 'P2002'
+  );
+}
 
 export interface FacilityDto {
   id: string;
@@ -51,7 +69,15 @@ export const facilityRouter = router({
     .input(facilityCreateInput)
     .mutation(async ({ ctx, input }): Promise<FacilityDto> => {
       const code = input.code ?? deriveFacilityCode(input.name);
-      const facility = await ctx.db.facility.create({ data: { name: input.name, code } });
+      let facility;
+      try {
+        facility = await ctx.db.facility.create({ data: { name: input.name, code } });
+      } catch (err: unknown) {
+        if (isPrismaP2002(err)) {
+          throw badRequest('Mã cơ sở đã tồn tại. Vui lòng chọn mã khác.');
+        }
+        throw err;
+      }
 
       await ctx.db.auditLog.create({
         data: {
@@ -60,6 +86,27 @@ export const facilityRouter = router({
           entity: 'Facility',
           entityId: facility.id,
           data: { name: facility.name, code: facility.code },
+        },
+      });
+
+      return facility;
+    }),
+
+  update: requirePermission('facility', 'manage')
+    .input(facilityUpdateInput)
+    .mutation(async ({ ctx, input }): Promise<FacilityDto> => {
+      const facility = await ctx.db.facility.update({
+        where: { id: input.id },
+        data: { name: input.name },
+      });
+
+      await ctx.db.auditLog.create({
+        data: {
+          actor: ctx.subject.userId,
+          action: 'facility.update',
+          entity: 'Facility',
+          entityId: facility.id,
+          data: { name: facility.name },
         },
       });
 

@@ -93,4 +93,85 @@ describe('facility.create / facility.list (K7)', () => {
 
     await expect(sale.facility.list({})).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
+
+  it('facility.create with a duplicate code returns a friendly error, not a raw Prisma P2002', async () => {
+    const bootstrap = await createTestFacility('Facility Test Bootstrap Dup Code');
+    facilityIdsToDelete.push(bootstrap.id);
+    const admin = appRouter.createCaller(
+      buildStaffContext({ facilityId: bootstrap.id, userId: 'admin-facility-dup', roles: ['super_admin'] }),
+    );
+    const code = `DUP-${Date.now()}`;
+    const first = await admin.facility.create({ name: 'First With Code', code });
+    facilityIdsToDelete.push(first.id);
+
+    await expect(admin.facility.create({ name: 'Second With Same Code', code })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: expect.stringContaining('Mã cơ sở đã tồn tại'),
+    });
+  });
+
+  it('super_admin can update a facility name, and the change is persisted + audited', async () => {
+    const bootstrap = await createTestFacility('Facility Test Bootstrap Update');
+    facilityIdsToDelete.push(bootstrap.id);
+    const admin = appRouter.createCaller(
+      buildStaffContext({ facilityId: bootstrap.id, userId: 'admin-facility-update', roles: ['super_admin'] }),
+    );
+
+    const updated = await admin.facility.update({ id: bootstrap.id, name: 'Renamed Facility' });
+    expect(updated.name).toBe('Renamed Facility');
+
+    const persisted = await testDb().facility.findUniqueOrThrow({ where: { id: bootstrap.id } });
+    expect(persisted.name).toBe('Renamed Facility');
+
+    const audit = await testDb().auditLog.findFirst({
+      where: { entity: 'Facility', entityId: bootstrap.id, action: 'facility.update' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(audit).not.toBeNull();
+  });
+
+  it('facility.update ignores a submitted code — code is immutable after creation', async () => {
+    const bootstrap = await createTestFacility('Facility Test Bootstrap Code Immutable');
+    facilityIdsToDelete.push(bootstrap.id);
+    const admin = appRouter.createCaller(
+      buildStaffContext({ facilityId: bootstrap.id, userId: 'admin-facility-immutable', roles: ['super_admin'] }),
+    );
+    const originalCode = bootstrap.code;
+
+    // `code` deliberately typed as `unknown` input here — this simulates a
+    // caller sending an extra field the zod schema doesn't declare, which
+    // Prisma's `data: { name }` picks apart explicitly, so it's simply
+    // dropped rather than rejected.
+    const updated = await admin.facility.update({
+      id: bootstrap.id,
+      name: 'Renamed But Code Locked',
+      code: 'HACKED',
+    } as unknown as { id: string; name: string });
+
+    expect(updated.code).toBe(originalCode);
+  });
+
+  it('facility.update rejects an empty name', async () => {
+    const bootstrap = await createTestFacility('Facility Test Bootstrap Empty Name');
+    facilityIdsToDelete.push(bootstrap.id);
+    const admin = appRouter.createCaller(
+      buildStaffContext({ facilityId: bootstrap.id, userId: 'admin-facility-empty', roles: ['super_admin'] }),
+    );
+
+    await expect(admin.facility.update({ id: bootstrap.id, name: '' })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+  });
+
+  it('facility.update is FORBIDDEN for a non-super_admin role', async () => {
+    const bootstrap = await createTestFacility('Facility Test Bootstrap Update Forbidden');
+    facilityIdsToDelete.push(bootstrap.id);
+    const gdkd = appRouter.createCaller(
+      buildStaffContext({ facilityId: bootstrap.id, userId: 'gdkd-facility-update', roles: ['giam_doc_kinh_doanh'] }),
+    );
+
+    await expect(gdkd.facility.update({ id: bootstrap.id, name: 'Should Not Rename' })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
 });

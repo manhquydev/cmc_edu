@@ -109,6 +109,7 @@ const ACTIVE_ROLE_MATRIX: Array<{ key: string; allowed: readonly string[] }> = [
   { key: 'student.lookup', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'] },
   { key: 'facility.create', allowed: [] },
   { key: 'facility.list', allowed: [] },
+  { key: 'facility.manage', allowed: [] },
   { key: 'course.manage', allowed: ['giam_doc_dao_tao'] },
   { key: 'room.manage', allowed: ['giam_doc_dao_tao'] },
   { key: 'class.create', allowed: ['giam_doc_dao_tao'] },

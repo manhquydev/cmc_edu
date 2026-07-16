@@ -3,6 +3,7 @@ import {
   Badge,
   Banner,
   Button,
+  ConfirmDialog,
   DataTable,
   Dialog,
   DialogHeader,
@@ -44,6 +45,7 @@ function NetworkIpContent() {
   const [detectNotice, setDetectNotice] = useState<string | null>(null);
   const [editRow, setEditRow] = useState<NetworkRow | null>(null);
   const [editForm, setEditForm] = useState<CreateForm>(EMPTY_CREATE_FORM);
+  const [deleteTarget, setDeleteTarget] = useState<NetworkRow | null>(null);
 
   const createMut = trpc.facilityNetwork.create.useMutation({
     onSuccess: () => {
@@ -113,7 +115,7 @@ function NetworkIpContent() {
             label="Xoá"
             size="sm"
             variant="secondary"
-            onClick={() => deleteMut.mutate({ id: row.id })}
+            onClick={() => setDeleteTarget(row)}
           />
         </HStack>
       ),
@@ -148,6 +150,8 @@ function NetworkIpContent() {
             title="Hướng dẫn nhập tay"
             description="CIDR là dải IP, vd 192.168.1.0/24 (cả dải văn phòng) hoặc một IP đơn 10.0.0.5/32. Nếu nút tự dò không chính xác (do proxy/CDN/IP di động), hãy tự tra IP công cộng của thiết bị (vd truy cập whatismyip) và nhập tay."
           />
+          {updateMut.error && !editRow && <Banner status="error" title={updateMut.error.message} />}
+          {deleteMut.error && <Banner status="error" title={deleteMut.error.message} />}
           <DataTable<NetworkRow>
             columns={COLUMNS}
             data={rows}
@@ -265,6 +269,24 @@ function NetworkIpContent() {
           </HStack>
         </Stack>
       </Dialog>
+
+      <ConfirmDialog
+        opened={deleteTarget !== null}
+        title="Xoá dải mạng"
+        message={
+          deleteTarget
+            ? `Xoá dải "${deleteTarget.cidr}"${deleteTarget.label ? ` (${deleteTarget.label})` : ''}? Hành động này không thể hoàn tác.`
+            : ''
+        }
+        confirmLabel="Xác nhận"
+        cancelLabel="Hủy"
+        loading={deleteMut.isPending}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteMut.mutate({ id: deleteTarget.id });
+          setDeleteTarget(null);
+        }}
+      />
     </>
   );
 }

@@ -31,6 +31,8 @@ const deleteMutate = vi.fn();
 const detectRefetch = vi.fn().mockResolvedValue({
   data: { ip: '203.0.113.42', suggestedCidr32: '203.0.113.42/32', suggestedCidr24: '203.0.113.0/24' },
 });
+let updateError: { message: string } | null = null;
+let deleteError: { message: string } | null = null;
 
 vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
@@ -48,9 +50,15 @@ vi.mock('../../lib/trpc.js', async () => {
       'facilityNetwork.create.useMutation': (opts: { onSuccess?: () => void }) =>
         mutationResult({ mutate: (...a: unknown[]) => { createMutate(...a); opts?.onSuccess?.(); } }),
       'facilityNetwork.update.useMutation': (opts: { onSuccess?: () => void }) =>
-        mutationResult({ mutate: (...a: unknown[]) => { updateMutate(...a); opts?.onSuccess?.(); } }),
+        mutationResult({
+          mutate: (...a: unknown[]) => { updateMutate(...a); opts?.onSuccess?.(); },
+          error: updateError,
+        }),
       'facilityNetwork.delete.useMutation': (opts: { onSuccess?: () => void }) =>
-        mutationResult({ mutate: (...a: unknown[]) => { deleteMutate(...a); opts?.onSuccess?.(); } }),
+        mutationResult({
+          mutate: (...a: unknown[]) => { deleteMutate(...a); opts?.onSuccess?.(); },
+          error: deleteError,
+        }),
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -68,6 +76,8 @@ describe('NetworkIpPage', () => {
     updateMutate.mockClear();
     deleteMutate.mockClear();
     detectRefetch.mockClear();
+    updateError = null;
+    deleteError = null;
   });
 
   it('renders network rows bound to facilityNetwork.list.useQuery', () => {
@@ -114,6 +124,13 @@ describe('NetworkIpPage', () => {
     expect(updateMutate).toHaveBeenCalledWith({ id: 'net-1', isActive: true });
   });
 
+  it('surfaces a failed toggle mutation error to the user', () => {
+    updateError = { message: 'Lỗi khi bật dải mạng' };
+    renderWithProviders(<NetworkIpPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Bật' }));
+    expect(screen.getAllByText('Lỗi khi bật dải mạng').length).toBeGreaterThan(0);
+  });
+
   it('edits cidr/label via facilityNetwork.update.mutate({ id, cidr, label })', () => {
     renderWithProviders(<NetworkIpPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Sửa' }));
@@ -123,10 +140,28 @@ describe('NetworkIpPage', () => {
     expect(updateMutate).toHaveBeenCalledWith({ id: 'net-1', cidr: '10.0.0.0/24', label: 'Đổi tên' });
   });
 
-  it('deletes a network via facilityNetwork.delete.mutate({ id })', () => {
+  it('deletes a network via facilityNetwork.delete.mutate({ id }) only after confirming', () => {
     renderWithProviders(<NetworkIpPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Xoá' }));
+    // Confirm dialog gate — clicking "Xoá" alone must NOT call the mutation yet.
+    expect(deleteMutate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
     expect(deleteMutate).toHaveBeenCalledWith({ id: 'net-1' });
+  });
+
+  it('cancelling the delete confirm dialog never calls the mutation', () => {
+    renderWithProviders(<NetworkIpPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    expect(deleteMutate).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a failed delete mutation error to the user', () => {
+    deleteError = { message: 'Lỗi khi xoá dải mạng' };
+    renderWithProviders(<NetworkIpPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    expect(screen.getAllByText('Lỗi khi xoá dải mạng').length).toBeGreaterThan(0);
   });
 
   it('renders a gated EmptyState when the session lacks facilityNetwork.manage', () => {

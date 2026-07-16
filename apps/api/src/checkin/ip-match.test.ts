@@ -5,7 +5,7 @@
 //   manager-only approve/reject, anti-self-approve.
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ipMatchesCidr } from '@cmc/domain-identity';
+import { ipMatchesCidr, isValidCidr } from '@cmc/domain-identity';
 import { appRouter } from '../router.js';
 import {
   buildStaffContext,
@@ -48,6 +48,36 @@ describe('ipMatchesCidr — pure unit tests', () => {
   it('/0 matches every IP', () => {
     expect(ipMatchesCidr('1.2.3.4', '0.0.0.0/0')).toBe(true);
     expect(ipMatchesCidr('255.255.255.255', '0.0.0.0/0')).toBe(true);
+  });
+});
+
+describe('isValidCidr — pure unit tests', () => {
+  it('accepts a plain IPv4 (no prefix)', () => {
+    expect(isValidCidr('10.0.0.5')).toBe(true);
+  });
+
+  it('accepts a valid CIDR block', () => {
+    expect(isValidCidr('192.168.1.0/24')).toBe(true);
+    expect(isValidCidr('10.0.0.0/8')).toBe(true);
+    expect(isValidCidr('1.2.3.4/32')).toBe(true);
+    expect(isValidCidr('0.0.0.0/0')).toBe(true);
+  });
+
+  it('rejects an out-of-range prefix', () => {
+    expect(isValidCidr('10.0.0.0/33')).toBe(false);
+    expect(isValidCidr('10.0.0.0/-1')).toBe(false);
+  });
+
+  it('rejects a malformed octet', () => {
+    expect(isValidCidr('10.0.0.256')).toBe(false);
+    expect(isValidCidr('10.0.0')).toBe(false);
+    expect(isValidCidr('10.0.0.0.0')).toBe(false);
+  });
+
+  it('rejects non-IPv4 input (IPv6, empty, garbage)', () => {
+    expect(isValidCidr('::1')).toBe(false);
+    expect(isValidCidr('')).toBe(false);
+    expect(isValidCidr('not-an-ip')).toBe(false);
   });
 });
 

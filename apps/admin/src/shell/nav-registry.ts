@@ -82,6 +82,8 @@ export const NAV_MODULES: NavModule[] = [
     children: [
       { id: 'users', label: 'Người dùng', path: '/admin/users', icon: 'user', permission: { module: 'user', action: 'manage' } },
       { id: 'facilities', label: 'Cơ sở', path: '/admin/facilities', icon: 'building', permission: { module: 'facility', action: 'list' } },
+      // Phase-03 super-admin-completion: IP range management + self-detect.
+      { id: 'network-ip', label: 'IP mạng', path: '/admin/network-ip', icon: 'globe', permission: { module: 'facilityNetwork', action: 'manage' } },
       // super_admin-only (compensationPolicy.manage has an empty role list —
       // only the super_admin bypass in can() satisfies it).
       { id: 'shift-config', label: 'Ca làm việc', path: '/admin/shift-config', icon: 'clock', permission: { module: 'compensationPolicy', action: 'manage' } },

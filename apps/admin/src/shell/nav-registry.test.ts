@@ -82,6 +82,14 @@ describe('visibleModulesFor', () => {
     expect(shiftConfig?.permission).toEqual({ module: 'compensationPolicy', action: 'manage' });
   });
 
+  it('gates admin network-ip entry with facilityNetwork.manage', () => {
+    const modules = visibleModulesFor(['super_admin'], allTrue);
+    const admin = modules.find((m) => m.id === 'admin');
+    const networkIp = admin?.children?.find((c) => c.id === 'network-ip');
+    expect(networkIp).toBeDefined();
+    expect(networkIp?.permission).toEqual({ module: 'facilityNetwork', action: 'manage' });
+  });
+
   it('shows Lớp & Học sinh with students entry', () => {
     const modules = visibleModulesFor(['sale'], allTrue);
     const classModule = modules.find((m) => m.id === 'classes-students');

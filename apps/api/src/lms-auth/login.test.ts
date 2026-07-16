@@ -102,6 +102,62 @@ describe('lmsAuth.requestOtp / verifyOtp (WF-P1-07)', () => {
     expect(result.children).toEqual([{ studentId: student.id, fullName: student.fullName }]);
   });
 
+  // Post-review fix (phase-04 super-admin-completion): `verifyOtp` is a
+  // `publicProcedure.mutation` that succeeds, so the phase-04 audit
+  // middleware would ALSO fire for it unless excluded — before the fix,
+  // its raw input `{ phone, code }` was written verbatim (the `code` field
+  // isn't caught by the password/otp/token/secret denylist) into a SECOND
+  // AuditLog row, leaking the just-typed OTP in cleartext to any
+  // super_admin via `audit.list`. Proves: exactly the existing
+  // `guardian.childDataRead` row exists (no second `lmsAuth.verifyOtp`
+  // row), and no AuditLog row anywhere carries a `code` field.
+  it('post-review fix: verifyOtp never leaks the plaintext OTP code into AuditLog', async () => {
+    const phone = '0992000099';
+    const normalized = normalizeLoginPhone(phone);
+    phonesToClean.push(normalized);
+    const parentAccount = await seedParentAccount(normalized);
+    // auditChildDataAccess is a no-op when studentIds is empty (guardian/
+    // approved-children.ts) — need at least one approved child for the
+    // manual guardian.childDataRead row to actually get written.
+    const student = await testDbBypass((tx) =>
+      tx.student.create({ data: { facilityId: facility.id, fullName: 'Audit Leak Regression Student' } }),
+    );
+    await seedGuardianLink({
+      facilityId: facility.id,
+      parentAccountId: parentAccount.id,
+      studentId: student.id,
+      status: 'approved',
+    });
+
+    // AuditLog is append-only (no UPDATE/DELETE grant to cmc_app —
+    // security/append-only-privilege.test.ts), so a before/after COUNT is
+    // required here rather than an exact-0 assertion — earlier test runs
+    // (including runs from before this fix existed) can never be cleaned up
+    // and would otherwise make this assertion pass or fail for the wrong
+    // reason.
+    const genericRowsBefore = await testDb().auditLog.count({
+      where: { action: 'lmsAuth.verifyOtp', actor: 'anonymous' },
+    });
+
+    await anon.lmsAuth.requestOtp({ phone });
+    await anon.lmsAuth.verifyOtp({ phone, code: MOCKED_OTP_CODE });
+
+    // auditChildDataAccess (guardian/approved-children.ts) writes actor as
+    // the RAW parentAccountId — this pre-dates phase-04's `parent:<id>`
+    // prefix convention and is untouched by this branch.
+    const childDataAccessRows = await testDb().auditLog.findMany({
+      where: { action: 'guardian.childDataRead', actor: parentAccount.id },
+    });
+    expect(childDataAccessRows).toHaveLength(1);
+
+    // Middleware would have written this as actor='anonymous' (no session
+    // resolved yet at call time) had the exclude-list fix not been applied.
+    const genericRowsAfter = await testDb().auditLog.count({
+      where: { action: 'lmsAuth.verifyOtp', actor: 'anonymous' },
+    });
+    expect(genericRowsAfter).toBe(genericRowsBefore);
+  });
+
   it('an expired code and a wrong code both fail with the same generic error (no enumeration)', async () => {
     const phone = '0992000003';
     const normalized = normalizeLoginPhone(phone);

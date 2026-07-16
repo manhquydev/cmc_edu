@@ -50,6 +50,22 @@ export function deriveEntityId(input: unknown, resultData: unknown): string {
 
 const SENSITIVE_KEY_RE = /password|otp|token|secret/i;
 
+/** Post-review fix: OTP-verify endpoints (`lmsAuth.verifyOtp[Email]`) take a
+ * plain 6-digit code in a field literally named `code` — not caught by
+ * `SENSITIVE_KEY_RE`. Matched as an EXACT key name (not a substring, unlike
+ * the regex above) so legitimate business identifiers that merely contain
+ * "code" (`facilityCode`, `employeeCode`, `classCode`) are NOT hidden from
+ * the audit trail — only a field named exactly `code` is a bare
+ * verification/OTP code in every mutation this app has. This is a second,
+ * independent layer on top of excluding the known verifyOtp* paths in
+ * `trpc.ts`'s `AUDIT_EXCLUDED_PATHS` — a secret-bearing field should never
+ * rely on a single survey to stay out of AuditLog. */
+const SENSITIVE_EXACT_KEYS = new Set(['code']);
+
+function isSensitiveKey(key: string): boolean {
+  return SENSITIVE_KEY_RE.test(key) || SENSITIVE_EXACT_KEYS.has(key.toLowerCase());
+}
+
 /** Denylists password/OTP/token/secret-named fields before an input is
  * persisted into `AuditLog.data` — never store credentials in the audit
  * trail, even best-effort ones. Non-object input (no-arg mutations) yields
@@ -58,7 +74,7 @@ export function sanitizeAuditData(input: unknown): Record<string, unknown> | und
   if (!input || typeof input !== 'object') return undefined;
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
-    if (SENSITIVE_KEY_RE.test(key)) continue;
+    if (isSensitiveKey(key)) continue;
     out[key] = value;
   }
   return out;

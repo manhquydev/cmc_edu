@@ -80,7 +80,10 @@ describe('deriveEntityId', () => {
 
 describe('sanitizeAuditData', () => {
   it('passes through ordinary fields unchanged', () => {
-    expect(sanitizeAuditData({ name: 'Cơ sở HN', code: 'HN' })).toEqual({ name: 'Cơ sở HN', code: 'HN' });
+    expect(sanitizeAuditData({ name: 'Cơ sở HN', label: 'Trụ sở chính' })).toEqual({
+      name: 'Cơ sở HN',
+      label: 'Trụ sở chính',
+    });
   });
 
   it('strips password/otp/token/secret-named fields (case-insensitive)', () => {
@@ -98,5 +101,16 @@ describe('sanitizeAuditData', () => {
   it('non-object input (e.g. no-arg mutation) returns undefined', () => {
     expect(sanitizeAuditData(undefined)).toBeUndefined();
     expect(sanitizeAuditData('a string')).toBeUndefined();
+  });
+
+  it('post-review fix: strips a field named exactly "code" (lmsAuth.verifyOtp\'s plaintext OTP)', () => {
+    expect(sanitizeAuditData({ phone: '0900000000', code: '123456' })).toEqual({ phone: '0900000000' });
+  });
+
+  it('does NOT strip legitimate business identifiers that merely contain "code" as a substring', () => {
+    expect(sanitizeAuditData({ facilityCode: 'HN', employeeCode: 'CMC001' })).toEqual({
+      facilityCode: 'HN',
+      employeeCode: 'CMC001',
+    });
   });
 });

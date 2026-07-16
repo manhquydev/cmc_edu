@@ -100,6 +100,15 @@ const AUDIT_EXCLUDED_PATHS = new Set<string>([
   'lmsAuth.requestOtpEmail',
   'lmsAuth.loginStudent',
   'lmsAuth.resetChildPassword',
+  // Post-review fix: these two already audit via a SHARED helper
+  // (auditChildDataAccess → action 'guardian.childDataRead'), not an inline
+  // `auditLog.create` literal matching their own path name — a path-by-path
+  // grep for `action: 'lmsAuth...'` missed them. Their raw input is
+  // `{ phone|email, code }` (the just-typed OTP) — critical to exclude
+  // regardless of the denylist, since a secret-bearing input should never
+  // depend solely on a field-name regex to stay out of AuditLog.
+  'lmsAuth.verifyOtp',
+  'lmsAuth.verifyOtpEmail',
   'reconciliation.dismiss',
   'reconciliation.action',
   'user.updateRoles',

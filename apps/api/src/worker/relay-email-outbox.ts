@@ -87,10 +87,26 @@ const EMAIL_OUTBOX_RETENTION_DAYS = Number(process.env.EMAIL_OUTBOX_RETENTION_DA
  * (scrub-only-on-success left `dead`/stuck rows holding plaintext forever).
  */
 export async function sweepStaleOtpPayloads(db: PrismaClient): Promise<number> {
-  const cutoff = new Date(Date.now() - OTP_PAYLOAD_TTL_MINUTES * 60_000);
+  const createdCutoff = new Date(Date.now() - OTP_PAYLOAD_TTL_MINUTES * 60_000);
+  // `sending` rows are mid-flight until the reaper (SENDING_REAP_TIMEOUT_MS,
+  // step 1 of relayEmailOutbox) declares them crashed and resets them to
+  // `pending` for immediate redraining WITH their original payload intact
+  // (same cycle, step 1 before step 2). Scrubbing a `sending` row on the
+  // shorter OTP_PAYLOAD_TTL_MINUTES `createdAt` cutoff — correct only while
+  // both timers matched, no longer guaranteed now that they can diverge —
+  // wipes the code before the reap/redrain cycle gets a chance to send it,
+  // producing a content-free OTP email instead of the real code. Anchor
+  // `sending` rows to `updatedAt` + SENDING_REAP_TIMEOUT_MS instead, so the
+  // sweep never fires on a row before the reaper would have already
+  // liberated it. All other statuses keep the original `createdAt`-based cutoff.
+  const sendingUpdatedCutoff = new Date(Date.now() - SENDING_REAP_TIMEOUT_MS);
+
   const result = await db.emailOutbox.updateMany({
     where: {
-      createdAt: { lt: cutoff },
+      OR: [
+        { status: { not: 'sending' }, createdAt: { lt: createdCutoff } },
+        { status: 'sending', updatedAt: { lt: sendingUpdatedCutoff } },
+      ],
       AND: [
         { payload: { path: ['kind'], equals: 'otp' } },
         // Whole-object inequality, not `NOT path:['scrubbed'] equals true`:
@@ -175,7 +191,7 @@ export async function relayEmailOutbox(
 ): Promise<RelayEmailOutboxResult> {
   // ── 1. Reap stuck `sending` rows ──────────────────────────────────────────
   // A row stays `sending` for the duration of one send attempt. Any row still
-  // `sending` after SENDING_REAP_TIMEOUT_MS (5 min) means the worker process
+  // `sending` after SENDING_REAP_TIMEOUT_MS means the worker process
   // crashed between the atomic claim and the status update. Reset it so a
   // fresh worker cycle can retry it.
   const reaperCutoff = new Date(Date.now() - SENDING_REAP_TIMEOUT_MS);

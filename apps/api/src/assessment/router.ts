@@ -311,6 +311,12 @@ export const assessmentRouter = router({
     .query(async ({ ctx, input }): Promise<{ items: AssessmentDto[] }> => {
       const { facilityId } = scoped(ctx);
       return withFacility(ctx.db, facilityId, async (tx) => {
+        // Post-implementation hardening (M1): this read had no ownership
+        // check — a teacher could list any other teacher's session
+        // assessments. Every sibling mutation (draftComment/confirm/discard)
+        // already calls this same guard.
+        await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, input.classSessionId);
+
         const rows = await tx.qualitativeAssessment.findMany({
           where: { facilityId, classSessionId: input.classSessionId, status: { in: ['draft', 'confirmed'] } },
           orderBy: { createdAt: 'asc' },

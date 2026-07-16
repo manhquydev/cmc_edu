@@ -3,16 +3,24 @@
 // constraint, RLS isolation, and the session-lifecycle procedures
 // (cancel/confirm/addMakeup) that feed attendance's gate 1.
 
+import { randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { appRouter } from '../router.js';
 import { ictMonthOf } from '@cmc/domain-time';
 import {
+  buildLmsContext,
   buildStaffContext,
+  cleanupCurriculumUnits,
   cleanupFacility,
+  cleanupParentAccountsByPhone,
   createTestFacility,
   seedActiveEnrollment,
   seedAppUser,
   seedClassBatch,
+  seedClassSession,
+  seedCurriculumUnit,
+  seedEnrolledStudentWithGuardian,
+  seedParentAccount,
   testDbBypass,
 } from '../test/db.js';
 
@@ -313,6 +321,97 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
     await expect(gddt.classSession.cancel({ sessionId: session.id })).rejects.toMatchObject({
       code: 'BAD_REQUEST',
     });
+  });
+
+  // M2 remediation (post-implementation review of 260715-1338 plan): cancel
+  // must refresh FinalGrade for every student it had an Attendance row for —
+  // the same principle Phase 7 already applies to attendance.mark/markAll.
+  it('classSession.cancel refreshes FinalGrade for students marked on that session (M2)', async () => {
+    const unit = await seedCurriculumUnit();
+    const parentPhone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
+    const parent = await seedParentAccount(parentPhone);
+
+    try {
+      const created = await gddt.exercise.create({
+        curriculumUnitId: unit.id,
+        type: 'homework',
+        basePdfRef: 'exercise-pdf/m2-seed.pdf',
+        maxScore: 10,
+        starReward: 5,
+      });
+      const exercise = await gddt.exercise.publish({ exerciseId: created.id });
+
+      // A PAST session tied to `unit` so the exercise-open tier gate
+      // (ADR 0038) lets the student submit — mirrors
+      // ../submission/grade.test.ts's fixture, unrelated to the session
+      // under test below.
+      await seedClassSession({
+        facilityId: facility.id,
+        classBatchId: classBatch.id,
+        curriculumUnitId: unit.id,
+        endTime: new Date('2020-01-01T00:00:00.000Z'),
+      });
+
+      const enrollment = await seedEnrolledStudentWithGuardian({
+        facilityId: facility.id,
+        classBatchId: classBatch.id,
+        parentAccountId: parent.id,
+      });
+
+      // The session under test: anchored to "now" so it lands in the same
+      // ICT month `submission.grade`'s recompute (`periodAnchor = new Date()`)
+      // reads below.
+      const now = new Date();
+      const attendedSession = await seedClassSession({
+        facilityId: facility.id,
+        classBatchId: classBatch.id,
+        sessionDate: now,
+        startTime: now,
+        endTime: now,
+        status: 'confirmed',
+      });
+      await teacher.attendance.mark({
+        sessionId: attendedSession.id,
+        enrollmentId: enrollment.id,
+        status: 'present',
+      });
+
+      const student = appRouter.createCaller(
+        buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
+      );
+      await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: { done: true } });
+      const submitted = await student.submission.submit({ exerciseId: exercise.id });
+      await teacher.submission.grade({ submissionId: submitted.id, score: 10 });
+
+      const before = await testDbBypass((tx) =>
+        tx.finalGrade.findFirstOrThrow({
+          where: { studentId: enrollment.studentId, classBatchId: classBatch.id },
+        }),
+      );
+      // exerciseComponent = 10 (10/10), attendanceComponent = 10 (rate 1.0):
+      // 0.7*10 + 0.3*10 = 10.
+      expect(before.score).toBe(10);
+
+      await gddt.classSession.cancel({ sessionId: attendedSession.id });
+
+      const after = await testDbBypass((tx) =>
+        tx.finalGrade.findFirstOrThrow({
+          where: { studentId: enrollment.studentId, classBatchId: classBatch.id },
+        }),
+      );
+      // The now-cancelled session drops out of the attendance-rate
+      // denominator entirely -> rate 0: 0.7*10 + 0.3*0 = 7.
+      expect(after.score).toBe(7);
+      expect(after.updatedAt.getTime()).toBeGreaterThan(before.updatedAt.getTime());
+    } finally {
+      // GuardianLinkRequest (facility-scoped) FK-references ParentAccount, so
+      // the facility teardown must run BEFORE the ParentAccount cleanup below
+      // (the describe's own `afterEach` also calls `cleanupFacility` — a
+      // second, harmless no-op call once this has already run).
+      await cleanupFacility(facility.id);
+      await cleanupParentAccountsByPhone(parent.phone);
+      await cleanupCurriculumUnits(unit.id);
+    }
   });
 
   it('classSession.confirm transitions planned -> confirmed only', async () => {

@@ -166,7 +166,13 @@ describe('relayEmailOutbox (K6)', () => {
   });
 
   // ── Gap-closure 260710-0005 Phase 1: OTP scrub + sweep (red-team C1) ──────
-  async function seedOtpOutbox(overrides?: { status?: 'pending' | 'failed' | 'dead'; createdAt?: Date }) {
+  async function seedOtpOutbox(overrides?: {
+    status?: 'pending' | 'failed' | 'dead' | 'sending';
+    createdAt?: Date;
+    /** `@updatedAt` is Prisma-managed — applied via raw SQL after create,
+     *  same pattern as reconcile-finance-flags.test.ts's `backdateUpdatedAt`. */
+    updatedAt?: Date;
+  }) {
     const row = await testDb().emailOutbox.create({
       data: {
         to: `otp-${Math.random().toString(36).slice(2, 8)}@test.com`,
@@ -177,6 +183,9 @@ describe('relayEmailOutbox (K6)', () => {
       },
     });
     outboxIdsToClean.push(row.id);
+    if (overrides?.updatedAt) {
+      await testDb().$executeRaw`UPDATE "EmailOutbox" SET "updatedAt" = ${overrides.updatedAt} WHERE "id" = ${row.id}`;
+    }
     return row;
   }
 
@@ -274,6 +283,77 @@ describe('relayEmailOutbox (K6)', () => {
     // UPDATE every cycle forever.
     const second = await sweepStaleOtpPayloads(testDb());
     expect(second).toBe(0);
+  });
+
+  // ── Sweep vs. reap cutoff-basis invariant for `sending` rows ──────────────
+  // The reaper (step 1 of relayEmailOutbox) only liberates a `sending` row
+  // once it's been stuck for SENDING_REAP_TIMEOUT_MS, measured off
+  // `updatedAt`. The sweep must never scrub a `sending` row's payload before
+  // that point — otherwise the reap+redrain in a later cycle resends an
+  // already-scrubbed placeholder instead of the real code.
+  it('does not scrub a `sending` OTP row before its own reap timeout, even past the OTP TTL created-at cutoff', async () => {
+    // Created 6 min ago (past the 5-min OTP_PAYLOAD_TTL_MINUTES created-at
+    // cutoff) but only claimed into `sending` 2 min ago (well under
+    // SENDING_REAP_TIMEOUT_MS) — e.g. it sat `pending` for 4 min before a
+    // worker cycle finally claimed it and is still actively in flight.
+    const row = await seedOtpOutbox({
+      status: 'sending',
+      createdAt: new Date(Date.now() - 6 * 60_000),
+      updatedAt: new Date(Date.now() - 2 * 60_000),
+    });
+
+    const swept = await sweepStaleOtpPayloads(testDb());
+
+    expect(swept).toBe(0);
+    const unchanged = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
+    expect(JSON.stringify(unchanged.payload)).toContain('999999');
+  });
+
+  it('scrubs a `sending` OTP row once it is past its own reap timeout (updatedAt-based), not just the OTP TTL', async () => {
+    // Both created AND last-touched 16 min ago — past SENDING_REAP_TIMEOUT_MS
+    // (15 min), genuinely stuck past the point the reaper would have already
+    // reset it to `pending`.
+    const row = await seedOtpOutbox({
+      status: 'sending',
+      createdAt: new Date(Date.now() - 16 * 60_000),
+      updatedAt: new Date(Date.now() - 16 * 60_000),
+    });
+
+    const swept = await sweepStaleOtpPayloads(testDb());
+
+    expect(swept).toBeGreaterThanOrEqual(1);
+    const updated = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
+    expect(updated.payload).toEqual({ kind: 'otp', scrubbed: true });
+  });
+
+  it('a `sending` OTP row swept while still in flight is later reaped and resent WITH its real code, not the scrubbed placeholder', async () => {
+    // Cycle 1: row is past the OTP TTL but not yet reap-eligible (mirrors the
+    // first test above) — a sweep runs and must leave the payload intact.
+    const row = await seedOtpOutbox({
+      status: 'sending',
+      createdAt: new Date(Date.now() - 6 * 60_000),
+      updatedAt: new Date(Date.now() - 2 * 60_000),
+    });
+    await sweepStaleOtpPayloads(testDb());
+    const afterFirstSweep = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
+    expect(JSON.stringify(afterFirstSweep.payload)).toContain('999999');
+
+    // Time passes — the row is still stuck in `sending` (worker never came
+    // back), now past SENDING_REAP_TIMEOUT_MS (15 min) too.
+    await testDb().$executeRaw`UPDATE "EmailOutbox" SET "updatedAt" = ${new Date(Date.now() - 16 * 60_000)} WHERE "id" = ${row.id}`;
+
+    const transport = new RecordingTransport();
+    await relayEmailOutbox(testDb(), { brevo: transport });
+
+    const sentEmail = transport.sent.find((e) => e.id === row.id);
+    expect(sentEmail).toBeDefined();
+    // The transport must have received the REAL code — if an earlier sweep
+    // cycle had scrubbed it prematurely, this would be the placeholder and
+    // the parent would receive a content-free OTP email.
+    expect(JSON.stringify(sentEmail?.payload)).toContain('999999');
+    const updated = await testDb().emailOutbox.findUniqueOrThrow({ where: { id: row.id } });
+    expect(updated.status).toBe('sent');
+    expect(updated.payload).toEqual({ kind: 'otp', scrubbed: true });
   });
 
   // ── M1 Phase 4 (b): retention prune ──────────────────────────────────────

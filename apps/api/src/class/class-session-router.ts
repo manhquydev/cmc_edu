@@ -15,6 +15,7 @@ import { assertSessionActive } from './assert-session-active.js';
 import type { PlannedSession } from './generate-sessions.js';
 import { assertNoRoomConflict } from './room-conflict.js';
 import { ictDateOnlyOf, ictToUtc, isValidDateOnly, isValidTimeOfDay } from '@cmc/domain-time';
+import { recomputeFinalGrade } from '../submission/router.js';
 
 const dateOnlySchema = z.string().refine(isValidDateOnly, { message: 'Expected YYYY-MM-DD.' });
 const timeOfDaySchema = z.string().refine(isValidTimeOfDay, { message: 'Expected HH:mm (24h).' });
@@ -130,6 +131,23 @@ export const classSessionRouter = router({
             data: { facilityId, previousStatus: session.status },
           },
         });
+
+        // Post-implementation hardening (M2): cancelling a session
+        // retroactively invalidates its Attendance rows from the FinalGrade
+        // attendance-rate denominator (../submission/router.ts's
+        // recomputeFinalGrade excludes `status: 'cancelled'` sessions) — the
+        // same principle attendance.mark/markAll's own recompute already
+        // enforces for status corrections. Without this, a parent's report
+        // card would show a stale score until some unrelated future
+        // attendance/grade event happened to trigger a refresh.
+        const affected = await tx.attendance.findMany({
+          where: { classSessionId: session.id, facilityId },
+          select: { studentId: true },
+        });
+        const studentIdsToRecompute = new Set(affected.map((a) => a.studentId));
+        for (const studentId of studentIdsToRecompute) {
+          await recomputeFinalGrade(tx, { facilityId, studentId, periodAnchor: session.endTime });
+        }
 
         return toClassSessionDto(updated);
       });

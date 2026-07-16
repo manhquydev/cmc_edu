@@ -227,6 +227,11 @@ export const sessionEvidenceRouter = router({
         if (!session) {
           throw notFound('ClassSession not found in this facility.');
         }
+        // Post-implementation hardening (M1): this read had no ownership
+        // check — a teacher could read any other teacher's session evidence
+        // (photos + status). Every sibling mutation (upsert/addPhoto/publish)
+        // already calls this same guard.
+        await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, input.classSessionId);
 
         const evidence = await tx.sessionEvidence.findUnique({
           where: { classSessionId: input.classSessionId },

@@ -194,6 +194,17 @@ describe('teacher class-scoping — cross-router FORBIDDEN proof (H1+H2)', () =>
         teacherB.assessment.draftComment({ studentId: enrollment.studentId, period: '2026-08' }),
       ).resolves.toMatchObject({ status: 'draft' });
     });
+
+    it('listBySession: FORBIDDEN for teacher B, OK for teacher A and director (M1)', async () => {
+      await teacherA.assessment.draftComment({ studentId: enrollment.studentId, classSessionId: session.id });
+
+      await expect(
+        teacherB.assessment.listBySession({ classSessionId: session.id }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+      await expect(teacherA.assessment.listBySession({ classSessionId: session.id })).resolves.toBeDefined();
+      await expect(gddt.assessment.listBySession({ classSessionId: session.id })).resolves.toBeDefined();
+    });
   });
 
   describe('sessionEvidence', () => {
@@ -228,6 +239,18 @@ describe('teacher class-scoping — cross-router FORBIDDEN proof (H1+H2)', () =>
       await expect(
         teacherA.sessionEvidence.publish({ sessionEvidenceId: evidence.id }),
       ).resolves.toMatchObject({ status: 'published' });
+    });
+
+    it('getBySession: FORBIDDEN for teacher B, OK for teacher A (M1)', async () => {
+      await teacherA.sessionEvidence.upsert({ classSessionId: session.id, summary: 'Buổi học tốt' });
+
+      await expect(
+        teacherB.sessionEvidence.getBySession({ classSessionId: session.id }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+      await expect(
+        teacherA.sessionEvidence.getBySession({ classSessionId: session.id }),
+      ).resolves.toMatchObject({ status: 'draft' });
     });
   });
 });

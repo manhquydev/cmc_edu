@@ -87,6 +87,8 @@ export const NAV_MODULES: NavModule[] = [
       // super_admin-only (compensationPolicy.manage has an empty role list —
       // only the super_admin bypass in can() satisfies it).
       { id: 'shift-config', label: 'Ca làm việc', path: '/admin/shift-config', icon: 'clock', permission: { module: 'compensationPolicy', action: 'manage' } },
+      // Phase-04 super-admin-completion: global audit-log viewer.
+      { id: 'audit-log', label: 'Nhật ký hệ thống', path: '/admin/audit-log', icon: 'search', permission: { module: 'audit', action: 'list' } },
     ],
   },
 ];

@@ -33,6 +33,7 @@ const FacilitiesPage = lazy(() => import('../pages/admin/facilities.js'));
 const UsersPage = lazy(() => import('../pages/admin/users.js'));
 const NetworkIpPage = lazy(() => import('../pages/admin/network-ip.js'));
 const ShiftConfigPage = lazy(() => import('../pages/admin/shift-config.js'));
+const AuditLogPage = lazy(() => import('../pages/admin/audit-log.js'));
 
 // ── Report cards / AI assessment ─────────────────────────────────────────────
 const ReportCardsPage = lazy(() => import('../pages/teaching/report-cards.js'));
@@ -72,6 +73,7 @@ export const adminRoutes: RouteObject[] = [
   { path: 'users', element: <S><UsersPage /></S> },
   { path: 'network-ip', element: <S><NetworkIpPage /></S> },
   { path: 'shift-config', element: <S><ShiftConfigPage /></S> },
+  { path: 'audit-log', element: <S><AuditLogPage /></S> },
 
   // Report cards / AI assessment
   // TODO(phase-07): move to /teaching/report-cards once teaching.routes.tsx ownership allows.

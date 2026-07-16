@@ -969,6 +969,11 @@ model AuditLog {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([entity, entityId])
+  // Phase-04 super-admin-completion: the audit-log viewer filters/sorts by
+  // actor and createdAt (retention sweep also scans by createdAt) — both
+  // now indexed for the volume a system-wide middleware produces.
+  @@index([createdAt])
+  @@index([actor])
 }
 
 // ---------------------------------------------------------------------------

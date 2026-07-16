@@ -7,8 +7,14 @@
 
 import { initTRPC } from '@trpc/server';
 import { can, type AuthSubject } from '@cmc/auth';
-import type { PrismaClient } from '@cmc/db';
+import type { Prisma, PrismaClient } from '@cmc/db';
 import { AppCodeError, badRequest, forbidden, unauthorized } from './errors.js';
+import {
+  deriveEntity,
+  deriveEntityId,
+  resolveAuditActor,
+  sanitizeAuditData,
+} from './audit/audit-helpers.js';
 
 /**
  * LMS session subject (parent/student, TL11 §1). A distinct identity space
@@ -69,8 +75,99 @@ export const createCallerFactory = t.createCallerFactory;
  * CRUD, T2-I, with `exercise.openForStudent`/`listForStudent`, T2-II). */
 export const mergeRouters = t.mergeRouters;
 
+/**
+ * Phase-04 super-admin-completion: paths that already write their OWN
+ * AuditLog entry inline (richer than a generic best-effort row — e.g.
+ * finance receipts capture before/after amounts) — the auto middleware below
+ * skips these so a mutation never produces 2 rows for 1 call. Every path
+ * NOT in this set (the vast majority — e.g. `checkInOut.punch`,
+ * `user.create`, `enrollment.enroll`, previously entirely unaudited) gets
+ * covered automatically. Survey: apps/api/src grep for `auditLog.create`
+ * (2026-07-16).
+ */
+const AUDIT_EXCLUDED_PATHS = new Set<string>([
+  'facility.create',
+  'facility.update',
+  'facilityNetwork.create',
+  'facilityNetwork.update',
+  'facilityNetwork.delete',
+  'enrollment.blockLms',
+  'crm.opportunityCreate',
+  'classSession.cancel',
+  'finance.receiptApprove',
+  'finance.receiptCancel',
+  'lmsAuth.requestOtp',
+  'lmsAuth.requestOtpEmail',
+  'lmsAuth.loginStudent',
+  'lmsAuth.resetChildPassword',
+  'reconciliation.dismiss',
+  'reconciliation.action',
+  'user.updateRoles',
+  'attendance.mark',
+  'attendance.markAll',
+  'submission.saveTeacherAnnotation',
+  'parentAccount.updateEmail',
+  'student.resetPassword',
+  'student.setLifecycle',
+  'manualPunch.approve',
+  'manualPunch.reject',
+]);
+
+/**
+ * Phase-04 super-admin-completion: auto-logs every SUCCESSFUL mutation to
+ * `AuditLog`, replacing the ~25-site hand-written pattern above as the
+ * default (PO decision: "ghi TẤT CẢ thao tác thành công" — hand-writing each
+ * site individually already missed `user.create`/`user.update`, the exact
+ * kind of silent gap this middleware exists to close). Attached to the
+ * shared `basedProcedure` below so EVERY procedure kind (public/protected/
+ * lms) inherits it from one wiring point.
+ *
+ * Runs `next()` FIRST and inspects the result — `type==='mutation' &&
+ * result.ok` is what makes this "only successful mutations, never queries,
+ * never failures". Position at the very base of the chain (before
+ * `requireSession`/`requireLmsSession`) is deliberate: it is the only point
+ * that sees `ctx.subject`/`ctx.lmsSubject` for ALL THREE actor kinds,
+ * including public procedures that never resolve a session (login/OTP
+ * request) — those still need an `actor: 'anonymous'` row.
+ *
+ * The audit write itself is best-effort but NOT silent-on-failure: a DB
+ * error here is logged (never thrown — a broken audit write must not break
+ * the underlying mutation the user actually asked for), so a failure mode
+ * that would otherwise silently punch a hole in the audit trail is at least
+ * visible in server logs.
+ */
+const auditLogMiddleware = t.middleware(async ({ ctx, next, path, type, getRawInput }) => {
+  const result = await next();
+  if (type !== 'mutation' || !result.ok || AUDIT_EXCLUDED_PATHS.has(path)) {
+    return result;
+  }
+  try {
+    const rawInput = await getRawInput().catch(() => undefined);
+    const resultData = (result as { data?: unknown }).data;
+    await ctx.db.auditLog.create({
+      data: {
+        actor: resolveAuditActor(ctx),
+        action: path,
+        entity: deriveEntity(path),
+        entityId: deriveEntityId(rawInput, resultData),
+        data: sanitizeAuditData(rawInput) as Prisma.InputJsonValue | undefined,
+      },
+    });
+  } catch (err) {
+    // Never let a broken audit write silently punch a hole in the audit
+    // trail NOR break the mutation the caller actually asked for.
+    // eslint-disable-next-line no-console
+    console.error(`[audit] failed to write audit log for ${path}`, err);
+  }
+  return result;
+});
+
+/** Every procedure kind (public/protected/lms) is built on top of this so
+ * `auditLogMiddleware` wraps all of them from one wiring point. */
+const basedProcedure = t.procedure.use(auditLogMiddleware);
+
 /** Public procedures need no session. Reserved for health / public intake. */
-export const publicProcedure = t.procedure;
+export const publicProcedure = basedProcedure;
 
 const requireSession = t.middleware(({ ctx, next }) => {
   if (!ctx.subject) {
@@ -121,7 +218,7 @@ const requireValidFacility = t.middleware(async ({ ctx, next }) => {
 });
 
 /** Requires a valid staff session AND a facilityId that resolves to a real Facility. */
-export const protectedProcedure = t.procedure.use(requireSession).use(requireValidFacility);
+export const protectedProcedure = basedProcedure.use(requireSession).use(requireValidFacility);
 
 const requireLmsSession = t.middleware(({ ctx, next }) => {
   if (!ctx.lmsSubject) {
@@ -135,7 +232,7 @@ const requireLmsSession = t.middleware(({ ctx, next }) => {
  * staff roles — there is no SYSTEM/super_admin bypass into LMS surfaces
  * (TL11 §1); a staff session alone never satisfies this procedure.
  */
-export const lmsProcedure = t.procedure.use(requireLmsSession);
+export const lmsProcedure = basedProcedure.use(requireLmsSession);
 
 /**
  * RBAC gate. Business procedures use `requirePermission('module','action')`,

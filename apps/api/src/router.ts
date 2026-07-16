@@ -3,6 +3,7 @@
 
 import { z } from 'zod';
 import { attendanceRouter } from './attendance/router.js';
+import { auditRouter } from './audit/router.js';
 import { assessmentRouter, reportCardRouter } from './assessment/router.js';
 import { checkInOutRouter, manualPunchRouter } from './checkin/router.js';
 import { kpiRouter } from './kpi/router.js';
@@ -112,6 +113,8 @@ export const appRouter = router({
   session: sessionRouter,
   // Phase-06 gap: parent account email backfill (LMS login prerequisite).
   parentAccount: parentAccountRouter,
+  // Phase-04 super-admin-completion: global audit-log viewer.
+  audit: auditRouter,
 });
 
 export type AppRouter = typeof appRouter;

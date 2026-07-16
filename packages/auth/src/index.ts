@@ -74,6 +74,7 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   'facility.create': [],
   'facility.list': [],
   'facility.manage': [],
+  'audit.list': [],
   'course.manage': ['giam_doc_dao_tao'],
   'room.manage': ['giam_doc_dao_tao'],
   'class.create': ['giam_doc_dao_tao'],

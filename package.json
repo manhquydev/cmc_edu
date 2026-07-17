@@ -12,12 +12,15 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test --filter=!@cmc/e2e",
     "dev": "turbo run dev",
-    "lint": "eslint apps/admin apps/lms"
+    "lint": "eslint apps/admin apps/lms",
+    "acceptance:report": "tsx scripts/acceptance-report/verify.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "eslint": "^10.6.0",
     "eslint-formatter-compact": "^9.0.1",
+    "ts-morph": "^24.0.0",
+    "tsx": "^4.19.0",
     "turbo": "^2.3.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.63.0"

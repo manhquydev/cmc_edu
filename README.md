@@ -66,6 +66,7 @@ pnpm dev                         # start dev servers (admin, lms, api)
 pnpm test                        # run all tests (except e2e)
 pnpm build                       # build all packages
 pnpm lint                        # lint apps/admin + apps/lms
+pnpm acceptance:report           # regenerable acceptance ledger (HTML; gitignored)
 ```
 
 ### Database Setup (Local Development)

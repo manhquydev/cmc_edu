@@ -19,9 +19,31 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '../..');
 const OUTPUT_DIR = path.join(REPO_ROOT, 'acceptance-report');
 
-// Namespaces that are infrastructure, not business flows — real appRouter
-// keys only (never `auth.*`/`security.*`, which don't exist; red-team #14).
-const INFRA_NAMESPACE_WHITELIST = new Set(['health', 'lmsAuth', 'audit', 'user', 'facilityNetwork']);
+// Namespaces that are wholly infrastructure, not business flows — real
+// appRouter keys only. `audit`/`user`/`facilityNetwork` are NOT here: they are
+// claimed by ADMIN flows (ADM-04/02/03), so orphan detection covers the admin
+// surface too (plan 260718-0423 E4). Only `health` (probe) and `lmsAuth` (auth
+// plumbing: OTP variants, student login, child-password reset) stay whitelisted.
+const INFRA_NAMESPACE_WHITELIST = new Set(['health', 'lmsAuth']);
+
+// Individual infrastructure procedures inside otherwise-business namespaces.
+// STRICT rule (E4): only provably infra-pure, read-only, non-admin procedures.
+// Never an admin/auth-sensitive procedure — those must become a manifest flow
+// or a documented gap, never a silent whitelist entry. Each needs a 1-line why.
+const INFRA_PROCEDURE_WHITELIST = new Set([
+  'session.me', // phiên đăng nhập hiện tại — hạ tầng nav-gating, đọc-only, không admin
+]);
+
+// Orphan procedures that ARE real capabilities but have no TL25 workflow / dedicated
+// screen — deliberately NOT claimed by a flow and NOT whitelisted (E7 category c).
+// These are honest "documented gaps": candidates for a future flow or a TL25 addendum.
+// Keeping them out of the whitelist means they stay VISIBLE (not silently suppressed);
+// this map only annotates them with a reason so the tool distinguishes triaged gaps
+// from brand-new un-triaged orphans that need a decision.
+const DOCUMENTED_GAPS: Record<string, string> = {
+  'course.create': 'Tạo mới khoá học trong danh mục (/admin/courses) — chưa có WF TL25 riêng cho quản lý danh mục khoá học',
+  'parentAccount.updateEmail': 'Backfill email phụ huynh để nhận OTP-email — tiện ích admin, chưa có WF TL25',
+};
 
 function getHeadCommit(): string {
   try {
@@ -60,9 +82,15 @@ function computeProcedureOrphans(
   for (const proc of scannedProcedures) {
     const namespace = proc.split('.')[0];
     if (INFRA_NAMESPACE_WHITELIST.has(namespace)) continue;
+    if (INFRA_PROCEDURE_WHITELIST.has(proc)) continue;
     if (!referenced.has(proc)) orphans.push(proc);
   }
-  return { procedures: orphans.sort() };
+  orphans.sort();
+  const documented = orphans
+    .filter((p) => p in DOCUMENTED_GAPS)
+    .map((procedure) => ({ procedure, reason: DOCUMENTED_GAPS[procedure] }));
+  const untriaged = orphans.filter((p) => !(p in DOCUMENTED_GAPS));
+  return { procedures: orphans, documented, untriaged };
 }
 
 function main(): void {
@@ -75,6 +103,23 @@ function main(): void {
   for (const ns of INFRA_NAMESPACE_WHITELIST) {
     if (!trpcScan.namespaces.includes(ns)) {
       throw new Error(`INFRA_NAMESPACE_WHITELIST entry "${ns}" does not match any scanned appRouter key`);
+    }
+  }
+
+  // Liveness guard for the procedure-level whitelist (mirror of the namespace
+  // guard above, E4): a dead entry means the whitelist is stale config nobody
+  // can prove still describes real infra — fail loud so it can't silently rot.
+  for (const proc of INFRA_PROCEDURE_WHITELIST) {
+    if (!trpcScan.procedures.has(proc)) {
+      throw new Error(`INFRA_PROCEDURE_WHITELIST entry "${proc}" does not match any scanned procedure`);
+    }
+  }
+
+  // Liveness guard for documented gaps: a gap entry that no longer resolves to a
+  // real procedure is stale — drop it from the map rather than leaving a lie.
+  for (const proc of Object.keys(DOCUMENTED_GAPS)) {
+    if (!trpcScan.procedures.has(proc)) {
+      throw new Error(`DOCUMENTED_GAPS entry "${proc}" does not match any scanned procedure`);
     }
   }
 
@@ -115,8 +160,12 @@ function main(): void {
   const missing = flowResults.filter((f) => f.status === 'missing').length;
   console.log(
     `acceptance:report — ${flowResults.length} luồng (${built} built, ${partial} partial, ${missing} missing), ` +
-      `${orphans.procedures.length} orphan procedures, ${trpcScan.unresolved.length} unresolved namespaces.`,
+      `${orphans.procedures.length} orphan (${orphans.documented.length} documented gap, ${orphans.untriaged.length} chưa phân loại), ` +
+      `${trpcScan.unresolved.length} unresolved namespaces.`,
   );
+  if (orphans.untriaged.length > 0) {
+    console.warn(`  ORPHAN CHƯA PHÂN LOẠI (cần quyết định): ${orphans.untriaged.join(', ')}`);
+  }
   if (trpcScan.unresolved.length > 0) {
     console.warn(`  UNRESOLVED namespaces (scanner could not parse): ${trpcScan.unresolved.join(', ')}`);
   }

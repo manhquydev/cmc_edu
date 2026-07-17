@@ -19,22 +19,22 @@ run 2026-07-12 sau HR remediation phase 6) · `ADR/QĐ` · `Oversight`.
 | WF | Vai trò | User Story | API (quyền) | UI/URL | Test spec | ADR/QĐ | Oversight |
 |---|---|---|---|---|---|---|---|
 | **P1-01** | sale | "Quản lý phễu tuyển sinh O1→O5" | `crm.opportunityCreate/advance/markLost/lookup` (crm.*) | `/crm/opportunities?view=kanban` → `/:id` | `crm/stage.spec` | QĐ0037 · OpportunityStage | HITL |
-| **P1-02** | sale | "Tạo phiếu học phí từ cơ hội" | `finance.receiptCreate` (finance.receiptCreate) | `/finance/receipts/new?opportunityId=` | `finance/create-from-opp.spec` | QĐ0037 · mã phiếu | HITL |
-| **P1-03** | GĐKD · GĐĐT | "Duyệt phiếu kích hoạt học viên" | `finance.receiptApprove` | `/finance/receipts/:id` | `finance/approve.spec` | ADR-B · 0041 · QĐ0024/0028 | HITL |
+| **P1-02** | sale | "Tạo phiếu học phí từ cơ hội" | `finance.receiptCreate` (finance.receiptCreate) | `/finance/new?opportunityId=` | `finance/create-from-opp.spec` | QĐ0037 · mã phiếu | HITL |
+| **P1-03** | GĐKD · GĐĐT | "Duyệt phiếu kích hoạt học viên" | `finance.receiptApprove` | `/finance/:id` | `finance/approve.spec` | ADR-B · 0041 · QĐ0024/0028 | HITL |
 | **P1-04** | hệ thống | "Sinh tài khoản khi thu tiền" | (internal provisioning; key=phone) | ResultPanel (WF-03) | `provisioning/idempotent.spec` | **ADR0041** · QĐ0033 | auto |
-| **P1-05** | hệ thống | "Kích hoạt ghi danh khi đóng phí" | `enrollment.enroll` + `finance.receiptApprove` | `/students/:id/enrollments` | `enrollment/reserved-active.spec` | **ADR-A** | auto |
-| **P1-06** | PH / nhân viên | "Liên kết phụ huynh–con" | `guardian.requestLink`(lms) · `approveLink`/`reject` | LMS `/child/link-request` · `/parents/:id` | `guardian/link.spec` | TL19§6c · GuardianLinkRequest | HITL |
-| **P1-07** | phụ huynh | "Đăng nhập xem con" | `lmsAuth.requestOtp/verifyOtp` · `enrollment.mine` | LMS `/login` · `/select-child` · `/child/:id` | `lms-auth/login.spec` | QĐ0031/0033 | auto |
+| **P1-05** | hệ thống | "Kích hoạt ghi danh khi đóng phí" | `enrollment.enroll` + `finance.receiptApprove` | `/admin/students/:id` | `enrollment/reserved-active.spec` | **ADR-A** | auto |
+| **P1-06** | PH / nhân viên | "Liên kết phụ huynh–con" | `guardian.requestLink`(lms) · `approveLink`/`reject` | `/admin/parents` | `guardian/link.spec` | TL19§6c · GuardianLinkRequest | HITL |
+| **P1-07** | phụ huynh | "Đăng nhập xem con" | `lmsAuth.requestOtp/verifyOtp` · `enrollment.mine` | `/login` · `/parent/home` | `lms-auth/login.spec` | QĐ0031/0033 | auto |
 | **P1-08** | GĐKD | "Huỷ phiếu / hoàn tiền" | `finance.receiptCancel` · `finance.refundCreate` (finance.*) | `/finance/receipts/:id` · `/finance/refunds` | `finance/cancel-refund.spec` | QĐ0024/0028 · **I3** · ADR-A | HITL |
-| **P1-09** | agent / GĐĐT | "Giám sát bất thường tài chính" | `finance.*`+`audit.*` (read-only, MCP) | `/finance/reconciliation` · `/finance/receipts/:id?flag=` | `agent/recon.spec` | ADR-B · TL13 | **HOTL** |
-| **P2-01** | GĐĐT | "Tạo lớp tự sinh lịch buổi" | `classBatch.create` (class.create) | `/classes/:id/sessions` | `apps/api/src/class/generate-sessions.test.ts` | QĐ0036 | auto |
+| **P1-09** | agent / GĐĐT | "Giám sát bất thường tài chính" | `finance.*`+`audit.*` (read-only, MCP) | `/ops/recon` · `/finance/:id?flag=` | `agent/recon.spec` | ADR-B · TL13 | **HOTL** |
+| **P2-01** | GĐĐT | "Tạo lớp tự sinh lịch buổi" | `classBatch.create` (class.create) | `/admin/classes/:id` | `apps/api/src/class/generate-sessions.test.ts` | QĐ0036 | auto |
 | **P2-02** | giao_vien | "Điểm danh buổi học" | `attendance.mark/markAll` (attendance.mark) | `/teaching/attendance?session=` | `apps/api/src/attendance/gate.test.ts` | TL19§5 · **ADR0038** | người |
-| **P2-03** | hệ thống / HS | "Mở bài tập theo tiến độ học" | `exercise.openForStudent` (lms) | `/child/:id/exercises` | `apps/api/src/exercise/open-tier.test.ts` | **ADR0038** | auto |
-| **P2-04** | GĐĐT | "Cung cấp bài tập PDF" | `exercise.create/publish` (assessment.*) | `/curriculum/:unitId/exercises` | `apps/api/src/exercise/publish.test.ts` | TL19§3 | HITL |
-| **P2-05** | học viên | "Làm bài trên PDF & nộp" | `submission.saveDraft/submit` (lms) | `/child/:id/exercises/:id` | `apps/api/src/submission/annotate-submit.test.ts` | TL19§3 | auto |
+| **P2-03** | hệ thống / HS | "Mở bài tập theo tiến độ học" | `exercise.openForStudent` (lms) | `/student/exercise/:exerciseId` | `apps/api/src/exercise/open-tier.test.ts` | **ADR0038** | auto |
+| **P2-04** | GĐĐT | "Cung cấp bài tập PDF" | `exercise.create/publish` (assessment.*) | `/teaching/exercises` | `apps/api/src/exercise/publish.test.ts` | TL19§3 | HITL |
+| **P2-05** | học viên | "Làm bài trên PDF & nộp" | `submission.saveDraft/submit` (lms) | `/student/exercise/:exerciseId` | `apps/api/src/submission/annotate-submit.test.ts` | TL19§3 | auto |
 | **P2-06** | giao_vien | "Chấm bài & cộng sao" | `submission.grade` (grade) | `/teaching/grading` | `apps/api/src/submission/grade.test.ts` · `teacher-annotation.test.ts` · `list-for-child.test.ts` | TL19§6 | người |
-| **P2-07** | agent / giao_vien | "Nhận xét (AI nháp, GV chốt)" | `assessment.draftComment/confirm` | `/teaching/report-cards/:id` | `apps/api/src/assessment/draft-confirm.test.ts` | **TL08§7** · TL13 | HITL |
-| **P2-08** | giao_vien | "Gửi ảnh & tóm tắt buổi cho PH" | `sessionEvidence.publish` (giao_vien) | LMS `/child/:id` | `apps/api/src/session-evidence/publish.test.ts` · `photo-access.test.ts` | TL19§6b · **TL08§7** | người |
+| **P2-07** | agent / giao_vien | "Nhận xét (AI nháp, GV chốt)" | `assessment.draftComment/confirm` | `/teaching/session-assessment` · `/admin/report-cards` | `apps/api/src/assessment/draft-confirm.test.ts` | **TL08§7** · TL13 | HITL |
+| **P2-08** | giao_vien | "Gửi ảnh & tóm tắt buổi cho PH" | `sessionEvidence.publish` (giao_vien) | `/teaching/session-evidence` · `/parent/evidence/:studentId` | `apps/api/src/session-evidence/publish.test.ts` · `photo-access.test.ts` | TL19§6b · **TL08§7** | người |
 | **P3-01** | nhân viên | "Chấm công cặp vào/ra mỗi ngày" | `checkInOut.punch` (checkInOut.punch) | `/hr/checkin` | `apps/api/src/checkin/punch-offsite.test.ts` · `apps/api/src/checkin/ip-match.test.ts` | **ADR0043** | người |
 | **P3-02** | nhân viên / GĐ track | "Duyệt phiếu chấm công offsite" | `manualPunch.approve/reject/resubmit/list` (manualPunch.approve) | `/hr/checkin` | `apps/api/src/checkin/manual-punch-approval-track.test.ts` · `apps/e2e/tests/attendance-lifecycle.spec.ts` | **ADR0043** | HITL |
 | **P3-03** | sale / giao_vien | "Đăng ký ca làm" | `shift.submit`/`listGroups`/`myRegistrations` (shift.submit) | `/hr/shifts` | `apps/api/src/shift/register-approve.test.ts` | **ADR0040** · QĐ0035 | HITL |
@@ -45,10 +45,10 @@ run 2026-07-12 sau HR remediation phase 6) · `ADR/QĐ` · `Oversight`.
 | **P3-08** | GĐKD / GĐĐT | "Tất toán KPI hàng loạt (branch-scope)" | `kpi.bulkApprove` (kpi.bulkApprove) | `/hr/kpi` | `apps/api/src/kpi/lifecycle.test.ts` · `apps/e2e/tests/kpi-lifecycle.spec.ts` | **ADR0044** · docs/20 §4 | HITL |
 | **P3-09** | sale / giao_vien / GĐKD / GĐĐT | "Tính lại điểm KPI tự động (công thức PHẦN NHÂN)" | `kpi.refresh` (kpi.refresh) | `/hr/kpi` · `/hr/my` | `apps/api/src/kpi/auto-score.test.ts` · `apps/api/src/kpi/lifecycle.test.ts` · `apps/e2e/tests/kpi-lifecycle.spec.ts` | **ADR0044** | auto |
 | **P3-10** | hệ thống | "Đánh giá buổi học hoàn thành (session-done)" | (internal sweep worker; không có procedure gọi trực tiếp) | — (feed vào `/hr/kpi`, `/teaching/*`) | `apps/api/src/class/session-done.test.ts` · `apps/api/src/worker/session-done-sweep.test.ts` | **ADR0044** | auto |
-| **P3-11** | hệ thống | "Tự huỷ buổi 0 điểm danh + xếp buổi bù nối đuôi" | (internal sweep worker; không có procedure gọi trực tiếp) | `/classes/:id/sessions` | `apps/api/src/worker/session-done-sweep.test.ts` | **ADR0044** | auto |
-| **P4-01** | học viên / nhân viên | "Đổi quà bằng sao" | `rewards.redeem/approve/deliver` | `/engagement/rewards` | `apps/api/src/rewards/redeem-refund.test.ts` | TL20§5 | HITL |
-| **P4-02** | GĐ | "Cấu hình quà đổi sao" | `gift.upsert/archive` (GĐ) | `/engagement/rewards` | `apps/api/src/rewards/redeem-refund.test.ts` | TL20§5 | người |
-| **P4-03** | nhân viên | "Lên lịch & nhắc họp PH" | `parentMeeting.schedule/complete` | `/parent-meetings` | `apps/api/src/meeting/parent-meeting.test.ts` | TL20§6 | HITL |
+| **P3-11** | hệ thống | "Tự huỷ buổi 0 điểm danh + xếp buổi bù nối đuôi" | (internal sweep worker; không có procedure gọi trực tiếp) | `/admin/classes/:id` | `apps/api/src/worker/session-done-sweep.test.ts` | **ADR0044** | auto |
+| **P4-01** | học viên / nhân viên | "Đổi quà bằng sao" | `rewards.redeem/approve/deliver` | `/admin/engagement/rewards` | `apps/api/src/rewards/redeem-refund.test.ts` | TL20§5 | HITL |
+| **P4-02** | GĐ | "Cấu hình quà đổi sao" | `gift.upsert/list` (GĐ) | `/admin/engagement/rewards` | `apps/api/src/rewards/redeem-refund.test.ts` | TL20§5 | người |
+| **P4-03** | nhân viên | "Lên lịch & nhắc họp PH" | `parentMeeting.schedule/complete` | `/crm/post-sale-meeting` *(UI EmptyState — chưa gọi API)* | `apps/api/src/meeting/parent-meeting.test.ts` | TL20§6 | HITL |
 | **P4-04** | sale / giao_vien | "Đặt lịch test đầu vào/định kỳ" | `testAppointment.schedule/complete` | `/crm/opportunities/:id` | `apps/api/src/appointment/appointment-lifecycle.test.ts` | TL20§6 | người |
 | **P4-05** | sale / GĐ | "Chăm sóc sau bán" | `afterSale.advance` · `student.setLifecycle`(GĐ) | `/crm/aftersale` | `apps/api/src/after-sale/after-sale.test.ts` | TL20§7 · QĐ0027 | HITL |
 

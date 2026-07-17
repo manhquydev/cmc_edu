@@ -34,7 +34,10 @@ export function renderBuilderTab(result: VerificationResult): string {
     })
     .join('');
 
-  const orphanRows = result.orphans.procedures
+  const documentedRows = result.orphans.documented
+    .map((g) => `<tr><td><code>${escapeHtml(g.procedure)}</code></td><td>${escapeHtml(g.reason)}</td></tr>`)
+    .join('');
+  const untriagedRows = result.orphans.untriaged
     .map((p) => `<tr><td><code>${escapeHtml(p)}</code></td></tr>`)
     .join('');
 
@@ -47,6 +50,13 @@ export function renderBuilderTab(result: VerificationResult): string {
       : '';
 
   return `
+    <div style="margin-bottom: var(--cmc-space-3); padding: var(--cmc-space-2) var(--cmc-space-3);
+                border: 1px solid var(--cmc-danger); border-radius: var(--cmc-radius-xs);
+                background: #fdecea; color: var(--cmc-danger); font-size: 13px; font-weight: 500;">
+      🔒 CHỈ DÙNG NỘI BỘ — tab này liệt kê tên procedure/route/model = bản đồ API hệ thống.
+      File này phải ở máy nội bộ, KHÔNG gửi ra ngoài. Khi cần đưa cho người nghiệm thu, dùng bản
+      chỉ có tab Nghiệm thu.
+    </div>
     <div class="summary-band">
       <div class="stat"><div class="value">${built}/${result.flows.length}</div><div class="label">Luồng đã xây (${pct}%)</div></div>
       <div class="stat"><div class="value">${partial}</div><div class="label">Luồng thiếu một phần</div></div>
@@ -60,8 +70,20 @@ export function renderBuilderTab(result: VerificationResult): string {
       ${rows}
     </section>
     <section>
-      <h2>Orphan procedures (không thuộc luồng nào trong manifest)</h2>
-      ${orphanRows ? `<table><thead><tr><th>Procedure</th></tr></thead><tbody>${orphanRows}</tbody></table>` : '<p style="color: var(--cmc-text-muted);">Không có.</p>'}
+      <h2>Orphan chưa phân loại (capability thật, chưa có luồng — cần quyết định)</h2>
+      ${
+        untriagedRows
+          ? `<table><thead><tr><th>Procedure</th></tr></thead><tbody>${untriagedRows}</tbody></table>`
+          : '<p style="color: var(--cmc-success);">Không có — mọi procedure đã thuộc luồng, whitelist hạ tầng, hoặc documented gap.</p>'
+      }
+    </section>
+    <section>
+      <h2>Documented gaps (đã phân loại — capability chưa có WF, chờ bổ sung)</h2>
+      ${
+        documentedRows
+          ? `<table><thead><tr><th>Procedure</th><th>Lý do</th></tr></thead><tbody>${documentedRows}</tbody></table>`
+          : '<p style="color: var(--cmc-text-muted);">Không có.</p>'
+      }
     </section>
   `;
 }

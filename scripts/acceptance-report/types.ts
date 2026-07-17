@@ -36,8 +36,12 @@ export interface FlowVerification {
 }
 
 export interface OrphanResult {
-  /** Scanned procedures (namespace.procedure) not referenced by any manifest flow. */
+  /** All scanned procedures not referenced by any manifest flow (documented + untriaged). */
   procedures: string[];
+  /** Orphans that are known capabilities without a WF flow, each with a reason (E7 category c). */
+  documented: { procedure: string; reason: string }[];
+  /** Orphans NOT yet triaged — real capability surfaced by the tool, needs a decision. Should be empty. */
+  untriaged: string[];
 }
 
 export interface VerificationResult {

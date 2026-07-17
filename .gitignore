@@ -89,6 +89,12 @@ claude/session-state/archive/
 claude/settings.bak.json
 claude/skills/ai-multimodal/assets/demo-*.claude/session-state/*.tmp
 
+# Grok CLI local settings
+/.grok/
+
+# Nested Claude Code session artifacts (e.g. apps/api/.claude/agent-memory)
+**/.claude/agent-memory/
+
 # Gemini CLI settings (symlink to staged .claude/.mcp.json)
 .gemini/settings.json
 # Showoff/marketing assets (images, showcases)

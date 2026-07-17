@@ -32,7 +32,7 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 │                     │                                      │
 │  ┌──────────────────▼──────────────────────────────────┐  │
 │  │ tRPC API (Node.js)                                  │  │
-│  │ - 7 domain routers (crm, finance, enrollment, …)   │  │
+│  │ - 38 domain routers (crm, finance, enrollment, …)  │  │
 │  │ - RBAC middleware (requirePermission)              │  │
 │  │ - Facility scope enforcement (scoped context)      │  │
 │  │ - RLS context injection (facility_id session var) │  │
@@ -41,13 +41,13 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 │                     │                                      │
 │  ┌──────────────────▼──────────────────────────────────┐  │
 │  │ Prisma ORM + Postgres                              │  │
-│  │ - 13 core + 4 support tables                       │  │
-│  │ - Row-level security (6 tables)                    │  │
+│  │ - 50 models (sales, identity, classes, HR, …)     │  │
+│  │ - Row-level security (37 tables)                   │  │
 │  │ - Append-only ledger (RefundRecord, AuditLog)      │  │
-│  │ - Migrations: 5 total (P1 + 4 remediation waves)   │  │
+│  │ - Migrations: 35 folders (P1 through P4 + fixes)   │  │
 │  └──────────────────────────────────────────────────────┘  │
 │                                                             │
-│ [Agent/MCP layer: NOT YET BUILT — TL04, TL13 deferred]    │
+│ [LLM client: BUILT (tested) · MCP transport: SKELETON]     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -194,12 +194,12 @@ CREATE POLICY "facility_isolation" ON table_name
   FOR SELECT USING (facilityId = current_setting('app.facility_id')::uuid)
 ```
 
-Policies applied to: Opportunity, Student, Enrollment, Receipt, RefundRecord, AuditLog
+Policies applied to 37 tables across P1–P4: AfterSaleCase, AppUser, Attendance, ClassBatch, ClassBatchCodeCounter, ClassSession, CompensationPolicy, Contact, Course, Enrollment, FacilityNetwork, FinalGrade, Gift, KpiScore, ManualAttendanceTicket, Opportunity, Payslip, QualitativeAssessment, Receipt, ReconciliationFlag, RefundRecord, Reward, Room, SalaryRate, SalaryTier, ScheduleSlot, SessionEvidence, SessionEvidencePhoto, ShiftGroup, ShiftRegistration, ShiftRegistrationEntry, ShiftTemplate, StarTransaction, Student, Submission, TestAppointment, TimePunch.
 
 ---
 
 ### 4. Database (Postgres)
-**Status:** P1 schema complete + 5 migrations applied
+**Status:** P1–P4 schema complete; 35 migrations applied (P1 identity/enrollment through P4 after-sale, plus remediation fixes)
 
 #### Core Entity Groups
 
@@ -223,7 +223,7 @@ Policies applied to: Opportunity, Student, Enrollment, Receipt, RefundRecord, Au
 - `Enrollment` — student→class seat (status: reserved/active/withdrawn, RLS)  
 
 **Compliance:**
-- `AuditLog` — immutable action log (append-only, RLS)  
+- `AuditLog` — immutable action log (append-only via REVOKE, not RLS)  
 
 **Support:**
 - `AppUser` — staff/admin identity (no RLS, facility context via session)  
@@ -256,7 +256,7 @@ Policies applied to: Opportunity, Student, Enrollment, Receipt, RefundRecord, Au
 
 **Purpose:** Deliver queued emails from EmailOutbox.
 
-**Status:** Relay logic + transport wired (Brevo for parent-facing, Graph for internal mailboxes).
+**Status:** Relay logic + real transports implemented (BrevoEmailTransport, GraphEmailTransport); wiring required at boot via BREVO_API_KEY/GRAPH_* env vars.
 
 **Concurrency Safety (R3 remediation):**
 - Each worker replica claims rows via `updateMany({ where: { id, status: { in: ['pending','failed'] } }, data: { status: 'sending' } })`  
@@ -358,8 +358,8 @@ FOR SELECT USING (facilityId = current_setting('app.facility_id')::uuid)
 **Mechanism:** Postgres REVOKE on UPDATE/DELETE for sensitive tables.
 
 **Applied to:**
-- `RefundRecord` — immutable refund history  
-- `AuditLog` — immutable compliance log
+- `RefundRecord` — immutable refund history (UPDATE/DELETE REVOKED)
+- `AuditLog` — immutable compliance log (UPDATE/DELETE REVOKED, separate retention-sweep with privileged connection)
 
 **Migration:** `20260706150000_p1_remediation_wavea_privilege_hardening`
 
@@ -409,11 +409,11 @@ if (!canApprove) throw forbidden('Insufficient role for approval.');
 | Component | Status | Impact | Target |
 |-----------|--------|--------|--------|
 | **Real OAuth2/SSO** | Stub (fail-closed) | Auth only; no tenant isolation risk | P2+ |
-| **Email/SMS Transport** | Relay logic ready, no transport | Parents don't receive emails | Comms phase |
+| **Email/SMS Transport** | ConsoleTransport (dev); Brevo/Graph impl ready | Parents don't receive emails until env wired | Comms phase |
 | **LMS Frontend** | Not started | No user-facing enrollment | Frontend phase |
-| **Admin Dashboard** | Scaffold only | No operator access to create facilities | Admin phase |
-| **Graph/Brevo** | Not integrated | External service calls blocked | Comms phase |
-| **AI Agent / MCP** | Not built | TL04/TL13 capabilities unavailable | Agent phase (TBD) |
+| **Admin Dashboard** | Facility management built (PR #34) | Super-admin CRUD + audit log viewer live | Complete (M0) |
+| **MCP Server SDK** | Skeleton (stub comment) | Protocol/tool metadata; real transport TBD | Agent phase (TBD) |
+| **LLM Client** | Built & tested (packages/llm) | OpenAI-compatible client + PII guard | Complete (M0) |
 | **Student Lookup API** | Stub (K4) | Parents can't query which child by UUID | P2 |
 | **Class Provisioning** | Scalars only | classBatchId not validated (P2 backfill) | P2 |
 

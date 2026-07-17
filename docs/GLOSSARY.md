@@ -1,6 +1,12 @@
 # Glossary
 
-## Agent
+⚠️ **For CMC EDU v2 product terms** (enrollment, receipt, facility, roles, etc.), see **[`docs/07-glossary-san-pham.md`](./07-glossary-san-pham.md)** (TL07, ubiquitous language). This file defines Harness tooling vocabulary only.
+
+---
+
+## Harness Tools & Concepts
+
+### Agent
 
 An AI coding collaborator operating inside the repository.
 

@@ -1,294 +1,146 @@
-# repository-harness
+# CMC EDU v2
 
-Turn any software repo into an agent-ready workspace.
+A **facility-scoped ERP/LMS platform** for educational centers. Monorepo-based, TypeScript+React+tRPC, production-ready with 889+ API tests passing and P1–P4 workflows complete.
 
-`repository-harness` is a repository-level operating harness for Claude Code,
-Codex, Cursor, and other coding agents. It gives agents the missing project
-context they need before they change code: where to start, what the product
-contract says, how risky the work is, what proof is required, and which
-decisions future agents should inherit.
+**Current Status:** P1 (enrollment pipeline) ✓ · P2–P4 (classes, HR, payroll, rewards) built & tested · Astryx UI migration complete · Super-admin (facility mgmt, network CRUD, audit log) shipped · In active development.
 
-The app is what users touch. The harness is what agents touch.
+**Last Update:** 2026-07-17 (super-admin completion — see `docs/project-changelog.md` for the dated entry)
 
-## Why Star This Repo
+> Test/router/table counts below verified 2026-07-17; these numbers move fast in active development — treat `docs/codebase-summary.md` and `docs/system-architecture.md` as the live source if this file lags.
 
-Star this repo if you want practical, reusable patterns for making AI-assisted
-software development more reliable, inspectable, and easier for humans to steer.
+---
 
-This project is exploring a simple idea:
+## What Is CMC EDU v2
 
-> Coding agents do not only need better prompts. They need better repositories.
+An educational management platform (Vietnamese k–12 centers) that integrates:
 
-## The Problem
+- **CRM & enrollment** — lead pipeline, opportunity tracking, payment receipts, parent/student provisioning
+- **Class operations** — attendance, exercise/submission grading, session evidence, session lifecycle
+- **HR & payroll** — staff shifts, daily punch tracking, KPI auto-scoring, monthly salary computation
+- **Student rewards** — star redemption, gift catalog, parent meetings, entry testing
+- **Multi-role access** — 9 staff roles + 2 LMS-only roles (parent/student), facility-scoped isolation
 
-Most repos are built for humans reading code in a familiar codebase. Coding
-agents usually enter with only a chat prompt and a shallow snapshot of files.
-That leads to common failure modes:
+## Monorepo Structure
 
-- The agent edits code before understanding product intent.
-- Important constraints live only in chat history or in someone's head.
-- Validation expectations are vague or discovered too late.
-- Architecture tradeoffs are repeated instead of inherited.
-- Large requests do not get broken into reviewable story-sized work.
+```
+D:\project\vip\CMC
+├── apps/
+│   ├── admin/       # Vite+React ERP SPA (100% Astryx, incl. super-admin)
+│   ├── lms/         # Vite+React LMS SPA (parent/student, mobile-first)
+│   ├── api/         # tRPC backend (Node.js + Prisma + Postgres, 38 routers)
+│   └── e2e/         # Playwright browser + API tests
+├── packages/
+│   ├── auth/        # RBAC registry (9 staff + 2 LMS roles)
+│   ├── db/          # Prisma schema, migrations (50 models), seed
+│   ├── domain-finance/   # Receipt, refund, facility-scoped logic
+│   ├── domain-identity/  # Phone normalization
+│   ├── ui/          # Design system: Astryx primitives + premium composites
+│   ├── llm/         # LLM-assisted grading (assessment draft comments)
+│   ├── mcp-server/  # MCP server layer (not yet active)
+│   ├── storage/     # File upload/download (S3 abstraction)
+│   └── (others)
+├── docs/            # Design corpus (TL00–TL31), frozen & authoritative
+├── plans/           # Session reports (audits, remediation, reviews)
+└── scripts/         # CLI, deployment, CI utilities
+```
 
-## The Harness Approach
+## Stack
 
-A repository starts to have a harness when it helps an agent answer practical
-engineering questions without relying only on chat history:
+- **Monorepo:** pnpm + Turbo
+- **Language:** TypeScript (ESM)
+- **API:** tRPC 11 (procedure-based, not REST)
+- **Database:** Postgres + Prisma ORM with row-level security (RLS, 37 tables) + append-only ledgers (RefundRecord, AuditLog)
+- **Frontend:** Vite + React — apps/admin (ERP) + apps/lms (LMS)
+- **UI Design:** Astryx (@astryxdesign/core@0.1.4) + premium design layer (@cmc/ui)
+- **Auth:** Registry-driven RBAC (centralized in @cmc/auth), facility scope via RLS
+- **Testing:** Vitest (API: 99 files/889 tests · admin: 33 files/258 tests) + Playwright (e2e: 11 spec files)
 
-- What should I read first?
-- What type of work is this?
-- Which product contract does it affect?
-- How risky is the change?
-- What proof will show the work is done?
-- What decision or lesson should future agents inherit?
+## Getting Started
 
-In this repo, those answers live in:
-
-- `AGENTS.md` — the stable agent shim with local project notes and Harness
-  doc links.
-- `docs/HARNESS.md` — the human-agent collaboration model.
-- `docs/FEATURE_INTAKE.md` — tiny, normal, and high-risk work classification.
-- `docs/ARCHITECTURE.md` — architecture discovery and boundary rules.
-- `docs/TEST_MATRIX.md` — behavior-to-proof validation expectations.
-- `docs/stories/` — story packets and backlog items.
-- `docs/decisions/` — durable decisions and tradeoffs.
-- `docs/templates/` — reusable spec, story, decision, and validation templates.
-
-OpenAI describes this shift as an agent-first world where humans steer and
-agents execute:
-
-https://openai.com/index/harness-engineering/
-
-## Install Harness Into A Project
-
-From a target project directory, run:
+### Install & Develop
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
+pnpm install                     # workspace install
+pnpm typecheck                   # TypeScript check
+pnpm dev                         # start dev servers (admin, lms, api)
+pnpm test                        # run all tests (except e2e)
+pnpm build                       # build all packages
+pnpm lint                        # lint apps/admin + apps/lms
 ```
 
-On Windows PowerShell, run:
-
-```powershell
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.ps1"))) -Yes
-```
-
-If the target already has `AGENTS.md`, `docs/`, or `scripts/`, choose one:
+### Database Setup (Local Development)
 
 ```bash
-# Update an existing Harness repo without moving existing files
-curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --merge --yes
-
-# Back up and replace AGENTS.md, docs/, and scripts/
-curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --override --yes
+# Postgres must be running (Docker or native)
+pnpm --filter @cmc/db exec prisma migrate dev   # run pending migrations
+pnpm --filter @cmc/db exec prisma db seed       # seed test data
 ```
 
-```powershell
-# Update an existing Harness repo without moving existing files
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.ps1"))) -Merge -Yes
-
-# Back up and replace AGENTS.md, docs/, and scripts/
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.ps1"))) -Override -Yes
-```
-
-Use `--merge` when a project already has Harness and you want to append newly
-added Harness files without moving the existing `AGENTS.md`, `docs/`, or
-`scripts/` paths into backup. Existing files stay untouched; only missing
-Harness files are created.
-
-For older Harness installs whose `AGENTS.md` still contains the full generated
-operating guide, refresh it into the small stable shim:
+### Run Tests
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --merge --refresh-agent-shim --yes
+pnpm --filter @cmc/api exec vitest run          # all API tests
+pnpm --filter @cmc/api exec vitest run --coverage  # with coverage
+pnpm --filter @cmc/e2e exec playwright test    # e2e browser tests
 ```
 
-The refresh backs up the existing file. If it detects the old
-Harness-generated guide, it replaces it with the shim. If the file appears
-custom, it appends or updates a marked Harness block instead of overwriting the
-project's local instructions.
+## Architecture
 
-If the project is driven with Claude Code, add `--claude`. Claude Code never
-auto-loads `AGENTS.md`, so without this the installed harness is invisible to
-fresh sessions. The flag installs (or refreshes) a `CLAUDE.md` whose marked
-Harness block `@`-imports `AGENTS.md` and `docs/FEATURE_INTAKE.md` into every
-session's context. An existing `CLAUDE.md` gets the block appended after a
-backup; plain installs without the flag never touch `CLAUDE.md`:
+For the complete, authoritative system architecture, see **`docs/system-architecture.md`** — it describes:
+- All 27 tRPC routers and their procedures
+- P1–P4 workflow implementations with test coverage
+- RLS & append-only ledger security model
+- Astryx UI migration phases (1–4 complete, phase 5 pending)
+- Known issues, deferrals, and debt
 
-```bash
-curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --claude --yes
-```
+**Quick reference:**
+- **Procedures:** All authenticated, facility-scoped, RLS-enforced
+- **Data Model:** 13 core + 4 support tables, 5 migrations (P1 + remediation waves)
+- **Audit & Ledger:** Append-only RefundRecord & AuditLog (UPDATE/DELETE blocked at DB layer)
 
-Or install into a specific path:
+## Documentation Index
 
-```bash
-curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --directory /path/to/project --yes
-```
+All product design and implementation notes live in `docs/` (Vietnamese, with English implementation details):
 
-```powershell
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.ps1"))) -Directory C:\path\to\project -Yes
-```
+- **`docs/README.md`** (TL00–TL31) — Main index of all frozen design docs
+- **`docs/system-architecture.md`** — As-built architecture (authoritative, updated 2026-07-11)
+- **`docs/codebase-summary.md`** — Current implementation status and test coverage
+- **`docs/project-roadmap.md`** — Phases 5+, next steps
+- **`docs/project-changelog.md`** — Dated entry log (2026-07-05 onwards)
+- **`docs/07-glossary-san-pham.md`** (TL07) — CMC product glossary (ubiquitous language)
+- **`docs/decisions/`** — 14 architecture decision records (ADR-0001, 0038–0043, etc.)
+- **`docs/stories/`** — 10 user story packets (backlog items, workflow specs)
 
-Use `--dry-run` on Bash or `-DryRun` on PowerShell to preview changes before
-writing files.
+**Note on Harness:** This project also includes the repository-harness meta-tooling layer (for agent workflow coordination). See `docs/HARNESS.md` for that model; it is separate from the product itself.
 
-The installer also downloads the prebuilt Harness CLI for the current platform,
-verifies its `.sha256` checksum, and installs it at
-`scripts/bin/harness-cli` on macOS/Linux or `scripts/bin/harness-cli.exe` on
-Windows. The Rust CLI is the main Harness tool and stable command path.
+## Key Decisions & Constraints
 
-Harness CLI release assets are published from tags by the
-`Harness CLI Release` GitHub Actions workflow. The installer expects each
-release to include `harness-cli-<platform>` and
-`harness-cli-<platform>.sha256` assets for macOS arm64, macOS x64, Linux x64,
-Linux arm64, and Windows x64. The Windows asset is
-`harness-cli-windows-x64.exe` plus `harness-cli-windows-x64.exe.sha256`.
+See `docs/decisions/` for full ADRs. Highlights:
 
-Merged pull requests are recorded in `CHANGELOG.md` by the
-`Post-Merge Maintenance` workflow. When a merged PR changes the Rust CLI source,
-schema, Cargo metadata, or CLI release packaging, that workflow bumps the CLI
-patch version, updates `scripts/harness-cli-release-tag`, creates a
-`harness-cli-v*` tag, and runs the Harness CLI release build for that tag.
+- **Facility isolation (ADR-A):** All data scoped by `facilityId` via RLS
+- **Receipt-driven provisioning (ADR-A, TL16):** Enrollment only becomes `active` after receipt approval
+- **Second-eye threshold (ADR-B):** Receipts ≥20M VND require director approval
+- **Daily punch pairing (ADR-0043):** Staff in/out times paired per calendar day, offsite requires reason + manual approval
+- **Salary tier model (ADR-0044):** Base salary + KPI bonus − penalties, tier-based per staff
+- **5 core roles (ADR-D):** v2 focuses on `giam_doc_kinh_doanh`, `giam_doc_dao_tao`, `sale`, `giao_vien`, `super_admin`; others deferred
 
-## Try The Flow
+## Development Workflow
 
-The fastest way to understand the harness is to inspect the tiny demo:
+1. **Feature intake** — `docs/FEATURE_INTAKE.md` classifies work (tiny/normal/high-risk)
+2. **Design docs** — Update frozen corpus in `docs/TLxx-*.md` before implementation
+3. **Story packet** — `docs/stories/US-*-*.md` describes acceptance criteria, test expectations
+4. **Implementation** — Code changes with RBAC/RLS verification
+5. **Test coverage** — Unit (Vitest, ≥90% statements) + e2e (Playwright)
+6. **Validation** — Merged only when all tests pass + docs updated
 
-- `docs/demo/README.md`: shows how a simple product idea becomes product docs,
-  stories, validation expectations, and decisions before implementation starts.
+## Support & Contact
 
-A typical flow looks like this:
+For questions about:
+- **Product design:** See `docs/` (frozen design corpus) or ask in code comments
+- **Architecture:** `docs/system-architecture.md` or `docs/codebase-summary.md`
+- **Harness workflow:** `docs/HARNESS.md`
+- **Decisions:** `docs/decisions/ADR-*`
 
-```text
-human intent or product spec
-  -> product contract
-  -> feature intake
-  -> story packet
-  -> validation expectations
-  -> implementation work
-  -> decision or lesson captured for future agents
-```
-
-Implementation prompts do not go straight to code. They first pass through
-feature intake, become story-sized work when needed, and then carry both product
-validation and harness maintenance expectations.
-
-## Try Harness Symphony
-
-Harness Symphony is the local runner for Harness stories. It prepares an
-isolated run workspace, passes an explicit contract to an agent, collects
-`SUMMARY.md` and `RESULT.json`, and keeps durable Harness updates reviewable
-through semantic changesets.
-
-Start here:
-
-- `docs/SYMPHONY_QUICKSTART.md`: first-run instructions and the daily command
-  loop.
-- `docs/SYMPHONY_SCOPE.md`: detailed design and implementation scope.
-
-The usual first commands are:
-
-```bash
-cargo build -p harness-symphony
-target/debug/harness-symphony doctor
-target/debug/harness-symphony work list
-target/debug/harness-symphony run <story-id> --prepare-only
-```
-
-## Tool Registry
-
-The harness can use optional external tools (linters, code-graph servers,
-deploy checks) without depending on any of them. You register a tool as a
-provider of a *capability*, the harness scans whether it is actually present,
-and a workflow step uses whatever is equipped — an absent tool is a clean skip,
-never a failure.
-
-```bash
-# register a tool as a provider of a capability
-scripts/bin/harness-cli tool register --name deploy-check --kind cli \
-  --capability deploy-verification --command ./scripts/deploy-check.sh \
-  --responsibility Verification --description "Verify deploy health before release"
-
-# scan presence (writes present/missing/unknown)
-scripts/bin/harness-cli tool check
-
-# a step looks up what is equipped for a purpose
-scripts/bin/harness-cli query tools --capability deploy-verification --status present
-```
-
-Kinds (`cli`, `binary`, `mcp`, `skill`, `http`) make it agent-generic: each
-agent runtime uses what it can orchestrate. See `docs/TOOL_REGISTRY.md` for the
-full model, the degrade ladder, and how to wire a tool into a flow step.
-
-## Current State
-
-This repository is in Harness v0.
-
-There is no application implementation and no baked-in product specification
-yet. The current work is the reusable project harness: the file structure,
-agent operating model, feature intake process, story templates, and validation
-expectations that help humans and agents turn a future user-provided spec into
-implementation work.
-
-## Product Sources
-
-No product contract is currently defined.
-
-When a user provides a project specification, add or reference it as the input
-spec for the first buildout, then derive smaller living artifacts from it:
-
-- `docs/product/`: current product contract files, created from the spec.
-- `docs/stories/`: story packets and backlog created from selected work.
-- `docs/TEST_MATRIX.md`: behavior-to-proof control panel.
-- `docs/decisions/`: durable decisions and tradeoffs.
-
-Do not keep a project-specific spec or product breakdown in this harness until
-a real project supplies one.
-
-## Repository Structure
-
-```text
-project/
-  AGENTS.md
-  README.md
-  docs/
-    HARNESS.md
-    FEATURE_INTAKE.md
-    ARCHITECTURE.md
-    TEST_MATRIX.md
-    HARNESS_BACKLOG.md
-    product/
-    stories/
-    decisions/
-    demo/
-    templates/
-  scripts/
-    README.md
-```
-
-## Contributing
-
-This project is early and benefits most from real-world agent failure cases,
-example harness installs, docs improvements, and reusable workflow patterns.
-See `CONTRIBUTING.md` for contribution ideas.
-
-Useful contributions include:
-
-- Show how the harness works in a real project.
-- Add missing templates or improve existing ones.
-- Propose validation patterns for different stacks.
-- Share failures where an agent made the wrong change because the repo lacked
-  context.
-- Compare harness behavior across Claude Code, Codex, Cursor, and other tools.
-
-## Share
-
-If this idea resonates, please star the repo and share it with someone building
-with coding agents.
-
-Short description:
-
-> An agent-ready repo harness for Claude Code, Codex, Cursor, and other coding
-> agents: AGENTS.md, product contracts, story packets, validation matrix, and
-> decision records.
+**Repository:** CMC EDU v2 @ `D:\project\vip\CMC` (private)
+**Team:** Active development by Nguyễn Mạnh Quý
+**Last sync:** 2026-07-17

@@ -1,33 +1,36 @@
-# Test Matrix
+# Test Matrix (Live Source)
 
-This file maps product behavior to proof.
+The authoritative test matrix lives in **harness-cli**, not this file.
 
-No product behavior has been defined or implemented yet. Do not mark a row
-implemented until tests or validation evidence exist.
+## How to Access
 
-## Status Values
+Run this command from the repo root:
 
-| Status | Meaning |
-| --- | --- |
-| planned | Accepted as intended behavior, not implemented |
-| in_progress | Actively being built |
-| implemented | Implemented and proof exists |
-| changed | Contract changed after earlier implementation |
-| retired | No longer part of the product contract |
+```bash
+scripts/bin/harness-cli.exe query matrix
+```
 
-## Matrix
+This returns the live matrix with **26 story rows**, each showing:
+- Unit/integration/e2e/platform proof flags (0 or 1)
+- Evidence citations (concrete test files and pass counts)
+- Updated on every test run
 
-| Story | Contract | Unit | Integration | E2E | Platform | Status | Evidence |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| TBD | Add rows when story packets are created | no | no | no | no | planned | none |
+## Why Not This File
 
-## Evidence Rules
+Early in the project, this file was intended as a manual tracker. It is now superseded by:
 
-- Unit proof covers pure domain and application rules.
-- Integration proof covers backend enforcement, data integrity, provider
-  behavior, jobs, or service contracts.
-- E2E proof covers user-visible browser flows.
-- Platform proof covers only shell, deployment, mobile, desktop, or runtime
-  behavior that cannot be proven in lower layers.
-- A story can be implemented without every proof column if the story packet
-  explains why.
+1. **Harness CLI** — automated, real-time, tied to actual test results
+2. **docs/29-test-plan.md** — policy and strategy (coverage targets, test pyramid, spec catalog)
+3. **CONTEXT_RULES.md & HARNESS_COMPONENTS.md** — pointer to the CLI (this is the source of truth)
+
+Maintaining a separate .md copy creates inconsistency (has happened multiple times). The CLI is single-source-of-truth; this file is deprecated.
+
+## For High-Risk Stories
+
+When starting work on a high-risk feature:
+
+```bash
+scripts/bin/harness-cli.exe query matrix --numeric
+```
+
+Review the `evidence` column for story-specific test coverage details.

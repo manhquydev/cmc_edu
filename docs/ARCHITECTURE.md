@@ -1,26 +1,30 @@
 # Architecture
 
-No application stack is selected yet.
+⚠️ **See [`docs/system-architecture.md`](./system-architecture.md) for the authoritative, as-built architecture.** That document is the current source of truth for CMC EDU v2's design and implementation.
 
-No application code exists yet. This document defines generic architecture
-questions and boundary rules that future implementation should adapt after a
-user-provided spec and stack decision exist.
+---
 
-## Discovery Before Shape
+## Purpose of This File
 
-Before proposing implementation shape, identify:
+This file originally contained generic architecture questions and boundary rules for unknown stacks. CMC EDU v2 now has a built, tested, and documented architecture. All architecture decisions, layer design, and system shape are defined in `docs/system-architecture.md` (updated 2026-07-11).
 
-- Product surfaces: browser, mobile, desktop, CLI, API, worker, or service.
-- Runtime stack: language, framework, database, queues, providers, and hosting.
-- Core domains: the product concepts that deserve stable names and contracts.
-- Boundary inputs: user input, API requests, webhooks, jobs, files, credentials,
-  provider payloads, and environment configuration.
-- Validation ladder: the smallest checks that can prove the selected stack.
+**Refer directly to `docs/system-architecture.md` for:**
+- C4 model and layer responsibilities
+- All 27 tRPC routers and procedures
+- P1–P4 workflow implementations
+- Data model (48 Prisma models, 5 migrations)
+- Row-level security (RLS) & append-only ledger enforcement
+- Test coverage (532 tests, ≥90% statements)
+- Known issues and deferrals
+- Build & verification procedures
 
-Record stack choices in `docs/decisions/` when they meaningfully constrain
-future work.
+---
 
-## Default Layering
+## Harness Reference (Preserved for Agent Context)
+
+The below is a thinking template for future projects without an established stack. **For CMC EDU v2, skip this section and use `docs/system-architecture.md` instead.**
+
+### Default Layering
 
 ```text
 domain
@@ -30,44 +34,7 @@ domain
               <- app surfaces
 ```
 
-## Candidate Structure
-
-```text
-app/
-  domain/
-    entities/
-    value-objects/
-    repositories/
-    services/
-
-  application/
-    commands/
-    queries/
-    handlers/
-
-  infrastructure/
-    database/
-    logging/
-    notifications/
-
-  interface/
-    controllers/
-    dto/
-    presenters/
-    routes/
-    middlewares/
-
-surfaces/
-  browser/
-  mobile/
-  desktop/
-  cli/
-```
-
-This is a thinking template, not a scaffold. Create real folders only when a
-story enters implementation and the selected stack needs them.
-
-## Dependency Rule
+### Dependency Rule
 
 Inner layers must not depend on outer layers.
 
@@ -79,55 +46,14 @@ Inner layers must not depend on outer layers.
 | interface | all backend layers | UI state or platform shell assumptions |
 | app surfaces | API contracts and app-facing clients | domain internals directly |
 
-## Parse-First Boundary Rule
+### Parse-First Boundary Rule
 
 Unknown data must be parsed at boundaries before it enters inner code.
 
-Boundaries include:
+Boundaries include: HTTP request bodies, session payloads, environment variables, database rows, webhooks.
 
-- HTTP request bodies, params, and query strings.
-- Session payloads and identity claims.
-- Environment variables.
-- Database rows returned from external clients.
-- Platform shell payloads.
-- Deep links, tokens, and signed URLs.
-- Provider webhooks, events, and async payloads.
+### Observability Contract
 
-Target flow:
+Emit one canonical JSON log line per request with: timestamp, level, request_id, user_id, action, duration_ms, status_code, message.
 
-```text
-unknown input
-  -> parser
-  -> typed DTO or command
-  -> application use case
-  -> domain object/value object
-```
-
-Inner layers should work with meaningful product types such as `UserId`,
-`AccountId`, `WorkspaceId`, `Role`, `DateRange`, or domain-specific IDs,
-rather than repeatedly validating raw strings.
-
-## Command/Query Boundary
-
-If the product has both reads and writes, keep command/query separation clear at
-the code level even when the storage layer is simple:
-
-- Commands mutate state and own audit side effects.
-- Queries read state and format for consumers.
-- Shared domain rules live in domain/application, not controllers.
-
-## Observability Contract
-
-The future server should emit one canonical JSON log line per request with:
-
-- timestamp
-- level
-- request_id
-- user_id when known
-- action
-- duration_ms
-- status_code
-- message
-
-Audit logs are product records. Application logs are operational records. Do not
-use one as a substitute for the other.
+Audit logs are product records. Application logs are operational records.

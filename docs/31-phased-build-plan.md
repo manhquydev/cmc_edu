@@ -49,7 +49,7 @@ lưu chồng PDF; sao cộng một lần; nhận xét/ảnh trẻ không auto-pu
 
 **Phạm vi:** chấm công **IP WiFi** (ADR0039) + phiếu thủ công; **đăng ký ca sale-vs-GV** (ADR0040) +
 duyệt fallback nhóm; lương (phạt post-tax, self-healing); KPI (override cây quyền).
-**Nguồn:** WF-P3-01…06 (TL27) · ADR0039/0040 · TL20§1–4.
+**Nguồn:** WF-P3-01…06 (TL27) · ADR0039/0040/0044 · TL20§1–4.
 **Acceptance:** IP khớp→ip/ngoài→manual; không tự duyệt (phiếu/ca); sale SINGLE vs GV MULTIPLE; phạt
 post-tax; KPI override audit.
 

@@ -7,29 +7,39 @@ discussion, feature intake, docs, or story shaping before Symphony execution.
 The skill is project-scoped; do not use a global copy as the source of truth.
 
 <!-- HARNESS:BEGIN -->
-## Harness
+## Harness & Project Context
 
-This repo uses Harness. Before work, read:
+This repo uses Harness + CMC EDU v2 product. Before work, read in order:
 
-- `README.md`
-- `docs/HARNESS.md`
-- `docs/FEATURE_INTAKE.md`
-- `docs/ARCHITECTURE.md`
-- `docs/CONTEXT_RULES.md`
-- `docs/TOOL_REGISTRY.md`
-- `scripts/bin/harness-cli query matrix` on macOS/Linux, or `.\scripts\bin\harness-cli.exe query matrix` on Windows
+**Product context (CMC EDU v2):**
+- `README.md` — what CMC EDU v2 is, stack, monorepo structure, getting started
+- `docs/README.md` — design corpus index (TL00–TL31, frozen docs)
+- `docs/system-architecture.md` — **authoritative as-built architecture** (P1–P4, all routers, test coverage, RLS, known issues)
+- `docs/codebase-summary.md` — current implementation status, phases complete, build verification
+
+**Harness workflow (human-agent collaboration):**
+- `docs/HARNESS.md` — how humans and agents turn intent into safe changes
+- `docs/FEATURE_INTAKE.md` — work classification (tiny/normal/high-risk)
+- `docs/CONTEXT_RULES.md` — when agents should fetch additional context
+- `docs/TOOL_REGISTRY.md` — optional external tool discovery
+
+**Glossary:**
+- `docs/07-glossary-san-pham.md` (TL07) — CMC product terms (ubiquitous language)
+- `docs/GLOSSARY.md` — Harness tooling terms
 
 Use the Rust Harness CLI at `scripts/bin/harness-cli` on macOS/Linux or
 `scripts/bin/harness-cli.exe` on Windows as the main operational tool. Before a
 step that could use an external tool, run `scripts/bin/harness-cli query tools
 --capability <name> --status present` to see what is equipped; an absent
 capability is a clean skip.
+
+Query the Harness matrix: `scripts/bin/harness-cli query matrix` on macOS/Linux, or `.\scripts\bin\harness-cli.exe query matrix` on Windows.
 <!-- HARNESS:END -->
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **CMC** (3195 symbols, 5594 relationships, 116 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **CMC** (3223 symbols, 5623 relationships, 116 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

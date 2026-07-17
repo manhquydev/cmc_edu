@@ -9,7 +9,6 @@
 ## [2026-07-12] HR remediation (shift/KPI/payroll) phases 1-6 — salary-tier model, KPI auto-score lifecycle, session-done engine, e2e verify loop
 
 **Context:** `plans/260711-1752-hr-kpi-shift-attendance-remediation/` (docs/22 ADR 0044, docs/20 §2-4b).
-
 **BREAKING (no shim):** `kpi.submit`/`kpi.approve`(standalone)/`kpi.getForUser` REMOVED → replaced by
 `kpi.refresh/submitSlip/confirm/override/bulkApprove/list/myScore` (`approved` only via `bulkApprove`).
 `compensation.upsertRate` REMOVED → `salaryTier.create/update` + `compensation.assignTier`.
@@ -28,7 +27,6 @@ Gates: e2e 19 passed +1 skip · api 695 passed · admin 229 passed · `pnpm buil
 ## [2026-07-12] Premium ERP screen build-out merged to main — 21/21 non-blocked screens on premium templates
 
 **Context:** 8-phase TDD completion; all 21 admin ERP screens (non-blocked per phase-00–phase-07) migrated from legacy components to premium design-language templates + composites + LineIcon monochrome set. Phase-08 (3 màn stub: leaderboard/network-ip/shift-config) remains BLOCKED pending backend + product spec.
-
 **Build-out scope:**
 - **Screens:** engagement (gifts, **rewards feature REAL — staff redemption queue**), admin (facilities, users RBAC, **network-ip/shift-config still coming-soon**), crm (pipeline Kanban→dashboard), finance (receipt-create, reconciliation, revenue-report), attendance (check-in-out, shifts), hr (kpi, payroll), teaching (schedule, attendance, exercises, report-cards, session-evidence, pdf-annotator card wrapper)
 - **Premium adoption:** ListPage + DetailPage + FormPage + MetricCard + Panel + TaskRow + FunnelBar + LineIcon (Feather + 5 new: globe/clock/trophy/gift/star, data-icon attr) + premium CSS tokens
@@ -43,9 +41,7 @@ Gates: e2e 19 passed +1 skip · api 695 passed · admin 229 passed · `pnpm buil
 
 ## [2026-07-11] Build regression found (Astryx `@cmc/lms`/`@cmc/admin`) + Brevo OTP root-cause fixed
 
-**Context:** Routine build-status scout (`pnpm build`/`typecheck`/`test`/`lint`) on `main` @ `b81710a`,
-requested to verify project state before UAT/Go-No-Go.
-
+**Context:** Routine build-status scout (`pnpm build`/`typecheck`/`test`/`lint`) on `main` @ `b81710a`, requested to verify project state before UAT/Go-No-Go.
 **Build regression (unresolved, needs owner):**
 - `pnpm build`/`pnpm typecheck` FAIL at `@cmc/lms` — ~30x `TS2307 Cannot find module '@astryxdesign/core/*'`
   (`packages/ui/src/primitives.ts` and most `packages/ui/src/components/*.tsx` import deep subpaths the
@@ -78,6 +74,51 @@ requested to verify project state before UAT/Go-No-Go.
 
 **Action needed before Go/No-Go:** re-verify `apps/lms` build on a clean checkout / on the VPS directly; do
 not trust "build clean" claims dated 2026-07-10 without re-running.
+
+---
+
+## [2026-07-17] Super-admin completion — facility management, network CRUD, audit log (PR #34)
+
+**Context:** Phase-03 (premium-erp-screen-buildout) final admin screens delivered.
+
+**New:** Facility CRUD (create/update/list), FacilityNetwork IP-range management + self-detect, global audit-log viewer (generic middleware + reporter UI). OTP-leak plugged (M3 from post-impl H3).
+
+**Verification:** typecheck 26/26 · api 889/889 · admin 258/258 · `pnpm build` 14/14 all green (CI unavailable due to GHA free-tier exhaustion, verified locally against cmc_edu test DB).
+
+## [2026-07-16] Post-implementation review gaps — teacher scoping, worker wiring, OTP timeout (Commits 2af7b9d, bc44689)
+
+**Context:** Code review of happy-path completeness (Phase 9 post-implementation cycle).
+
+**Fixes:** 
+- H1: submission.saveTeacherAnnotation now scoped by class ownership
+- H2+M3: wire reconcileCancelledButProvisioned into worker (was dead code)
+- MH1: submission.listForGrading scoped by class ownership (was leaking other classes)
+- M1/M2: assessment.listBySession, sessionEvidence.getBySession now scoped by teacher class; classSession.cancel recomputes FinalGrade
+- M5: sweepStaleOtpPayloads no longer scrubs in-flight OTP before reap timeout (fixes content-free email bug)
+
+**Verification:** 826 api tests (93 files) + 239 admin tests (32 files) + domain tests all pass · e2e 20/20 attendance-lifecycle.spec.ts.
+
+## [2026-07-15] Fix: close 43 happy-path gaps — race conditions, guards, data integrity (Commit 9c1522c); ADR 0043 attendance (Commit dc6a4db)
+
+**Context:** Two parallel fixes: (a) race-condition/guard closure from peer review, (b) attendance model refresh per ADR 0043.
+
+**(a) Happy-path gap closure (9c1522c):**
+- C1: receipt-cancel vs provisioning SELECT FOR UPDATE + reconciliation backstop
+- C2: manual punch approval track warnings (return warnings: string[])
+- Teacher class-scoping authorization (assertTeacherOwnsClass guard)
+- Lifecycle guards: block writes on cancelled sessions, withdrawn students
+- Atomic operations: submission.grade compare-and-swap, ReconciliationFlag partial unique index
+- Data integrity: duplicate-student confirmation on receipt create, student-scoped receipt kind, FinalGrade auto-refresh on attendance correction, exercise open-state re-check on submit, Tier B time-gate, slot/makeup-date validation, meeting double-book warning, refund-price-drift fix
+- 2 new migrations (C1_reconciliation_flag_cancelled_kind, H5_reconciliation_flag_open_unique)
+
+**(b) Attendance pair model (dc6a4db, ADR 0043):**
+- Bỏ assignPunchesToShifts (±2h/ca ghép) → computeDayAttendance (mỗi ngày cặp vào/ra); payroll + KPI now use shared resolveDayCredit
+- Offsite: TimePunch + auto-ManualAttendanceTicket (duyệt theo GĐ track, not managerId)
+- Bỏ manualPunch.create; add manualPunch.resubmit; cooldown 10 giây; bỏ shortSpan flag
+- shift.createTemplate validates endTime > startTime (blocks overnight-shift bugs)
+- Docs synced (TL10/11/14/19/20/22/25/27, ADR 0043 marked implemented)
+
+**Verification:** 759/759 api tests · 20/20 e2e attendance-lifecycle · 26/26 typecheck.
 
 **Correction (same day, later investigation):** the "admin passes, only lms fails" split recorded above is
 WRONG. Running `tsc -p tsconfig.json --noEmit` directly inside `apps/admin` (bypassing turbo) reproduces the
@@ -746,55 +787,13 @@ UAT KB1 step 7 can be signed off.
 - P1↔P2 seam closed: receipt/enrollment require a real same-facility ClassBatch (FK + validation).
 - G1 merge-gate: 0 Critical/High; M1/M2 fixed, M3/L1/L2 backlogged (#10). 159 api tests pass.
 
-## 2026-07-06 — T1: attendance + session lifecycle + e2e + CI (PR #3)
-- attendance.mark/markAll/listBySession (5 gates, upsert+audit, RLS); classSession.cancel/confirm/addMakeup.
-- apps/e2e Playwright API-driven skeleton (2 critical paths); GitHub Actions CI (typecheck+test on Postgres service).
-- T1 gate: 0 Crit/High; M1+L2 backlogged (#11). 176 api tests + e2e 2/2.
-
-## 2026-07-06 — T2-I: exercise foundation (PR #4)
-- @cmc/storage blob seam (local-disk); global CurriculumUnit/Exercise (no-RLS QĐ0021/0022); classSession.assignUnit; exercise create/publish/close; raw-PDF upload route (auth+mime+10MB). 192 api tests + storage 7.
+## 2026-07-06 — T1: attendance + session lifecycle + e2e + CI (PR #3); T2-I: exercise foundation (PR #4)
+- **T1:** attendance.mark/markAll/listBySession (5 gates, RLS), classSession lifecycle, e2e skeleton (2 paths), GitHub Actions CI, 176 tests + e2e 2/2.
+- **T2-I:** @cmc/storage seam, global CurriculumUnit/Exercise (no-RLS), exercise CRUD, PDF upload (10MB), 192 api + 7 storage tests.
 
 ## 2026-07-07 — Phase-08: test-seam OTP + e2e security specs
-- **Test-seam OTP**: `lmsAuth.requestOtp` / `requestOtpEmail` return `_testSeamCode` when `TEST_OTP_SEAM=1` AND `NODE_ENV !== 'production'`; runtime double-check is fail-closed (field never populated in production even if env var is accidentally set).
-- **4 new e2e specs** (`lms-auth`, `finance-approval`, `kind-isolation`, `attendance-grading`): covers student login + lockout, `canApprove` gate, over-threshold second-eye (ke_toan blocked / GĐDT allowed), LMS kind discriminator (student↔parent), sibling scope fence, attendance mark + grading + star balance.
-- **e2e/src/db.ts**: `seedPublishedExercise`, `seedSubmittedSubmission`, `cleanupExercises` helpers added; `cleanupFacility` extended to tear down `StarTransaction`/`FinalGrade`/`Submission` rows before enrollment/student deletes.
+- Test-seam OTP (`_testSeamCode` mode, fail-closed in production); 4 new e2e specs (lms-auth, finance-approval, kind-isolation, attendance-grading); e2e/src/db.ts seed helpers + cleanupFacility refactored.
 
 ---
 
-## 2026-07-07 — Domain decisions (5 product decisions applied to docs)
-
-5 domain decisions confirmed and synced to docs (TL10/TL11/TL12/TL15/TL18/TL19/TL24):
-
-1. **Receipt code SO**: Format đổi từ `PT-000001` sang `SO00183` (`packages/domain-finance/src/receipt-code.ts`).
-2. **Auth 2-tier (đảo QĐ0033/WF-P1-07)**: PH login = email+OTP (BLOCKED-ON-COMMS); HS login = SĐT PH + password.
-3. **StudentAccount.passwordHash + LmsSubject.kind**: Password fields trên `StudentAccount`; `kind` discriminator.
-4. **Không có studentCode**: HS định danh bằng `fullName + SĐT PH`.
-5. **Duyệt phiếu vượt ngưỡng = role-elevation**: >20,000,000 VND cần `giam_doc_dao_tao` hoặc `super_admin` (một người, không co-approval). `APPROVAL_SECOND_EYE_THRESHOLD = 20_000_000`.
-
-## 2026-07-07 — P3-I: AppUser, IP attendance, domain-time (US-020/021, PR #7)
-- `AppUser` entity; IP-based attendance (TimePunch + FacilityNetwork); `@cmc/domain-time` package (time zone helpers, ICT bucket).
-
-## 2026-07-07 — P3-II: Shifts/payroll/KPI + @cmc/domain-payroll (US-022/023/024, PR #8)
-- Shift registration + approval workflow; payroll assembly (Payslip + SalaryRate + CompensationPolicy); KPI scoring; `@cmc/domain-payroll` domain package.
-
-## 2026-07-07 — P4: Gift/rewards, parent-meeting, test-appointment, after-sale (US-025–029, PR #9)
-- Star/reward redemption (StarTransaction + Gift + Reward); ParentMeeting scheduling; TestAppointment for học thử; AfterSaleCase tracking + CallMetric.
-
-## 2026-07-07 — P5: Reconciliation worker + flag system + MCP skeleton (US-010, PR #10)
-- Reconciliation agent worker (scheduled + event-triggered); flag/dismiss system for anomalies; MCP server skeleton (tool-wrapping tRPC procedures for agent access).
-
-## 2026-07-07 — PD: CI hardening, threat checklist, worker runtime, boot checks (PR #11)
-- GitHub Actions CI pipeline hardening; STRIDE threat checklist validation; worker runtime bootstrap; boot-time integrity checks (schema, RLS, append-only enforcement).
-
-## 2026-07-07 — Land 4-PR stack to main (PR #16 merge) + e2e green
-- Merged linear stack (pd1⊂pd2⊂env⊂uat) to main via #16 merge-commit; #13/#14/#15 auto-marked merged; child branches deleted. main green (typecheck 26/26, unit+e2e).
-- e2e-green fixes: boot-checks queries `pg_class.relrowsecurity` (was non-existent `rowsecurity`); new migration `20260707190000_force_rls_on_rls_tables` FORCE-enables RLS on all RLS tables (API boot-check requires it); e2e teardown moved no-DELETE-grant tables (Attendance/FinalGrade/StarTransaction/Submission/Exercise) to privileged connection; specs decode signed LMS tokens via `decodeLmsClaims`.
-- Dev tooling: GitLab Knowledge Graph (gkg) indexed + MCP registered (`.mcp.json`).
-- **Known gaps (not yet done):** staff Entra SSO not implemented (msal not installed) — staff ERP login non-functional in production; LLM/S3/Graph-email still stub. Tracked in `plans/260707-1830-golive-coordination-land-stack` (P2/P3).
-
-## 2026-07-07 — P3 integrations: env contract, LLM, boot-check, RT-3, email (PRs #17–#22)
-- **Env contract (#18):** `.env.example` documents every var the code reads (grouped); `scripts/env-check.sh` fail-closed guard (CI/shell); `assertRequiredEnvForProd` runtime twin in boot-checks (#20) for the alpine image.
-- **LLM real (#19):** `@cmc/llm` calls OpenAI-compatible `/chat/completions` (router.clawcmc, `stream:false`); assertNoPii before network; stub kept offline. Verified live (real VN draft).
-- **RT-3 photo authz (#21):** GET /upload/session-photo verifies the caller is entitled to the specific child photo (published evidence for an enrolled approved child + active guardian consent); student confined to own id; 404 on denial. Closes the TODO.
-- **Email cả-hai (#22):** shared `renderOutboxEmail` (payload→subject/html/text); `GraphEmailTransport.send` implemented (client-credentials → /sendMail); Brevo fixed to send rendered content; worker registers graph only when GRAPH_* configured.
-- **Remaining P3 — Entra SSO (BLOCKED):** AppUser has no roles field + no staff-session infra + placeholder Entra creds. Needs a staff role-assignment model (product/schema decision) before implementation. Tracked as its own task.
+**Pre-Implementation State (2026-07-05–07):** P1–P5 routers/schema/workers assembled (5 PRs/TL16 stack). Gaps: staff SSO, Brevo/Graph transport (P2+). Boot-checks wired; threat checklist live.

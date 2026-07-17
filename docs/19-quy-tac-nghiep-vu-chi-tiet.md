@@ -107,8 +107,9 @@ Bài tập KHÔNG mở ngay khi `published`; mở theo **tiến độ dạy th�
 ## 5. Cổng thời gian: "Giáo viên điểm danh lúc nào" (`attendance.ts`)
 
 - **Buổi học phải tồn tại** (`ClassSession`) và **không bị huỷ** (`SessionStatus`:
-  `planned`/`confirmed`/`cancelled` — buổi `cancelled` **không được điểm danh**, vì sẽ làm sai tỉ lệ
-  chuyên cần dùng cho `computeFinalGrade`).
+  `planned`/`confirmed`/`cancelled`/`done` — buổi `cancelled` **không được điểm danh**, vì sẽ làm sai tỉ lệ
+  chuyên cần dùng cho `computeFinalGrade`; `done` là trạng thái cuối do session-done engine tự gán
+  (ADR 0042/0043), xem docs/10 V11).
 - **Enrollment phải khớp lớp** với session (`enrollment.classBatchId === session.classBatchId`) —
   cặp lệch bị chặn trước khi ghi.
 - **Học viên phải `active`** (đã đóng phí — ADR-A) và lifecycle hợp lệ.

@@ -42,7 +42,7 @@ erDiagram
 | `Facility` · `FacilityNetwork` | Cơ sở · dải IP/WiFi chấm công | gốc RLS |
 | `AppUser` · `EmploymentProfile` · `UserFacility` | Nhân sự · hồ sơ · gán cơ sở | `managerId` (duyệt ca) |
 | `Student` | Hồ sơ HS | `facilityId`, **`createdByReceiptId`** (provenance) |
-| `ParentAccount` · `StudentAccount` · `Guardian` | Login PH (email+OTP) · tài khoản con (phone+password) · quan hệ giám hộ | `phone` unique; `email` required (PH login); `GuardianRelation`; `LmsSubject.kind` |
+| `ParentAccount` · `StudentAccount` · `Guardian` | Login PH (email+OTP) · tài khoản con (phone+password) · quan hệ giám hộ | `phone` unique; `email` nullable, bắt buộc **chỉ khi** dùng luồng email+OTP; `GuardianRelation`; `LmsSubject.kind` |
 
 > **product-decision 2026-07-07**: Mô hình định danh LMS thay đổi theo 2-tier. Trước đây: `ParentAccount` login bằng SĐT+OTP; không có cơ chế password riêng cho con. Hiện tại: (a) **Phụ huynh** đăng nhập bằng `email` + OTP qua email (`kind='parent'`); `ParentAccount.email` là trường bắt buộc cho luồng auth. (b) **Học sinh** đăng nhập bằng SĐT phụ huynh (`84xxx`) + mật khẩu (`kind='student'`); mật khẩu mặc định `Cmc2026@` không được ghi vào docs/code dưới dạng plain-text — chỉ lưu dạng `passwordHash` (PBKDF2-SHA256). `LmsSubject` có discriminator `kind: 'parent' | 'student'` để tách session. Tham chiếu: UI implementation plan phase 01a/01b. **BLOCKED-ON-COMMS**: email OTP chưa giao được ra ngoài (ConsoleEmailTransport stub) cho đến khi cung cấp Brevo/Graph credentials — xem TL18.
 

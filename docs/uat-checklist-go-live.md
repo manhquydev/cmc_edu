@@ -356,18 +356,25 @@ source .env.prod && ./scripts/restore-drill.sh
 
 All of the following must be checked before proceeding to go-live:
 
+> ⚠️ **2026-07-17 (audit trước go-live):** mọi dấu ✅ dưới đây đóng mốc **2026-07-09**, tức là
+> **trước** 3 đợt merge tính năng sau đó (HR remediation 07-12, happy-path/review-gap fixes
+> 07-15/07-16, super-admin+audit-log 07-17 — trong đó PR ngày 07-16 từng phát hiện và vá 1 lỗi
+> rò rỉ OTP mức **Critical** trước khi merge). Các dấu ✅ cũ **không nên coi là chứng nhận cho
+> bản build hôm nay** — cần chạy lại trước khi ký GO/NO-GO chính thức. Chi tiết:
+> `plans/reports/infra-deployment-audit-260717-1013-m0-exit-criteria-report.md`.
+
 | # | Criteria | Status |
 |---|---------|--------|
-| G1 | E2E critical green ≥2 consecutive runs | ✅ 2026-07-09 (Run 1+2 PASS 17/1skip, Mode-B staging) |
+| G1 | E2E critical green ≥2 consecutive runs | ✅ 2026-07-09 (Run 1+2 PASS 17/1skip, Mode-B staging) — ⚠️ **cần chạy lại**: kết quả chạy trên server tsx riêng (staging), chưa qua 3 đợt merge tính năng sau mốc này |
 | G2 | All 6 rows in Section 2 sign-off table signed (4 active staff roles + PH + học sinh; ke_toan/cskh/ctv_mkt/hr no longer active per ADR-D amendment) | |
 | G3 | Cutover probe → 401 (RT-2) | |
-| G4 | 0 CRITICAL/HIGH open findings (UAT pre-conditions only) | ✅ 2026-07-09 — Phase 3 audit: 0 CRITICAL, 3 HIGH (UAT coverage gaps, not code defects). No blocking code findings. HIGH items tracked as UAT pre-conditions. |
-| G5 | Restore drill PASS (backup host ≠ deploy host, RT-13) | ✅ 2026-07-09 (R2 `cmc-db-backups`, 49 tables, escrow decrypt OK) |
-| G6 | Isolation check PASS | ✅ 2026-07-09 |
+| G4 | 0 CRITICAL/HIGH open findings (UAT pre-conditions only) | ✅ 2026-07-09 — Phase 3 audit: 0 CRITICAL, 3 HIGH (UAT coverage gaps, not code defects). No blocking code findings. HIGH items tracked as UAT pre-conditions. — ⚠️ **cần audit lại**: mốc này có trước 3 đợt merge lớn, trong đó 1 lỗi rò rỉ OTP mức Critical được phát hiện+vá SAU mốc này (07-16) |
+| G5 | Restore drill PASS (backup host ≠ deploy host, RT-13) | ✅ 2026-07-09 (R2 `cmc-db-backups`, 49 tables, escrow decrypt OK) — ⚠️ **cần chạy lại**: chỉ 1 lần duy nhất, đã 8 ngày, trên stack local-sim; chưa xác nhận bucket là R2 remote thật hay MinIO local |
+| G6 | Isolation check PASS | ✅ 2026-07-09 — ⚠️ **cần xác nhận lại**: bảng probe ở Section 3.3 bên dưới đang để trống dù mục này đã đánh ✅ |
 | G7 | **G7-nhẹ** (2026-07-08 user chốt): người thứ hai chạy `env-check.sh` + boot-checks API + grep `ALLOW_DEV_AUTH`/`TEST_OTP_SEAM` vắng → ký tên (full G7 deferred M1) | |
-| G8 | `ALLOW_DEV_AUTH` absent from `.env.prod` (`grep ALLOW_DEV_AUTH .env.prod` → empty) | ✅ 2026-07-09 (0 dòng) |
-| G9 | `TEST_OTP_SEAM` absent from `.env.prod` (`grep TEST_OTP_SEAM .env.prod` → empty) | ✅ 2026-07-09 (0 dòng) |
-| G10 | `STAFF_SESSION_SECRET` ≠ `LMS_SESSION_SECRET` in prod (two distinct values) | ✅ 2026-07-09 (distinct) |
+| G8 | `ALLOW_DEV_AUTH` absent from `.env.prod` (`grep ALLOW_DEV_AUTH .env.prod` → empty) | ✅ 2026-07-09 (0 dòng) — ⚠️ **cần chạy lại tay**: giá trị nằm trong `.env.prod` (gitignored), không tự xác minh lại được từ repo |
+| G9 | `TEST_OTP_SEAM` absent from `.env.prod` (`grep TEST_OTP_SEAM .env.prod` → empty) | ✅ 2026-07-09 (0 dòng) — ⚠️ **cần chạy lại tay**: cùng lý do G8 |
+| G10 | `STAFF_SESSION_SECRET` ≠ `LMS_SESSION_SECRET` in prod (two distinct values) | ✅ 2026-07-09 (distinct) — ⚠️ **cần chạy lại tay**: cùng lý do G8; runtime có `assertStaffLmsSecretsDistinct()` gác nhưng giá trị thật không xem được từ repo |
 
 ---
 

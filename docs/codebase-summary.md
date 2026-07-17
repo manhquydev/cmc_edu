@@ -543,16 +543,18 @@ Single RBAC source of truth. Consulted by every mutation via `requirePermission(
 
 ## Known Deferrals (Not Built in P1)
 
-| Item | Category | Reason | Target Phase |
-|------|----------|--------|--------------|
-| **Student lookup (full)** | Data | PH don't have child UUIDs; requires enrollment → student name lookup | P2 |
-| **Email relay** | Workers | Transport layer (Brevo/Graph) not wired | Comms phase |
-| **SSO / Real OAuth** | Auth | Dev stub sufficient for P1 enrollment flow | Post-P1 |
-| **Facility creation UI** | Frontend | Admin dashboard not built; seed-only for now | Admin phase |
-| **Graph/Brevo integration** | Infra | Email, SMS transports deferred | Comms phase |
-| **Class provisioning** | P2+ | classBatchId scalars not validated (FK created in P2) | P2 |
-| **Withdrawal/cancellation UI** | Frontend | Backend ready; UI not yet built | Frontend phase |
-| **tRPC basePath** | API | Missing in standalone handler; PR #27 ready, not yet merged | Post-P1 validation |
+> Snapshot as of P1 completion (2026-07-06). Several rows below have since shipped — see "Resolved since" column, verified against git history 2026-07-17.
+
+| Item | Category | Reason | Target Phase | Resolved since |
+|------|----------|--------|--------------|-----------------|
+| **Student lookup (full)** | Data | PH don't have child UUIDs; requires enrollment → student name lookup | P2 | Still open |
+| **Email relay** | Workers | Transport layer (Brevo/Graph) not wired | Comms phase | Transport wired 2026-07-07/10 (Brevo+Graph); production key/IP-allowlist verification still open — see project-changelog `[2026-07-10]`/`[2026-07-11]` |
+| **SSO / Real OAuth** | Auth | Dev stub sufficient for P1 enrollment flow | Post-P1 | Landed 2026-07-08 (PR #24, Entra SSO) |
+| **Facility creation UI** | Frontend | Admin dashboard not built; seed-only for now | Admin phase | **Landed 2026-07-17 (PR #34)** — facility mgmt + network CRUD + audit log now real |
+| **Graph/Brevo integration** | Infra | Email, SMS transports deferred | Comms phase | Same as Email relay row above |
+| **Class provisioning** | P2+ | classBatchId scalars not validated (FK created in P2) | P2 | Still open |
+| **Withdrawal/cancellation UI** | Frontend | Backend ready; UI not yet built | Frontend phase | Still open (verify before relying on this row) |
+| **tRPC basePath** | API | Missing in standalone handler; PR #27 ready, not yet merged | Post-P1 validation | **Merged 2026-07-10** (`638e64b`) |
 
 ---
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent, within } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // Locks current facility.list behavior + the permission gate BEFORE the
@@ -14,9 +14,11 @@ const facilityListState: {
   error: null,
 };
 let sessionRoles: string[] = ['super_admin'];
+const createMutate = vi.fn();
+const updateMutate = vi.fn();
 
 vi.mock('../../lib/trpc.js', async () => {
-  const { buildTrpcMock, queryResult } = await import('../../test/mock-trpc.js');
+  const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
   return {
     trpc: buildTrpcMock({
       'session.me.useQuery': () =>
@@ -31,6 +33,10 @@ vi.mock('../../lib/trpc.js', async () => {
           error: facilityListState.error,
           isError: facilityListState.error !== null,
         }),
+      'facility.create.useMutation': (opts: { onSuccess?: () => void }) =>
+        mutationResult({ mutate: (...a: unknown[]) => { createMutate(...a); opts?.onSuccess?.(); } }),
+      'facility.update.useMutation': (opts: { onSuccess?: () => void }) =>
+        mutationResult({ mutate: (...a: unknown[]) => { updateMutate(...a); opts?.onSuccess?.(); } }),
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -47,6 +53,28 @@ describe('FacilitiesPage', () => {
       items: [{ id: 'f1', name: 'Cơ sở Cầu Giấy', code: 'CG', createdAt: '2026-01-01T00:00:00.000Z' }],
     };
     facilityListState.error = null;
+    createMutate.mockClear();
+    updateMutate.mockClear();
+  });
+
+  it('creates a facility via facility.create.mutate with name + code', () => {
+    renderWithProviders(<FacilitiesPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm cơ sở' }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText(/^Tên cơ sở/), { target: { value: 'Cơ sở Hà Đông' } });
+    fireEvent.change(within(dialog).getByLabelText(/^Mã cơ sở/), { target: { value: 'HD' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Tạo' }));
+    expect(createMutate).toHaveBeenCalledWith({ name: 'Cơ sở Hà Đông', code: 'HD' });
+  });
+
+  it('edits a facility name via facility.update.mutate, without a code input', () => {
+    renderWithProviders(<FacilitiesPage />);
+    fireEvent.click(screen.getByText('Cơ sở Cầu Giấy'));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).queryByLabelText(/^Mã cơ sở/)).not.toBeInTheDocument();
+    fireEvent.change(within(dialog).getByLabelText(/^Tên cơ sở/), { target: { value: 'Cơ sở Cầu Giấy 2' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu' }));
+    expect(updateMutate).toHaveBeenCalledWith({ id: 'f1', name: 'Cơ sở Cầu Giấy 2' });
   });
 
   it('renders facility rows bound to facility.list.useQuery', () => {

@@ -16,3 +16,22 @@ export function ipMatchesCidr(ip: string, cidr: string): boolean {
 function ipToUint32(ip: string): number {
   return ip.split('.').reduce((acc, octet) => ((acc << 8) | parseInt(octet, 10)) >>> 0, 0);
 }
+
+const IPV4_OCTET_RE = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+
+function isValidIpv4(ip: string): boolean {
+  const octets = ip.split('.');
+  return octets.length === 4 && octets.every((o) => IPV4_OCTET_RE.test(o));
+}
+
+/** Validates admin-entered CIDR/IP input for `FacilityNetwork` rows —
+ *  either a bare IPv4 ("10.0.0.5") or CIDR notation ("192.168.1.0/24").
+ *  Rejects malformed octets, out-of-range prefixes, and non-IPv4 input. */
+export function isValidCidr(input: string): boolean {
+  if (!input) return false;
+  const [ip, prefixStr, ...rest] = input.split('/');
+  if (rest.length > 0 || !ip || !isValidIpv4(ip)) return false;
+  if (prefixStr === undefined) return true;
+  const prefix = Number(prefixStr);
+  return /^\d+$/.test(prefixStr) && prefix >= 0 && prefix <= 32;
+}

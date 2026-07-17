@@ -19,6 +19,7 @@ import { createPrismaClient } from '@cmc/db';
 import { reconcileOrphanedReceipts, reconcileCancelledButProvisioned } from './reconcile-orphaned-receipts.js';
 import { relayEmailOutbox, CONSOLE_TRANSPORT_PROD_FORBIDDEN } from './relay-email-outbox.js';
 import { runCancelSweep, runDoneSweep } from './session-done-sweep.js';
+import { sweepAuditLogRetention } from './audit-log-retention-sweep.js';
 import {
   BrevoEmailTransport,
   ConsoleEmailTransport,
@@ -123,6 +124,9 @@ export async function drainOnce(
   await relayEmailOutbox(db, transportMap);
   await runDoneSweep(db);
   await runCancelSweep(db);
+  // Phase-04 super-admin-completion: AuditLog retention (>12mo). Uses its
+  // own privileged connection internally — see audit-log-retention-sweep.ts.
+  await sweepAuditLogRetention();
 }
 
 async function runForever(): Promise<never> {

@@ -24,17 +24,19 @@ let policyData: Record<string, unknown> | null = {
   penaltyRatePerLateMinute: 500,
   penaltyRatePerEarlyMinute: 1000,
 };
+let sessionRoles: string[] = ['super_admin'];
 
 vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
   return {
     trpc: buildTrpcMock({
-      'session.me.useQuery': queryResult({
-        userId: 'u1',
-        roles: ['super_admin'],
-        facilityId: 'f1',
-        config: { approvalSecondEyeThreshold: 20_000_000 },
-      }),
+      'session.me.useQuery': () =>
+        queryResult({
+          userId: 'u1',
+          roles: sessionRoles,
+          facilityId: 'f1',
+          config: { approvalSecondEyeThreshold: 20_000_000 },
+        }),
       'shift.listGroups.useQuery': queryResult([GROUP]),
       'shift.createGroup.useMutation': (opts: { onSuccess?: () => void }) =>
         mutationResult({ mutate: (...a: unknown[]) => { createGroupMutate(...a); opts?.onSuccess?.(); } }),
@@ -58,6 +60,15 @@ describe('ShiftConfigPage', () => {
     createTemplateMutate.mockClear();
     policyUpsertMutate.mockClear();
     policyData = { penaltyRatePerLateMinute: 500, penaltyRatePerEarlyMinute: 1000 };
+    sessionRoles = ['super_admin'];
+  });
+
+  it('renders a gated EmptyState when the session lacks compensationPolicy.manage', () => {
+    sessionRoles = ['giao_vien'];
+    renderWithProviders(<ShiftConfigPage />);
+    expect(screen.getByText('Không có quyền truy cập')).toBeInTheDocument();
+    expect(screen.queryByText('Nhóm ca & mẫu ca')).not.toBeInTheDocument();
+    expect(screen.queryByText('Chính sách phạt')).not.toBeInTheDocument();
   });
 
   it('renders existing shift groups with their templates', () => {

@@ -3,6 +3,7 @@
 
 import { z } from 'zod';
 import { attendanceRouter } from './attendance/router.js';
+import { auditRouter } from './audit/router.js';
 import { assessmentRouter, reportCardRouter } from './assessment/router.js';
 import { checkInOutRouter, manualPunchRouter } from './checkin/router.js';
 import { kpiRouter } from './kpi/router.js';
@@ -23,6 +24,7 @@ import { enrollmentRouter } from './enrollment/router.js';
 import { curriculumUnitRouter, exerciseRouter } from './exercise/router.js';
 import { exerciseOpenTierRouter } from './exercise/open-tier.js';
 import { facilityRouter } from './facility/router.js';
+import { facilityNetworkRouter } from './facility/network-router.js';
 import { financeRouter } from './finance/router.js';
 import { guardianRouter } from './guardian/router.js';
 import { lmsAuthRouter } from './lms-auth/router.js';
@@ -63,6 +65,8 @@ export const appRouter = router({
   lmsAuth: lmsAuthRouter,
   student: studentRouter,
   facility: facilityRouter,
+  // Phase-03 super-admin-completion: IP range management + self-detect.
+  facilityNetwork: facilityNetworkRouter,
   course: courseRouter,
   room: roomRouter,
   classBatch: classBatchRouter,
@@ -109,6 +113,8 @@ export const appRouter = router({
   session: sessionRouter,
   // Phase-06 gap: parent account email backfill (LMS login prerequisite).
   parentAccount: parentAccountRouter,
+  // Phase-04 super-admin-completion: global audit-log viewer.
+  audit: auditRouter,
 });
 
 export type AppRouter = typeof appRouter;

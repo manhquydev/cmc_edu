@@ -10,7 +10,9 @@ import {
   Button,
   Card,
   CmcTabs,
+  EmptyState,
   HStack,
+  LineIcon,
   NumberInput,
   PageHeader,
   Selector,
@@ -19,6 +21,7 @@ import {
   TextInput,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { useSession } from '../../lib/session-context.js';
 
 interface ShiftTemplateRow {
   id: string;
@@ -270,7 +273,24 @@ function PolicyTab() {
 // Page root
 // ---------------------------------------------------------------------------
 export default function ShiftConfigPage() {
+  const { canDo } = useSession();
   const [activeTab, setActiveTab] = useState('groups');
+
+  if (!canDo('compensationPolicy', 'manage')) {
+    return (
+      <>
+        <PageHeader
+          title="Cấu hình ca làm việc"
+          breadcrumbs={[{ label: 'Quản trị' }, { label: 'Ca làm việc' }]}
+        />
+        <EmptyState
+          title="Không có quyền truy cập"
+          description="Trang này chỉ dành cho Super Admin."
+          icon={<LineIcon name="shield" size={28} />}
+        />
+      </>
+    );
+  }
 
   return (
     <>

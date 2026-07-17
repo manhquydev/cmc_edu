@@ -30,7 +30,7 @@
 | Yêu cầu | Chuẩn |
 |---|---|
 | Phân quyền | RBAC registry tập trung `module→action→Role[]`; **không hardcode role array ở client** (nợ TL3). Route + gate là một (`can()`). |
-| Cô lập dữ liệu | RLS theo `facilityId` trên mọi query nghiệp vụ. |
+| Cô lập dữ liệu | RLS theo `facilityId` trên mọi query nghiệp vụ. **Ngoại lệ có chủ đích (ADR 0042):** `Guardian`, `ParentAccount`, `StudentAccount` — đúng 3 bảng danh tính PH/trẻ — không có RLS tầng DB, thay bằng kiểm tra quyền sở hữu ở tầng ứng dụng (đã có test). |
 | PII nhạy cảm (CCCD, số TK) | **Mã hoá cột** khi lưu (v2 trả nợ QĐ 0026); mask khi đọc; audit ghi tên field. |
 | Đăng nhập | Staff = SSO (password break-glass); PH/HS = phone/OTP (QĐ 0031, 0033). |
 | Cổng tiền | SoD + compensating control (ngưỡng duyệt, review tháng, Reconciliation agent HOTL). |
@@ -70,8 +70,11 @@ Doanh nghiệp phục vụ trẻ nhỏ; đây là ràng buộc *cứng*, không 
 - **AI không tự quyết về trẻ:** agent chỉ *soạn nháp* nhận xét/đánh giá; **GV/con người chốt**
   (TL4 §6). Không auto-gửi nội dung đánh giá trẻ mà không người duyệt.
 - **An toàn (safeguarding):** tình huống liên quan an toàn trẻ luôn là HITL/người; không tự động hoá.
-- **Lưu trữ & xoá:** chính sách retention rõ ràng cho dữ liệu trẻ; xoá được khi hết mục đích/hết
-  quan hệ học tập.
+- **Lưu trữ & xoá (định hướng tương lai — CHƯA triển khai 2026-07-17):** chính sách retention rõ
+  ràng cho dữ liệu trẻ; xoá được khi hết mục đích/hết quan hệ học tập. Hiện chỉ có sweep xoá
+  `AuditLog` (>12 tháng) và sweep xoá mã OTP hết hạn — **không có cơ chế xoá/ẩn danh
+  `Student`/`Guardian`/`SessionEvidencePhoto`/`StudentAccount`** khi hết quan hệ học tập. Hạ từ
+  "ràng buộc cứng" xuống mục tiêu cần lên kế hoạch build, tránh đọc nhầm là đã đạt.
 - **Nhật ký truy cập dữ liệu trẻ:** truy cập ảnh/hồ sơ trẻ nên được audit để phát hiện lạm dụng.
 
 ## 8. Cách dùng NFR này

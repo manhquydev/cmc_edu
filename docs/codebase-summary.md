@@ -1,8 +1,10 @@
 # CMC EDU v2 — Codebase Summary
 
 **Status:** SSO landing complete (P1) · Flow audit complete (P3) · P2-P4 workflows BUILT & TESTED · UI migration COMPLETE (Astryx 100% admin+lms, Mantine fully removed) + premium design-language layer promoted to @cmc/ui + **premium ERP screen build-out merged to main** (21/21 non-blocked screens now on premium templates/composites, 8-phase TDD complete) + **HR remediation (shift/KPI/payroll) phases 1-6 complete**: salary-tier model, KPI auto-score lifecycle, session-done engine, e2e verify loop  
-**Last Updated:** 2026-07-12  
+**Last Updated:** 2026-07-12 (historical snapshot — see note below for current numbers)  
 **Build State (2026-07-12, verified this session — HR remediation phase 6):** @cmc/api 695 tests passing (81 test files, live Postgres); @cmc/admin 229 tests passing (32 test files); @cmc/e2e 19 passed + 1 pre-existing skip (20 spec files, incl. new `shift-lifecycle.spec.ts` + `kpi-lifecycle.spec.ts`, dev-header mode); 14/14 apps build clean. See `docs/project-changelog.md` for the dated entry.
+
+> **Updated 2026-07-17 (acceptance-review audit):** test counts above predate 3 later merge waves (43 happy-path gaps, review-gap fixes, super-admin completion). Current as of 2026-07-17: apps/api 99 files/889 tests, apps/admin 33 files/258 tests, apps/e2e 11 spec files. See `docs/project-changelog.md` `[2026-07-17]`.
 
 ---
 

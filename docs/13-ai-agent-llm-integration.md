@@ -75,8 +75,16 @@ Ràng buộc dữ liệu trẻ (TL8 §7) áp thẳng vào tầng LLM:
 - **Che PII trước khi gửi ra LLM ngoài:** tên đầy đủ trẻ, SĐT, CCCD, địa chỉ, **ảnh trẻ** → không
   gửi tới LLM bên ngoài trừ khi thật cần & có kiểm soát; ưu tiên token hoá/ẩn danh, hoặc model
   nội bộ cho dữ liệu nhạy cảm.
-- **Không gửi ảnh lớp/ảnh trẻ** tới LLM ngoài để "phân tích" nếu không có đồng thuận & mục đích rõ.
+- **Không gửi ảnh lớp/ảnh trẻ** tới LLM ngoài để "phân tích" nếu không có đồng thuận & mục đích rõ
+  (đúng theo thiết kế: pipeline hiện tại không có tham số ảnh, không có đường truyền ảnh tới LLM).
 - **Ghi log điều gì được gửi** (audit) để soát rò rỉ.
+
+> **Cập nhật 2026-07-17 (acceptance-review audit):** `assertNoPii` (`packages/llm/src/pii-guard.ts`)
+> **hiện tại chỉ dò 2 mẫu số điện thoại VN bằng regex — chưa dò tên đầy đủ, CCCD, hay địa chỉ**, và
+> chặn kiểu reject-throw (không có tokenize/ẩn danh như mô tả). Việc không đưa tên/CCCD/địa chỉ vào
+> prompt hiện dựa vào kỷ luật người viết code, không được hệ thống chặn lại. Mở rộng bộ lọc sang
+> tên/CCCD/địa chỉ (và cân nhắc cơ chế tokenize) là backlog cần làm, không phải đã có — xem
+> `plans/reports/pii-guard-depth-audit-260717-1136-child-data-vs-code-report.md`.
 
 ## 6. Chi phí, tốc độ, độ tin cậy
 

@@ -1,8 +1,10 @@
 # CMC EDU v2 — System Architecture (As-Built)
 
-**Date:** 2026-07-11  
+**Date:** 2026-07-11 (historical snapshot — see note below for current numbers)  
 **Phase:** P1–P4 complete and tested (SSO landing · flow audit · Astryx UI Phase 3–4) · UI migration Phase 4 complete (apps/lms 100% Astryx) · Phase 5 (Mantine dep removal) next  
-**Build Status:** Merged to main · 532/532 tests passing (0 skipped) in 64 test files · 26/26 typecheck green · e2e UI 5 passed · API e2e 17 passed. *(2026-07-11: a stale local `node_modules` briefly made this look broken — resolved via `pnpm install --frozen-lockfile`; not a real code regression. See `docs/project-changelog.md` `[2026-07-11]`.)*
+**Build Status (as of 2026-07-11):** Merged to main · 532/532 tests passing (0 skipped) in 64 test files · 26/26 typecheck green · e2e UI 5 passed · API e2e 17 passed. *(2026-07-11: a stale local `node_modules` briefly made this look broken — resolved via `pnpm install --frozen-lockfile`; not a real code regression. See `docs/project-changelog.md` `[2026-07-11]`.)*
+
+> **Updated 2026-07-17 (acceptance-review audit):** test counts above are a historical snapshot, not current. As of 2026-07-17: apps/api 99 files/889 tests, apps/admin 33 files/258 tests, apps/e2e 11 spec files. Router/table/migration/RLS counts elsewhere in this doc were corrected the same day — see `docs/project-changelog.md` `[2026-07-17]`.
 
 ---
 

@@ -106,8 +106,7 @@ via phase-00-phase-07) đã migrate từ legacy component lên premium template/
 Áp dụng: ListPage, DetailPage, FormPage + MetricCard, Panel, TaskRow, FunnelBar + LineIcon 
 monochrome + premium token. Xem `plans/260711-1720-premium-erp-screen-buildout/plan.md`. 
 12 exemplar screen cũ (cockpit, finance-receipt-*, student-*, grading, etc.) đã xây sẵn premium 
-(không đổi lần này). 3 màn stub premium-coming-soon (leaderboard, network-ip, shift-config) 
-chờ backend + spec.
+(không đổi lần này). 1 màn stub (leaderboard) chờ backend + spec; network-ip/shift-config đã shipped PR #34.
 
 **Deployment:** Import `@cmc/ui/premium.css` once per app root (admin + lms will share). 
 Classes encode paddings, gaps, shadows, blur effects — no inline styles in components.
@@ -159,7 +158,7 @@ Nút hành động rõ nghĩa ("Duyệt & Kích hoạt"). Sau khi chạy → **R
 - Không lộ tồn tại tài khoản (email/SĐT sai → cùng một thông báo lỗi generic).
 - Trạng thái component bắt buộc: default · loading · error (inline) · success (redirect).
 
-> **BLOCKED-ON-COMMS**: Tab Phụ huynh chưa hoạt động production (email transport stub). Màn hình phải render được nhưng nút "Gửi mã OTP" nên hiển thị cảnh báo/disable khi `EMAIL_TRANSPORT=console`. Không được để người dùng thật chờ OTP không đến.
+> **Note:** Production email transport (BrevoEmailTransport) is now live; console transport is dev/test default only. If `EMAIL_TRANSPORT=console` in production environment, the system fails fast (console forbidden in prod). For development, display a warning badge on the email tab when console transport is active.
 
 ## 10. Cách dùng ở cổng DoR
 

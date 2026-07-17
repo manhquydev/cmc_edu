@@ -46,7 +46,8 @@ absent on the current machine. `mcp`/`skill`/`http` are not on `PATH` by nature,
 so they register without `--force`; their presence is resolved later by
 `tool check`.
 
-Registering an MCP server or a Claude skill (examples):
+Registering an MCP server or a Claude skill (examples — registration mechanism works but has 
+never been invoked in this repo; `query tools --summary` currently shows 0 registered inbound tools):
 
 ```bash
 scripts/bin/harness-cli tool register --name gitnexus --kind mcp \
@@ -63,6 +64,11 @@ Remove a tool with:
 ```bash
 scripts/bin/harness-cli tool remove --name deploy-check
 ```
+
+**Note:** Despite the examples above showing gitnexus, c3, and deploy-check as registration examples in docs, 
+the actual `harness.db.tool` table is empty (0 registered inbound tools). The registration mechanism itself 
+is fully functional and tested; it has simply never been invoked in this repository. All `tool` subcommands 
+(`register`, `check`, `remove`) work correctly.
 
 ## Inbound Registry: Check Presence
 
@@ -178,6 +184,7 @@ without parsing the human table.
 | `query interventions` | Intervention recording | Show intervention records. | optional `--trace`, `--story`, `--type` |
 | `query stats` | Task state | Show durable record counts. | none |
 | `query sql` | Tool access | Run arbitrary SQL against `harness.db`. | SQL text |
+| `tool check` | Tool access | Scan registered tools and persist present/missing/unknown status. | optional `--name`, `--json` |
 | `db changeset apply` | Task state | Apply one semantic changeset idempotently. | changeset path |
 | `db rebuild` | Task state | Rebuild a fresh `harness.db` from semantic changesets. | `--from` changeset directory |
 

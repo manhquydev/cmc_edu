@@ -96,7 +96,7 @@ HS không `BLOCKED_LMS_LIFECYCLE` → hiện bài.
 chặn → không thấy gì. Buổi `cancelled` không mở. Giờ tính theo **ICT** (`sessionEndUtc`).
 
 **Rules/ADR:** **ADR 0038** · TL19 §4. **API:** `exercise.openForStudent` / LMS list (lmsProcedure).
-**UI/URL:** LMS `/child/:id/exercises`.
+**UI/URL:** LMS `/student/exercise` (list) · `/student/exercise/:exerciseId` (detail).
 
 **Traceability:** `hệ thống/HS → WF-P2-03 → "Mở bài tập theo tiến độ học" → exercise.openForStudent →
 /child/:id/exercises → test/exercise/open-tier.spec → ADR0038`.
@@ -117,14 +117,14 @@ stateDiagram-v2
     published --> closed: đóng bài
 ```
 
-**Happy path:** giám đốc → **giao diện upload** → `basePdfRef` lưu → Exercise `draft` (type, maxScore,
+**Happy path:** giám đốc → **giao diện upload** → `basePdfRef` lưu (field trên `exercise.create`) → Exercise `draft` (type, maxScore,
 starReward) → `publish`.
 
 **Exceptions & edge:** trùng `[unit, type]` (unique) → thay/`CONFLICT`. Lưu PDF: object store v2 (nợ TL3).
 `published` mới đủ điều kiện mở (kết hợp WF-P2-03). Nội dung PDF chạm dữ liệu trẻ (TL08 §7).
 
-**Rules/ADR:** TL19 §3 · Exercise model · TL08 §7. **API:** `exercise.create/upload/publish`
-(`assessment.*`/`exercise.*`). **UI/URL:** `/curriculum/:unitId/exercises` + giao diện upload.
+**Rules/ADR:** TL19 §3 · Exercise model · TL08 §7. **API:** `exercise.create/publish`
+(`assessment.*`/`exercise.*` — `basePdfRef` là trường input của create, không riêng procedure). **UI/URL:** `/curriculum/:unitId/exercises` + giao diện upload.
 
 **Traceability:** `GĐĐT → WF-P2-04 → "Cung cấp bài tập PDF cho học viên" → exercise.create/publish →
 /curriculum/:unitId/exercises → test/exercise/publish.spec → TL19§3`.
@@ -153,7 +153,7 @@ Sau `submitted` **không sửa** (trừ GV mở lại). Lifecycle chặn → kh�
 (không phá bản gốc).
 
 **Rules/ADR:** TL19 §3 · Submission model · TL08 §7. **API:** `submission.saveDraft/submit`
-(lmsProcedure). **UI/URL:** LMS `/child/:id/exercises/:exerciseId`.
+(lmsProcedure). **UI/URL:** LMS `/student/exercise/:exerciseId`.
 
 **Traceability:** `học viên → WF-P2-05 → "Làm bài trên PDF & nộp" → submission.saveDraft/submit →
 /child/:id/exercises/:id → test/submission/annotate-submit.spec → TL19§3`.
@@ -232,7 +232,7 @@ lớp/HS thấy (TL08 §7). 1 evidence/buổi (unique `classSessionId`). Không 
 "phân tích" (TL13 §5).
 
 **Rules/ADR:** TL19 §6b · **TL08 §7** (dữ liệu trẻ). **API:** `sessionEvidence.upsert/publish`
-(giao_vien). **UI/URL:** GV `/teaching/...` (evidence) · LMS `/child/:id` (PH xem).
+(giao_vien). **UI/URL:** GV `/teaching/...` (evidence) · LMS `/parent/evidence/:studentId` (PH xem).
 
 **Traceability:** `giao_vien → WF-P2-08 → "Gửi ảnh & tóm tắt buổi cho PH" → sessionEvidence.publish →
 /child/:id → test/session-evidence/publish.spec → TL19§6b, TL08§7`.

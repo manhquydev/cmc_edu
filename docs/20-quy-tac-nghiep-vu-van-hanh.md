@@ -54,7 +54,7 @@ Cơ chế: khớp **IP client với dải mạng cơ sở** (không phải GPS) 
   **Ticket-lock:** tối đa 1 phiếu `submitted` tại một thời điểm/nhân sự (unique partial index); `rejected`
   **KHÔNG** tính vào ticket-lock — nộp lại ngay sau khi bị từ chối. `fromDate` phải là ngày ICT tương
   lai tại thời điểm nộp (QĐ 0035).
-- **QĐ (HR remediation, docs/22 ADR 0042): overlap rule** — 1 người chỉ được giữ **một khoảng
+- **QĐ (HR remediation, docs/22 ADR 0044): overlap rule** — 1 người chỉ được giữ **một khoảng
   `[fromDate,toDate]` `submitted`/`approved` tại một thời điểm, bất kể ShiftGroup nào** (chống đăng ký
   chồng chéo giữa 2 nhóm ca khác nhau). `rejected`/`cancelled` không tính vào overlap.
 - **QĐ: gate duyệt ca = ROLE, không phải managerId chain.** `shift.approve`/`shift.reject` yêu cầu
@@ -67,7 +67,7 @@ Cơ chế: khớp **IP client với dải mạng cơ sở** (không phải GPS) 
 > **QĐ (HR remediation): baseSalary/đơnGiá/quota nguồn duy nhất là `SalaryTier` catalog** — 3 cột cũ
 > trên `SalaryRate` (`baseSalary`, `variablePayRate`, `kpiMax`) đã **deprecated** (không writer mới
 > ghi). `compensation.upsertRate` (nhập tay từng người) đã **BỎ** — thay bằng `assignTier` (gán bậc).
-> Chi tiết công thức + rationale: **docs/22 ADR 0042**.
+> Chi tiết công thức + rationale: **docs/22 ADR 0044**.
 
 - **Công thức:** `totalNet = base(tier) + %côngca × %chỉ-số × đơnGiá(tier) − phạt`, trong đó:
   - `%côngca = min(1, shiftActual/tier.requiredShifts)`.
@@ -109,7 +109,7 @@ Cơ chế: khớp **IP client với dải mạng cơ sở** (không phải GPS) 
 
 > **QĐ (HR remediation): `kpi.submit`/`kpi.approve` (đơn lẻ)/`kpi.getForUser` đã BỎ** — thay bằng
 > lifecycle auto-score dưới đây. `approved` **chỉ** đạt được qua `kpi.bulkApprove` (không có đường
-> approve-1-phiếu nào khác ngoài `kpi.override` khi payslip đã reopen). Chi tiết: **docs/22 ADR 0042**.
+> approve-1-phiếu nào khác ngoài `kpi.override` khi payslip đã reopen). Chi tiết: **docs/22 ADR 0044**.
 
 - **Vòng đời (`KpiScore.status`):** `draft` → `submitted` → `confirmed` → `approved`.
   - `kpi.refresh`: recompute + upsert `draft` (idempotent, race-safe) — **không bao giờ ghi đè** một
@@ -140,7 +140,7 @@ Cơ chế: khớp **IP client với dải mạng cơ sở** (không phải GPS) 
 ## 4b. Session-done engine (HR remediation) — chỉ chạy qua sweep worker
 
 > Chi tiết thuật toán + rationale (vì sao KHÔNG hook trực tiếp trên router điểm danh/đánh giá/bằng
-> chứng): **docs/22 ADR 0042**.
+> chứng): **docs/22 ADR 0044**.
 
 - **3 điều kiện `done` (tất cả phải đủ, đánh giá bởi worker sweep, không phải event hook):**
   1. **Điểm danh:** ≥1 dòng `present`.
@@ -240,10 +240,10 @@ Học viên tích **sao** (star) từ bài tập → đổi quà.
 |---|---|
 | Chấm công cặp vào/ra | `checkin/router.ts` (`checkInOutRouter.punch`) + `FacilityNetwork` + ADR 0043 |
 | Phiếu chấm công offsite | `checkin/router.ts` (`manualPunchRouter`) + `attendance/resolve-target-role.ts` + ADR 0043 |
-| Ca sale vs GV | `resolveShiftGroup()` + `ShiftGroup.selectionMode` + `shift/router.ts` + docs/22 ADR 0042 |
-| Lương bậc (tier) | `payroll/router.ts` + `@cmc/domain-payroll` (`assembleSlip`, `computeDayAttendance`) + `attendance/resolve-day-credit.ts` + docs/22 ADR 0042, ADR 0043 |
-| KPI auto-score + lifecycle | `kpi/router.ts` + `kpi/auto-score.ts` + docs/22 ADR 0042 |
-| Session-done engine | `class/session-done.ts` + `worker/session-done-sweep.ts` + docs/22 ADR 0042 |
+| Ca sale vs GV | `resolveShiftGroup()` + `ShiftGroup.selectionMode` + `shift/router.ts` + docs/22 ADR 0044 |
+| Lương bậc (tier) | `payroll/router.ts` + `@cmc/domain-payroll` (`assembleSlip`, `computeDayAttendance`) + `attendance/resolve-day-credit.ts` + docs/22 ADR 0044, ADR 0043 |
+| KPI auto-score + lifecycle | `kpi/router.ts` + `kpi/auto-score.ts` + docs/22 ADR 0044 |
+| Session-done engine | `class/session-done.ts` + `worker/session-done-sweep.ts` + docs/22 ADR 0044 |
 | Đổi quà | `StarTransaction`/`Gift`/`Reward` enums; từ chối ngay + khoá tuần tự theo `giftId` trong `rewards/reward-router.ts` |
 | Họp PH / test | `ParentMeeting`/`TestAppointment` |
 | After-sale | `AfterSaleCase` + QĐ 0027 |
@@ -252,4 +252,4 @@ Học viên tích **sao** (star) từ bài tập → đổi quà.
 > trong code — nâng thành **ADR** để v2 tái mã hoá chắc chắn.
 
 > Liên kết: TL19 (P1) · TL14 (vai trò) · TL01 (bất biến lương/ca) · TL04 (agent nhắc lịch/đối soát) ·
-> docs/22 ADR 0042 (KPI auto-score + session-done engine, chi tiết đầy đủ).
+> docs/22 ADR 0044 (KPI auto-score + session-done engine, chi tiết đầy đủ).

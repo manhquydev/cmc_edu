@@ -1,5 +1,5 @@
 // KPI + payroll lifecycle e2e (HR remediation phase 6, docs/20 — WF-P3-05/06,
-// ADR 0042 "KPI auto-score + session-done engine"): the one cross-module,
+// ADR 0044 "KPI auto-score + session-done engine"): the one cross-module,
 // multi-actor flow no single-router integration test can reach — SalaryTier
 // assignment + backdated Receipt/ShiftRegistration/TimePunch fixtures feed
 // `kpi.refresh`'s formula, through the full `submitSlip -> confirm ->

@@ -86,7 +86,7 @@ diễn từ message.
 | `assessment.listBySession` | query | `assessment.draft` | `{ sessionId }` | staff read — nhận xét định tính của 1 buổi (HR remediation phase 5) |
 | `classBatch.assignTeacher` | mutation | `class.create` (GĐĐT) | `{ classBatchId, teacherAppUserId }` | gán GV dạy lớp (FK `teacherAppUserId`, thay `teacherId` free-text) |
 
-### HR / Payroll / Shift — auto-score + salary-tier lifecycle (docs/20, ADR 0042)
+### HR / Payroll / Shift — auto-score + salary-tier lifecycle (docs/20, ADR 0044)
 > `kpi.submit` / `kpi.approve` (đơn lẻ) / `kpi.getForUser` / `compensation.upsertRate` đã **BỎ**
 > (HR remediation): lifecycle auto-score thay thế nhập tay; `approved` chỉ đạt được qua `bulkApprove`;
 > baseSalary/unitRate/quota nguồn duy nhất là `SalaryTier` catalog qua `assignTier`.

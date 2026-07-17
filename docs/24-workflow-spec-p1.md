@@ -168,8 +168,8 @@ stateDiagram-v2
 **Cho tới khi `approved`, PH KHÔNG thấy dữ liệu trẻ** (ranh giới dữ liệu trẻ — TL08 §7).
 
 **Rules/ADR:** GuardianLinkRequestStatus (TL19 §6c) · GuardianRelation. **API:** `guardian.requestLink`
-(lmsProcedure) · `guardian.approveLink`/`reject` (nhân viên). **UI/URL:** LMS `/child/link-request` ·
-nhân viên `/parents/:id` (hàng đợi duyệt).
+(lmsProcedure) · `guardian.approveLink`/`rejectLink` (nhân viên). **UI/URL:** LMS `/parent/home` (PH gửi yêu cầu) ·
+nhân viên `/admin/parents` (hàng đợi duyệt trong modal Dialog).
 
 **Traceability:** `PH/nhân viên → WF-P1-06 → "Liên kết phụ huynh–con" → guardian.requestLink/approveLink
 → /parents/:id → test/guardian/link.spec → TL19§6c`.
@@ -210,7 +210,7 @@ flowchart LR
 
 **Exceptions & edge:** OTP hết hạn → phát lại. HS ở `BLOCKED_LMS_LIFECYCLE` → **chặn truy cập** (TL19 §4). Chưa có con (link chưa duyệt) → hướng dẫn WF-P1-06. `loginAttempts` vượt ngưỡng → lock account (`loginLockedUntil`). Email/SĐT sai → không lộ tồn tại tài khoản.
 
-**Rules/ADR:** product-decision 2026-07-07 (2-tier auth) · TL19 §2 · TL10 §4 (StudentAccount fields). **API:** `lmsAuth.requestEmailOtp` / `lmsAuth.verifyEmailOtp` (PH) · `lmsAuth.studentLogin` (HS) · `enrollment.mine`. **UI/URL:** LMS `/login` (2 tab) · `/select-child` · `/child/:id`.
+**Rules/ADR:** product-decision 2026-07-07 (2-tier auth) · TL19 §2 · TL10 §4 (StudentAccount fields). **API:** `lmsAuth.requestOtpEmail` / `lmsAuth.verifyOtpEmail` (PH) · `lmsAuth.loginStudent` (HS) · `enrollment.mine`. **UI/URL:** LMS `/login` (2 tab) · `/parent/home` (PH child-picker inline) · `/student/home` (HS).
 
 **Traceability:** `PH/HS → WF-P1-07 → "Đăng nhập LMS" → lmsAuth.verifyEmailOtp|studentLogin + enrollment.mine → /select-child → test/lms-auth/login.spec → product-decision-2026-07-07`.
 **Acceptance:** 2 tab login rõ ràng; picker khi PH có ≥2 con; mustChangePassword buộc đổi; lifecycle bị chặn không vào được; OTP expired xử đúng; loginAttempts lock đúng; email OTP là BLOCKED-ON-COMMS.
@@ -243,7 +243,7 @@ phiếu duy nhất đã đẩy O5 (bất biến **I3**). Hoàn tiền thật ≠
 
 **Rules/ADR:** QĐ 0024/0028 · bất biến **I3** (TL01) · ADR-A. **API:** `finance.receiptCancel` ·
 `finance.refundCreate` (quyền GĐKD/`finance.*`). **UI/URL:** `/finance/receipts/:id` (huỷ) ·
-`/finance/refunds`.
+`/finance/refund` (EmptyState stub — API implemented, UI not yet wired).
 
 **Traceability:** `GĐKD → WF-P1-08 → "Huỷ phiếu / hoàn tiền" → finance.receiptCancel/refundCreate →
 /finance/refunds → test/finance/cancel-refund.spec → QĐ0024, I3`.

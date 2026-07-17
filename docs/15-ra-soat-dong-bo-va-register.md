@@ -25,7 +25,7 @@ bất biến tiền (TL1/TL10/TL11), URL↔query↔API list input (TL6/TL11).
 >
 > **[G1] Mã phiếu thu SO (không PT-)**: Format đúng là `SO00183` (prefix `SO`, pad-5, không gạch ngang). Nguồn: `packages/domain-finance/src/receipt-code.ts`. Mọi doc/wireframe dùng `PT-000001` là sai.
 >
-> **[G2] Auth 2-tier (đảo QĐ0033/WF-P1-07)**: Phụ huynh = email+OTP qua email; Học sinh = SĐT PH + password (default `Cmc2026@`). Auth phone+OTP đơn tài khoản không còn dùng. **BLOCKED-ON-COMMS**: email OTP dùng ConsoleEmailTransport stub, chưa production. Chi tiết: TL11/TL18/TL19/TL24.
+> **[G2] Auth 2-tier (đảo QĐ0033/WF-P1-07)**: Phụ huynh = email+OTP qua email; Học sinh = SĐT PH + password (default `Cmc2026@`). Auth phone+OTP đơn tài khoản không còn dùng. Production email transport (BrevoEmailTransport) is implemented; console transport is dev/test default. Chi tiết: TL11/TL18/TL19/TL24.
 >
 > **[G3] StudentAccount.passwordHash + LmsSubject.kind**: Các trường `passwordHash`, `mustChangePassword`, `loginAttempts`, `loginLockedUntil` nằm trên `StudentAccount` (không phải `ParentAccount`). `LmsSubject` có `kind: 'parent' | 'student'` phân tách session. Chi tiết: TL10.
 >
@@ -125,8 +125,8 @@ bất biến tiền (TL1/TL10/TL11), URL↔query↔API list input (TL6/TL11).
 | US-007 | LMS Parent Auth | P1 | ✅ Done | WF-P1-07: `lmsAuth.*` + `enrollment.mine` (2 procedures) |
 | US-008 | Data Integrity & RLS | P1 | ✅ Done | 6 tables RLS-protected; ledger append-only (K5 remediation) |
 | US-009 | Test Coverage P1 | P1 | ✅ Done | 137/137 tests; 95%+ coverage; all gates passed |
-| US-010 | Student Lookup | P2 | ⏳ Deferred | K4: requires enrollment→name→UUID query (P2 scope) |
-| **P2+** | **Class Ops / HR / Payroll / Redemption** | P2–P4 | ⏳ Pending | TL26–TL28 designed, not built |
+| US-010 | Student Lookup | P2 | ✅ Done | Implemented: `apps/api/src/student/router.ts` `lookup` procedure (phone/name search, audit-logged, facility-scoped) |
+| **P2+** | **Class Ops / HR / Payroll / Redemption** | P2–P4 | ✅ Done | All four areas live: classBatch/session/schedule/attendance (class ops), user/shift/compensationPolicy/salaryTier (HR), payslip/kpi (payroll), rewards/rewardRouter (redemption) |
 
 **Test & Build:**
 - ✅ All 137 tests passing (vitest)  

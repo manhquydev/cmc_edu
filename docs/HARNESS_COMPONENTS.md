@@ -47,121 +47,27 @@ Status values:
 
 ## File Inventory
 
-Every tracked project file plus the Phase 2 input file is mapped to at least
-one Runtime Substrate responsibility.
+CMC repository story files tracked for this project. Files are mapped to Runtime Substrate responsibilities for harness observability.
 
 | File | Primary Responsibility | Secondary Responsibilities |
 | --- | --- | --- |
-| `.gitignore` | Tool access | Task state |
-| `AGENTS.md` | Context selection | Task specification, permissions |
-| `README.md` | Task specification | Project memory |
-| `CONTRIBUTING.md` | Intervention recording | Project memory |
-| `Cargo.toml` | Tool access | Verification |
-| `Cargo.lock` | Tool access | Verification |
-| `PHASE2.md` | Task specification | Observability, context selection |
-| `PHASE3.md` | Task specification | Observability, verification, entropy auditing |
-| `PHASE4.md` | Task specification | Verification, observability, task state |
-| `PHASE5.md` | Task specification | Verification, entropy auditing, intervention recording |
-| `crates/harness-cli/Cargo.toml` | Tool access | Verification |
-| `crates/harness-cli/src/main.rs` | Tool access | Tool implementation |
-| `crates/harness-cli/src/domain.rs` | Tool access | Task state, verification |
-| `crates/harness-cli/src/application.rs` | Tool access | Task state |
-| `crates/harness-cli/src/infrastructure.rs` | Tool access | Project memory, task state, observability |
-| `crates/harness-cli/src/interface.rs` | Tool access | Context selection, verification |
-| `docs/ARCHITECTURE.md` | Permissions | Context selection, task specification |
-| `docs/FEATURE_INTAKE.md` | Task specification | Permissions, context selection |
-| `docs/GLOSSARY.md` | Project memory | Context selection |
-| `docs/HARNESS.md` | Task specification | Project memory, task state, permissions |
-| `docs/HARNESS_BACKLOG.md` | Entropy auditing | Project memory, failure attribution |
-| `docs/HARNESS_COMPONENTS.md` | Failure attribution | Observability, entropy auditing |
-| `docs/HARNESS_MATURITY.md` | Entropy auditing | Observability, verification |
-| `docs/HARNESS_AUDIT.md` | Entropy auditing | Verification, task state |
-| `docs/IMPROVEMENT_PROTOCOL.md` | Entropy auditing | Failure attribution, permissions |
-| `docs/CONTEXT_RULES.md` | Context selection | Permissions, task specification |
-| `docs/TRACE_SPEC.md` | Observability | Failure attribution, intervention recording |
-| `docs/TOOL_REGISTRY.md` | Tool access | Context selection, verification |
-| `docs/README.md` | Project memory | Context selection |
-| `docs/TEST_MATRIX.md` | Verification | Task state |
-| `docs/decisions/0001-harness-first-development.md` | Project memory | Permissions |
-| `docs/decisions/0002-post-spec-product-lifecycle.md` | Project memory | Task specification |
-| `docs/decisions/0003-generic-spec-intake-harness.md` | Project memory | Task specification |
-| `docs/decisions/0004-sqlite-durable-layer.md` | Project memory | Observability, task state |
-| `docs/decisions/0005-prebuilt-rust-harness-cli.md` | Project memory | Tool access |
-| `docs/decisions/0006-phase-4-benchmark-triage.md` | Project memory | Verification |
-| `docs/decisions/0007-improvement-proposal-rules.md` | Project memory | Entropy auditing, permissions |
-| `docs/decisions/README.md` | Project memory | Context selection |
-| `docs/demo/README.md` | Task specification | Project memory |
-| `docs/product/README.md` | Task specification | Project memory |
-| `docs/review-fixes-1d30bf62-to-main.md` | Intervention recording | Failure attribution, verification |
 | `docs/stories/README.md` | Task specification | Project memory |
-| `docs/stories/US-001-install-harness.md` | Task specification | Verification, intervention recording |
-| `docs/stories/US-008-trace-quality-scoring.md` | Task specification | Observability, verification |
-| `docs/stories/US-009-enriched-friction-query.md` | Task specification | Failure attribution, observability |
-| `docs/stories/US-011-backlog-outcome-workflow.md` | Task specification | Entropy auditing, project memory |
-| `docs/stories/US-012-story-verify-command-field.md` | Task specification | Verification |
-| `docs/stories/US-015-story-verify-command.md` | Task specification | Verification |
-| `docs/stories/US-016-auto-trace-scoring-on-write.md` | Task specification | Observability, verification |
-| `docs/stories/US-017-pre-close-verification-gate.md` | Task specification | Verification, permissions |
-| `docs/stories/US-018-phase4-cli-ux-hardening.md` | Task specification | Tool access, verification |
-| `docs/stories/US-019-machine-readable-tool-registry.md` | Task specification | Tool access |
-| `docs/stories/US-020-batch-story-verification.md` | Task specification | Verification |
-| `docs/stories/US-021-intervention-recording-schema.md` | Task specification | Intervention recording |
-| `docs/stories/US-022-context-rule-measurement.md` | Task specification | Context selection |
-| `docs/stories/US-023-drift-detection-entropy-score.md` | Task specification | Entropy auditing |
-| `docs/stories/US-024-improvement-proposal-pipeline.md` | Task specification | Entropy auditing, permissions |
 | `docs/stories/backlog.md` | Task specification | Project memory |
-| `docs/stories/epics/README.md` | Task specification | Project memory |
-| `docs/stories/epics/E01-durable-layer/US-002-rust-harness-cli/overview.md` | Task specification | Project memory |
-| `docs/stories/epics/E01-durable-layer/US-002-rust-harness-cli/design.md` | Task specification | Tool access, permissions |
-| `docs/stories/epics/E01-durable-layer/US-002-rust-harness-cli/execplan.md` | Task specification | Verification, task state |
-| `docs/stories/epics/E01-durable-layer/US-002-rust-harness-cli/validation.md` | Verification | Intervention recording |
-| `docs/stories/epics/E02-phase-2-observability-taxonomy/phase-2-progress.md` | Task state | Intervention recording |
-| `docs/stories/epics/E03-phase-5-evolution-infrastructure/phase-5-progress.md` | Task state | Verification, entropy auditing |
-| `docs/templates/decision.md` | Project memory | Task specification |
-| `docs/templates/spec-intake.md` | Task specification | Context selection |
-| `docs/templates/story.md` | Task specification | Verification |
-| `docs/templates/validation-report.md` | Verification | Intervention recording |
-| `docs/templates/high-risk-story/overview.md` | Task specification | Context selection |
-| `docs/templates/high-risk-story/design.md` | Task specification | Permissions |
-| `docs/templates/high-risk-story/execplan.md` | Task state | Verification |
-| `docs/templates/high-risk-story/validation.md` | Verification | Failure attribution |
-| `scripts/README.md` | Tool access | Context selection |
-| `scripts/bin/harness-cli` | Tool access | Task state, observability |
-| `scripts/bin/harness-cli` | Tool access | Task state, observability |
-| `scripts/install-harness.sh` | Tool access | Permissions |
-| `scripts/build-harness-cli-release.sh` | Verification | Tool access |
-| `scripts/schema/001-init.sql` | Task state | Observability, project memory |
-| `scripts/schema/002-story-verify.sql` | Verification | Task state, project memory |
-| `scripts/schema/003-tool-registry.sql` | Tool access | Project memory |
-| `scripts/schema/004-intervention.sql` | Intervention recording | Failure attribution |
-| `.github/ISSUE_TEMPLATE/agent-failure-case.md` | Failure attribution | Entropy auditing |
-| `.github/ISSUE_TEMPLATE/pattern-request.md` | Entropy auditing | Intervention recording |
-| `.github/ISSUE_TEMPLATE/real-world-example.md` | Project memory | Intervention recording |
-| `.github/workflows/harness-cli-release.yml` | Verification | Tool access |
+| `docs/stories/US-001-p0-scaffolding-monorepo-health.md` | Task specification | Verification, intervention recording |
+| `docs/stories/US-UI-01a.md` | Task specification | Context selection |
+| `docs/stories/US-UI-01b.md` | Task specification | Context selection |
+| `docs/stories/US-UI-02.md` | Task specification | Context selection |
+| `docs/stories/US-UI-03.md` | Task specification | Context selection |
+| `docs/stories/US-UI-04.md` | Task specification | Context selection |
+| `docs/stories/US-UI-05.md` | Task specification | Context selection |
+| `docs/stories/US-UI-06.md` | Task specification | Context selection |
+| `docs/stories/US-UI-07.md` | Task specification | Context selection |
+| `docs/stories/US-UI-08.md` | Task specification | Context selection |
 
 ## Coverage Summary
 
-- Covered: 8/11 responsibilities.
-- Partial: 3/11 responsibilities.
-- Missing: 0/11 responsibilities.
-
-Covered responsibilities:
-
-- Task specification.
-- Context selection.
-- Tool access.
-- Project memory.
-- Task state.
-- Verification.
-- Entropy auditing.
-- Intervention recording.
-Partial responsibilities:
-
-- Observability.
-- Failure attribution.
-- Permissions.
-
-Phase 5 converts tool access, entropy auditing, and intervention recording into
-covered responsibilities with a registry, drift audit, proposal loop, and
-intervention schema. Later phases should focus on benchmark ingestion,
-component-level attribution, permission enforcement, and tool usage analytics.
+**CMC Project Story Inventory** (10 files total): README.md, backlog.md, US-001-p0-scaffolding-monorepo-health.md, 
+US-UI-01a through US-UI-08. Real stories are tracked in harness.db story table by CMC domain 
+(US-ADMIN-01, US-ATT-01, US-GAPS-01/02/03, US-HR-01, etc., 25 rows total). This file's coverage applies 
+to harness self-improvement responsibilities across the tooling ecosystem; for product-domain story tracking, 
+refer to harness.db and `query matrix` output.

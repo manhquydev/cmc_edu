@@ -1,8 +1,13 @@
-# Tài liệu 22 — ADR hoá rule "chỉ-trong-code" (0038–0042)
+# Tài liệu 22 — ADR hoá rule "chỉ-trong-code" (0038–0041, 0044)
 
 > G1: nâng các quy tắc tinh vi hiện chỉ sống trong code thành **ADR chính thức** để bản viết lại v2
 > tái mã hoá chắc chắn (nguyên tắc "port quyết định, không port code"). Định dạng ADR chuẩn; đánh số
-> tiếp repo (`docs/decisions/0038…0042`). Đều **Status: Accepted** (mô tả hành vi hiện hữu, chốt cho v2).
+> tiếp repo (`docs/decisions/0038…0041`). Đều **Status: Accepted** (mô tả hành vi hiện hữu, chốt cho v2).
+>
+> **Sửa 2026-07-17:** mục KPI/session-done bên dưới ban đầu đánh số 0042 — trùng với
+> `docs/decisions/0042-rls-defense-in-depth.md` (ADR 0042 chính thức, đã đăng ký trong harness.db từ
+> 06/07, chủ đề RLS). Đổi lại thành **ADR 0044** (số kế tiếp còn trống sau 0043) để hết trùng; xem
+> `docs/decisions/0043-attendance-daily-inout-pairing.md` cho ADR liền trước.
 
 ---
 
@@ -102,7 +107,7 @@ Mang nguyên QĐ 0024 (cổng tiền/auto-O5), 0033 (định danh phone), 0037 (
 
 ---
 
-## ADR 0042 — KPI auto-score + session-done engine (HR remediation)
+## ADR 0044 — KPI auto-score + session-done engine (HR remediation)
 
 **Status:** Accepted (formalize `kpi/auto-score.ts`, `kpi/router.ts`, `payroll/router.ts`,
 `class/session-done.ts`, `worker/session-done-sweep.ts`).
@@ -183,9 +188,12 @@ các nhân viên cùng vị trí.
 
 ## Ghi chú triển khai
 
-5 ADR này **bỏ thẳng vào `docs/decisions/0038…0042`** của repo v2. Chúng là "carry-forward spec"
-(TL05 §3) — khi build lại, đọc trước khi code cụm tương ứng. Ma trận Truy vết (TL00) sẽ trỏ cột ADR
-tới đúng số này.
+**Cập nhật 2026-07-17:** 0038-0041 giờ có file riêng dưới `docs/decisions/` (0038-exercise-open-by-
+teaching-progress.md · 0039-attendance-facility-network-ip-match.md · 0040-shift-group-by-role-
+selection-mode.md · 0041-provisioning-atomic-at-receipt-approval.md) và đã đăng ký vào harness.db
+qua `decision add` — không còn "carry-forward spec" chỉ sống trong file này nữa. Nội dung đầy đủ vẫn
+giữ ở đây làm nguồn gốc; các file riêng tham chiếu ngược lại. Ma trận Truy vết (docs/25) trỏ cột ADR
+tới đúng số.
 
 > Liên kết: TL19 §4 (0038) · TL20 §1 (0039) · TL20 §2 (0040) · TL01/17 (0041) · docs/20 §2-4b, docs/25
-> P3 (0042).
+> P3 (0044).

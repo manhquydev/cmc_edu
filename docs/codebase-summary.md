@@ -245,7 +245,7 @@ Staff shift registration & approval, gated by ROLE + ShiftGroup type (WF-P3-03, 
 
 ---
 
-### 15. Payroll Router (`apps/api/src/payroll/`) — salary-tier model (HR remediation, ADR 0042)
+### 15. Payroll Router (`apps/api/src/payroll/`) — salary-tier model (HR remediation, ADR 0044)
 Monthly payslip assembly from a per-facility `SalaryTier` catalog (WF-P3-05).
 
 **Procedures:**
@@ -266,7 +266,7 @@ Monthly payslip assembly from a per-facility `SalaryTier` catalog (WF-P3-05).
 
 ---
 
-### 16. KPI Router (`apps/api/src/kpi/`) — auto-score lifecycle (HR remediation, ADR 0042)
+### 16. KPI Router (`apps/api/src/kpi/`) — auto-score lifecycle (HR remediation, ADR 0044)
 Auto-scored KPI lifecycle: `draft → submitted → confirmed → approved` (WF-P3-06, WF-P3-08, WF-P3-09).
 `kpi.submit`/`kpi.approve` (standalone)/`kpi.getForUser` REMOVED — `approved` is reachable ONLY via `bulkApprove`.
 
@@ -286,7 +286,7 @@ Auto-scored KPI lifecycle: `draft → submitted → confirmed → approved` (WF-
 
 ---
 
-### 16b. Session-done engine (`apps/api/src/class/session-done.ts`, `apps/api/src/worker/session-done-sweep.ts`) — HR remediation, ADR 0042
+### 16b. Session-done engine (`apps/api/src/class/session-done.ts`, `apps/api/src/worker/session-done-sweep.ts`) — HR remediation, ADR 0044
 Sweep-only (no event hooks) worker that marks a session `done` once 3 conditions hold (≥1 `present`
 attendance, every `present` student has a `confirmed` QualitativeAssessment, `published` SessionEvidence
 with ≥1 photo) and `now >= endTime`. `doneAt` freezes at the latest condition's timestamp. Feeds

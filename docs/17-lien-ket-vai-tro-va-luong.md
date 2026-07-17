@@ -97,7 +97,7 @@ flowchart LR
 ```
 
 Gate = role của caller khớp `ShiftGroup.type` (không phải `managerId` chain — HR remediation
-sửa lại, xem docs/20 §2 + docs/22 ADR 0042 cho công thức lương bậc/KPI liên quan).
+sửa lại, xem docs/20 §2 + docs/22 ADR 0044 cho công thức lương bậc/KPI liên quan).
 
 ---
 

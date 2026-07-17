@@ -8,7 +8,7 @@
 
 ## [2026-07-12] HR remediation (shift/KPI/payroll) phases 1-6 — salary-tier model, KPI auto-score lifecycle, session-done engine, e2e verify loop
 
-**Context:** `plans/260711-1752-hr-kpi-shift-attendance-remediation/` (docs/22 ADR 0042, docs/20 §2-4b).
+**Context:** `plans/260711-1752-hr-kpi-shift-attendance-remediation/` (docs/22 ADR 0044, docs/20 §2-4b).
 
 **BREAKING (no shim):** `kpi.submit`/`kpi.approve`(standalone)/`kpi.getForUser` REMOVED → replaced by
 `kpi.refresh/submitSlip/confirm/override/bulkApprove/list/myScore` (`approved` only via `bulkApprove`).

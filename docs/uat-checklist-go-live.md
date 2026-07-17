@@ -192,7 +192,7 @@ Tester (GĐĐT + giao_vien): _________________ · Date: _________________
 
 ---
 
-### Kịch bản 4 — Chuỗi Nhân sự + Lương (P3-01 → P3-06, P3-09) — HR remediation (ADR 0042)
+### Kịch bản 4 — Chuỗi Nhân sự + Lương (P3-01 → P3-06, P3-09) — HR remediation (ADR 0044)
 
 **Vai tham gia:** giao_vien · sale · giam_doc_kinh_doanh · giam_doc_dao_tao  
 **Mục tiêu:** Punch → manual ticket → gán bậc lương → ca → KPI auto-score → payslip finalized → tất toán KPI

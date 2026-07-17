@@ -25,7 +25,7 @@ hàng chờ). Đổi đồng thời cùng một `Gift` tuần tự hoá qua kho�
 sao đọc lại trong khoá trước khi trừ (TL20 §5). Từ chối → **hoàn sao** (`gift_rejected_refund`). Sao
 nguồn từ bài tập `graded` (WF-P2-06).
 **Rules/ADR:** TL20 §5 · StarTxnType · RewardStatus. **API:** `rewards.redeem/approve/reject/deliver`.
-**UI/URL:** `/engagement/rewards` · LMS `/child/:id/rewards`.
+**UI/URL:** `/admin/engagement/rewards` · LMS `/student/gifts`.
 **Traceability:** `học viên/nhân viên → WF-P4-01 → "Đổi quà bằng sao" → rewards.redeem/approve →
 /engagement/rewards → apps/api/src/rewards/redeem-refund.test.ts → TL20§5`.
 **Acceptance:** thiếu sao/stock chặn ngay; từ chối hoàn sao; trừ/hoàn qua StarTransaction đúng type.
@@ -39,8 +39,8 @@ nguồn từ bài tập `graded` (WF-P2-06).
 **Happy path:** tạo/sửa `Gift`: `name`, `imageUrl`, `starsRequired`, `stock` (`-1` vô hạn), `isActive`.
 **KHÔNG có `minLevel`** — trường này không tồn tại trong schema; mọi bản mô tả trước có nhắc
 `minLevel` là doc-drift, đã bỏ (product-decision 2026-07-11, xem TL20 §5).
-**Exceptions & edge:** archive thay xoá cứng; `stock` giảm khi `delivered`; `isActive=false` ẩn khỏi HS.
-**Rules/ADR:** TL20 §5. **API:** `gift.upsert/archive` (GĐ). **UI/URL:** `/engagement/rewards` (tab quản lý).
+**Exceptions & edge:** archive thay xoá cứng (`gift.upsert` với `isActive:false`); `stock` giảm khi `delivered`; `isActive=false` ẩn khỏi HS.
+**Rules/ADR:** TL20 §5. **API:** `gift.upsert/archive` (GĐ — archiving là `upsert` với `isActive:false`). **UI/URL:** `/admin/engagement/gifts` (riêng trang GiftsPage, không tab).
 **Traceability:** `GĐ → WF-P4-02 → "Cấu hình quà đổi sao" → gift.upsert → /engagement/rewards →
 apps/api/src/rewards/redeem-refund.test.ts → TL20§5`. **Lưu ý test:** WF-P4-01 và WF-P4-02 dùng
 **chung một file test** (`rewards/redeem-refund.test.ts` bao phủ cả redeem lẫn gift.upsert/archive) —
@@ -57,10 +57,10 @@ agent (nhắc). **Trigger:** lên lịch họp. **Precondition:** có HS/PH.
 **State machine (`ParentMeetingStatus`):** `scheduled` → `done` | `cancelled`.
 **Happy path:** lên lịch → nhắc PH (agent Communication — TL4) → `done` (ghi kết quả) hoặc `cancelled`.
 **Exceptions & edge:** trùng lịch; nhắc qua notif/email (outbox); đổi lịch.
-**Rules/ADR:** TL20 §6 · ParentMeetingStatus. **API:** `parentMeeting.schedule/complete/cancel`.
-**UI/URL:** `/parent-meetings` → `/:id`.
+**Rules/ADR:** TL20 §6 · ParentMeetingStatus. **API:** `parentMeeting.schedule/complete/cancel` (implemented).
+**UI/URL:** `/crm/post-sale-meeting` (EmptyState stub — API implemented, UI not yet wired).
 **Traceability:** `nhân viên → WF-P4-03 → "Lên lịch & nhắc họp PH" → parentMeeting.schedule →
-/parent-meetings → test/meeting/lifecycle.spec → TL20§6`.
+/crm/post-sale-meeting → test/meeting/lifecycle.spec → TL20§6`.
 **Acceptance:** vòng đời scheduled→done/cancelled; nhắc qua outbox; ghi kết quả khi done.
 
 ---
@@ -99,7 +99,7 @@ stateDiagram-v2
 **Exceptions & edge:** ưu tiên `high` đẩy lên đầu hàng đợi. **`setStudentLifecycle` chỉ giám đốc** (sale
 không tự đổi vòng đời HS — QĐ 0027). SLA theo priority.
 **Rules/ADR:** TL20 §7 · CaseStatus/Priority · QĐ 0027. **API:** `afterSale.create/advance/resolve`
-(sale) · `student.setLifecycle` (GĐ). **UI/URL:** `/crm/aftersale?queue=open`.
+(sale) · `student.setLifecycle` (GĐ — implemented). **UI/URL:** `/crm/aftersale` (EmptyState stub — API implemented, UI not yet wired).
 **Traceability:** `sale/GĐ → WF-P4-05 → "Chăm sóc sau bán" → afterSale.advance → /crm/aftersale →
 test/aftersale/case.spec → TL20§7, QĐ0027`.
 **Acceptance:** vòng đời open→closed; high ưu tiên; đổi lifecycle chỉ GĐ.

@@ -41,8 +41,10 @@ const INFRA_PROCEDURE_WHITELIST = new Set([
 // this map only annotates them with a reason so the tool distinguishes triaged gaps
 // from brand-new un-triaged orphans that need a decision.
 const DOCUMENTED_GAPS: Record<string, string> = {
-  'course.create': 'Tạo mới khoá học trong danh mục (/admin/courses) — chưa có WF TL25 riêng cho quản lý danh mục khoá học',
-  'parentAccount.updateEmail': 'Backfill email phụ huynh để nhận OTP-email — tiện ích admin, chưa có WF TL25',
+  // PO quyết 2026-07-18: khoá học hiện import data, nhưng cần MÀN HÌNH tạo/quản lý
+  // cho GĐĐT tự xử lý (không phụ thuộc IT chạy code) → tính năng tương lai cần xây;
+  // trang /admin/courses hiện chỉ có danh sách (course.list), thiếu form tạo.
+  'course.create': 'Tạo/quản lý khoá học cho GĐĐT — cần màn hình mới (hiện chỉ import data + trang danh sách; PO xác nhận là tính năng tương lai 2026-07-18)',
 };
 
 function getHeadCommit(): string {

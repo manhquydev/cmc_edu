@@ -103,9 +103,17 @@ export const flows: FlowEntry[] = [
     expected: {
       // TL25 đã sync 2026-07-18: xoá claim LMS /child/link-request (route không tồn tại);
       // hàng đợi xác nhận thật ở /admin/parents. listPendingLinks = hàng đợi duyệt (E1).
-      trpc: ['guardian.requestLink', 'guardian.approveLink', 'guardian.rejectLink', 'guardian.listPendingLinks'],
+      // parentAccount.updateEmail = nhân viên điền/sửa email PH trên cùng màn
+      // /admin/parents (điều kiện để PH đăng nhập LMS bằng OTP-email) — E1.
+      trpc: [
+        'guardian.requestLink',
+        'guardian.approveLink',
+        'guardian.rejectLink',
+        'guardian.listPendingLinks',
+        'parentAccount.updateEmail',
+      ],
       uiRoutes: ['/admin/parents'],
-      models: ['GuardianLinkRequest', 'Guardian'],
+      models: ['GuardianLinkRequest', 'Guardian', 'ParentAccount'],
     },
   },
   {

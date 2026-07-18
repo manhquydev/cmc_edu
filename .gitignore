@@ -127,6 +127,11 @@ scripts/bin/harness-symphony.exe
 .symphony/
 # Per-run artifacts (SUMMARY/RESULT/CONTRACT); only changesets are durable
 .harness/runs/
+# Epoch-transition writer lock (runtime state from harness-cli >= 0.1.17)
+.harness/epoch-transition/
+# Installer and manual pre-upgrade backups (never commit)
+.harness-backup/
+.harness-preupgrade-backup-*/
 
 # Test coverage artifacts
 coverage/

@@ -165,7 +165,7 @@ test.describe('lms login (UI safety net)', () => {
   // file is untouched legacy UI code) — out of scope to fix here; tracked as
   // fixme so the safety net accurately reflects "known broken" instead of
   // silently passing or blocking unrelated work.
-  test.fixme('correct default-password login redirects to mustChangePassword', async ({ page }) => {
+  test('correct default-password login redirects to mustChangePassword', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Số điện thoại phụ huynh').fill(parentPhone);
     await page.getByLabel('Mật khẩu', { exact: true }).fill('Cmc2026@');

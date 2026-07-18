@@ -9,23 +9,38 @@
 // already a runtime dependency of this package, so this runs directly under
 // Node via `node prisma/seed.mjs`.
 
+import { pathToFileURL } from 'node:url';
 import { PrismaClient } from '@prisma/client';
+import {
+  DEV_SEED_FACILITY_NAME,
+  DEV_SEED_FACILITY_CODE,
+  SYNTHETIC_SEED_FACILITY_NAME,
+  SYNTHETIC_SEED_FACILITY_CODE,
+} from './seed-constants.mjs';
 
-const DEV_SEED_FACILITY_NAME = 'CMC EDU — Cơ sở mặc định (dev seed)';
+// Idempotent find-or-create by name. `code` (system-wide unique, NOT NULL, no
+// DB default since migration 20260706170000) MUST be supplied on a direct
+// Prisma create — the earlier version omitted it and threw "Argument `code` is
+// missing", so this seed had been broken since that migration landed.
+async function upsertFacility(db, name, code) {
+  const existing = await db.facility.findFirst({ where: { name } });
+  if (existing) {
+    console.log(`Facility already exists: ${existing.id} (${name})`);
+    return existing.id;
+  }
+  const created = await db.facility.create({ data: { name, code } });
+  console.log(`Seeded facility: ${created.id} (${name})`);
+  return created.id;
+}
 
 async function main() {
   const db = new PrismaClient();
   try {
-    const existing = await db.facility.findFirst({ where: { name: DEV_SEED_FACILITY_NAME } });
-    let facilityId;
-    if (existing) {
-      console.log(`Seed facility already exists: ${existing.id}`);
-      facilityId = existing.id;
-    } else {
-      const created = await db.facility.create({ data: { name: DEV_SEED_FACILITY_NAME } });
-      console.log(`Seeded facility: ${created.id}`);
-      facilityId = created.id;
-    }
+    const facilityId = await upsertFacility(db, DEV_SEED_FACILITY_NAME, DEV_SEED_FACILITY_CODE);
+
+    // Sentinel facility: content-based proof this DB was built by our seed
+    // tooling (never prod). The synthetic-seed env verifier queries its code.
+    await upsertFacility(db, SYNTHETIC_SEED_FACILITY_NAME, SYNTHETIC_SEED_FACILITY_CODE);
 
     await seedCurriculumUnits(db);
     await seedShiftCatalog(db, facilityId);
@@ -109,7 +124,18 @@ async function seedShiftCatalog(db, facilityId) {
   console.log(`Seeded shift catalog (Kinh doanh + Giáo viên) for facility: ${facilityId}`);
 }
 
-main().catch((error) => {
-  console.error('Seed failed:', error);
-  process.exitCode = 1;
-});
+// Entrypoint guard: run the seed ONLY when this file is executed directly
+// (`node prisma/seed.mjs`), NEVER when imported for a constant/helper. Without
+// this, `import ... from 'seed.mjs'` would run a full seed against whatever
+// DATABASE_URL is set as a side effect of the import. Compare `.href` strings
+// (import.meta.url is a string; pathToFileURL(...) returns a URL — comparing to
+// the object would always be false and silently skip the seed). Guard against
+// `process.argv[1]` being undefined (e.g. `node -e`/`--eval`, where there is no
+// entry script) so importing this module can never throw.
+const entryScript = process.argv[1];
+if (entryScript && import.meta.url === pathToFileURL(entryScript).href) {
+  main().catch((error) => {
+    console.error('Seed failed:', error);
+    process.exitCode = 1;
+  });
+}

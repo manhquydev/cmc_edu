@@ -16,7 +16,7 @@
 //     omits them).
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import {
   Badge,
   Banner,
@@ -283,14 +283,24 @@ function DevHeaderWriter() {
 
 export default function LoginPage() {
   const { session } = useSession();
-  const navigate = useNavigate();
   const [tab, setTab] = useState<'student' | 'parent'>('student');
 
-  // Already logged in — redirect away.
+  // Already logged in — redirect away. A `<Navigate>` element (NOT a
+  // navigate() call in the render body) is the correct React Router pattern:
+  // the old render-body navigate() was a side-effect-in-render that, on the
+  // re-render triggered by setSession right after a student login, raced with
+  // and CLOBBERED the login handler's own navigate() — sending a
+  // mustChangePassword student to /student/home instead of the forced
+  // change-password screen (P1-07). The dest must therefore also honor
+  // mustChangePassword so this guard agrees with the login handler.
   if (session) {
-    const dest = session.kind === 'parent' ? '/parent/home' : '/student/home';
-    navigate(dest, { replace: true });
-    return null;
+    const dest =
+      session.kind === 'parent'
+        ? '/parent/home'
+        : session.mustChangePassword
+          ? '/student/change-password'
+          : '/student/home';
+    return <Navigate to={dest} replace />;
   }
 
   return (

@@ -12,7 +12,7 @@
 //
 // Star balance comes from gift.listForStudent (combined endpoint: gifts + balance).
 
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Badge, Banner, Button, Heading, HStack, Spinner, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
@@ -90,10 +90,13 @@ export default function StudentHomePage() {
   const { session, logout } = useSession();
   const navigate = useNavigate();
 
-  // mustChangePassword gate — StudentLayout redirects, but guard here too.
+  // mustChangePassword gate. This is the ONLY effective mCP gate for
+  // /student/home — the StudentOnly route guard (kind-guard.tsx) checks only
+  // session.kind, not mustChangePassword. `<Navigate>` (not a render-body
+  // navigate() call) — same side-effect-in-render hygiene as the P1-07 fix on
+  // the login/change-password pages.
   if (session?.mustChangePassword) {
-    navigate('/student/change-password', { replace: true });
-    return null;
+    return <Navigate to="/student/change-password" replace />;
   }
 
   return (

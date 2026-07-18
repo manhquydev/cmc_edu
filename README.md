@@ -69,6 +69,13 @@ pnpm lint                        # lint apps/admin + apps/lms
 pnpm acceptance:report           # regenerable acceptance ledger (HTML; gitignored)
 ```
 
+Throwaway DB for UI e2e / evidence capture (spins its OWN dedicated Postgres
+container, never the local-sim `cmc_prod` stack):
+
+```bash
+SYNTH_SEED_ALLOW=1 scripts/synthetic-seed-env.sh [--fresh]   # print APP_DATABASE_URL/DATABASE_URL to export
+```
+
 ### Database Setup (Local Development)
 
 ```bash

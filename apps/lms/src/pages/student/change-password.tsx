@@ -6,7 +6,7 @@
 // password change procedure. This screen informs the student to ask their
 // parent to set a new password, then logs out.
 
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Banner, Button, Heading, Stack, Text } from '@cmc/ui';
 import { useSession } from '../../lib/session-context.js';
 
@@ -19,14 +19,14 @@ export default function ChangePasswordPage() {
     navigate('/login', { replace: true });
   }
 
-  // If somehow reached without mustChangePassword, allow proceeding.
-  // KNOWN PRE-EXISTING BUG (tracked separately as test.fixme): a session-context
-  // timing issue can cause this guard to bounce a genuine mustChangePassword=true
-  // session to /student/home. Left byte-for-byte identical across this UI
-  // migration — do not "fix" this logic here.
-  if (session && !session.mustChangePassword) {
-    navigate('/student/home', { replace: true });
-    return null;
+  // If a student who does NOT need a password change somehow lands here, send
+  // them home. Guard on `=== false` (explicit), NOT `!mustChangePassword`: the
+  // field is optional (StoredLmsSession), so `!undefined` would be true and
+  // could bounce a session that simply lacks the flag. Use `<Navigate>` rather
+  // than a navigate() call in the render body (side-effect-in-render is what
+  // caused the P1-07 clobber on the login page).
+  if (session?.mustChangePassword === false) {
+    return <Navigate to="/student/home" replace />;
   }
 
   return (

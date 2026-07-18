@@ -19,6 +19,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import type { FullConfig } from '@playwright/test';
+import { assertNotProdDatabase } from './assert-not-prod.js';
 import { cleanupFacility, disconnectDb } from './db.js';
 import { findFreePort } from './find-free-port.js';
 import { mintStaffCookie } from './session-injection.js';
@@ -40,30 +41,10 @@ const HEALTH_POLL_INTERVAL_MS = 200;
 // developer's already-running local stack on 3000/3999).
 const UI_MODE_API_PORT = 3999;
 
-/** Real pilot DB name (docs/runbook-deploy.md) — the local-sim stack's
- * `cmc_prod` seeds a real super_admin. e2e must never run destructive
- * facility.create/cleanupFacility writes against it. Fail-closed: any parse
- * failure or a match on this name aborts before the server is even spawned
- * (gap-closure 260710-0005 Phase 3, red-team F6). This guard is the single
- * shared checkpoint — apps/api/src/test/db.ts integration tests rely on the
- * same env-var convention but don't share this file. */
-const FORBIDDEN_DATABASE_NAME = 'cmc_prod';
-
-function assertNotProdDatabase(databaseUrl: string): void {
-  let dbName: string;
-  try {
-    dbName = new URL(databaseUrl).pathname.replace(/^\//, '');
-  } catch {
-    throw new Error(`APP_DATABASE_URL is not a valid URL — refusing to run e2e (fail-closed): ${databaseUrl}`);
-  }
-  if (dbName === FORBIDDEN_DATABASE_NAME) {
-    throw new Error(
-      `@cmc/e2e refuses to run against database "${FORBIDDEN_DATABASE_NAME}" — this is the real pilot ` +
-        `database, not a throwaway. Point APP_DATABASE_URL/DATABASE_URL at a throwaway DB (e.g. ` +
-        `"cmc_staging") before running \`pnpm --filter @cmc/e2e test\`.`,
-    );
-  }
-}
+// The prod-DB guard (assertNotProdDatabase) lives in ./assert-not-prod.ts so
+// the synthetic-seed env script shares the exact same fail-closed check — a
+// name check duplicated in two files would drift (gap-closure 260710-0005
+// Phase 3, red-team F6; extraction plan 260718-0519 R2-8).
 
 function requireEnv(name: string): string {
   const value = process.env[name];

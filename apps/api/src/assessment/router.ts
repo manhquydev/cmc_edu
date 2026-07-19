@@ -14,8 +14,11 @@
 // `getApprovedChildren` gate from ../guardian/approved-children.ts is the
 // ONLY approved child-data boundary — never re-implemented here.
 
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { withFacility } from '@cmc/db';
+import type { Prisma } from '@cmc/db';
 import { createLLMClient } from '@cmc/llm';
 import { ictMonthBounds } from '@cmc/domain-time';
 import { badRequest, forbidden, notFound } from '../errors.js';
@@ -25,6 +28,16 @@ import {
   getApprovedChildren,
 } from '../guardian/approved-children.js';
 import { assertTeacherOwnsSessionClass } from '../attendance/assert-teacher-owns-class.js';
+import { sanitizeAuditData } from '../audit/audit-helpers.js';
+
+/** T8 audit trail: sha256 of the LLM's draft content — tamper-evident
+ * "kết quả" (TL13:114) without storing the raw text (minimization docs/08 §7,
+ * PO-approved deviation, validation #2). No shared hex-hash util exists in
+ * this repo (DRY check, R2) — local helper, mirrors the pattern used for
+ * one-off hashing elsewhere in this codebase. */
+function sha256hex(value: string): string {
+  return createHash('sha256').update(value, 'utf8').digest('hex');
+}
 
 // Singleton LLM client — created once at module load time. The stub is used
 // when LLM_API_KEY is not set (deterministic, offline, no network calls).
@@ -202,24 +215,71 @@ export const assessmentRouter = router({
       const prompt = `Nhận xét học sinh — ${contextParts.join(', ')}`;
 
       // The stub logs the prompt; tests assert fullName does NOT appear in it.
-      const draftContent = await llmClient.draftAssessment(prompt);
+      // Guard errors (LLM_STUB_PROD_FORBIDDEN) throw here, BEFORE any egress —
+      // correctly no audit row is written for "nothing was sent".
+      let draftContent: string;
+      try {
+        draftContent = await llmClient.draftAssessment(prompt);
+      } catch (err) {
+        if (err instanceof Error && err.message.startsWith('LLM_STUB_PROD_FORBIDDEN')) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'Tính năng AI chưa được cấu hình — liên hệ quản trị viên.',
+          });
+        }
+        throw err;
+      }
 
-      return withFacility(ctx.db, facilityId, async (tx) => {
-        await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, input.classSessionId ?? null);
+      // LLM egress already happened — a T8 audit row MUST exist regardless of
+      // whether the mutation below succeeds (docs/13-ai-agent-llm-integration.md:114,
+      // :80). Written in `finally` so it survives a tx failure; correlated to
+      // the created row via `assessmentId`+`outcome` (R2 FMA-2) rather than
+      // relying on timing. Best-effort — mirrors trpc.ts:165-170: an audit
+      // write failure must never break the draft the caller asked for.
+      let createdAssessment: AssessmentDto | undefined;
+      try {
+        createdAssessment = await withFacility(ctx.db, facilityId, async (tx) => {
+          await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, input.classSessionId ?? null);
 
-        const assessment = await tx.qualitativeAssessment.create({
-          data: {
-            facilityId,
-            studentId: input.studentId,
-            classSessionId: input.classSessionId ?? null,
-            period: input.period ?? null,
-            content: draftContent,
-            status: 'draft',
-            draftedBy: 'ai',
-          },
+          const assessment = await tx.qualitativeAssessment.create({
+            data: {
+              facilityId,
+              studentId: input.studentId,
+              classSessionId: input.classSessionId ?? null,
+              period: input.period ?? null,
+              content: draftContent,
+              status: 'draft',
+              draftedBy: 'ai',
+            },
+          });
+          return toAssessmentDto(assessment);
         });
-        return toAssessmentDto(assessment);
-      });
+        return createdAssessment;
+      } finally {
+        try {
+          await ctx.db.auditLog.create({
+            data: {
+              actor: ctx.subject!.userId,
+              action: 'assessment.draftComment.llm',
+              // Precedent for manual audit sites: approved-children.ts:90.
+              entity: 'Student',
+              entityId: input.studentId,
+              data: sanitizeAuditData({
+                studentId: input.studentId,
+                classSessionId: input.classSessionId ?? null,
+                model: llmClient.model,
+                promptVersion: llmClient.promptVersion,
+                resultHash: sha256hex(draftContent),
+                resultLength: draftContent.length,
+                assessmentId: createdAssessment?.id ?? null,
+                outcome: createdAssessment ? 'created' : 'failed',
+              }) as Prisma.InputJsonValue,
+            },
+          });
+        } catch (err) {
+          console.error('draftComment llm-egress audit write failed', err);
+        }
+      }
     }),
 
   // -------------------------------------------------------------------------

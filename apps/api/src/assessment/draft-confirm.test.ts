@@ -6,7 +6,7 @@
 //   - PII (student fullName) must NOT appear in the LLM prompt.
 //   - Parent without an approved Guardian link → FORBIDDEN on all LMS reads.
 
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { appRouter } from '../router.js';
 import {
@@ -23,6 +23,10 @@ import {
   testDb,
   testDbBypass,
 } from '../test/db.js';
+
+function sha256hex(value: string): string {
+  return createHash('sha256').update(value, 'utf8').digest('hex');
+}
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
 
@@ -126,6 +130,118 @@ describe('assessment (T3 US-018)', () => {
     expect(promptLine).not.toContain('Nguyễn Văn An');
     // studentId (non-PII token) SHOULD be present so the audit trail is useful.
     expect(promptLine).toContain(enrollment.studentId);
+  });
+
+  // -------------------------------------------------------------------------
+  // draftComment — T8 LLM-egress audit row (assessment.draftComment.llm)
+  // -------------------------------------------------------------------------
+
+  it('draftComment success: writes 1 .llm egress row (assessmentId+outcome:created) + 1 middleware row', async () => {
+    const draft = await teacher.assessment.draftComment({
+      studentId: enrollment.studentId,
+      period: '2026-08',
+    });
+
+    const llmRows = await testDb().auditLog.findMany({
+      where: { action: 'assessment.draftComment.llm', entityId: enrollment.studentId },
+    });
+    expect(llmRows).toHaveLength(1);
+    const llmData = llmRows[0]!.data as Record<string, unknown>;
+    expect(llmData['studentId']).toBe(enrollment.studentId);
+    expect(llmData['model']).toBe('stub');
+    expect(llmData['promptVersion']).toBe('v1');
+    expect(llmData['resultLength']).toBe(draft.content.length);
+    // Assert the VALUE, not just presence (R2 cross-phase gate: phase 2's
+    // denylist must never strip this field via substring match on "hash").
+    expect(llmData['resultHash']).toBe(sha256hex(draft.content));
+    expect(llmData['assessmentId']).toBe(draft.id);
+    expect(llmData['outcome']).toBe('created');
+
+    // deriveEntityId (audit-helpers.ts) prefers an *Id-suffixed input field
+    // over the resolver's own result — draftCommentInput's `studentId` wins,
+    // so the middleware row's entityId is the student, not the created
+    // assessment (2-row ngữ nghĩa: egress row keys off assessmentId in its
+    // `data`; middleware row keys off entityId=studentId — see phase-1 Risk
+    // Assessment note on the two rows living on different index branches).
+    const middlewareRows = await testDb().auditLog.findMany({
+      where: { action: 'assessment.draftComment', entityId: enrollment.studentId },
+    });
+    expect(middlewareRows).toHaveLength(1);
+  });
+
+  it('draftComment: .llm row data contains no raw prompt or raw draft content', async () => {
+    const draft = await teacher.assessment.draftComment({
+      studentId: enrollment.studentId,
+      period: '2026-08',
+    });
+
+    const llmRows = await testDb().auditLog.findMany({
+      where: { action: 'assessment.draftComment.llm', entityId: enrollment.studentId },
+    });
+    const llmData = llmRows[0]!.data as Record<string, unknown>;
+    expect(llmData).not.toHaveProperty('prompt');
+    expect(JSON.stringify(llmData)).not.toContain(draft.content);
+  });
+
+  it('draftComment: mutation fails AFTER LLM egress (teacher does not own session) — .llm row still exists with outcome:failed, no middleware row', async () => {
+    const otherTeacherUserId = `teacher-assess-forbidden-${randomUUID().slice(0, 8)}`;
+    const otherTeacher = appRouter.createCaller(
+      buildStaffContext({ facilityId: facility.id, userId: otherTeacherUserId, roles: ['giao_vien'] }),
+    );
+    await seedAppUser({ facilityId: facility.id, userId: otherTeacherUserId });
+    const session = await seedClassSession({ facilityId: facility.id, classBatchId: classBatch.id });
+
+    await expect(
+      otherTeacher.assessment.draftComment({
+        studentId: enrollment.studentId,
+        classSessionId: session.id,
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    const llmRows = await testDb().auditLog.findMany({
+      where: { action: 'assessment.draftComment.llm', entityId: enrollment.studentId },
+    });
+    expect(llmRows).toHaveLength(1);
+    const llmData = llmRows[0]!.data as Record<string, unknown>;
+    expect(llmData['outcome']).toBe('failed');
+    expect(llmData['assessmentId']).toBeNull();
+
+    const middlewareRows = await testDb().auditLog.findMany({
+      where: { action: 'assessment.draftComment', entityId: enrollment.studentId },
+    });
+    expect(middlewareRows).toHaveLength(0);
+  });
+
+  it('draftComment: audit-write failure does not break the draft (best-effort)', async () => {
+    const spy = vi
+      .spyOn(testDb().auditLog, 'create')
+      .mockRejectedValueOnce(new Error('audit db unavailable'));
+    try {
+      const draft = await teacher.assessment.draftComment({
+        studentId: enrollment.studentId,
+        period: '2026-08',
+      });
+      expect(draft.status).toBe('draft');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('draftComment: LLM_STUB_PROD_FORBIDDEN guard maps to TRPCError PRECONDITION_FAILED, no .llm row written', async () => {
+    const originalNodeEnv = process.env['NODE_ENV'];
+    process.env['NODE_ENV'] = 'production';
+    try {
+      await expect(
+        teacher.assessment.draftComment({ studentId: enrollment.studentId, period: '2026-08' }),
+      ).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
+    } finally {
+      process.env['NODE_ENV'] = originalNodeEnv;
+    }
+
+    const llmRows = await testDb().auditLog.findMany({
+      where: { action: 'assessment.draftComment.llm', entityId: enrollment.studentId },
+    });
+    expect(llmRows).toHaveLength(0);
   });
 
   it('draftComment: rejects input with neither classSessionId nor period', async () => {

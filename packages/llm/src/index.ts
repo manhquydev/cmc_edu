@@ -12,6 +12,12 @@
 import { assertNoPii } from './pii-guard.js';
 
 export interface LLMClient {
+  /** Model identifier actually used for `draftAssessment` calls — resolved
+   * once at client-creation time so the audit trail (T8) can never drift
+   * from what was actually sent. */
+  readonly model: string;
+  /** System-prompt version this client was built with (see PROMPT_VERSION). */
+  readonly promptVersion: string;
   /**
    * Returns an AI-drafted assessment comment string for the given prompt.
    * The real implementation would call an external LLM API; the stub (used
@@ -20,6 +26,12 @@ export interface LLMClient {
    */
   draftAssessment(prompt: string): Promise<string>;
 }
+
+// T8 audit trail (docs/13-ai-agent-llm-integration.md:114): bump this
+// whenever SYSTEM_PROMPT changes. `index.test.ts` hash-locks SYSTEM_PROMPT's
+// sha256 — an edit to the prompt without also updating that hash (and this
+// version) turns the hash-lock test red.
+export const PROMPT_VERSION = 'v1';
 
 /**
  * Creates an LLMClient.
@@ -34,7 +46,8 @@ const DEFAULT_MODEL = 'ag/gemini-3.5-flash-low';
 
 // System instruction: keep output a short Vietnamese draft comment. The draft
 // is never auto-published — staff review + confirm downstream (AI draft-only).
-const SYSTEM_PROMPT =
+// Exported so index.test.ts can hash-lock it against PROMPT_VERSION.
+export const SYSTEM_PROMPT =
   'Bạn soạn NHÁP nhận xét buổi học bằng tiếng Việt, ngắn gọn, khách quan, ' +
   'không suy diễn thông tin ngoài dữ liệu được cung cấp. Trả về đúng nội dung nhận xét.';
 
@@ -47,7 +60,18 @@ export function createLLMClient(opts?: {
 
   if (!apiKey) {
     return {
+      model: 'stub',
+      promptVersion: PROMPT_VERSION,
       async draftAssessment(prompt: string): Promise<string> {
+        // Lazy call-time guard (R2 red-team — throwing here at factory time
+        // would crash the whole API on boot since router.ts calls
+        // createLLMClient() at module load; this only degrades the
+        // assessment feature). Pattern: worker/relay-email-outbox.ts:34 +
+        // worker/index.ts:85-92 (NODE_ENV checked at the call site, not the
+        // constructor).
+        if (process.env['NODE_ENV'] === 'production') {
+          throw new Error('LLM_STUB_PROD_FORBIDDEN: no LLM_API_KEY configured in production');
+        }
         assertNoPii(prompt);
         console.log('[LLMClient stub] draftAssessment prompt:', prompt);
         return 'AI nhận xét nháp: [tóm tắt buổi học]';
@@ -62,6 +86,8 @@ export function createLLMClient(opts?: {
   const model = opts?.model ?? process.env['LLM_MODEL'] ?? DEFAULT_MODEL;
 
   return {
+    model,
+    promptVersion: PROMPT_VERSION,
     async draftAssessment(prompt: string): Promise<string> {
       assertNoPii(prompt);
       console.log('[LLMClient real] draftAssessment prompt length:', prompt.length);

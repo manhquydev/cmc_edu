@@ -186,7 +186,7 @@ Minimal (P1) — mostly handles phone normalization.
 Prisma schema + helper functions.
 
 **Key Exports:**
-- `PrismaClient` — configured with RLS + JSON logging  
+- `PrismaClient` — configured with RLS  
 - `withFacility(db, facilityId, callback)` — wraps transaction + RLS context  
 - RLS policy templates (shared across migrations)
 

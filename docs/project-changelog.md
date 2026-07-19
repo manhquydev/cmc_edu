@@ -6,6 +6,42 @@
 
 ---
 
+## [2026-07-19] Log system remediation Hướng A+ — T8 LLM egress audit, PII denylist sweep, docs sync, Docker log rotation
+
+**Context:** `plans/260719-1145-log-system-remediation-a-plus/` (brainstorm scope A+, 2 red-team rounds,
+15+8 findings applied, 0 Critical/High remaining). 6 cheap-to-fix gaps closed after log-system audit
+confirmed the AuditLog core (REVOKE-immutability, middleware auto-audit, 12mo retention) already
+meets/exceeds design.
+
+- **T8 LLM-egress audit (threat-model T8, docs/13:80/114):** `assessment.draftComment`'s single LLM
+  call site now writes exactly 1 `assessment.draftComment.llm` AuditLog row per attempt — `model`,
+  `promptVersion`, `resultHash`+`resultLength` (no raw prompt/result — minimization docs/08 §7),
+  correlated via `assessmentId`+`outcome` (`created`/`failed`). Written in a `finally` around the tx so
+  it survives a post-LLM mutation failure; best-effort (audit-write failure never breaks the draft).
+  `@cmc/llm`: `PROMPT_VERSION` + hash-lock test on `SYSTEM_PROMPT`; stub LLM now throws
+  `LLM_STUB_PROD_FORBIDDEN` lazily at call-time in production (never at client-construction, which would
+  crash API boot) — mapped to `TRPCError PRECONDITION_FAILED` at the call site.
+- **Sensitive-field sweep (proactive, anti-recurrence of the OTP-denylist incident):** 2-pass sweep of
+  every tRPC mutation input schema (30 router files) against the audit denylist — 0 new sensitive fields
+  found; report at `plans/reports/pii-sweep-260719-audit-denylist-input-schema-report.md`.
+  `sanitizeAuditData` made recursive (objects + arrays) — previously shallow, so a sensitive field
+  nested inside an array input (e.g. `shift.submit`'s `entries`) would have passed through unstripped.
+- **Docs sync:** `project-changelog.md`'s 2026-07-06 entry corrected (`AuditLog` never had RLS — wave-1
+  migration actually covered Contact/Opportunity/Receipt/RefundRecord/Student/Enrollment);
+  `system-architecture.md` dropped an inaccurate "+ JSON logging" claim; doc 14 now lists
+  `audit.list` = super_admin-only; `HARNESS_BACKLOG.md` gained 2 items (MCP tool-call audit design-in,
+  log-shipping-before-go-live).
+- **Docker log rotation:** `docker-compose.prod.yml` — every service (including the `minio` profile-gated
+  one) now has `json-file` logging capped at `max-size: 10m, max-file: 3` (~30MB/service) via a shared
+  `x-logging` anchor, closing the unbounded-disk-fill risk from an error-looping container. Config-only —
+  not deployed (project has not gone live).
+
+**Gates:** `pnpm typecheck` 26/26 · `pnpm --filter @cmc/llm test` 15/15 · `pnpm --filter @cmc/api test`
+897/897 · `docker compose -f docker-compose.prod.yml config --quiet` pass · `gitnexus_detect_changes`
+scope matched exactly the 4 phases' declared files (11 changed, 0 stray diffs, LOW risk).
+
+---
+
 ## [2026-07-12] HR remediation (shift/KPI/payroll) phases 1-6 — salary-tier model, KPI auto-score lifecycle, session-done engine, e2e verify loop
 
 **Context:** `plans/260711-1752-hr-kpi-shift-attendance-remediation/` (docs/22 ADR 0044, docs/20 §2-4b).
@@ -566,6 +602,15 @@ UAT KB1 step 7 can be signed off.
 - 13 core tables + 4 support tables (Prisma schema `schema.prisma`)  
 - 5 migrations applied (initial + 4 remediation waves)  
 - RLS policies on 6 tables (Opportunity, Student, Enrollment, Receipt, RefundRecord, AuditLog)  
+  > **Correction (2026-07-19):** the table list above is wrong — `AuditLog` never had RLS.
+  > The wave-1 migration (`packages/db/prisma/migrations/20260706054322_p1_remediation_wave1_schema_rls/migration.sql:105-133`)
+  > actually enabled RLS on **Contact, Opportunity, Receipt, RefundRecord, Student, Enrollment**
+  > (Contact was omitted above; AuditLog was wrongly included). `AuditLog` is a global
+  > identity/audit table, deliberately excluded from RLS (same migration, lines 96-97) — its
+  > immutability comes from a REVOKE UPDATE/DELETE grant instead
+  > (`...20260706150000_p1_remediation_wavea_privilege_hardening/migration.sql:19`). Scope of
+  > this correction is the wave-1 migration only, not a recount of all RLS tables today
+  > (`@cmc/db`'s `system-architecture.md` lists the current full set).
 - Append-only enforcement on ledger tables (RefundRecord, AuditLog)
 
 **Domain Packages:**

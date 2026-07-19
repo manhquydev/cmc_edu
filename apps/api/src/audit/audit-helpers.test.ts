@@ -113,4 +113,50 @@ describe('sanitizeAuditData', () => {
       employeeCode: 'CMC001',
     });
   });
+
+  // Phase 2 (sensitive-field schema sweep, red-team SA-4): sanitize was
+  // shallow — a sensitive field nested inside an array/object input passed
+  // through untouched. shift.submit's real `entries: z.array(z.object(...))`
+  // shape (shift/router.ts:64-77) is the motivating example.
+  describe('recursion (nested objects/arrays)', () => {
+    it('strips a sensitive field nested inside a plain object', () => {
+      expect(sanitizeAuditData({ studentId: 's1', meta: { token: 'tok', note: 'ok' } })).toEqual({
+        studentId: 's1',
+        meta: { note: 'ok' },
+      });
+    });
+
+    it('strips a sensitive field nested inside an array of objects (shift.submit shape)', () => {
+      const input = {
+        shiftGroupId: 'g1',
+        entries: [
+          { date: '2026-08-01', shiftTemplateId: 't1', secret: 'x' },
+          { date: '2026-08-02', shiftTemplateId: 't2' },
+        ],
+      };
+      expect(sanitizeAuditData(input)).toEqual({
+        shiftGroupId: 'g1',
+        entries: [
+          { date: '2026-08-01', shiftTemplateId: 't1' },
+          { date: '2026-08-02', shiftTemplateId: 't2' },
+        ],
+      });
+    });
+
+    it('negative: a nested legitimate field (e.g. resultHash) is NOT stripped by recursion', () => {
+      const input = { assessmentId: 'a1', meta: { resultHash: 'abc123', resultLength: 42 } };
+      expect(sanitizeAuditData(input)).toEqual(input);
+    });
+
+    // Code review finding: `Object.entries(new Date())` is `[]` (Date has no
+    // enumerable own properties) — without a Date guard the generic object
+    // branch would silently rewrite a nested Date into `{}`.
+    it('preserves a nested Date instance instead of collapsing it to {}', () => {
+      const when = new Date('2026-01-01T00:00:00.000Z');
+      expect(sanitizeAuditData({ startDate: when, name: 'x' })).toEqual({
+        startDate: when,
+        name: 'x',
+      });
+    });
+  });
 });

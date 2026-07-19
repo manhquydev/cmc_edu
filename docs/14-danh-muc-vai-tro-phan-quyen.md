@@ -71,6 +71,7 @@ Plan `erp-rebuild-f0-f4` từng nhắc `quan_ly` + `head_teacher`, nhưng enum R
 | `guardian.listPendingLinks` (hàng đợi duyệt link) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `student.lookup` (staff-only) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `facility.create` / `facility.list` | ✓ | | | | |
+| `audit.list` (xem AuditLog) | ✓ | | | | |
 | `enrollment.enroll` | ✓ | ✓ | ✓ | ✓ | |
 | `class.create` / `schedule.generate` | ✓ | | ✓ | | |
 | `attendance.mark` | ✓ | | ✓ | | ✓ |
@@ -88,6 +89,12 @@ Plan `erp-rebuild-f0-f4` từng nhắc `quan_ly` + `head_teacher`, nhưng enum R
 
 > Bảng là *đại diện* (5 active roles, ADR-D amendment); nguồn đầy đủ = registry `@cmc/auth`.
 > Role gác (ke_toan/cskh/ctv_mkt/hr) có 0 quyền — không hiển thị.
+> **`audit.list` = super_admin-only, chủ ý** (registry `packages/auth/src/index.ts:77` dùng
+> empty-role-array `[]` — cùng pattern `facility.create`/`facility.list`/`facility.manage`,
+> chỉ bypass `super_admin` trong `can()` mới qua được). Nguồn quyết định: journal
+> `docs/journals/260716-super-admin-completion-audit-middleware.md` + PO xác nhận 2026-07-19
+> (brainstorm Hướng A+) — ghi ở đây để phiên sau không "sửa nhầm" mở quyền đọc AuditLog cho
+> vai trò khác.
 > UI/route/agent gate phải gọi `can(roles, module, action)` — không hardcode.
 > **LMS surface** (`submission.listForChild`, `attendance.listForChild`, `assessment.listForChild`,
 > `sessionEvidence.listForChild`…) KHÔNG nằm trong bảng này — đó là gate `requireLmsParent`/

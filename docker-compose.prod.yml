@@ -13,6 +13,17 @@
 
 name: cmcv2-prod
 
+# Log rotation (log-system-remediation-a-plus phase 4): Docker's default
+# json-file driver has no size cap — an error-looping container can fill the
+# VPS disk. ~30MB/service trần is enough for post-incident investigation
+# without log shipping infra (see docs/HARNESS_BACKLOG.md for the
+# log-shipping-before-go-live follow-up this trần does NOT replace).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 networks:
   cmcv2-prod-net:
     driver: bridge
@@ -42,6 +53,7 @@ services:
         condition: service_started
     networks:
       - cmcv2-prod-net
+    logging: *default-logging
 
   # ── tRPC API ──────────────────────────────────────────────────────────────────
   api:
@@ -66,6 +78,7 @@ services:
       timeout: 5s
       start_period: 30s
       retries: 3
+    logging: *default-logging
 
   # ── Background worker ─────────────────────────────────────────────────────────
   worker:
@@ -88,6 +101,7 @@ services:
       timeout: 5s
       start_period: 60s
       retries: 3
+    logging: *default-logging
 
   # ── LMS parent portal (SPA) ───────────────────────────────────────────────────
   lms:
@@ -103,6 +117,7 @@ services:
     restart: unless-stopped
     networks:
       - cmcv2-prod-net
+    logging: *default-logging
 
   # ── Admin ERP (SPA) ───────────────────────────────────────────────────────────
   admin:
@@ -119,6 +134,7 @@ services:
     restart: unless-stopped
     networks:
       - cmcv2-prod-net
+    logging: *default-logging
 
   # ── PostgreSQL ────────────────────────────────────────────────────────────────
   postgres:
@@ -137,6 +153,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
 
   # ── MinIO (optional — only when S3_ENDPOINT is not an external provider) ──────
   # Comment out this service when using Cloudflare R2, AWS S3, or any external
@@ -159,3 +176,6 @@ services:
       retries: 3
     profiles:
       - minio   # opt-in: docker compose --profile minio up
+    # Profile-gated ≠ exempt from rotation — profile only controls whether the
+    # service runs, not whether a running instance needs a log cap (AD-4).
+    logging: *default-logging

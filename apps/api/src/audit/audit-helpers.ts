@@ -66,16 +66,33 @@ function isSensitiveKey(key: string): boolean {
   return SENSITIVE_KEY_RE.test(key) || SENSITIVE_EXACT_KEYS.has(key.toLowerCase());
 }
 
+/** Recursion for `sanitizeAuditData` — strips sensitive keys at every level,
+ * not just the top one. Pre-recursion, a sensitive field nested inside an
+ * array/object input (e.g. `shift.submit`'s `entries: z.array(z.object(...))`,
+ * shift/router.ts:64-77) passed through untouched. */
+function sanitizeValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizeValue);
+  // `Date` has no enumerable own properties — the generic object branch below
+  // would silently rewrite it to `{}`. Not reachable from the tRPC middleware
+  // (getRawInput() is pre-parse JSON, no Date instances) but a manual audit
+  // call site passing a Prisma row through here directly would hit this.
+  if (value instanceof Date) return value;
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, v] of Object.entries(value as Record<string, unknown>)) {
+      if (isSensitiveKey(key)) continue;
+      out[key] = sanitizeValue(v);
+    }
+    return out;
+  }
+  return value;
+}
+
 /** Denylists password/OTP/token/secret-named fields before an input is
  * persisted into `AuditLog.data` — never store credentials in the audit
  * trail, even best-effort ones. Non-object input (no-arg mutations) yields
  * `undefined` rather than an empty object, matching Prisma's `Json?`. */
 export function sanitizeAuditData(input: unknown): Record<string, unknown> | undefined {
   if (!input || typeof input !== 'object') return undefined;
-  const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
-    if (isSensitiveKey(key)) continue;
-    out[key] = value;
-  }
-  return out;
+  return sanitizeValue(input) as Record<string, unknown>;
 }

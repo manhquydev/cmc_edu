@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { withFacility, type Prisma } from '@cmc/db';
 import { badRequest, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
+import { isOpportunityLost } from './opportunity-lost.js';
 
 /** Full OpportunityStage catalog (docs/10). */
 const STAGE_VALUES = [
@@ -152,10 +153,35 @@ export const crmRouter = router({
       const { facilityId } = scoped(ctx);
 
       return withFacility(ctx.db, facilityId, async (tx) => {
-        const opportunity = await findOpportunityOrThrow(tx, facilityId, input.opportunityId);
+        // Lock the opportunity row FOR UPDATE before reading its stage: a
+        // concurrent `finance.receiptApprove` also locks it (finance/router.ts)
+        // before advancing to O5, so the two serialize — without this lock,
+        // markLost could read a pre-O5 snapshot and stamp lostReason+closedAt
+        // onto a row that approve just enrolled, producing a corrupt
+        // "O5 + lostReason" record.
+        const lockedRows = await tx.$queryRaw<{ id: string; stage: string; closedAt: Date | null }[]>`
+          SELECT "id", "stage", "closedAt" FROM "Opportunity"
+          WHERE "id" = ${input.opportunityId} AND "facilityId" = ${facilityId}
+          FOR UPDATE
+        `;
+        const opportunity = lockedRows[0];
+        // Out-of-facility ids look identical to non-existent ones (RLS — TL11 §2).
+        if (!opportunity) {
+          throw notFound('Opportunity not found.');
+        }
 
         if (input.reopen) {
-          if (!opportunity.closedAt) {
+          // Only a genuinely LOST opportunity is reopenable. A won (O5) opp
+          // also carries a closedAt (the enrollment instant), so the naive
+          // `!closedAt` check would let `reopen` silently revert an enrolled
+          // opp to O2 while the paying student stays provisioned — the same
+          // win/loss corruption the mark-lost O5 reject below prevents, from
+          // the other direction. Undoing an enrollment must go through
+          // receiptCancel (which reverts O5 -> O4), never a manual reopen.
+          if (opportunity.stage === 'O5_ENROLLED') {
+            throw badRequest('Đã ghi danh — dùng hủy phiếu thu (receiptCancel) để hoàn tác ghi danh, không mở lại cơ hội.');
+          }
+          if (!isOpportunityLost(opportunity)) {
             throw badRequest('Opportunity is not marked lost; nothing to reopen.');
           }
           return tx.opportunity.update({
@@ -164,13 +190,28 @@ export const crmRouter = router({
           });
         }
 
+        // A won (enrolled) opportunity cannot be marked lost — the sanctioned
+        // way to undo an enrollment is `finance.receiptCancel`, which reverts
+        // O5 -> O4 automatically. Hard reject (not a silent no-op) so an
+        // operator mistake surfaces instead of corrupting the win/loss record.
+        if (opportunity.stage === 'O5_ENROLLED') {
+          throw badRequest('Đã ghi danh — dùng hủy phiếu thu (receiptCancel) thay vì đánh dấu mất.');
+        }
+
         if (!input.lostReason) {
           throw badRequest('lostReason is required to mark an opportunity lost.');
         }
 
         return tx.opportunity.update({
           where: { id: opportunity.id },
-          data: { lostReason: input.lostReason, closedAt: new Date() },
+          data: {
+            lostReason: input.lostReason,
+            // Preserve the ORIGINAL lost instant when re-marking an
+            // already-lost opp (e.g. correcting the reason) — only stamp a
+            // fresh timestamp on the first close, so reporting sees a stable
+            // lost date.
+            closedAt: opportunity.closedAt ?? new Date(),
+          },
         });
       });
     }),

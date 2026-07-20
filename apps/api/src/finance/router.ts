@@ -19,6 +19,7 @@ import { badRequest, conflict, forbidden, notFound } from '../errors.js';
 import { ReceiptNoLongerApprovedError } from '../enrollment/activate-enrollment.js';
 import { provisionFromReceipt } from '../provisioning/provision-from-receipt.js';
 import { maybeCreateFlag } from '../worker/reconcile-finance-flags.js';
+import { isOpportunityLost } from '../crm/opportunity-lost.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
 /**
@@ -318,20 +319,42 @@ async function runMoneyTransaction(
 
   let opportunityStage: string | null = null;
   if (approved.opportunityId) {
-    const opportunity = await tx.opportunity.findFirst({
-      where: { id: approved.opportunityId, facilityId },
-    });
+    // phase-02: lock the opportunity row FOR UPDATE before the lost-gate check
+    // and the O5 write. The prior plain findFirst left a TOCTOU open against a
+    // concurrent `crm.opportunityMarkLost` (which also now locks FOR UPDATE) —
+    // without this lock, approve could read an "open" snapshot, markLost could
+    // commit lostReason+closedAt in between, and approve would then force the
+    // row to O5 while leaving lostReason set. Same lock pattern as the cancel
+    // path below.
+    const lockedRows = await tx.$queryRaw<{ id: string; stage: string; closedAt: Date | null }[]>`
+      SELECT "id", "stage", "closedAt" FROM "Opportunity"
+      WHERE "id" = ${approved.opportunityId} AND "facilityId" = ${facilityId}
+      FOR UPDATE
+    `;
+    const opportunity = lockedRows[0];
     if (!opportunity) {
       throw notFound('Linked opportunity not found.');
+    }
+    // A lost opportunity must be reopened before it can be enrolled — never
+    // silently resurrected by an approval.
+    if (isOpportunityLost(opportunity)) {
+      throw badRequest(
+        'Cơ hội đã được đánh dấu mất — hãy mở lại (reopen) cơ hội trước khi duyệt phiếu thu.',
+      );
     }
     // Metric & Data Integrity remediation (scenario audit): a SECOND
     // approved receipt on the same opportunity (e.g. a sibling enrolled via
     // the same opportunity) must not overwrite the opportunity's original
-    // `closedAt` — only the transition INTO O5_ENROLLED sets it.
+    // `closedAt` — only the transition INTO O5_ENROLLED sets it. A legitimate
+    // advance to O5 also clears any stale `lostReason` so no won row ever
+    // carries a lost reason (belt-and-suspenders — the lost-gate above already
+    // rejects a still-lost opp; this covers a reopened-then-approved opp whose
+    // lostReason was already cleared, keeping the invariant explicit).
     const advanced = await tx.opportunity.update({
       where: { id: opportunity.id },
       data: {
         stage: 'O5_ENROLLED',
+        lostReason: null,
         ...(opportunity.stage !== 'O5_ENROLLED' ? { closedAt: new Date() } : {}),
       },
     });
@@ -711,6 +734,15 @@ export const financeRouter = router({
             });
             if (!opportunity) {
               throw notFound('Opportunity not found.');
+            }
+            // phase-02: a lost opportunity (closed without enrolling) must be
+            // reopened before it can take a payment — otherwise approve would
+            // force-advance it to O5 while leaving lostReason set, producing a
+            // corrupt "enrolled-but-lost" row and wrong win/loss reporting.
+            if (isOpportunityLost(opportunity)) {
+              throw badRequest(
+                'Cơ hội đã được đánh dấu mất — hãy mở lại (reopen) cơ hội trước khi tạo phiếu thu.',
+              );
             }
             if (opportunity.stage !== 'O4_TESTED') {
               // Allowed but flagged (WF-P1-02 exceptions: "Opp chua O4 -> canh bao").

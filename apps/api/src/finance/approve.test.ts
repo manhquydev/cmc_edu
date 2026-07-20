@@ -156,6 +156,63 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     expect(opportunity.closedAt?.getTime()).toBe(originalClosedAt?.getTime());
   });
 
+  it('rejects approving a receipt whose opportunity was marked lost after the draft was created — receipt stays draft (phase-02)', async () => {
+    const { opportunityId, receipt } = await draftReceipt(sale, {
+      contactPhone: '0930000030',
+      parentPhone: '0940000030',
+    });
+    // The opp is marked lost between draft and approve.
+    await sale.crm.opportunityMarkLost({ opportunityId, lostReason: 'schedule_conflict' });
+
+    await expect(gdkd.finance.receiptApprove({ receiptId: receipt.id })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+
+    // No side effects: receipt still draft, opp still lost (not force-advanced to O5).
+    const stillDraft = await testDbBypass((tx) => tx.receipt.findUniqueOrThrow({ where: { id: receipt.id } }));
+    expect(stillDraft.status).toBe('draft');
+    const opp = await testDbBypass((tx) => tx.opportunity.findUniqueOrThrow({ where: { id: opportunityId } }));
+    expect(opp.stage).not.toBe('O5_ENROLLED');
+    expect(opp.lostReason).toBe('schedule_conflict');
+  });
+
+  it('approves after the lost opportunity is reopened — O5 with lostReason cleared (phase-02)', async () => {
+    const { opportunityId, receipt } = await draftReceipt(sale, {
+      contactPhone: '0930000031',
+      parentPhone: '0940000031',
+    });
+    await sale.crm.opportunityMarkLost({ opportunityId, lostReason: 'price_too_high' });
+    await sale.crm.opportunityMarkLost({ opportunityId, reopen: true });
+
+    const result = await gdkd.finance.receiptApprove({ receiptId: receipt.id });
+    expect(result.opportunityStage).toBe('O5_ENROLLED');
+
+    const opp = await testDbBypass((tx) => tx.opportunity.findUniqueOrThrow({ where: { id: opportunityId } }));
+    expect(opp.stage).toBe('O5_ENROLLED');
+    expect(opp.lostReason).toBeNull(); // no won row ever carries a lost reason
+    expect(opp.closedAt).not.toBeNull();
+  });
+
+  it('serialises approve racing opportunityMarkLost: never leaves an O5 row with a lostReason (phase-02)', async () => {
+    const { opportunityId, receipt } = await draftReceipt(sale, {
+      contactPhone: '0930000032',
+      parentPhone: '0940000032',
+    });
+
+    // Fire approve (→ O5) and markLost (→ lostReason+closedAt) concurrently on
+    // the same opportunity. FOR UPDATE on both sides serialises them; whichever
+    // commits first, the other observes it — the corrupt "O5 + lostReason" row
+    // must be impossible regardless of ordering.
+    await Promise.allSettled([
+      gdkd.finance.receiptApprove({ receiptId: receipt.id }),
+      sale.crm.opportunityMarkLost({ opportunityId, lostReason: 'not_interested' }),
+    ]);
+
+    const opp = await testDbBypass((tx) => tx.opportunity.findUniqueOrThrow({ where: { id: opportunityId } }));
+    const corrupt = opp.stage === 'O5_ENROLLED' && opp.lostReason !== null;
+    expect(corrupt).toBe(false);
+  });
+
   it('rejects approving a non-draft receipt (already approved)', async () => {
     const { receipt } = await draftReceipt(sale, { contactPhone: '0930000003', parentPhone: '0940000003' });
     await gdkd.finance.receiptApprove({ receiptId: receipt.id });

@@ -132,6 +132,22 @@ describe('finance.receiptCreate from opportunity (WF-P1-02)', () => {
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
+  it('rejects creating a receipt on a lost opportunity — staff must reopen it first (phase-02)', async () => {
+    const opp = await sale.crm.opportunityCreate({ contactName: 'Lost Lead', phone: '0911000009' });
+    await sale.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O2_CONTACTED' });
+    await sale.crm.opportunityMarkLost({ opportunityId: opp.id, lostReason: 'chose_competitor' });
+
+    await expect(
+      sale.finance.receiptCreate({
+        opportunityId: opp.id,
+        studentName: 'Con cua Lost Lead',
+        parentPhone: '0922000009',
+        amount: 5_000_000,
+        classBatchId: classBatch.id,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
   it('forbids a role without finance.receiptCreate permission', async () => {
     await expect(
       teacher.finance.receiptCreate({

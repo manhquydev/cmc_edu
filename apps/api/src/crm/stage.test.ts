@@ -3,7 +3,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { appRouter } from '../router.js';
-import { buildStaffContext, cleanupFacility, createTestFacility } from '../test/db.js';
+import { buildStaffContext, cleanupFacility, createTestFacility, testDbBypass } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
 
@@ -80,6 +80,48 @@ describe('crm opportunity stage machine (WF-P1-01)', () => {
     expect(reopened.stage).toBe('O2_CONTACTED');
     expect(reopened.closedAt).toBeNull();
     expect(reopened.lostReason).toBeNull();
+  });
+
+  it('rejects marking an ENROLLED (O5) opportunity lost — undoing an enrollment must go through receiptCancel (phase-02)', async () => {
+    // Seed a won opportunity directly: O5 with a closedAt, as finance.receiptApprove
+    // leaves it. markLost on it must hard-reject and point at receiptCancel,
+    // never stamp a lostReason onto a won row.
+    const opp = await testDbBypass(async (tx) => {
+      const contact = await tx.contact.create({
+        data: { facilityId: facilityA.id, name: 'Enrolled Contact', phone: '0900000010' },
+      });
+      return tx.opportunity.create({
+        data: { facilityId: facilityA.id, contactId: contact.id, stage: 'O5_ENROLLED', closedAt: new Date() },
+      });
+    });
+
+    await expect(
+      saleA.crm.opportunityMarkLost({ opportunityId: opp.id, lostReason: 'other' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    // The row is untouched — still O5, no lostReason.
+    const after = await testDbBypass((tx) => tx.opportunity.findUniqueOrThrow({ where: { id: opp.id } }));
+    expect(after.stage).toBe('O5_ENROLLED');
+    expect(after.lostReason).toBeNull();
+  });
+
+  it('rejects REOPENING an ENROLLED (O5) opportunity — a won opp carries closedAt but is not lost (phase-02)', async () => {
+    const opp = await testDbBypass(async (tx) => {
+      const contact = await tx.contact.create({
+        data: { facilityId: facilityA.id, name: 'Won Contact', phone: '0900000011' },
+      });
+      return tx.opportunity.create({
+        data: { facilityId: facilityA.id, contactId: contact.id, stage: 'O5_ENROLLED', closedAt: new Date() },
+      });
+    });
+
+    await expect(
+      saleA.crm.opportunityMarkLost({ opportunityId: opp.id, reopen: true }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    const after = await testDbBypass((tx) => tx.opportunity.findUniqueOrThrow({ where: { id: opp.id } }));
+    expect(after.stage).toBe('O5_ENROLLED'); // not reverted to O2
+    expect(after.closedAt).not.toBeNull();
   });
 
   it('lookup finds an existing contact by phone for dedup, and reports false for an unknown phone', async () => {

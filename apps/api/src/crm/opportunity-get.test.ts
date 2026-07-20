@@ -48,7 +48,7 @@ describe('crm.opportunityGet', () => {
     expect(result.contact).toEqual(
       expect.objectContaining({
         name: 'Nguyen Van A',
-        phone: '0900111222',
+        phone: '84900111222', // normalized on write (phase-08)
         email: 'a@example.com',
       }),
     );

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Badge, Banner, Button, Grid, HStack, LineIcon, PageHeader, Spinner, Stack, Text } from '@cmc/ui';
 import type { ComponentProps } from 'react';
 import { trpc } from '../../lib/trpc.js';
+import { formatContactPhone } from '../../lib/format-contact-phone.js';
 import { LOST_REASON_LABELS, MarkLostDialog } from './mark-lost-dialog.js';
 import { useOpportunityActions } from './use-opportunity-actions.js';
 
@@ -229,7 +230,7 @@ export default function OpportunityDetailPage() {
                   <Text type="supporting" size="xsm">
                     Số điện thoại
                   </Text>
-                  <Text size="sm">{opp.contact.phone}</Text>
+                  <Text size="sm">{formatContactPhone(opp.contact.phone)}</Text>
                 </Stack>
                 {/* email is not included in opportunityList contact select — omitted */}
               </Grid>

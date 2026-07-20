@@ -1,6 +1,7 @@
 import { Dialog, DialogHeader, HStack, Spinner, Stack, Text } from '@cmc/ui';
 import { useNavigate } from 'react-router-dom';
 import { trpc } from './trpc.js';
+import { formatContactPhone } from './format-contact-phone.js';
 
 // TODO(astryx-review): Astryx `Dialog` (native <dialog>-based) manages its own
 // focus-trap, auto-focus-on-open, and Escape/backdrop-dismiss behavior
@@ -49,7 +50,7 @@ export function EnrollPicker({ opened, onClose }: { opened: boolean; onClose: ()
             <HStack justify="between">
               <Stack gap={0.5}>
                 <Text size="sm" weight="semibold">{opp.contact.name}</Text>
-                <Text type="supporting" size="xsm">{opp.contact.phone}</Text>
+                <Text type="supporting" size="xsm">{formatContactPhone(opp.contact.phone)}</Text>
               </Stack>
               <Text size="xsm" color="accent">Ghi danh →</Text>
             </HStack>

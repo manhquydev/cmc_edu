@@ -1,6 +1,7 @@
 import { Skeleton, LineIcon, MetricCard, Panel, TaskRow, FunnelBar, type Tone } from '@cmc/ui';
 import { useSession } from '../lib/session-context.js';
 import { trpc } from '../lib/trpc.js';
+import { formatContactPhone } from '../lib/format-contact-phone.js';
 
 export function countPendingApproval(receipts: { status: string }[]): number {
   return receipts.filter((r) => r.status === 'draft').length;
@@ -119,7 +120,7 @@ function SaleTaskQueue() {
   const { data, isLoading } = trpc.crm.opportunityList.useQuery({ stage: 'O4_TESTED', pageSize: 50, lost: 'exclude' }, { refetchOnWindowFocus: false });
   const items: TaskItem[] = (data?.items ?? []).filter((o) => !o.closedAt).slice(0, 10).map((o) => ({
     title: `Ghi danh — ${o.contact.name}`,
-    meta: o.contact.phone,
+    meta: formatContactPhone(o.contact.phone),
     href: `/finance/new?opportunityId=${o.id}`,
     tone: 'success',
   }));

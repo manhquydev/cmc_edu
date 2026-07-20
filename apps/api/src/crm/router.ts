@@ -10,6 +10,8 @@ import { withFacility, type Prisma } from '@cmc/db';
 import { badRequest, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 import { isOpportunityLost } from './opportunity-lost.js';
+import { findOrCreateContact } from './find-or-create-contact.js';
+import { normalizeContactPhone, toContactPhoneSearchDigits } from './normalize-contact-phone.js';
 
 /** Full OpportunityStage catalog (docs/10). */
 const STAGE_VALUES = [
@@ -106,12 +108,15 @@ export const crmRouter = router({
       return withFacility(ctx.db, facilityId, async (tx) => {
         // Reuse an existing Contact for this phone within the facility rather
         // than creating a duplicate (dedup — FE should also call
-        // `opportunityLookup` before showing the create form, QD 0037).
-        const contact =
-          (await tx.contact.findFirst({ where: { facilityId, phone: input.phone } })) ??
-          (await tx.contact.create({
-            data: { facilityId, name: input.contactName, phone: input.phone, email: input.email },
-          }));
+        // `opportunityLookup` before showing the create form, QD 0037). The
+        // shared helper normalizes the phone and is race-safe against the
+        // `@@unique([facilityId, phone])` index (phase-08).
+        const contact = await findOrCreateContact(tx, {
+          facilityId,
+          name: input.contactName,
+          phone: input.phone,
+          email: input.email,
+        });
 
         const opportunity = await tx.opportunity.create({
           data: { facilityId, contactId: contact.id, stage: 'O1_LEAD' },
@@ -241,7 +246,10 @@ export const crmRouter = router({
       // Narrow existence check only (QD 0037 dedup) — never the full pipeline.
       return withFacility(ctx.db, facilityId, async (tx) => {
         const contact = await tx.contact.findFirst({
-          where: { facilityId, phone: input.phone },
+          // Normalize so a lookup for "0912..." matches a stored "84912..."
+          // (phase-08) — otherwise the dedup check the UI relies on would miss
+          // an existing contact entered in a different format.
+          where: { facilityId, phone: normalizeContactPhone(input.phone) },
           select: { id: true },
         });
         return { exists: contact !== null };
@@ -285,7 +293,10 @@ export const crmRouter = router({
         // digits only so "090 123", "090-123" and "090123" all hit the same
         // stored value (Contact.phone is stored as-entered until phase 8).
         const nameTerm = input.search;
-        const phoneTerm = input.search.replace(/[^\d]/g, '');
+        // Align the phone match with the stored, normalized `84xxxxxxxxx` form
+        // (phase-08): a leading '0' becomes '84' so "0912" still finds
+        // "84912345678".
+        const phoneTerm = toContactPhoneSearchDigits(input.search);
         and.push({
           contact: {
             OR: [

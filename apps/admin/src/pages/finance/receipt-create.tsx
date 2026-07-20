@@ -14,6 +14,7 @@ import {
   TextInput,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { formatContactPhone } from '../../lib/format-contact-phone.js';
 
 interface FormState {
   studentName: string;
@@ -243,7 +244,7 @@ export default function ReceiptCreatePage() {
           {opportunityId && oppData && (
             <Banner
               status="info"
-              title={`Tạo phiếu từ cơ hội — ${oppData.contact.name} (${oppData.contact.phone})`}
+              title={`Tạo phiếu từ cơ hội — ${oppData.contact.name} (${formatContactPhone(oppData.contact.phone)})`}
             />
           )}
 

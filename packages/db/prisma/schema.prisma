@@ -265,6 +265,10 @@ model Contact {
   updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
   opportunities Opportunity[]
 
+  // F8 (phase-08): one Contact per (facility, normalized phone). Phone is
+  // normalized to `84xxxxxxxxx` at the write boundary (findOrCreateContact);
+  // this index makes the dedup race-safe instead of app-level-only.
+  @@unique([facilityId, phone])
   @@index([facilityId])
 }
 

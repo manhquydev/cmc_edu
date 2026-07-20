@@ -78,10 +78,11 @@ describe('crm.opportunityList (K11)', () => {
     expect(byName.items).toHaveLength(1);
     expect(byName.items[0].contact.name).toBe('Nguyễn Thị Hoa');
 
-    // Phone stored as '0912345678'; searching with spaces/dashes still matches.
+    // Phone stored NORMALIZED as '84912345678' (phase-08); searching with the
+    // 0-prefix, spaces and dashes still matches.
     const byPhone = await saleA.crm.opportunityList({ search: '091 234-5678' });
     expect(byPhone.items).toHaveLength(1);
-    expect(byPhone.items[0].contact.phone).toBe('0912345678');
+    expect(byPhone.items[0].contact.phone).toBe('84912345678');
 
     const noMatch = await saleA.crm.opportunityList({ search: 'zzzznone' });
     expect(noMatch.items).toHaveLength(0);
@@ -143,6 +144,27 @@ describe('crm.opportunityList (K11)', () => {
     expect(res.stageCounts.O2_CONTACTED ?? 0).toBe(1); // the lost one (also O2) is excluded
     expect(res.stageCounts.O5_ENROLLED ?? 0).toBe(1);
     expect(res.lostCount).toBe(1);
+  });
+
+  it('two concurrent creates for the same phone (different formats) yield ONE Contact, two Opportunities — phase-08', async () => {
+    // Same number entered two ways; fired concurrently. The unique index +
+    // findOrCreateContact's ON CONFLICT upsert must collapse them onto one Contact.
+    const [a, b] = await Promise.all([
+      saleA.crm.opportunityCreate({ contactName: 'Dup A', phone: '0977000111' }),
+      saleA.crm.opportunityCreate({ contactName: 'Dup B', phone: '+84 977 000 111' }),
+    ]);
+
+    const contacts = await testDbBypass((tx) =>
+      tx.contact.findMany({ where: { facilityId: facilityA.id, phone: '84977000111' } }),
+    );
+    expect(contacts).toHaveLength(1);
+    // Both opportunities exist and point at the single contact.
+    expect(a.contactId).toBe(contacts[0].id);
+    expect(b.contactId).toBe(contacts[0].id);
+    const opps = await testDbBypass((tx) =>
+      tx.opportunity.findMany({ where: { facilityId: facilityA.id, contactId: contacts[0].id } }),
+    );
+    expect(opps).toHaveLength(2);
   });
 
   it('enforces RLS: facility B never sees facility A opportunities', async () => {

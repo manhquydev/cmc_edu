@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge, Button, FunnelBar, HStack, LineIcon, PageHeader, Panel, Skeleton, Stack, Text, TextInput } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { formatContactPhone } from '../../lib/format-contact-phone.js';
 import { CreateLeadDialog } from './create-lead-dialog.js';
 import { MarkLostDialog } from './mark-lost-dialog.js';
 
@@ -65,7 +66,7 @@ function OpportunityCard({
           {isLost && <Badge label="Lost" variant="error" />}
         </HStack>
         <Text type="supporting" size="xsm">
-          {opp.contact.phone}
+          {formatContactPhone(opp.contact.phone)}
         </Text>
 
         {nextStage && !isLost && (

@@ -75,9 +75,27 @@ const opportunityGetInput = z.object({
 
 const opportunityListInput = z.object({
   stage: z.enum(STAGE_VALUES).optional(),
+  /** Free-text search over the linked contact's name (case-insensitive) OR
+   * phone (digits only, so formatting variance doesn't matter). */
+  search: z.string().trim().min(1).max(100).optional(),
+  /** Lost-opportunity visibility. Default `exclude` — a lost opp (closedAt set,
+   * stage != O5) must NOT appear in the default pipeline/funnel (F7). `only`
+   * returns just the lost ones; `include` returns everything (used by the
+   * detail page, which must be able to open a lost opp). */
+  lost: z.enum(['exclude', 'include', 'only']).default('exclude'),
   page: z.number().int().positive().default(1),
   pageSize: z.number().int().positive().max(100).default(20),
 });
+
+/** Prisma where-fragment for "not lost" — open (no closedAt) OR won (O5). */
+const NOT_LOST_WHERE: Prisma.OpportunityWhereInput = {
+  OR: [{ closedAt: null }, { stage: 'O5_ENROLLED' }],
+};
+/** Prisma where-fragment for "lost" — closed without enrolling. */
+const LOST_WHERE: Prisma.OpportunityWhereInput = {
+  closedAt: { not: null },
+  stage: { not: 'O5_ENROLLED' },
+};
 
 export const crmRouter = router({
   opportunityCreate: requirePermission('crm', 'opportunityCreate')
@@ -255,10 +273,32 @@ export const crmRouter = router({
     .input(opportunityListInput)
     .query(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
-      const where = { facilityId, ...(input.stage ? { stage: input.stage } : {}) };
+
+      // Build the row filter as an AND of independent fragments so stage, lost
+      // visibility, and text search compose without clobbering each other.
+      const and: Prisma.OpportunityWhereInput[] = [{ facilityId }];
+      if (input.stage) and.push({ stage: input.stage });
+      if (input.lost === 'exclude') and.push(NOT_LOST_WHERE);
+      else if (input.lost === 'only') and.push(LOST_WHERE);
+      if (input.search) {
+        // Name is matched case-insensitively as entered; phone is matched on
+        // digits only so "090 123", "090-123" and "090123" all hit the same
+        // stored value (Contact.phone is stored as-entered until phase 8).
+        const nameTerm = input.search;
+        const phoneTerm = input.search.replace(/[^\d]/g, '');
+        and.push({
+          contact: {
+            OR: [
+              { name: { contains: nameTerm, mode: 'insensitive' } },
+              ...(phoneTerm ? [{ phone: { contains: phoneTerm } }] : []),
+            ],
+          },
+        });
+      }
+      const where: Prisma.OpportunityWhereInput = { AND: and };
 
       return withFacility(ctx.db, facilityId, async (tx) => {
-        const [items, total] = await Promise.all([
+        const [items, total, stageCountRows, lostCount] = await Promise.all([
           tx.opportunity.findMany({
             where,
             include: { contact: { select: { id: true, name: true, phone: true } } },
@@ -267,9 +307,21 @@ export const crmRouter = router({
             take: input.pageSize,
           }),
           tx.opportunity.count({ where }),
+          // Funnel counts are facility-wide and ALWAYS exclude lost (F7), so
+          // phase 6's funnel can consume them without re-querying — independent
+          // of the current page's stage/search/lost filters.
+          tx.opportunity.groupBy({
+            by: ['stage'],
+            where: { AND: [{ facilityId }, NOT_LOST_WHERE] },
+            _count: { _all: true },
+          }),
+          tx.opportunity.count({ where: { AND: [{ facilityId }, LOST_WHERE] } }),
         ]);
 
-        return { items, total, page: input.page, pageSize: input.pageSize };
+        const stageCounts: Record<string, number> = {};
+        for (const row of stageCountRows) stageCounts[row.stage] = row._count._all;
+
+        return { items, total, page: input.page, pageSize: input.pageSize, stageCounts, lostCount };
       });
     }),
 });

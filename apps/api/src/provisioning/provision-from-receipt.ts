@@ -18,13 +18,52 @@
 // everything — an idempotent.test.ts acceptance. Postgres also aborts an
 // entire transaction on its first error, so a catch-and-refetch-on-P2002
 // (below) MUST run in a fresh transaction, not the one that just failed.
-// Only the two RLS-protected steps (Student, Enrollment) need `withFacility`;
-// ParentAccount/StudentAccount carry no facilityId/RLS policy at all.
+//
+// C1 per-step cancel guard (phase-01): every self-committing step now re-reads
+// `Receipt.status FOR SHARE` and aborts (`ReceiptNoLongerApprovedError`) if the
+// receipt left `approved` after the money commit — see `assertReceiptStillApproved`
+// below. Because that read is on the RLS-protected `Receipt` table, the Guardian
+// and StudentAccount steps (which carry no facilityId themselves) now also run
+// inside a `withFacility(receipt.facilityId)` transaction purely so the guard's
+// read passes RLS and commits atomically with the step. ParentAccount is global
+// with no per-row transaction context, so its guard runs immediately before it
+// in the receipt's facility scope (a small, documented, harmless race window).
 
 import { withFacility, type Prisma, type PrismaClient } from '@cmc/db';
 import { normalizeLoginPhone } from '@cmc/domain-identity';
-import { activateEnrollmentForReceipt } from '../enrollment/activate-enrollment.js';
+import {
+  activateEnrollmentForReceipt,
+  ReceiptNoLongerApprovedError,
+} from '../enrollment/activate-enrollment.js';
 import { hashPassword } from '../lms-auth/password-hash.js';
+
+/**
+ * C1 per-step guard (phase-01 cancel-provisioning race): re-reads the Receipt's
+ * status under `FOR SHARE` inside the caller's transaction and throws
+ * `ReceiptNoLongerApprovedError` if it is no longer `approved`. Provisioning
+ * runs AFTER the money transaction commits (ADR 0041), outside it — a
+ * `receiptCancel` winning the post-commit race must stop provisioning from
+ * durably creating any further row (ParentAccount / Student / Guardian /
+ * StudentAccount). `FOR SHARE` (not `FOR UPDATE`) is sufficient: it still
+ * blocks `receiptCancel`'s exclusive `UPDATE` claim, so the two serialize, but
+ * concurrent provisioning steps do not needlessly block each other. The read
+ * MUST run inside a `withFacility(receipt.facilityId)` transaction — `Receipt`
+ * is RLS-protected, so a bare read with no facility GUC returns zero rows and
+ * the guard would spuriously abort every time.
+ */
+async function assertReceiptStillApproved(
+  tx: Prisma.TransactionClient,
+  receiptId: string,
+  facilityId: string,
+): Promise<void> {
+  const rows = await tx.$queryRaw<{ status: string }[]>`
+    SELECT "status" FROM "Receipt" WHERE "id" = ${receiptId} AND "facilityId" = ${facilityId} FOR SHARE
+  `;
+  const status = rows[0]?.status;
+  if (status !== 'approved') {
+    throw new ReceiptNoLongerApprovedError(receiptId, status ?? 'not found');
+  }
+}
 
 /** The subset of a committed, approved Receipt this function needs. */
 export interface ReceiptForProvisioning {
@@ -163,6 +202,11 @@ async function findOrCreateStudent(
 
   try {
     return await withFacility(db, receipt.facilityId, async (tx) => {
+      // C1 per-step guard: abort before creating a Student if the receipt was
+      // cancelled in the post-money-commit window. Shares this transaction, so
+      // the status check and the create commit atomically.
+      await assertReceiptStillApproved(tx, receipt.id, receipt.facilityId);
+
       const existing = await tx.student.findUnique({
         where: { createdByReceiptId: receipt.id },
       });
@@ -227,31 +271,47 @@ async function findOrCreateStudent(
 
 /**
  * find-or-create the StudentAccount (LMS login link). `StudentAccount`
- * carries no `facilityId`/RLS policy — plain client calls.
+ * carries no `facilityId`/RLS policy of its own, but the C1 per-step guard's
+ * `Receipt` read does need a facility GUC — so the guard + existence-check +
+ * create run inside one `withFacility(receipt.facilityId)` transaction (the
+ * transaction is harmless for the RLS-free StudentAccount write). On a `P2002`
+ * concurrency race the refetch runs OUTSIDE that transaction (Postgres aborts a
+ * transaction on its first error), same idempotency pattern as
+ * `findOrCreateStudent` above.
  */
 async function findOrCreateStudentAccount(
   db: PrismaClient,
+  receipt: ReceiptForProvisioning,
   studentId: string,
   parentAccountId: string,
 ) {
-  const existing = await db.studentAccount.findUnique({ where: { studentId } });
-  if (existing) return existing;
-
-  // C1/phase-01b: set the default password on provisioning so the student can
-  // log in immediately. `mustChangePassword: true` forces a password change on
-  // first login. The default password literal is intentionally kept here in
-  // provisioning only — never hardcoded in tests or business logic.
   try {
-    return await db.studentAccount.create({
-      data: {
-        studentId,
-        parentAccountId,
-        passwordHash: hashPassword('Cmc2026@'),
-        mustChangePassword: true,
-      },
+    return await withFacility(db, receipt.facilityId, async (tx) => {
+      // C1 per-step guard: abort before creating an LMS login for a receipt
+      // cancelled in the post-money-commit window.
+      await assertReceiptStillApproved(tx, receipt.id, receipt.facilityId);
+
+      const existing = await tx.studentAccount.findUnique({ where: { studentId } });
+      if (existing) return existing;
+
+      // C1/phase-01b: set the default password on provisioning so the student
+      // can log in immediately. `mustChangePassword: true` forces a password
+      // change on first login. The default password literal is intentionally
+      // kept here in provisioning only — never hardcoded in tests or business
+      // logic.
+      return tx.studentAccount.create({
+        data: {
+          studentId,
+          parentAccountId,
+          passwordHash: hashPassword('Cmc2026@'),
+          mustChangePassword: true,
+        },
+      });
     });
   } catch (error) {
-    // Same idempotency race as the student/phone creates (ADR 0041).
+    // Guard aborts (ReceiptNoLongerApprovedError) are not P2002 — re-thrown here.
+    // Same idempotency race as the student/phone creates (ADR 0041): refetch in
+    // a fresh (non-aborted) connection scope.
     if (!isUniqueConstraintViolation(error)) throw error;
     const refetched = await db.studentAccount.findUnique({ where: { studentId } });
     if (!refetched) throw error;
@@ -323,8 +383,31 @@ export async function provisionFromReceipt(
   db: PrismaClient,
   receipt: ReceiptForProvisioning,
 ): Promise<ProvisionResult> {
+  // C1 per-step guard for the ParentAccount step. ParentAccount is a global
+  // (non-facility-RLS) table, so its own find-or-create cannot host the
+  // `FOR SHARE` Receipt read — guard immediately before it, in the receipt's
+  // facility context. A tiny check-then-commit window remains here (documented,
+  // accepted): a dangling ParentAccount is reusable-by-design (find-or-create
+  // by phone) and harmless without child links.
+  await withFacility(db, receipt.facilityId, (tx) =>
+    assertReceiptStillApproved(tx, receipt.id, receipt.facilityId),
+  );
   const parentAccount = await findOrCreateParentAccount(db, receipt.parentPhone, receipt.parentEmail);
   const student = await findOrCreateStudent(db, receipt, parentAccount.id);
+
+  // C1 per-step guard for the standalone Guardian step. `findOrCreateStudent`
+  // already created this Guardian inside its own guarded transaction on the
+  // new-student path (so this call hits the existence early-return); only the
+  // renewal path reaches the create here. The guard runs in its own short
+  // transaction, then `findOrCreateGuardian` is called on the BASE client so
+  // its own P2002 recovery refetch runs on a live (non-aborted) connection —
+  // wrapping the create in the guard's transaction would leave that refetch
+  // running on an already-aborted tx (25P02). The tiny guard→create window is
+  // the same benign class as the ParentAccount step above (a Guardian carries
+  // no RLS policy and is find-or-create-idempotent).
+  await withFacility(db, receipt.facilityId, (tx) =>
+    assertReceiptStillApproved(tx, receipt.id, receipt.facilityId),
+  );
   const guardian = await findOrCreateGuardian(db, receipt.facilityId, parentAccount.id, student.id);
 
   if (!receipt.classBatchId) {
@@ -342,6 +425,7 @@ export async function provisionFromReceipt(
 
   const studentAccount = await findOrCreateStudentAccount(
     db,
+    receipt,
     student.id,
     parentAccount.id,
   );

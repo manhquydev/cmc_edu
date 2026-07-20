@@ -18,6 +18,7 @@ import type { AuthSubject, Role } from '@cmc/auth';
 import { badRequest, conflict, forbidden, notFound } from '../errors.js';
 import { ReceiptNoLongerApprovedError } from '../enrollment/activate-enrollment.js';
 import { provisionFromReceipt } from '../provisioning/provision-from-receipt.js';
+import { maybeCreateFlag } from '../worker/reconcile-finance-flags.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
 /**
@@ -901,6 +902,44 @@ export const financeRouter = router({
               data: { error: error.message },
             },
           });
+          // phase-01: surface the partial state immediately (not only on the
+          // next reconciler drain) so staff can decide — but ONLY when a child
+          // was actually provisioned before the abort. If the cancel won before
+          // the very first (ParentAccount) guard, nothing was created and there
+          // is no partial state to flag; a flag then would be misleading staff
+          // noise and would disagree with the reconciler scan (which likewise
+          // requires a Student via createdByReceiptId). Best-effort: money +
+          // abort are already durable and the reconciler is the authoritative
+          // backstop, so a transient failure writing this convenience flag must
+          // not turn a correct abort into a 500. Both reads/writes run inside a
+          // withFacility transaction — a bare ctx.db write no-ops silently on
+          // the RLS-protected Student/ReconciliationFlag tables.
+          try {
+            await withFacility(ctx.db, facilityId, async (tx) => {
+              const provisionedStudent = await tx.student.findUnique({
+                where: { createdByReceiptId: receipt.id },
+                select: { id: true },
+              });
+              if (!provisionedStudent) return;
+              await maybeCreateFlag(tx, {
+                facilityId,
+                receiptId: receipt.id,
+                kind: 'cancelled_receipt_partial_provisioning',
+                detail: { reason: error.message, studentId: provisionedStudent.id },
+                deepLink: `/finance/receipts/${receipt.id}?flag=cancelled_receipt_partial_provisioning`,
+              });
+            });
+          } catch (flagError) {
+            await ctx.db.auditLog.create({
+              data: {
+                actor: 'system',
+                action: 'provisioning.partialFlag_failed',
+                entity: 'Receipt',
+                entityId: receipt.id,
+                data: { error: flagError instanceof Error ? flagError.message : String(flagError) },
+              },
+            });
+          }
         } else {
           provisioning = 'pending';
           await ctx.db.auditLog.create({

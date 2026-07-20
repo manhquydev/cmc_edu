@@ -177,8 +177,18 @@ interface CancelledButProvisionedRow {
 
 export interface ReconcileCancelledOutcome {
   receiptId: string;
-  enrollmentId: string;
+  /** The stray active Enrollment that was withdrawn (active-enrollment scan),
+   * or `null` for the partial-provisioning scan where no enrollment exists. */
+  enrollmentId: string | null;
   flagCreated: boolean;
+  /** Which scan produced this outcome. */
+  kind: 'cancelled_receipt_active_enrollment' | 'cancelled_receipt_partial_provisioning';
+}
+
+interface PartialProvisionedRow {
+  receiptId: string;
+  facilityId: string;
+  studentId: string;
 }
 
 /**
@@ -274,7 +284,85 @@ export async function reconcileCancelledButProvisioned(db: PrismaClient): Promis
         data: { enrollmentId: row.enrollmentId },
       },
     });
-    outcomes.push({ receiptId: row.receiptId, enrollmentId: row.enrollmentId, flagCreated });
+    outcomes.push({
+      receiptId: row.receiptId,
+      enrollmentId: row.enrollmentId,
+      flagCreated,
+      kind: 'cancelled_receipt_active_enrollment',
+    });
   }
+
+  // ---------------------------------------------------------------------------
+  // Second scan (phase-01): partial provisioning left by a cancel that won the
+  // race BEFORE the enrollment step ran. State: a `cancelled` receipt whose
+  // Student was provisioned (via `createdByReceiptId`) but NO Enrollment row of
+  // ANY status exists for that (student, classBatch) — so the child has money
+  // taken, a login/guardian, but never got a seat, and the active-enrollment
+  // scan above (which inner-joins an ACTIVE enrollment) can never see it.
+  //
+  // Discriminator is "no Enrollment row at all", NOT "no active enrollment": a
+  // WITHDRAWN row means provisioning completed and the seat was later withdrawn
+  // on a normal cancel — a clean cancel, not a partial state, and must not be
+  // flagged. Flag ONLY (no auto-withdraw): void-vs-cancel semantics keep the
+  // Student active for staff decision (same posture as the scan above).
+  //
+  // Deliberately keyed on `createdByReceiptId` (new-student receipts) only, NOT
+  // COALESCE'd with the renewal `studentId` link the active-enrollment scan
+  // uses. A renewal reuses an already-fully-provisioned student; a renewal
+  // cancelled before its enrollment step leaves that pre-existing student's
+  // original access intact and simply grants no NEW seat — the correct
+  // cancelled-renewal outcome, not a stranded child. Only a NEW-student receipt
+  // can strand a child (money taken, child created, no class), which is exactly
+  // the harmful partial state this scan targets.
+  const partials = await withFacility(
+    db,
+    null,
+    (tx) =>
+      tx.$queryRaw<PartialProvisionedRow[]>`
+        SELECT r."id" AS "receiptId", r."facilityId", s."id" AS "studentId"
+        FROM "Receipt" r
+        JOIN "Student" s ON s."createdByReceiptId" = r."id"
+        WHERE r."status" = 'cancelled'
+          AND r."classBatchId" IS NOT NULL
+          AND NOT EXISTS (
+                SELECT 1 FROM "Enrollment" e
+                WHERE e."studentId" = s."id"
+                  AND e."classBatchId" = r."classBatchId"
+              )
+      `,
+    { bypass: true },
+  );
+
+  for (const row of partials) {
+    const flagCreated = await withFacility(
+      db,
+      null,
+      (tx) =>
+        maybeCreateFlag(tx, {
+          facilityId: row.facilityId,
+          receiptId: row.receiptId,
+          kind: 'cancelled_receipt_partial_provisioning',
+          detail: { studentId: row.studentId },
+          deepLink: `/finance/receipts/${row.receiptId}?flag=cancelled_receipt_partial_provisioning`,
+        }),
+      { bypass: true },
+    );
+    await db.auditLog.create({
+      data: {
+        actor: 'system',
+        action: 'worker.reconcileCancelledButProvisioned.partialFlagged',
+        entity: 'Receipt',
+        entityId: row.receiptId,
+        data: { studentId: row.studentId },
+      },
+    });
+    outcomes.push({
+      receiptId: row.receiptId,
+      enrollmentId: null,
+      flagCreated,
+      kind: 'cancelled_receipt_partial_provisioning',
+    });
+  }
+
   return outcomes;
 }

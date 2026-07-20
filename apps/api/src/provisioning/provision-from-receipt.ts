@@ -430,6 +430,35 @@ export async function provisionFromReceipt(
     parentAccount.id,
   );
 
+  // phase-04: one summary audit row on successful provisioning completion. The
+  // tRPC audit middleware (trpc.ts) only sees the mutation call itself
+  // (finance.receiptApprove); provisioning runs AFTER the money transaction and
+  // on the reconciler/worker path too, so a successful chain otherwise leaves
+  // no record of WHAT it created. Idempotent — a replay (approve retry or
+  // reconciler re-run, ADR 0041) must not append a second row. AuditLog is a
+  // global (non-RLS) table, so this plain db write needs no facility scope.
+  const alreadyLogged = await db.auditLog.findFirst({
+    where: { action: 'provisioning.completed', entityId: receipt.id },
+    select: { id: true },
+  });
+  if (!alreadyLogged) {
+    await db.auditLog.create({
+      data: {
+        actor: 'system',
+        action: 'provisioning.completed',
+        entity: 'Receipt',
+        entityId: receipt.id,
+        data: {
+          studentId: student.id,
+          parentAccountId: parentAccount.id,
+          enrollmentId: enrollment.id,
+          guardianId: guardian.id,
+          studentAccountId: studentAccount.id,
+        },
+      },
+    });
+  }
+
   return {
     parentAccountId: parentAccount.id,
     studentId: student.id,

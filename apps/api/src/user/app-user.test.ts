@@ -40,14 +40,18 @@ describe('user — AppUser CRUD (P3-I)', () => {
     await cleanupFacility(facilityId);
   });
 
-  it('user.create — generates CMC0001 for the first user', async () => {
+  it('user.create — generates a zero-padded CMC employeeCode', async () => {
     const result = await caller(superAdminCtx).user.create({
       userId: 'u-001',
       email: 'alice@cmc.test',
       fullName: 'Alice',
       position: 'teacher',
     });
-    expect(result.employeeCode).toMatch(/^CMC\d{4}$/);
+    // `CMC` + counter zero-padded to a MINIMUM of 4 digits (router.ts:100).
+    // The shared cmc_edu test DB's EmployeeCodeCounter is never reset, so the
+    // value is not necessarily CMC0001 and can exceed 4 digits (CMC10000+) —
+    // assert the format, not an exact/4-digit-wide value.
+    expect(result.employeeCode).toMatch(/^CMC\d{4,}$/);
     expect(result.facilityId).toBe(facilityId);
     expect(result.userId).toBe('u-001');
     expect(result.isActive).toBe(true);

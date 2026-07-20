@@ -61,7 +61,7 @@ function UngradedSubmissionsCard() {
 }
 
 function O4OpportunitiesCard() {
-  const { data, isLoading, error } = trpc.crm.opportunityList.useQuery({ stage: 'O4_TESTED', pageSize: 100 }, { refetchOnWindowFocus: false });
+  const { data, isLoading, error } = trpc.crm.opportunityList.useQuery({ stage: 'O4_TESTED', pageSize: 100, lost: 'exclude' }, { refetchOnWindowFocus: false });
   const count = (data?.items ?? []).filter((o) => !o.closedAt).length;
   return (
     <MetricCard label="Sẵn sàng ghi danh" icon="target" href="/crm"
@@ -116,7 +116,7 @@ function DirectorTaskQueue() {
 }
 
 function SaleTaskQueue() {
-  const { data, isLoading } = trpc.crm.opportunityList.useQuery({ stage: 'O4_TESTED', pageSize: 50 }, { refetchOnWindowFocus: false });
+  const { data, isLoading } = trpc.crm.opportunityList.useQuery({ stage: 'O4_TESTED', pageSize: 50, lost: 'exclude' }, { refetchOnWindowFocus: false });
   const items: TaskItem[] = (data?.items ?? []).filter((o) => !o.closedAt).slice(0, 10).map((o) => ({
     title: `Ghi danh — ${o.contact.name}`,
     meta: o.contact.phone,

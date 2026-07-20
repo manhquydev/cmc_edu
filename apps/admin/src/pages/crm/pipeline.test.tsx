@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent, act } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
@@ -96,6 +96,10 @@ describe('CrmPipelinePage', () => {
     advanceMutate.mockClear();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('queries crm.opportunityList with the unchanged {pageSize: 100} input', () => {
     renderWithProviders(<CrmPipelinePage />);
     expect(listQuerySpy).toHaveBeenCalledWith({ pageSize: 100 });
@@ -158,5 +162,60 @@ describe('CrmPipelinePage', () => {
     const { container } = renderWithProviders(<CrmPipelinePage />);
     // eslint-disable-next-line no-misleading-character-class
     expect(container.textContent).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
+  });
+
+  it('debounces the header search box (~300ms) and calls opportunityList with {pageSize:100, search}', () => {
+    vi.useFakeTimers();
+    renderWithProviders(<CrmPipelinePage />);
+    listQuerySpy.mockClear();
+    const searchInput = screen.getByPlaceholderText('Tìm theo tên hoặc SĐT…');
+    fireEvent.change(searchInput, { target: { value: 'Nguyễn' } });
+    expect(listQuerySpy).not.toHaveBeenCalledWith({ pageSize: 100, search: 'Nguyễn' });
+    act(() => vi.advanceTimersByTime(300));
+    expect(listQuerySpy).toHaveBeenCalledWith({ pageSize: 100, search: 'Nguyễn' });
+  });
+
+  it('queries the unchanged {pageSize: 100} input (no `search` key) while the search box is empty', () => {
+    renderWithProviders(<CrmPipelinePage />);
+    expect(listQuerySpy).toHaveBeenCalledWith({ pageSize: 100 });
+  });
+
+  it('opens the create-lead dialog when "Thêm cơ hội" is clicked', () => {
+    renderWithProviders(<CrmPipelinePage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm cơ hội' }));
+    expect(screen.getByText('Thêm cơ hội mới')).toBeInTheDocument();
+  });
+
+  it('shows an "Đánh dấu mất" action on each open, non-O5 card and opens the shared mark-lost dialog', () => {
+    renderWithProviders(<CrmPipelinePage />);
+    const markLostButtons = screen.getAllByRole('button', { name: 'Đánh dấu mất' });
+    // OPP_O1 + OPP_O2 + OPP_O2_B are all open and not O5.
+    expect(markLostButtons).toHaveLength(3);
+    fireEvent.click(markLostButtons[0]);
+    expect(screen.getByText('Đánh dấu mất cơ hội')).toBeInTheDocument();
+  });
+
+  it('does not show "Đánh dấu mất" for an O5_ENROLLED opportunity', () => {
+    const OPP_O5: OpportunityRow = {
+      id: 'opp-o5',
+      stage: 'O5_ENROLLED',
+      closedAt: null,
+      contact: { id: 'c9', name: 'Đặng Văn E', phone: '0900000009' },
+    };
+    listState.data = { items: [OPP_O5] };
+    renderWithProviders(<CrmPipelinePage />);
+    expect(screen.queryByRole('button', { name: 'Đánh dấu mất' })).not.toBeInTheDocument();
+  });
+
+  it('does not show "Đánh dấu mất" for an already-lost opportunity', () => {
+    const OPP_LOST: OpportunityRow = {
+      id: 'opp-lost',
+      stage: 'O2_CONTACTED',
+      closedAt: '2026-07-01T00:00:00.000Z',
+      contact: { id: 'c8', name: 'Bùi Thị F', phone: '0900000008' },
+    };
+    listState.data = { items: [OPP_LOST] };
+    renderWithProviders(<CrmPipelinePage />);
+    expect(screen.queryByRole('button', { name: 'Đánh dấu mất' })).not.toBeInTheDocument();
   });
 });

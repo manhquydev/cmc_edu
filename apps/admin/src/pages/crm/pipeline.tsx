@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge, Button, FunnelBar, HStack, LineIcon, PageHeader, Panel, Skeleton, Stack, Text } from '@cmc/ui';
+import { Badge, Button, FunnelBar, HStack, LineIcon, PageHeader, Panel, Skeleton, Stack, Text, TextInput } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { CreateLeadDialog } from './create-lead-dialog.js';
+import { MarkLostDialog } from './mark-lost-dialog.js';
 
 // Stage metadata — O5 is reached only via finance.receiptApprove, never via
 // opportunityAdvance. Single local source of truth for label + ordering
@@ -30,14 +32,20 @@ function OpportunityCard({
   nextStage,
   onAdvance,
   advancing,
+  onMarkLost,
 }: {
   opp: OpportunityItem;
   nextStage: AdvanceableStage | null;
   onAdvance: (id: string, toStage: AdvanceableStage) => void;
   advancing: boolean;
+  onMarkLost: (id: string) => void;
 }) {
   const navigate = useNavigate();
-  const isLost = Boolean(opp.closedAt);
+  // A won (O5) opportunity also carries a `closedAt` (the enrollment instant)
+  // — only a closedAt WITHOUT O5 is a genuine loss (matches the backend's
+  // `isOpportunityLost`/`LOST_WHERE` fragment in apps/api/src/crm/router.ts).
+  const isLost = Boolean(opp.closedAt) && opp.stage !== 'O5_ENROLLED';
+  const canMarkLost = !isLost && opp.stage !== 'O5_ENROLLED';
 
   return (
     <div
@@ -85,6 +93,18 @@ function OpportunityCard({
             }}
           />
         )}
+
+        {canMarkLost && (
+          <Button
+            label="Đánh dấu mất"
+            size="sm"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMarkLost(opp.id);
+            }}
+          />
+        )}
       </Stack>
     </div>
   );
@@ -93,17 +113,36 @@ function OpportunityCard({
 export default function CrmPipelinePage() {
   const utils = trpc.useUtils();
   const [advancingId, setAdvancingId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [markLostId, setMarkLostId] = useState<string | null>(null);
+
+  // Debounced (~300ms) server-side search over contact name/phone.
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Single source of truth for the current query input — reused by the
+  // optimistic-advance mutation's cancel/getData/setData calls below so they
+  // always target the SAME react-query cache key as the active query, even
+  // as `search` changes the key.
+  const listInput = {
+    pageSize: 100,
+    ...(debouncedSearch ? { search: debouncedSearch } : {}),
+  };
 
   // Load all opportunities across all stages (large pageSize — dashboard shows all).
-  const { data, isLoading, error } = trpc.crm.opportunityList.useQuery({ pageSize: 100 });
+  const { data, isLoading, error } = trpc.crm.opportunityList.useQuery(listInput);
 
   const advanceMutation = trpc.crm.opportunityAdvance.useMutation({
     onMutate: async ({ opportunityId, toStage }) => {
       // Optimistic update: move the opportunity to the new stage before the server confirms.
-      await utils.crm.opportunityList.cancel({ pageSize: 100 });
-      const prev = utils.crm.opportunityList.getData({ pageSize: 100 });
+      await utils.crm.opportunityList.cancel(listInput);
+      const prev = utils.crm.opportunityList.getData(listInput);
       if (prev) {
-        utils.crm.opportunityList.setData({ pageSize: 100 }, {
+        utils.crm.opportunityList.setData(listInput, {
           ...prev,
           items: prev.items.map((item) =>
             item.id === opportunityId ? { ...item, stage: toStage } : item,
@@ -115,7 +154,7 @@ export default function CrmPipelinePage() {
     onError: (_err, _vars, ctx) => {
       // Rollback to previous state on error.
       if (ctx?.prev) {
-        utils.crm.opportunityList.setData({ pageSize: 100 }, ctx.prev);
+        utils.crm.opportunityList.setData(listInput, ctx.prev);
       }
     },
     onSettled: () => {
@@ -151,6 +190,29 @@ export default function CrmPipelinePage() {
         title="Pipeline CRM"
         subtitle="Theo dõi cơ hội từ Tiếp cận đến Ghi danh"
         breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Pipeline CRM' }]}
+        actions={
+          <HStack gap={2} align="center">
+            <div style={{ width: 220 }}>
+              <TextInput
+                label="Tìm kiếm"
+                isLabelHidden
+                placeholder="Tìm theo tên hoặc SĐT…"
+                value={searchTerm}
+                onChange={setSearchTerm}
+                hasClear
+                size="sm"
+                startIcon={<LineIcon name="search" size={14} />}
+              />
+            </div>
+            <Button
+              label="Thêm cơ hội"
+              size="sm"
+              variant="primary"
+              endContent={<LineIcon name="plus" size={14} />}
+              onClick={() => setCreateOpen(true)}
+            />
+          </HStack>
+        }
       />
       <Stack gap={5} padding={4}>
         <Panel title="Pipeline O1 → O5" icon="filter">
@@ -200,6 +262,7 @@ export default function CrmPipelinePage() {
                           nextStage={stage.next as AdvanceableStage | null}
                           onAdvance={handleAdvance}
                           advancing={advancingId === opp.id}
+                          onMarkLost={setMarkLostId}
                         />
                       ))}
                     </div>
@@ -210,6 +273,9 @@ export default function CrmPipelinePage() {
           </div>
         )}
       </Stack>
+
+      <CreateLeadDialog opened={createOpen} onClose={() => setCreateOpen(false)} />
+      <MarkLostDialog opportunityId={markLostId} onClose={() => setMarkLostId(null)} />
     </>
   );
 }

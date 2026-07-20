@@ -1,7 +1,10 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { Badge, Banner, Button, Grid, HStack, PageHeader, Spinner, Stack, Text } from '@cmc/ui';
+import { useState } from 'react';
+import { Badge, Banner, Button, Grid, HStack, LineIcon, PageHeader, Spinner, Stack, Text } from '@cmc/ui';
 import type { ComponentProps } from 'react';
 import { trpc } from '../../lib/trpc.js';
+import { LOST_REASON_LABELS, MarkLostDialog } from './mark-lost-dialog.js';
+import { useOpportunityActions } from './use-opportunity-actions.js';
 
 type BadgeVariant = ComponentProps<typeof Badge>['variant'];
 
@@ -24,25 +27,33 @@ const STAGE_COLOR: Record<string, BadgeVariant> = {
   O5_ENROLLED: 'success',
 };
 
-const LOST_REASON_LABELS: Record<string, string> = {
-  no_response: 'Không phản hồi',
-  price_too_high: 'Học phí quá cao',
-  chose_competitor: 'Chọn đối thủ',
-  schedule_conflict: 'Lịch học không phù hợp',
-  not_interested: 'Không có nhu cầu',
-  other: 'Lý do khác',
+// One stage at a time via opportunityAdvance — O5 is reached only through
+// finance.receiptApprove (same rule as pipeline.tsx's STAGES.next).
+const ADVANCE_NEXT: Record<string, 'O2_CONTACTED' | 'O3_TEST_SCHEDULED' | 'O4_TESTED' | undefined> = {
+  O1_LEAD: 'O2_CONTACTED',
+  O2_CONTACTED: 'O3_TEST_SCHEDULED',
+  O3_TEST_SCHEDULED: 'O4_TESTED',
 };
 
 export default function OpportunityDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [markLostOpen, setMarkLostOpen] = useState(false);
 
-  // No opportunityGet endpoint — query full list and find by id client-side.
+  // No opportunityGet endpoint for a single lost opp lookup from the pipeline
+  // (which hides lost opps by default) — query the full list WITH lost
+  // opportunities included so a lost opp's detail page still resolves.
   // pageSize: 100 covers typical facility pipeline volume.
   const { data, isLoading, error } = trpc.crm.opportunityList.useQuery(
-    { pageSize: 100 },
+    { pageSize: 100, lost: 'include' },
     { enabled: Boolean(id) },
   );
+
+  const utils = trpc.useUtils();
+  const advanceMutation = trpc.crm.opportunityAdvance.useMutation({
+    onSuccess: () => void utils.crm.opportunityList.invalidate(),
+  });
+  const { markLostMutation } = useOpportunityActions();
 
   if (isLoading) {
     return (
@@ -73,9 +84,14 @@ export default function OpportunityDetailPage() {
     );
   }
 
-  const isLost = Boolean(opp.closedAt);
+  // A won (O5) opportunity also carries a `closedAt` (the enrollment instant)
+  // — only a closedAt WITHOUT O5 is a genuine loss (matches the backend's
+  // `isOpportunityLost`/`LOST_WHERE` fragment in apps/api/src/crm/router.ts).
+  const isLost = Boolean(opp.closedAt) && opp.stage !== 'O5_ENROLLED';
   const stageLabel = STAGE_LABELS[opp.stage] ?? opp.stage;
   const stageVariant = STAGE_COLOR[opp.stage] ?? 'blue';
+  const nextStage = ADVANCE_NEXT[opp.stage];
+  const canMarkLost = !isLost && opp.stage !== 'O5_ENROLLED';
 
   return (
     <>
@@ -89,6 +105,33 @@ export default function OpportunityDetailPage() {
         ]}
         actions={
           <HStack gap={2}>
+            {isLost && (
+              <Button
+                label="Mở lại cơ hội"
+                variant="secondary"
+                size="sm"
+                isLoading={markLostMutation.isPending}
+                onClick={() => markLostMutation.mutate({ opportunityId: opp.id, reopen: true })}
+              />
+            )}
+            {!isLost && nextStage && (
+              <Button
+                label="Chuyển lên"
+                variant="secondary"
+                size="sm"
+                endContent={<LineIcon name="chevron" size={12} />}
+                isLoading={advanceMutation.isPending}
+                onClick={() => advanceMutation.mutate({ opportunityId: opp.id, toStage: nextStage })}
+              />
+            )}
+            {canMarkLost && (
+              <Button
+                label="Đánh dấu mất"
+                variant="secondary"
+                size="sm"
+                onClick={() => setMarkLostOpen(true)}
+              />
+            )}
             {opp.stage === 'O4_TESTED' && !isLost && (
               <Button
                 label="Tạo phiếu thu"
@@ -105,6 +148,11 @@ export default function OpportunityDetailPage() {
             />
           </HStack>
         }
+      />
+
+      <MarkLostDialog
+        opportunityId={markLostOpen ? opp.id : null}
+        onClose={() => setMarkLostOpen(false)}
       />
 
       <div style={{ padding: 16, maxWidth: 640 }}>

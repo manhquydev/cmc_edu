@@ -12,7 +12,7 @@ import { trpc } from './trpc.js';
 export function EnrollPicker({ opened, onClose }: { opened: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const { data, isLoading } = trpc.crm.opportunityList.useQuery(
-    { stage: 'O4_TESTED', pageSize: 50 },
+    { stage: 'O4_TESTED', pageSize: 50, lost: 'exclude' },
     { enabled: opened },
   );
 

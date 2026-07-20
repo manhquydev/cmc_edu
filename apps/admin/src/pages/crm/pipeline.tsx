@@ -1,10 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge, Button, FunnelBar, HStack, LineIcon, PageHeader, Panel, Skeleton, Stack, Text, TextInput } from '@cmc/ui';
+import { Badge, Button, FunnelBar, HStack, LineIcon, PageHeader, Panel, Selector, Skeleton, Stack, Text, TextInput } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { formatContactPhone } from '../../lib/format-contact-phone.js';
 import { CreateLeadDialog } from './create-lead-dialog.js';
 import { MarkLostDialog } from './mark-lost-dialog.js';
+
+// Server-side page size for the flat opportunity list (F7 fix — the funnel
+// used to be computed by counting a hard pageSize:100 fetch, which silently
+// under-counted once a facility passed 100 open opportunities). 20 matches
+// the `crm.opportunityList` input default.
+const PAGE_SIZE = 20;
+
+type LostVisibility = 'exclude' | 'include' | 'only';
+
+const LOST_FILTER_OPTIONS: { value: LostVisibility; label: string }[] = [
+  { value: 'exclude', label: 'Đang chăm sóc' },
+  { value: 'include', label: 'Tất cả' },
+  { value: 'only', label: 'Đã mất' },
+];
 
 // Stage metadata — O5 is reached only via finance.receiptApprove, never via
 // opportunityAdvance. Single local source of truth for label + ordering
@@ -25,6 +39,7 @@ interface OpportunityItem {
   id: string;
   stage: string;
   closedAt: string | null;
+  lostReason?: string;
   contact: { id: string; name: string; phone: string };
 }
 
@@ -125,16 +140,27 @@ export default function CrmPipelinePage() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  const [lostFilter, setLostFilter] = useState<LostVisibility>('exclude');
+  const [page, setPage] = useState(1);
+
+  // Changing the search term or the lost-visibility filter narrows/widens the
+  // result set — restart pagination at page 1 so the user isn't stranded on
+  // a now-out-of-range page.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, lostFilter]);
+
   // Single source of truth for the current query input — reused by the
   // optimistic-advance mutation's cancel/getData/setData calls below so they
   // always target the SAME react-query cache key as the active query, even
-  // as `search` changes the key.
+  // as `search`/`lost`/`page` change the key.
   const listInput = {
-    pageSize: 100,
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    lost: lostFilter,
+    page,
+    pageSize: PAGE_SIZE,
   };
 
-  // Load all opportunities across all stages (large pageSize — dashboard shows all).
   const { data, isLoading, error } = trpc.crm.opportunityList.useQuery(listInput);
 
   const advanceMutation = trpc.crm.opportunityAdvance.useMutation({
@@ -173,7 +199,11 @@ export default function CrmPipelinePage() {
 
   const items = (data?.items ?? []) as OpportunityItem[];
 
-  // Group opportunities by stage.
+  // Group the current page's opportunities by stage — for CARD PLACEMENT
+  // only. Counts shown to the user (funnel bars, per-stage panel headers)
+  // come from the server-aggregated `stageCounts`/`lostCount` below, NOT
+  // from these buckets — a page-scoped `.length` silently under/over-counts
+  // once results span more than one page (the F7 bug this phase fixes).
   const byStage = new Map<StageKey, OpportunityItem[]>(
     STAGES.map((s) => [s.key, []]),
   );
@@ -181,7 +211,13 @@ export default function CrmPipelinePage() {
     const bucket = byStage.get(item.stage as StageKey);
     if (bucket) bucket.push(item);
   }
-  const maxCount = Math.max(1, ...STAGES.map((s) => byStage.get(s.key)?.length ?? 0));
+
+  const stageCounts = data?.stageCounts ?? {};
+  const lostCount = data?.lostCount ?? 0;
+  const maxCount = Math.max(1, ...STAGES.map((s) => stageCounts[s.key] ?? 0));
+
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const ready = !isLoading && !error;
 
@@ -216,6 +252,22 @@ export default function CrmPipelinePage() {
         }
       />
       <Stack gap={5} padding={4}>
+        <HStack gap={2} align="center">
+          <Text type="supporting" size="sm">
+            Hiển thị:
+          </Text>
+          <div style={{ width: 180 }}>
+            <Selector
+              label="Hiển thị cơ hội đã mất"
+              isLabelHidden
+              value={lostFilter}
+              onChange={(v) => setLostFilter(v as LostVisibility)}
+              options={LOST_FILTER_OPTIONS}
+              size="sm"
+            />
+          </div>
+        </HStack>
+
         <Panel title="Pipeline O1 → O5" icon="filter">
           {isLoading ? (
             <div style={{ padding: '0 22px 20px' }}>
@@ -227,16 +279,23 @@ export default function CrmPipelinePage() {
               {error.message || 'Lỗi tải pipeline CRM'}
             </div>
           ) : (
-            <div className="ck-fn">
-              {STAGES.map((stage) => (
-                <FunnelBar
-                  key={stage.key}
-                  label={stage.label}
-                  value={byStage.get(stage.key)?.length ?? 0}
-                  max={maxCount}
-                />
-              ))}
-            </div>
+            <>
+              <div className="ck-fn">
+                {STAGES.map((stage) => (
+                  <FunnelBar
+                    key={stage.key}
+                    label={stage.label}
+                    value={stageCounts[stage.key] ?? 0}
+                    max={maxCount}
+                  />
+                ))}
+              </div>
+              <div style={{ padding: '0 22px 18px' }}>
+                <Text type="supporting" size="xsm">
+                  {lostCount} cơ hội đã mất
+                </Text>
+              </div>
+            </>
           )}
         </Panel>
 
@@ -251,7 +310,7 @@ export default function CrmPipelinePage() {
             {STAGES.map((stage) => {
               const stageItems = byStage.get(stage.key) ?? [];
               return (
-                <Panel key={stage.key} title={`${stage.label} · ${stageItems.length}`}>
+                <Panel key={stage.key} title={`${stage.label} · ${stageCounts[stage.key] ?? 0}`}>
                   {stageItems.length === 0 ? (
                     <div className="ck-empty">Chưa có</div>
                   ) : (
@@ -272,6 +331,30 @@ export default function CrmPipelinePage() {
               );
             })}
           </div>
+        )}
+
+        {ready && (
+          <HStack justify="between" align="center">
+            <Text type="supporting" size="xsm">
+              Trang {page}/{totalPages} — {total} cơ hội
+            </Text>
+            <HStack gap={1}>
+              <Button
+                label="Trang trước"
+                size="sm"
+                variant="secondary"
+                isDisabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              />
+              <Button
+                label="Trang sau"
+                size="sm"
+                variant="secondary"
+                isDisabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              />
+            </HStack>
+          </HStack>
         )}
       </Stack>
 

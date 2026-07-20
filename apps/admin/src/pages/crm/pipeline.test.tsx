@@ -6,12 +6,16 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // `window.matchMedia` is polyfilled centrally in `apps/admin/test-setup.ts`
 // (Astryx Spinner needs it under jsdom).
 
-// Locks the CRM pipeline dashboard (phase-03, Kanban→premium dashboard
-// upgrade). Backend (`crm.opportunityList` + `crm.opportunityAdvance`)
-// already exists (apps/api/src/crm/router.ts) — this test drives the UI
-// contract: stage grouping/ordering/counts from `opportunityList`, and the
-// stage-advance action calling `opportunityAdvance.mutate` with a
-// byte-identical `{opportunityId, toStage}` payload + invalidate on settle.
+// Locks the CRM pipeline dashboard (phase-03 Kanban→premium upgrade, phase-06
+// F7 fix). Backend (`crm.opportunityList` + `crm.opportunityAdvance`) already
+// exists (apps/api/src/crm/router.ts) — this test drives the UI contract:
+// - stage grouping/ordering (from `items`, current page only)
+// - funnel/column COUNTS from the server-aggregated `stageCounts`/`lostCount`
+//   (facility-wide, NOT derived by counting `items` — the F7 bug)
+// - the lost-visibility filter (`lost: 'exclude'|'include'|'only'`)
+// - real page/pageSize pagination
+// - the stage-advance action calling `opportunityAdvance.mutate` with a
+//   byte-identical `{opportunityId, toStage}` payload + invalidate on settle.
 interface OpportunityRow {
   id: string;
   stage: string;
@@ -19,7 +23,15 @@ interface OpportunityRow {
   contact: { id: string; name: string; phone: string };
 }
 
-const STAGE_ORDER = ['O1_LEAD', 'O2_CONTACTED', 'O3_TEST_SCHEDULED', 'O4_TESTED', 'O5_ENROLLED'];
+interface OpportunityListData {
+  items: OpportunityRow[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  stageCounts?: Record<string, number>;
+  lostCount?: number;
+}
+
 const STAGE_LABEL_ORDER = ['Tiếp cận', 'Đã liên hệ', 'Đặt lịch kiểm tra', 'Đã kiểm tra', 'Đã ghi danh'];
 
 const OPP_O1: OpportunityRow = {
@@ -41,8 +53,19 @@ const OPP_O2_B: OpportunityRow = {
   contact: { id: 'c3', name: 'Lê Văn C', phone: '0900000003' },
 };
 
-const listState: { data: { items: OpportunityRow[] } | undefined; isLoading: boolean; error: { message: string } | null } = {
-  data: { items: [OPP_O1, OPP_O2, OPP_O2_B] },
+// `stageCounts` deliberately DIVERGES from what counting `items` would give
+// (items only carry O1=1, O2=2, O3/O4/O5=0) — proving the funnel reads the
+// server aggregate, not a client-side count over the current page's items.
+const STAGE_COUNTS_MOCK: Record<string, number> = {
+  O1_LEAD: 5,
+  O2_CONTACTED: 1,
+  O3_TEST_SCHEDULED: 2,
+  O4_TESTED: 0,
+  O5_ENROLLED: 3,
+};
+
+const listState: { data: OpportunityListData | undefined; isLoading: boolean; error: { message: string } | null } = {
+  data: { items: [OPP_O1, OPP_O2, OPP_O2_B], total: 3, page: 1, pageSize: 20, stageCounts: STAGE_COUNTS_MOCK, lostCount: 0 },
   isLoading: false,
   error: null,
 };
@@ -89,7 +112,14 @@ import CrmPipelinePage from './pipeline.js';
 
 describe('CrmPipelinePage', () => {
   beforeEach(() => {
-    listState.data = { items: [OPP_O1, OPP_O2, OPP_O2_B] };
+    listState.data = {
+      items: [OPP_O1, OPP_O2, OPP_O2_B],
+      total: 3,
+      page: 1,
+      pageSize: 20,
+      stageCounts: STAGE_COUNTS_MOCK,
+      lostCount: 0,
+    };
     listState.isLoading = false;
     listState.error = null;
     listQuerySpy.mockClear();
@@ -100,18 +130,32 @@ describe('CrmPipelinePage', () => {
     vi.useRealTimers();
   });
 
-  it('queries crm.opportunityList with the unchanged {pageSize: 100} input', () => {
+  it('queries crm.opportunityList with {lost: "exclude", page: 1, pageSize: 20} by default (no search key)', () => {
     renderWithProviders(<CrmPipelinePage />);
-    expect(listQuerySpy).toHaveBeenCalledWith({ pageSize: 100 });
+    expect(listQuerySpy).toHaveBeenCalledWith({ lost: 'exclude', page: 1, pageSize: 20 });
   });
 
-  it('renders stage funnel bars in O1→O5 order with correct counts', () => {
+  it('renders stage funnel bars in O1→O5 order using server-aggregated stageCounts (not a count over items)', () => {
     const { container } = renderWithProviders(<CrmPipelinePage />);
     const labels = Array.from(container.querySelectorAll('.ck-fn-label')).map((el) => el.textContent);
     const counts = Array.from(container.querySelectorAll('.ck-fn-count')).map((el) => el.textContent);
     expect(labels).toEqual(STAGE_LABEL_ORDER);
-    // O1_LEAD=1, O2_CONTACTED=2, O3/O4/O5=0
-    expect(counts).toEqual(['1', '2', '0', '0', '0']);
+    // Matches STAGE_COUNTS_MOCK, NOT the items-derived counts (which would be
+    // ['1','2','0','0','0']) — proves the funnel is server-sourced.
+    expect(counts).toEqual(['5', '1', '2', '0', '3']);
+  });
+
+  it('renders per-stage column headers using stageCounts (not the current page item count)', () => {
+    renderWithProviders(<CrmPipelinePage />);
+    // O1_LEAD stageCounts=5 while only 1 item is on the current page.
+    expect(screen.getByText('Tiếp cận · 5')).toBeInTheDocument();
+    expect(screen.getByText('Đã liên hệ · 1')).toBeInTheDocument();
+  });
+
+  it('renders the lostCount from the server response', () => {
+    listState.data = { ...listState.data!, lostCount: 4 };
+    renderWithProviders(<CrmPipelinePage />);
+    expect(screen.getByText('4 cơ hội đã mất')).toBeInTheDocument();
   });
 
   it('groups opportunities into their stage bucket (contact names appear once per stage)', () => {
@@ -164,20 +208,20 @@ describe('CrmPipelinePage', () => {
     expect(container.textContent).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
   });
 
-  it('debounces the header search box (~300ms) and calls opportunityList with {pageSize:100, search}', () => {
+  it('debounces the header search box (~300ms) and calls opportunityList with {search, lost: "exclude", page: 1, pageSize: 20}', () => {
     vi.useFakeTimers();
     renderWithProviders(<CrmPipelinePage />);
     listQuerySpy.mockClear();
     const searchInput = screen.getByPlaceholderText('Tìm theo tên hoặc SĐT…');
     fireEvent.change(searchInput, { target: { value: 'Nguyễn' } });
-    expect(listQuerySpy).not.toHaveBeenCalledWith({ pageSize: 100, search: 'Nguyễn' });
+    expect(listQuerySpy).not.toHaveBeenCalledWith({
+      search: 'Nguyễn',
+      lost: 'exclude',
+      page: 1,
+      pageSize: 20,
+    });
     act(() => vi.advanceTimersByTime(300));
-    expect(listQuerySpy).toHaveBeenCalledWith({ pageSize: 100, search: 'Nguyễn' });
-  });
-
-  it('queries the unchanged {pageSize: 100} input (no `search` key) while the search box is empty', () => {
-    renderWithProviders(<CrmPipelinePage />);
-    expect(listQuerySpy).toHaveBeenCalledWith({ pageSize: 100 });
+    expect(listQuerySpy).toHaveBeenCalledWith({ search: 'Nguyễn', lost: 'exclude', page: 1, pageSize: 20 });
   });
 
   it('opens the create-lead dialog when "Thêm cơ hội" is clicked', () => {
@@ -207,7 +251,7 @@ describe('CrmPipelinePage', () => {
     expect(screen.queryByRole('button', { name: 'Đánh dấu mất' })).not.toBeInTheDocument();
   });
 
-  it('does not show "Đánh dấu mất" for an already-lost opportunity', () => {
+  it('does not show "Đánh dấu mất" for an already-lost opportunity, and shows the Lost badge instead', () => {
     const OPP_LOST: OpportunityRow = {
       id: 'opp-lost',
       stage: 'O2_CONTACTED',
@@ -217,5 +261,56 @@ describe('CrmPipelinePage', () => {
     listState.data = { items: [OPP_LOST] };
     renderWithProviders(<CrmPipelinePage />);
     expect(screen.queryByRole('button', { name: 'Đánh dấu mất' })).not.toBeInTheDocument();
+    expect(screen.getByText('Lost')).toBeInTheDocument();
+  });
+
+  describe('lost-visibility filter', () => {
+    it('defaults to "Đang chăm sóc" (lost: exclude)', () => {
+      renderWithProviders(<CrmPipelinePage />);
+      expect(screen.getByRole('combobox', { name: 'Hiển thị cơ hội đã mất' })).toHaveTextContent('Đang chăm sóc');
+    });
+
+    it('switches to lost: "include" when "Tất cả" is selected', () => {
+      renderWithProviders(<CrmPipelinePage />);
+      listQuerySpy.mockClear();
+      fireEvent.click(screen.getByRole('combobox', { name: 'Hiển thị cơ hội đã mất' }));
+      fireEvent.click(screen.getByRole('option', { name: 'Tất cả' }));
+      expect(listQuerySpy).toHaveBeenCalledWith({ lost: 'include', page: 1, pageSize: 20 });
+    });
+
+    it('switches to lost: "only" when "Đã mất" is selected', () => {
+      renderWithProviders(<CrmPipelinePage />);
+      listQuerySpy.mockClear();
+      fireEvent.click(screen.getByRole('combobox', { name: 'Hiển thị cơ hội đã mất' }));
+      fireEvent.click(screen.getByRole('option', { name: 'Đã mất' }));
+      expect(listQuerySpy).toHaveBeenCalledWith({ lost: 'only', page: 1, pageSize: 20 });
+    });
+  });
+
+  describe('pagination', () => {
+    beforeEach(() => {
+      listState.data = {
+        items: [OPP_O1, OPP_O2, OPP_O2_B],
+        total: 45,
+        page: 1,
+        pageSize: 20,
+        stageCounts: STAGE_COUNTS_MOCK,
+        lostCount: 0,
+      };
+    });
+
+    it('renders the page/total summary and disables "Trang trước" on page 1', () => {
+      renderWithProviders(<CrmPipelinePage />);
+      expect(screen.getByText('Trang 1/3 — 45 cơ hội')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Trang trước' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Trang sau' })).not.toBeDisabled();
+    });
+
+    it('advances the `page` param when "Trang sau" is clicked', () => {
+      renderWithProviders(<CrmPipelinePage />);
+      listQuerySpy.mockClear();
+      fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
+      expect(listQuerySpy).toHaveBeenCalledWith({ lost: 'exclude', page: 2, pageSize: 20 });
+    });
   });
 });

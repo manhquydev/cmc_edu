@@ -125,6 +125,28 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       expect(opportunity.closedAt).not.toBeNull();
     });
 
+    it('cancel of an auto-created walk-in O5 receipt reverts the opportunity O5 -> O4, no error (phase-05)', async () => {
+      const parentPhone = '0980000050';
+      phonesToClean.push(parentPhone);
+      const created = await sale.finance.receiptCreate({
+        studentName: 'Walkin Cancel Kid',
+        parentPhone,
+        amount: 5_000_000,
+        classBatchId: classBatch.id,
+      });
+      if (created.status === 'needs_confirmation') throw new Error('unexpected needs_confirmation');
+      await gdkd.finance.receiptApprove({ receiptId: created.receipt.id });
+
+      const linked = await testDbBypass((tx) => tx.receipt.findUniqueOrThrow({ where: { id: created.receipt.id } }));
+      expect(linked.opportunityId).not.toBeNull();
+
+      const result = await gdkd.finance.receiptCancel({ receiptId: created.receipt.id, reason: 'walk-in cancel' });
+      expect(result.opportunityReverted).toBe(true);
+
+      const opp = await testDbBypass((tx) => tx.opportunity.findUniqueOrThrow({ where: { id: linked.opportunityId! } }));
+      expect(opp.stage).toBe('O4_TESTED'); // reverted from the auto-created O5
+    });
+
     it('forbids sale from cancelling (same money-gate permission as receiptApprove)', async () => {
       const { receipt } = await draftAndApprove({ contactPhone: '0970000003', parentPhone: '0980000003' });
 

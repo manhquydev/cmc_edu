@@ -213,6 +213,107 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     expect(corrupt).toBe(false);
   });
 
+  it('walk-in: approving an UNLINKED receipt auto-creates a Contact + Opportunity ending at O5 (phase-05)', async () => {
+    const parentPhone = '0940000050';
+    phonesToClean.push(parentPhone);
+    const created = await sale.finance.receiptCreate({
+      studentName: 'Walk In Kid',
+      parentPhone,
+      amount: 5_000_000,
+      classBatchId: classBatch.id,
+    });
+    if (created.status === 'needs_confirmation') throw new Error('unexpected needs_confirmation');
+    expect(created.receipt.opportunityId).toBeNull();
+
+    const result = await gdkd.finance.receiptApprove({ receiptId: created.receipt.id });
+    expect(result.opportunityStage).toBe('O5_ENROLLED');
+
+    const linked = await testDbBypass((tx) => tx.receipt.findUniqueOrThrow({ where: { id: created.receipt.id } }));
+    expect(linked.opportunityId).not.toBeNull();
+
+    const contact = await testDbBypass((tx) =>
+      tx.contact.findFirst({ where: { facilityId: facility.id, phone: '84940000050' } }),
+    );
+    expect(contact).not.toBeNull();
+    expect(contact?.name).toBe('PH Walk In Kid'); // placeholder — no parent-name source field
+
+    const opp = await testDbBypass((tx) =>
+      tx.opportunity.findUniqueOrThrow({ where: { id: linked.opportunityId! } }),
+    );
+    expect(opp.stage).toBe('O5_ENROLLED');
+    expect(opp.closedAt).not.toBeNull();
+    expect(opp.lostReason).toBeNull();
+  });
+
+  it('walk-in: an UNLINKED receipt for a phone with an OPEN opp links AND advances that opp to O5 (no strand at O2) (phase-05)', async () => {
+    const parentPhone = '0940000051';
+    phonesToClean.push(parentPhone);
+    const existing = await sale.crm.opportunityCreate({ contactName: 'Existing Lead', phone: parentPhone });
+    await sale.crm.opportunityAdvance({ opportunityId: existing.id, toStage: 'O2_CONTACTED' });
+
+    const created = await sale.finance.receiptCreate({
+      studentName: 'Kid B',
+      parentPhone,
+      amount: 5_000_000,
+      classBatchId: classBatch.id,
+    });
+    if (created.status === 'needs_confirmation') throw new Error('unexpected needs_confirmation');
+
+    await gdkd.finance.receiptApprove({ receiptId: created.receipt.id });
+
+    const linked = await testDbBypass((tx) => tx.receipt.findUniqueOrThrow({ where: { id: created.receipt.id } }));
+    expect(linked.opportunityId).toBe(existing.id); // linked the existing open opp, not a new one
+    const updated = await testDbBypass((tx) => tx.opportunity.findUniqueOrThrow({ where: { id: existing.id } }));
+    expect(updated.stage).toBe('O5_ENROLLED'); // advanced, NOT stranded at O2
+  });
+
+  it('walk-in: when the phone\'s only opp is LOST, it is left untouched and a fresh opp is created ending O5 (phase-05)', async () => {
+    const parentPhone = '0940000052';
+    phonesToClean.push(parentPhone);
+    const lostOpp = await sale.crm.opportunityCreate({ contactName: 'Lost Lead', phone: parentPhone });
+    await sale.crm.opportunityAdvance({ opportunityId: lostOpp.id, toStage: 'O2_CONTACTED' });
+    await sale.crm.opportunityMarkLost({ opportunityId: lostOpp.id, lostReason: 'no_response' });
+
+    const created = await sale.finance.receiptCreate({
+      studentName: 'Kid C',
+      parentPhone,
+      amount: 5_000_000,
+      classBatchId: classBatch.id,
+    });
+    if (created.status === 'needs_confirmation') throw new Error('unexpected needs_confirmation');
+
+    await gdkd.finance.receiptApprove({ receiptId: created.receipt.id });
+
+    const linked = await testDbBypass((tx) => tx.receipt.findUniqueOrThrow({ where: { id: created.receipt.id } }));
+    expect(linked.opportunityId).not.toBe(lostOpp.id); // not the lost opp
+
+    const lostAfter = await testDbBypass((tx) => tx.opportunity.findUniqueOrThrow({ where: { id: lostOpp.id } }));
+    expect(lostAfter.lostReason).toBe('no_response'); // untouched
+    expect(lostAfter.stage).not.toBe('O5_ENROLLED');
+
+    const newOpp = await testDbBypass((tx) => tx.opportunity.findUniqueOrThrow({ where: { id: linked.opportunityId! } }));
+    expect(newOpp.stage).toBe('O5_ENROLLED');
+  });
+
+  it('walk-in: a phone-format variant of an existing contact matches it — no duplicate Contact (phase-05)', async () => {
+    phonesToClean.push('+84 940 000 053');
+    await sale.crm.opportunityCreate({ contactName: 'Variant Lead', phone: '0940000053' });
+
+    const created = await sale.finance.receiptCreate({
+      studentName: 'Kid D',
+      parentPhone: '+84 940 000 053',
+      amount: 5_000_000,
+      classBatchId: classBatch.id,
+    });
+    if (created.status === 'needs_confirmation') throw new Error('unexpected needs_confirmation');
+    await gdkd.finance.receiptApprove({ receiptId: created.receipt.id });
+
+    const contacts = await testDbBypass((tx) =>
+      tx.contact.findMany({ where: { facilityId: facility.id, phone: '84940000053' } }),
+    );
+    expect(contacts).toHaveLength(1); // normalized match — no duplicate
+  });
+
   it('rejects approving a non-draft receipt (already approved)', async () => {
     const { receipt } = await draftReceipt(sale, { contactPhone: '0930000003', parentPhone: '0940000003' });
     await gdkd.finance.receiptApprove({ receiptId: receipt.id });

@@ -20,6 +20,7 @@ import { ReceiptNoLongerApprovedError } from '../enrollment/activate-enrollment.
 import { provisionFromReceipt } from '../provisioning/provision-from-receipt.js';
 import { maybeCreateFlag } from '../worker/reconcile-finance-flags.js';
 import { isOpportunityLost } from '../crm/opportunity-lost.js';
+import { findOrCreateContact } from '../crm/find-or-create-contact.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
 /**
@@ -317,6 +318,50 @@ async function runMoneyTransaction(
     where: { id: receipt.id, facilityId },
   });
 
+  // phase-05 (F4, PO decision #1): a receipt approved with no opportunity is
+  // invisible to the CRM funnel — the walk-in case. Resolve or create one
+  // HERE, BEFORE the advance block below, and link it to the receipt so that
+  // block converts it to O5 (a single O5-writer; no duplicate advance logic).
+  // Must run before the `if (approved.opportunityId)` block because that block
+  // fires exactly once — setting opportunityId after it has already been
+  // skipped would strand the opportunity un-advanced.
+  let autoLinkedOpportunityId: string | null = null;
+  let autoCreatedOpportunityId: string | null = null;
+  if (!approved.opportunityId) {
+    // Resolve the Contact by normalized phone (shared writer with
+    // crm.opportunityCreate — one Contact per (facility, phone), phase-08). An
+    // existing Contact keeps its name; a brand-new one gets a `PH <student>`
+    // placeholder — there is no parent-name field on Receipt (schema), and at
+    // approve time no ParentAccount exists yet for a new family.
+    const contact = await findOrCreateContact(tx, {
+      facilityId,
+      name: `PH ${approved.studentName}`,
+      phone: approved.parentPhone,
+      email: approved.parentEmail ?? null,
+    });
+    // Link the Contact's most-recent OPEN opportunity (closedAt null — this
+    // excludes both lost and already-won opps, so a lost opp is never
+    // auto-linked); otherwise create a fresh one. Either way the advance block
+    // below moves it to O5.
+    const openOpp = await tx.opportunity.findFirst({
+      where: { facilityId, contactId: contact.id, closedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    let resolvedOpportunityId: string;
+    if (openOpp) {
+      resolvedOpportunityId = openOpp.id;
+      autoLinkedOpportunityId = openOpp.id;
+    } else {
+      const created = await tx.opportunity.create({
+        data: { facilityId, contactId: contact.id, stage: 'O1_LEAD' },
+      });
+      resolvedOpportunityId = created.id;
+      autoCreatedOpportunityId = created.id;
+    }
+    await tx.receipt.update({ where: { id: approved.id }, data: { opportunityId: resolvedOpportunityId } });
+    approved.opportunityId = resolvedOpportunityId;
+  }
+
   let opportunityStage: string | null = null;
   if (approved.opportunityId) {
     // phase-02: lock the opportunity row FOR UPDATE before the lost-gate check
@@ -373,6 +418,8 @@ async function runMoneyTransaction(
         netAmount,
         selfApproved,
         kind,
+        ...(autoLinkedOpportunityId ? { autoLinkedOpportunityId } : {}),
+        ...(autoCreatedOpportunityId ? { autoCreatedOpportunityId } : {}),
       },
     },
   });

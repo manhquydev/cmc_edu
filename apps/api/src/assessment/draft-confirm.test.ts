@@ -46,6 +46,7 @@ describe('assessment (T3 US-018)', () => {
   let gddt: Caller;
   let parent: { id: string; phone: string };
   let classBatch: { id: string };
+  let teacherAppUser: { id: string };
   let enrollment: { id: string; studentId: string; classBatchId: string };
 
   beforeEach(async () => {
@@ -61,7 +62,7 @@ describe('assessment (T3 US-018)', () => {
     // Teacher class-scoping remediation (2026-07-15): draftComment/confirm/
     // discard now scope-check via classSessionId → classBatchId when a
     // session is given — assign this teacher to the class.
-    const teacherAppUser = await seedAppUser({ facilityId: facility.id, userId: 'teacher-assess-1' });
+    teacherAppUser = await seedAppUser({ facilityId: facility.id, userId: 'teacher-assess-1' });
     await testDbBypass((tx) =>
       tx.classBatch.update({ where: { id: classBatch.id }, data: { teacherAppUserId: teacherAppUser.id } }),
     );
@@ -183,7 +184,7 @@ describe('assessment (T3 US-018)', () => {
     expect(JSON.stringify(llmData)).not.toContain(draft.content);
   });
 
-  it('draftComment: mutation fails AFTER LLM egress (teacher does not own session) — .llm row still exists with outcome:failed, no middleware row', async () => {
+  it('draftComment: rejects a non-owning teacher before LLM egress', async () => {
     const otherTeacherUserId = `teacher-assess-forbidden-${randomUUID().slice(0, 8)}`;
     const otherTeacher = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: otherTeacherUserId, roles: ['giao_vien'] }),
@@ -191,25 +192,58 @@ describe('assessment (T3 US-018)', () => {
     await seedAppUser({ facilityId: facility.id, userId: otherTeacherUserId });
     const session = await seedClassSession({ facilityId: facility.id, classBatchId: classBatch.id });
 
-    await expect(
-      otherTeacher.assessment.draftComment({
-        studentId: enrollment.studentId,
-        classSessionId: session.id,
-      }),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    const loggedLines: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((...args) => {
+      loggedLines.push(args.join(' '));
+    });
+    try {
+      await expect(
+        otherTeacher.assessment.draftComment({
+          studentId: enrollment.studentId,
+          classSessionId: session.id,
+        }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(loggedLines.some((line) => line.includes('draftAssessment prompt'))).toBe(false);
 
     const llmRows = await testDb().auditLog.findMany({
       where: { action: 'assessment.draftComment.llm', entityId: enrollment.studentId },
     });
-    expect(llmRows).toHaveLength(1);
-    const llmData = llmRows[0]!.data as Record<string, unknown>;
-    expect(llmData['outcome']).toBe('failed');
-    expect(llmData['assessmentId']).toBeNull();
+    expect(llmRows).toHaveLength(0);
 
     const middlewareRows = await testDb().auditLog.findMany({
       where: { action: 'assessment.draftComment', entityId: enrollment.studentId },
     });
     expect(middlewareRows).toHaveLength(0);
+  });
+
+  it('draftComment: rejects a student who is not enrolled in the selected session class before LLM egress', async () => {
+    const otherBatch = await seedClassBatch({ facilityId: facility.id });
+    await testDbBypass((tx) =>
+      tx.classBatch.update({
+        where: { id: otherBatch.id },
+        data: { teacherAppUserId: teacherAppUser.id },
+      }),
+    );
+    const unrelatedSession = await seedClassSession({
+      facilityId: facility.id,
+      classBatchId: otherBatch.id,
+    });
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      await expect(
+        teacher.assessment.draftComment({
+          studentId: enrollment.studentId,
+          classSessionId: unrelatedSession.id,
+        }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      expect(spy).not.toHaveBeenCalledWith(expect.stringContaining('draftAssessment prompt'));
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('draftComment: audit-write failure does not break the draft (best-effort)', async () => {

@@ -29,6 +29,7 @@ import {
 } from '../guardian/approved-children.js';
 import { assertTeacherOwnsSessionClass } from '../attendance/assert-teacher-owns-class.js';
 import { sanitizeAuditData } from '../audit/audit-helpers.js';
+import { assertAssessmentDraftScope } from './assert-assessment-draft-scope.js';
 
 /** T8 audit trail: sha256 of the LLM's draft content — tamper-evident
  * "kết quả" (TL13:114) without storing the raw text (minimization docs/08 §7,
@@ -196,16 +197,18 @@ export const assessmentRouter = router({
     .mutation(async ({ ctx, input }): Promise<AssessmentDto> => {
       const { facilityId } = scoped(ctx);
 
-      // Verify the student exists in this facility (RLS will enforce scope).
-      const student = await withFacility(ctx.db, facilityId, (tx) =>
-        tx.student.findFirst({
-          where: { id: input.studentId, facilityId },
-          select: { id: true },
-        }),
+      // Authorization must finish before any LLM egress. Repeat the same gate
+      // in the create transaction below to prevent a scope change between the
+      // preflight check and the persisted assessment.
+      await withFacility(ctx.db, facilityId, (tx) =>
+        assertAssessmentDraftScope(
+          tx,
+          facilityId,
+          ctx.subject,
+          input.studentId,
+          input.classSessionId ?? null,
+        ),
       );
-      if (!student) {
-        throw notFound('Student not found in this facility.');
-      }
 
       // Build a PII-free prompt: use studentId only, not fullName/phone.
       // TL13 §5: "token hoá tên trẻ, context tối thiểu, audit những gì gửi".
@@ -239,7 +242,13 @@ export const assessmentRouter = router({
       let createdAssessment: AssessmentDto | undefined;
       try {
         createdAssessment = await withFacility(ctx.db, facilityId, async (tx) => {
-          await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, input.classSessionId ?? null);
+          await assertAssessmentDraftScope(
+            tx,
+            facilityId,
+            ctx.subject,
+            input.studentId,
+            input.classSessionId ?? null,
+          );
 
           const assessment = await tx.qualitativeAssessment.create({
             data: {

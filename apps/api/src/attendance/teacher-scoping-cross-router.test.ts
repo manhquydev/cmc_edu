@@ -189,10 +189,10 @@ describe('teacher class-scoping — cross-router FORBIDDEN proof (H1+H2)', () =>
       ).resolves.toMatchObject({ status: 'confirmed' });
     });
 
-    it('draftComment: NOT scoped when period-based (no classSessionId) — nothing to scope', async () => {
+    it('draftComment: period-based drafts are scoped through the student active enrollment', async () => {
       await expect(
         teacherB.assessment.draftComment({ studentId: enrollment.studentId, period: '2026-08' }),
-      ).resolves.toMatchObject({ status: 'draft' });
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
 
     it('listBySession: FORBIDDEN for teacher B, OK for teacher A and director (M1)', async () => {

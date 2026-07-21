@@ -539,7 +539,7 @@ Single RBAC source of truth. Consulted by every mutation via `requirePermission(
 - **Bugs fixed (PR #27):** (1) tRPC basePath missing → 404 on browser clients — fixed. (2) finance/receipt-get.test.ts DB write missing withFacility() — fixed. (3) student/change-password.tsx session timing — unfixed, test.fixme(), not Astryx-related.
 - **Strategy:** Strangler pattern — both CSS/providers coexist through Phase 4; Mantine removed Phase 5.
 - **Roadmap:** Phase 5 (remove Mantine package deps entirely + full e2e QA + TL12 docs) is final phase.
-- **Plan:** `plans/260710-0236-astryx-ui-migration/` (5 phases, gitignored).
+- **Plan:** `plans/260710-0236-astryx-ui-migration/` (5 phases, tracked development context).
 
 ---
 

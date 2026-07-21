@@ -74,6 +74,7 @@ describe('assertForceRlsOnAllRlsTables (RT-7)', () => {
 describe('assertRequiredEnvForProd', () => {
   const KEYS = [
     'NODE_ENV', 'TEST_OTP_SEAM', 'APP_DATABASE_URL', 'DATABASE_URL', 'BREVO_API_KEY',
+    'BREVO_SENDER_EMAIL',
     'TRUSTED_PROXY_CIDRS', 'CORS_ORIGINS', 'S3_ENDPOINT', 'S3_BUCKET', 'S3_REGION',
     'S3_ACCESS_KEY', 'S3_SECRET_KEY', 'BLOB_STORAGE_DIR', 'SSO_ENABLED',
     'ENTRA_TENANT_ID', 'ENTRA_CLIENT_ID', 'ENTRA_CLIENT_SECRET', 'ERP_SSO_REDIRECT_URI',
@@ -97,6 +98,7 @@ describe('assertRequiredEnvForProd', () => {
     process.env.APP_DATABASE_URL = 'x';
     process.env.DATABASE_URL = 'x';
     process.env.BREVO_API_KEY = 'x';
+    process.env.BREVO_SENDER_EMAIL = 'sender@example.com';
     process.env.TRUSTED_PROXY_CIDRS = 'x';
     process.env.CORS_ORIGINS = 'x';
     process.env.BLOB_STORAGE_DIR = './b';
@@ -116,6 +118,12 @@ describe('assertRequiredEnvForProd', () => {
     setProdBase();
     delete process.env.BREVO_API_KEY;
     expect(() => assertRequiredEnvForProd()).toThrow(/BREVO_API_KEY/);
+  });
+
+  it('requires the Brevo sender address', () => {
+    setProdBase();
+    delete process.env.BREVO_SENDER_EMAIL;
+    expect(() => assertRequiredEnvForProd()).toThrow(/BREVO_SENDER_EMAIL/);
   });
 
   it('requires the full S3 set when S3_ENDPOINT is set', () => {

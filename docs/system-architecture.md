@@ -82,7 +82,7 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 - **Bugs found & fixed (PR #27):** (1) tRPC basePath missing → 404 on browser clients — fixed with conditional prefix-strip. (2) finance/receipt-get.test.ts DB write missing withFacility() — fixed. (3) student/change-password.tsx session timing bug — unfixed, tracked test.fixme(), not Astryx-related.
 - **Migration strategy:** Strangler pattern (Mantine + Astryx coexist through Phase 4; Mantine removed Phase 5). Public API preserved.
 - **Roadmap:** Phase 5 (remove Mantine package deps entirely + full e2e QA + TL12 docs updates) is final phase remaining.
-- **Plan:** `plans/260710-0236-astryx-ui-migration/` (5 phases, gitignored).
+- **Plan:** `plans/260710-0236-astryx-ui-migration/` (5 phases, tracked development context).
 
 **Auth Integration:**
 - Staff: `x-dev-user` header (dev), Entra SSO (P0-debt)

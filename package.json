@@ -13,7 +13,8 @@
     "test": "turbo run test --filter=!@cmc/e2e",
     "dev": "turbo run dev",
     "lint": "eslint apps/admin apps/lms",
-    "acceptance:report": "tsx scripts/acceptance-report/verify.ts"
+    "acceptance:report": "tsx scripts/acceptance-report/verify.ts",
+    "verify:portability": "node scripts/verify-repository-portability.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

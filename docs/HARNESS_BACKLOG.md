@@ -180,3 +180,67 @@ the failure mode T8 was designed to catch.
 ### Status
 
 proposed
+
+---
+
+## Missing Harness Capability
+
+### Title
+
+Shared `cmc_edu` test DB has an unbounded `EmployeeCodeCounter` — breaks
+hardcoded-width test assertions once it crosses 9999
+
+### Discovered While
+
+Harness durable-state sync for the log system remediation Hướng A+ plan
+(2026-07-20) — running `pnpm --filter @cmc/api test` to get fresh proof
+before marking the plan's story implemented.
+
+### Current Pain
+
+`apps/api/src/user/router.ts:96-100` generates `employeeCode` from an
+`EmployeeCodeCounter` row shared by the whole team's `cmc_edu` test database
+(set up per `plans/260715-1338-happy-path-gaps-remediation/reports/
+precondition-baseline-260715-1518-test-db-setup.md` — a single persistent DB
+behind the `cmc-test-db-socat` sidecar on `localhost:15432`, never reset
+between sessions/agents). The code does
+`` `CMC${String(counter.next - 1).padStart(4, '0')}` `` — `padStart` only
+pads, it never truncates, so once the shared counter exceeds 9999 the code
+emits 5-digit codes. `src/user/app-user.test.ts` asserts
+`toMatch(/^CMC\d{4}$/)` for "the first user" — true only while the shared
+counter is under 10000. Counter was already at `10773` by 2026-07-20 12:53
+(confirmed via `SELECT * FROM "EmployeeCodeCounter"` — was presumably under
+10000 as recently as the plan's own commit at 2026-07-19 22:59, which logged
+a genuine 898/898 pass). Result: `pnpm --filter @cmc/api test` now fails
+1/898 for every team member/agent sharing this DB, and it will keep
+happening — the counter only grows. Confirmed via `git show --stat` on the
+plan's commit that this test/router pair was untouched by the log-remediation
+work — pure pre-existing shared-infra drift, not a regression.
+
+### Suggested Improvement
+
+Either (a) make the test assertion width-tolerant (`/^CMC\d{4,}$/` or assert
+the numeric suffix only), or (b) give each test run/session an isolated
+schema or a resettable counter instead of one shared, never-reset counter
+row, or (c) periodically reset `EmployeeCodeCounter` as part of the shared
+test-DB's maintenance. Needs a call from whoever owns the shared dev/test DB
+convention — this affects every session using `cmc-test-db-socat`, not just
+this plan.
+
+### Risk
+
+Normal — false-red signal only (not a real bug in the shipped code path;
+`padStart` never truncates production values either, so real employeeCode
+values beyond `CMC9999` are also cosmetically 5 digits, likely an unnoticed
+pre-existing product-facing quirk worth a separate look, but out of scope
+here).
+
+### Status
+
+implemented
+
+### Outcome
+
+Resolved in `58a6388`: the test now accepts `CMC` followed by four or more
+digits, matching the allocator's unbounded counter contract. Production code
+and persisted employee codes were not changed.

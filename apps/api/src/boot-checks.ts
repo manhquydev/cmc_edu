@@ -177,7 +177,14 @@ export function assertRequiredEnvForProd(): void {
     throw new Error('FATAL: TEST_OTP_SEAM must not be set in production.');
   }
 
-  const required = ['APP_DATABASE_URL', 'DATABASE_URL', 'BREVO_API_KEY', 'TRUSTED_PROXY_CIDRS', 'CORS_ORIGINS'];
+  const required = [
+    'APP_DATABASE_URL',
+    'DATABASE_URL',
+    'BREVO_API_KEY',
+    'BREVO_SENDER_EMAIL',
+    'TRUSTED_PROXY_CIDRS',
+    'CORS_ORIGINS',
+  ];
 
   if (process.env['S3_ENDPOINT']) {
     required.push('S3_BUCKET', 'S3_REGION', 'S3_ACCESS_KEY', 'S3_SECRET_KEY');

@@ -20,6 +20,7 @@ REQUIRED=(
 if [ "$NODE_ENV" = "production" ]; then
   REQUIRED+=(
     BREVO_API_KEY
+    BREVO_SENDER_EMAIL
     TRUSTED_PROXY_CIDRS
     CORS_ORIGINS
   )

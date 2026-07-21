@@ -1,6 +1,6 @@
 # 0004 SQLite Durable Layer
 
-Date: 2026-05-22
+Date: 2026-05-22; amended 2026-07-21
 
 ## Status
 
@@ -39,6 +39,10 @@ The database stores:
 
 The schema is version-controlled under `scripts/schema/`. The database file is
 `.gitignore`d because each project instance generates its own operational data.
+A semantic changeset under `.harness/changesets/` versions the shared story and
+proof baseline so a clean clone can reconstruct development context without
+copying another machine's database. Instance-specific intakes and traces are
+not part of that baseline.
 
 Policy docs (`HARNESS.md`, `FEATURE_INTAKE.md`, `ARCHITECTURE.md`) remain as
 human-readable references. The database stores what agents produce, not what
@@ -65,7 +69,8 @@ Positive:
 Tradeoffs:
 
 - Requires `sqlite3` to be available in the environment.
-- The database is not version-controlled, so each instance starts empty.
+- The database is not version-controlled; bootstrap reconstructs shared story
+  state while instance-specific operational history starts empty.
 - Markdown docs and the database may drift if agents use one but not the other.
 
 ## Follow-Up

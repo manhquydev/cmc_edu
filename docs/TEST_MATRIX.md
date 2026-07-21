@@ -10,7 +10,8 @@ Run this command from the repo root:
 scripts/bin/harness-cli.exe query matrix
 ```
 
-This returns the live matrix with **26 story rows**, each showing:
+This returns the live matrix, including the versioned baseline stories restored
+by Harness bootstrap, with each row showing:
 - Unit/integration/e2e/platform proof flags (0 or 1)
 - Evidence citations (concrete test files and pass counts)
 - Updated on every test run

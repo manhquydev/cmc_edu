@@ -87,19 +87,28 @@ Policy documents describe how to work. The durable layer stores what happened.
 Operational data — intake classifications, story status, decision outcomes,
 backlog items, and execution traces — lives in a SQLite database (`harness.db`)
 managed by the Rust Harness CLI at `scripts/bin/harness-cli`. Agents and humans
-should use that binary for Harness work. The database is local to each project
-instance and `.gitignore`d. The schema is version-controlled under
-`scripts/schema/`.
+should use that binary for Harness work. The database and CLI binary are local
+to each project instance and `.gitignore`d. The schema is version-controlled
+under `scripts/schema/`.
+
+`scripts/bootstrap-harness.sh` and `scripts/bootstrap-harness.ps1` reconstruct
+the portable portion of this state on a clean clone. Bootstrap downloads the
+pinned CLI release, verifies its SHA-256 checksum, initializes the local
+database, applies `.harness/changesets/cmc-story-baseline-v1.changeset.jsonl`,
+and imports versioned decision/backlog metadata. Story contracts and proof
+history therefore travel with the repository; session-specific intakes and
+execution traces remain local.
 
 This separation keeps policy docs stable and human-readable while giving agents
 a structured, queryable record of operational state. It also prepares the
 harness for future observability and automated evolution without adding more
 markdown files.
 
-Initialize the database if it does not exist:
+Bootstrap the Harness instance after cloning:
 
 ```bash
-scripts/bin/harness-cli init
+./scripts/bootstrap-harness.sh
+# PowerShell: .\scripts\bootstrap-harness.ps1
 ```
 
 Common commands:

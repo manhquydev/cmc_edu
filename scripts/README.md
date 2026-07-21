@@ -8,6 +8,33 @@ The Rust Harness CLI is the primary interface for the durable layer. Installed
 projects use the prebuilt binary at `scripts/bin/harness-cli` on macOS/Linux or
 `scripts/bin/harness-cli.exe` on Windows for normal Harness work.
 
+On a fresh project clone, bootstrap installs the pinned binary with checksum
+verification before initializing or migrating the local database:
+
+```bash
+./scripts/bootstrap-harness.sh
+```
+
+```powershell
+.\scripts\bootstrap-harness.ps1
+```
+
+Set `HARNESS_CLI_BASE_URL` only when an approved mirror hosts the same pinned
+release asset and `.sha256` file. The binary and `harness.db` stay gitignored.
+
+For a disposable Postgres with synthetic data, use the platform-specific
+script. Both variants apply migrations, configure the restricted `cmc_app`
+role, seed a sentinel facility, and refuse production-like targets:
+
+```powershell
+$env:SYNTH_SEED_ALLOW='1'
+.\scripts\synthetic-seed-env.ps1
+```
+
+```bash
+SYNTH_SEED_ALLOW=1 ./scripts/synthetic-seed-env.sh
+```
+
 ```bash
 scripts/bin/harness-cli init          # Create the database
 scripts/bin/harness-cli intake ...    # Record a feature intake classification
@@ -97,7 +124,12 @@ from existing Harness v0 markdown in `docs/TEST_MATRIX.md`,
 Harness repos on the Rust CLI path without losing their populated operating
 docs.
 
-## Installer
+## Upstream Installer Reference
+
+The installer and release-workflow paths below belong to the upstream
+`hoangnb24/repository-harness` source repository; they are intentionally not
+part of this installed CMC project. CMC fresh clones use the checked-in
+`bootstrap-harness` scripts above and the pinned release tag.
 
 The upstream installer applies the Harness v0 operating files and folder
 structure to a target project directory. It defaults to the current directory,
@@ -191,7 +223,11 @@ test:release
   full suite, log checks, and performance smoke
 ```
 
-## Release Packaging
+## Upstream Release Packaging
+
+The release scripts and GitHub workflows in this section are upstream-only.
+They document how the pinned binary is produced, not commands available in the
+CMC checkout.
 
 Build the current-platform Rust CLI release artifact from the source repo:
 

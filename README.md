@@ -60,7 +60,9 @@ D:\project\vip\CMC
 ### Install & Develop
 
 ```bash
-pnpm install                     # workspace install
+cp .env.example .env             # PowerShell: Copy-Item .env.example .env
+corepack enable
+pnpm install --frozen-lockfile   # reproducible workspace install
 pnpm typecheck                   # TypeScript check
 pnpm dev                         # start dev servers (admin, lms, api)
 pnpm test                        # run all tests (except e2e)
@@ -68,6 +70,20 @@ pnpm build                       # build all packages
 pnpm lint                        # lint apps/admin + apps/lms
 pnpm acceptance:report           # regenerable acceptance ledger (HTML; gitignored)
 ```
+
+Harness agent workflow on a fresh clone:
+
+```bash
+./scripts/bootstrap-harness.sh
+# PowerShell: .\scripts\bootstrap-harness.ps1
+```
+
+Bootstrap downloads the release pinned by `scripts/harness-cli-release-tag`,
+verifies its SHA-256 checksum, and initializes the instance-local `harness.db`.
+Harness policy, schemas, stories, plans, and project rules are version-controlled;
+the CLI binary and operational database remain machine-local. GitNexus is also a
+local cache: run `npx gitnexus analyze` after cloning instead of committing
+`.gitnexus/`.
 
 Throwaway DB for UI e2e / evidence capture (spins its OWN dedicated Postgres
 container, never the local-sim `cmc_prod` stack):

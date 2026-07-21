@@ -30,6 +30,13 @@ bin/
 # misc
 .DS_Store
 *.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.json
+.npmrc
+!.npmrc.example
 
 # debug
 npm-debug.log*
@@ -63,8 +70,12 @@ GoogleService-Info.plist
 
 repomix-output.xml
 .serena/cache
-plans/**/*
-!plans/templates/*
+# Plans and reports are durable development context. Track Markdown so a fresh
+# clone preserves execution history; continue ignoring binary/runtime evidence.
+/plans/**
+!/plans/
+!/plans/**/
+!/plans/**/*.md
 screenshots/*
 docs/screenshots/*
 logs.txt
@@ -76,10 +87,11 @@ __pycache__
 prompt.md
 ck.md
 
-# Generated runtime layout for release/install smoke tests
-/.claude/
-# But track repo-level rules that Claude Code reads
+# Generated ClaudeKit runtime layout. Keep only project-level rules portable.
+/.claude/*
+!/.claude/.env.example
 !/.claude/rules/
+!/.claude/rules/**
 
 # Local-only state inside tracked claude source
 claude/agent-memory/

@@ -17,6 +17,60 @@ $defaultDatabase = [System.IO.Path]::GetFullPath((Join-Path $root "harness.db"))
 $sourceCheckout = (Test-Path (Join-Path $root "Cargo.toml")) -and
     (Test-Path (Join-Path $root "crates/harness-cli/Cargo.toml"))
 
+$releaseTagFile = Join-Path $root "scripts/harness-cli-release-tag"
+if (!(Test-Path $releaseTagFile)) {
+    throw "Harness bootstrap failed: pinned release file is missing: $releaseTagFile"
+}
+$releaseTag = (Get-Content -LiteralPath $releaseTagFile | Where-Object {
+    $_ -match "\S" -and $_ -notmatch "^\s*#"
+} | Select-Object -First 1).Trim()
+if (!$releaseTag.StartsWith("harness-cli-v")) {
+    throw "Harness bootstrap failed: invalid pinned release tag: $releaseTag"
+}
+
+function Install-PinnedHarnessCli {
+    param(
+        [Parameter(Mandatory = $true)][string]$Destination,
+        [Parameter(Mandatory = $true)][string]$Tag
+    )
+
+    $architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+    if ($architecture -ne [System.Runtime.InteropServices.Architecture]::X64) {
+        throw "Harness bootstrap failed: no pinned Windows artifact for architecture $architecture"
+    }
+
+    $asset = "harness-cli-windows-x64.exe"
+    $baseUrl = $env:HARNESS_CLI_BASE_URL
+    if ([string]::IsNullOrWhiteSpace($baseUrl)) {
+        $baseUrl = "https://github.com/hoangnb24/repository-harness/releases/download/$Tag"
+    }
+    $baseUrl = $baseUrl.TrimEnd("/")
+    $temporaryCli = [System.IO.Path]::GetTempFileName()
+    $temporaryChecksum = [System.IO.Path]::GetTempFileName()
+
+    try {
+        Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/$asset" -OutFile $temporaryCli
+        Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/$asset.sha256" -OutFile $temporaryChecksum
+        $expected = ((Get-Content -Raw -LiteralPath $temporaryChecksum).Trim() -split "\s+")[0].ToLowerInvariant()
+        if ($expected -notmatch "^[0-9a-f]{64}$") {
+            throw "release checksum is malformed"
+        }
+        $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $temporaryCli).Hash.ToLowerInvariant()
+        if ($actual -ne $expected) {
+            throw "checksum mismatch for $asset"
+        }
+
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Destination) | Out-Null
+        Move-Item -LiteralPath $temporaryCli -Destination $Destination -Force
+        Write-Host "Installed pinned Harness CLI: tag=$Tag asset=$asset"
+    } catch {
+        throw "Harness bootstrap failed: unable to install pinned CLI $Tag ($($_.Exception.Message))"
+    } finally {
+        if (Test-Path $temporaryCli) { Remove-Item -LiteralPath $temporaryCli -Force }
+        if (Test-Path $temporaryChecksum) { Remove-Item -LiteralPath $temporaryChecksum -Force }
+    }
+}
+
 if ($sourceCheckout -and $Database -eq $defaultDatabase -and !(Test-Path $Database)) {
     throw "Harness bootstrap failed: authoritative core state is unavailable; restore the verified core epoch instead of initializing an empty replacement"
 }
@@ -33,16 +87,9 @@ if ($sourceCheckout) {
         Copy-Item -LiteralPath $builtCli -Destination $Cli -Force
     }
 } elseif (!(Test-Path $Cli)) {
-    throw "Harness bootstrap failed: Harness CLI is missing; install Harness again from its pinned release"
+    Install-PinnedHarnessCli -Destination $Cli -Tag $releaseTag
 }
 
-$releaseTagFile = Join-Path $root "scripts/harness-cli-release-tag"
-if (!(Test-Path $releaseTagFile)) {
-    throw "Harness bootstrap failed: pinned release file is missing: $releaseTagFile"
-}
-$releaseTag = (Get-Content -LiteralPath $releaseTagFile | Where-Object {
-    $_ -match "\S" -and $_ -notmatch "^\s*#"
-} | Select-Object -First 1).Trim()
 $actualVersion = (& $Cli --version).Split()[-1]
 $expectedVersion = $releaseTag -replace '^harness-cli-v', ''
 if (!$releaseTag.StartsWith("harness-cli-v") -or $actualVersion -ne $expectedVersion) {
@@ -58,14 +105,29 @@ function Get-Contract {
 }
 
 $contract = Get-Contract
+$initializedDatabase = $false
 switch ($contract.database_state) {
-    "missing" { & $Cli init | Out-Null }
+    "missing" {
+        & $Cli init | Out-Null
+        $initializedDatabase = $true
+    }
     "needs_migration" { & $Cli migrate | Out-Null }
     "current" { }
     "unsupported" { throw "Harness bootstrap failed: database schema is outside the CLI's supported range" }
     default { throw "Harness bootstrap failed: query contract returned an unknown database state" }
 }
 if ($LASTEXITCODE -ne 0) { throw "Harness bootstrap failed: database initialization or migration failed" }
+
+if ($initializedDatabase) {
+    $baseline = Join-Path $root ".harness/changesets/cmc-story-baseline-v1.changeset.jsonl"
+    if (!(Test-Path $baseline)) {
+        throw "Harness bootstrap failed: portable story baseline is missing: $baseline"
+    }
+    & $Cli db changeset apply $baseline --json | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Harness bootstrap failed: portable story baseline apply failed" }
+    & $Cli import brownfield | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Harness bootstrap failed: brownfield metadata import failed" }
+}
 
 $contract = Get-Contract
 if ($contract.database_state -ne "current") {

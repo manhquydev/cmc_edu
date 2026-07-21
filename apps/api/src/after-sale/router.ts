@@ -29,7 +29,41 @@ const closeInput = z.object({
   caseId: z.string().uuid(),
 });
 
+const listInput = z.object({
+  status: z.enum(['open', 'in_progress', 'resolved', 'closed']).optional(),
+  page: z.number().int().positive().default(1),
+  pageSize: z.number().int().positive().max(100).default(20),
+});
+
 export const afterSaleRouter = router({
+  /** Facility-scoped, paginated case list for the after-sale screen (F10). */
+  list: requirePermission('afterSale', 'manage')
+    .input(listInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const where = { facilityId, ...(input.status ? { status: input.status } : {}) };
+        const [rows, total] = await Promise.all([
+          tx.afterSaleCase.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            skip: (input.page - 1) * input.pageSize,
+            take: input.pageSize,
+          }),
+          tx.afterSaleCase.count({ where }),
+        ]);
+        // AfterSaleCase has no Prisma relation to Student — resolve names in a
+        // second facility-scoped query and map them on.
+        const studentIds = [...new Set(rows.map((r) => r.studentId))];
+        const students = studentIds.length
+          ? await tx.student.findMany({ where: { facilityId, id: { in: studentIds } }, select: { id: true, fullName: true } })
+          : [];
+        const nameById = new Map(students.map((s) => [s.id, s.fullName]));
+        const items = rows.map((r) => ({ ...r, studentName: nameById.get(r.studentId) ?? null }));
+        return { items, total, page: input.page, pageSize: input.pageSize };
+      });
+    }),
+
   /** Open a new after-sale case. */
   create: requirePermission('afterSale', 'manage')
     .input(createInput)

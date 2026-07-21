@@ -43,6 +43,33 @@ describe('parentMeeting lifecycle (P4)', () => {
     await cleanupFacility(facility.id);
   });
 
+  it('list returns facility-scoped meetings with student name, status-filterable, and no remindedAt (F10 / phase-09)', async () => {
+    const m = await manager.parentMeeting.schedule({ studentId, scheduledAt: FUTURE });
+    const done = await manager.parentMeeting.schedule({
+      studentId,
+      scheduledAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    await manager.parentMeeting.complete({ meetingId: done.id, result: 'Done.' });
+
+    const all = await manager.parentMeeting.list({});
+    const row = all.items.find((x) => x.id === m.id);
+    expect(row).toBeDefined();
+    expect(row?.studentName).toBe('Meeting Student');
+    // remindedAt is dropped in phase 10 — the list must never expose it.
+    expect(Object.prototype.hasOwnProperty.call(row ?? {}, 'remindedAt')).toBe(false);
+
+    const scheduledOnly = await manager.parentMeeting.list({ status: 'scheduled' });
+    expect(scheduledOnly.items.every((x) => x.status === 'scheduled')).toBe(true);
+    expect(scheduledOnly.items.some((x) => x.id === done.id)).toBe(false);
+  });
+
+  it('list forbids a role without parentMeeting.manage', async () => {
+    const teacher = appRouter.createCaller(
+      buildStaffContext({ facilityId: facility.id, userId: 'teacher-meeting-1', roles: ['giao_vien'] }),
+    );
+    await expect(teacher.parentMeeting.list({})).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
   it('schedule → complete with result succeeds', async () => {
     const meeting = await manager.parentMeeting.schedule({ studentId, scheduledAt: FUTURE });
     expect(meeting.status).toBe('scheduled');

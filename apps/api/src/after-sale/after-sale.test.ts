@@ -44,6 +44,26 @@ describe('afterSale lifecycle (P4)', () => {
     await cleanupFacility(facility.id);
   });
 
+  it('list returns facility-scoped cases with student name, filterable by status (F10 / phase-09)', async () => {
+    const open = await sale.afterSale.create({ studentId, description: 'Case open' });
+    const toResolve = await sale.afterSale.create({ studentId, description: 'Case to resolve' });
+    await sale.afterSale.advance({ caseId: toResolve.id });
+    await sale.afterSale.resolve({ caseId: toResolve.id, resolution: 'Fixed.' });
+
+    const all = await sale.afterSale.list({});
+    expect(all.items.some((c) => c.id === open.id)).toBe(true);
+    expect(all.items.find((c) => c.id === open.id)?.studentName).toBe('AfterSale Student');
+
+    const resolvedOnly = await sale.afterSale.list({ status: 'resolved' });
+    expect(resolvedOnly.items.every((c) => c.status === 'resolved')).toBe(true);
+    expect(resolvedOnly.items.some((c) => c.id === toResolve.id)).toBe(true);
+    expect(resolvedOnly.items.some((c) => c.id === open.id)).toBe(false);
+  });
+
+  it('list forbids a role without afterSale.manage', async () => {
+    await expect(hr.afterSale.list({})).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
   it('full lifecycle: create → advance → resolve → close', async () => {
     const kase = await sale.afterSale.create({ studentId, description: 'Student unhappy with schedule.' });
     expect(kase.status).toBe('open');

@@ -35,9 +35,15 @@ const LOST_REASON_VALUES = [
 /** Lead source (phase-10). Enforced at the API layer only — no DB enum (KISS). */
 const SOURCE_VALUES = ['referral', 'walkin', 'fanpage', 'hotline', 'event', 'other'] as const;
 
+const contactPhoneInput = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((value) => /\d/.test(value), { message: 'Phone must contain at least one digit.' });
+
 const opportunityCreateInput = z.object({
   contactName: z.string().min(1),
-  phone: z.string().min(1),
+  phone: contactPhoneInput,
   email: z.string().email().optional(),
   source: z.enum(SOURCE_VALUES).optional(),
 });
@@ -61,7 +67,7 @@ const opportunityMarkLostInput = z.object({
 });
 
 const opportunityLookupInput = z.object({
-  phone: z.string().min(1),
+  phone: contactPhoneInput,
 });
 
 const opportunityGetInput = z.object({
@@ -333,14 +339,26 @@ export const crmRouter = router({
       return withFacility(ctx.db, facilityId, async (tx) => {
         const opportunity = await tx.opportunity.findFirst({
           where: { id: input.opportunityId, facilityId },
-          include: { contact: { select: { name: true, phone: true, email: true } } },
+          include: {
+            contact: { select: { id: true, name: true, phone: true, email: true } },
+          },
         });
         if (!opportunity) {
           throw notFound('Opportunity not found.');
         }
+        const assignedTo = opportunity.assignedToId
+          ? await tx.appUser.findFirst({
+              where: { id: opportunity.assignedToId, facilityId },
+              select: { userId: true, fullName: true },
+            })
+          : null;
         return {
           id: opportunity.id,
           stage: opportunity.stage,
+          closedAt: opportunity.closedAt,
+          lostReason: opportunity.lostReason,
+          source: opportunity.source,
+          assignedTo,
           contact: opportunity.contact,
         };
       });

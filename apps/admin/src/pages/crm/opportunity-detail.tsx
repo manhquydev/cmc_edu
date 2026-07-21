@@ -75,12 +75,10 @@ export default function OpportunityDetailPage() {
   const [markLostOpen, setMarkLostOpen] = useState(false);
   const [scheduleTestOpen, setScheduleTestOpen] = useState(false);
 
-  // No opportunityGet endpoint for a single lost opp lookup from the pipeline
-  // (which hides lost opps by default) — query the full list WITH lost
-  // opportunities included so a lost opp's detail page still resolves.
-  // pageSize: 100 covers typical facility pipeline volume.
-  const { data, isLoading, error } = trpc.crm.opportunityList.useQuery(
-    { pageSize: 100, lost: 'include' },
+  // Fetch by id so valid opportunities never disappear merely because they
+  // fall beyond the first page of the pipeline list.
+  const { data: opp, isLoading, error } = trpc.crm.opportunityGet.useQuery(
+    { opportunityId: id ?? '' },
     { enabled: Boolean(id) },
   );
 
@@ -133,8 +131,6 @@ export default function OpportunityDetailPage() {
       </div>
     );
   }
-
-  const opp = data?.items.find((item) => item.id === id);
 
   if (!opp) {
     return (

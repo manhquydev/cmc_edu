@@ -59,7 +59,9 @@ describe('reconcileOrphanedReceipts (K2)', () => {
     // `retry_pending` marker with NO Student ever created — a realistic
     // "transient provisioning failure" repro matching the deep-review K2 test
     // requirement (receipt approved + provisioning:'pending' + NO student).
-    const malformedPhone = 'not-a-real-phone';
+    // Contains digits so the CRM contact key is non-empty, but is too short
+    // for the stricter login-identity normalizer used by provisioning.
+    const malformedPhone = '123';
     const draft = await testDbBypass((tx) =>
       tx.receipt.create({
         data: {

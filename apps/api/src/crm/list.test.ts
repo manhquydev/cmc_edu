@@ -167,6 +167,17 @@ describe('crm.opportunityList (K11)', () => {
     expect(opps).toHaveLength(2);
   });
 
+  it('rejects a non-digit phone instead of aliasing invalid leads onto one Contact', async () => {
+    await expect(
+      saleA.crm.opportunityCreate({ contactName: 'Invalid Phone', phone: 'not-a-phone' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    const invalidContacts = await testDbBypass((tx) =>
+      tx.contact.count({ where: { facilityId: facilityA.id, phone: '' } }),
+    );
+    expect(invalidContacts).toBe(0);
+  });
+
   it('enforces RLS: facility B never sees facility A opportunities', async () => {
     const opp = await saleA.crm.opportunityCreate({ contactName: 'RLS List Contact', phone: '0901000211' });
 

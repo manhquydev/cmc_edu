@@ -158,34 +158,38 @@ export const testAppointmentRouter = router({
       const { facilityId } = scoped(ctx);
       const actor = resolveAuditActor(ctx);
       return withFacility(ctx.db, facilityId, async (tx) => {
-        const appt = await tx.testAppointment.findFirst({
-          where: { id: input.appointmentId, facilityId },
-        });
-        if (!appt) throw notFound('Appointment not found.');
-        if (appt.status !== 'scheduled') {
-          throw badRequest(`Appointment is already ${appt.status}; can only complete scheduled appointments.`);
-        }
-        const updated = await tx.testAppointment.update({
-          where: { id: input.appointmentId },
+        const transitioned = await tx.testAppointment.updateMany({
+          where: { id: input.appointmentId, facilityId, status: 'scheduled' },
           data: {
             status: 'done',
             ...(input.notes != null ? { notes: input.notes } : {}),
           },
         });
+        if (transitioned.count === 0) {
+          const current = await tx.testAppointment.findFirst({
+            where: { id: input.appointmentId, facilityId },
+            select: { status: true },
+          });
+          if (!current) throw notFound('Appointment not found.');
+          throw badRequest(`Appointment is already ${current.status}; can only complete scheduled appointments.`);
+        }
+        const updated = await tx.testAppointment.findFirstOrThrow({
+          where: { id: input.appointmentId, facilityId },
+        });
 
         // Entrance completion advances O3 -> O4. Idempotent + lenient: skip if
         // the opp isn't at O3 anymore or was marked lost after scheduling —
         // completing the appointment record must never fail on the CRM sync.
-        if (appt.type === 'entrance' && appt.opportunityId) {
+        if (updated.type === 'entrance' && updated.opportunityId) {
           const oppRows = await tx.$queryRaw<{ id: string; stage: string; closedAt: Date | null }[]>`
             SELECT "id", "stage", "closedAt" FROM "Opportunity"
-            WHERE "id" = ${appt.opportunityId} AND "facilityId" = ${facilityId}
+            WHERE "id" = ${updated.opportunityId} AND "facilityId" = ${facilityId}
             FOR UPDATE
           `;
           const opp = oppRows[0];
           if (opp && opp.stage === 'O3_TEST_SCHEDULED' && !isOpportunityLost(opp)) {
             await advanceOpportunityOneStep(tx, facilityId, opp.id, 'O4_TESTED');
-            await auditStageAdvance(tx, actor, opp.id, 'O3_TEST_SCHEDULED', 'O4_TESTED', appt.id);
+            await auditStageAdvance(tx, actor, opp.id, 'O3_TEST_SCHEDULED', 'O4_TESTED', updated.id);
           }
         }
         return updated;
@@ -198,19 +202,23 @@ export const testAppointmentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
       return withFacility(ctx.db, facilityId, async (tx) => {
-        const appt = await tx.testAppointment.findFirst({
-          where: { id: input.appointmentId, facilityId },
-        });
-        if (!appt) throw notFound('Appointment not found.');
-        if (appt.status !== 'scheduled') {
-          throw badRequest(`Appointment is already ${appt.status}; can only mark no-show on scheduled appointments.`);
-        }
-        return tx.testAppointment.update({
-          where: { id: input.appointmentId },
+        const transitioned = await tx.testAppointment.updateMany({
+          where: { id: input.appointmentId, facilityId, status: 'scheduled' },
           data: {
             status: 'no_show',
             ...(input.notes != null ? { notes: input.notes } : {}),
           },
+        });
+        if (transitioned.count === 0) {
+          const current = await tx.testAppointment.findFirst({
+            where: { id: input.appointmentId, facilityId },
+            select: { status: true },
+          });
+          if (!current) throw notFound('Appointment not found.');
+          throw badRequest(`Appointment is already ${current.status}; can only mark no-show on scheduled appointments.`);
+        }
+        return tx.testAppointment.findFirstOrThrow({
+          where: { id: input.appointmentId, facilityId },
         });
       });
     }),

@@ -6,14 +6,13 @@
 // Phone is normalized to the canonical `84xxxxxxxxx` form so "0912...",
 // "+84 912..." and "84912..." all resolve to one Contact. Implemented as an
 // `upsert` on the `@@unique([facilityId, phone])` index: Prisma emits a native
-// `INSERT ... ON CONFLICT` for Postgres, which is race-safe AND does not abort
-// the surrounding transaction on conflict — unlike a find-then-create with a
-// P2002 catch, whose refetch would run on an already-aborted tx (25P02), since
-// the caller (opportunityCreate) does the Contact + Opportunity + audit writes
-// in ONE transaction. `update: {}` = leave an existing Contact's name/email
-// untouched (find semantics).
+// A native `INSERT ... ON CONFLICT` is used explicitly: Prisma can fall back
+// to a read-then-insert emulation for an empty upsert update, which still emits
+// P2002 under concurrent requests. The no-op phone assignment leaves an
+// existing Contact's name/email untouched and returns the single winner row.
 
 import type { Prisma } from '@cmc/db';
+import { badRequest } from '../errors.js';
 import { normalizeContactPhone } from './normalize-contact-phone.js';
 
 export interface FindOrCreateContactInput {
@@ -33,10 +32,16 @@ export async function findOrCreateContact(
   input: FindOrCreateContactInput,
 ) {
   const phone = normalizeContactPhone(input.phone);
+  if (!phone) {
+    throw badRequest('Phone must contain at least one digit.');
+  }
 
-  return tx.contact.upsert({
-    where: { facilityId_phone: { facilityId: input.facilityId, phone } },
-    create: { facilityId: input.facilityId, name: input.name, phone, email: input.email ?? null },
-    update: {},
-  });
+  const rows = await tx.$queryRaw<{ id: string }[]>`
+    INSERT INTO "Contact" ("id", "facilityId", "name", "phone", "email", "createdAt", "updatedAt")
+    VALUES (gen_random_uuid(), ${input.facilityId}, ${input.name}, ${phone}, ${input.email ?? null}, NOW(), NOW())
+    ON CONFLICT ("facilityId", "phone")
+    DO UPDATE SET "phone" = EXCLUDED."phone"
+    RETURNING "id"
+  `;
+  return rows[0]!;
 }

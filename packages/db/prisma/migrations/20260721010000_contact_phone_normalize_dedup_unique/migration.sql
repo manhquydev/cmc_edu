@@ -12,7 +12,11 @@
 UPDATE "Contact" c SET "phone" = n.normalized
 FROM (
   SELECT id,
-    CASE WHEN nat ~ '^[0-9]{9}$' THEN '84' || nat ELSE digits END AS normalized
+    CASE
+      WHEN nat ~ '^[0-9]{9}$' THEN '84' || nat
+      WHEN digits = '' THEN 'invalid-' || id::text
+      ELSE digits
+    END AS normalized
   FROM (
     SELECT id, digits,
       CASE WHEN digits LIKE '84%' THEN substr(digits, 3)

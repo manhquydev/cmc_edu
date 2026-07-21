@@ -214,6 +214,30 @@ describe('testAppointment entrance↔opportunity + periodic↔student (phase-07)
     });
   });
 
+  it('serializes concurrent complete/no-show transitions so only one terminal state wins', async () => {
+    const opp = await oppAt('O2_CONTACTED');
+    const appt = await sale.testAppointment.schedule({
+      type: 'entrance',
+      opportunityId: opp.id,
+      scheduledAt: '2026-08-17T09:00:00.000Z',
+    });
+
+    const outcomes = await Promise.allSettled([
+      sale.testAppointment.complete({ appointmentId: appt.id }),
+      sale.testAppointment.noShow({ appointmentId: appt.id }),
+    ]);
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+    expect(outcomes.filter((outcome) => outcome.status === 'rejected')).toHaveLength(1);
+
+    const finalAppointment = await testDbBypass((tx) =>
+      tx.testAppointment.findUniqueOrThrow({ where: { id: appt.id } }),
+    );
+    expect(['done', 'no_show']).toContain(finalAppointment.status);
+    expect(await stageOf(opp.id)).toBe(
+      finalAppointment.status === 'done' ? 'O4_TESTED' : 'O3_TEST_SCHEDULED',
+    );
+  });
+
   it('forbids a role without testAppointment.manage permission', async () => {
     const opp = await oppAt('O2_CONTACTED');
     await expect(

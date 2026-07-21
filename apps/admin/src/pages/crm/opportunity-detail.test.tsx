@@ -4,9 +4,8 @@ import { screen, fireEvent, act } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
-// Locks phase-03's opportunity-detail remediation: (1) the list query now
-// passes `lost: 'include'` so a lost opp's detail page still resolves
-// (backend default flipped to `exclude` — F7), and (2) the page's new action
+// Locks opportunity-detail behavior: (1) a direct id query resolves records
+// independently of pipeline pagination, and (2) the page's action
 // bar (advance / mark-lost / reopen) wired to the real mutations with the
 // exact payload shapes `apps/api/src/crm/router.ts` expects.
 interface OpportunityRow {
@@ -95,9 +94,9 @@ vi.mock('../../lib/trpc.js', async () => {
           facilityId: 'f1',
           config: { approvalSecondEyeThreshold: 20_000_000 },
         }),
-      'crm.opportunityList.useQuery': (input: unknown) => {
+      'crm.opportunityGet.useQuery': (input: { opportunityId: string }) => {
         listQuerySpy(input);
-        return queryResult(listState);
+        return queryResult(listState.items.find((item) => item.id === input.opportunityId));
       },
       'crm.opportunityAdvance.useMutation': () => mutationResult({ mutate: advanceMutate }),
       'crm.opportunityMarkLost.useMutation': () => mutationResult({ mutate: markLostMutate }),
@@ -159,9 +158,9 @@ describe('OpportunityDetailPage', () => {
     assignableStaffQuerySpy.mockClear();
   });
 
-  it('queries crm.opportunityList with lost: "include" so a lost opportunity still resolves', () => {
+  it('queries crm.opportunityGet by route id so a lost or later-page opportunity resolves', () => {
     renderDetail(OPP_LOST.id);
-    expect(listQuerySpy).toHaveBeenCalledWith({ pageSize: 100, lost: 'include' });
+    expect(listQuerySpy).toHaveBeenCalledWith({ opportunityId: OPP_LOST.id });
     expect(screen.getByRole('heading', { name: 'Phạm Thị D' })).toBeInTheDocument();
   });
 

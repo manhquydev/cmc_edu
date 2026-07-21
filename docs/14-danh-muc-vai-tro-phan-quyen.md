@@ -64,6 +64,7 @@ Plan `erp-rebuild-f0-f4` từng nhắc `quan_ly` + `head_teacher`, nhưng enum R
 |---|:-:|:-:|:-:|:-:|:-:|
 | `crm.opportunityList` | ✓ | ✓ | | ✓ | |
 | `crm.opportunityLookup` | ✓ | ✓ | | ✓ | |
+| `crm.opportunityAssign` ¹ | ✓ | ✓ | | ✓ | |
 | `finance.receiptCreate` | ✓ | ✓ | | ✓(nháp) | |
 | `finance.receiptApprove` (cổng tiền) | ✓ | ✓ | ✓ | | |
 | `finance.refundCreate` | ✓ | ✓ | | | |
@@ -88,6 +89,8 @@ Plan `erp-rebuild-f0-f4` từng nhắc `quan_ly` + `head_teacher`, nhưng enum R
 | `gift.list` / `rewards.manage` | ✓ | ✓ | ✓ | ✓ | |
 
 > Bảng là *đại diện* (5 active roles, ADR-D amendment); nguồn đầy đủ = registry `@cmc/auth`.
+
+> ¹ `crm.opportunityAssign` — cổng theo role chỉ *mở cửa*; luật cấp-dòng nằm trong thủ tục (`crm/router.ts`): `sale` chỉ được **nhận cơ hội cho chính mình** khi cơ hội chưa có chủ hoặc đã là của mình (không được gỡ giao/giao cho người khác); `giam_doc_kinh_doanh` giao/gỡ cho bất kỳ ai.
 > Role gác (ke_toan/cskh/ctv_mkt/hr) có 0 quyền — không hiển thị.
 > **`audit.list` = super_admin-only, chủ ý** (registry `packages/auth/src/index.ts:77` dùng
 > empty-role-array `[]` — cùng pattern `facility.create`/`facility.list`/`facility.manage`,

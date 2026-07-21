@@ -51,7 +51,7 @@ erDiagram
 ### CRM & Tài chính
 | Model | Vai trò | Ghi chú |
 |---|---|---|
-| `Contact` · `Opportunity` · `OpportunityAssignment` | Lead · cơ hội O1–O5 · phân công | `OpportunityStage`, `LostReason` |
+| `Contact` · `Opportunity` | Lead · cơ hội O1–O5 (chủ = `assignedToId`, nguồn = `source`) | `OpportunityStage`, `LostReason` |
 | `Receipt` · `ReceiptCodeCounter` | Phiếu thu · bộ đếm mã | `ReceiptStatus`, `ReceiptKind`, `netAmount` (đóng băng) |
 | `RefundRecord` · `Voucher` | Hoàn tiền append-only · chứng từ | cap ≤ netAmount |
 | `AfterSaleCase` · `CallMetric` | Ca sau bán · số liệu gọi (Callio) | KPI sale |
@@ -99,6 +99,8 @@ erDiagram
 - `StudentAccount` chứa: `passwordHash` (PBKDF2-SHA256, không plain-text), `mustChangePassword` (true khi dùng default), `loginAttempts`, `loginLockedUntil`. Các trường này **KHÔNG** nằm trên `ParentAccount`.
 - `ParentAccount.email` bắt buộc khi tài khoản dùng cho auth email+OTP.
 - `Opportunity.stage=O5` ⇔ có phiếu đã duyệt auto-advance; cancel ⇒ revert O4 + clear `closedAt`.
+- `Opportunity.assignedToId` (→ `AppUser.id`, nullable) = chủ cơ hội (sale sở hữu lead mình tạo; GĐKD giao qua `crm.opportunityAssign`). `Opportunity.source` (`referral|walkin|fanpage|hotline|event|other`, enforce ở API bằng zod — không enum DB); lead auto-tạo lúc duyệt phiếu vãng lai = `source='walkin'`. **KPI attribution** (không đổi code payroll): doanh thu quy về sale = join `Opportunity.assignedToId` → `AppUser.id`, lọc `Receipt.status='approved'` qua `Receipt.opportunityId`; `assignedToId IS NULL` = chưa quy chủ.
+- `TestAppointment`: `entrance` gắn `opportunityId` (pre-payment), `periodic` gắn `studentId` — CHECK ràng buộc đúng nhánh theo `type` (phase-07). `ParentMeeting.remindedAt` đã bỏ (không code nào đọc/ghi). FK `studentId` (RESTRICT) trên `ParentMeeting`/`TestAppointment`/`AfterSaleCase` = defense-in-depth (student không hard-delete).
 - Mọi bảng nghiệp vụ có `facilityId` (RLS); bảng curriculum/exercise global (không RLS — QĐ 0021/0022).
 - Sổ tiền append-only: sửa = thêm dòng.
 - `KpiScore`/`Payslip`/`CompensationPolicy`/`SalaryTier`/`ManualAttendanceTicket`/`TimePunch` append-like: `cmc_app` không có quyền DELETE (chỉ SELECT/INSERT/UPDATE) — sửa = tạo bản ghi mới hoặc UPDATE tại chỗ, không xoá.

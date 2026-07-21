@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { withFacility, type Prisma } from '@cmc/db';
-import { badRequest, notFound } from '../errors.js';
+import { badRequest, forbidden, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 import { isOpportunityLost } from './opportunity-lost.js';
 import { findOrCreateContact } from './find-or-create-contact.js';
@@ -32,10 +32,20 @@ const LOST_REASON_VALUES = [
   'other',
 ] as const;
 
+/** Lead source (phase-10). Enforced at the API layer only — no DB enum (KISS). */
+const SOURCE_VALUES = ['referral', 'walkin', 'fanpage', 'hotline', 'event', 'other'] as const;
+
 const opportunityCreateInput = z.object({
   contactName: z.string().min(1),
   phone: z.string().min(1),
   email: z.string().email().optional(),
+  source: z.enum(SOURCE_VALUES).optional(),
+});
+
+const opportunityAssignInput = z.object({
+  opportunityId: z.string().uuid(),
+  /** The assignee's login userId (AppUser.userId), or null to unassign. */
+  assigneeUserId: z.string().min(1).nullable(),
 });
 
 const opportunityAdvanceInput = z.object({
@@ -101,8 +111,28 @@ export const crmRouter = router({
           email: input.email,
         });
 
+        // phase-10: a `sale` owns the leads they create (KPI attribution);
+        // a pure GĐ KD creates unassigned and picks an owner later via
+        // opportunityAssign. Resolve the caller's AppUser.id (nullable —
+        // mirrors Receipt.createdByAppUserId; a context with no AppUser row
+        // simply leaves the lead unowned).
+        let assignedToId: string | null = null;
+        if (ctx.subject.roles.includes('sale')) {
+          const callerAppUser = await tx.appUser.findFirst({
+            where: { userId: ctx.subject.userId, facilityId },
+            select: { id: true },
+          });
+          assignedToId = callerAppUser?.id ?? null;
+        }
+
         const opportunity = await tx.opportunity.create({
-          data: { facilityId, contactId: contact.id, stage: 'O1_LEAD' },
+          data: {
+            facilityId,
+            contactId: contact.id,
+            stage: 'O1_LEAD',
+            assignedToId,
+            source: input.source ?? null,
+          },
         });
 
         await tx.auditLog.create({
@@ -111,7 +141,7 @@ export const crmRouter = router({
             action: 'crm.opportunityCreate',
             entity: 'Opportunity',
             entityId: opportunity.id,
-            data: { facilityId, contactId: contact.id },
+            data: { facilityId, contactId: contact.id, assignedToId, source: input.source ?? null },
           },
         });
 
@@ -213,6 +243,56 @@ export const crmRouter = router({
       });
     }),
 
+  opportunityAssign: requirePermission('crm', 'opportunityAssign')
+    .input(opportunityAssignInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      const isManager = ctx.subject.roles.includes('giam_doc_kinh_doanh');
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        // Lock the opp so the ownership decision can't race a concurrent assign.
+        const rows = await tx.$queryRaw<{ id: string; assignedToId: string | null }[]>`
+          SELECT "id", "assignedToId" FROM "Opportunity"
+          WHERE "id" = ${input.opportunityId} AND "facilityId" = ${facilityId}
+          FOR UPDATE
+        `;
+        const opp = rows[0];
+        if (!opp) throw notFound('Opportunity not found.');
+
+        // Resolve the target staff (null = unassign).
+        let newAssignedToId: string | null = null;
+        if (input.assigneeUserId) {
+          const target = await tx.appUser.findFirst({
+            where: { userId: input.assigneeUserId, facilityId },
+            select: { id: true },
+          });
+          if (!target) throw badRequest('Người được giao không phải nhân sự của cơ sở này.');
+          newAssignedToId = target.id;
+        }
+
+        // Row-level rule (the registry can() is role-only): a `sale` may claim a
+        // lead ONLY for themselves, and ONLY when it is currently unassigned or
+        // already theirs. A GĐ KD may assign anyone (and unassign).
+        if (!isManager) {
+          if (input.assigneeUserId !== ctx.subject.userId) {
+            throw forbidden('Bạn chỉ có thể nhận cơ hội cho chính mình.');
+          }
+          const self = await tx.appUser.findFirst({
+            where: { userId: ctx.subject.userId, facilityId },
+            select: { id: true },
+          });
+          const selfId = self?.id ?? null;
+          if (opp.assignedToId !== null && opp.assignedToId !== selfId) {
+            throw forbidden('Cơ hội này đã thuộc về người khác.');
+          }
+        }
+
+        return tx.opportunity.update({
+          where: { id: opp.id },
+          data: { assignedToId: newAssignedToId },
+        });
+      });
+    }),
+
   opportunityLookup: requirePermission('crm', 'opportunityLookup')
     .input(opportunityLookupInput)
     .query(async ({ ctx, input }) => {
@@ -306,7 +386,20 @@ export const crmRouter = router({
         const stageCounts: Record<string, number> = {};
         for (const row of stageCountRows) stageCounts[row.stage] = row._count._all;
 
-        return { items, total, page: input.page, pageSize: input.pageSize, stageCounts, lostCount };
+        // phase-10: resolve owner display names for the page's items (AppUser has
+        // no Prisma relation to Opportunity — a second facility-scoped query,
+        // same pattern as the after-sale/meeting list student-name join).
+        const ownerIds = [...new Set(items.map((i) => i.assignedToId).filter((v): v is string => Boolean(v)))];
+        const owners = ownerIds.length
+          ? await tx.appUser.findMany({ where: { id: { in: ownerIds } }, select: { id: true, userId: true, fullName: true } })
+          : [];
+        const ownerById = new Map(owners.map((o) => [o.id, { userId: o.userId, fullName: o.fullName }]));
+        const itemsWithOwner = items.map((i) => ({
+          ...i,
+          assignedTo: i.assignedToId ? ownerById.get(i.assignedToId) ?? null : null,
+        }));
+
+        return { items: itemsWithOwner, total, page: input.page, pageSize: input.pageSize, stageCounts, lostCount };
       });
     }),
 });

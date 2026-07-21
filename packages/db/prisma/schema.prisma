@@ -279,6 +279,13 @@ model Opportunity {
   stage      OpportunityStage @default(O1_LEAD)
   lostReason LostReason?
   closedAt   DateTime?        @db.Timestamptz(3)
+  // phase-10 (PO decision #3): owner (sale KPI attribution) and lead source.
+  // `assignedToId` is an AppUser.id (nullable — historical rows unowned; a
+  // DB-level FK is added in the phase-10 migration, mirroring Receipt's
+  // nullable createdByAppUserId). `source` values are enforced by a zod enum
+  // at the API layer (referral|walkin|fanpage|hotline|event|other), no DB enum.
+  assignedToId String?
+  source       String?
   createdAt  DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt  DateTime         @updatedAt @db.Timestamptz(3)
 
@@ -287,6 +294,7 @@ model Opportunity {
 
   @@index([facilityId])
   @@index([contactId])
+  @@index([facilityId, assignedToId])
 }
 
 /// One row per facility; `value` is the last-issued sequence number.
@@ -1524,7 +1532,7 @@ model ParentMeeting {
   scheduledAt DateTime  @db.Timestamptz(3)
   status      String    @default("scheduled")
   result      String?   @db.VarChar(2000)
-  remindedAt  DateTime? @db.Timestamptz(3)
+  // phase-10: `remindedAt` dropped — never read or written by any code path.
   createdAt   DateTime  @default(now()) @db.Timestamptz(3)
 
   @@index([facilityId, scheduledAt])

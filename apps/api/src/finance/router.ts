@@ -353,7 +353,7 @@ async function runMoneyTransaction(
       autoLinkedOpportunityId = openOpp.id;
     } else {
       const created = await tx.opportunity.create({
-        data: { facilityId, contactId: contact.id, stage: 'O1_LEAD' },
+        data: { facilityId, contactId: contact.id, stage: 'O1_LEAD', source: 'walkin' },
       });
       resolvedOpportunityId = created.id;
       autoCreatedOpportunityId = created.id;

@@ -130,6 +130,16 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
   await privileged.finalGrade.deleteMany({ where: { facilityId } });
   await privileged.starTransaction.deleteMany({ where: { facilityId } });
   await privileged.submission.deleteMany({ where: { facilityId } });
+  // phase-10: AfterSaleCase / ParentMeeting / TestAppointment now carry a
+  // RESTRICT FK to Student (Reward already did) — delete them before the
+  // student.deleteMany below, or that delete fails with a FK violation.
+  // Privileged connection: append-like tables with no cmc_app DELETE grant,
+  // same as the api-side teardown (apps/api/src/test/db.ts).
+  await privileged.afterSaleCase.deleteMany({ where: { facilityId } });
+  await privileged.parentMeeting.deleteMany({ where: { facilityId } });
+  await privileged.testAppointment.deleteMany({ where: { facilityId } });
+  await privileged.reward.deleteMany({ where: { facilityId } });
+  await privileged.gift.deleteMany({ where: { facilityId } });
 
   await db.guardian.deleteMany({ where: { facilityId } });
   await db.guardianLinkRequest.deleteMany({ where: { facilityId } });

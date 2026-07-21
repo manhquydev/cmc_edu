@@ -57,6 +57,10 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   'crm.opportunityCreate': ['giam_doc_kinh_doanh', 'sale'],
   'crm.opportunityAdvance': ['giam_doc_kinh_doanh', 'sale'],
   'crm.opportunityMarkLost': ['giam_doc_kinh_doanh', 'sale'],
+  // phase-10: role gate only opens the door; the row-level ownership rule
+  // (a sale may claim ONLY their own unassigned/already-theirs leads; GĐ KD may
+  // reassign anyone) is coded in the crm.opportunityAssign procedure.
+  'crm.opportunityAssign': ['giam_doc_kinh_doanh', 'sale'],
   'finance.receiptCreate': ['giam_doc_kinh_doanh', 'sale'],
   // Money gate (ADR-B, docs/16): approver must differ from the drafting sale
   // rep for basic separation of duties — `sale` MUST NOT appear here.

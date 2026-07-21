@@ -243,6 +243,7 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     expect(opp.stage).toBe('O5_ENROLLED');
     expect(opp.closedAt).not.toBeNull();
     expect(opp.lostReason).toBeNull();
+    expect(opp.source).toBe('walkin'); // phase-10: auto-created walk-in opp tagged
   });
 
   it('walk-in: an UNLINKED receipt for a phone with an OPEN opp links AND advances that opp to O5 (no strand at O2) (phase-05)', async () => {

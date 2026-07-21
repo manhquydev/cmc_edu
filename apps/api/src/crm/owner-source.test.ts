@@ -107,6 +107,14 @@ describe('crm opportunity owner + source (phase-10)', () => {
     expect(unassigned.assignedToId).toBeNull();
   });
 
+  it('assignableStaff lists active facility staff for the owner-select', async () => {
+    const staff = await manager.crm.assignableStaff();
+    const userIds = staff.map((s) => s.userId);
+    expect(userIds).toContain('sale-owner');
+    expect(userIds).toContain('sale-other');
+    expect(staff.every((s) => typeof s.fullName === 'string')).toBe(true);
+  });
+
   it('opportunityList returns the resolved owner (userId + fullName)', async () => {
     const opp = await saleOwner.crm.opportunityCreate({ contactName: 'Listed Lead', phone: nextPhone() });
     const list = await manager.crm.opportunityList({ pageSize: 100 });

@@ -293,6 +293,21 @@ export const crmRouter = router({
       });
     }),
 
+  /** Active staff assignable as opportunity owners (for the detail owner-select).
+   * Gated on the same key as opportunityAssign — a sale can call it but only
+   * needs their own id; a GĐ KD uses it to pick any owner. */
+  assignableStaff: requirePermission('crm', 'opportunityAssign')
+    .query(async ({ ctx }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, (tx) =>
+        tx.appUser.findMany({
+          where: { facilityId, isActive: true },
+          select: { userId: true, fullName: true },
+          orderBy: { fullName: 'asc' },
+        }),
+      );
+    }),
+
   opportunityLookup: requirePermission('crm', 'opportunityLookup')
     .input(opportunityLookupInput)
     .query(async ({ ctx, input }) => {

@@ -42,6 +42,18 @@ interface OpportunityItem {
   closedAt: string | null;
   lostReason?: string;
   contact: { id: string; name: string; phone: string };
+  source?: string | null;
+  assignedTo?: { userId: string; fullName: string } | null;
+}
+
+// Owner-badge initials — first letter of the first word + first letter of
+// the last word (e.g. "Nguyễn Văn A" -> "NA"), matching how initials avatars
+// are conventionally derived from a Vietnamese full name.
+function getOwnerInitials(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function OpportunityCard({
@@ -88,9 +100,35 @@ function OpportunityCard({
           </Text>
           {isLost && <Badge label="Lost" variant="error" />}
         </HStack>
-        <Text type="supporting" size="xsm">
-          {formatContactPhone(opp.contact.phone)}
-        </Text>
+        <HStack justify="between" align="center">
+          <Text type="supporting" size="xsm">
+            {formatContactPhone(opp.contact.phone)}
+          </Text>
+          {opp.assignedTo ? (
+            <div
+              title={opp.assignedTo.fullName}
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                background: 'var(--cmc-brand-muted)',
+                color: 'var(--cmc-brand)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 10,
+                fontWeight: 600,
+                flexShrink: 0,
+              }}
+            >
+              {getOwnerInitials(opp.assignedTo.fullName)}
+            </div>
+          ) : (
+            <Text type="supporting" size="xsm" style={{ fontStyle: 'italic' }}>
+              Chưa giao
+            </Text>
+          )}
+        </HStack>
 
         {nextStage && !isLost && (
           <Button

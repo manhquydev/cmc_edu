@@ -21,6 +21,8 @@ interface OpportunityRow {
   stage: string;
   closedAt: string | null;
   contact: { id: string; name: string; phone: string };
+  source?: string | null;
+  assignedTo?: { userId: string; fullName: string } | null;
 }
 
 interface OpportunityListData {
@@ -166,6 +168,21 @@ describe('CrmPipelinePage', () => {
     expect(screen.getByText('Nguyễn Văn A')).toBeInTheDocument();
     expect(screen.getByText('Trần Thị B')).toBeInTheDocument();
     expect(screen.getByText('Lê Văn C')).toBeInTheDocument();
+  });
+
+  it('renders the owner badge initials from assignedTo.fullName (phase-10)', () => {
+    listState.data = {
+      items: [{ ...OPP_O1, assignedTo: { userId: 'u9', fullName: 'Phạm Thị Dung' } }],
+    };
+    renderWithProviders(<CrmPipelinePage />);
+    expect(screen.getByText('PD')).toBeInTheDocument();
+    expect(screen.queryByText('Chưa giao')).not.toBeInTheDocument();
+  });
+
+  it('shows "Chưa giao" when the opportunity has no assignedTo (phase-10)', () => {
+    listState.data = { items: [{ ...OPP_O1, assignedTo: null }] };
+    renderWithProviders(<CrmPipelinePage />);
+    expect(screen.getByText('Chưa giao')).toBeInTheDocument();
   });
 
   it('advance action calls crm.opportunityAdvance.mutate({opportunityId, toStage}) with a byte-identical payload', () => {

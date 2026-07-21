@@ -1,15 +1,35 @@
 import { useState } from 'react';
-import { Banner, Button, Dialog, DialogHeader, HStack, Stack, TextInput } from '@cmc/ui';
+import { Banner, Button, Dialog, DialogHeader, HStack, Selector, Stack, TextInput } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useOpportunityActions } from './use-opportunity-actions.js';
+
+// Lead source (phase-10) — mirrors the API's `SOURCE_VALUES` enum
+// (apps/api/src/crm/router.ts), enforced there only (no DB enum, KISS).
+// Exported so opportunity-detail.tsx can reuse the same label map, matching
+// the LOST_REASON_LABELS pattern in mark-lost-dialog.tsx.
+export type SourceKey = 'referral' | 'walkin' | 'fanpage' | 'hotline' | 'event' | 'other';
+
+const SOURCE_OPTIONS: { value: SourceKey; label: string }[] = [
+  { value: 'referral', label: 'Giới thiệu' },
+  { value: 'walkin', label: 'Vãng lai' },
+  { value: 'fanpage', label: 'Fanpage' },
+  { value: 'hotline', label: 'Hotline' },
+  { value: 'event', label: 'Sự kiện' },
+  { value: 'other', label: 'Khác' },
+];
+
+export const SOURCE_LABELS: Record<string, string> = Object.fromEntries(
+  SOURCE_OPTIONS.map((o) => [o.value, o.label]),
+);
 
 interface CreateLeadForm {
   name: string;
   phone: string;
   email: string;
+  source: SourceKey | '';
 }
 
-const EMPTY_FORM: CreateLeadForm = { name: '', phone: '', email: '' };
+const EMPTY_FORM: CreateLeadForm = { name: '', phone: '', email: '', source: '' };
 
 /**
  * Create-lead modal — pipeline header action. Creates an O1_LEAD opportunity.
@@ -40,6 +60,7 @@ export function CreateLeadDialog({ opened, onClose }: { opened: boolean; onClose
         contactName: form.name.trim(),
         phone: form.phone.trim(),
         email: form.email.trim() || undefined,
+        source: form.source || undefined,
       },
       { onSuccess: close },
     );
@@ -82,6 +103,13 @@ export function CreateLeadDialog({ opened, onClose }: { opened: boolean; onClose
           placeholder="tuỳ chọn"
           value={form.email}
           onChange={(v) => setForm((f) => ({ ...f, email: v }))}
+        />
+        <Selector
+          label="Nguồn"
+          placeholder="Chọn nguồn (tuỳ chọn)"
+          options={SOURCE_OPTIONS}
+          value={form.source}
+          onChange={(v) => setForm((f) => ({ ...f, source: v as SourceKey }))}
         />
         {lookupData?.exists && (
           <Banner

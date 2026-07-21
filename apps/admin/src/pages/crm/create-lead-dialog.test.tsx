@@ -107,4 +107,28 @@ describe('CreateLeadDialog', () => {
     act(() => callOptions.onSuccess?.());
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('submits opportunityCreate.mutate with source:undefined when no source is chosen (phase-10)', () => {
+    renderWithProviders(<CreateLeadDialog opened onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText(/^Họ tên/), { target: { value: 'Nguyễn Văn A' } });
+    fireEvent.change(screen.getByLabelText(/^Số điện thoại/), { target: { value: '0900000001' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo' }));
+    expect(createMutate).toHaveBeenCalledWith(
+      { contactName: 'Nguyễn Văn A', phone: '0900000001', email: undefined, source: undefined },
+      expect.anything(),
+    );
+  });
+
+  it('submits opportunityCreate.mutate with the chosen source (phase-10)', () => {
+    renderWithProviders(<CreateLeadDialog opened onClose={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText(/^Họ tên/), { target: { value: 'Nguyễn Văn A' } });
+    fireEvent.change(screen.getByLabelText(/^Số điện thoại/), { target: { value: '0900000001' } });
+    fireEvent.click(screen.getByLabelText(/^Nguồn/));
+    fireEvent.click(screen.getByRole('option', { name: 'Fanpage' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo' }));
+    expect(createMutate).toHaveBeenCalledWith(
+      { contactName: 'Nguyễn Văn A', phone: '0900000001', email: undefined, source: 'fanpage' },
+      expect.anything(),
+    );
+  });
 });

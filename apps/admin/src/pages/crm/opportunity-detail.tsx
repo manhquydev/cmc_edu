@@ -1,13 +1,21 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
-import { Badge, Banner, Button, Grid, HStack, LineIcon, PageHeader, Spinner, Stack, Text } from '@cmc/ui';
+import { Badge, Banner, Button, Grid, HStack, LineIcon, PageHeader, Selector, Spinner, Stack, Text } from '@cmc/ui';
 import type { ComponentProps } from 'react';
 import { trpc } from '../../lib/trpc.js';
+import { useSession } from '../../lib/session-context.js';
 import { formatContactPhone } from '../../lib/format-contact-phone.js';
 import { LOST_REASON_LABELS, MarkLostDialog } from './mark-lost-dialog.js';
+import { SOURCE_LABELS } from './create-lead-dialog.js';
 import { useOpportunityActions } from './use-opportunity-actions.js';
 import { useTestAppointmentActions } from './use-test-appointment-actions.js';
 import { ScheduleTestDialog } from './schedule-test-dialog.js';
+
+// Sentinel Selector value for "unassign" — the manager owner-select's
+// non-clearable Selector (@astryxdesign/core) only carries `string`, so
+// `null` (unassign) is represented as this empty string and translated back
+// to `null` before calling `opportunityAssign`.
+const UNASSIGNED_VALUE = '';
 
 type BadgeVariant = ComponentProps<typeof Badge>['variant'];
 
@@ -88,8 +96,24 @@ export default function OpportunityDetailPage() {
   const advanceMutation = trpc.crm.opportunityAdvance.useMutation({
     onSuccess: () => void utils.crm.opportunityList.invalidate(),
   });
-  const { markLostMutation } = useOpportunityActions();
+  const { markLostMutation, assignMutation } = useOpportunityActions();
   const { completeMutation, noShowMutation } = useTestAppointmentActions();
+
+  // phase-10: owner assign control. `me` gates the two mutually-exclusive
+  // UIs (manager owner-select vs sale claim button) — role gate mirrors
+  // `opportunityAssign`'s row-level rule server-side (source of truth).
+  const { me } = useSession();
+  const isManager = me?.roles.includes('giam_doc_kinh_doanh') ?? false;
+  // Query is cheap and permission-gated server-side (same key as
+  // opportunityAssign) — `enabled: isManager` just avoids the unnecessary
+  // fetch for a sale, who only ever needs their own userId.
+  const { data: assignableStaff } = trpc.crm.assignableStaff.useQuery(undefined, {
+    enabled: isManager,
+  });
+  const ownerSelectOptions = [
+    { value: UNASSIGNED_VALUE, label: '— Chưa giao —' },
+    ...(assignableStaff ?? []).map((s) => ({ value: s.userId, label: s.fullName })),
+  ];
 
   if (isLoading) {
     return (
@@ -243,6 +267,91 @@ export default function OpportunityDetailPage() {
               }
             />
           </HStack>
+
+          {/* Ownership + source (phase-10) */}
+          <div
+            style={{
+              border: '1px solid var(--cmc-border)',
+              borderRadius: 'var(--cmc-radius-xs)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                paddingInline: 16,
+                paddingBlock: 8,
+                background: 'var(--cmc-surface-2)',
+                borderBottom: '1px solid var(--cmc-border)',
+              }}
+            >
+              <Text
+                type="supporting"
+                size="xsm"
+                weight="semibold"
+                style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
+              >
+                Phụ trách & nguồn
+              </Text>
+            </div>
+            <div style={{ paddingInline: 16, paddingBlock: 8 }}>
+              <Grid columns={2} gap={4}>
+                <Stack gap={0.5}>
+                  <Text type="supporting" size="xsm">
+                    Chủ sở hữu
+                  </Text>
+                  <Text size="sm" weight="medium">
+                    {opp.assignedTo?.fullName ?? 'Chưa giao'}
+                  </Text>
+                </Stack>
+                <Stack gap={0.5}>
+                  <Text type="supporting" size="xsm">
+                    Nguồn
+                  </Text>
+                  <Text size="sm">{opp.source ? SOURCE_LABELS[opp.source] ?? opp.source : '—'}</Text>
+                </Stack>
+              </Grid>
+
+              {me && (
+                <div style={{ marginTop: 12 }}>
+                  {isManager ? (
+                    <div style={{ maxWidth: 260 }}>
+                      <Selector
+                        label="Giao cho"
+                        options={ownerSelectOptions}
+                        value={opp.assignedTo?.userId ?? UNASSIGNED_VALUE}
+                        onChange={(v) =>
+                          assignMutation.mutate({
+                            opportunityId: opp.id,
+                            assigneeUserId: v === UNASSIGNED_VALUE ? null : v,
+                          })
+                        }
+                        size="sm"
+                      />
+                    </div>
+                  ) : (
+                    (!opp.assignedTo || opp.assignedTo.userId === me.userId) && (
+                      <Button
+                        label="Nhận cơ hội"
+                        size="sm"
+                        variant="secondary"
+                        isLoading={assignMutation.isPending}
+                        onClick={() =>
+                          assignMutation.mutate({ opportunityId: opp.id, assigneeUserId: me.userId })
+                        }
+                      />
+                    )
+                  )}
+                  {assignMutation.error && (
+                    // TODO(astryx-review): Text color enum has no error/danger slot —
+                    // plain <span> with CSS var per migration flag rule (see users.tsx).
+                    <span style={{ fontSize: 13, color: 'var(--cmc-danger)', display: 'block', marginTop: 8 }}>
+                      {assignMutation.error.message}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Contact information */}
           <div

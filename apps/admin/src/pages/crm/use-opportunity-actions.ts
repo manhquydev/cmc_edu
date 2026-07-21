@@ -1,9 +1,9 @@
 import { trpc } from '../../lib/trpc.js';
 
 /**
- * Shared opportunity mutations — create / mark-lost / reopen — used by BOTH
- * the pipeline dashboard (pipeline.tsx, create-lead-dialog.tsx,
- * mark-lost-dialog.tsx) and the opportunity-detail page. All three
+ * Shared opportunity mutations — create / mark-lost / reopen / assign — used
+ * by BOTH the pipeline dashboard (pipeline.tsx, create-lead-dialog.tsx,
+ * mark-lost-dialog.tsx) and the opportunity-detail page. All four
  * invalidate `crm.opportunityList` on success so any open list picks up the
  * change.
  *
@@ -28,5 +28,13 @@ export function useOpportunityActions() {
     onSuccess: invalidateList,
   });
 
-  return { createMutation, markLostMutation };
+  // phase-10: owner assign/claim/unassign. The backend enforces the
+  // sale-can-only-claim-for-self / manager-can-assign-anyone rules
+  // row-by-row (apps/api/src/crm/router.ts) — the FORBIDDEN error surfaces
+  // via `assignMutation.error` for the caller to render inline.
+  const assignMutation = trpc.crm.opportunityAssign.useMutation({
+    onSuccess: invalidateList,
+  });
+
+  return { createMutation, markLostMutation, assignMutation };
 }

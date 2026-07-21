@@ -12,6 +12,7 @@ import { requirePermission, router, scoped } from '../trpc.js';
 import { isOpportunityLost } from './opportunity-lost.js';
 import { findOrCreateContact } from './find-or-create-contact.js';
 import { normalizeContactPhone, toContactPhoneSearchDigits } from './normalize-contact-phone.js';
+import { advanceOpportunityOneStep } from './advance-opportunity.js';
 
 /** Full OpportunityStage catalog (docs/10). */
 const STAGE_VALUES = [
@@ -22,9 +23,6 @@ const STAGE_VALUES = [
   'O5_ENROLLED',
 ] as const;
 
-/** Linear advance order (docs/24 WF-P1-01 state machine) — one stage at a time. */
-const ADVANCE_ORDER = ['O1_LEAD', 'O2_CONTACTED', 'O3_TEST_SCHEDULED', 'O4_TESTED'] as const;
-
 const LOST_REASON_VALUES = [
   'no_response',
   'price_too_high',
@@ -33,21 +31,6 @@ const LOST_REASON_VALUES = [
   'not_interested',
   'other',
 ] as const;
-
-async function findOpportunityOrThrow(
-  tx: Prisma.TransactionClient,
-  facilityId: string,
-  opportunityId: string,
-) {
-  const opportunity = await tx.opportunity.findFirst({
-    where: { id: opportunityId, facilityId },
-  });
-  // Out-of-facility ids look identical to non-existent ones (RLS — TL11 §2).
-  if (!opportunity) {
-    throw notFound('Opportunity not found.');
-  }
-  return opportunity;
-}
 
 const opportunityCreateInput = z.object({
   contactName: z.string().min(1),
@@ -142,8 +125,6 @@ export const crmRouter = router({
       const { facilityId } = scoped(ctx);
 
       return withFacility(ctx.db, facilityId, async (tx) => {
-        const opportunity = await findOpportunityOrThrow(tx, facilityId, input.opportunityId);
-
         // HARD RULE (WF-P1-01): O5_ENROLLED is only ever set by
         // `finance.receiptApprove` on receipt approval — never by a manual
         // stage advance.
@@ -151,22 +132,15 @@ export const crmRouter = router({
           throw badRequest('O5_ENROLLED can only be reached via finance.receiptApprove, not opportunityAdvance.');
         }
 
-        if (opportunity.closedAt) {
-          throw badRequest('Opportunity is marked lost; reopen it before advancing.');
-        }
-
-        const currentIndex = ADVANCE_ORDER.indexOf(opportunity.stage as (typeof ADVANCE_ORDER)[number]);
-        const targetIndex = ADVANCE_ORDER.indexOf(input.toStage as (typeof ADVANCE_ORDER)[number]);
-        if (currentIndex === -1 || targetIndex !== currentIndex + 1) {
-          throw badRequest(
-            `Invalid stage transition from ${opportunity.stage} to ${input.toStage}; opportunities advance one stage at a time.`,
-          );
-        }
-
-        return tx.opportunity.update({
-          where: { id: opportunity.id },
-          data: { stage: input.toStage },
-        });
+        // Shared one-step advance (locks FOR UPDATE, rejects lost + non-adjacent
+        // targets). The tRPC audit middleware records this call automatically.
+        const { opportunity } = await advanceOpportunityOneStep(
+          tx,
+          facilityId,
+          input.opportunityId,
+          input.toStage,
+        );
+        return opportunity;
       });
     }),
 

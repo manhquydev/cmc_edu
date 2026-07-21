@@ -1535,7 +1535,16 @@ model ParentMeeting {
 model TestAppointment {
   id          String   @id @default(uuid())
   facilityId  String
-  studentId   String
+  // F5 / phase-07: `entrance` tests happen PRE-payment, when no Student exists
+  // yet — so an entrance appointment attaches to an Opportunity instead. A
+  // `periodic` test (post-enrollment) still attaches to a Student. The raw-SQL
+  // CHECK (phase-07 migration) requires the arm for the row's type
+  // (entrance⇒opportunityId, periodic⇒studentId); it is NOT exclusive, so a
+  // legacy entrance row backfilled from its old Student keeps that studentId in
+  // addition to the new opportunityId. New rows written by the router set only
+  // the arm they need. Never infer `type` from which column is null.
+  studentId     String?
+  opportunityId String?
   type        String
   scheduledAt DateTime @db.Timestamptz(3)
   status      String   @default("scheduled")
@@ -1543,6 +1552,7 @@ model TestAppointment {
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([facilityId, scheduledAt])
+  @@index([facilityId, opportunityId])
 }
 
 /// P4: After-sale support case. Lifecycle: open -> in_progress -> resolved -> closed.

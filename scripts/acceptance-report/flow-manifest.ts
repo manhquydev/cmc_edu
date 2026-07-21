@@ -470,7 +470,8 @@ export const flows: FlowEntry[] = [
     expected: {
       trpc: ['testAppointment.schedule', 'testAppointment.complete', 'testAppointment.noShow'],
       uiRoutes: ['/crm/opportunities/:id'],
-      models: ['TestAppointment'],
+      // phase-07: entrance appointments now attach to and advance an Opportunity.
+      models: ['TestAppointment', 'Opportunity'],
     },
   },
   {

@@ -177,9 +177,8 @@ drops out, since that will supersede any Phase-1 estimate with ground truth.
   verified attestations** (includes the 4 new Astryx packages + StyleX + their transitive
   deps).
 - Provenance: `repository.url` confirmed `git+https://github.com/facebook/astryx.git`.
-  Maintainers list mixes official Meta accounts (`astryxdesignteam@meta.com`, `fb@meta.com`,
-  `liyaguo@meta.com`) with two individual accounts (`cixzhang@gmail.com`,
-  `gerard.rovira.sanchez@gmail.com`) — consistent with normal OSS team composition, not a
+  Maintainers list mixes official Meta accounts with two individual maintainer
+  accounts — consistent with normal OSS team composition, not a
   red flag on its own given the clean signature/attestation results above.
 - `pnpm why @astryxdesign/core` / `pnpm list --depth 2 --filter @cmc/admin`: dependency tree
   is shallow and clean — `@astryxdesign/core` peers on `react`/`react-dom`/`@stylexjs/stylex`

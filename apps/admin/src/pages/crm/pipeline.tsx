@@ -5,6 +5,7 @@ import { trpc } from '../../lib/trpc.js';
 import { formatContactPhone } from '../../lib/format-contact-phone.js';
 import { CreateLeadDialog } from './create-lead-dialog.js';
 import { MarkLostDialog } from './mark-lost-dialog.js';
+import { ScheduleTestDialog } from './schedule-test-dialog.js';
 
 // Server-side page size for the flat opportunity list (F7 fix — the funnel
 // used to be computed by counting a hard pageSize:100 fetch, which silently
@@ -49,12 +50,14 @@ function OpportunityCard({
   onAdvance,
   advancing,
   onMarkLost,
+  onScheduleTest,
 }: {
   opp: OpportunityItem;
   nextStage: AdvanceableStage | null;
   onAdvance: (id: string, toStage: AdvanceableStage) => void;
   advancing: boolean;
   onMarkLost: (id: string) => void;
+  onScheduleTest: (id: string) => void;
 }) {
   const navigate = useNavigate();
   // A won (O5) opportunity also carries a `closedAt` (the enrollment instant)
@@ -62,6 +65,11 @@ function OpportunityCard({
   // `isOpportunityLost`/`LOST_WHERE` fragment in apps/api/src/crm/router.ts).
   const isLost = Boolean(opp.closedAt) && opp.stage !== 'O5_ENROLLED';
   const canMarkLost = !isLost && opp.stage !== 'O5_ENROLLED';
+  // testAppointment.schedule (apps/api/src/appointment/router.ts) only
+  // accepts an opp at O2_CONTACTED or O3_TEST_SCHEDULED, and rejects a
+  // lost opp — mirrored here so the action only appears when it would succeed.
+  const canScheduleTest =
+    !isLost && (opp.stage === 'O2_CONTACTED' || opp.stage === 'O3_TEST_SCHEDULED');
 
   return (
     <div
@@ -110,6 +118,18 @@ function OpportunityCard({
           />
         )}
 
+        {canScheduleTest && (
+          <Button
+            label="Đặt lịch test"
+            size="sm"
+            variant="secondary"
+            onClick={(e) => {
+              e.stopPropagation();
+              onScheduleTest(opp.id);
+            }}
+          />
+        )}
+
         {canMarkLost && (
           <Button
             label="Đánh dấu mất"
@@ -131,6 +151,7 @@ export default function CrmPipelinePage() {
   const [advancingId, setAdvancingId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [markLostId, setMarkLostId] = useState<string | null>(null);
+  const [scheduleTestId, setScheduleTestId] = useState<string | null>(null);
 
   // Debounced (~300ms) server-side search over contact name/phone.
   const [searchTerm, setSearchTerm] = useState('');
@@ -323,6 +344,7 @@ export default function CrmPipelinePage() {
                           onAdvance={handleAdvance}
                           advancing={advancingId === opp.id}
                           onMarkLost={setMarkLostId}
+                          onScheduleTest={setScheduleTestId}
                         />
                       ))}
                     </div>
@@ -360,6 +382,7 @@ export default function CrmPipelinePage() {
 
       <CreateLeadDialog opened={createOpen} onClose={() => setCreateOpen(false)} />
       <MarkLostDialog opportunityId={markLostId} onClose={() => setMarkLostId(null)} />
+      <ScheduleTestDialog opportunityId={scheduleTestId} onClose={() => setScheduleTestId(null)} />
     </>
   );
 }

@@ -42,11 +42,32 @@ const OPP_LOST: OpportunityRow = {
   lostReason: 'no_response',
   contact: { id: 'c6', name: 'Phạm Thị D', phone: '0900000006' },
 };
+const OPP_O2: OpportunityRow = {
+  id: 'opp-o2',
+  stage: 'O2_CONTACTED',
+  closedAt: null,
+  contact: { id: 'c7', name: 'Hoàng Văn G', phone: '0900000007' },
+};
 
-const listState: { items: OpportunityRow[] } = { items: [OPP_O1, OPP_O4, OPP_O5, OPP_LOST] };
+interface AppointmentRow {
+  id: string;
+  type: string;
+  opportunityId: string;
+  studentId: string | null;
+  scheduledAt: string;
+  status: 'scheduled' | 'done' | 'no_show';
+  notes: string | null;
+}
+
+const listState: { items: OpportunityRow[] } = { items: [OPP_O1, OPP_O4, OPP_O5, OPP_LOST, OPP_O2] };
+const appointmentsState: { items: AppointmentRow[] } = { items: [] };
 const listQuerySpy = vi.fn();
+const appointmentsQuerySpy = vi.fn();
 const advanceMutate = vi.fn();
 const markLostMutate = vi.fn();
+const scheduleTestMutate = vi.fn();
+const completeMutate = vi.fn();
+const noShowMutate = vi.fn();
 
 vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
@@ -64,6 +85,13 @@ vi.mock('../../lib/trpc.js', async () => {
       },
       'crm.opportunityAdvance.useMutation': () => mutationResult({ mutate: advanceMutate }),
       'crm.opportunityMarkLost.useMutation': () => mutationResult({ mutate: markLostMutate }),
+      'testAppointment.forOpportunity.useQuery': (input: unknown) => {
+        appointmentsQuerySpy(input);
+        return queryResult(appointmentsState.items);
+      },
+      'testAppointment.schedule.useMutation': () => mutationResult({ mutate: scheduleTestMutate }),
+      'testAppointment.complete.useMutation': () => mutationResult({ mutate: completeMutate }),
+      'testAppointment.noShow.useMutation': () => mutationResult({ mutate: noShowMutate }),
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -91,8 +119,13 @@ async function selectLostReason(label: RegExp = /Không phản hồi/) {
 describe('OpportunityDetailPage', () => {
   beforeEach(() => {
     listQuerySpy.mockClear();
+    appointmentsQuerySpy.mockClear();
     advanceMutate.mockClear();
     markLostMutate.mockClear();
+    scheduleTestMutate.mockClear();
+    completeMutate.mockClear();
+    noShowMutate.mockClear();
+    appointmentsState.items = [];
   });
 
   it('queries crm.opportunityList with lost: "include" so a lost opportunity still resolves', () => {
@@ -141,5 +174,111 @@ describe('OpportunityDetailPage', () => {
     const { container } = renderDetail(OPP_O1.id);
     // eslint-disable-next-line no-misleading-character-class
     expect(container.textContent).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
+  });
+
+  describe('"Đặt lịch test" action + appointment list (testAppointment.*)', () => {
+    it('queries testAppointment.forOpportunity with the route opportunityId', () => {
+      renderDetail(OPP_O2.id);
+      expect(appointmentsQuerySpy).toHaveBeenCalledWith({ opportunityId: OPP_O2.id });
+    });
+
+    it('shows the action for an O2_CONTACTED opportunity and calls schedule.mutate with {type: "entrance", opportunityId, scheduledAt}', () => {
+      renderDetail(OPP_O2.id);
+      fireEvent.click(screen.getByRole('button', { name: 'Đặt lịch test' }));
+      expect(screen.getByText('Đặt lịch test đầu vào')).toBeInTheDocument();
+
+      const datetimeInput = screen.getByLabelText('Thời gian test');
+      fireEvent.change(datetimeInput, { target: { value: '2026-08-01T10:00' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Đặt lịch' }));
+
+      expect(scheduleTestMutate).toHaveBeenCalledWith(
+        {
+          type: 'entrance',
+          opportunityId: OPP_O2.id,
+          scheduledAt: new Date('2026-08-01T10:00').toISOString(),
+        },
+        expect.anything(),
+      );
+    });
+
+    it('does not show the action for an already-lost O2_CONTACTED opportunity', () => {
+      renderDetail(OPP_LOST.id);
+      expect(screen.queryByRole('button', { name: 'Đặt lịch test' })).not.toBeInTheDocument();
+    });
+
+    it('does not show the action for an O4_TESTED opportunity', () => {
+      renderDetail(OPP_O4.id);
+      expect(screen.queryByRole('button', { name: 'Đặt lịch test' })).not.toBeInTheDocument();
+    });
+
+    it('renders appointments returned by testAppointment.forOpportunity', () => {
+      appointmentsState.items = [
+        {
+          id: 'appt-1',
+          type: 'entrance',
+          opportunityId: OPP_O2.id,
+          studentId: null,
+          scheduledAt: '2026-08-01T03:00:00.000Z',
+          status: 'scheduled',
+          notes: null,
+        },
+      ];
+      renderDetail(OPP_O2.id);
+      expect(screen.getByText('Đã đặt lịch')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Hoàn thành' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Vắng mặt' })).toBeInTheDocument();
+    });
+
+    it('calls testAppointment.complete.mutate({appointmentId}) when "Hoàn thành" is clicked', () => {
+      appointmentsState.items = [
+        {
+          id: 'appt-1',
+          type: 'entrance',
+          opportunityId: OPP_O2.id,
+          studentId: null,
+          scheduledAt: '2026-08-01T03:00:00.000Z',
+          status: 'scheduled',
+          notes: null,
+        },
+      ];
+      renderDetail(OPP_O2.id);
+      fireEvent.click(screen.getByRole('button', { name: 'Hoàn thành' }));
+      expect(completeMutate).toHaveBeenCalledWith({ appointmentId: 'appt-1' });
+    });
+
+    it('calls testAppointment.noShow.mutate({appointmentId}) when "Vắng mặt" is clicked', () => {
+      appointmentsState.items = [
+        {
+          id: 'appt-1',
+          type: 'entrance',
+          opportunityId: OPP_O2.id,
+          studentId: null,
+          scheduledAt: '2026-08-01T03:00:00.000Z',
+          status: 'scheduled',
+          notes: null,
+        },
+      ];
+      renderDetail(OPP_O2.id);
+      fireEvent.click(screen.getByRole('button', { name: 'Vắng mặt' }));
+      expect(noShowMutate).toHaveBeenCalledWith({ appointmentId: 'appt-1' });
+    });
+
+    it('does not show complete/no-show actions for a "done" appointment', () => {
+      appointmentsState.items = [
+        {
+          id: 'appt-1',
+          type: 'entrance',
+          opportunityId: OPP_O2.id,
+          studentId: null,
+          scheduledAt: '2026-08-01T03:00:00.000Z',
+          status: 'done',
+          notes: null,
+        },
+      ];
+      renderDetail(OPP_O2.id);
+      expect(screen.getByText('Hoàn thành')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Hoàn thành' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Vắng mặt' })).not.toBeInTheDocument();
+    });
   });
 });

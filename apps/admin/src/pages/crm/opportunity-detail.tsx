@@ -6,8 +6,33 @@ import { trpc } from '../../lib/trpc.js';
 import { formatContactPhone } from '../../lib/format-contact-phone.js';
 import { LOST_REASON_LABELS, MarkLostDialog } from './mark-lost-dialog.js';
 import { useOpportunityActions } from './use-opportunity-actions.js';
+import { useTestAppointmentActions } from './use-test-appointment-actions.js';
+import { ScheduleTestDialog } from './schedule-test-dialog.js';
 
 type BadgeVariant = ComponentProps<typeof Badge>['variant'];
+
+const APPT_STATUS_LABELS: Record<string, string> = {
+  scheduled: 'Đã đặt lịch',
+  done: 'Hoàn thành',
+  no_show: 'Vắng mặt',
+};
+
+const APPT_STATUS_VARIANT: Record<string, BadgeVariant> = {
+  scheduled: 'blue',
+  done: 'success',
+  no_show: 'error',
+};
+
+function fmtAppointmentTime(v: string): string {
+  return new Date(v).toLocaleString('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 const STAGE_LABELS: Record<string, string> = {
   O1_LEAD: 'Tiếp cận',
@@ -40,6 +65,7 @@ export default function OpportunityDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [markLostOpen, setMarkLostOpen] = useState(false);
+  const [scheduleTestOpen, setScheduleTestOpen] = useState(false);
 
   // No opportunityGet endpoint for a single lost opp lookup from the pipeline
   // (which hides lost opps by default) — query the full list WITH lost
@@ -50,11 +76,20 @@ export default function OpportunityDetailPage() {
     { enabled: Boolean(id) },
   );
 
+  // Hooks must run unconditionally (before the isLoading/error/!opp early
+  // returns below), so this is keyed off the route param `id` directly
+  // rather than the `opp` object derived from `data` further down.
+  const { data: appointments } = trpc.testAppointment.forOpportunity.useQuery(
+    { opportunityId: id ?? '' },
+    { enabled: Boolean(id) },
+  );
+
   const utils = trpc.useUtils();
   const advanceMutation = trpc.crm.opportunityAdvance.useMutation({
     onSuccess: () => void utils.crm.opportunityList.invalidate(),
   });
   const { markLostMutation } = useOpportunityActions();
+  const { completeMutation, noShowMutation } = useTestAppointmentActions();
 
   if (isLoading) {
     return (
@@ -93,6 +128,11 @@ export default function OpportunityDetailPage() {
   const stageVariant = STAGE_COLOR[opp.stage] ?? 'blue';
   const nextStage = ADVANCE_NEXT[opp.stage];
   const canMarkLost = !isLost && opp.stage !== 'O5_ENROLLED';
+  // testAppointment.schedule (apps/api/src/appointment/router.ts) only
+  // accepts an opp at O2_CONTACTED or O3_TEST_SCHEDULED, and rejects a
+  // lost opp — mirrored here so the action only appears when it would succeed.
+  const canScheduleTest =
+    !isLost && (opp.stage === 'O2_CONTACTED' || opp.stage === 'O3_TEST_SCHEDULED');
 
   return (
     <>
@@ -133,6 +173,14 @@ export default function OpportunityDetailPage() {
                 onClick={() => setMarkLostOpen(true)}
               />
             )}
+            {canScheduleTest && (
+              <Button
+                label="Đặt lịch test"
+                variant="secondary"
+                size="sm"
+                onClick={() => setScheduleTestOpen(true)}
+              />
+            )}
             {opp.stage === 'O4_TESTED' && !isLost && (
               <Button
                 label="Tạo phiếu thu"
@@ -154,6 +202,11 @@ export default function OpportunityDetailPage() {
       <MarkLostDialog
         opportunityId={markLostOpen ? opp.id : null}
         onClose={() => setMarkLostOpen(false)}
+      />
+
+      <ScheduleTestDialog
+        opportunityId={scheduleTestOpen ? opp.id : null}
+        onClose={() => setScheduleTestOpen(false)}
       />
 
       <div style={{ padding: 16, maxWidth: 640 }}>
@@ -328,6 +381,78 @@ export default function OpportunityDetailPage() {
                 </HStack>
               )}
             </Stack>
+          </div>
+
+          {/* Entrance test appointments — testAppointment.forOpportunity */}
+          <div
+            style={{
+              border: '1px solid var(--cmc-border)',
+              borderRadius: 'var(--cmc-radius-xs)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                paddingInline: 16,
+                paddingBlock: 8,
+                background: 'var(--cmc-surface-2)',
+                borderBottom: '1px solid var(--cmc-border)',
+              }}
+            >
+              <Text
+                type="supporting"
+                size="xsm"
+                weight="semibold"
+                style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
+              >
+                Lịch test đầu vào
+              </Text>
+            </div>
+            {!appointments || appointments.length === 0 ? (
+              <div className="ck-empty">Chưa có lịch test</div>
+            ) : (
+              <Stack gap={0}>
+                {appointments.map((appt, idx) => (
+                  <HStack
+                    key={appt.id}
+                    justify="between"
+                    align="center"
+                    style={{
+                      paddingInline: 16,
+                      paddingBlock: 8,
+                      borderBottom:
+                        idx < appointments.length - 1 ? '1px solid var(--cmc-border)' : undefined,
+                    }}
+                  >
+                    <Stack gap={0.5}>
+                      <Text size="sm">{fmtAppointmentTime(appt.scheduledAt)}</Text>
+                      <Badge
+                        label={APPT_STATUS_LABELS[appt.status] ?? appt.status}
+                        variant={APPT_STATUS_VARIANT[appt.status] ?? 'neutral'}
+                      />
+                    </Stack>
+                    {appt.status === 'scheduled' && (
+                      <HStack gap={1}>
+                        <Button
+                          label="Hoàn thành"
+                          size="sm"
+                          variant="secondary"
+                          isLoading={completeMutation.isPending}
+                          onClick={() => completeMutation.mutate({ appointmentId: appt.id })}
+                        />
+                        <Button
+                          label="Vắng mặt"
+                          size="sm"
+                          variant="ghost"
+                          isLoading={noShowMutation.isPending}
+                          onClick={() => noShowMutation.mutate({ appointmentId: appt.id })}
+                        />
+                      </HStack>
+                    )}
+                  </HStack>
+                ))}
+              </Stack>
+            )}
           </div>
         </Stack>
       </div>

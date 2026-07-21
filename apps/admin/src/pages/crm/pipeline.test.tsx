@@ -71,6 +71,7 @@ const listState: { data: OpportunityListData | undefined; isLoading: boolean; er
 };
 const listQuerySpy = vi.fn();
 const advanceMutate = vi.fn();
+const scheduleTestMutate = vi.fn();
 let advanceOnSettled: (() => void) | undefined;
 
 vi.mock('../../lib/trpc.js', async () => {
@@ -99,6 +100,7 @@ vi.mock('../../lib/trpc.js', async () => {
         advanceOnSettled = options?.onSettled;
         return mutationResult({ mutate: advanceMutate });
       },
+      'testAppointment.schedule.useMutation': () => mutationResult({ mutate: scheduleTestMutate }),
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -124,6 +126,7 @@ describe('CrmPipelinePage', () => {
     listState.error = null;
     listQuerySpy.mockClear();
     advanceMutate.mockClear();
+    scheduleTestMutate.mockClear();
   });
 
   afterEach(() => {
@@ -311,6 +314,58 @@ describe('CrmPipelinePage', () => {
       listQuerySpy.mockClear();
       fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
       expect(listQuerySpy).toHaveBeenCalledWith({ lost: 'exclude', page: 2, pageSize: 20 });
+    });
+  });
+
+  describe('"Đặt lịch test" action (testAppointment.schedule)', () => {
+    it('shows the action only on O2_CONTACTED/O3_TEST_SCHEDULED cards, not on O1_LEAD', () => {
+      renderWithProviders(<CrmPipelinePage />);
+      // OPP_O2 + OPP_O2_B are O2_CONTACTED; OPP_O1 is O1_LEAD (no action).
+      expect(screen.getAllByRole('button', { name: 'Đặt lịch test' })).toHaveLength(2);
+    });
+
+    it('does not show the action for an O5_ENROLLED opportunity', () => {
+      const OPP_O5: OpportunityRow = {
+        id: 'opp-o5',
+        stage: 'O5_ENROLLED',
+        closedAt: null,
+        contact: { id: 'c9', name: 'Đặng Văn E', phone: '0900000009' },
+      };
+      listState.data = { items: [OPP_O5] };
+      renderWithProviders(<CrmPipelinePage />);
+      expect(screen.queryByRole('button', { name: 'Đặt lịch test' })).not.toBeInTheDocument();
+    });
+
+    it('does not show the action for an already-lost O2_CONTACTED opportunity', () => {
+      const OPP_LOST: OpportunityRow = {
+        id: 'opp-lost',
+        stage: 'O2_CONTACTED',
+        closedAt: '2026-07-01T00:00:00.000Z',
+        contact: { id: 'c8', name: 'Bùi Thị F', phone: '0900000008' },
+      };
+      listState.data = { items: [OPP_LOST] };
+      renderWithProviders(<CrmPipelinePage />);
+      expect(screen.queryByRole('button', { name: 'Đặt lịch test' })).not.toBeInTheDocument();
+    });
+
+    it('opens the schedule dialog and calls testAppointment.schedule.mutate with {type: "entrance", opportunityId, scheduledAt}', () => {
+      renderWithProviders(<CrmPipelinePage />);
+      const scheduleButtons = screen.getAllByRole('button', { name: 'Đặt lịch test' });
+      fireEvent.click(scheduleButtons[0]);
+      expect(screen.getByText('Đặt lịch test đầu vào')).toBeInTheDocument();
+
+      const datetimeInput = screen.getByLabelText('Thời gian test');
+      fireEvent.change(datetimeInput, { target: { value: '2026-08-01T10:00' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Đặt lịch' }));
+
+      expect(scheduleTestMutate).toHaveBeenCalledWith(
+        {
+          type: 'entrance',
+          opportunityId: 'opp-o2',
+          scheduledAt: new Date('2026-08-01T10:00').toISOString(),
+        },
+        expect.anything(),
+      );
     });
   });
 });

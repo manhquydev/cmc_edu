@@ -31,6 +31,8 @@ export const flows: FlowEntry[] = [
         'crm.opportunityLookup',
         'crm.opportunityGet',
         'crm.opportunityList',
+        'crm.assignableStaff',
+        'crm.opportunityAssign',
       ],
       uiRoutes: ['/crm', '/crm/opportunities/:id'],
       models: ['Opportunity'],
@@ -457,7 +459,7 @@ export const flows: FlowEntry[] = [
       // TL25 đã sync 2026-07-18: /parent-meetings KHÔNG tồn tại → /crm/post-sale-meeting.
       // GAP: page /crm/post-sale-meeting hiện là EmptyState CHƯA gọi API (crm.routes.tsx) —
       // procedure+model có thật (structural built) nhưng UI chưa dùng được. Xem documented gaps.
-      trpc: ['parentMeeting.schedule', 'parentMeeting.complete', 'parentMeeting.cancel'],
+      trpc: ['parentMeeting.list', 'parentMeeting.schedule', 'parentMeeting.complete', 'parentMeeting.cancel'],
       uiRoutes: ['/crm/post-sale-meeting'],
       models: ['ParentMeeting'],
     },
@@ -468,7 +470,12 @@ export const flows: FlowEntry[] = [
     cluster: 'P4',
     actorRoles: ['sale', 'giao_vien'],
     expected: {
-      trpc: ['testAppointment.schedule', 'testAppointment.complete', 'testAppointment.noShow'],
+      trpc: [
+        'testAppointment.forOpportunity',
+        'testAppointment.schedule',
+        'testAppointment.complete',
+        'testAppointment.noShow',
+      ],
       uiRoutes: ['/crm/opportunities/:id'],
       // phase-07: entrance appointments now attach to and advance an Opportunity.
       models: ['TestAppointment', 'Opportunity'],
@@ -480,7 +487,14 @@ export const flows: FlowEntry[] = [
     cluster: 'P4',
     actorRoles: ['sale', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
     expected: {
-      trpc: ['afterSale.advance', 'afterSale.create', 'afterSale.resolve', 'afterSale.close', 'student.setLifecycle'],
+      trpc: [
+        'afterSale.list',
+        'afterSale.advance',
+        'afterSale.create',
+        'afterSale.resolve',
+        'afterSale.close',
+        'student.setLifecycle',
+      ],
       uiRoutes: ['/crm/aftersale'],
       models: ['AfterSaleCase'],
     },

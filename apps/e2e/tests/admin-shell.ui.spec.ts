@@ -60,7 +60,7 @@ test.describe('admin shell (UI safety net)', () => {
     await expect(page.getByText('giam_doc_kinh_doanh', { exact: true })).toBeVisible();
 
     // Nav: cockpit has no permission gate, always visible.
-    await expect(page.getByRole('link', { name: /tổng quan/i }).or(page.getByText('Tổng quan'))).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Tổng quan', exact: true })).toBeVisible();
   });
 
   test('finance nav entry navigates to receipts list with a DataTable', async ({ page }) => {
@@ -86,6 +86,6 @@ test.describe('admin shell (UI safety net)', () => {
     // receipt-list page passes its own custom `empty` message ("Chưa có
     // phiếu thu nào") rather than DataTable's generic default, so assert
     // via EmptyState's implicit `status` role instead of hardcoded text.
-    await expect(page.getByRole('status')).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: 'Chưa có phiếu thu nào' })).toBeVisible();
   });
 });

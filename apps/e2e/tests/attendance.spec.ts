@@ -10,7 +10,7 @@
 import { test, expect } from '@playwright/test';
 import { TRPCClientError } from '@trpc/client';
 import type { AppRouter } from '../../api/src/router.js';
-import { seedActiveEnrollment } from '../src/db.js';
+import { seedActiveEnrollment, seedAppUser } from '../src/db.js';
 import { createE2eStaffClient } from '../src/trpc-client.js';
 
 const baseUrl = process.env.E2E_BASE_URL!;
@@ -28,12 +28,18 @@ test.describe('attendance marking + session lifecycle', () => {
       roles: ['giao_vien'],
       facilityId,
     });
+    const teacherAppUser = await seedAppUser({
+      facilityId,
+      userId: 'e2e-teacher',
+      roles: ['giao_vien'],
+    });
 
     const course = await gddt.course.create.mutate({ program: 'UCREA', name: 'E2E Attendance Course' });
     const classBatch = await gddt.classBatch.create.mutate({
       courseId: course.id,
       startDate: '2026-08-01',
-      endDate: '2026-08-01',
+      endDate: '2026-08-31',
+      teacherId: teacherAppUser.id,
       slots: [{ weekday: 6, startTime: '08:00', endTime: '09:00' }],
     });
     const classBatchId = classBatch.classBatch.id;

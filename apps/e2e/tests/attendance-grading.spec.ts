@@ -20,6 +20,7 @@ import type { AppRouter } from '../../api/src/router.js';
 import {
   cleanupParentAccountsByPhone,
   cleanupExercises,
+  seedAppUser,
   seedActiveEnrollment,
   seedPublishedExercise,
   seedSubmittedSubmission,
@@ -65,6 +66,11 @@ async function provisionStudentForGrading(): Promise<{
     roles: ['giam_doc_kinh_doanh'],
     facilityId,
   });
+  const teacher = await seedAppUser({
+    facilityId,
+    userId: 'e2e-grade-teacher',
+    roles: ['giao_vien'],
+  });
 
   const course = await gddt.course.create.mutate({
     program: 'UCREA',
@@ -73,7 +79,8 @@ async function provisionStudentForGrading(): Promise<{
   const classBatch = await gddt.classBatch.create.mutate({
     courseId: course.id,
     startDate: '2026-08-01',
-    endDate: '2026-08-01',
+    endDate: '2026-09-30',
+    teacherId: teacher.id,
     slots: [{ weekday: 3, startTime: '11:00', endTime: '12:00' }],
   });
   const classBatchId = classBatch.classBatch.id;
@@ -166,7 +173,7 @@ test.describe('attendance + grading + star balance', () => {
       facilityId,
     });
     const teacher = createE2eStaffClient(baseUrl, {
-      userId: 'e2e-grade-teacher-attendance',
+      userId: 'e2e-grade-teacher',
       roles: ['giao_vien'],
       facilityId,
     });
@@ -240,7 +247,7 @@ test.describe('attendance + grading + star balance', () => {
       facilityId,
     });
     const teacher = createE2eStaffClient(baseUrl, {
-      userId: 'e2e-grade-teacher-cancel',
+      userId: 'e2e-grade-teacher',
       roles: ['giao_vien'],
       facilityId,
     });

@@ -92,6 +92,37 @@ container, never the local-sim `cmc_prod` stack):
 SYNTH_SEED_ALLOW=1 scripts/synthetic-seed-env.sh [--fresh]   # print APP_DATABASE_URL/DATABASE_URL to export
 ```
 
+### Platform Notes (Windows vs Linux)
+
+The repo builds identically on both, but the local Postgres plumbing differs.
+
+| Topic | Windows (Docker Desktop) | Linux / Ubuntu |
+|---|---|---|
+| Docker CLI | Works in **Git Bash**, not WSL2 Ubuntu (only the `docker-desktop` distro has the socket) | Native, no workaround |
+| Reaching the compose Postgres | It has **no host port mapping** by design. Needs a throwaway socat sidecar:<br>`docker run --rm -d --name pgfwd --network <net> -p 15432:15432 alpine/socat tcp-listen:15432,fork,reuseaddr tcp-connect:postgres:5432` | Same sidecar works, or add a port mapping in your local compose override |
+| Sidecar lifetime | Does **not** survive a Docker/host restart — symptom is commands hanging for minutes then "Can't reach database server". Fix: `docker start <name>` (don't recreate) | Same |
+
+`.env`, `.env.prod` and every `.env*` are gitignored — a fresh clone has **no
+secrets**. Copy `.env.example` and fill in your own values; `pnpm
+verify:portability` checks that every runtime env key is documented there.
+
+### Gotchas That Cost Real Time
+
+- **e2e UI must run alone.** `PLAYWRIGHT_UI=1 pnpm --filter @cmc/e2e test` without
+  `--project=ui-chromium` runs the `api` and `ui-chromium` projects against the
+  same database; the API specs create receipts and the UI specs then fail an
+  "empty list" assertion. That is a **false red**, not a product bug. Correct:
+  `PLAYWRIGHT_UI=1 pnpm --filter @cmc/e2e test --project=ui-chromium`.
+- **Tests read `src`, the running server reads `dist`.** `apps/api/vitest.config.ts`
+  aliases workspace packages to their TypeScript source, but runtime resolution
+  uses each package's compiled `dist` via its `exports` map, and `dist/` is
+  gitignored. After changing `packages/auth` (or any workspace package), run
+  `pnpm --filter @cmc/auth build` before probing a live dev server — otherwise
+  unit tests go green while the API still serves the old behavior.
+- **Never point tests at the pilot database.** `assertNotProdDatabase` refuses
+  `cmc_prod`, but it currently guards only `APP_DATABASE_URL`; the privileged
+  teardown connection reads `DATABASE_URL` directly. Set both explicitly.
+
 ### Database Setup (Local Development)
 
 ```bash

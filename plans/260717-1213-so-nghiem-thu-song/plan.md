@@ -11,7 +11,7 @@ tags:
   - acceptance
   - tooling
   - visibility
-blockedBy: [260720-1230-independent-runtime-verification-38-flows]
+blockedBy: [260720-1230-independent-runtime-verification-38-flows, 260722-1114-go-permission-va-do-runtime]
 blocks: []
 created: '2026-07-17T05:34:37.843Z'
 createdBy: 'ck:plan'
@@ -29,6 +29,9 @@ Xây tool `pnpm acceptance:report` sinh 1 file HTML tự chứa, tiếng Việt,
 Mô hình bằng chứng 3 tầng: TL25 (33 luồng P1–P4, có sẵn procedure names + UI routes + test specs per WF) làm **mẫu số**, static verifier trên code thật làm bằng chứng "**đã xây**", Playwright UI screenshot làm bằng chứng "**đã chứng minh chạy**". Chống drift by design: mọi trạng thái tính lại từ code tại HEAD lúc generate.
 
 **Chia đợt (red-team R2):** **v1 = Phases 1–3** — regenerable truth + tab Builder + tab Nghiệm thu, mọi luồng hiển thị tối đa ◐ "đã xây, chưa chứng minh" (trung thực, đủ giá trị cho cả 2 mục tiêu gốc, zero rủi ro DB/dữ liệu trẻ em). **Phase 4 (evidence) GATED** — giữ nguyên scope Dashboard+Evidence Pack user đã chốt, chỉ tái xếp thứ tự ship: khởi động khi v1 đã dùng thật VÀ môi trường DB synthetic-seed tồn tại (hiện CHƯA có — xem Red Team R2).
+
+> **Cập nhật 2026-07-22 (đã đính chính sau red-team):** Phase 4 được thử ở plan `260720-1230` và **thất bại về mặt bằng chứng**, nhưng **không** vì lý do ghi ở bản đầu. Sự thật: 0/38 verdict `proven` do spec UI dùng `super_admin` cấp — toàn bộ verdict thuộc các spec API dùng **vai nghiệp vụ đúng**. Chúng vẫn mù vì **bắc cầu id** giữa các vai (`p1-runtime-proofs.spec.ts:49-63`: GĐĐT tạo lớp, truyền `classBatchId` thẳng cho `sale`, nên `sale` không bao giờ gọi `classBatch.list`). `super_admin` chỉ nằm ở tầng screenshot.
+> Hướng thay thế: `plans/260722-1114-go-permission-va-do-runtime` — mở màn thật bằng vai thật và ghi lại request (runtime capture), thay vì tin danh sách procedure viết tay. Xem `plans/reports/brainstorm-deep-260722-1030-nguon-su-that-nghiem-thu-report.md`.
 
 Nguồn: `plans/reports/brainstorm-260717-1213-so-nghiem-thu-song-report.md` (user approved 2026-07-17).
 
@@ -53,7 +56,7 @@ Nguồn: `plans/reports/brainstorm-260717-1213-so-nghiem-thu-song-report.md` (us
 | 1 | [Flow Manifest + Static Verifier](./phase-01-flow-manifest-static-verifier.md) | Completed |
 | 2 | [Builder Report (HTML tab ky thuat)](./phase-02-builder-report-html-tab-ky-thuat.md) | Completed |
 | 3 | [Acceptance View (tab nghiem thu premium)](./phase-03-acceptance-view-tab-nghiem-thu-premium.md) | Completed |
-| 4 | [Evidence Collector (Playwright UI screenshots)](./phase-04-evidence-collector-playwright-screenshots.md) | GATED — sau v1 + môi trường synthetic-seed |
+| 4 | [Evidence Collector (Playwright UI screenshots)](./phase-04-evidence-collector-playwright-screenshots.md) | GATED → **cách tiếp cận bị thay thế** bởi `260722-1114-go-permission-va-do-runtime` (Phase 5 runtime capture) |
 
 Dependency: 1 → 2 → 3 (v1); 4 cần 1+2 + gate (v1 shipped, synthetic-seed env tồn tại).
 

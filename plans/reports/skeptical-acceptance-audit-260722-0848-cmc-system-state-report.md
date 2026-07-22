@@ -2,7 +2,7 @@
 
 **Ngày:** 2026-07-22 · **Commit:** `4237cb5` (main, worktree sạch) · **Người chạy:** Claude Code
 **Yêu cầu:** chạy lại `acceptance-report`, nghi ngờ kết quả, tìm cách nghiệm thu chính xác nhất.
-**Ảnh chứng cứ:** `plans/reports/assets-260722-acceptance/`
+**Ảnh chứng cứ:** `plans/reports/assets-260722-acceptance/` — ⚠️ **local-only, KHÔNG có trong git** (`.gitignore:75` giữ `plans/` chỉ chứa text). Trên máy clone mới hai file ảnh sẽ không tồn tại. Bằng chứng dạng chữ trong báo cáo này là đầy đủ và tự đứng được: mọi phát hiện đều kèm kết quả probe API và `file:line`, ảnh chỉ là minh hoạ trực quan. Nếu cần giữ, copy thủ công sang máy mới.
 
 ---
 

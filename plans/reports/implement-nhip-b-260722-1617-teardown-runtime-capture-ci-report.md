@@ -77,7 +77,30 @@ DENIED /admin/classes [giam_doc_dao_tao]: classBatch.list
 
 Khôi phục registry + rebuild → xác nhận `class.read` trở lại đủ 4 vai.
 
-### 11 denial CÒN LẠI trên main sau Nhịp A — chưa ai biết, **không sửa ở phase này**
+### ⚠️ ĐÍNH CHÍNH (2026-07-22, audit sau khi đọc source) — 6/11 denial là **ARTIFACT của capture**, không phải lỗi sản phẩm
+
+Bảng 11 denial bên dưới **đã bị thổi phồng**. Đọc source từng procedure:
+
+- `manualPunch.list` (`checkin/router.ts:398`) và `kpi.myScore` (`kpi/router.ts:461`) đều là **`protectedProcedure`, KHÔNG có permission key**. Cả hai ném `forbidden('Staff profile not found in this facility.')` khi caller **không có AppUser**.
+- Capture mint session `userId: capture-<role>` — **danh tính tổng hợp, không khớp AppUser nào** ⇒ 6 denial (`/hr/checkin` ×4, `/hr/my` ×2) là **do capture, không phải do phân quyền**.
+
+Đây **đúng** "Giới hạn thứ hai" plan đã cảnh báo và tôi đã ghi là chưa xử lý — nó lập tức sinh 6 finding giả ngay lần chạy đầu. Bài học: giới hạn đã biết mà không vá thì nó **sẽ** xuất hiện trong kết quả, và người đọc báo cáo không có cách nào tự phân biệt.
+
+**Đã sửa** (`2b0dd46`): capture seed AppUser thật cho từng vai trước khi quét.
+
+**Denial thật còn lại: 5** — và cả 5 đều là **màn không có nav entry, thiếu page-level guard**, KHÔNG phải "luồng gãy cho chính chủ":
+
+| Màn | Vai bị từ chối | Gate thật | Phán quyết |
+|---|---|---|---|
+| `/admin/courses` | GĐKD, GV, sale | `course.list` → `course.manage` (GĐĐT) | Phân quyền **đúng**; thiếu guard trang (cùng loại `/admin/classes` đã vá ở Phase 2) |
+| `/admin/engagement/gifts` | giao_vien | `gift.list` (GĐKD/GĐĐT/sale) | như trên |
+| `/admin/engagement/rewards` | giao_vien | `rewards.manage` (GĐKD/GĐĐT/sale) | như trên |
+
+⇒ **Không nới quyền.** Việc cần làm là thêm page guard, đúng mẫu Phase 2 — để plan kế tiếp.
+
+**Trạng thái chạy lại:** lần chạy capture với danh tính thật **chưa hoàn tất trong phiên này** (một lần bị chính tôi `pkill` nhầm khi dọn process, lần sau còn đang quét lúc hết ngân sách phiên). Bảng "5 denial thật" ở trên suy từ **đọc source**, không phải từ lần chạy mới — cần chạy lại để xác nhận bằng runtime.
+
+### 11 denial thô của lần chạy đầu (giữ để truy vết — xem đính chính ngay trên)
 
 | Màn | Vai | Procedure bị từ chối |
 |---|---|---|
@@ -92,7 +115,7 @@ Hai cái đầu đáng lo nhất: `/hr/checkin` (chấm công) và `/hr/my` (mà
 ## Giới hạn đã biết (công bố, không giấu)
 
 - **Capture chỉ thấy lỗi có phát sinh request.** Gate `canDo()` phía client khiến màn **không gọi gì** ⇒ vô hình. Đã rà thủ công 28 call site cho `class.create` ở Phase 1 (tìm ra `cockpit.tsx:210`), chưa rà cho key khác.
-- **Danh tính tổng hợp:** session mint bằng `userId: capture-<role>` **chưa gắn AppUser thật đã seed** như plan mong muốn. Đã cài phần giảm nhẹ thứ hai (NOT_FOUND là **hạng mục thứ ba**, không gộp vào "sạch") nhưng phần bind AppUST thật **chưa làm** — nhóm procedure owner-check vẫn có thể "sạch giả".
+- ~~**Danh tính tổng hợp** chưa bind AppUser thật~~ — **ĐÃ SỬA** (`2b0dd46`) sau khi nó sinh 6 finding giả; xem §Đính chính. Chạy lại để xác nhận runtime **chưa xong**.
 - **16 tổ hợp `:param` chưa chạy** (cần id thật). Được báo cáo là skipped để số liệu vẫn đối chiếu được.
 - **Chạy 2 lần cho kết quả giống nhau**: mới xác nhận gián tiếp (2 lần chạy main cho cùng 11 denial ở lần đo hợp lệ); **chưa chạy lại lần 3 để chốt tiêu chí ổn định**.
 
@@ -118,7 +141,7 @@ Hai cái đầu đáng lo nhất: `/hr/checkin` (chấm công) và `/hr/my` (mà
 
 1. `acceptance:report` trong CI: giữ **cảnh báo** hay nâng lên **chặn merge**?
 2. Runtime capture chạy **mọi PR** (thêm ~7 phút: ~4 build + ~2,5 chạy) hay **nightly + trước release**? Hiện **chưa nối vào CI** — chạy tay.
-3. 11 denial còn lại: mở plan sửa riêng? Ưu tiên `/hr/checkin` + `/hr/my` (mở cho mọi nhân viên nhưng không ai gọi nổi procedure).
+3. 5 denial thật (`/admin/courses`, 2 màn engagement): thêm page guard theo mẫu Phase 2 — mở plan riêng? (KHÔNG nới quyền.) `/hr/checkin` + `/hr/my` **rút khỏi danh sách** — là artifact, xem §Đính chính.
 4. `/finance/refund` là EmptyState nhưng P1-08 đếm `built` — sửa cách đếm hay xây nốt màn?
 5. Actor thật của 4 luồng khai `nhan_vien` (P3-01, P3-02, P4-01, P4-03)?
 6. Nhóm nav "Tài chính & Điều hành" giờ ẩn hoàn toàn với `giao_vien` — xác nhận đúng ý sản phẩm?

@@ -96,7 +96,16 @@ Bảng 11 denial bên dưới **đã bị thổi phồng**. Đọc source từng
 | `/admin/engagement/gifts` | giao_vien | `gift.list` (GĐKD/GĐĐT/sale) | như trên |
 | `/admin/engagement/rewards` | giao_vien | `rewards.manage` (GĐKD/GĐĐT/sale) | như trên |
 
-⇒ **Không nới quyền.** Việc cần làm là thêm page guard, đúng mẫu Phase 2 — để plan kế tiếp.
+⇒ **Không nới quyền.** Đã thêm page guard đúng mẫu Phase 2 (`2c13634`) — **và chạy lại capture xác nhận `0 denied`**:
+
+```
+screen-role-capture — 102 pairs, 189 calls, 0 denied      (sau khi vá)
+screen-role-capture — 102 pairs, 194 calls, 5 denied      (trước khi vá, danh tính thật)
+screen-role-capture — 102 pairs, 194 calls, 11 denied     (danh tính tổng hợp — 6 artifact)
+screen-role-capture — 102 pairs, 192 calls, 27 denied     (phép thử chua: gỡ class.read)
+```
+
+Khối guard vốn bị chép tay ở **7 màn**; đã tách thành `apps/admin/src/lib/permission-gate.tsx` (có test riêng, 4 case) và dùng cho 3 màn mới. **Không** động vào 7 màn cũ để tránh churn ngoài phạm vi — chúng có thể chuyển dần sau.
 
 **Đã xác nhận bằng runtime** (chạy lại với danh tính thật, 2026-07-22 19:21):
 

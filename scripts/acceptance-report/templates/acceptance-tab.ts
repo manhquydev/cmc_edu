@@ -29,6 +29,19 @@ function stateBadge(state: AcceptanceState): string {
   return '<span class="accept-badge accept-notyet">○ Đang xây dựng</span>';
 }
 
+/** Says WHY a flow is not ready. A placeholder screen is the one case where
+ *  every procedure and model exists, so without naming it the card looks
+ *  unfinished for no visible reason. */
+function flowNote(fv: FlowVerification, state: AcceptanceState): string {
+  if (fv.placeholderRoutes.length > 0) {
+    const paths = fv.placeholderRoutes.map((r) => escapeHtml(r.path)).join(', ');
+    return `Màn hình chưa được xây — ${paths} hiện chỉ là trang giữ chỗ.`;
+  }
+  return state === 'not-yet'
+    ? 'Đang xây dựng — chưa dùng được đầy đủ.'
+    : 'Đã xây xong theo thiết kế. Bằng chứng vận hành thật sẽ bổ sung ở đợt sau.';
+}
+
 export function renderAcceptanceTab(result: VerificationResult): string {
   const byCluster = groupByCluster(result.flows);
   const provenCount = result.flows.filter((f) => acceptanceState(f) === 'proven').length;
@@ -47,7 +60,7 @@ export function renderAcceptanceTab(result: VerificationResult): string {
               ${stateBadge(state)}
             </div>
             <div class="flow-card-title">${escapeHtml(fv.flow.displayName)}</div>
-            <div class="flow-card-note">${state === 'not-yet' ? 'Đang xây dựng — chưa dùng được đầy đủ.' : 'Đã xây xong theo thiết kế. Bằng chứng vận hành thật sẽ bổ sung ở đợt sau.'}</div>
+            <div class="flow-card-note">${flowNote(fv, state)}</div>
           </div>`;
         })
         .join('');

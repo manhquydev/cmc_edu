@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 import { flows } from './flow-manifest.js';
 import { scanTrpcRouters } from './scanners/trpc-scanner.js';
-import { scanUiRoutes } from './scanners/route-scanner.js';
+import { scanUiRoutesDetailed } from './scanners/route-scanner.js';
 import { scanPrismaModels } from './scanners/prisma-scanner.js';
 import { render } from './render.js';
 import type { FlowVerification, OrphanResult, VerificationResult } from './types.js';
@@ -57,7 +57,12 @@ function getHeadCommit(): string {
 
 function verifyFlow(
   flow: (typeof flows)[number],
-  scan: { procedures: ReadonlySet<string>; uiRoutes: ReadonlySet<string>; models: readonly string[] },
+  scan: {
+    procedures: ReadonlySet<string>;
+    uiRoutes: ReadonlySet<string>;
+    models: readonly string[];
+    uiRouteInfo: ReadonlyMap<string, { placeholder: boolean; placeholderKind?: string }>;
+  },
 ): FlowVerification {
   const missingTrpc = flow.expected.trpc.filter((p) => !scan.procedures.has(p));
   const missingRoutes = flow.expected.uiRoutes.filter((r) => !scan.uiRoutes.has(r));
@@ -66,12 +71,26 @@ function verifyFlow(
   const totalExpected = flow.expected.trpc.length + flow.expected.uiRoutes.length + flow.expected.models.length;
   const totalMissing = missingTrpc.length + missingRoutes.length + missingModels.length;
 
-  const status = totalMissing === 0 ? 'built' : totalMissing === totalExpected ? 'missing' : 'partial';
+  // A route that resolves but renders a placeholder is not a delivered screen.
+  // Without this the flow counts as built purely because the path exists, which
+  // is how a "feature not implemented yet" page was reported as done.
+  const placeholderRoutes = flow.expected.uiRoutes
+    .map((path) => ({ path, info: scan.uiRouteInfo.get(path) }))
+    .filter((r) => r.info?.placeholder)
+    .map((r) => ({ path: r.path, kind: r.info!.placeholderKind ?? 'placeholder' }));
+
+  const status: FlowVerification['status'] =
+    totalMissing === totalExpected && totalExpected > 0
+      ? 'missing'
+      : totalMissing === 0 && placeholderRoutes.length === 0
+        ? 'built'
+        : 'partial';
 
   return {
     flow,
     status,
     missing: { trpc: missingTrpc, uiRoutes: missingRoutes, models: missingModels },
+    placeholderRoutes,
   };
 }
 
@@ -97,7 +116,8 @@ function computeProcedureOrphans(
 
 function main(): void {
   const trpcScan = scanTrpcRouters();
-  const uiRoutes = scanUiRoutes();
+  const uiRouteInfo = scanUiRoutesDetailed();
+  const uiRoutes = new Set(uiRouteInfo.keys());
   const models = scanPrismaModels();
 
   // Whitelist entries must resolve to a real scanned namespace — a dead
@@ -137,7 +157,7 @@ function main(): void {
   }
 
   const flowResults = flows.map((flow) =>
-    verifyFlow(flow, { procedures: trpcScan.procedures, uiRoutes, models }),
+    verifyFlow(flow, { procedures: trpcScan.procedures, uiRoutes, models, uiRouteInfo }),
   );
   const orphans = computeProcedureOrphans(trpcScan.procedures, flows);
 

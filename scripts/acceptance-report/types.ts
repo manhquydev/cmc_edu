@@ -33,6 +33,11 @@ export interface FlowVerification {
     uiRoutes: string[];
     models: string[];
   };
+  /** Routes that exist but render a placeholder rather than a working screen.
+   *  A flow with any of these is not built, however complete the rest looks —
+   *  the route resolving is what previously let a "coming soon" page count as a
+   *  delivered feature. */
+  placeholderRoutes: { path: string; kind: string }[];
 }
 
 export interface OrphanResult {

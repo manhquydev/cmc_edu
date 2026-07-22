@@ -38,6 +38,9 @@ pagination.
 - Full root test suite: 102 API files and 956 API tests passed; all Turbo test tasks passed.
 - Playwright API: 20 passed, 1 intentional OTP seam skipped; UI Chromium: 6/6 passed.
 - `pnpm typecheck`, `pnpm lint`, `pnpm build`, and disposable-DB migrations/seed passed.
-- Acceptance ledger: 38/38 flows built, 0 partial/missing, 0 untriaged routes.
+- Acceptance ledger: 37/38 flows built, 1 partial, 0 missing, 0 untriaged routes.
+  (2026-07-22: P1-08 rời khỏi `built` khi sổ nghiệm thu bắt đầu nhận diện màn giữ chỗ —
+  `/finance/refund` là EmptyState "Tính năng chưa áp dụng". Con số 38/38 trước đó đếm
+  màn giữ chỗ là đã xây.)
 - Regression tests cover pre-egress assessment authorization, appointment CAS,
   invalid phone rejection/deduplication, and direct opportunity detail lookup.

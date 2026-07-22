@@ -1,7 +1,7 @@
 ---
 phase: 5
 title: "Nhip B - runtime capture"
-status: pending
+status: completed
 priority: P1
 dependencies: [4]
 ---

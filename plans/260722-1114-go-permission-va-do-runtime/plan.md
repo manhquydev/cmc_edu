@@ -53,7 +53,7 @@ Ba lỗi phân quyền đã được chẩn đoán và **cả 4 reviewer red-tea
 | 2 | [Nhip A - chan duong vao UI](./phase-02-nhip-a-chan-duong-vao-ui.md) | ✅ Completed (2026-07-22) |
 | 3 | [Nhip A - man chot luong](./phase-03-nhip-a-man-chot-luong.md) | ✅ Completed (2026-07-22) |
 | 4 | [Nhip B - va teardown e2e](./phase-04-nhip-b-va-teardown-e2e.md) | ✅ Completed (2026-07-22) |
-| 5 | [Nhip B - runtime capture](./phase-05-nhip-b-runtime-capture.md) | Pending |
+| 5 | [Nhip B - runtime capture](./phase-05-nhip-b-runtime-capture.md) | ✅ Completed (2026-07-22) |
 | 6 | [Nhip B - luoi an toan CI](./phase-06-nhip-b-luoi-an-toan-ci.md) | ✅ Completed (2026-07-22) |
 
 **Phụ thuộc:** 1 → 2 → 3 (**tuần tự, một commit** — xem Rollback); **4 → 5** (bắt buộc); **3 → 6** (Phase 6 bật exit-code, cần Phase 3 đã khai procedure mới vào manifest).
@@ -93,7 +93,8 @@ Revert 1 commit, danh sách file **đầy đủ**:
 
 ## Môi trường & cạm bẫy đã biết
 
-- DB test `cmc_edu` qua socat `localhost:15432`. **Chạy `docker start cmc-test-db-socat` trước** — container không sống sót qua restart máy (triệu chứng: lệnh treo vài phút rồi "Can't reach database server").
+- ~~DB test `cmc_edu` qua socat `localhost:15432`~~ — **SAI TỪ 2026-07-22**: container `cmc-test-db-socat` **không còn tồn tại** và DB `cmc_edu` **không còn** trên `cmcv2-prod-postgres-1` (chỉ còn `cmc_prod`). Dùng **`SYNTH_SEED_ALLOW=1 scripts/synthetic-seed-env.sh`** → container riêng `cmc-synth-pg:55432`, DB `cmc_synth`, tách hoàn toàn khỏi cluster chứa dữ liệu trẻ em. Export 2 URL nó in ra trước khi chạy test.
+- `pnpm install` + `pnpm --filter @cmc/db exec prisma generate` là **bắt buộc trên máy sạch**: pnpm 10.24 bỏ qua `pnpm.onlyBuiltDependencies` nên postinstall của Prisma không chạy ⇒ `@prisma/client` là stub CJS, seed/test chết với "Named export 'PrismaClient' not found".
 - **Không đụng `cmc_prod`** (dữ liệu trẻ em thật). `assertNotProdDatabase` chặn theo tên, mà socat decouple tên khỏi DB vật lý ⇒ kiểm URL kỹ.
 - E2E UI **phải** chạy `--project=ui-chromium` riêng. Chạy chung khiến 2 project dùng chung DB ⇒ **đỏ giả** (đã gặp).
 - `super_admin` bypass registry tại `packages/auth/src/index.ts:147` (`can()`) ⇒ mọi probe/spec dùng nó vô nghĩa về phân quyền. *(Lưu ý: `apps/api/src/trpc.ts:214` là bypass của `requireValidFacility`, **không phải** registry — citation này từng bị nhầm.)*

@@ -1,0 +1,723 @@
+{
+  "generatedAt": "2026-07-22T10:07:35.708Z",
+  "routeCount": 57,
+  "adminRouteCount": 43,
+  "lmsRouteCountExcluded": 14,
+  "paramRoutes": [
+    "/admin/classes/:id",
+    "/admin/students/:id",
+    "/crm/opportunities/:id",
+    "/finance/:id"
+  ],
+  "pairCount": 118,
+  "pairs": [
+    {
+      "path": "/admin",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/admin",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/admin",
+      "role": "sale",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/admin",
+      "role": "giao_vien",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/classes",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/classes/:id",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/admin/classes/:id",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/admin/classes/:id",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/admin/classes/:id",
+      "role": "giao_vien",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/admin/courses",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/courses",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/courses",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/courses",
+      "role": "giao_vien",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/engagement/gifts",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/engagement/gifts",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/engagement/gifts",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/engagement/gifts",
+      "role": "giao_vien",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/engagement/leaderboard",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/engagement/leaderboard",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/engagement/leaderboard",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/engagement/leaderboard",
+      "role": "giao_vien",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/engagement/rewards",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/engagement/rewards",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/engagement/rewards",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/engagement/rewards",
+      "role": "giao_vien",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/parents",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/parents",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/parents",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/parents",
+      "role": "giao_vien",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/report-cards",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/report-cards",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/report-cards",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/report-cards",
+      "role": "giao_vien",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/students",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/students",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/students",
+      "role": "sale",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/students",
+      "role": "giao_vien",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/admin/students/:id",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/admin/students/:id",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/admin/students/:id",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/admin/students/:id",
+      "role": "giao_vien",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/cockpit",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/cockpit",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/cockpit",
+      "role": "sale",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/cockpit",
+      "role": "giao_vien",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/crm",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/crm",
+      "role": "sale",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/crm/aftersale",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/crm/aftersale",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/crm/aftersale",
+      "role": "sale",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/crm/opportunities/:id",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/crm/opportunities/:id",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/crm/opportunities/:id",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/crm/opportunities/:id",
+      "role": "giao_vien",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/crm/post-sale-meeting",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/crm/post-sale-meeting",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/crm/post-sale-meeting",
+      "role": "sale",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/finance",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/finance",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/finance/:id",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/finance/:id",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/finance/:id",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/finance/:id",
+      "role": "giao_vien",
+      "hasNavEntry": false,
+      "needsParam": true
+    },
+    {
+      "path": "/finance/class-placement",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/finance/class-placement",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/finance/class-placement",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/finance/class-placement",
+      "role": "giao_vien",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/finance/new",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/finance/new",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/finance/new",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/finance/new",
+      "role": "giao_vien",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/finance/refund",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr",
+      "role": "sale",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr",
+      "role": "giao_vien",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/checkin",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/checkin",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/checkin",
+      "role": "sale",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/checkin",
+      "role": "giao_vien",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/kpi",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/kpi",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/my",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/my",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/my",
+      "role": "sale",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/my",
+      "role": "giao_vien",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/payroll",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/payroll",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/salary-tiers",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/salary-tiers",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/shifts",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/shifts",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/shifts",
+      "role": "sale",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/hr/shifts",
+      "role": "giao_vien",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/ops",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/ops",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/ops",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/ops",
+      "role": "giao_vien",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/ops/recon",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/ops/recon",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/ops/revenue",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/ops/revenue",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching",
+      "role": "sale",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching",
+      "role": "giao_vien",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching/attendance",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching/attendance",
+      "role": "giao_vien",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching/exercises",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching/grading",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching/grading",
+      "role": "giao_vien",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching/schedule",
+      "role": "giam_doc_kinh_doanh",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching/schedule",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching/schedule",
+      "role": "sale",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching/schedule",
+      "role": "giao_vien",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching/session-assessment",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching/session-assessment",
+      "role": "giao_vien",
+      "hasNavEntry": true,
+      "needsParam": false
+    },
+    {
+      "path": "/teaching/session-evidence",
+      "role": "giao_vien",
+      "hasNavEntry": true,
+      "needsParam": false
+    }
+  ]
+}

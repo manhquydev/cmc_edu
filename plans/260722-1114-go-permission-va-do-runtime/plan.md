@@ -52,7 +52,7 @@ Ba lỗi phân quyền đã được chẩn đoán và **cả 4 reviewer red-tea
 | 1 | [Nhip A - quyen doc lop (TDD)](./phase-01-nhip-a-quyen-doc-lop-tdd.md) | ✅ Completed (2026-07-22) |
 | 2 | [Nhip A - chan duong vao UI](./phase-02-nhip-a-chan-duong-vao-ui.md) | ✅ Completed (2026-07-22) |
 | 3 | [Nhip A - man chot luong](./phase-03-nhip-a-man-chot-luong.md) | ✅ Completed (2026-07-22) |
-| 4 | [Nhip B - va teardown e2e](./phase-04-nhip-b-va-teardown-e2e.md) | Pending |
+| 4 | [Nhip B - va teardown e2e](./phase-04-nhip-b-va-teardown-e2e.md) | ✅ Completed (2026-07-22) |
 | 5 | [Nhip B - runtime capture](./phase-05-nhip-b-runtime-capture.md) | Pending |
 | 6 | [Nhip B - luoi an toan CI](./phase-06-nhip-b-luoi-an-toan-ci.md) | Pending |
 

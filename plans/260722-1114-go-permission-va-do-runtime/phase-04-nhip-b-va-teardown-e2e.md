@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "Nhip B - va teardown e2e"
-status: pending
+status: completed
 priority: P1
 dependencies: []
 ---

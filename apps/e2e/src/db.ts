@@ -23,6 +23,7 @@ import { createPrismaClient, withFacility, PrismaClient } from '@cmc/db';
 import { ictToUtc } from '@cmc/domain-time';
 import type { Role } from '@cmc/auth';
 import { randomVnPhone } from './random-vn-phone.js';
+import { assertNotProdDatabase } from './assert-not-prod.js';
 
 let dbSingleton: PrismaClient | undefined;
 
@@ -33,10 +34,23 @@ export function getDb(): PrismaClient {
 
 let privilegedDbSingleton: PrismaClient | undefined;
 
+/**
+ * The connection every destructive teardown runs on — and, until now, the one
+ * URL nothing checked. `global-setup` guards `APP_DATABASE_URL`, but these
+ * deletes read `DATABASE_URL`: point that at the pilot database (a leftover
+ * from a migration session is enough) and teardown deletes real children's
+ * attendance, payslips and profiles while the guarded URL looks fine.
+ *
+ * Guarding here rather than at the call sites means every path into the
+ * privileged connection is covered, including ones added later.
+ */
 function getPrivilegedDb(): PrismaClient {
-  privilegedDbSingleton ??= new PrismaClient({
-    datasources: { db: { url: process.env.DATABASE_URL } },
-  });
+  if (!privilegedDbSingleton) {
+    assertNotProdDatabase(process.env.DATABASE_URL ?? '');
+    privilegedDbSingleton = new PrismaClient({
+      datasources: { db: { url: process.env.DATABASE_URL } },
+    });
+  }
   return privilegedDbSingleton;
 }
 
@@ -140,6 +154,17 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
   await privileged.testAppointment.deleteMany({ where: { facilityId } });
   await privileged.reward.deleteMany({ where: { facilityId } });
   await privileged.gift.deleteMany({ where: { facilityId } });
+  // Append-only tables that were missing here entirely, which is why a run that
+  // touched them leaked its whole facility: QualitativeAssessment holds a
+  // required Student FK, so `student.deleteMany` below threw and teardown
+  // aborted before deleting anything else. Order: photos before the evidence
+  // row, evidence/assessments before the ClassSession and Student deletes,
+  // refunds and reconciliation flags before Receipt.
+  await privileged.sessionEvidencePhoto.deleteMany({ where: { facilityId } });
+  await privileged.sessionEvidence.deleteMany({ where: { facilityId } });
+  await privileged.qualitativeAssessment.deleteMany({ where: { facilityId } });
+  await privileged.reconciliationFlag.deleteMany({ where: { facilityId } });
+  await privileged.refundRecord.deleteMany({ where: { facilityId } });
 
   await db.guardian.deleteMany({ where: { facilityId } });
   await db.guardianLinkRequest.deleteMany({ where: { facilityId } });
@@ -188,6 +213,48 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
 
   await db.receiptCodeCounter.deleteMany({ where: { facilityId } });
   await db.facility.deleteMany({ where: { id: facilityId } });
+
+  await assertNoFacilityResidue(facilityId);
+}
+
+/**
+ * Fails loudly when teardown left rows behind.
+ *
+ * Deliberately runs AFTER the Facility row is deleted: throwing first would
+ * stop the delete, turning a soft leak (rows we can still find) into a
+ * permanent one (a facility nothing cleans up), and every later run would be
+ * both red and leaking.
+ *
+ * Only counts tables teardown is responsible for. Silence here is the whole
+ * point — a missing `deleteMany` otherwise shows up much later as a foreign-key
+ * error in an unrelated test.
+ */
+async function assertNoFacilityResidue(facilityId: string): Promise<void> {
+  const privileged = getPrivilegedDb();
+  const where = { where: { facilityId } };
+  const counts = await Promise.all([
+    ['QualitativeAssessment', privileged.qualitativeAssessment.count(where)],
+    ['SessionEvidence', privileged.sessionEvidence.count(where)],
+    ['SessionEvidencePhoto', privileged.sessionEvidencePhoto.count(where)],
+    ['ReconciliationFlag', privileged.reconciliationFlag.count(where)],
+    ['RefundRecord', privileged.refundRecord.count(where)],
+    ['Enrollment', privileged.enrollment.count(where)],
+    ['Student', privileged.student.count(where)],
+    ['Receipt', privileged.receipt.count(where)],
+    ['ClassSession', privileged.classSession.count(where)],
+    ['ClassBatch', privileged.classBatch.count(where)],
+    ['AppUser', privileged.appUser.count(where)],
+    ['Facility', privileged.facility.count({ where: { id: facilityId } })],
+  ].map(async ([table, pending]) => [table as string, await (pending as Promise<number>)] as const));
+
+  const residue = counts.filter(([, n]) => n > 0);
+  if (residue.length > 0) {
+    throw new Error(
+      `Teardown left rows behind for facility ${facilityId}: ` +
+        residue.map(([table, n]) => `${table}=${n}`).join(', ') +
+        '. A table is missing from cleanupFacility — add it rather than ignoring this.',
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

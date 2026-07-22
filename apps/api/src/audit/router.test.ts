@@ -3,13 +3,28 @@
 // level, not itself facility-scoped) — plain ctx.db calls, not withFacility.
 
 import { randomUUID } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { appRouter } from '../router.js';
-import { buildStaffContext, createTestFacility, testDb } from '../test/db.js';
+import { buildStaffContext, cleanupFacility, createTestFacility, testDb } from '../test/db.js';
 
 describe('audit.list (phase-04)', () => {
+  // These tests each seed their own Facility. Without teardown every run left
+  // four of them behind for good on whatever database the suite ran against.
+  const seededFacilityIds: string[] = [];
+
+  async function seedFacility(name: string) {
+    const facility = await createTestFacility(name);
+    seededFacilityIds.push(facility.id);
+    return facility;
+  }
+
+  afterEach(async () => {
+    for (const id of seededFacilityIds.splice(0)) {
+      await cleanupFacility(id);
+    }
+  });
   it('super_admin can list AuditLog rows, newest first', async () => {
-    const facility = await createTestFacility('Audit List Test Facility');
+    const facility = await seedFacility('Audit List Test Facility');
     const actor = `audit-list-${randomUUID()}`;
     await testDb().auditLog.create({
       data: { actor, action: 'test.first', entity: 'Test', entityId: 'a1', createdAt: new Date('2026-01-01') },
@@ -27,7 +42,7 @@ describe('audit.list (phase-04)', () => {
   });
 
   it('filters by action, entity, and createdAt range', async () => {
-    const facility = await createTestFacility('Audit List Filter Facility');
+    const facility = await seedFacility('Audit List Filter Facility');
     const actor = `audit-list-filter-${randomUUID()}`;
     await testDb().auditLog.create({
       data: { actor, action: 'facility.update', entity: 'Facility', entityId: 'f1', createdAt: new Date('2026-03-01') },
@@ -59,7 +74,7 @@ describe('audit.list (phase-04)', () => {
   });
 
   it('paginates', async () => {
-    const facility = await createTestFacility('Audit List Paginate Facility');
+    const facility = await seedFacility('Audit List Paginate Facility');
     const actor = `audit-list-paginate-${randomUUID()}`;
     for (let i = 0; i < 3; i += 1) {
       await testDb().auditLog.create({
@@ -78,7 +93,7 @@ describe('audit.list (phase-04)', () => {
   });
 
   it('is FORBIDDEN for a non-super_admin role', async () => {
-    const facility = await createTestFacility('Audit List Forbidden Facility');
+    const facility = await seedFacility('Audit List Forbidden Facility');
     const gdkd = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'audit-list-gdkd', roles: ['giam_doc_kinh_doanh'] }),
     );

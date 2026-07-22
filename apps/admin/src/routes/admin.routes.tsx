@@ -10,6 +10,7 @@
 import { lazy, Suspense } from 'react';
 import type { RouteObject } from 'react-router-dom';
 import { ComingSoon } from '../pages/coming-soon.js';
+import { PermissionGate } from '../lib/permission-gate.js';
 
 // ── Students ────────────────────────────────────────────────────────────────
 const StudentListPage = lazy(() => import('../pages/students/index.js'));
@@ -60,12 +61,42 @@ export const adminRoutes: RouteObject[] = [
   { path: 'classes', element: <S><ClassListPage /></S> },
   { path: 'classes/:id', element: <S><ClassDetailPage /></S> },
 
-  // Courses
-  { path: 'courses', element: <S><CourseListPage /></S> },
+  // Courses. No nav entry points here, so the URL is the only way in and the
+  // page needs its own check — otherwise a role without `course.manage` gets a
+  // shell whose every query answers 403.
+  {
+    path: 'courses',
+    element: (
+      <S>
+        <PermissionGate module="course" action="manage" title="Khoá học" breadcrumbs={[{ label: 'Quản trị' }, { label: 'Khoá học' }]} requirementLabel="quản lý khoá học (course.manage)">
+          <CourseListPage />
+        </PermissionGate>
+      </S>
+    ),
+  },
 
-  // Engagement
-  { path: 'engagement/gifts', element: <S><GiftsPage /></S> },
-  { path: 'engagement/rewards', element: <S><RewardsQueuePage /></S> },
+  // Engagement — same situation: no nav entry, and the gift/reward rosters
+  // deliberately exclude giao_vien (ADR-D).
+  {
+    path: 'engagement/gifts',
+    element: (
+      <S>
+        <PermissionGate module="gift" action="list" title="Quà tặng" breadcrumbs={[{ label: 'Gắn kết' }, { label: 'Quà tặng' }]} requirementLabel="xem danh mục quà tặng (gift.list)">
+          <GiftsPage />
+        </PermissionGate>
+      </S>
+    ),
+  },
+  {
+    path: 'engagement/rewards',
+    element: (
+      <S>
+        <PermissionGate module="rewards" action="manage" title="Đổi thưởng" breadcrumbs={[{ label: 'Gắn kết' }, { label: 'Đổi thưởng' }]} requirementLabel="quản lý đổi thưởng (rewards.manage)">
+          <RewardsQueuePage />
+        </PermissionGate>
+      </S>
+    ),
+  },
   { path: 'engagement/leaderboard', element: <S><LeaderboardPage /></S> },
 
   // Admin (gated in page component)

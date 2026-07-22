@@ -77,8 +77,21 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Test
         run: pnpm test
+
+      # Non-blocking for now, deliberately. This gate fails when a procedure
+      # exists that no flow in the manifest claims — a real signal, but one
+      # whose false-alarm rate nobody has measured yet, and a gate that blocks
+      # merges before it has earned trust is a gate someone deletes. Promote to
+      # blocking (drop continue-on-error) once a few weeks of runs show it only
+      # fires on genuine drift.
+      - name: Acceptance report (non-blocking — see comment)
+        continue-on-error: true
+        run: pnpm acceptance:report
 
       - name: Coverage threshold — domain-payroll (≥90% lines + functions)
         run: pnpm --filter @cmc/domain-payroll run test:coverage

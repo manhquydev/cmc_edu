@@ -54,7 +54,7 @@ Ba lỗi phân quyền đã được chẩn đoán và **cả 4 reviewer red-tea
 | 3 | [Nhip A - man chot luong](./phase-03-nhip-a-man-chot-luong.md) | ✅ Completed (2026-07-22) |
 | 4 | [Nhip B - va teardown e2e](./phase-04-nhip-b-va-teardown-e2e.md) | ✅ Completed (2026-07-22) |
 | 5 | [Nhip B - runtime capture](./phase-05-nhip-b-runtime-capture.md) | Pending |
-| 6 | [Nhip B - luoi an toan CI](./phase-06-nhip-b-luoi-an-toan-ci.md) | Pending |
+| 6 | [Nhip B - luoi an toan CI](./phase-06-nhip-b-luoi-an-toan-ci.md) | ✅ Completed (2026-07-22) |
 
 **Phụ thuộc:** 1 → 2 → 3 (**tuần tự, một commit** — xem Rollback); **4 → 5** (bắt buộc); **3 → 6** (Phase 6 bật exit-code, cần Phase 3 đã khai procedure mới vào manifest).
 

@@ -1,7 +1,7 @@
 ---
 phase: 6
 title: "Nhip B - luoi an toan CI"
-status: pending
+status: completed
 priority: P2
 dependencies: [3]
 ---

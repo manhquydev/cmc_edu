@@ -172,6 +172,15 @@ function main(): void {
     console.warn(`  UNRESOLVED namespaces (scanner could not parse): ${trpcScan.unresolved.join(', ')}`);
   }
   console.log(`  -> ${path.join(OUTPUT_DIR, 'index.html')}`);
+
+  // The report is written and rendered first, then the exit code is set: a
+  // failing run must still leave the artifact behind to read. An untriaged
+  // orphan means a procedure exists that no flow claims — either the manifest
+  // is stale or something shipped nobody described; both need a decision, and
+  // a warning nobody reads is how this went unnoticed until now.
+  if (orphans.untriaged.length > 0 || trpcScan.unresolved.length > 0) {
+    process.exitCode = 1;
+  }
 }
 
 main();

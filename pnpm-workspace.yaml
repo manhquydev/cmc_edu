@@ -1,3 +1,7 @@
 packages:
   - apps/*
   - packages/*
+  # No trailing glob on purpose: `scripts/*` would match the subdirectories and
+  # miss scripts/package.json, so the acceptance tooling would stay outside
+  # typecheck while looking like it was covered.
+  - scripts

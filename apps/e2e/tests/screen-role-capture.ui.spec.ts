@@ -31,8 +31,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test, expect } from '@playwright/test';
 import { mintStaffCookie } from '../src/session-injection.js';
+import { seedAppUser } from '../src/db.js';
 import { STAFF_COOKIE_NAME } from '../../api/src/auth/staff-session.js';
 import type { ScreenRolePair } from '../src/screen-role-matrix.js';
+import type { Role } from '@cmc/auth';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const MATRIX_PATH = path.join(here, '..', 'screen-role-matrix.json');
@@ -43,6 +45,10 @@ const facilityId = process.env.E2E_FACILITY_ID!;
 interface MatrixFile {
   pairCount: number;
   pairs: ScreenRolePair[];
+}
+
+function matrixRoles(matrixPath: string): string[] {
+  return (JSON.parse(readFileSync(matrixPath, 'utf8')) as MatrixFile).pairs.map((pair) => pair.role);
 }
 
 /** Outcome of one procedure call. `notFound` is deliberately its own category:
@@ -97,6 +103,19 @@ test.describe('screen × role runtime capture', () => {
     // instead of the findings.
     test.setTimeout(20 * 60 * 1000);
 
+    // Each role gets a real seeded staff profile. A minted session is believed
+    // verbatim, so an invented userId matches no AppUser — and the procedures
+    // whose authorization is an ownership check rather than a permission key
+    // answer "no profile here" with FORBIDDEN. Those denials look exactly like
+    // a permission bug and are not one, which is precisely the group the
+    // registry does not cover, so the identity has to be real.
+    const identities = new Map<string, string>();
+    for (const role of [...new Set(matrixRoles(MATRIX_PATH))]) {
+      const userId = `capture-${role}`;
+      await seedAppUser({ facilityId, userId, roles: [role as Role], position: role });
+      identities.set(role, userId);
+    }
+
     const matrix = JSON.parse(readFileSync(MATRIX_PATH, 'utf8')) as MatrixFile;
     // Param routes need a real id to open; they are reported as skipped rather
     // than silently dropped, so the counts still reconcile.
@@ -108,7 +127,7 @@ test.describe('screen × role runtime capture', () => {
       await context.addCookies([
         {
           name: STAFF_COOKIE_NAME,
-          value: mintStaffCookie({ userId: `capture-${pair.role}`, roles: [pair.role], facilityId }),
+          value: mintStaffCookie({ userId: identities.get(pair.role)!, roles: [pair.role], facilityId }),
           domain: 'localhost',
           path: '/',
         },

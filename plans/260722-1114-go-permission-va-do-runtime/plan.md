@@ -4,7 +4,7 @@ description: >-
   Nhịp A gỡ 3 lỗi phân quyền chặn luồng thật (F1 luồng tiền, F2 màn nhận xét,
   F4 màn chốt lương) bằng TDD, verify không cần e2e. Nhịp B vá teardown e2e,
   dựng runtime capture quét ~150 tổ hợp màn×vai (nguồn: route tree), và cho gate một chỗ để chạy.
-status: pending  # Nhịp A sẵn sàng; Nhịp B phải làm S1 (guard DATABASE_URL) trước tiên
+status: completed  # 6/6 phase xong 2026-07-22; 11 denial runtime còn lại chuyển sang plan kế tiếp
 priority: P1
 branch: "main"
 tags: [rbac, acceptance, e2e, ci]

@@ -80,7 +80,70 @@ Harness v0 deliberately excludes:
 
 Those should arrive only when a selected story needs them.
 
+## Harness Core (maintenance CLI)
+
+Harness core `0.1.4` is installed. It owns a small set of files listed in
+`.harness-core/manifest.json` and keeps the upstream baseline under
+`.harness-core/base/` so future upgrades can three-way merge instead of
+overwriting project content.
+
+```bash
+scripts/bin/harness status          # installed vs target version, modified/missing counts
+scripts/bin/harness doctor          # transaction, provenance, managed-path checks
+scripts/bin/harness update --dry-run
+scripts/bin/harness update
+```
+
+**On a fresh clone the `scripts/bin/harness` binary is missing.** It is
+`.gitignore`d (covered by the `bin/` rule), so only `.harness-core/` travels with
+the repository. Reinstall the binary before running any command above:
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh" \
+  | bash -s -- --merge --yes
+```
+
+The installer downloads a checksum-verified binary for the pinned core release
+and re-runs `update` against the existing `.harness-core/` baseline; it does not
+overwrite project-owned files.
+
+Four managed files carry CMC content on top of the upstream baseline —
+`AGENTS.md`, `docs/README.md`, `docs/product/README.md`,
+`docs/decisions/README.md`. A future core release that changes any of them will
+not merge cleanly. Always preview with `update --dry-run` before `update`.
+
+Two different failures are possible, and core `0.1.4` reports them very
+differently:
+
+- **One conflicting region.** `update` stops cleanly and names the file:
+  `conflict <path> (OverlappingChanges)` / `Update stopped; no files changed.`
+- **Two or more conflicting regions.** `update` aborts with a truncated message
+  like `git merge-file failed:` and **does not name the file**. This is an
+  upstream defect in core `0.1.4`: `git merge-file` returns the *count* of
+  conflicting regions as its exit code, but
+  `crates/harness/src/infrastructure/git_merge.rs` only maps exit `0` (clean)
+  and `1` (conflict); anything higher becomes a hard error. Measured against
+  this repository, a simulated upstream edit to `docs/README.md` produces exit
+  code `3`, so this is the likely path for that file.
+
+Nothing is written in either case, so the workspace stays safe. To find out
+which file is responsible when the message is truncated, merge by hand:
+
+```bash
+git merge-file -p --diff3 <workspace-file> .harness-core/base/<same-path> <new-upstream-file>
+```
+
+Resolve the conflict markers in the workspace file, then re-run
+`scripts/bin/harness update`.
+
 ## Durable Layer
+
+> **Status: optional.** Since Harness core 0.1.4, `AGENTS.md` treats the SQLite
+> intake, story, trace, scoring, audit, and proposal commands below as
+> compatibility features rather than a mandatory step. Ordinary repository work
+> — answering, bounded changes, plans under `plans/` — needs none of it. Use
+> this layer only when a request explicitly calls for it or an external
+> orchestrator (Symphony) requires it.
 
 Policy documents describe how to work. The durable layer stores what happened.
 

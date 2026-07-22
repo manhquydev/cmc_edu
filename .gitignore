@@ -144,6 +144,10 @@ scripts/bin/harness-symphony.exe
 # Installer and manual pre-upgrade backups (never commit)
 .harness-backup/
 .harness-preupgrade-backup-*/
+# Harness core runtime state; manifest.json and base/ stay tracked so a fresh
+# clone can still run `harness update`
+.harness-core/lock
+.harness-core/transaction.json
 
 # Test coverage artifacts
 coverage/
@@ -158,3 +162,7 @@ apps/e2e/playwright/.cache/
 # Anchored to repo root — a bare "acceptance-report/" would also match
 # scripts/acceptance-report/ (the tool's own source code) and hide it from git.
 /acceptance-report/
+
+# Harness core maintenance binary
+scripts/bin/harness
+scripts/bin/harness.exe

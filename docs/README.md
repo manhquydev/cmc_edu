@@ -69,6 +69,18 @@
 - **TL30** `30-threat-model-v2` — Threat Model STRIDE (tiền + dữ liệu trẻ + agent)
 - **TL31** `31-phased-build-plan` — **Phased Build Plan (P0→P5 + acceptance)**
 
+### Harness (quy trình làm việc — ngoài bộ TL00–TL31)
+
+Do Harness core quản lý, cập nhật qua `scripts/bin/harness update`:
+
+- `WORKFLOW.md` — luồng xử lý yêu cầu chuẩn của Harness (đọc trước khi thực thi)
+- `templates/exec-plan.md` — mẫu execution plan
+- `plans/` — thư mục Harness-managed. **Không ghi plan vào đây**; plan của dự án
+  nằm ở `plans/` ở gốc repo (xem `AGENTS.md`, mục Project Context)
+
+Tài liệu Harness của dự án (không do core quản lý): `HARNESS.md`,
+`CONTEXT_RULES.md`, `FEATURE_INTAKE.md`, `TRACE_SPEC.md`, `GLOSSARY.md`.
+
 ---
 
 ## 3. Quyết định chốt — tra nhanh

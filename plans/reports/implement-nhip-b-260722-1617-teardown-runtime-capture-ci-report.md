@@ -98,7 +98,21 @@ Bảng 11 denial bên dưới **đã bị thổi phồng**. Đọc source từng
 
 ⇒ **Không nới quyền.** Việc cần làm là thêm page guard, đúng mẫu Phase 2 — để plan kế tiếp.
 
-**Trạng thái chạy lại:** lần chạy capture với danh tính thật **chưa hoàn tất trong phiên này** (một lần bị chính tôi `pkill` nhầm khi dọn process, lần sau còn đang quét lúc hết ngân sách phiên). Bảng "5 denial thật" ở trên suy từ **đọc source**, không phải từ lần chạy mới — cần chạy lại để xác nhận bằng runtime.
+**Đã xác nhận bằng runtime** (chạy lại với danh tính thật, 2026-07-22 19:21):
+
+```
+screen-role-capture — 102 pairs, 194 calls, 5 denied
+  DENIED /admin/courses [giam_doc_kinh_doanh]: course.list
+  DENIED /admin/courses [giao_vien]: course.list
+  DENIED /admin/courses [sale]: course.list
+  DENIED /admin/engagement/gifts [giao_vien]: gift.list
+  DENIED /admin/engagement/rewards [giao_vien]: rewards.list
+  1 passed (2.5m)
+```
+
+**11 → 5**, khớp **chính xác** bảng suy từ source ở trên; 6 artifact (`/hr/checkin` ×4, `/hr/my` ×2) **biến mất** ⇒ chẩn đoán "do danh tính tổng hợp" đúng, và bản vá `2b0dd46` hiệu quả.
+
+*(Ghi để truy vết: lần chạy lại đầu tiên bị chính tôi `pkill` nhầm khi dọn process — tưởng là process mồ côi. Lần thứ hai chạy sạch.)*
 
 ### 11 denial thô của lần chạy đầu (giữ để truy vết — xem đính chính ngay trên)
 
@@ -117,7 +131,7 @@ Hai cái đầu đáng lo nhất: `/hr/checkin` (chấm công) và `/hr/my` (mà
 - **Capture chỉ thấy lỗi có phát sinh request.** Gate `canDo()` phía client khiến màn **không gọi gì** ⇒ vô hình. Đã rà thủ công 28 call site cho `class.create` ở Phase 1 (tìm ra `cockpit.tsx:210`), chưa rà cho key khác.
 - ~~**Danh tính tổng hợp** chưa bind AppUser thật~~ — **ĐÃ SỬA** (`2b0dd46`) sau khi nó sinh 6 finding giả; xem §Đính chính. Chạy lại để xác nhận runtime **chưa xong**.
 - **16 tổ hợp `:param` chưa chạy** (cần id thật). Được báo cáo là skipped để số liệu vẫn đối chiếu được.
-- **Chạy 2 lần cho kết quả giống nhau**: mới xác nhận gián tiếp (2 lần chạy main cho cùng 11 denial ở lần đo hợp lệ); **chưa chạy lại lần 3 để chốt tiêu chí ổn định**.
+- **Ổn định giữa các lần chạy**: 3 lần chạy đều cho **102 pair / 194 call** giống hệt. Số denial đổi (11 → 5) **chỉ vì bản vá danh tính**, không phải do nhiễu.
 
 ## Môi trường — plan đã lỗi thời, đã sửa trong `plan.md`
 

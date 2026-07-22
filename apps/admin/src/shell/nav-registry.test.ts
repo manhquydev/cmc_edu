@@ -159,6 +159,14 @@ describe('nav entries a role really sees (module gate + child gate, real permiss
     expect(pathsFor('giam_doc_kinh_doanh')).toContain('/ops/revenue');
   });
 
+  // The acceptance ledger stopped counting placeholder screens as built; the
+  // menu has to agree, or a director clicks "Hoàn tiền" on day one and lands on
+  // "Tính năng chưa áp dụng". Restore the entry when the screen is built.
+  it('points no menu entry at the unbuilt refund screen', () => {
+    const everyPath = NAV_MODULES.flatMap((mod) => [mod.path, ...(mod.children ?? []).map((c) => c.path)]);
+    expect(everyPath).not.toContain('/finance/refund');
+  });
+
   it('leaves every active role a usable sidebar', () => {
     for (const role of ACTIVE_ROLES) {
       expect(pathsFor(role).length, `${role} has an empty sidebar`).toBeGreaterThan(0);

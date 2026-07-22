@@ -245,14 +245,31 @@ Manifest từng khai `giao_vien` là actor của P2-04, nhưng cả 5 procedure 
 
 ⚠️ 26 procedure **ngoài tầm registry** (owner-check, LMS, public) — audit **không kết luận** được về chúng. Đây là giới hạn, không phải giấy chứng nhận sạch.
 
+## 8d. Điều kiện tiên quyết từ Phase 4 mà bản đầu bỏ sót (M1)
+
+| Yêu cầu | Nguồn | Trạng thái |
+|---|---|---|
+| 🔴 **Brevo key phải rotate + verify TRƯỚC bước 5** | `phase-04:104-106` | Key trả **401 Key not found** (2026-07-10) và **chưa từng có email Brevo thật gửi thành công end-to-end**. Không rotate ⇒ bước 5 chắc chắn fail |
+| Chạy lại e2e **sau** redeploy | `phase-04:117` | Thêm vào §3 giữa bước 0 và 1 |
+| Verify PII-guard reject | `phase-04:22` | Cần 1 dòng test riêng, chưa có trong §5 |
+| AI draft bằng LLM thật | `phase-04:22` | Ẩn trong P2-07, phải nêu thành điều kiện |
+| NO-GO: xoá dump R2 + revoke token | `phase-04:65` | Bước 1 của runbook này **upload dump lên R2** ⇒ nếu NO-GO phải xoá đúng object đó |
+| Tracker #9 + changelog | `phase-04:121` | Cập nhật sau khi ký biên bản |
+
+**Không đặc tả lại backup/restore ở đây** — dùng `docs/runbook-deploy.md` §2.5 (backup), §1.7/§2.6 (restore), §6 (checklist bảo mật trước go-live). Runbook này chỉ nói phần *khác* với vận hành thường ngày. *(M3: trên VPS thật `postgres` không map port ra host — mọi lệnh psql/pg_dump chạy qua `docker exec`, xem `runbook-deploy.md:49-56`.)*
+
 ## 9. Tiêu chí Go/No-Go
 
-- [ ] Mọi dòng checklist §5 **PASS** (FAIL nào cũng phải có phán quyết: chặn GO hay chấp nhận có điều kiện)
-- [ ] Email Brevo ≥1 và Graph ≥1 gửi thật thành công
+- [ ] Mọi dòng checklist §5 **PASS** hoặc **N/A có lý do ghi rõ**. FAIL phải có phán quyết bằng văn bản của PO.
+      **Trần cứng: ≤ 3 dòng "chấp nhận có điều kiện"**, và không dòng nào thuộc cụm P1 (luồng tiền). Vượt trần ⇒ **NO-GO**, không thương lượng.
+- [ ] Email Brevo ≥1 và Graph ≥1 **vào tới hộp thư người nhận** — bằng chứng là **ảnh chụp hộp thư**, không phải mã 2xx của transport (lịch sử: key Brevo 401 suốt từ 2026-07-10)
+- [ ] e2e chạy lại **sau** redeploy, xanh (`phase-04:117`)
+- [ ] PII-guard reject đã verify; AI draft chạy bằng LLM thật
 - [ ] Staff đăng nhập **Entra thật**, nav hiện đúng theo vai
 - [ ] **Bước 0 REDEPLOY đã chạy**; commit đang chạy trên prod = `main` tại thời điểm UAT (ghi hash vào biên bản)
 - [ ] §8 đã giải quyết: P3-01 và P4-03 có actor thật, **đã test** hoặc được PO loại khỏi phạm vi **có ghi lý do**
-- [ ] §8b đã có phán quyết PO cho P2-04/`giao_vien` (sửa quyền, hoặc sửa manifest) — không để treo
+- [ ] §8c: **P4-04/`giao_vien`** đã có phán quyết PO (cùng dạng P2-04) — không để treo
+- [ ] §8c: 21 `unreachable-procedure` đã được phân loại (sửa manifest / sửa quyền / chấp nhận có lý do)
 - [ ] Bước 9 xong: **đăng nhập được** sau reset (nếu không, DB "sạch" là DB chết)
 - [ ] Bước 7–8 xong: đếm row sau = trước, **đếm bằng role `postgres`** ⇒ DB sạch cho go-live
 - [ ] Biên bản ký; nếu NO-GO: teardown + huỷ secret theo phase-04

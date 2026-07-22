@@ -56,7 +56,11 @@ export const NAV_MODULES: NavModule[] = [
       // phase-06 (2026-07-12) — no backend build here, see the page files.
       { id: 'post-sale-meeting', label: 'Họp sau bán', path: '/crm/post-sale-meeting', icon: 'users', permission: { module: 'parentMeeting', action: 'manage' } },
       { id: 'aftersale', label: 'Sau bán', path: '/crm/aftersale', icon: 'alert', permission: { module: 'afterSale', action: 'manage' } },
-      { id: 'refund', label: 'Hoàn tiền', path: '/finance/refund', icon: 'card', permission: { module: 'finance', action: 'refundCreate' } },
+      // Hoàn tiền: procedure `finance.refundCreate` đã có, nhưng MÀN chưa xây —
+      // `/finance/refund` hiện là EmptyState "Tính năng chưa áp dụng", và sổ
+      // nghiệm thu đã hạ P1-08 khỏi `built` vì đúng lý do đó. Để entry này lại
+      // nghĩa là GĐKD bấm vào menu rồi gặp trang trống ngay ngày go-live.
+      // Khôi phục khi màn được xây, cùng lúc P1-08 quay lại `built`.
     ],
   },
   {

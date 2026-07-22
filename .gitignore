@@ -55,6 +55,9 @@ yarn.lock
 .env*
 !.env.example
 !.env.prod.example
+# Same secrets without the leading dot; `.env*` above does not cover these
+/env
+/env.*
 
 # vercel
 .vercel

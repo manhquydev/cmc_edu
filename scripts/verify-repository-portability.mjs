@@ -55,9 +55,13 @@ for (const [prefix, label] of [
   if (!exists) fail(`no tracked ${label} files under ${prefix}`);
 }
 
+// `env` and `env.prod` carry the same secrets as their dotted counterparts but
+// are missed by a `.env*` ignore rule, so they are listed explicitly.
 const forbiddenTracked = [
   '.env',
   '.env.prod',
+  'env',
+  'env.prod',
   'harness.db',
   'scripts/bin/harness-cli',
   'scripts/bin/harness-cli.exe',
@@ -69,6 +73,8 @@ for (const path of forbiddenTracked) {
 for (const path of [
   '.env',
   '.env.prod',
+  'env',
+  'env.prod',
   'harness.db',
   'scripts/bin/harness-cli',
   'scripts/bin/harness-cli.exe',

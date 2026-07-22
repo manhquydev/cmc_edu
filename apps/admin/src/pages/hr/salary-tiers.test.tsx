@@ -42,7 +42,7 @@ vi.mock('../../lib/trpc.js', async () => {
         mutationResult({ mutate: (...a: unknown[]) => { createMutate(...a); opts?.onSuccess?.(); } }),
       'salaryTier.update.useMutation': (opts: { onSuccess?: () => void }) =>
         mutationResult({ mutate: (...a: unknown[]) => { updateMutate(...a); opts?.onSuccess?.(); } }),
-      'user.list.useQuery': queryResult({ items: [STAFF_SALE, STAFF_GV, STAFF_GD] }),
+      'user.pickList.useQuery': queryResult({ items: [STAFF_SALE, STAFF_GV, STAFF_GD] }),
       'compensation.assignTier.useMutation': (opts: { onSuccess?: () => void }) =>
         mutationResult({ mutate: (...a: unknown[]) => { assignMutate(...a); opts?.onSuccess?.(); } }),
     }),

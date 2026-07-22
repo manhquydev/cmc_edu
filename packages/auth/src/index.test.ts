@@ -115,6 +115,8 @@ const ACTIVE_ROLE_MATRIX: Array<{ key: string; allowed: readonly string[] }> = [
   { key: 'course.manage', allowed: ['giam_doc_dao_tao'] },
   { key: 'room.manage', allowed: ['giam_doc_dao_tao'] },
   { key: 'class.create', allowed: ['giam_doc_dao_tao'] },
+  { key: 'class.read', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'] },
+  { key: 'classRoster.read', allowed: ['giao_vien', 'giam_doc_dao_tao'] },
   { key: 'schedule.generate', allowed: ['giam_doc_dao_tao'] },
   { key: 'attendance.mark', allowed: ['giao_vien', 'giam_doc_dao_tao'] },
   { key: 'exercise.manage', allowed: ['giam_doc_dao_tao'] },
@@ -126,6 +128,7 @@ const ACTIVE_ROLE_MATRIX: Array<{ key: string; allowed: readonly string[] }> = [
   { key: 'sessionEvidence.upsert', allowed: ['giao_vien'] },
   { key: 'sessionEvidence.publish', allowed: ['giao_vien'] },
   { key: 'user.manage', allowed: [] },
+  { key: 'staff.pickList', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'facilityNetwork.manage', allowed: [] },
   { key: 'checkIn.punch', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'] },
   { key: 'manualPunch.approve', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
@@ -207,6 +210,24 @@ describe('deferred roles are denied everywhere', () => {
       });
     }
   }
+});
+
+describe('invariant: the matrix covers every registry key', () => {
+  // Without this, a new permission key lands with zero role coverage and CI
+  // still passes — the matrix below only asserts the keys someone remembered
+  // to list. Adding a key to PERMISSIONS must force a decision about which of
+  // the 5 active roles may use it.
+  it('ACTIVE_ROLE_MATRIX lists exactly the keys in PERMISSIONS', () => {
+    const registryKeys = Object.keys(PERMISSIONS).sort();
+    const matrixKeys = ACTIVE_ROLE_MATRIX.map((entry) => entry.key).sort();
+    expect(matrixKeys).toEqual(registryKeys);
+  });
+
+  it('every matrix roster matches the registry roster for that key', () => {
+    for (const { key, allowed } of ACTIVE_ROLE_MATRIX) {
+      expect([...(PERMISSIONS[key] ?? [])].sort(), `roster drift on ${key}`).toEqual([...allowed].sort());
+    }
+  });
 });
 
 describe('invariant: PERMISSIONS rosters ⊆ 5 active roles', () => {

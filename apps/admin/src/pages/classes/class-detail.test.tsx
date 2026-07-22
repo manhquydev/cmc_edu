@@ -32,6 +32,7 @@ const { CLASS, TEACHERS, SESSIONS } = vi.hoisted(() => ({
 }));
 
 const assignTeacherMutate = vi.fn();
+const pickListSpy = vi.fn();
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -51,7 +52,10 @@ vi.mock('../../lib/trpc.js', async () => {
       'classBatch.get.useQuery': queryResult(CLASS),
       'classBatch.listStudents.useQuery': queryResult([]),
       'classSession.list.useQuery': queryResult(SESSIONS),
-      'user.list.useQuery': queryResult(TEACHERS),
+      'user.pickList.useQuery': (input: unknown) => {
+        pickListSpy(input);
+        return queryResult(TEACHERS);
+      },
       'classBatch.assignTeacher.useMutation': (opts: { onSuccess?: () => void }) =>
         mutationResult({ mutate: (...a: unknown[]) => { assignTeacherMutate(...a); opts?.onSuccess?.(); } }),
       'classSession.confirm.useMutation': () => mutationResult(),
@@ -70,11 +74,14 @@ describe('ClassDetailPage', () => {
     assignTeacherMutate.mockClear();
   });
 
-  it('shows a teacher picker filtered to giao_vien AppUsers only', async () => {
+  // The teacher-only rule now lives on the server (`user.pickList({role})`,
+  // matched by the same assertion inside `classBatch.assignTeacher`), so this
+  // asserts the picker asks for teachers rather than re-filtering the answer.
+  it('asks for teachers only when populating the picker', async () => {
     renderWithProviders(<ClassDetailPage />);
+    expect(pickListSpy).toHaveBeenCalledWith({ role: 'giao_vien' });
     fireEvent.click(screen.getByRole('combobox', { name: 'Giáo viên' }));
     expect(await screen.findByRole('option', { name: 'Trần Thị B' })).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: 'Nguyễn Văn A' })).toBeNull();
   });
 
   it('calls classBatch.assignTeacher.mutate({classBatchId, teacherAppUserId}) when a teacher is picked', async () => {

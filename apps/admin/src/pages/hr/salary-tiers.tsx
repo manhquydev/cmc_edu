@@ -296,14 +296,14 @@ interface StaffRow {
 
 function AssignTab() {
   const utils = trpc.useUtils();
-  const { data: userData, isLoading: usersLoading, error: usersError } = trpc.user.list.useQuery();
+  const { data: userData, isLoading: usersLoading, error: usersError } = trpc.user.pickList.useQuery({});
   const { data: tierData } = trpc.salaryTier.list.useQuery();
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [tierChoice, setTierChoice] = useState<string | undefined>(undefined);
 
   const assignMut = trpc.compensation.assignTier.useMutation({
     onSuccess: () => {
-      void utils.user.list.invalidate();
+      void utils.user.pickList.invalidate();
       setAssigningId(null);
       setTierChoice(undefined);
     },

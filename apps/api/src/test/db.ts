@@ -230,6 +230,10 @@ export interface SeedAppUserOptions {
   fullName?: string;
   position?: string;
   managerId?: string;
+  /** Staff roles on the profile row. Defaults to none — set it when the test
+   *  exercises something that filters staff by role (a teacher picker, a
+   *  salary tier that only applies to sale/giao_vien). */
+  roles?: readonly Role[];
 }
 
 /**
@@ -256,6 +260,7 @@ export async function seedAppUser(
         position: opts.position ?? 'staff',
         managerId: opts.managerId ?? null,
         employeeCode,
+        ...(opts.roles ? { roles: [...opts.roles] } : {}),
       },
     });
   });

@@ -1,7 +1,7 @@
 ---
 phase: 1
 title: "Nhip A - quyen doc lop (TDD)"
-status: pending
+status: completed
 priority: P1
 dependencies: []
 ---

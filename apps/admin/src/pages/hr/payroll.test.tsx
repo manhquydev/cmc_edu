@@ -25,7 +25,7 @@ const STAFF = {
 
 let sessionRoles: string[] = ['giam_doc_dao_tao'];
 
-const userListSpy = vi.fn();
+const staffPickSpy = vi.fn();
 const getForUserSpy = vi.fn();
 const getForUserRefetch = vi.fn();
 
@@ -70,8 +70,8 @@ vi.mock('../../lib/trpc.js', async () => {
           facilityId: 'f1',
           config: { approvalSecondEyeThreshold: 20_000_000 },
         }),
-      'user.list.useQuery': (input: unknown) => {
-        userListSpy(input);
+      'user.pickList.useQuery': (input: unknown) => {
+        staffPickSpy(input);
         return queryResult({ items: [STAFF] });
       },
       'payslip.getForUser.useQuery': (input: unknown, opts: unknown) => {
@@ -139,7 +139,7 @@ describe('PayrollPage', () => {
     mutationErr.assemble = null;
     mutationErr.finalize = null;
     mutationErr.reopen = null;
-    userListSpy.mockClear();
+    staffPickSpy.mockClear();
     getForUserSpy.mockClear();
     getForUserRefetch.mockClear();
     assembleMutate.mockClear();
@@ -147,9 +147,9 @@ describe('PayrollPage', () => {
     reopenMutate.mockClear();
   });
 
-  it('renders the staff list from user.list.useQuery', () => {
+  it('renders the staff list from user.pickList.useQuery', () => {
     renderWithProviders(<PayrollPage />);
-    expect(userListSpy).toHaveBeenCalled();
+    expect(staffPickSpy).toHaveBeenCalled();
     expect(screen.getByText('NV001')).toBeInTheDocument();
   });
 

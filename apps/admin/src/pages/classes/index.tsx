@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { DataTable, PageHeader, StatusBadge } from '@cmc/ui';
+import { DataTable, EmptyState, LineIcon, PageHeader, StatusBadge } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { useSession } from '../../lib/session-context.js';
 
 interface ClassRow {
   id: string;
@@ -38,6 +39,31 @@ const COLUMNS: TableColumn<ClassRow>[] = [
 ];
 
 export default function ClassListPage() {
+  const { canDo } = useSession();
+
+  // Hiding the menu entry does not stop someone typing the URL, and from here
+  // the detail screen leads on to the class roster. `class.read` is for picking
+  // a class elsewhere; administering classes needs `class.create`.
+  if (!canDo('class', 'create')) {
+    return (
+      <>
+        <PageHeader
+          title="Lớp học"
+          breadcrumbs={[{ label: 'Quản trị' }, { label: 'Lớp học' }]}
+        />
+        <EmptyState
+          title="Không có quyền truy cập"
+          description="Trang này yêu cầu quyền quản lý lớp học (class.create)."
+          icon={<LineIcon name="shield" size={28} />}
+        />
+      </>
+    );
+  }
+
+  return <ClassListContent />;
+}
+
+function ClassListContent() {
   const navigate = useNavigate();
   const { data, isLoading, error } = trpc.classBatch.list.useQuery({
     page: 1,

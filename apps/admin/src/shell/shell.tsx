@@ -2,7 +2,7 @@ import { AppFrame, Badge, LineIcon, SideNav, activeModuleId } from '@cmc/ui';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../lib/session-context.js';
 import { EnrollPicker } from '../lib/enroll-picker.js';
-import { visibleModulesFor } from './nav-registry.js';
+import { isNavChildVisible, visibleModulesFor } from './nav-registry.js';
 import { RoleSwitcher } from './role-switcher.js';
 import { useState } from 'react';
 
@@ -32,7 +32,7 @@ export function Shell() {
             activeId={activeId}
             activePath={location.pathname}
             onNavigate={navigate}
-            isChildVisible={(c) => (c.permission ? canDo(c.permission.module, c.permission.action) : true)}
+            isChildVisible={(c) => isNavChildVisible(c, canDo)}
             brand={
               <>
                 <span className="sh-logo">C</span>

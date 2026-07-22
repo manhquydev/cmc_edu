@@ -3,6 +3,7 @@
 
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
+import type { Prisma } from '@cmc/db';
 import { badRequest, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 import { nextClassBatchCode } from './class-code.js';
@@ -108,10 +109,36 @@ function toClassBatchDto(row: {
   };
 }
 
+/**
+ * Resolves an AppUser id into the teacher a ClassBatch may point at.
+ *
+ * `ClassBatch.teacherAppUserId` is the source that credits teaching hours into
+ * payroll and KPI, so a non-teacher assigned here is paid for classes they
+ * never ran. Both writers (`create`'s teacherId resolve and `assignTeacher`)
+ * go through this — a dropdown that only lists teachers is a convenience, not
+ * an enforcement point.
+ */
+async function resolveTeacher(
+  tx: Prisma.TransactionClient,
+  teacherAppUserId: string,
+  facilityId: string,
+): Promise<{ id: string }> {
+  const teacher = await tx.appUser.findFirst({ where: { id: teacherAppUserId, facilityId } });
+  if (!teacher) {
+    throw notFound('Teacher (AppUser) not found in this facility.');
+  }
+  if (!teacher.roles.includes('giao_vien')) {
+    throw badRequest('That staff member is not a teacher (role giao_vien required).');
+  }
+  return teacher;
+}
+
 export const classBatchRouter = router({
-  // Registry has only 4 P2-Foundation entries (course.manage, room.manage,
-  // class.create, schedule.generate) -- list/get reuse `class.create` rather
-  // than inventing a 5th read-only permission the spec does not name.
+  // Reads and writes are separate keys. `list`/`get` originally reused
+  // `class.create` because the P2-Foundation spec named only 4 permissions --
+  // which silently made "pick a class" a director-only action and left sale,
+  // GĐKD and teachers unable to finish their own flows. `class.read` covers the
+  // reads; `classRoster.read` covers the one read that returns children's names.
   create: requirePermission('class', 'create')
     .input(classBatchCreateInput)
     .mutation(async ({ ctx, input }): Promise<ClassBatchCreateResult> => {
@@ -144,10 +171,7 @@ export const classBatchRouter = router({
         // back-compat data shape to preserve beyond keeping the column set.
         let teacherAppUserId: string | null = null;
         if (input.teacherId) {
-          const teacher = await tx.appUser.findFirst({ where: { id: input.teacherId, facilityId } });
-          if (!teacher) {
-            throw notFound('Teacher (AppUser) not found in this facility.');
-          }
+          const teacher = await resolveTeacher(tx, input.teacherId, facilityId);
           teacherAppUserId = teacher.id;
         }
 
@@ -226,7 +250,7 @@ export const classBatchRouter = router({
       });
     }),
 
-  list: requirePermission('class', 'create')
+  list: requirePermission('class', 'read')
     .input(classBatchListInput)
     .query(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
@@ -251,7 +275,8 @@ export const classBatchRouter = router({
       });
     }),
 
-  listStudents: requirePermission('class', 'create')
+  // Returns children's full names -- narrower key than the rest of the reads.
+  listStudents: requirePermission('classRoster', 'read')
     .input(classBatchGetInput)
     .query(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
@@ -280,7 +305,7 @@ export const classBatchRouter = router({
       });
     }),
 
-  get: requirePermission('class', 'create')
+  get: requirePermission('class', 'read')
     .input(classBatchGetInput)
     .query(async ({ ctx, input }): Promise<ClassBatchDto> => {
       const { facilityId } = scoped(ctx);
@@ -309,12 +334,7 @@ export const classBatchRouter = router({
           throw notFound('ClassBatch not found.');
         }
 
-        const teacher = await tx.appUser.findFirst({
-          where: { id: input.teacherAppUserId, facilityId },
-        });
-        if (!teacher) {
-          throw notFound('Teacher (AppUser) not found in this facility.');
-        }
+        const teacher = await resolveTeacher(tx, input.teacherAppUserId, facilityId);
 
         const updated = await tx.classBatch.update({
           where: { id: classBatch.id },

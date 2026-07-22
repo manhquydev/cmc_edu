@@ -207,7 +207,9 @@ export default function CockpitPage() {
   const canViewReceipts = canDo('finance', 'receiptList');
   const canGrade = canDo('submission', 'grade');
   const canViewCrm = canDo('crm', 'opportunityList');
-  const canViewSchedule = canDo('class', 'create');
+  // Read gate, not a write gate: the panel only lists today's classes. Gating
+  // it on `class.create` hid it from the teachers it is written for.
+  const canViewSchedule = canDo('class', 'read');
 
   const isDirector = me?.roles.some((r) => r === 'giam_doc_kinh_doanh' || r === 'giam_doc_dao_tao' || r === 'super_admin');
   const isSale = me?.roles.includes('sale');

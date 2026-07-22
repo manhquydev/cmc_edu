@@ -23,6 +23,8 @@ describe('classBatch.assignTeacher + create teacher-resolve (HR remediation phas
       facilityId: facility.id,
       userId: 'assign-teacher-gv-001',
       position: 'giao_vien',
+      // `position` is free text; the assignable-teacher rule reads `roles`.
+      roles: ['giao_vien'],
     });
     teacherAppUserId = teacher.id;
 
@@ -66,6 +68,23 @@ describe('classBatch.assignTeacher + create teacher-resolve (HR remediation phas
     await expect(
       sale.classBatch.assignTeacher({ classBatchId: classBatch.id, teacherAppUserId }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  // `ClassBatch.teacherAppUserId` is what credits teaching hours into payroll
+  // and KPI, so assigning someone who does not teach pays them for classes they
+  // never ran. The picker filters by role, but the picker is a dropdown, not a
+  // control — the rule belongs on the server.
+  it('refuses to assign a staff member who is not a teacher', async () => {
+    const salesperson = await seedAppUser({
+      facilityId: facility.id,
+      userId: 'assign-teacher-sale-profile-001',
+      position: 'sale',
+      roles: ['sale'],
+    });
+
+    await expect(
+      gddt.classBatch.assignTeacher({ classBatchId: classBatch.id, teacherAppUserId: salesperson.id }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
   it('create resolves + validates teacherId (AppUser.id) into teacherAppUserId', async () => {

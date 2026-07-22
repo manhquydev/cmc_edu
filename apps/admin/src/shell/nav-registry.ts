@@ -16,10 +16,12 @@ export const NAV_MODULES: NavModule[] = [
     icon: 'book',
     path: '/teaching',
     children: [
-      { id: 'schedule', label: 'Lịch dạy', path: '/teaching/schedule', icon: 'calendar' },
+      { id: 'schedule', label: 'Lịch dạy', path: '/teaching/schedule', icon: 'calendar', permission: { module: 'class', action: 'read' } },
       { id: 'attendance', label: 'Điểm danh', path: '/teaching/attendance', icon: 'check-circle', permission: { module: 'attendance', action: 'mark' } },
       { id: 'grading', label: 'Chấm bài', path: '/teaching/grading', icon: 'edit', permission: { module: 'submission', action: 'grade' } },
-      { id: 'session-evidence', label: 'Nhật ký buổi học', path: '/teaching/session-evidence', icon: 'camera' },
+      // Every mutation on the page (upsert/addPhoto/publish) is teacher-only,
+      // so the menu entry follows the same key instead of inviting a 403.
+      { id: 'session-evidence', label: 'Nhật ký buổi học', path: '/teaching/session-evidence', icon: 'camera', permission: { module: 'sessionEvidence', action: 'upsert' } },
       // HR remediation phase 5 (R2 #C4): per-session assessment screen — same
       // permission as assessment.draftComment (giao_vien|giam_doc_dao_tao).
       { id: 'session-assessment', label: 'Nhận xét buổi học', path: '/teaching/session-assessment', icon: 'edit', permission: { module: 'assessment', action: 'draft' } },
@@ -33,7 +35,9 @@ export const NAV_MODULES: NavModule[] = [
     path: '/admin/students',
     children: [
       { id: 'students', label: 'Học viên', path: '/admin/students', icon: 'user', permission: { module: 'student', action: 'lookup' } },
-      { id: 'classes', label: 'Lớp học', path: '/admin/classes', icon: 'layers' },
+      // Class administration, not class picking: `class.read` exists so other
+      // screens can choose a class, and must not open this surface.
+      { id: 'classes', label: 'Lớp học', path: '/admin/classes', icon: 'layers', permission: { module: 'class', action: 'create' } },
     ],
   },
   {
@@ -44,7 +48,9 @@ export const NAV_MODULES: NavModule[] = [
     children: [
       { id: 'receipts', label: 'Phiếu thu', path: '/finance', icon: 'receipt', permission: { module: 'finance', action: 'receiptList' } },
       { id: 'crm', label: 'CRM', path: '/crm', icon: 'target', permission: { module: 'crm', action: 'opportunityList' } },
-      { id: 'revenue', label: 'Doanh thu', path: '/ops/revenue', icon: 'card' },
+      // Built entirely on `finance.receiptList`, which the ADR-B money gate
+      // withholds from sale — the menu entry must not promise more than that.
+      { id: 'revenue', label: 'Doanh thu', path: '/ops/revenue', icon: 'card', permission: { module: 'finance', action: 'receiptList' } },
       { id: 'recon', label: 'Đối soát', path: '/ops/recon', icon: 'search', permission: { module: 'reconciliation', action: 'review' } },
       // Residual EmptyState screens rolled in from `260707-0915-ui-implementation`
       // phase-06 (2026-07-12) — no backend build here, see the page files.
@@ -94,6 +100,29 @@ export const NAV_MODULES: NavModule[] = [
 ];
 
 type CanDoFn = (module: string, action: string) => boolean;
+
+/** Whether a leaf nav entry is visible. `visibleModulesFor` only decides
+ *  module-row visibility, so this is the predicate that actually hides an
+ *  individual menu item — shared with `shell.tsx` so a test asserting nav
+ *  visibility exercises the same code the sidebar runs. */
+export function isNavChildVisible(
+  child: { permission?: { module: string; action: string } },
+  canDo: CanDoFn,
+): boolean {
+  return child.permission ? canDo(child.permission.module, child.permission.action) : true;
+}
+
+/** Leaf paths a role actually sees in the sidebar: module gate then child gate.
+ *  Use this rather than `visibleModulesFor` when asserting "can role X see
+ *  screen Y" — the module gate alone reports a screen as visible whenever any
+ *  sibling entry is visible. */
+export function visibleNavPathsFor(roles: readonly Role[], canDo: CanDoFn): string[] {
+  return visibleModulesFor(roles, canDo).flatMap((mod) =>
+    mod.children && mod.children.length > 0
+      ? mod.children.filter((child) => isNavChildVisible(child, canDo)).map((child) => child.path)
+      : [mod.path],
+  );
+}
 
 export function visibleModulesFor(
   roles: readonly Role[],

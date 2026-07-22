@@ -81,7 +81,7 @@ const listSessionsInput = z.object({
 
 export const classSessionRouter = router({
   // Read-only: list all sessions for a batch (schedule, confirm/cancel UI).
-  list: requirePermission('class', 'create')
+  list: requirePermission('class', 'read')
     .input(listSessionsInput)
     .query(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);

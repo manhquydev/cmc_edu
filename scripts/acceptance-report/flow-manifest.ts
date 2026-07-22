@@ -351,6 +351,9 @@ export const flows: FlowEntry[] = [
         'salaryTier.create',
         'salaryTier.update',
         'compensation.assignTier',
+        // Staff picker behind both screens — the directors cannot choose an
+        // employee without it.
+        'user.pickList',
       ],
       uiRoutes: ['/hr/payroll', '/hr/salary-tiers', '/hr/my'],
       models: ['Payslip', 'SalaryTier', 'SalaryRate', 'CompensationPolicy'],

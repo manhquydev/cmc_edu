@@ -25,6 +25,12 @@ const createInput = z.object({
   managerId: z.string().uuid().optional(),
 });
 
+const pickListInput = z.object({
+  /** Narrows the list to one staff role — a teacher picker must not offer
+   *  people who do not teach. */
+  role: z.enum(ACTIVE_ROLES).optional(),
+});
+
 const updateInput = z.object({
   appUserId: z.string().uuid(),
   email: z.string().email().max(200).optional(),
@@ -123,6 +129,31 @@ export const userRouter = router({
           throw err;
         }
         return user as AppUserDto;
+      });
+    }),
+
+  // Deliberately separate from `list`: the screens that only need to fill a
+  // staff dropdown (payroll, salary tiers, teacher assignment) are run by the
+  // two directors, while `list` returns the whole staff profile and stays
+  // super_admin-only. Same reason the key is `staff.pickList` and not a
+  // payroll permission — see the registry comment.
+  pickList: requirePermission('staff', 'pickList')
+    .input(pickListInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const items = await tx.appUser.findMany({
+          // No `isActive` filter, matching `list`: payroll still has to reach a
+          // staff member who was deactivated mid-period to finalize their last
+          // payslip. This procedure narrows *fields*, not *rows*.
+          where: {
+            facilityId,
+            ...(input.role ? { roles: { has: input.role as DbRole } } : {}),
+          },
+          select: { id: true, fullName: true, employeeCode: true, position: true, roles: true },
+          orderBy: { fullName: 'asc' },
+        });
+        return { items };
       });
     }),
 

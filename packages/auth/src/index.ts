@@ -82,6 +82,15 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   'course.manage': ['giam_doc_dao_tao'],
   'room.manage': ['giam_doc_dao_tao'],
   'class.create': ['giam_doc_dao_tao'],
+  // Reading a class is not creating one. Every role that must *pick* a class to
+  // do its own job — sale/GĐKD drafting a tuition receipt, a teacher opening a
+  // session — reads through this key. Writes (`class.create`) stay GĐĐT-only.
+  'class.read': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'],
+  // Deliberately narrower than `class.read`: the class roster carries children's
+  // full names, so it is limited to the roles that teach or run the class.
+  // Enforced here at the API layer — a nav entry or a `canDo()` check in the
+  // browser cannot stop a session from calling the procedure directly.
+  'classRoster.read': ['giao_vien', 'giam_doc_dao_tao'],
   'schedule.generate': ['giam_doc_dao_tao'],
   'attendance.mark': ['giao_vien', 'giam_doc_dao_tao'],
   'exercise.manage': ['giam_doc_dao_tao'],
@@ -94,6 +103,11 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   'sessionEvidence.upsert': ['giao_vien'],
   'sessionEvidence.publish': ['giao_vien'],
   'user.manage': [],
+  // Fills staff dropdowns (payroll, salary tiers, teacher assignment) with a
+  // handful of fields. Its own key on purpose: reusing a payroll permission
+  // would make class administration depend on who may assemble payslips, so
+  // widening class administration later would quietly widen the money gate.
+  'staff.pickList': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   'facilityNetwork.manage': [],
   // All active staff roles can punch in (ADR-D: dormant roles removed).
   // ADR 0043 phase 4: `manualPunch.create` key removed — the procedure it

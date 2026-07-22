@@ -75,6 +75,8 @@ Plan `erp-rebuild-f0-f4` từng nhắc `quan_ly` + `head_teacher`, nhưng enum R
 | `audit.list` (xem AuditLog) | ✓ | | | | |
 | `enrollment.enroll` | ✓ | ✓ | ✓ | ✓ | |
 | `class.create` / `schedule.generate` | ✓ | | ✓ | | |
+| `class.read` (xem danh sách/chi tiết lớp + buổi học) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `classRoster.read` (xem danh sách học sinh của lớp — có họ tên trẻ) | ✓ | | ✓ | | ✓ |
 | `attendance.mark` | ✓ | | ✓ | | ✓ |
 | `assessment.*` | ✓ | | ✓ | | ✓ |
 | `checkIn.punch` | ✓ | ✓ | ✓ | ✓ | ✓ |

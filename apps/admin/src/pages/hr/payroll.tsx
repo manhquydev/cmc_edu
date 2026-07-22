@@ -3,8 +3,11 @@
 // Key invariants (QĐ0025):
 // - Phạt (penaltyAmount) MUST be a separate, visually distinct line item.
 //   It must NEVER be merged into base / variable / KPI rows.
-// - Payslip access: own payslip or director/super_admin (server enforces;
-//   user.list requires user.manage so this page is naturally director-facing).
+// - Payslip access: own payslip or director/super_admin (server enforces).
+//   The staff picker reads `user.pickList` (key `staff.pickList`, the two
+//   directors) — it used to call `user.list`, which needs `user.manage`, an
+//   empty roster only super_admin satisfies, so the directors this page is
+//   built for saw an empty list.
 //
 // HR remediation phase 5 (R3-2): the tier-based salary model REPLACED the old
 // formula (base + variable + kpiBonus). `variablePay` is now a deprecated
@@ -13,10 +16,10 @@
 // misleading, not merely stale). `kpiBonus` is REUSED to carry "PHẦN NHÂN"
 // (%côngca × %chỉ-số × đơn giá) — relabeled accordingly, value unchanged.
 //
-// Flow: staff list (user.list) → click employee → PayslipDetail for
+// Flow: staff list (user.pickList) → click employee → PayslipDetail for
 // selected employee × period. Period is synced to ?period= URL param.
 //
-// Note: no payslip.list endpoint exists. The list is built from user.list +
+// Note: no payslip.list endpoint exists. The list is built from user.pickList +
 // per-user payslip queries opened on demand.
 
 import { useState } from 'react';
@@ -411,7 +414,7 @@ export default function PayrollPage() {
     name: string;
   } | null>(null);
 
-  const { data, isLoading, error } = trpc.user.list.useQuery();
+  const { data, isLoading, error } = trpc.user.pickList.useQuery({});
 
   const staffRows: StaffRow[] = (data?.items ?? []).map((u) => ({
     id: u.id,

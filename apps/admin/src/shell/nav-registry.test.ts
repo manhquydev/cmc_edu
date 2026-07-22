@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { NAV_MODULES, visibleModulesFor } from './nav-registry.js';
+import { NAV_MODULES, visibleModulesFor, visibleNavPathsFor } from './nav-registry.js';
+import { ACTIVE_ROLES, can } from '@cmc/auth';
 import type { Role } from '@cmc/auth';
 
 const allTrue = () => true;
@@ -108,6 +109,59 @@ describe('visibleModulesFor', () => {
   it('keeps modules visible when at least one child has no permission gate', () => {
     const ids = moduleIds(['sale'], allFalse);
     expect(ids).toContain('cockpit');
-    expect(ids).toContain('finance-ops');
+    // The hr group still qualifies: Chấm công / Đăng ký ca / Của tôi are
+    // self-scoped and deliberately carry no permission key.
+    expect(ids).toContain('hr');
+  });
+
+  // Contract change, on purpose: every entry under Tài chính & Điều hành now
+  // carries a permission key (Doanh thu was the last one without), so a role
+  // with no finance permission no longer sees an entire group of screens that
+  // would answer 403. Previously the ungated Doanh thu entry kept the whole
+  // group on screen for everyone.
+  it('drops the finance group entirely for a role with no finance permission', () => {
+    expect(moduleIds(['sale'], allFalse)).not.toContain('finance-ops');
+  });
+});
+
+// These assert the sidebar as a role actually sees it: the real registry drives
+// `can()`, and the child gate runs — the same two steps `shell.tsx` performs.
+// Asserting through `visibleModulesFor` alone would report a screen as visible
+// whenever any sibling entry is, which hides exactly this class of bug.
+describe('nav entries a role really sees (module gate + child gate, real permissions)', () => {
+  function pathsFor(role: Role): string[] {
+    return visibleNavPathsFor([role], (mod, act) => can({ userId: 'u', roles: [role] }, mod, act));
+  }
+
+  it('hides the class-administration screen from sale and giao_vien', () => {
+    expect(pathsFor('sale')).not.toContain('/admin/classes');
+    expect(pathsFor('giao_vien')).not.toContain('/admin/classes');
+  });
+
+  it('keeps the class-administration screen for giam_doc_dao_tao', () => {
+    expect(pathsFor('giam_doc_dao_tao')).toContain('/admin/classes');
+  });
+
+  it('shows the teaching schedule to every role that can read a class', () => {
+    for (const role of ['giao_vien', 'giam_doc_dao_tao', 'giam_doc_kinh_doanh', 'sale'] as Role[]) {
+      expect(pathsFor(role), `${role} should see /teaching/schedule`).toContain('/teaching/schedule');
+    }
+  });
+
+  it('shows the session log only to teachers, who alone can write one', () => {
+    expect(pathsFor('giao_vien')).toContain('/teaching/session-evidence');
+    expect(pathsFor('sale')).not.toContain('/teaching/session-evidence');
+    expect(pathsFor('giam_doc_kinh_doanh')).not.toContain('/teaching/session-evidence');
+  });
+
+  it('withholds the revenue screen from sale, who cannot list receipts (ADR-B)', () => {
+    expect(pathsFor('sale')).not.toContain('/ops/revenue');
+    expect(pathsFor('giam_doc_kinh_doanh')).toContain('/ops/revenue');
+  });
+
+  it('leaves every active role a usable sidebar', () => {
+    for (const role of ACTIVE_ROLES) {
+      expect(pathsFor(role).length, `${role} has an empty sidebar`).toBeGreaterThan(0);
+    }
   });
 });

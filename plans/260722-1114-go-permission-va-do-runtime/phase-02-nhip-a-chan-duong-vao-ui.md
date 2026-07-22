@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Nhip A - chan duong vao UI"
-status: pending
+status: completed
 priority: P1
 dependencies: [1]
 ---

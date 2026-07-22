@@ -7,7 +7,9 @@ import {
   Button,
   CmcTabs,
   DataTable,
+  EmptyState,
   HStack,
+  LineIcon,
   PageHeader,
   Selector,
   Skeleton,
@@ -17,14 +19,15 @@ import {
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { useSession } from '../../lib/session-context.js';
 
 // HR remediation phase 5 (R2 #C5): teacher picker — AppUser role giao_vien.
 function TeacherPicker({ classBatchId, currentTeacherId }: { classBatchId: string; currentTeacherId: string | null }) {
   const utils = trpc.useUtils();
-  const { data, isLoading } = trpc.user.list.useQuery();
-  const teachers = ((data?.items ?? []) as Array<{ id: string; fullName: string; roles: string[] }>).filter((u) =>
-    u.roles.includes('giao_vien'),
-  );
+  // Filtered on the server: the same rule is enforced in `assignTeacher`, so
+  // the dropdown cannot offer a choice the mutation would reject.
+  const { data, isLoading } = trpc.user.pickList.useQuery({ role: 'giao_vien' });
+  const teachers = (data?.items ?? []) as Array<{ id: string; fullName: string }>;
   const options = teachers.map((t) => ({ value: t.id, label: t.fullName }));
 
   const assignMut = trpc.classBatch.assignTeacher.useMutation({
@@ -230,6 +233,27 @@ function SessionsTab({ classBatchId }: { classBatchId: string }) {
 // ---------------------------------------------------------------------------
 
 export default function ClassDetailPage() {
+  const { canDo } = useSession();
+
+  // Same guard as the list screen it is reached from — otherwise the URL is a
+  // way around the list guard straight to the roster tab.
+  if (!canDo('class', 'create')) {
+    return (
+      <>
+        <PageHeader title="Chi tiết lớp" breadcrumbs={[{ label: 'Quản trị' }, { label: 'Lớp học' }]} />
+        <EmptyState
+          title="Không có quyền truy cập"
+          description="Trang này yêu cầu quyền quản lý lớp học (class.create)."
+          icon={<LineIcon name="shield" size={28} />}
+        />
+      </>
+    );
+  }
+
+  return <ClassDetailContent />;
+}
+
+function ClassDetailContent() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState('overview');
 

@@ -82,8 +82,12 @@ Scout ra một sự thật làm đổi bức tranh:
 
 ## Bước tiếp theo
 
-1. Plan cho **C** (placeholder detection) — nhỏ, 1 phase là đủ
-2. Sau C xanh: mở lại `260707-2308` Phase 4, điều phối UAT người thật
+1. ~~Plan cho **C**~~ → **C ĐÃ XONG** (`11b7eea`, PO chốt làm thẳng không cần plan).
+   Kết quả: `38/38 built` → **37 built, 1 partial**. P1-08 rời `built` vì `/finance/refund` là màn giữ chỗ.
+   Nhận diện 5 màn giữ chỗ / 57 route (2 `empty-state`, 3 `coming-soon`), giữ nguyên baseline 57.
+   Falsification 2 chiều đạt trên route không bị UI spec assert. `acceptance:report` vẫn exit 0.
+   Đã sửa tuyên bố "38/38" trong `docs/stories/US-RELEASE-01`.
+2. **→ ĐANG TỚI: A** — mở lại `260707-2308` Phase 4, điều phối UAT người thật
 3. Sau UAT: cân B (LMS capture) và D (siết CI) dựa trên lỗi UAT thật tìm ra
 
 ## Câu hỏi chưa giải

@@ -88,7 +88,7 @@ SSO **không tự tạo tài khoản**: `sso-routes.ts:219-222` từ chối ngư
 
 ## 5. Checklist theo vai
 
-50 luồng-vai, sinh từ sổ nghiệm thu. Một luồng xuất hiện ở nhiều vai nghĩa là mỗi vai phải tự đi.
+49 luồng-vai, sinh từ sổ nghiệm thu (đồng bộ lại 2026-07-23 sau khi sửa manifest P2-04). Một luồng xuất hiện ở nhiều vai nghĩa là mỗi vai phải tự đi.
 
 ⚠️ **Đọc cột "Màn cần đi qua" cho đúng.** Cột này liệt kê mọi màn của *luồng*, không phải màn của *vai đó*. Ví dụ P1-06 gồm `/admin/parents` — đó là màn nhân viên duyệt, **phụ huynh không vào**. Người test chỉ đi phần thuộc vai mình; phần của vai khác do người khác đi (xem §4.2).
 
@@ -96,88 +96,87 @@ SSO **không tự tạo tài khoản**: `sso-routes.ts:219-222` từ chối ngư
 
 ### Sale (`sale`) — 7 luồng
 
-| # | Luồng | Màn cần đi qua | Kết quả |
-|---|---|---|---|
-| P1-01 | Quản lý phễu tuyển sinh (O1→O5) | `/crm`, `/crm/opportunities/:id` | ☐ PASS ☐ FAIL |
-| P1-02 | Tạo phiếu học phí từ cơ hội | `/finance/new` | ☐ PASS ☐ FAIL |
-| P3-03 | Đăng ký ca làm | `/hr/shifts` | ☐ PASS ☐ FAIL |
-| P3-06 | Nộp & duyệt phiếu KPI (auto-score) | `/hr/kpi`, `/hr/my` | ☐ PASS ☐ FAIL |
-| P3-09 | Tính lại điểm KPI tự động | `/hr/kpi`, `/hr/my` | ☐ PASS ☐ FAIL |
-| P4-04 | Đặt lịch test đầu vào/định kỳ | `/crm/opportunities/:id` | ☐ PASS ☐ FAIL |
-| P4-05 | Chăm sóc sau bán | `/crm/aftersale` | ☐ PASS ☐ FAIL |
+| # | Luồng | Màn của luồng | Tiền đề (vai khác phải làm trước) | Người test | Giờ | Kết quả |
+|---|---|---|---|---|---|---|
+| P1-01 | Quản lý phễu tuyển sinh (O1→O5) | `/crm`, `/crm/opportunities/:id` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P1-02 | Tạo phiếu học phí từ cơ hội | `/finance/new` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-03 | Đăng ký ca làm | `/hr/shifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-06 | Nộp & duyệt phiếu KPI (auto-score) | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-09 | Tính lại điểm KPI tự động | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P4-04 | Đặt lịch test đầu vào/định kỳ | `/crm/opportunities/:id` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P4-05 | Chăm sóc sau bán | `/crm/aftersale` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 
 ### GĐ Kinh doanh (`giam_doc_kinh_doanh`) — 10 luồng
 
-| # | Luồng | Màn cần đi qua | Kết quả |
-|---|---|---|---|
-| P1-03 | Duyệt phiếu kích hoạt học viên | `/finance`, `/finance/:id` | ☐ PASS ☐ FAIL |
-| P3-02 | Duyệt phiếu chấm công offsite | `/hr/checkin` | ☐ PASS ☐ FAIL |
-| P3-04 | Duyệt ca | `/hr/shifts` | ☐ PASS ☐ FAIL |
-| P3-05 | Chốt lương tháng theo bậc lương | `/hr/payroll`, `/hr/salary-tiers`, `/hr/my` | ☐ PASS ☐ FAIL |
-| P3-06 | Nộp & duyệt phiếu KPI (auto-score) | `/hr/kpi`, `/hr/my` | ☐ PASS ☐ FAIL |
-| P3-07 | Từ chối đăng ký ca (kèm lý do) | `/hr/shifts` | ☐ PASS ☐ FAIL |
-| P3-08 | Tất toán KPI hàng loạt (branch-scope) | `/hr/kpi` | ☐ PASS ☐ FAIL |
-| P3-09 | Tính lại điểm KPI tự động | `/hr/kpi`, `/hr/my` | ☐ PASS ☐ FAIL |
-| P4-02 | Cấu hình quà đổi sao | `/admin/engagement/gifts`, `/admin/engagement/rewards` | ☐ PASS ☐ FAIL |
-| P4-05 | Chăm sóc sau bán | `/crm/aftersale` | ☐ PASS ☐ FAIL |
+| # | Luồng | Màn của luồng | Tiền đề (vai khác phải làm trước) | Người test | Giờ | Kết quả |
+|---|---|---|---|---|---|---|
+| P1-03 | Duyệt phiếu kích hoạt học viên | `/finance`, `/finance/:id` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-02 | Duyệt phiếu chấm công offsite | `/hr/checkin` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-04 | Duyệt ca | `/hr/shifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-05 | Chốt lương tháng theo bậc lương | `/hr/payroll`, `/hr/salary-tiers`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-06 | Nộp & duyệt phiếu KPI (auto-score) | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-07 | Từ chối đăng ký ca (kèm lý do) | `/hr/shifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-08 | Tất toán KPI hàng loạt (branch-scope) | `/hr/kpi` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-09 | Tính lại điểm KPI tự động | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P4-02 | Cấu hình quà đổi sao | `/admin/engagement/gifts`, `/admin/engagement/rewards` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P4-05 | Chăm sóc sau bán | `/crm/aftersale` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 
 ### GĐ Đào tạo (`giam_doc_dao_tao`) — 13 luồng
 
-| # | Luồng | Màn cần đi qua | Kết quả |
-|---|---|---|---|
-| P1-03 | Duyệt phiếu kích hoạt học viên | `/finance`, `/finance/:id` | ☐ PASS ☐ FAIL |
-| P1-09 | Giám sát bất thường tài chính | `/ops/recon` | ☐ PASS ☐ FAIL |
-| P2-01 | Tạo lớp tự sinh lịch buổi | `/admin/classes`, `/admin/classes/:id` | ☐ PASS ☐ FAIL |
-| P2-04 | Cung cấp bài tập PDF | `/teaching/exercises` | ☐ PASS ☐ FAIL |
-| P3-02 | Duyệt phiếu chấm công offsite | `/hr/checkin` | ☐ PASS ☐ FAIL |
-| P3-04 | Duyệt ca | `/hr/shifts` | ☐ PASS ☐ FAIL |
-| P3-05 | Chốt lương tháng theo bậc lương | `/hr/payroll`, `/hr/salary-tiers`, `/hr/my` | ☐ PASS ☐ FAIL |
-| P3-06 | Nộp & duyệt phiếu KPI (auto-score) | `/hr/kpi`, `/hr/my` | ☐ PASS ☐ FAIL |
-| P3-07 | Từ chối đăng ký ca (kèm lý do) | `/hr/shifts` | ☐ PASS ☐ FAIL |
-| P3-08 | Tất toán KPI hàng loạt (branch-scope) | `/hr/kpi` | ☐ PASS ☐ FAIL |
-| P3-09 | Tính lại điểm KPI tự động | `/hr/kpi`, `/hr/my` | ☐ PASS ☐ FAIL |
-| P4-02 | Cấu hình quà đổi sao | `/admin/engagement/gifts`, `/admin/engagement/rewards` | ☐ PASS ☐ FAIL |
-| P4-05 | Chăm sóc sau bán | `/crm/aftersale` | ☐ PASS ☐ FAIL |
+| # | Luồng | Màn của luồng | Tiền đề (vai khác phải làm trước) | Người test | Giờ | Kết quả |
+|---|---|---|---|---|---|---|
+| P1-03 | Duyệt phiếu kích hoạt học viên | `/finance`, `/finance/:id` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P1-09 | Giám sát bất thường tài chính | `/ops/recon` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P2-01 | Tạo lớp tự sinh lịch buổi | `/admin/classes`, `/admin/classes/:id` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P2-04 | Cung cấp bài tập PDF | `/teaching/exercises` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-02 | Duyệt phiếu chấm công offsite | `/hr/checkin` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-04 | Duyệt ca | `/hr/shifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-05 | Chốt lương tháng theo bậc lương | `/hr/payroll`, `/hr/salary-tiers`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-06 | Nộp & duyệt phiếu KPI (auto-score) | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-07 | Từ chối đăng ký ca (kèm lý do) | `/hr/shifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-08 | Tất toán KPI hàng loạt (branch-scope) | `/hr/kpi` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-09 | Tính lại điểm KPI tự động | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P4-02 | Cấu hình quà đổi sao | `/admin/engagement/gifts`, `/admin/engagement/rewards` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P4-05 | Chăm sóc sau bán | `/crm/aftersale` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 
-### Giáo viên (`giao_vien`) — 9 luồng
+### Giáo viên (`giao_vien`) — 8 luồng
 
-| # | Luồng | Màn cần đi qua | Kết quả |
-|---|---|---|---|
-| P2-02 | Điểm danh buổi học | `/teaching/attendance` | ☐ PASS ☐ FAIL |
-| P2-04 | Cung cấp bài tập PDF | `/teaching/exercises` | ☐ PASS ☐ FAIL |
-| P2-06 | Chấm bài & cộng sao | `/teaching/grading` | ☐ PASS ☐ FAIL |
-| P2-07 | Nhận xét (AI nháp, GV chốt) | `/teaching/session-assessment`, `/admin/report-cards` | ☐ PASS ☐ FAIL |
-| P2-08 | Gửi ảnh & tóm tắt buổi cho PH | `/teaching/session-evidence`, `/parent/evidence/:studentId` | ☐ PASS ☐ FAIL |
-| P3-03 | Đăng ký ca làm | `/hr/shifts` | ☐ PASS ☐ FAIL |
-| P3-06 | Nộp & duyệt phiếu KPI (auto-score) | `/hr/kpi`, `/hr/my` | ☐ PASS ☐ FAIL |
-| P3-09 | Tính lại điểm KPI tự động | `/hr/kpi`, `/hr/my` | ☐ PASS ☐ FAIL |
-| P4-04 | Đặt lịch test đầu vào/định kỳ | `/crm/opportunities/:id` | ☐ PASS ☐ FAIL |
+| # | Luồng | Màn của luồng | Tiền đề (vai khác phải làm trước) | Người test | Giờ | Kết quả |
+|---|---|---|---|---|---|---|
+| P2-02 | Điểm danh buổi học | `/teaching/attendance` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P2-06 | Chấm bài & cộng sao | `/teaching/grading` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P2-07 | Nhận xét (AI nháp, GV chốt) | `/teaching/session-assessment`, `/admin/report-cards` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P2-08 | Gửi ảnh & tóm tắt buổi cho PH | `/teaching/session-evidence`, `/parent/evidence/:studentId` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-03 | Đăng ký ca làm | `/hr/shifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-06 | Nộp & duyệt phiếu KPI (auto-score) | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-09 | Tính lại điểm KPI tự động | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P4-04 | Đặt lịch test đầu vào/định kỳ | `/crm/opportunities/:id` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 
 ### Phụ huynh (`phu_huynh`) — 3 luồng
 
-| # | Luồng | Màn cần đi qua | Kết quả |
-|---|---|---|---|
-| P1-06 | Liên kết phụ huynh–con | `/admin/parents` | ☐ PASS ☐ FAIL |
-| P1-07 | Đăng nhập xem con | `/login`, `/parent/home` | ☐ PASS ☐ FAIL |
-| P2-08 | Gửi ảnh & tóm tắt buổi cho PH | `/teaching/session-evidence`, `/parent/evidence/:studentId` | ☐ PASS ☐ FAIL |
+| # | Luồng | Màn của luồng | Tiền đề (vai khác phải làm trước) | Người test | Giờ | Kết quả |
+|---|---|---|---|---|---|---|
+| P1-06 | Liên kết phụ huynh–con | `/admin/parents` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P1-07 | Đăng nhập xem con | `/login`, `/parent/home` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P2-08 | Gửi ảnh & tóm tắt buổi cho PH | `/teaching/session-evidence`, `/parent/evidence/:studentId` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 
 ### Học viên (`hoc_vien`) — 3 luồng
 
-| # | Luồng | Màn cần đi qua | Kết quả |
-|---|---|---|---|
-| P2-03 | Mở bài tập theo tiến độ học | `/student/home`, `/student/exercise/:exerciseId` | ☐ PASS ☐ FAIL |
-| P2-05 | Làm bài trên PDF & nộp | `/student/exercise/:exerciseId` | ☐ PASS ☐ FAIL |
-| P4-01 | Đổi quà bằng sao | `/admin/engagement/rewards`, `/student/gifts` | ☐ PASS ☐ FAIL |
+| # | Luồng | Màn của luồng | Tiền đề (vai khác phải làm trước) | Người test | Giờ | Kết quả |
+|---|---|---|---|---|---|---|
+| P2-03 | Mở bài tập theo tiến độ học | `/student/home`, `/student/exercise/:exerciseId` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P2-05 | Làm bài trên PDF & nộp | `/student/exercise/:exerciseId` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P4-01 | Đổi quà bằng sao | `/admin/engagement/rewards`, `/student/gifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 
 ### Super admin (`super_admin`) — 5 luồng
 
-| # | Luồng | Màn cần đi qua | Kết quả |
-|---|---|---|---|
-| ADM-01 | Quản trị cơ sở | `/admin/facilities` | ☐ PASS ☐ FAIL |
-| ADM-02 | Quản trị tài khoản nhân sự | `/admin/users` | ☐ PASS ☐ FAIL |
-| ADM-03 | Cấu hình mạng chấm công (IP) | `/admin/network-ip` | ☐ PASS ☐ FAIL |
-| ADM-04 | Nhật ký hệ thống | `/admin/audit-log` | ☐ PASS ☐ FAIL |
-| ADM-05 | Cấu hình ca làm | `/admin/shift-config` | ☐ PASS ☐ FAIL |
+| # | Luồng | Màn của luồng | Tiền đề (vai khác phải làm trước) | Người test | Giờ | Kết quả |
+|---|---|---|---|---|---|---|
+| ADM-01 | Quản trị cơ sở | `/admin/facilities` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| ADM-02 | Quản trị tài khoản nhân sự | `/admin/users` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| ADM-03 | Cấu hình mạng chấm công (IP) | `/admin/network-ip` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| ADM-04 | Nhật ký hệ thống | `/admin/audit-log` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| ADM-05 | Cấu hình ca làm | `/admin/shift-config` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 
 ## 6. Bảng đếm row (bước 2 và 8 phải khớp nhau)
 
@@ -228,19 +227,23 @@ Cần PO chốt actor thật cho từng luồng trước khi UAT. Gợi ý suy t
 | P4-01 | 3 vai có `rewards.manage` (GĐKD/GĐĐT/sale) | |
 | P4-03 | 3 vai có `parentMeeting.manage` (GĐKD/GĐĐT/sale) | |
 
-## 8b. 🟠 NGHI LỖI CHẶN THỨ 4 — P2-04 với vai `giao_vien`
+## 8b. ✅ P2-04 — ĐÃ CÓ PHÁN QUYẾT (2026-07-22)
 
-Manifest khai P2-04 ("Cung cấp bài tập PDF") có actor `giao_vien`. Nhưng **cả 5 procedure** của luồng gate `exercise.manage`, mà key đó **chỉ có `giam_doc_dao_tao`** (`packages/auth/src/index.ts:96`). Nav entry `/teaching/exercises` cũng gate cùng key (`apps/admin/src/shell/nav-registry.ts:28`).
+Manifest từng khai `giao_vien` là actor của P2-04, nhưng cả 5 procedure gate `exercise.manage` — chỉ GĐĐT. **PO chốt: chỉ GĐĐT ra đề bài tập** ⇒ manifest khai sai actor, **không** nới quyền. Đã sửa `flow-manifest.ts`; dòng P2-04/`giao_vien` đã biến mất khỏi §5.
 
-⇒ **`giao_vien` không thấy menu và không gọi được procedure nào của luồng mình được khai là actor.** Đây đúng hình dạng F1/F2. Runtime capture báo `0 denied` **chính vì** nav không render ⇒ không phát sinh request ⇒ capture mù — đúng giới hạn đã công bố.
+## 8c. 🟠 CÒN LẠI — audit actor↔permission (chạy 2026-07-23)
 
-Đây là **F5 của plan `260722-0908`**, nêu 2026-07-22 và **chưa ai xử lý**.
+`pnpm acceptance:report` giờ kèm `actor-audit`. Kết quả hiện tại:
 
-**Cần PO chốt trước UAT** (không tự quyết): giáo viên *có* phải người ra đề bài tập không?
-- Nếu **có** → thiếu quyền, phải sửa registry (giống F1/F2) rồi mới UAT.
-- Nếu **không** → manifest sai actor, sửa manifest và bỏ dòng P2-04/`giao_vien` khỏi §5.
+| Loại | Số | Ý nghĩa |
+|---|---|---|
+| `invalid-actor` | 4 | `nhan_vien` (P3-01, P3-02, P4-01, P4-03) — vai không tồn tại |
+| `idle-actor` | **1** | **P4-04 / `giao_vien`** — `testAppointment.*` cần `testAppointment.manage` = [GĐKD, GĐĐT, sale]; GV không có |
+| `unreachable-procedure` | 21 | 6 luồng có procedure không actor nào gọi được (gồm P1-09/`audit.list`) |
 
-Trong lúc chưa chốt: **đánh dấu dòng P2-04 của `giao_vien` là BLOCKED**, đừng để người test tự kết luận "hệ thống hỏng".
+**P4-04 cùng họ với P2-04** — cần PO chốt tương tự: giáo viên có đặt lịch kiểm tra đầu vào không? Nếu không → sửa manifest.
+
+⚠️ 26 procedure **ngoài tầm registry** (owner-check, LMS, public) — audit **không kết luận** được về chúng. Đây là giới hạn, không phải giấy chứng nhận sạch.
 
 ## 9. Tiêu chí Go/No-Go
 

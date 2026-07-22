@@ -13,6 +13,7 @@ import { scanTrpcRouters } from './scanners/trpc-scanner.js';
 import { scanUiRoutesDetailed } from './scanners/route-scanner.js';
 import { scanPrismaModels } from './scanners/prisma-scanner.js';
 import { render } from './render.js';
+import { auditFlowActors } from './actor-audit.js';
 import type { FlowVerification, OrphanResult, VerificationResult } from './types.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -160,12 +161,14 @@ function main(): void {
     verifyFlow(flow, { procedures: trpcScan.procedures, uiRoutes, models, uiRouteInfo }),
   );
   const orphans = computeProcedureOrphans(trpcScan.procedures, flows);
+  const actorAudit = auditFlowActors(flows, trpcScan.permissionKeys);
 
   const result: VerificationResult = {
     generatedAt: new Date().toISOString(),
     commit: getHeadCommit(),
     flows: flowResults,
     orphans,
+    actorAudit,
     scan: {
       trpcNamespaceCount: trpcScan.namespaces.length,
       unresolvedNamespaces: trpcScan.unresolved,
@@ -190,6 +193,21 @@ function main(): void {
   }
   if (trpcScan.unresolved.length > 0) {
     console.warn(`  UNRESOLVED namespaces (scanner could not parse): ${trpcScan.unresolved.join(', ')}`);
+  }
+
+  // Actor-vs-permission consistency. Reported, not yet fatal: the backlog it
+  // surfaces predates this check, and a gate that fails on day one gets muted
+  // rather than fixed. Promote to exit-code once the existing findings are
+  // triaged.
+  const byKind = (kind: string) => actorAudit.findings.filter((f) => f.kind === kind);
+  console.log(
+    `actor-audit — ${actorAudit.findings.length} phát hiện ` +
+      `(${byKind('invalid-actor').length} vai không tồn tại, ${byKind('idle-actor').length} actor không làm được gì, ` +
+      `${byKind('unreachable-procedure').length} procedure không actor nào gọi được); ` +
+      `${actorAudit.ungatedProcedureCount} procedure ngoài tầm registry (không kết luận được)`,
+  );
+  for (const f of [...byKind('invalid-actor'), ...byKind('idle-actor')]) {
+    console.warn(`  ${f.kind.toUpperCase()} ${f.flowId} · ${f.subject}`);
   }
   console.log(`  -> ${path.join(OUTPUT_DIR, 'index.html')}`);
 

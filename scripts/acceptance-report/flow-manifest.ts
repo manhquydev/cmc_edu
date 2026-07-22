@@ -213,7 +213,11 @@ export const flows: FlowEntry[] = [
     id: 'P2-04',
     displayName: 'Cung cấp bài tập PDF',
     cluster: 'P2',
-    actorRoles: ['giao_vien', 'giam_doc_dao_tao'],
+    // PO chốt 2026-07-22: chỉ GĐĐT ra đề bài tập. `giao_vien` từng được khai là
+    // actor nhưng cả 5 procedure của luồng đều gate `exercise.manage` (GĐĐT-only)
+    // — giáo viên không gọi được gì, cũng không thấy menu. Sửa manifest cho đúng
+    // thực tế thay vì nới quyền.
+    actorRoles: ['giam_doc_dao_tao'],
     expected: {
       // TL25 đã sync 2026-07-18: /curriculum/:unitId/exercises → /teaching/exercises
       // (không có prefix /curriculum). exercise.list/close + curriculumUnit.list = màn soạn bài (E1).

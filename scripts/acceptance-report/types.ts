@@ -40,6 +40,11 @@ export interface FlowVerification {
   placeholderRoutes: { path: string; kind: string }[];
 }
 
+export interface ActorAuditSummary {
+  findings: { flowId: string; kind: string; subject: string; detail: string }[];
+  ungatedProcedureCount: number;
+}
+
 export interface OrphanResult {
   /** All scanned procedures not referenced by any manifest flow (documented + untriaged). */
   procedures: string[];
@@ -54,6 +59,8 @@ export interface VerificationResult {
   commit: string;
   flows: FlowVerification[];
   orphans: OrphanResult;
+  /** Actor↔permission consistency — a flow naming a role that cannot do the work. */
+  actorAudit: ActorAuditSummary;
   scan: {
     trpcNamespaceCount: number;
     unresolvedNamespaces: readonly string[];

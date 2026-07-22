@@ -6,7 +6,7 @@
 // files (one file exporting several named router consts) by import-name
 // lookup, not file-path convention.
 
-import { Project, SyntaxKind, type Identifier, type ObjectLiteralExpression, type SourceFile } from 'ts-morph';
+import { Project, SyntaxKind, type Identifier, type Node, type ObjectLiteralExpression, type SourceFile } from 'ts-morph';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,6 +21,11 @@ export interface TrpcScanResult {
   procedures: Set<string>;
   /** Namespaces ts-morph could not statically resolve — surfaced, never silently dropped. */
   unresolved: string[];
+  /** "namespace.procedure" -> "module.action" for procedures gated by
+   *  `requirePermission`. Procedures absent from this map are gated some other
+   *  way (owner checks, LMS sessions, public) — absence means "the registry has
+   *  no opinion", never "anyone may call it". */
+  permissionKeys: Map<string, string>;
 }
 
 export function scanTrpcRouters(): TrpcScanResult {
@@ -37,6 +42,7 @@ export function scanTrpcRouters(): TrpcScanResult {
   const namespaces: string[] = [];
   const procedures = new Set<string>();
   const unresolved: string[] = [];
+  const permissionKeys = new Map<string, string>();
 
   for (const prop of obj.getProperties()) {
     if (!prop.isKind(SyntaxKind.PropertyAssignment)) continue;
@@ -54,14 +60,17 @@ export function scanTrpcRouters(): TrpcScanResult {
         // Leaf procedure mounted directly on appRouter (e.g. `health`).
         procedures.add(key);
       } else {
-        for (const p of subProcedures) procedures.add(`${key}.${p}`);
+        for (const p of subProcedures) {
+          procedures.add(`${key}.${p.name}`);
+          if (p.permission) permissionKeys.set(`${key}.${p.name}`, p.permission);
+        }
       }
     } catch {
       unresolved.push(key);
     }
   }
 
-  return { namespaces, procedures, unresolved };
+  return { namespaces, procedures, unresolved, permissionKeys };
 }
 
 /**
@@ -73,7 +82,7 @@ export function scanTrpcRouters(): TrpcScanResult {
 function resolveNamespaceProcedures(
   hostFile: SourceFile,
   value: import('ts-morph').Node,
-): string[] | null {
+): ScannedProcedure[] | null {
   if (value.isKind(SyntaxKind.Identifier)) {
     const routerObj = resolveIdentifierToRouterObject(hostFile, value.asKindOrThrow(SyntaxKind.Identifier));
     return getObjectPropertyNames(routerObj);
@@ -82,15 +91,17 @@ function resolveNamespaceProcedures(
   if (value.isKind(SyntaxKind.CallExpression)) {
     const call = value.asKindOrThrow(SyntaxKind.CallExpression);
     if (call.getExpression().getText() === 'mergeRouters') {
-      const merged = new Set<string>();
+      // Keyed by name so a procedure merged from two routers is not counted
+      // twice, while still carrying its permission key through.
+      const merged = new Map<string, ScannedProcedure>();
       for (const arg of call.getArguments()) {
         if (!arg.isKind(SyntaxKind.Identifier)) {
           throw new Error(`mergeRouters argument is not a plain identifier: ${arg.getText()}`);
         }
         const routerObj = resolveIdentifierToRouterObject(hostFile, arg.asKindOrThrow(SyntaxKind.Identifier));
-        for (const name of getObjectPropertyNames(routerObj)) merged.add(name);
+        for (const proc of getObjectPropertyNames(routerObj)) merged.set(proc.name, proc);
       }
-      return [...merged];
+      return [...merged.values()];
     }
   }
 
@@ -133,16 +144,38 @@ function resolveModuleToTsFile(fromFilePath: string, moduleSpecifier: string): s
   return path.resolve(path.dirname(fromFilePath), `${withoutExt}.ts`);
 }
 
-function getObjectPropertyNames(obj: ObjectLiteralExpression): string[] {
-  const names: string[] = [];
+export interface ScannedProcedure {
+  name: string;
+  /** `module.action` when the procedure chains off `requirePermission(...)`. */
+  permission?: string;
+}
+
+function getObjectPropertyNames(obj: ObjectLiteralExpression): ScannedProcedure[] {
+  const names: ScannedProcedure[] = [];
   for (const prop of obj.getProperties()) {
     if (
       prop.isKind(SyntaxKind.PropertyAssignment) ||
       prop.isKind(SyntaxKind.ShorthandPropertyAssignment) ||
       prop.isKind(SyntaxKind.MethodDeclaration)
     ) {
-      names.push(prop.getName());
+      names.push({ name: prop.getName(), ...(readPermissionKey(prop) ? { permission: readPermissionKey(prop)! } : {}) });
     }
   }
   return names;
+}
+
+/** Reads `requirePermission('module', 'action')` out of a procedure definition.
+ *  Returns undefined when the procedure is gated another way — that distinction
+ *  is what lets the actor audit avoid claiming a role is locked out of a
+ *  procedure the registry never governed. */
+function readPermissionKey(prop: Node): string | undefined {
+  for (const call of prop.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    if (call.getExpression().getText() !== 'requirePermission') continue;
+    const args = call.getArguments();
+    if (args.length < 2) continue;
+    const mod = args[0]?.asKind(SyntaxKind.StringLiteral)?.getLiteralValue();
+    const action = args[1]?.asKind(SyntaxKind.StringLiteral)?.getLiteralValue();
+    if (mod && action) return `${mod}.${action}`;
+  }
+  return undefined;
 }

@@ -208,4 +208,69 @@ export function assertRequiredEnvForProd(): void {
         'See .env.example / scripts/env-check.sh. Set them and restart.',
     );
   }
+
+  assertNoMalformedSecretsForProd();
+}
+
+/** A line in `.env.prod` with no trailing newline swallows the line after it:
+ *
+ *      BREVO_API_KEY=xkeysib-XXXGRAPH_TENANT_ID="YYY"
+ *
+ *  What reaches the process is one physical line — no line break, no stray
+ *  whitespace — so the missing-var check above passes it (the variable IS set)
+ *  and so would any trim() guard. Brevo answered 401 and parent OTPs were dead
+ *  for twelve days before anyone looked at the file. The signature that is
+ *  actually visible is structural: an ASSIGNMENT sitting inside the value.
+ *
+ *  Reports only variable NAMES, never values. */
+function assertNoMalformedSecretsForProd(): void {
+  // The trailing `[^=]` is what keeps this off legitimate secrets. Base64
+  // padding preceded by an uppercase run (`…abcDEFG==`) matches the assignment
+  // shape otherwise, and `openssl rand -base64 32` produces that in roughly one
+  // value in six. Refusing to boot on a valid secret would be bad on its own;
+  // for BACKUP_ENCRYPTION_PASSPHRASE the obvious operator response — regenerate
+  // it — silently orphans every existing encrypted backup. A real swallowed
+  // line always has the next value's first character after the `=`.
+  const EMBEDDED_ASSIGNMENT = /[A-Z][A-Z0-9_]{2,}=[^=]/;
+
+  /** Single-line secrets and identifiers: a space or an embedded assignment in
+   *  one of these is always corruption, never a legitimate value. Deliberately
+   *  excludes CORS_ORIGINS / TRUSTED_PROXY_CIDRS (comma-separated lists, spaces
+   *  are fine) and the DATABASE URLs (not narrowing URL syntax here). */
+  const SINGLE_LINE_SECRETS = [
+    'BREVO_API_KEY', 'BREVO_SENDER_EMAIL',
+    'ENTRA_TENANT_ID', 'ENTRA_CLIENT_ID', 'ENTRA_CLIENT_SECRET',
+    'GRAPH_TENANT_ID', 'GRAPH_CLIENT_ID', 'GRAPH_CLIENT_SECRET', 'GRAPH_SENDER_EMAIL',
+    'S3_ACCESS_KEY', 'S3_SECRET_KEY',
+    'LMS_SESSION_SECRET', 'STAFF_SESSION_SECRET', 'BACKUP_ENCRYPTION_PASSPHRASE',
+  ];
+
+  const malformed = SINGLE_LINE_SECRETS.filter((name) => {
+    const value = process.env[name];
+    // Unset is the missing-var check's business; naming it twice in two
+    // vocabularies sends the reader hunting for a formatting bug.
+    if (value === undefined) return false;
+    return EMBEDDED_ASSIGNMENT.test(value) || /[\r\n]/.test(value) || value !== value.trim();
+  });
+
+  // Brevo publishes its key format, and a key that has swallowed a line no
+  // longer matches it — a second net under the structural check above. Only
+  // reported when the structural check did not already name the key, so the
+  // operator reading the boot log sees each broken variable once.
+  const brevoKey = process.env['BREVO_API_KEY'];
+  if (
+    brevoKey !== undefined &&
+    !malformed.includes('BREVO_API_KEY') &&
+    !/^xkeysib-[A-Za-z0-9-]+$/.test(brevoKey)
+  ) {
+    malformed.push('BREVO_API_KEY (format)');
+  }
+
+  if (malformed.length > 0) {
+    throw new Error(
+      `FATAL: malformed env var(s) in production: ${malformed.join(', ')}. ` +
+        'A value contains an embedded assignment, a line break, or stray whitespace — ' +
+        'check that every line in .env.prod ends with a newline.',
+    );
+  }
 }

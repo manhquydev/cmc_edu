@@ -36,7 +36,7 @@ run 2026-07-12 sau HR remediation phase 6) · `ADR/QĐ` · `Oversight`.
 | **P2-07** | agent / giao_vien | "Nhận xét (AI nháp, GV chốt)" | `assessment.draftComment/confirm` | `/teaching/session-assessment` · `/admin/report-cards` | `apps/api/src/assessment/draft-confirm.test.ts` | **TL08§7** · TL13 | HITL |
 | **P2-08** | giao_vien | "Gửi ảnh & tóm tắt buổi cho PH" | `sessionEvidence.publish` (giao_vien) | `/teaching/session-evidence` · `/parent/evidence/:studentId` | `apps/api/src/session-evidence/publish.test.ts` · `photo-access.test.ts` | TL19§6b · **TL08§7** | người |
 | **P3-01** | nhân viên | "Chấm công cặp vào/ra mỗi ngày" | `checkInOut.punch` (checkInOut.punch) | `/hr/checkin` | `apps/api/src/checkin/punch-offsite.test.ts` · `apps/api/src/checkin/ip-match.test.ts` | **ADR0043** | người |
-| **P3-02** | nhân viên / GĐ track | "Duyệt phiếu chấm công offsite" | `manualPunch.approve/reject/resubmit/list` (manualPunch.approve) | `/hr/checkin` | `apps/api/src/checkin/manual-punch-approval-track.test.ts` · `apps/e2e/tests/attendance-lifecycle.spec.ts` | **ADR0043** | HITL |
+| **P3-02** | sale / giao_vien (chủ phiếu) · GĐ theo track (duyệt) · super_admin (phiếu không track) | "Duyệt phiếu chấm công offsite" | `manualPunch.approve/reject/resubmit/list` (manualPunch.approve) | `/hr/checkin` | `apps/api/src/checkin/manual-punch-approval-track.test.ts` · `apps/e2e/tests/attendance-lifecycle.spec.ts` | **ADR0043** | HITL |
 | **P3-03** | sale / giao_vien | "Đăng ký ca làm" | `shift.submit`/`listGroups`/`myRegistrations` (shift.submit) | `/hr/shifts` | `apps/api/src/shift/register-approve.test.ts` | **ADR0040** · QĐ0035 | HITL |
 | **P3-04** | GĐKD / GĐĐT | "Duyệt ca" | `shift.approve`/`pendingForApproval` (shift.approve, gate ROLE khớp group-type) | `/hr/shifts` | `apps/api/src/shift/register-approve.test.ts` · `apps/e2e/tests/shift-lifecycle.spec.ts` | **ADR0040** · docs/20 §2 | HITL |
 | **P3-05** | GĐKD / GĐĐT | "Chốt lương tháng theo bậc lương" | `payslip.assemble/finalize/reopen/my/getForUser` · `salaryTier.list/create/update` · `compensation.assignTier` (payslip.assemble, salaryTier.manage) | `/hr/payroll` · `/hr/salary-tiers` · `/hr/my` | `apps/api/src/payroll/policy-model.test.ts` · `policy-rates.test.ts` · `penalty-posttax.test.ts` · `payslip-my.test.ts` · `apps/e2e/tests/kpi-lifecycle.spec.ts` | **ADR0044** · docs/20 §3 | HITL |
@@ -90,7 +90,7 @@ run 2026-07-12 sau HR remediation phase 6) · `ADR/QĐ` · `Oversight`.
 
 **3d. Vai trò active → có story?** sale (01,02,P3-03,05,06,09,P4-04,05), GĐKD (03,08,P3-04,05,06,07,08),
 GĐĐT (09,P2-01,04,P3-04,05,06,07,08), giao_vien (P2-02,06,07,08,P3-03,05,06,09,P4-04), phụ huynh
-(06,07), học viên (P2-05,P4-01), nhân viên (P3-01,02), hệ thống/agent (04,05,09,P2-03,07,P3-10,11).
+(06,07), học viên (P2-05,P4-01), nhân sự nội bộ theo vai thật — sale/giao_vien/GĐ (P3-01,02), hệ thống/agent (04,05,09,P2-03,07,P3-10,11).
 ✓ **Cả 4 vai trò active + IT có story.**
 
 ## 4. ✅ Ma trận ĐÓNG HOÀN TOÀN (P1–P4)

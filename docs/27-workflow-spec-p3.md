@@ -43,8 +43,16 @@ do → ghi + phiếu; offsite không ca → ghi, không phiếu; cooldown 10s; p
 
 ## WF-P3-02 — Phiếu chấm công offsite → GĐ theo track duyệt (ADR 0043, supersedes ADR 0039)
 
-**Meta:** P3 · P0 · **HITL** (GĐ theo track). **Actors:** nhân viên (tạo tự động qua WF-P3-01), GĐ Kinh
-doanh (phiếu của sale) hoặc GĐ Đào tạo (phiếu của giáo viên), super_admin (mọi phiếu).
+**Meta:** P3 · P0 · **HITL** (GĐ theo track). **Actors:**
+- **Chủ phiếu** — `sale` hoặc `giao_vien` (phiếu sinh tự động qua WF-P3-01; chủ phiếu gửi lại sau khi bị
+  từ chối qua `manualPunch.resubmit`).
+- **Người duyệt thông thường, theo track** — GĐ Kinh doanh (phiếu của `sale`) hoặc GĐ Đào tạo (phiếu của
+  `giao_vien`).
+- **`super_admin`** duyệt được **mọi phiếu**, và với **phiếu KHÔNG có track** (chủ phiếu là giám đốc hoặc
+  chính `super_admin`) nó là **đường duyệt DUY NHẤT** — `trackDirectorRole` trả `null` nên không GĐ nào qua
+  được (`checkin/router.ts` §`assertCanReviewTicket`; test khoá: `manual-punch-approval-track.test.ts` ca 10).
+  Phân biệt này là điều đáng nhớ: ở phiếu có track `super_admin` chỉ là lối dự phòng, ở phiếu không track nó
+  là lối duy nhất. Luật cấm tự duyệt vẫn áp ⇒ phiếu của chính `super_admin` cần **một `super_admin` khác**.
 **Trigger:** WF-P3-01 tạo phiếu tự động (không còn thủ tục tạo phiếu thủ công riêng — `manualPunch.create`
 đã bị xóa, ADR 0043 §10).
 

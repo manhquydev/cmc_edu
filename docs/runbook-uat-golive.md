@@ -5,7 +5,19 @@ Sinh ngày 2026-07-22 từ `acceptance-report/verification.json` (**không chép
 
 ## 1. UAT này tồn tại để chứng minh cái gì
 
-Nghiệp vụ chạy đúng **đã** có bằng chứng khác: unit/integration 977 test, e2e 20 spec, runtime capture 102 tổ hợp màn×vai (`0 denied`).
+Nghiệp vụ chạy đúng **đã** có bằng chứng khác: unit/integration 977 test, e2e 20 spec, runtime capture **102 tổ hợp màn×vai, `0 denied`** (chạy 2026-07-22).
+
+> ⚠️ **Đọc con số này cho đúng — 102 là KẾT QUẢ ĐO, không phải phạm vi hiện tại.**
+>
+> `102 / 0 denied` là số **thật sự chạy** trong `apps/e2e/capture-output/screen-role-capture.json`, sinh **2026-07-22**. Nó vẫn là bằng chứng hợp lệ cho những gì đã chạy hôm đó.
+>
+> Nhưng **phạm vi đã đổi sau lần chạy đó**. `apps/e2e/screen-role-matrix.json` (regenerate 2026-07-23) nay còn **98 cặp không-tham-số** (tổng kể cả màn cần `:param`: 118 → 114), vì hai lý do cộng dồn:
+> - 4 màn vừa được thêm nav entry (`/admin/courses`, `/finance/class-placement`, `engagement/gifts`, `engagement/rewards`) ⇒ **mất 7 cặp**, chủ yếu `giao_vien` và `sale` — họ không còn được coi là "ai cũng vào được" ở những màn đó.
+> - Artifact đã **cũ sẵn từ trước**: nó vẫn ghi `/finance/refund` có nav entry gate cho GĐKD, trong khi commit `24ef2e3` (2026-07-23) đã gỡ entry đó — sinh lại **thêm 3 cặp**.
+>
+> ⇒ 102 − 7 + 3 = **98 cặp trong phạm vi hiện tại, CHƯA cặp nào được capture chạy lại.** Đừng viết "98 tổ hợp, 0 denied" — 3 cặp `/finance/refund` mới thêm chưa từng được mở lần nào. Muốn có `0 denied` cho phạm vi mới thì phải chạy lại capture; e2e sau redeploy (§8d, §9) là chỗ làm việc đó.
+>
+> Không script hay CI nào sinh lại ma trận này (nợ N5) — con số chỉ đúng tới lần regenerate gần nhất: 2026-07-23.
 
 Phase 4 chứng minh thứ **không công cụ nào thay được**:
 
@@ -33,7 +45,7 @@ Rủi ro thật của phương án này **không** phải mất dữ liệu (ch�
 
 | # | Bước | Cách làm | Bằng chứng cần lưu |
 |---|---|---|---|
-| **0** | 🔴 **REDEPLOY** | Build + deploy lại chồng prod từ `main` hiện tại | Commit hash đang chạy = `git rev-parse HEAD` |
+| **0** | 🔴 **REDEPLOY** | Build + deploy lại chồng prod từ `main` hiện tại. **Do Phase 3 của `plans/260723-0913-don-tien-uat-truoc-phase-4` thực hiện, trước buổi UAT** — xem ghi chú dưới bảng | Commit hash đang chạy = `git rev-parse HEAD` |
 | 1 | Backup trước UAT | `scripts/backup-db.sh` | **S3 key** của dump (`db-backups/cmc-prod-<TS>.dump.enc`) — ghi lại chính xác |
 | 2 | Ghi trạng thái đầu | Đếm row §6 — **bằng role `postgres`** | Bảng số liệu "trước" |
 | 3 | Seed nhân sự UAT | `scripts/seed-super-admin.ts`, rồi super_admin tạo AppUser cho từng vai | Danh sách email × vai |
@@ -43,6 +55,8 @@ Rủi ro thật của phương án này **không** phải mất dữ liệu (ch�
 | 7 | **RESET** | Xem §3.1 — **KHÔNG dùng `restore-drill.sh`** | Log restore + hash dump đã dùng |
 | 8 | Xác nhận sạch | Đếm lại §6 **bằng role `postgres`** = số liệu bước 2 | Bảng số liệu "sau" |
 | 9 | Seed lại đăng nhập | Chạy lại `scripts/seed-super-admin.ts` | Đăng nhập thử 1 lần |
+
+> ⚠️ **Redeploy đúng MỘT lần (2026-07-23).** Bước 0 và việc rotate khoá Brevo ở §8d là **cùng một lần deploy**, do Phase 3 thực hiện từ `main` đã có đủ nav entry + boot-check. Deploy thêm lần nữa giữa Phase 3 và buổi UAT sẽ làm gate §9 *"commit đang chạy trên prod = `main` tại thời điểm UAT"* lệch, và buộc phải chạy lại e2e. Ghi commit hash Phase 3 báo về vào biên bản và **giữ nguyên**.
 
 ### 3.0 Vì sao bước 0 bắt buộc
 
@@ -92,7 +106,28 @@ SSO **không tự tạo tài khoản**: `sso-routes.ts:219-222` từ chối ngư
 
 ⚠️ **Đọc cột "Màn cần đi qua" cho đúng.** Cột này liệt kê mọi màn của *luồng*, không phải màn của *vai đó*. Ví dụ P1-06 gồm `/admin/parents` — đó là màn nhân viên duyệt, **phụ huynh không vào**. Người test chỉ đi phần thuộc vai mình; phần của vai khác do người khác đi (xem §4.2).
 
-⚠️ **Một số màn không có nav entry** (`/finance/new`, `/finance/class-placement`, `/admin/courses`, các màn engagement — `apps/admin/src/routes/admin.routes.tsx:66-68`, `:78-79`). Với các dòng này, luật §4.3 "vào bằng menu" **không áp dụng**; ghi rõ vào biên bản là đã vào bằng URL, và **bản thân việc không tìm được lối vào qua menu là một phát hiện UX cần ghi**.
+⚠️ **Lối vào bằng menu — cập nhật 2026-07-23.** Cảnh báo cũ ở đây ghi rằng `/finance/class-placement`, `/admin/courses` và các màn engagement không có nav entry, nên luật §4.3 "vào bằng menu" **không áp dụng** cho chúng. Điều đó **không còn đúng**:
+
+| Màn | Lối vào | §4.3 "vào bằng menu" |
+|---|---|---|
+| `/admin/courses` | Menu **Lớp & Học sinh › Khoá học** (GĐĐT) | **Áp dụng đầy đủ** |
+| `/finance/class-placement` | Menu **Tài chính & Điều hành › Xếp lớp** (GĐKD/GĐĐT/sale) | **Áp dụng đầy đủ** |
+| `/admin/engagement/gifts` | Menu **Gắn kết › Quà tặng** (2 GĐ) | **Áp dụng đầy đủ** |
+| `/admin/engagement/rewards` | Menu **Gắn kết › Đổi thưởng** (GĐKD/GĐĐT/sale) | **Áp dụng đầy đủ** |
+| `/finance/new` | Nút **Tạo phiếu** trên `/finance` (`receipt-list.tsx:133`) | Vào bằng nút đó, không gõ URL |
+| `/admin/engagement/leaderboard` | **Cố ý không có** — màn giữ chỗ (EmptyState) | Không nằm trong §5 |
+
+⇒ Với 4 màn đầu, **không tìm được lối vào qua menu giờ là FAIL**, không phải "phát hiện UX cần ghi".
+
+⚠️ **Nhưng KHÔNG ghi FAIL khi menu ẩn đúng theo quyền.** Ba ca dưới đây là **đúng thiết kế**, không phải lỗi:
+
+| Ca | Vì sao đúng |
+|---|---|
+| `sale` không thấy **Quà tặng** | Entry gate `gift.upsert`, chỉ 2 GĐ. Sale vào luồng gắn kết qua **Đổi thưởng** — bấm nhóm **Gắn kết** sẽ tới thẳng đó |
+| `sale` không mở được hàng đợi **Phiếu thu** `/finance` | ADR-B (`finance.receiptList` cố ý loại sale). Sale làm P1-02 qua **CRM**, không qua `/finance`. ⚠️ Bấm nhóm **Tài chính & Điều hành** sẽ đưa sale tới `/finance` — màn sale không dùng được; đây là **hạn chế đã biết**, ghi vào biên bản là *quan sát*, **không** phải FAIL |
+| `giao_vien` không thấy **Gắn kết**, **Khoá học**, **Xếp lớp** | Không giữ key tương ứng; các luồng đó không thuộc vai GV |
+
+Nguyên tắc: **FAIL khi vai CÓ quyền mà không tìm được lối vào.** Menu ẩn với vai không có quyền là mục đích của menu.
 
 ### Sale (`sale`) — 13 luồng
 
@@ -224,7 +259,14 @@ Trạng thái đo 2026-07-22 (trước UAT): Facility=1, mọi bảng còn lại
 | Luồng actor `he_thong` (4) | Side-effect nội bộ (provisioning, worker) — nghiệm bằng quan sát kết quả, không có người đóng vai |
 | Luồng actor `agent` (2) | Tác vụ tự động |
 
-## 8. 🔴 CHẶN — phải giải quyết TRƯỚC khi xếp lịch UAT
+## 8. ✅ ĐÃ GIẢI QUYẾT (2026-07-23) — giữ lại vì bài học, không vì còn chặn
+
+> **Trạng thái: đóng.** Commit `a754edf` dịch `nhan_vien` thành các vai thật trong `flow-manifest.ts`. Cả hai luồng **đã có dòng trong §5**, theo đúng vai giữ quyền tương ứng — P3-01 ở **4 vai** (`checkIn.punch`: GĐKD/GĐĐT/sale/GV), P4-03 ở **3 vai** (`parentMeeting.manage`: GĐKD/GĐĐT/sale, **không** có `giao_vien`). Nên tiêu chí "mọi dòng §5 PASS" ở §9 giờ thật sự phủ được chấm công và họp phụ huynh. Xem §8c cho kết quả audit sau khi sửa.
+>
+> Phần dưới giữ nguyên nội dung lúc còn chặn — **lỗi dịch một mã vai không tồn tại thành 4 luồng không phân công được cho ai** là bài học đáng giữ, và xoá nó đi thì lần sau không ai biết chuyện này từng xảy ra.
+
+<details>
+<summary>Nguyên văn khi còn 🔴 CHẶN (2026-07-22 → 2026-07-23)</summary>
 
 **2 luồng KHÔNG có actor hợp lệ nào: P3-01 (chấm công), P4-03 (họp phụ huynh).**
 
@@ -244,6 +286,8 @@ Cần PO chốt actor thật cho từng luồng trước khi UAT. Gợi ý suy t
 | **P3-02** | **khó nhất** — `manualPunch.resubmit` cố ý **không có** registry key, dùng owner-check | Chủ phiếu tự gửi lại; actor = chính người bị từ chối |
 | P4-01 | 3 vai có `rewards.manage` (GĐKD/GĐĐT/sale) | |
 | P4-03 | 3 vai có `parentMeeting.manage` (GĐKD/GĐĐT/sale) | |
+
+</details>
 
 ## 8b. ✅ P2-04 — ĐÃ CÓ PHÁN QUYẾT (2026-07-22)
 
@@ -269,12 +313,18 @@ Từ **26 → 0**. Nguyên nhân gốc: `nhan_vien` là **lỗi dịch** — TL2
 
 | Yêu cầu | Nguồn | Trạng thái |
 |---|---|---|
-| 🔴 **Brevo key phải rotate + verify TRƯỚC bước 5** | `phase-04:104-106` | Key trả **401 Key not found** (2026-07-10) và **chưa từng có email Brevo thật gửi thành công end-to-end**. Không rotate ⇒ bước 5 chắc chắn fail |
+| **Brevo: rotate khoá + thêm IP outbound của VPS vào authorised-IPs, verify TRƯỚC bước 5** | `phase-04:104-106`; PO chốt 2026-07-23 | **Đã có chủ và có kế hoạch** — thực hiện ở `plans/260723-0913-don-tien-uat-truoc-phase-4/phase-03-brevo-host-uat-email-that.md`, chạy **trước** buổi UAT chứ không phải trong buổi. Xem ô dưới về *hai* nguyên nhân 401 |
 | Chạy lại e2e **sau** redeploy | `phase-04:117` | Thêm vào §3 giữa bước 0 và 1 |
 | Verify PII-guard reject | `phase-04:22` | Cần 1 dòng test riêng, chưa có trong §5 |
 | AI draft bằng LLM thật | `phase-04:22` | Ẩn trong P2-07, phải nêu thành điều kiện |
 | NO-GO: xoá dump R2 + revoke token | `phase-04:65` | Bước 1 của runbook này **upload dump lên R2** ⇒ nếu NO-GO phải xoá đúng object đó |
 | Tracker #9 + changelog | `phase-04:121` | Cập nhật sau khi ký biên bản |
+
+> ⚠️ **Bổ sung 2026-07-23 — "rotate khoá" một mình không mở được Brevo.** Cùng mã `401` có **hai** nguyên nhân khác hẳn nhau, và bản đầu của mục này chỉ ghi một:
+> - `401 Key not found` ⇒ khoá sai, **hoặc** dòng `BREVO_API_KEY=` trong `.env.prod` thiếu newline cuối dòng nên nuốt luôn dòng kế tiếp (sự cố thật, giết OTP phụ huynh 12 ngày — nay có boot-check chặn, xem `apps/api/src/boot-checks.ts`).
+> - `401 unrecognised IP address` ⇒ **allowlist**. Brevo bật IP-allowlist và **IP outbound của VPS chưa bao giờ được thêm vào** — đây mới là nguyên nhân quan sát được trong nhật ký `260711`, và không lần rotate nào sửa được nó.
+>
+> ⇒ Phải làm **cả hai**: rotate (khoá cũ từng bị dán vào một phiên chat) **và** thêm IP VPS vào authorised-IPs. Verify bằng `GET /v3/account` trả `200` **chạy từ chính host UAT**, trước khi redeploy.
 
 **Không đặc tả lại backup/restore ở đây** — dùng `docs/runbook-deploy.md` §2.5 (backup), §1.7/§2.6 (restore), §6 (checklist bảo mật trước go-live). Runbook này chỉ nói phần *khác* với vận hành thường ngày. *(M3: trên VPS thật `postgres` không map port ra host — mọi lệnh psql/pg_dump chạy qua `docker exec`, xem `runbook-deploy.md:49-56`.)*
 
@@ -287,15 +337,22 @@ Từ **26 → 0**. Nguyên nhân gốc: `nhan_vien` là **lỗi dịch** — TL2
 - [ ] PII-guard reject đã verify; AI draft chạy bằng LLM thật
 - [ ] Staff đăng nhập **Entra thật**, nav hiện đúng theo vai
 - [ ] **Bước 0 REDEPLOY đã chạy**; commit đang chạy trên prod = `main` tại thời điểm UAT (ghi hash vào biên bản)
-- [ ] §8 đã giải quyết: P3-01 và P4-03 có actor thật, **đã test** hoặc được PO loại khỏi phạm vi **có ghi lý do**
-- [ ] §8c: **P4-04/`giao_vien`** đã có phán quyết PO (cùng dạng P2-04) — không để treo
-- [ ] §8c: 21 `unreachable-procedure` đã được phân loại (sửa manifest / sửa quyền / chấp nhận có lý do)
+- [ ] §8c: **26 procedure ngoài tầm registry vẫn CHƯA đánh giá** — chấp nhận cho UAT **có chữ ký PO**, theo dõi ở nợ N1
+      *(21 `unreachable-procedure` đã phân loại xong 2026-07-23, không có lỗi quyền nào. Ô tick này giữ lại đúng phần còn mở: `actorAudit.findings == 0` **không** phải bằng chứng ngược lại — theo thiết kế audit không nhìn được 26 procedure owner-check/`lmsProcedure`/public đó.)*
 - [ ] Bước 9 xong: **đăng nhập được** sau reset (nếu không, DB "sạch" là DB chết)
 - [ ] Bước 7–8 xong: đếm row sau = trước, **đếm bằng role `postgres`** ⇒ DB sạch cho go-live
 - [ ] Biên bản ký; nếu NO-GO: teardown + huỷ secret theo phase-04
 
+### Đã đóng trước UAT (không còn là gate)
+
+| Gate cũ | Đóng ngày | Bằng chứng |
+|---|---|---|
+| §8 đã giải quyết: P3-01 và P4-03 có actor thật | 2026-07-23 | Commit `a754edf` — manifest dịch `nhan_vien` thành vai thật; §5 đã có dòng cho P3-01 (4 vai) và P4-03 (3 vai, không có `giao_vien`) |
+| §8c: **P4-04/`giao_vien`** đã có phán quyết PO | 2026-07-23 | PO chốt: bỏ `giao_vien` khỏi P4-04, **không** nới quyền (cùng dạng P2-04 ở §8b) |
+
 ## Câu hỏi chưa giải
 
-1. Actor thật của 4 luồng `nhan_vien` (§8) — **chặn lịch UAT**.
+1. ~~Actor thật của 4 luồng `nhan_vien` (§8)~~ — **đã đóng 2026-07-23**, xem §8 và bảng "Đã đóng trước UAT".
 2. Ai đóng vai gì: cần ≥1 người cho mỗi vai trong §5, gồm cả phụ huynh và học viên thật.
-3. Có cần UAT `super_admin` (5 luồng) bằng người, hay coi là quản trị nội bộ và nghiệm bằng ảnh chụp?
+3. Có cần UAT `super_admin` (5 luồng) bằng người, hay coi là quản trị nội bộ và nghiệm bằng ảnh chụp? Nếu có, cân nhắc thêm **một dòng riêng cho ca phiếu chấm công của giám đốc** — đó là lớp phiếu mà `super_admin` là **đường duyệt duy nhất** (TL27 §P3-02), và không dòng §5 nào hiện phủ nó.
+4. `/finance/class-placement` thuộc luồng nào trong TL25? Màn nay đã có nav entry và có `PermissionGate`, nhưng **không luồng nào trong sổ nghiệm thu khai nó** — nợ N1 (hệ đo chỉ bắt orphan *procedure*, không bắt orphan *route*).

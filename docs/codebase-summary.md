@@ -7,7 +7,7 @@
 > **Updated 2026-07-17 (acceptance-review audit):** test counts above predate 3 later merge waves (43 happy-path gaps, review-gap fixes, super-admin completion). Current as of 2026-07-17: apps/api 99 files/889 tests, apps/admin 33 files/258 tests, apps/e2e 11 spec files. See `docs/project-changelog.md` `[2026-07-17]`.
 
 > **Cập nhật 2026-07-23 — đợt gỡ lỗi phân quyền + siết sổ nghiệm thu.**
-> Đo tại `main` (`35d4df0`): `pnpm typecheck` 27/27 · `pnpm lint` sạch · `pnpm test` 22/22 task (api **977**, admin **352**) · `pnpm --filter @cmc/e2e test` 20 pass, **0 facility rò** · runtime capture 102 tổ hợp màn×vai **0 denied**.
+> Đo tại `main` (`35d4df0`): `pnpm typecheck` 27/27 · `pnpm lint` sạch · `pnpm test` 22/22 task (api **977**, admin **352**) · `pnpm --filter @cmc/e2e test` 20 pass, **0 facility rò** · runtime capture 102 tổ hợp màn×vai **0 denied** (chạy 2026-07-22; phạm vi ma trận sau khi thêm nav entry 2026-07-23 là **98** cặp và **chưa** capture lại — xem `docs/runbook-uat-golive.md` §1).
 >
 > **Ba luồng chưa từng chạy được từ 2026-07-06 đã gỡ.** Quyền đọc lớp bị gộp vào quyền tạo lớp ⇒ không vai nghiệp vụ nào thu nổi học phí, giáo viên thấy menu nhưng dropdown rỗng, hai giám đốc mở màn chốt lương mà danh sách nhân viên trống. Tách `class.read` · `classRoster.read` (hẹp hơn — trả họ tên trẻ em) · `staff.pickList` (key riêng, không mượn quyền tiền). **Không nới quyền ghi nào**; `class.create` vẫn chỉ GĐĐT, ADR-B nguyên vẹn.
 >

@@ -5,7 +5,7 @@ status: in-progress
 priority: P1
 branch: "main"
 tags: [go-live, sso, entra, env-prod, uat, docker]
-blockedBy: [] # nac2 done; lms-gap-closure done (OTP email thật KB1 bước 7); astryx-ui-migration DONE (PR #28 merged main 2026-07-10, cả 6 AC đạt, CI xanh) → Phase 4 UAT giờ chạy được trên UI Astryx mới
+blockedBy: [260723-0913-don-tien-uat-truoc-phase-4] # nac2 done; lms-gap-closure done (OTP email thật KB1 bước 7); astryx-ui-migration DONE (PR #28 merged main 2026-07-10, cả 6 AC đạt, CI xanh) → Phase 4 UAT giờ chạy được trên UI Astryx mới. Thêm 2026-07-23: Phase 4 chờ đợt dọn tiền-UAT (nav cho màn URL-only, chặn BREVO_API_KEY dính dòng + gửi email thật, đồng bộ runbook §5/§8/§9 đang mâu thuẫn với chính nó)
 blocks: []
 supersedes-partial: "project:260707-2128-staff-sso-golive-roadmap (phase 3 Env-Prod + phase 4 UAT chưa thực chạy — execution chuyển sang plan này)"
 created: "2026-07-07T16:32:31.745Z"

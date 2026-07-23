@@ -143,7 +143,9 @@ Response (DTO serialization)
 requirePermission('crm', 'opportunityCreate')  // checks registry
 ```
 
-**Roles (9 staff + 2 LMS-only):**
+**Roles (9 khai báo, nhưng chỉ 5 hoạt động — ADR-D):**
+
+> ⚠️ **Đính chính 2026-07-23.** Danh sách dưới từng mô tả cả 9 vai như đang dùng được. **Sai.** ADR-D (2026-07-08) chốt chỉ **5 vai hoạt động**: `super_admin`, `giam_doc_kinh_doanh`, `giam_doc_dao_tao`, `sale`, `giao_vien`. Bốn vai còn lại (`ke_toan`, `cskh`, `ctv_mkt`, `hr`) là **giá trị enum trơ** — không quyền nào, không gán cho ai; `packages/auth/src/index.test.ts` có test khẳng định chúng bị từ chối ở **mọi** key. Mô tả năng lực của 4 vai đó bên dưới là **ý định cũ**, không phải hành vi hiện tại.
 - `super_admin` — bypass most gates (bootstrap, hardening context)
 - `giam_doc_dao_tao` — training director; **only** staff role satisfying ADR-B second-eye gate (along with `super_admin`) — `giam_doc_kinh_doanh` alone does NOT satisfy ≥20M threshold (`finance/router.ts:41`)
 - `giam_doc_kinh_doanh` — business director; money gate approver (under threshold); does NOT satisfy `SECOND_EYE_ROLES`
@@ -332,11 +334,19 @@ The core of P1 — transforms approved Receipt → active Enrollment.
 
 **Registry Entry Example:**
 ```typescript
-{
-  action: 'crm.opportunityCreate',
-  roles: ['sale', 'giam_doc_kinh_doanh', 'super_admin']
-}
+// PERMISSIONS: Record<'module.action', readonly ActiveRole[]>
+'crm.opportunityCreate': ['giam_doc_kinh_doanh', 'sale'],
 ```
+
+> ⚠️ **Đính chính 2026-07-23.** Ví dụ cũ ghi sai cả hình dạng lẫn nội dung: registry là **map key → mảng vai**, không phải mảng object; và `super_admin` **cố ý KHÔNG có mặt trong bất kỳ dòng nào** — nó bypass toàn bộ registry trong `can()` (`packages/auth/src/index.ts`). Vì vậy mọi phép đo phân quyền dùng `super_admin` đều **vô nghĩa**: nó luôn xanh.
+
+**Đọc tách khỏi ghi (2026-07-22).** Ba key thêm trong đợt gỡ lỗi chặn luồng, theo nguyên tắc quyền đọc không kéo theo quyền ghi:
+
+| Key | Vai | Vì sao tách |
+|---|---|---|
+| `class.read` | GĐKD, GĐĐT, sale, GV | Trước đó đọc danh sách lớp gate bằng `class.create` (chỉ GĐĐT) ⇒ **không vai nghiệp vụ nào thu nổi học phí** vì không chọn được lớp |
+| `classRoster.read` | GV, GĐĐT | `classBatch.listStudents` trả **họ tên trẻ em** — hẹp hơn `class.read` có chủ đích, chặn ở tầng API chứ không dựa vào gate trình duyệt |
+| `staff.pickList` | GĐKD, GĐĐT | Dropdown nhân sự (chốt lương, bậc lương, gán GV). **Key riêng** để quản trị lớp không bao giờ phụ thuộc quyền lắp bảng lương |
 
 **Single Source:** `packages/auth/src/index.ts` (documented in docs/TL14)
 

@@ -6,6 +6,17 @@
 
 > **Updated 2026-07-17 (acceptance-review audit):** test counts above predate 3 later merge waves (43 happy-path gaps, review-gap fixes, super-admin completion). Current as of 2026-07-17: apps/api 99 files/889 tests, apps/admin 33 files/258 tests, apps/e2e 11 spec files. See `docs/project-changelog.md` `[2026-07-17]`.
 
+> **Cập nhật 2026-07-23 — đợt gỡ lỗi phân quyền + siết sổ nghiệm thu.**
+> Đo tại `main` (`35d4df0`): `pnpm typecheck` 27/27 · `pnpm lint` sạch · `pnpm test` 22/22 task (api **977**, admin **352**) · `pnpm --filter @cmc/e2e test` 20 pass, **0 facility rò** · runtime capture 102 tổ hợp màn×vai **0 denied**.
+>
+> **Ba luồng chưa từng chạy được từ 2026-07-06 đã gỡ.** Quyền đọc lớp bị gộp vào quyền tạo lớp ⇒ không vai nghiệp vụ nào thu nổi học phí, giáo viên thấy menu nhưng dropdown rỗng, hai giám đốc mở màn chốt lương mà danh sách nhân viên trống. Tách `class.read` · `classRoster.read` (hẹp hơn — trả họ tên trẻ em) · `staff.pickList` (key riêng, không mượn quyền tiền). **Không nới quyền ghi nào**; `class.create` vẫn chỉ GĐĐT, ADR-B nguyên vẹn.
+>
+> **Sổ nghiệm thu: 38/38 built → 37 built / 1 partial.** `acceptance:report` giờ nhận diện màn giữ chỗ (`EmptyState` không gọi procedure, và `ComingSoon`) — P1-08 rời `built` vì `/finance/refund` chưa xây. Thêm `actor-audit`: đối chiếu actor khai trong manifest với registry quyền, hiện **0 phát hiện** (từ 26). Gate `acceptance:report` đã vào CI ở mức **cảnh báo** (`continue-on-error`), chưa chặn merge.
+>
+> **Giới hạn phải đọc là "chưa phủ", không phải "sạch":** 26 procedure ngoài tầm registry (owner-check, `lmsProcedure`, public) và 2 cặp (luồng, vai) audit không kết luận được. Runtime capture cũng không thấy được gate `canDo()` phía client — màn không gọi gì thì không có request để bắt.
+>
+> **UAT người thật (Phase 4 plan `260707-2308`) VẪN CHƯA CHẠY** — xem `docs/runbook-uat-golive.md`.
+
 ---
 
 ## Monorepo Structure

@@ -88,6 +88,7 @@ Plan `erp-rebuild-f0-f4` từng nhắc `quan_ly` + `head_teacher`, nhưng enum R
 | `salaryTier.manage` | ✓ | ✓ | ✓ | | |
 | `compensationPolicy.manage` | ✓ | | | | |
 | `payslip.assemble` / `finalize` / `reopen` | ✓ | ✓ | ✓ | | |
+| `staff.pickList` (danh sách nhân sự cho dropdown: chốt lương, bậc lương, gán GV) | ✓ | ✓ | ✓ | | |
 | `gift.list` / `rewards.manage` | ✓ | ✓ | ✓ | ✓ | |
 
 > Bảng là *đại diện* (5 active roles, ADR-D amendment); nguồn đầy đủ = registry `@cmc/auth`.

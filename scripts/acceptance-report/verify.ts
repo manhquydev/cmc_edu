@@ -204,7 +204,8 @@ function main(): void {
     `actor-audit — ${actorAudit.findings.length} phát hiện ` +
       `(${byKind('invalid-actor').length} vai không tồn tại, ${byKind('idle-actor').length} actor không làm được gì, ` +
       `${byKind('unreachable-procedure').length} procedure không actor nào gọi được); ` +
-      `${actorAudit.ungatedProcedureCount} procedure ngoài tầm registry (không kết luận được)`,
+      `${actorAudit.ungatedProcedureCount} procedure ngoài tầm registry, ` +
+      `${actorAudit.inconclusiveActorCount} (luồng, vai) không kết luận được`,
   );
   for (const f of [...byKind('invalid-actor'), ...byKind('idle-actor')]) {
     console.warn(`  ${f.kind.toUpperCase()} ${f.flowId} · ${f.subject}`);

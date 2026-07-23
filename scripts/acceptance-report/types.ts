@@ -43,6 +43,7 @@ export interface FlowVerification {
 export interface ActorAuditSummary {
   findings: { flowId: string; kind: string; subject: string; detail: string }[];
   ungatedProcedureCount: number;
+  inconclusiveActorCount: number;
 }
 
 export interface OrphanResult {

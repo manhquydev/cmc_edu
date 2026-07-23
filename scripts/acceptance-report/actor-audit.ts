@@ -36,6 +36,10 @@ export interface ActorAuditResult {
   /** Procedures the registry does not govern — reported so their absence from
    *  the findings is visibly a limitation, not a clean bill of health. */
   ungatedProcedureCount: number;
+  /** (flow, actor) pairs where the actor can call no gated procedure, but the
+   *  flow also contains ungated ones the actor may well be using. Counted
+   *  rather than reported as findings — see the note in the idle-actor check. */
+  inconclusiveActorCount: number;
 }
 
 export function auditFlowActors(
@@ -44,14 +48,13 @@ export function auditFlowActors(
 ): ActorAuditResult {
   const findings: ActorFinding[] = [];
   const ungated = new Set<string>();
+  let inconclusiveActorCount = 0;
 
   for (const flow of flows) {
-    const gated = flow.expected.trpc
-      .map((procedure) => ({ procedure, key: permissionKeys.get(procedure) }))
-      .filter((p): p is { procedure: string; key: string } => {
-        if (!p.key) ungated.add(p.procedure);
-        return p.key !== undefined;
-      });
+    const classified = flow.expected.trpc.map((procedure) => ({ procedure, key: permissionKeys.get(procedure) }));
+    const gated = classified.filter((p): p is { procedure: string; key: string } => p.key !== undefined);
+    const ungatedHere = classified.filter((p) => p.key === undefined);
+    for (const p of ungatedHere) ungated.add(p.procedure);
 
     const staffActors: Role[] = [];
 
@@ -78,6 +81,15 @@ export function auditFlowActors(
 
       const usable = gated.filter((p) => callable(role, p.key));
       if (usable.length === 0) {
+        // The registry says this role can call nothing here — but if the flow
+        // also has procedures the registry does not govern (owner checks: "you
+        // may act on your own record"), the role may participate entirely
+        // through those. Reporting it as idle would be a confident claim about
+        // the one area this check cannot see. Counted, not asserted.
+        if (ungatedHere.length > 0) {
+          inconclusiveActorCount += 1;
+          continue;
+        }
         findings.push({
           flowId: flow.id,
           kind: 'idle-actor',
@@ -104,7 +116,7 @@ export function auditFlowActors(
     }
   }
 
-  return { findings, ungatedProcedureCount: ungated.size };
+  return { findings, ungatedProcedureCount: ungated.size, inconclusiveActorCount };
 }
 
 function callable(role: Role, permissionKey: string): boolean {

@@ -79,7 +79,10 @@ export const flows: FlowEntry[] = [
     id: 'P1-05',
     displayName: 'Kích hoạt ghi danh khi đóng phí',
     cluster: 'P1',
-    actorRoles: ['he_thong'],
+    // Kích hoạt ghi danh là side-effect của duyệt phiếu, nhưng luồng còn gồm các
+    // thao tác người làm trên màn quản lý học viên (duyệt phiếu, chặn LMS, đặt lại
+    // mật khẩu). Khai mỗi `he_thong` khiến chúng thành việc không ai làm được.
+    actorRoles: ['he_thong', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'],
     expected: {
       // TL25 đã sync 2026-07-18: /students/:id/enrollments → /admin/students/:id.
       // student.get/lookup/getManyByIds/resetPassword + enrollment.blockLms = màn quản lý
@@ -101,7 +104,10 @@ export const flows: FlowEntry[] = [
     id: 'P1-06',
     displayName: 'Liên kết phụ huynh–con',
     cluster: 'P1',
-    actorRoles: ['phu_huynh'],
+    // Phụ huynh gửi yêu cầu liên kết, nhưng người DUYỆT là nhân sự trên màn
+    // /admin/parents — phụ huynh không tự duyệt yêu cầu của chính mình.
+    // `guardian.approveLink` cố ý mở cho cả 4 vai.
+    actorRoles: ['phu_huynh', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'],
     expected: {
       // TL25 đã sync 2026-07-18: xoá claim LMS /child/link-request (route không tồn tại);
       // hàng đợi xác nhận thật ở /admin/parents. listPendingLinks = hàng đợi duyệt (E1).
@@ -150,7 +156,10 @@ export const flows: FlowEntry[] = [
     expected: {
       // TL25 đã sync 2026-07-18: /finance/reconciliation → /ops/recon.
       // reconciliation.* = màn cờ đối soát (E1).
-      trpc: ['audit.list', 'reconciliation.listFlags', 'reconciliation.action', 'reconciliation.dismiss'],
+      // `audit.list` đã bỏ khỏi luồng này (2026-07-23): đo thực tế nó CHỈ được gọi ở
+      // apps/admin/src/pages/admin/audit-log.tsx — tức màn /admin/audit-log thuộc
+      // ADM-04. Màn /ops/recon của luồng này chỉ gọi reconciliation.*.
+      trpc: ['reconciliation.listFlags', 'reconciliation.action', 'reconciliation.dismiss'],
       uiRoutes: ['/ops/recon'],
       models: ['ReconciliationFlag'],
     },
@@ -298,7 +307,9 @@ export const flows: FlowEntry[] = [
     id: 'P3-01',
     displayName: 'Chấm công cặp vào/ra mỗi ngày',
     cluster: 'P3',
-    actorRoles: ['nhan_vien'],
+    // "nhân viên" trong TL25 nghĩa là nhân sự nói chung, không phải một vai —
+    // `checkIn.punch` mở cho cả 4 vai đang hoạt động, ai cũng phải chấm công.
+    actorRoles: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'],
     expected: {
       trpc: ['checkInOut.punch'],
       uiRoutes: ['/hr/checkin'],
@@ -309,7 +320,10 @@ export const flows: FlowEntry[] = [
     id: 'P3-02',
     displayName: 'Duyệt phiếu chấm công offsite',
     cluster: 'P3',
-    actorRoles: ['nhan_vien', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
+    // Gửi lại phiếu bị từ chối là owner-check (checkin/router.ts), không phải
+    // một vai cố định: chủ phiếu tự gửi lại. Phiếu do GĐ sở hữu chỉ super_admin
+    // duyệt được, nên tập chạy được thực tế là sale/giáo viên; GĐ ở đây là bên duyệt.
+    actorRoles: ['sale', 'giao_vien', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
     expected: {
       trpc: ['manualPunch.approve', 'manualPunch.reject', 'manualPunch.resubmit', 'manualPunch.list'],
       uiRoutes: ['/hr/checkin'],
@@ -437,7 +451,8 @@ export const flows: FlowEntry[] = [
     id: 'P4-01',
     displayName: 'Đổi quà bằng sao',
     cluster: 'P4',
-    actorRoles: ['hoc_vien', 'nhan_vien'],
+    // Học viên đổi thưởng; nhân sự duyệt/giao — `rewards.manage`.
+    actorRoles: ['hoc_vien', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'],
     expected: {
       // listForStudent = HV xem quà đổi được (E1).
       trpc: ['rewards.redeem', 'rewards.approve', 'rewards.deliver', 'rewards.reject', 'rewards.list', 'rewards.listForStudent'],
@@ -461,11 +476,16 @@ export const flows: FlowEntry[] = [
     id: 'P4-03',
     displayName: 'Lên lịch & nhắc họp PH',
     cluster: 'P4',
-    actorRoles: ['nhan_vien'],
+    // Đây là họp CHĂM SÓC SAU BÁN theo từng học sinh (màn /crm/post-sale-meeting),
+    // gate `parentMeeting.manage`. Lịch họp phụ huynh theo LỚP, có nhắc, cho giáo
+    // viên xem để chuẩn bị là tính năng KHÁC và chưa xây: ParentMeeting không có
+    // liên kết lớp, và cột nhắc đã bị bỏ. Backlog sau go-live (PO chốt 2026-07-23).
+    actorRoles: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'],
     expected: {
       // TL25 đã sync 2026-07-18: /parent-meetings KHÔNG tồn tại → /crm/post-sale-meeting.
-      // GAP: page /crm/post-sale-meeting hiện là EmptyState CHƯA gọi API (crm.routes.tsx) —
-      // procedure+model có thật (structural built) nhưng UI chưa dùng được. Xem documented gaps.
+      // ~~GAP: page là EmptyState chưa gọi API~~ — SAI TỪ 2026-07-23: màn đã được
+      // wire (commit 5408ad2), post-sale-meeting.tsx gọi parentMeeting.list ở :65 và
+      // dùng đủ schedule/complete/cancel. Chú thích cũ mô tả trạng thái đã hết hạn.
       trpc: ['parentMeeting.list', 'parentMeeting.schedule', 'parentMeeting.complete', 'parentMeeting.cancel'],
       uiRoutes: ['/crm/post-sale-meeting'],
       models: ['ParentMeeting'],
@@ -475,7 +495,10 @@ export const flows: FlowEntry[] = [
     id: 'P4-04',
     displayName: 'Đặt lịch test đầu vào/định kỳ',
     cluster: 'P4',
-    actorRoles: ['sale', 'giao_vien'],
+    // PO chốt 2026-07-23: giáo viên chỉ làm việc đã được xếp sẵn, không đặt lịch
+    // kiểm tra đầu vào. Mọi procedure của luồng gate `testAppointment.manage`,
+    // vốn không cấp cho giáo viên — manifest khai sai actor, không phải thiếu quyền.
+    actorRoles: ['sale'],
     expected: {
       trpc: [
         'testAppointment.forOpportunity',

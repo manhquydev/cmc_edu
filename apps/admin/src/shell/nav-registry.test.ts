@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NAV_MODULES, visibleModulesFor, visibleNavPathsFor } from './nav-registry.js';
+import { NAV_MODULES, isNavChildVisible, visibleModulesFor, visibleNavPathsFor } from './nav-registry.js';
 import { ACTIVE_ROLES, can } from '@cmc/auth';
 import type { Role } from '@cmc/auth';
 
@@ -11,25 +11,37 @@ function moduleIds(roles: readonly Role[], canDo = allTrue) {
 }
 
 describe('visibleModulesFor', () => {
-  it('returns exactly 5 groups for sale (hr, no Quản trị)', () => {
+  // The count is asserted, not just named: without `toHaveLength` these two
+  // stayed green while a new module row appeared, and the test name became a
+  // false statement nobody was told about.
+  it('returns exactly 6 groups for sale (no Quản trị)', () => {
     const ids = moduleIds(['sale']);
+    expect(ids).toHaveLength(6);
     expect(ids).toContain('cockpit');
     expect(ids).toContain('finance-ops');
+    expect(ids).toContain('engagement');
     expect(ids).toContain('hr');
     expect(ids).not.toContain('admin');
   });
 
-  it('returns exactly 5 groups for giao_vien', () => {
+  it('returns exactly 6 groups for giao_vien (no Quản trị)', () => {
     const ids = moduleIds(['giao_vien']);
+    expect(ids).toHaveLength(6);
     expect(ids).toContain('cockpit');
     expect(ids).toContain('teaching');
+    expect(ids).toContain('engagement');
     expect(ids).toContain('hr');
     expect(ids).not.toContain('admin');
   });
 
-  it('returns 6th Quản trị group ONLY for super_admin', () => {
+  it('returns the 7th Quản trị group ONLY for super_admin', () => {
     const ids = moduleIds(['super_admin']);
+    expect(ids).toHaveLength(7);
     expect(ids).toContain('admin');
+    // The "ONLY" half was never asserted, so the name outran the test.
+    for (const role of ['sale', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'giao_vien'] as Role[]) {
+      expect(moduleIds([role]), `${role} must not see Quản trị`).not.toContain('admin');
+    }
   });
 
   // HR remediation phase 5 (R3-10, red-team #22): 5-role nav matrix —
@@ -161,10 +173,86 @@ describe('nav entries a role really sees (module gate + child gate, real permiss
 
   // The acceptance ledger stopped counting placeholder screens as built; the
   // menu has to agree, or a director clicks "Hoàn tiền" on day one and lands on
-  // "Tính năng chưa áp dụng". Restore the entry when the screen is built.
-  it('points no menu entry at the unbuilt refund screen', () => {
+  // "Tính năng chưa áp dụng". Restore an entry when its screen is built, at the
+  // same time the corresponding flow returns to `built`.
+  it('points no menu entry at a placeholder screen', () => {
+    const placeholders = ['/finance/refund', '/admin/engagement/leaderboard'];
     const everyPath = NAV_MODULES.flatMap((mod) => [mod.path, ...(mod.children ?? []).map((c) => c.path)]);
-    expect(everyPath).not.toContain('/finance/refund');
+    for (const path of placeholders) expect(everyPath).not.toContain(path);
+  });
+
+  it('shows the reward queue to the three roles that can manage rewards', () => {
+    for (const role of ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'] as Role[]) {
+      expect(pathsFor(role), `${role} should see /admin/engagement/rewards`)
+        .toContain('/admin/engagement/rewards');
+    }
+  });
+
+  // The gift catalogue is a configuration screen whose only mutation is
+  // `gift.upsert`, so the entry follows that key rather than `gift.list` — a
+  // sale opening it would meet a 403 on every action. Sale keeps its way into
+  // the loyalty flow through Đổi thưởng, which it can actually operate.
+  it('shows the gift catalogue only to the two directors who can edit it', () => {
+    for (const role of ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] as Role[]) {
+      expect(pathsFor(role), `${role} should see /admin/engagement/gifts`)
+        .toContain('/admin/engagement/gifts');
+    }
+    expect(pathsFor('sale')).not.toContain('/admin/engagement/gifts');
+  });
+
+  it('hides the engagement screens from giao_vien, who holds neither key', () => {
+    expect(pathsFor('giao_vien')).not.toContain('/admin/engagement/rewards');
+    expect(pathsFor('giao_vien')).not.toContain('/admin/engagement/gifts');
+  });
+
+  it('shows the course catalogue only to giam_doc_dao_tao', () => {
+    expect(pathsFor('giam_doc_dao_tao')).toContain('/admin/courses');
+    for (const role of ['giam_doc_kinh_doanh', 'sale', 'giao_vien'] as Role[]) {
+      expect(pathsFor(role), `${role} must not see /admin/courses`).not.toContain('/admin/courses');
+    }
+  });
+
+  // The module row is a button that navigates to `mod.path` (`side-nav.tsx`),
+  // and children only appear once the module is active — so every role that
+  // sees a group is sent to that group's landing screen before it can pick
+  // anything. A landing screen the role cannot operate is the 403 dead end the
+  // gift entry was narrowed to avoid; gating the child but not the row would
+  // have left the dead end one click away.
+  // Known, pre-dating this test: sale sees Tài chính & Điều hành (via CRM,
+  // Sau bán, Xếp lớp) but the group lands on `/finance`, whose receipt queue
+  // ADR-B withholds from sale — so sale gets a shell whose queries answer 403.
+  // Changing the group's landing screen is a product call, not a test fix, so
+  // it is recorded here rather than waved through: the assertion below fails if
+  // this is ever repaired, which is the prompt to delete the entry.
+  const KNOWN_UNUSABLE_LANDINGS = [{ role: 'sale', module: 'finance-ops' }];
+
+  it('lands every role on a module screen it can actually operate', () => {
+    const unusable: string[] = [];
+
+    for (const role of ACTIVE_ROLES) {
+      const canDo = (mod: string, act: string) => can({ userId: 'u', roles: [role] }, mod, act);
+      for (const mod of visibleModulesFor([role], canDo)) {
+        // The landing screen's own menu entry carries the key that screen needs.
+        const landing = (mod.children ?? []).find((child) => child.path === mod.path);
+        if (landing && !isNavChildVisible(landing, canDo)) {
+          unusable.push(`${role} → ${mod.id} (${mod.path})`);
+        }
+      }
+    }
+
+    const expected = KNOWN_UNUSABLE_LANDINGS.map((k) => {
+      const mod = NAV_MODULES.find((m) => m.id === k.module);
+      return `${k.role} → ${k.module} (${mod?.path})`;
+    });
+    expect(unusable.sort()).toEqual(expected.sort());
+  });
+
+  it('shows class placement to the roles that can enrol, not to teachers', () => {
+    for (const role of ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'] as Role[]) {
+      expect(pathsFor(role), `${role} should see /finance/class-placement`)
+        .toContain('/finance/class-placement');
+    }
+    expect(pathsFor('giao_vien')).not.toContain('/finance/class-placement');
   });
 
   it('leaves every active role a usable sidebar', () => {

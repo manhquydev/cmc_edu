@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-22T13:21:33.782Z",
+  "generatedAt": "2026-07-23T04:53:22.104Z",
   "routeCount": 57,
   "adminRouteCount": 43,
   "lmsRouteCountExcluded": 14,
@@ -9,7 +9,7 @@
     "/crm/opportunities/:id",
     "/finance/:id"
   ],
-  "pairCount": 118,
+  "pairCount": 114,
   "pairs": [
     {
       "path": "/admin",
@@ -67,50 +67,20 @@
     },
     {
       "path": "/admin/courses",
-      "role": "giam_doc_kinh_doanh",
-      "hasNavEntry": false,
-      "needsParam": false
-    },
-    {
-      "path": "/admin/courses",
       "role": "giam_doc_dao_tao",
-      "hasNavEntry": false,
-      "needsParam": false
-    },
-    {
-      "path": "/admin/courses",
-      "role": "sale",
-      "hasNavEntry": false,
-      "needsParam": false
-    },
-    {
-      "path": "/admin/courses",
-      "role": "giao_vien",
-      "hasNavEntry": false,
+      "hasNavEntry": true,
       "needsParam": false
     },
     {
       "path": "/admin/engagement/gifts",
       "role": "giam_doc_kinh_doanh",
-      "hasNavEntry": false,
+      "hasNavEntry": true,
       "needsParam": false
     },
     {
       "path": "/admin/engagement/gifts",
       "role": "giam_doc_dao_tao",
-      "hasNavEntry": false,
-      "needsParam": false
-    },
-    {
-      "path": "/admin/engagement/gifts",
-      "role": "sale",
-      "hasNavEntry": false,
-      "needsParam": false
-    },
-    {
-      "path": "/admin/engagement/gifts",
-      "role": "giao_vien",
-      "hasNavEntry": false,
+      "hasNavEntry": true,
       "needsParam": false
     },
     {
@@ -140,25 +110,19 @@
     {
       "path": "/admin/engagement/rewards",
       "role": "giam_doc_kinh_doanh",
-      "hasNavEntry": false,
+      "hasNavEntry": true,
       "needsParam": false
     },
     {
       "path": "/admin/engagement/rewards",
       "role": "giam_doc_dao_tao",
-      "hasNavEntry": false,
+      "hasNavEntry": true,
       "needsParam": false
     },
     {
       "path": "/admin/engagement/rewards",
       "role": "sale",
-      "hasNavEntry": false,
-      "needsParam": false
-    },
-    {
-      "path": "/admin/engagement/rewards",
-      "role": "giao_vien",
-      "hasNavEntry": false,
+      "hasNavEntry": true,
       "needsParam": false
     },
     {
@@ -392,25 +356,19 @@
     {
       "path": "/finance/class-placement",
       "role": "giam_doc_kinh_doanh",
-      "hasNavEntry": false,
+      "hasNavEntry": true,
       "needsParam": false
     },
     {
       "path": "/finance/class-placement",
       "role": "giam_doc_dao_tao",
-      "hasNavEntry": false,
+      "hasNavEntry": true,
       "needsParam": false
     },
     {
       "path": "/finance/class-placement",
       "role": "sale",
-      "hasNavEntry": false,
-      "needsParam": false
-    },
-    {
-      "path": "/finance/class-placement",
-      "role": "giao_vien",
-      "hasNavEntry": false,
+      "hasNavEntry": true,
       "needsParam": false
     },
     {
@@ -440,7 +398,25 @@
     {
       "path": "/finance/refund",
       "role": "giam_doc_kinh_doanh",
-      "hasNavEntry": true,
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/finance/refund",
+      "role": "giam_doc_dao_tao",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/finance/refund",
+      "role": "sale",
+      "hasNavEntry": false,
+      "needsParam": false
+    },
+    {
+      "path": "/finance/refund",
+      "role": "giao_vien",
+      "hasNavEntry": false,
       "needsParam": false
     },
     {

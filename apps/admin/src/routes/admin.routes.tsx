@@ -61,9 +61,9 @@ export const adminRoutes: RouteObject[] = [
   { path: 'classes', element: <S><ClassListPage /></S> },
   { path: 'classes/:id', element: <S><ClassDetailPage /></S> },
 
-  // Courses. No nav entry points here, so the URL is the only way in and the
-  // page needs its own check — otherwise a role without `course.manage` gets a
-  // shell whose every query answers 403.
+  // Courses. The menu now points here under Lớp & Học sinh, but the gate stays:
+  // a hidden nav entry does not stop a typed URL, and without this check a role
+  // without `course.manage` gets a shell whose every query answers 403.
   {
     path: 'courses',
     element: (
@@ -75,8 +75,10 @@ export const adminRoutes: RouteObject[] = [
     ),
   },
 
-  // Engagement — same situation: no nav entry, and the gift/reward rosters
-  // deliberately exclude giao_vien (ADR-D).
+  // Engagement — same: the Gắn kết menu group now reaches both screens, and the
+  // gift/reward rosters deliberately exclude giao_vien (ADR-D). The gift menu
+  // entry is narrower than this gate on purpose — it follows `gift.upsert`, the
+  // screen's only mutation, so sale is not invited into a read-only dead end.
   {
     path: 'engagement/gifts',
     element: (

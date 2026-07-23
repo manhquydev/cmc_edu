@@ -38,6 +38,10 @@ export const NAV_MODULES: NavModule[] = [
       // Class administration, not class picking: `class.read` exists so other
       // screens can choose a class, and must not open this surface.
       { id: 'classes', label: 'Lớp học', path: '/admin/classes', icon: 'layers', permission: { module: 'class', action: 'create' } },
+      // Course catalogue: authoring courses is what the screen does, so it
+      // follows `course.manage` — the same key its route gate already uses,
+      // which keeps the menu from offering a screen that answers 403.
+      { id: 'courses', label: 'Khoá học', path: '/admin/courses', icon: 'book', permission: { module: 'course', action: 'manage' } },
     ],
   },
   {
@@ -56,11 +60,46 @@ export const NAV_MODULES: NavModule[] = [
       // phase-06 (2026-07-12) — no backend build here, see the page files.
       { id: 'post-sale-meeting', label: 'Họp sau bán', path: '/crm/post-sale-meeting', icon: 'users', permission: { module: 'parentMeeting', action: 'manage' } },
       { id: 'aftersale', label: 'Sau bán', path: '/crm/aftersale', icon: 'alert', permission: { module: 'afterSale', action: 'manage' } },
+      // Xếp lớp for students already enrolled. `enrollment.enroll` is the key
+      // every action on the screen goes through, and it is the same key the
+      // route gate checks — the menu promises exactly what the screen allows.
+      { id: 'class-placement', label: 'Xếp lớp', path: '/finance/class-placement', icon: 'layers', permission: { module: 'enrollment', action: 'enroll' } },
       // Hoàn tiền: procedure `finance.refundCreate` đã có, nhưng MÀN chưa xây —
       // `/finance/refund` hiện là EmptyState "Tính năng chưa áp dụng", và sổ
       // nghiệm thu đã hạ P1-08 khỏi `built` vì đúng lý do đó. Để entry này lại
       // nghĩa là GĐKD bấm vào menu rồi gặp trang trống ngay ngày go-live.
       // Khôi phục khi màn được xây, cùng lúc P1-08 quay lại `built`.
+    ],
+  },
+  {
+    // Loyalty screens, previously reachable only by typing the URL. The group
+    // carries no `roles` list — like Tài chính & Điều hành it appears or
+    // disappears purely on its children's keys, so giao_vien (who holds
+    // neither) sees no group at all.
+    //
+    // `path` must name a route that exists AND one every role that sees this
+    // row can operate. The row is a button that navigates there, and children
+    // only unfold once the module is active, so the landing screen is forced on
+    // whoever opens the group. Đổi thưởng is the only correct choice: everyone
+    // holding `gift.upsert` also holds `rewards.manage`, but not the reverse —
+    // landing on Quà tặng would walk sale into a catalogue it may read and may
+    // not change, which is the dead end the gift entry below is narrowed to
+    // avoid. (`/admin/engagement` itself has no route and would render
+    // ComingSoon.)
+    id: 'engagement',
+    label: 'Gắn kết',
+    icon: 'star',
+    path: '/admin/engagement/rewards',
+    children: [
+      // Configuration screen whose only mutation is `gift.upsert`, so the entry
+      // follows that key rather than the wider `gift.list` — a sale led in here
+      // would meet a 403 on every action. Sale's way into the loyalty flow is
+      // Đổi thưởng below, which it can actually operate.
+      { id: 'gifts', label: 'Quà tặng', path: '/admin/engagement/gifts', icon: 'gift', permission: { module: 'gift', action: 'upsert' } },
+      { id: 'rewards', label: 'Đổi thưởng', path: '/admin/engagement/rewards', icon: 'trophy', permission: { module: 'rewards', action: 'manage' } },
+      // Bảng xếp hạng (`/admin/engagement/leaderboard`) is deliberately absent:
+      // it is still an EmptyState placeholder, and a menu entry pointing at one
+      // is what got Hoàn tiền removed above. Add it when the screen is built.
     ],
   },
   {

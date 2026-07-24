@@ -11,7 +11,7 @@ tags:
   - acceptance
   - tooling
   - visibility
-blockedBy: [260720-1230-independent-runtime-verification-38-flows, 260722-1114-go-permission-va-do-runtime]
+blockedBy: [260720-1230-independent-runtime-verification-38-flows, 260722-1114-go-permission-va-do-runtime, 260724-1212-nghiem-thu-toan-dien-journey-38-erp-lms]
 blocks: []
 created: '2026-07-17T05:34:37.843Z'
 createdBy: 'ck:plan'
@@ -56,7 +56,7 @@ Nguồn: `plans/reports/brainstorm-260717-1213-so-nghiem-thu-song-report.md` (us
 | 1 | [Flow Manifest + Static Verifier](./phase-01-flow-manifest-static-verifier.md) | Completed |
 | 2 | [Builder Report (HTML tab ky thuat)](./phase-02-builder-report-html-tab-ky-thuat.md) | Completed |
 | 3 | [Acceptance View (tab nghiem thu premium)](./phase-03-acceptance-view-tab-nghiem-thu-premium.md) | Completed |
-| 4 | [Evidence Collector (Playwright UI screenshots)](./phase-04-evidence-collector-playwright-screenshots.md) | 🗄️ **SUPERSEDED (2026-07-22)** — `260722-1114` Phase 5 đã ship bản thay thế và **chạy có bằng chứng** (102 tổ hợp màn×vai, phép thử chua tự tìm ra F1+F2, kết thúc `0 denied`). Không thực thi phase này. |
+| 4 | [Evidence Collector (Playwright UI screenshots)](./phase-04-evidence-collector-playwright-screenshots.md) | 🗄️ **SUPERSEDED (2026-07-22)** — `260722-1114` Phase 5 đã ship bản thay thế và **chạy có bằng chứng** (102 tổ hợp màn×vai, phép thử chua tự tìm ra F1+F2, kết thúc `0 denied`). Không thực thi phase này. Sứ mệnh "bằng chứng chạy thật" tiếp tục ở `plans/260723-1422-may-hoa-nghiem-thu-ba-tang/` (capture biết rỗng + journey specs + coverage trong report này). |
 
 Dependency: 1 → 2 → 3 (v1); 4 cần 1+2 + gate (v1 shipped, synthetic-seed env tồn tại).
 

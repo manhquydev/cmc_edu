@@ -4,7 +4,9 @@
 **Last Updated:** 2026-07-12 (historical snapshot — see note below for current numbers)  
 **Build State (2026-07-12, verified this session — HR remediation phase 6):** @cmc/api 695 tests passing (81 test files, live Postgres); @cmc/admin 229 tests passing (32 test files); @cmc/e2e 19 passed + 1 pre-existing skip (20 spec files, incl. new `shift-lifecycle.spec.ts` + `kpi-lifecycle.spec.ts`, dev-header mode); 14/14 apps build clean. See `docs/project-changelog.md` for the dated entry.
 
-> **Updated 2026-07-17 (acceptance-review audit):** test counts above predate 3 later merge waves (43 happy-path gaps, review-gap fixes, super-admin completion). Current as of 2026-07-17: apps/api 99 files/889 tests, apps/admin 33 files/258 tests, apps/e2e 11 spec files. See `docs/project-changelog.md` `[2026-07-17]`.
+> **Updated 2026-07-17 (acceptance-review audit):** test counts above predate 3 later merge waves (43 happy-path gaps, review-gap fixes, super-admin completion). Current as of 2026-07-17: apps/api 99 files/889 tests, apps/admin 33 files/258 tests, apps/e2e 11 spec files.
+>
+> **Updated 2026-07-24 (UAT prep — journey infrastructure + e2e capture/smoke):** Phase 4–5 added 13 new journey-related spec files (3 regression + 10 core flows in `apps/e2e/tests/journeys/*.journey.ui.spec.ts`). Current e2e count: ~21+ spec files. `acceptance:report` now shows journey coverage (9/10 linked to flow-manifest, 9/38 total flows covered). See `docs/project-changelog.md` for UAT delivery checklist.
 
 > **Cập nhật 2026-07-23 — đợt gỡ lỗi phân quyền + siết sổ nghiệm thu.**
 > Đo tại `main` (`35d4df0`): `pnpm typecheck` 27/27 · `pnpm lint` sạch · `pnpm test` 22/22 task (api **977**, admin **352**) · `pnpm --filter @cmc/e2e test` 20 pass, **0 facility rò** · runtime capture 102 tổ hợp màn×vai **0 denied** (chạy 2026-07-22; phạm vi ma trận sau khi thêm nav entry 2026-07-23 là **98** cặp và **chưa** capture lại — xem `docs/runbook-uat-golive.md` §1).

@@ -45,7 +45,7 @@ Rủi ro thật của phương án này **không** phải mất dữ liệu (ch�
 
 | # | Bước | Cách làm | Bằng chứng cần lưu |
 |---|---|---|---|
-| **0** | 🔴 **REDEPLOY** | Build + deploy lại chồng prod từ `main` hiện tại. **Do Phase 3 của `plans/260723-0913-don-tien-uat-truoc-phase-4` thực hiện, trước buổi UAT** — xem ghi chú dưới bảng | Commit hash đang chạy = `git rev-parse HEAD` |
+| **0** | 🔴 **REDEPLOY** | Build + deploy lại chồng prod từ `main` hiện tại. **Do Phase 3 của `plans/260723-0913-don-tien-uat-truoc-phase-4` thực hiện, trước buổi UAT** — xem ghi chú dưới bảng | Commit hash đang chạy = `git rev-parse HEAD` **+** output `scripts/ops-smoke.sh` (mọi mục PASS/SKIP, xem §3.0) |
 | 1 | Backup trước UAT | `scripts/backup-db.sh` | **S3 key** của dump (`db-backups/cmc-prod-<TS>.dump.enc`) — ghi lại chính xác |
 | 2 | Ghi trạng thái đầu | Đếm row §6 — **bằng role `postgres`** | Bảng số liệu "trước" |
 | 3 | Seed nhân sự UAT | `scripts/seed-super-admin.ts`, rồi super_admin tạo AppUser cho từng vai | Danh sách email × vai |
@@ -61,6 +61,8 @@ Rủi ro thật của phương án này **không** phải mất dữ liệu (ch�
 ### 3.0 Vì sao bước 0 bắt buộc
 
 `phase-04-uat-gonogo.md:39-44` khai bước REDEPLOY là **CRITICAL, trước mọi bước khác**.
+
+> Bằng chứng bước 0 **sau redeploy** = chạy `scripts/ops-smoke.sh` trên host và dán output vào biên bản (không phải văn xuôi/niềm tin) — 6 mục PASS/FAIL/SKIP: health api+worker, không FATAL kể từ lần boot hiện tại, redirect SSO, Brevo `GET /v3/account`, email qua outbox tới `sent`, và đếm row. Chi tiết từng mục và cách chạy `--local` trước khi chạm host: header của chính script đó.
 
 **Đo thực tế 2026-07-22** (`docker image inspect cmcv2-prod-api`): image đang chạy build **2026-07-18**. *(Tài liệu phase-04 ghi lần deploy cuối là 2026-07-11 — tài liệu đã cũ; lấy số đo, đừng lấy số chép.)*
 
@@ -324,7 +326,7 @@ Từ **26 → 0**. Nguyên nhân gốc: `nhan_vien` là **lỗi dịch** — TL2
 > - `401 Key not found` ⇒ khoá sai, **hoặc** dòng `BREVO_API_KEY=` trong `.env.prod` thiếu newline cuối dòng nên nuốt luôn dòng kế tiếp (sự cố thật, giết OTP phụ huynh 12 ngày — nay có boot-check chặn, xem `apps/api/src/boot-checks.ts`).
 > - `401 unrecognised IP address` ⇒ **allowlist**. Brevo bật IP-allowlist và **IP outbound của VPS chưa bao giờ được thêm vào** — đây mới là nguyên nhân quan sát được trong nhật ký `260711`, và không lần rotate nào sửa được nó.
 >
-> ⇒ Phải làm **cả hai**: rotate (khoá cũ từng bị dán vào một phiên chat) **và** thêm IP VPS vào authorised-IPs. Verify bằng `GET /v3/account` trả `200` **chạy từ chính host UAT**, trước khi redeploy.
+> ⇒ Phải làm **cả hai**: rotate (khoá cũ từng bị dán vào một phiên chat) **và** thêm IP VPS vào authorised-IPs. Verify bằng mục 4 của `scripts/ops-smoke.sh` (gọi `GET /v3/account` **từ chính host UAT**, phân nhánh sẵn `200` / `401 Key not found` / `401 unrecognised IP` — không cần gõ lệnh `curl` rời), trước khi redeploy. Script không có cờ chạy riêng từng mục — chạy toàn bộ (`scripts/ops-smoke.sh`) và đọc đúng dòng `[mark4]` trong output.
 
 **Không đặc tả lại backup/restore ở đây** — dùng `docs/runbook-deploy.md` §2.5 (backup), §1.7/§2.6 (restore), §6 (checklist bảo mật trước go-live). Runbook này chỉ nói phần *khác* với vận hành thường ngày. *(M3: trên VPS thật `postgres` không map port ra host — mọi lệnh psql/pg_dump chạy qua `docker exec`, xem `runbook-deploy.md:49-56`.)*
 

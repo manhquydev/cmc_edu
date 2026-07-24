@@ -1,0 +1,46 @@
+# Review: Phase 1/4 shortcut hunt (skeptical, verified-only)
+
+Scope reviewed against `plans/260723-1422-may-hoa-nghiem-thu-ba-tang/phase-01-capture-data-shape.md` and `phase-04-journey-infra-hoi-quy.md` (current, corrected versions). Every finding below was verified by reading the cited source directly — no claim is accepted from a comment's own word.
+
+## Critical — undisclosed scope: Phase 5 work already landed in the same working tree, plus a second unsupported "PO-approved" claim
+
+`plan.md` lists Phase 5 (`phase-05-journey-10-luong-loi.md`) as `status: pending`, `dependencies: [4]` — i.e. not started, not reviewed. Verified against the actual working tree, this is false:
+
+- `git status` shows **10** untracked journey spec files under `apps/e2e/tests/journeys/`, not the 3 Phase-4-scoped ones the review request named: `checkin-offsite-approval`, `checkin-punch`, `crm-receipt`, `enrollment-second-class`, `gift-config-nav`, `receipt-approve-negation`, `rewards-redeem-approval` — these map 1:1 to phase-05's flows 4–10 (P1-05, P1-02, P1-03, P3-01, P3-02, P4-01, P4-02).
+- `apps/e2e/src/db.ts`'s new diff (the one flagged for review) contains a whole second section headed `Phase 5 (journey P4-01, ... phase-05-journey-10-luong-loi.md): one more PO-approved seed exception` — introducing `seedPendingReward` and `findShiftTemplateByNames` for the rewards/shift journeys.
+- I read `phase-05-journey-10-luong-loi.md` in full: it contains **zero** mention of any seed exception, PO approval, or seeding discussion at all — it only lists the 7 flows and helper reuse from Phase 4. The "PO-approved" label in `db.ts` for this section has no supporting source, the same unverifiable-approval pattern already caught once in `phase-04` (fabricated "PO 2026-07-23" note). This is a second instance of the same defect class, this time in Phase 5 scope.
+- Phase 5's own Implementation Step 2 ("trước khi ghi `journey` vào manifest: xác nhận route/procedure giao với `expected`") and its manifest-wiring deliverables (`flow-manifest.ts` `journey` field, `verify.ts`, `render.ts`) are unimplemented — `git diff HEAD -- scripts/acceptance-report/` is empty, `grep -n "journey" scripts/acceptance-report/flow-manifest.ts` returns nothing. The 7 extra specs exist as files but were never wired into the traceability/coverage system Phase 5 requires as a gate before they count.
+- `apps/e2e/src/journey/menu-nav.ts`'s own doc comment for `assertEntryAbsent` states "Phase 5 reuses this same primitive for its 'should NOT see this' journeys" — confirming this wasn't accidental drift; Phase 5 work was known and in progress while the plan record still says `pending`.
+
+This means the diff presented as "Phase 1 + Phase 4 deliverables" for review actually bundles a materially larger, unauthorized, unreviewed body of work whose only textual justification (the db.ts "PO-approved" comment) does not exist in the plan it cites.
+
+## High — false "no UI exists" claim reused as precedent across three files
+
+`apps/e2e/tests/journeys/payroll-roster.journey.ui.spec.ts:10-22` states: *"the admin app has NO in-app UI path to create an AppUser"*. Verified false as stated:
+
+- `apps/admin/src/pages/admin/users.tsx` has a real onboarding UI: `trpc.user.create.useMutation` (line ~100) backing a form with `userId`/`email`/`fullName`/`position` fields and a role-assignment dialog (`updateRoles.useMutation`).
+- It is gated to `super_admin` only: `apps/admin/src/shell/nav-registry.ts:132` (`permission: { module: 'user', action: 'manage' }`), and `packages/auth/src/index.ts:105` lists `'user.manage': []` (no role holds it explicitly) with `super_admin` bypassing all gates at line 161. So the accurate claim is "no UI reachable by the roles this journey drives," not "no UI exists" — the comment's own second half says this correctly, but its opening sentence overstates it to an absolute that is false.
+- `seedAppUser` is not one of the two seed exceptions the user actually approved 2026-07-24 (`phase-04-journey-infra-hoi-quy.md`'s Q5-mở rộng section names exactly two: ClassBatch+Course, attendance-mark). It is a third, undisclosed seed substitution for a gap that — unlike the two approved ones — has a real, working UI (just role-gated), and phase-04's own Implementation Step 3 anticipates exactly this case with a different resolution: *"cần dữ liệu nhân sự tối thiểu, xem xét seed bootstrap có sẵn nhân sự chưa; **nếu chưa, bước GĐ tạo qua UI**"* — i.e. the phase doc itself expects a UI-driven director step as the fallback, not a Prisma seed.
+- This same shortcut and the same "no in-app UI path... same category as F4's `seedAppUser`" framing is then repeated verbatim as justification in `session-assessment-roster.journey.ui.spec.ts:13-14,69-73`, and generalized further in `db.ts`'s new Phase 5 comment block ("same category/mechanism as F4's `seedAppUser` staff row above"). One unverified/overstated claim in the F4 journey has been propagated as accepted precedent into two more files.
+
+Net effect: `payroll-roster.journey.ui.spec.ts` does not actually prove "GĐ reaches a non-empty roster after data enters the system the way it really would" — it proves it after a Prisma-inserted row, sidestepping the one director-role UI path (`/admin/users`, super_admin) that does exist and that a multi-role journey (as F1/F2 already demonstrate is the accepted pattern) could have chained to instead.
+
+## Verified as correct (falsifiable checks that held)
+
+- `screen-should-call.ts`: no data-shape/non-empty assertion anywhere (only path+role pairs, no `listField`/`empty` flag) — matches Phase 1 Q5 boundary.
+- `screen-role-capture.ui.spec.ts` race fix: `pending: Promise<void>[]` collects every `response.json()` promise as it fires; `await Promise.allSettled(pending)` runs before `context.close()`, and `silentScreens` is computed from `screenOwnRecords` only after that await — read directly at lines ~150-230, confirmed no path bypasses the await.
+- `finance-receipt.journey.ui.spec.ts`: the `sale`→`/finance/new` link claim is real (`class-placement.tsx:169-171`, `navigate('/finance/new')`, label "tạo phiếu thu mới"); `finance.receiptList`/`receiptGet` gated to `giam_doc_kinh_doanh`/`giam_doc_dao_tao` only, confirmed at `packages/auth/src/index.ts:74-75` (matches the comment's claim that `sale` can't reach the list/detail screen). No seed helper beyond `seedClassBatch` + email-outbox drain helpers is imported or used — no undisclosed seed path.
+- `session-assessment-roster.journey.ui.spec.ts`: `findOrCreateStudent` in `apps/api/src/provisioning/provision-from-receipt.ts:181` confirms no standalone `student.create` mutation exists — the claim that a fresh student is created only via receipt approval is accurate.
+- `/teaching/attendance` nav entry is a bare path with no session query param (`nav-registry.ts:20`), and no other admin page links to it with a session id (grep across `apps/admin/src` for `teaching/attendance` found only the nav entry and the route lazy-import) — the attendance-mark seed exception's stated rationale holds.
+- No id crosses a role/browser-context boundary in any of the 3 Phase-4 journeys: `receiptId` in `finance-receipt.journey.ui.spec.ts` is read from the sale page's own URL but only ever used in Node-side DB helper calls (`getEmailOutboxStatusByReceiptId`, teardown delete) — never handed into the approver's `page` actions. `teacher.id` in `session-assessment-roster` flows into a Node-side `seedClassBatch` call, not into any browser context. `payroll-roster` is single-context.
+- `seedClassBatch`/`seedPresentAttendance` callers confirmed: used by `finance-receipt`, `session-assessment-roster` (the two approved-for), and also by 4 of the undisclosed Phase-5 files (`enrollment-second-class`, `crm-receipt`, `receipt-approve-negation`, `rewards-redeem-approval`) — consistent with the Critical finding above, not a separate misuse of the helper's own contract.
+
+## Low
+
+- `apps/e2e/get_facility_id.mjs` (untracked): an unreferenced, ad hoc debug script — `grep` across the repo found zero references anywhere (no test, no CI, no doc cites it). Not listed in any phase's Related Code Files. Should be deleted before landing; it is stray scope drift, not a deliverable.
+
+## Unresolved questions
+
+1. Was the user aware that 7 additional (Phase 5) journey specs and their supporting `db.ts` seed helpers already exist in the working tree, ahead of Phase 5 being picked up? The plan record says `pending`; the filesystem says otherwise.
+2. Should `payroll-roster.journey.ui.spec.ts` be reworked to chain a `super_admin` UI step through `/admin/users` (matching the multi-role UI-chaining pattern F1/F2 already use) instead of `seedAppUser`, given phase-04's own Implementation Step 3 anticipated exactly this fallback? If the seed shortcut is to stay, it needs the same explicit user sign-off the two ClassBatch/attendance exceptions received — it currently has none.
+3. Does the user want the Phase 5 "PO-approved seed exception" claim in `db.ts` corrected (removed/re-labeled as unapproved) the same way the Phase 4 fabricated note was corrected, or is this in fact something the user separately approved and simply didn't mention in this review request?

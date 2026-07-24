@@ -49,6 +49,15 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/finance/new'],
       models: ['Receipt'],
     },
+    // Phase 5 (plan 260723-1422): sale advances a real Opportunity to
+    // O4_TESTED on /crm (ADR-B funnel), then creates the receipt from its own
+    // "Ghi danh"/"Tạo phiếu thu" link — drives finance.receiptCreate at
+    // /finance/new directly, the exact intersection this flow's `expected`
+    // block claims. NOT finance-receipt.journey.ui.spec.ts (Phase 4/F1): that
+    // journey reaches /finance/new via the Xếp lớp screen's inline link
+    // instead of the CRM funnel this flow's own displayName names, and its
+    // trpc/uiRoute surface is the same set P1-03 below already claims.
+    journey: 'apps/e2e/tests/journeys/crm-receipt.journey.ui.spec.ts',
   },
   {
     id: 'P1-03',
@@ -62,6 +71,18 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/finance', '/finance/:id'],
       models: ['Receipt'],
     },
+    // Phase 5 (plan 260723-1422): drives finance.receiptApprove/receiptGet/
+    // receiptList for real, PLUS the negation this flow's own displayName is
+    // built around — sale gets a real permission-denied screen on its own
+    // receipt, never the approve action; a different giam_doc_kinh_doanh
+    // finds it (findInList, never a smuggled id) and approves it. NOT
+    // finance-receipt.journey.ui.spec.ts (Phase 4/F1) — that journey proves
+    // the same create/approve/notify mechanics (plus an email-outbox 'sent'
+    // check this flow's `expected` block does not itself claim) but has no
+    // distinct intersection with any OTHER flow once P1-02/P1-03 are wired to
+    // the two journeys above/below — see this phase's own report for that
+    // open question.
+    journey: 'apps/e2e/tests/journeys/receipt-approve-negation.journey.ui.spec.ts',
   },
   {
     id: 'P1-04',
@@ -99,6 +120,16 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/students', '/admin/students/:id'],
       models: ['Enrollment', 'Student'],
     },
+    // Phase 5 (plan 260723-1422): a receipt-approval cycle activates a
+    // student's first Enrollment, then sale looks the now-active student up
+    // by NAME (student.lookup, /admin/students's own search key) on Xếp lớp
+    // and places them into a SECOND class via a real enrollment.enroll click
+    // — real intersection with enrollment.enroll + finance.receiptApprove +
+    // student.lookup + both uiRoutes. `enrollment.blockLms`/`student.get`/
+    // `student.getManyByIds`/`student.resetPassword` have no admin UI
+    // consumer today (grepped `apps/admin/src`) — a real manifest/UI drift
+    // this journey does not paper over, documented in its own header.
+    journey: 'apps/e2e/tests/journeys/enrollment-second-class.journey.ui.spec.ts',
   },
   {
     id: 'P1-06',
@@ -279,6 +310,18 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/teaching/session-assessment', '/admin/report-cards'],
       models: ['QualitativeAssessment', 'FinalGrade'],
     },
+    // Phase 5 (plan 260723-1422, F2 regression — one of the 3 flows dead 16
+    // days, docs/codebase-summary.md): teacher reaches this exact route via
+    // real menuNav ('Giảng dạy' -> 'Nhận xét buổi học') and reads a non-empty
+    // present roster — the uiRoute intersection with this flow's `expected`
+    // block is exact and exclusive (no other flow entry lists
+    // `/teaching/session-assessment`). The journey's own real trpc call is
+    // `attendance.listBySession`/gate `attendance.mark` (this screen's actual
+    // roster source, per its own header's incident finding), not this flow's
+    // listed `assessment.*` procedures — a real, documented manifest/UI
+    // naming drift (the roster read and the qualitative-comment write share
+    // one screen but different procedures), not a wrong-flow attachment.
+    journey: 'apps/e2e/tests/journeys/session-assessment-roster.journey.ui.spec.ts',
   },
   {
     id: 'P2-08',
@@ -315,6 +358,10 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/checkin'],
       models: ['TimePunch'],
     },
+    // Phase 5 (plan 260723-1422): giao_vien reaches /hr/checkin via real
+    // menuNav ('Nhân sự' -> 'Chấm công') and records a real punch — direct
+    // 1:1 intersection with this flow's only trpc + only route.
+    journey: 'apps/e2e/tests/journeys/checkin-punch.journey.ui.spec.ts',
   },
   {
     id: 'P3-02',
@@ -329,6 +376,15 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/checkin'],
       models: ['ManualAttendanceTicket'],
     },
+    // Phase 5 (plan 260723-1422): sale punches offsite (real ticket via
+    // checkInOut.punch's own ensureDayTicket side effect — manualPunch.create
+    // no longer exists, ADR 0043), drives manualPunch.list (both scopes) +
+    // manualPunch.approve for real, PLUS the negation this flow's own note
+    // describes — giam_doc_dao_tao's own inbox query never matches a
+    // sale-track ticket (findInList.assertAbsent, checked against the real
+    // `appUser.roles hasSome trackRoles` filter in checkin/router.ts, read in
+    // full before wiring this).
+    journey: 'apps/e2e/tests/journeys/checkin-offsite-approval.journey.ui.spec.ts',
   },
   {
     id: 'P3-03',
@@ -376,6 +432,11 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/payroll', '/hr/salary-tiers', '/hr/my'],
       models: ['Payslip', 'SalaryTier', 'SalaryRate', 'CompensationPolicy'],
     },
+    // Phase 5 (plan 260723-1422, F4 regression — one of the 3 flows dead 16
+    // days): a staff member created via the real /admin/users super_admin UI
+    // shows up as a non-empty row on /hr/payroll's real `user.pickList` —
+    // direct intersection with this flow's `user.pickList` + `/hr/payroll`.
+    journey: 'apps/e2e/tests/journeys/payroll-roster.journey.ui.spec.ts',
   },
   {
     id: 'P3-06',
@@ -459,6 +520,12 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/engagement/rewards', '/student/gifts'],
       models: ['Reward', 'StarTransaction'],
     },
+    // Phase 5 (plan 260723-1422): admin-side half of this flow (`rewards.redeem`
+    // is `hoc_vien`/LMS-only, explicitly out of scope here) — sale approves
+    // then delivers a pending redemption on the real /admin/engagement/rewards
+    // queue via menuNav ('Gắn kết' -> 'Đổi thưởng'), direct intersection with
+    // rewards.approve/deliver/list + the admin uiRoute.
+    journey: 'apps/e2e/tests/journeys/rewards-redeem-approval.journey.ui.spec.ts',
   },
   {
     id: 'P4-02',
@@ -471,6 +538,13 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/engagement/gifts', '/admin/engagement/rewards'],
       models: ['Gift'],
     },
+    // Phase 5 (plan 260723-1422): GĐKD creates a gift via the real "Thêm
+    // phần thưởng" form on /admin/engagement/gifts (gift.upsert — direct
+    // intersection), PLUS the negation this flow's own note is built
+    // around — sale never sees the "Quà tặng" child entry in its own
+    // side-nav (menuNav.assertEntryAbsent, verified against `gift.upsert`'s
+    // real permission list in packages/auth/src/index.ts).
+    journey: 'apps/e2e/tests/journeys/gift-config-nav.journey.ui.spec.ts',
   },
   {
     id: 'P4-03',

@@ -4,7 +4,7 @@
 // runs — everything here is recomputed from the current worktree.
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -47,6 +47,29 @@ const DOCUMENTED_GAPS: Record<string, string> = {
   // trang /admin/courses hiện chỉ có danh sách (course.list), thiếu form tạo.
   'course.create': 'Tạo/quản lý khoá học cho GĐĐT — cần màn hình mới (hiện chỉ import data + trang danh sách; PO xác nhận là tính năng tương lai 2026-07-18)',
 };
+
+/**
+ * Phase 5 (plan 260723-1422): cheap, non-Playwright check for every flow that
+ * declares a `journey` spec — the file must exist AND contain at least one
+ * `test(` call. WARN only (never fail the report), per the phase doc: the
+ * report must stay cheap (no Playwright execution inside `acceptance:report`)
+ * and a missing/empty journey file is a authoring mistake to flag, not a
+ * reason to block the whole ledger from rendering.
+ */
+function checkJourneyCoverage(manifestFlows: typeof flows): void {
+  for (const flow of manifestFlows) {
+    if (!flow.journey) continue;
+    const specPath = path.join(REPO_ROOT, flow.journey);
+    if (!existsSync(specPath)) {
+      console.warn(`  JOURNEY MISSING: flow "${flow.id}" declares journey "${flow.journey}" — file not found.`);
+      continue;
+    }
+    const contents = readFileSync(specPath, 'utf8');
+    if (!contents.includes('test(')) {
+      console.warn(`  JOURNEY EMPTY: flow "${flow.id}"'s journey "${flow.journey}" has no \`test(\` call.`);
+    }
+  }
+}
 
 function getHeadCommit(): string {
   try {
@@ -188,6 +211,11 @@ function main(): void {
       `${orphans.procedures.length} orphan (${orphans.documented.length} documented gap, ${orphans.untriaged.length} chưa phân loại), ` +
       `${trpcScan.unresolved.length} unresolved namespaces.`,
   );
+
+  // Phase 5: journey coverage — "has a spec file" only, never "passed in CI".
+  checkJourneyCoverage(flows);
+  const journeyCount = flows.filter((f) => f.journey).length;
+  console.log(`journey coverage — ${journeyCount}/${flows.length} luồng có journey spec (xem badge trong tab Nghiệm thu).`);
   if (orphans.untriaged.length > 0) {
     console.warn(`  ORPHAN CHƯA PHÂN LOẠI (cần quyết định): ${orphans.untriaged.join(', ')}`);
   }

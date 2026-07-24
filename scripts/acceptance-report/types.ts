@@ -21,6 +21,13 @@ export interface FlowEntry {
   };
   /** Reserved for Phase 4 (gated) — UI spec that captures evidence for this flow. */
   uiEvidenceSpec?: string;
+  /** Phase 5 (plans/260723-1422-may-hoa-nghiem-thu-ba-tang): relative path (from
+   *  repo root) to a `.journey.ui.spec.ts` file that drives this flow end-to-end
+   *  through the real UI, menu-first, one role per browser context. This is
+   *  metadata only — the verifier checks the file exists and has >=1 `test(`,
+   *  it never runs Playwright. "Has a journey spec" is NOT the same signal as
+   *  "passed in CI last run" — see render.ts's coverage badge for the split. */
+  journey?: string;
 }
 
 export type FlowStatus = 'built' | 'partial' | 'missing';

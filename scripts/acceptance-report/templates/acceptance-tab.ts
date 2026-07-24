@@ -29,6 +29,19 @@ function stateBadge(state: AcceptanceState): string {
   return '<span class="accept-badge accept-notyet">○ Đang xây dựng</span>';
 }
 
+/** Phase 5 (plan 260723-1422): "có bài kiểm" ("has a journey spec on disk") is
+ *  a DIFFERENT, WEAKER signal than "bài kiểm xanh" ("that spec passed the last
+ *  time job Phase 0 ran it") — this tool never runs Playwright, so it cannot
+ *  see the second one. Wording is deliberately explicit about that gap: this
+ *  same tab is where 38/38 built was once misread as "38/38 proven working"
+ *  (docs/codebase-summary.md's own history of that correction) — a coverage
+ *  badge that blurred "has a test" into "is proven" would repeat exactly that
+ *  mistake for journeys instead of flows. */
+function journeyBadge(fv: FlowVerification): string {
+  if (!fv.flow.journey) return '';
+  return '<span class="accept-badge accept-journey" title="Có file journey .ui.spec.ts trên đĩa — KHÔNG có nghĩa là lần chạy gần nhất xanh; xem job Phase 0 CI cho tín hiệu đó.">▶ Có bài kiểm (chưa chắc đã chạy xanh)</span>';
+}
+
 /** Says WHY a flow is not ready. A placeholder screen is the one case where
  *  every procedure and model exists, so without naming it the card looks
  *  unfinished for no visible reason. */
@@ -47,6 +60,7 @@ export function renderAcceptanceTab(result: VerificationResult): string {
   const provenCount = result.flows.filter((f) => acceptanceState(f) === 'proven').length;
   const builtCount = result.flows.filter((f) => acceptanceState(f) === 'built-unproven').length;
   const notYetCount = result.flows.filter((f) => acceptanceState(f) === 'not-yet').length;
+  const journeyCount = result.flows.filter((f) => f.flow.journey).length;
 
   const clusterSections = (Object.keys(CLUSTER_LABELS) as Cluster[])
     .filter((c) => byCluster[c]?.length)
@@ -58,6 +72,7 @@ export function renderAcceptanceTab(result: VerificationResult): string {
           <div class="flow-card">
             <div class="flow-card-top">
               ${stateBadge(state)}
+              ${journeyBadge(fv)}
             </div>
             <div class="flow-card-title">${escapeHtml(fv.flow.displayName)}</div>
             <div class="flow-card-note">${flowNote(fv, state)}</div>
@@ -78,6 +93,8 @@ export function renderAcceptanceTab(result: VerificationResult): string {
       .accept-proven { background: #e6f4ea; color: var(--cmc-success); }
       .accept-built { background: var(--cmc-brand-muted); color: var(--cmc-brand-hover); }
       .accept-notyet { background: var(--cmc-surface-2); color: var(--cmc-text-muted); }
+      .accept-journey { background: var(--cmc-surface-2); color: var(--cmc-text-muted); border: 1px dashed var(--cmc-border); margin-left: 6px; }
+      .journey-coverage-note { font-size: 12px; color: var(--cmc-text-muted); margin: 0 0 var(--cmc-space-3); padding: var(--cmc-space-2) var(--cmc-space-3); background: var(--cmc-surface-2); border-radius: var(--cmc-radius-xs); }
       .summary-row { display: flex; gap: var(--cmc-space-3); margin-bottom: var(--cmc-space-4); }
       .summary-row .pill { background: var(--cmc-surface); border-radius: var(--cmc-radius-md); padding: var(--cmc-space-3); flex: 1; box-shadow: var(--cmc-shadow-sm); text-align: center; }
       .summary-row .pill .n { font-size: 28px; font-weight: 600; display: block; }
@@ -92,7 +109,15 @@ export function renderAcceptanceTab(result: VerificationResult): string {
       <div class="pill"><span class="n">${provenCount}</span><span class="l">⬤ Đã chứng minh chạy</span></div>
       <div class="pill"><span class="n">${builtCount}</span><span class="l">◐ Đã xây, chưa chứng minh</span></div>
       <div class="pill"><span class="n">${notYetCount}</span><span class="l">○ Đang xây dựng</span></div>
+      <div class="pill"><span class="n">${journeyCount}/${result.flows.length}</span><span class="l">▶ Luồng có journey (bài kiểm UI)</span></div>
     </div>
+    <p class="journey-coverage-note">
+      "Có journey" nghĩa là có file bài kiểm UI trên đĩa cho luồng đó — <strong>không</strong> có nghĩa
+      là lần chạy gần nhất đã xanh. Đừng đọc "N/${result.flows.length}" này như kiểu "38/38 built" từng
+      bị hiểu nhầm là "38/38 đã chứng minh chạy được" (xem lịch sử sửa trong codebase-summary.md) — hai
+      con số ở đây là hai tín hiệu KHÁC nhau: một cái nói "có bài kiểm", cái kia (job Phase 0 CI) mới nói
+      "bài kiểm đó xanh".
+    </p>
     ${clusterSections}
   `;
 }

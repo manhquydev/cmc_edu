@@ -77,6 +77,27 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # Non-blocking for now, deliberately. `screen-role-matrix.json` is a
+      # committed artifact regenerated from source (nav-registry.ts + the route
+      # scanner) — it has already drifted once undetected (a removed nav entry
+      # stayed in the committed JSON a day after `24ef2e3` removed it from
+      # source), which is exactly the false-negative this step closes. `-I
+      # '"generatedAt"'` ignores only the always-changing timestamp line; every
+      # other field (pairs, paramRoutes, counts) is deterministic across runs.
+      # Placed after Typecheck, not right after Install: the generator imports
+      # @cmc/auth, whose `dist/` is gitignored and does not exist on a fresh
+      # checkout — `pnpm typecheck` (turbo, `dependsOn: ["^build"]`) is what
+      # builds it as a side effect, so this is the earliest point in the job
+      # `dist/` is guaranteed to exist without adding a redundant explicit
+      # build step. Promote to blocking (drop continue-on-error) once a few
+      # weeks of runs show it only fires on genuine drift.
+      - name: Screen-role matrix drift (non-blocking — see promotion note)
+        continue-on-error: true
+        run: |
+          pnpm --filter @cmc/e2e exec tsx src/generate-screen-role-matrix.ts
+          git diff -I '"generatedAt"' --exit-code apps/e2e/screen-role-matrix.json \
+            || { echo "::warning::matrix drifted — run the generator and commit"; exit 1; }
+
       - name: Lint
         run: pnpm lint
 
@@ -150,3 +171,96 @@ jobs:
 
       - name: Run e2e
         run: pnpm --filter @cmc/e2e test
+
+  # Phase 0 of plans/260723-1422-may-hoa-nghiem-thu-ba-tang: the `ui-chromium`
+  # Playwright project and its admin/lms preview webServers only register
+  # under PLAYWRIGHT_UI=1 (apps/e2e/playwright.config.ts) — the `e2e` job above
+  # never sets that var and never installs a browser, so it is API-only by
+  # design. Without a job that sets PLAYWRIGHT_UI=1, `*.ui.spec.ts` files never
+  # run anywhere but a dev's own machine. This job is that executor: same
+  # postgres/migrate/password pattern as `e2e`, plus a browser install and a
+  # production build of admin/lms (`vite build` before `vite preview`).
+  #
+  # "prod-config" here means a PRODUCTION BUILD of admin/lms (import.meta.env.PROD
+  # — the admin app's trpc client only sends dev-header auth in a dev build, so
+  # exercising the built preview forces the signed cmc_staff_session cookie path,
+  # Mode B) plus the real API server — it does NOT mean NODE_ENV=production for
+  # the API process. This job deliberately leaves NODE_ENV unset (same as `e2e`
+  # above): apps/api/src/boot-checks.ts only refuses to start on the insecure
+  # STAFF_SESSION_SECRET/LMS_SESSION_SECRET dev defaults when NODE_ENV=production,
+  # and this job has no real secret to give it — global-setup.ts mints the staff
+  # cookie via mintStaffCookie() with that same dev default, so client and server
+  # sign/verify with the same well-known, CI-only value. Setting NODE_ENV=production
+  # here without a real STAFF_SESSION_SECRET would make the API refuse to boot.
+  #
+  # continue-on-error: true — warn-first, same rationale as `e2e` above. Promote
+  # to blocking (drop continue-on-error) once this job has run warn-only in CI
+  # for at least 2 weeks with ~0 false positives (no failures other than genuine
+  # UI regressions).
+  ui-e2e:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cmc_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cmc_ci?schema=public
+      APP_DATABASE_URL: postgresql://cmc_app:cmc_app_ci_password@localhost:5432/cmc_ci?schema=public
+      PLAYWRIGHT_UI: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.24.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run database migrations
+        run: pnpm --filter @cmc/db exec prisma migrate deploy
+
+      - name: Set cmc_app role password (CI-only, throwaway)
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d cmc_ci \
+            -c "ALTER ROLE cmc_app WITH PASSWORD '${CMC_APP_PASSWORD}';"
+
+      - name: Write Prisma .env (CI schema validation)
+        run: printf 'DATABASE_URL=%s\nAPP_DATABASE_URL=%s\n' "$DATABASE_URL" "$APP_DATABASE_URL" > packages/db/prisma/.env
+
+      # Required for @cmc/db/dist (same as `e2e` above). admin/lms rebuild
+      # themselves a second time via their preview webServer command
+      # (playwright.config.ts uiServers) with VITE_API_URL baked in for this
+      # run — redundant for those two apps, but this workspace-wide build is
+      # still what produces @cmc/db/dist that @cmc/e2e imports.
+      - name: Build workspace packages (required by e2e — @cmc/db/dist must exist)
+        run: pnpm build
+
+      # Only `e2e` above skips this — that job never launches a browser.
+      # Chromium only, matching the single `ui-chromium` project this job runs.
+      - name: Install Playwright Chromium (+ OS deps)
+        run: pnpm --filter @cmc/e2e exec playwright install --with-deps chromium
+
+      # PLAYWRIGHT_UI=1 (job env, above) registers the `ui-chromium` project and
+      # starts the admin (4173) and lms (4174) preview webServers
+      # (playwright.config.ts). Runs one existing UI spec end-to-end as the
+      # first proof this executor works; Phase 1/4/5 (docs/plans) add more
+      # specs to this already-wired project instead of rebuilding CI plumbing.
+      - name: Run UI e2e (ui-chromium project, admin-shell spec)
+        run: pnpm --filter @cmc/e2e test --project=ui-chromium admin-shell.ui.spec.ts

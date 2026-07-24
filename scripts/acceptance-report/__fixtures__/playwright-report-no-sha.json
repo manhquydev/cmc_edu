@@ -1,0 +1,40 @@
+{
+  "config": {
+    "metadata": {
+      "actualWorkers": 1,
+      "gitDirty": false
+    }
+  },
+  "suites": [
+    {
+      "title": "journeys/alpha.journey.ui.spec.ts",
+      "file": "journeys/alpha.journey.ui.spec.ts",
+      "specs": [
+        {
+          "title": "sale tạo phiếu, GĐ duyệt",
+          "ok": true,
+          "tests": [
+            {
+              "annotations": [],
+              "projectName": "ui-chromium",
+              "status": "expected",
+              "results": [
+                {
+                  "status": "passed",
+                  "duration": 1800
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "expected": 1,
+    "unexpected": 0,
+    "flaky": 0,
+    "skipped": 0
+  }
+}

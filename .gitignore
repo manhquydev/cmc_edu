@@ -161,6 +161,12 @@ apps/e2e/test-results/
 apps/e2e/playwright-report/
 apps/e2e/playwright/.cache/
 
+# Machine evidence the acceptance ledger ingests (UI runs only). Kept OUT of
+# test-results/ on purpose: Playwright clears that directory at the start of
+# every run, so an API-only run would delete the UI evidence. Never committed —
+# a checked-in copy would be a hand-editable file claiming to be a run result.
+apps/e2e/acceptance-results/
+
 # Acceptance ledger tool output (screenshots/JSON regenerated on demand — never commit).
 # Anchored to repo root — a bare "acceptance-report/" would also match
 # scripts/acceptance-report/ (the tool's own source code) and hide it from git.

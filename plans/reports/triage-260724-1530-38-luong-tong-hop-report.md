@@ -68,7 +68,7 @@ ShiftGroup/Template là đầu vào của P3-02/03/04/05; quyết định này �
 | S2 (goto `?session=`) | **TỪ CHỐI** → P2-02 nhận `statusReason`, lỗ UI vào plan sửa |
 | S5 (seed `GuardianLinkRequest`) | **TỪ CHỐI** → P1-06 nhận `statusReason`, lỗ provisioning vào plan sửa |
 | S6 (`readOtpCodeByEmail` trong `db.ts`) | Đã nằm trong phạm vi plan đã duyệt (phase-04 yêu cầu (b)) — không cần duyệt lại |
-| S7 (đặt email PH) | Phụ thuộc S5 → không có đường UI; P1-07 xử theo `statusReason` |
+| S7 (đặt email PH) | **KHÔNG CẦN — tiền đề của triage sai.** `/finance/new` có ô "Email phụ huynh" (`receipt-create.tsx:277`), `receiptCreate` nhận `parentEmail` (`finance/router.ts:103`), provisioning upsert lên ParentAccount (`provision-from-receipt.ts:157`). Triage chỉ xét modal `/admin/parents` nên bỏ sót đường này. P1-07 viết được trọn bằng UI thật, không ngoại lệ — đã chứng minh: `lms-parent-otp-login.journey.ui.spec.ts` xanh 4×. S5 vẫn TỪ CHỐI như đã chốt (hai chuyện khác nhau) |
 | B1 (`managerId`) | **Seed `managerId`** (V6); thiếu UI ghi sổ bàn giao |
 | B2 (P3-10/P3-11) | **`no-ui-path` + bằng chứng** (V7); spec API-level thuộc plan sau |
 | B3 (P1-06) | Theo S5 → đánh dấu không nghiệm thu được bằng journey |

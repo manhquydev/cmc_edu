@@ -11,12 +11,12 @@ priority: P1
 branch: main
 tags: [acceptance, e2e, journey, lms, ledger, tdd]
 blockedByNote: >-
-  TOÀN plan chờ branch uat-prep-nav-and-boot-checks (đợt B 260723-0913 + plan
-  260723-1422) land main: baseline (journeys/, verify.ts checkJourneyCoverage,
-  9 khai báo journey trong manifest) hiện chỉ tồn tại uncommitted trên branch
-  đó — main có 0 journey. (RT-7: sửa 2026-07-24, trước đó ghi sai "Phase 1-3
-  độc lập".) Trình tự user chốt (validate V2, 2026-07-24): SHIP branch đó lên
-  main trước, plan này chạy trên branch mới từ main sạch.
+  GIẢI TỎA 2026-07-24: baseline đã land main tại 9dabc76 (journeys/, ops-smoke,
+  ledger journey coverage, CI ui-e2e job) — verify local trước merge: typecheck
+  27/27, lint sạch, 1491 test pass, 0 code sản phẩm bị chạm. Plan chạy được
+  ngay trên branch mới cắt từ main.
+  Lịch sử: RT-7 phát hiện baseline chỉ tồn tại uncommitted; validate V2 chốt
+  ship branch trước — đã thực hiện.
 blocks: [260717-1213-so-nghiem-thu-song]
 created: '2026-07-24T05:12:00.000Z'
 createdBy: 'ak:plan --tdd'

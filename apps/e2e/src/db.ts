@@ -74,6 +74,26 @@ export async function disconnectDb(): Promise<void> {
 
 const OTP_CODE_SPACE = 1_000_000;
 
+/** Recovers the plaintext code behind a salted `codeHash` by walking the
+ * 6-digit space. `subject` only labels the error messages. */
+function recoverCodeFromHash(codeHash: string, subject: string): string {
+  const separatorIndex = codeHash.indexOf(':');
+  if (separatorIndex < 0) {
+    throw new Error(`Malformed LoginOtp.codeHash for ${subject}.`);
+  }
+  const salt = codeHash.slice(0, separatorIndex);
+  const digest = codeHash.slice(separatorIndex + 1);
+
+  for (let i = 0; i < OTP_CODE_SPACE; i += 1) {
+    const candidate = String(i).padStart(6, '0');
+    const candidateDigest = createHash('sha256').update(salt + candidate).digest('hex');
+    if (candidateDigest === digest) {
+      return candidate;
+    }
+  }
+  throw new Error(`Could not recover the OTP code for ${subject} (brute-force exhausted).`);
+}
+
 /** Recovers the plaintext 6-digit code for `phone`'s most recent pending
  * LoginOtp row (see file header) — throws if no pending row exists or the
  * hash cannot be matched (a real bug, not an expected test outcome). */
@@ -85,21 +105,96 @@ export async function readOtpCode(phone: string): Promise<string> {
   if (!otp) {
     throw new Error(`No pending LoginOtp row found for phone ${phone}.`);
   }
-  const separatorIndex = otp.codeHash.indexOf(':');
-  if (separatorIndex < 0) {
-    throw new Error(`Malformed LoginOtp.codeHash for phone ${phone}.`);
-  }
-  const salt = otp.codeHash.slice(0, separatorIndex);
-  const digest = otp.codeHash.slice(separatorIndex + 1);
+  return recoverCodeFromHash(otp.codeHash, `phone ${phone}`);
+}
 
-  for (let i = 0; i < OTP_CODE_SPACE; i += 1) {
-    const candidate = String(i).padStart(6, '0');
-    const candidateDigest = createHash('sha256').update(salt + candidate).digest('hex');
-    if (candidateDigest === digest) {
-      return candidate;
+/** Recovers the 6-digit code a parent would have received by email.
+ *
+ * Reads the queued email FIRST, because that row is the real delivery artifact:
+ * finding the code there proves the system actually enqueued a message, not
+ * merely that it minted a code. `lmsAuth.requestOtpEmail` only enqueues when a
+ * ParentAccount owns the address, so this doubles as proof the account exists.
+ *
+ * Falls back to recovering the code from the LoginOtp hash when the payload has
+ * already been scrubbed — the outbox worker overwrites delivered OTP payloads
+ * with `{kind:'otp', scrubbed:true}`, so a drain racing the read would
+ * otherwise fail the spec for a reason that has nothing to do with the flow. */
+export async function readOtpCodeByEmail(email: string): Promise<string> {
+  const address = email.toLowerCase();
+  const db = getDb();
+
+  // Absence of an outbox row is meaningful and must not be papered over.
+  // `lmsAuth.requestOtpEmail` ALWAYS mints the LoginOtp row (that is what keeps
+  // its response identical whether or not the address exists), but it enqueues
+  // an email only when a ParentAccount owns the address. So a code recovered
+  // from the hash alone proves nothing about the account — falling straight
+  // back to it would hand out a code that was never sent, and the spec would
+  // then fail several steps later with an unrelated-looking error.
+  const queued = await db.emailOutbox.findFirst({
+    where: { to: address, payload: { path: ['kind'], equals: 'otp' } },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!queued) {
+    throw new Error(
+      `No OTP email was queued for ${address}. lmsAuth.requestOtpEmail answers {ok:true} either ` +
+        `way, so this almost always means no ParentAccount owns this address — check that the ` +
+        `flow under test actually recorded it (e.g. the "Email phụ huynh" field on the receipt).`,
+    );
+  }
+
+  const payload = queued.payload as { code?: unknown } | null;
+  if (typeof payload?.code === 'string') {
+    return payload.code;
+  }
+
+  // The row exists but its payload was scrubbed: the outbox worker overwrites
+  // delivered OTP payloads with `{kind:'otp', scrubbed:true}`. The email WAS
+  // enqueued, so recovering the code from the hash is legitimate here.
+  const otp = await db.loginOtp.findFirst({
+    where: { email: address, status: 'pending' },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!otp) {
+    throw new Error(
+      `An OTP email was queued for ${address} but its payload is scrubbed and no pending ` +
+        `LoginOtp row remains — the code has expired or was already consumed.`,
+    );
+  }
+  return recoverCodeFromHash(otp.codeHash, `email ${address}`);
+}
+
+/** Clears anything a previous run left behind for this run's parent identity.
+ *
+ * Runs BEFORE the spec, not after, so a run that died halfway cannot poison the
+ * next one. Three separate leftovers matter, and they are keyed differently:
+ * OTP rate limiting counts LoginOtp rows per identifier (5 per 15 minutes), so
+ * stale rows under either the email OR the phone can make a fresh login fail
+ * for a reason the flow has nothing to do with; queued emails accumulate under
+ * `to`; and provisioning finds-or-creates a ParentAccount by phone, so a
+ * leftover account would be silently reused with the wrong email attached. */
+export async function sweepParentIdentity(opts: { email?: string; phone?: string }): Promise<void> {
+  const db = getDb();
+  const email = opts.email?.toLowerCase();
+
+  if (email) {
+    await db.emailOutbox.deleteMany({ where: { to: email } });
+    await db.loginOtp.deleteMany({ where: { email } });
+  }
+  if (opts.phone) {
+    await db.loginOtp.deleteMany({ where: { phone: opts.phone } });
+    await cleanupParentAccountsByPhone(opts.phone);
+  }
+  if (email) {
+    // Provisioning reuses an account by phone, but the email column is unique:
+    // an orphan holding this address would make the upsert throw P2002.
+    const orphan = await db.parentAccount.findUnique({ where: { email } });
+    if (orphan) {
+      await db.studentAccount.deleteMany({ where: { parentAccountId: orphan.id } });
+      await db.guardian.deleteMany({ where: { parentAccountId: orphan.id } });
+      await db.guardianLinkRequest.deleteMany({ where: { parentAccountId: orphan.id } });
+      await db.parentAccount.delete({ where: { id: orphan.id } });
     }
   }
-  throw new Error(`Could not recover the OTP code for phone ${phone} (brute-force exhausted).`);
 }
 
 export interface SeedActiveEnrollmentOptions {

@@ -161,12 +161,17 @@ export const flows: FlowEntry[] = [
     cluster: 'P1',
     actorRoles: ['phu_huynh'],
     expected: {
-      // Các biến thể OTP/login khác (loginStudent, requestOtpEmail…) thuộc namespace
-      // lmsAuth — đã whitelist hạ tầng auth (E4), không cần claim riêng.
-      trpc: ['lmsAuth.requestOtp', 'lmsAuth.verifyOtp', 'enrollment.mine'],
+      // Sửa 2026-07-24: khai cũ (`requestOtp`/`verifyOtp`/`enrollment.mine`) không
+      // procedure nào được UI gọi — màn đăng nhập phụ huynh dùng BIẾN THỂ EMAIL
+      // (`login.tsx:51,61`). Kiểm chứng: `rg "lmsAuth\.requestOtp\b" apps/lms/src`
+      // → 0 matches; `rg "enrollment\.mine" apps/lms/src` → 0 matches.
+      // `enrollment.mine` chuyển sang DOCUMENTED_GAPS trong verify.ts vì nó là
+      // capability thật nhưng chưa màn nào gọi.
+      trpc: ['lmsAuth.requestOtpEmail', 'lmsAuth.verifyOtpEmail'],
       uiRoutes: ['/login', '/parent/home'],
       models: ['LoginOtp'],
     },
+    journey: 'apps/e2e/tests/journeys/lms-parent-otp-login.journey.ui.spec.ts',
   },
   {
     id: 'P1-08',

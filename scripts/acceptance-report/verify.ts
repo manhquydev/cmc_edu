@@ -61,6 +61,11 @@ const DOCUMENTED_GAPS: Record<string, string> = {
   // cho GĐĐT tự xử lý (không phụ thuộc IT chạy code) → tính năng tương lai cần xây;
   // trang /admin/courses hiện chỉ có danh sách (course.list), thiếu form tạo.
   'course.create': 'Tạo/quản lý khoá học cho GĐĐT — cần màn hình mới (hiện chỉ import data + trang danh sách; PO xác nhận là tính năng tương lai 2026-07-18)',
+  // Triage 2026-07-24: P1-07 khai procedure này nhưng không màn LMS nào gọi
+  // (`rg "enrollment\.mine" apps/lms/src` → 0 matches). Bỏ khỏi khai của luồng
+  // để lời khai khớp thực tế; giữ ở đây để capability vẫn HIỆN, không bị whitelist
+  // nuốt mất — trang phụ huynh hiện chưa có chỗ nào liệt kê lớp của con.
+  'enrollment.mine': 'Danh sách lớp của con cho phụ huynh — procedure có thật nhưng chưa màn LMS nào gọi (triage 2026-07-24)',
 };
 
 /**

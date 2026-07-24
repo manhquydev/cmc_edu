@@ -197,8 +197,27 @@ jobs:
   # to blocking (drop continue-on-error) once this job has run warn-only in CI
   # for at least 2 weeks with ~0 false positives (no failures other than genuine
   # UI regressions).
+  # NOT YET VERIFIED IN CI. Actions on this repository has been failing in 3-4
+  # seconds with zero steps executed since 2026-07-17 — the workflow parses and
+  # the jobs are created, Actions is enabled, and the repository is private, so
+  # the signature is exhausted Actions minutes / a spending limit rather than
+  # anything in this file. Restoring it needs GitHub billing settings.
+  #
+  # Consequence: the full-suite run and the artifact upload below have never
+  # executed once. They are written to be correct, not observed to be correct.
+  # The acceptance ledger stays "blocked on CI billing" until a real run
+  # produces the first artifact — do not read a green local run as this job
+  # working. Reconsider the every-push cadence at the same time: on a private
+  # repo these are billed minutes, and the estimate is 9-53 minutes per push.
   ui-e2e:
     runs-on: ubuntu-latest
+    # Push events only, for two reasons that both matter. (1) This workflow
+    # triggers on push AND pull_request, so a PR branch would run this
+    # 9-53-minute billed job twice for one commit. (2) On a pull_request event
+    # `github.sha` is the synthetic merge commit, which exists in no clone — the
+    # ledger would refuse the artifact as belonging to different code, and the
+    # reader would see "bản mã cũ" with no way to reconcile it.
+    if: github.event_name == 'push'
     continue-on-error: true
     services:
       postgres:
@@ -259,8 +278,31 @@ jobs:
 
       # PLAYWRIGHT_UI=1 (job env, above) registers the `ui-chromium` project and
       # starts the admin (4173) and lms (4174) preview webServers
-      # (playwright.config.ts). Runs one existing UI spec end-to-end as the
-      # first proof this executor works; Phase 1/4/5 (docs/plans) add more
-      # specs to this already-wired project instead of rebuilding CI plumbing.
-      - name: Run UI e2e (ui-chromium project, admin-shell spec)
-        run: pnpm --filter @cmc/e2e test --project=ui-chromium admin-shell.ui.spec.ts
+      # (playwright.config.ts). The whole project runs, not one spec: the
+      # acceptance ledger treats a run that skipped declared specs as a partial
+      # run and refuses to draw conclusions from it, so a single-spec job could
+      # never back the ledger of record.
+      #
+      # GIT_SHA is passed explicitly because the checkout here is detached and
+      # the ledger refuses results whose commit does not match the code it is
+      # describing.
+      #
+      # Still `continue-on-error: true` at job level — warn-first. This job
+      # produces evidence; it does not gate merges.
+      - name: Run UI e2e (full ui-chromium project)
+        env:
+          GIT_SHA: ${{ github.sha }}
+        run: pnpm --filter @cmc/e2e test --project=ui-chromium
+
+      # The artifact is the ONLY sanctioned source for the acceptance ledger of
+      # record: a local results file is a normal file anyone can edit, whereas
+      # this one is produced by a run nobody hand-touched. `if: always()` so a
+      # red run still publishes its evidence — a failed journey is exactly the
+      # result the ledger needs to show.
+      - name: Upload journey results (acceptance ledger evidence)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-journeys-${{ github.sha }}
+          path: apps/e2e/acceptance-results/journeys.json
+          if-no-files-found: warn

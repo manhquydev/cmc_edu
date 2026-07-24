@@ -1,7 +1,10 @@
 ---
 phase: 4
 title: "Hạ tầng phiên LMS + 2 journey login/activation (TDD)"
-status: pending
+status: partial
+completed: 'L-01 + mintLmsSession + helper OTP/sweep (2026-07-24)'
+remaining: 'L-02 student-activation — chặn bởi 2 câu hỏi thiết kế, xem report'
+report: 'plans/reports/phase-04-ha-tang-phien-lms-260724-1620-report.md'
 priority: P1
 effort: "2d"
 dependencies: [2]

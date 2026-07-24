@@ -20,10 +20,19 @@
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { createPrismaClient, withFacility, PrismaClient } from '@cmc/db';
-import { ictToUtc } from '@cmc/domain-time';
+import { addDaysToDateOnly, ictDateOnlyOf, ictToUtc, weekdayOf } from '@cmc/domain-time';
 import type { Role } from '@cmc/auth';
 import { randomVnPhone } from './random-vn-phone.js';
 import { assertNotProdDatabase } from './assert-not-prod.js';
+// Reused as a plain runtime import (not just types) — same cross-import
+// pattern already established for apps/api/src elsewhere in this package
+// (session-injection.ts's STAFF_COOKIE_NAME, trpc-client.ts's AppRouter):
+// `planClassSessions` is the exact pure function `classBatch.create` uses to
+// materialize ClassSession rows, so `seedClassBatch` below produces sessions
+// identical in shape to what the real mutation would have created.
+import { planClassSessions, type SlotForPlanning } from '../../api/src/class/generate-sessions.js';
+import { relayEmailOutbox } from '../../api/src/worker/relay-email-outbox.js';
+import { ConsoleEmailTransport } from '../../api/src/worker/email-transport.js';
 
 let dbSingleton: PrismaClient | undefined;
 
@@ -596,4 +605,404 @@ export async function cleanupParentAccountsByPhone(...phones: string[]): Promise
   }
   await db.loginOtp.deleteMany({ where: { phone: { in: phones } } });
   await db.parentAccount.deleteMany({ where: { phone: { in: phones } } });
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4 (journey infra): PO-approved seed exceptions (2026-07-24,
+// plans/260723-1422-may-hoa-nghiem-thu-ba-tang/phase-04-journey-infra-hoi-quy.md).
+//
+// Two extensions to the Q5 "every role creates its own data through real UI"
+// rule, same category/mechanism as F4's `seedAppUser` staff row above — both
+// were confirmed by exhaustive grep to have NO real UI write path anywhere in
+// apps/admin/src, so seeding is the only alternative to inventing app
+// behavior that doesn't exist:
+//
+//   1. ClassBatch/Course creation (`seedClassBatch`) — every admin screen
+//      that touches a ClassBatch (classes/index.tsx, class-detail.tsx,
+//      finance/receipt-create.tsx, enrollment/class-placement.tsx,
+//      teaching/session-assessment.tsx) only ever CONSUMES
+//      `classBatch.list`/`course.list`; none of them creates one.
+//   2. Attendance write (`seedPresentAttendance`) — `/teaching/attendance`
+//      requires `?session=<id>` on the URL and has no session-picker of its
+//      own, and nothing else in the admin app links to it with a real
+//      session id (grep: `attendance.markAll`/`attendance.listBySession` have
+//      exactly one production consumer, that same page).
+//
+// Both are kept to the NARROWEST possible seam: the actual regression each
+// journey (F1/F2) exists to catch is a READ-permission bug on a real screen
+// (session-assessment's roster, finance's receipt list/detail) — never the
+// class-creation or attendance-write MECHANISM itself. Every step after the
+// seed still goes through real UI exactly as Q5 requires.
+// ---------------------------------------------------------------------------
+
+export interface SeedClassBatchOptions {
+  facilityId: string;
+  program?: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE';
+  courseName?: string;
+  /** ICT `YYYY-MM-DD`. Defaults to today. */
+  startDate?: string;
+  /** ICT `YYYY-MM-DD`. Defaults to `startDate` + 7 days — together with the
+   *  default single slot below (pinned to `startDate`'s own weekday) this
+   *  guarantees >=1 generated ClassSession regardless of which day of the
+   *  week the run happens to execute on. */
+  endDate?: string;
+  slotStartTime?: string;
+  slotEndTime?: string;
+  /** F2: set directly, replacing `classBatch.create`'s own optional
+   *  `teacherId` input/UI-driven `assignTeacher` step —
+   *  `assertTeacherOwnsClass` (apps/api/src/attendance/assert-teacher-owns-class.ts)
+   *  reads this FK regardless of how it was written. Must be a real AppUser
+   *  with role `giao_vien` (resolveTeacher's own validation) or the later
+   *  UI-driven attendance/roster steps will 403. */
+  teacherAppUserId?: string;
+}
+
+export interface SeedClassBatchResult {
+  courseId: string;
+  classBatchId: string;
+  code: string;
+  scheduleSlotId: string;
+  sessionIds: string[];
+}
+
+/** Seeds a Course + ClassBatch + one ScheduleSlot + its generated
+ *  ClassSession row(s) directly via Prisma — see the PO-approved-exceptions
+ *  header above. Mirrors `classBatch.create`'s own session-generation shape
+ *  (same `planClassSessions` call), so the seeded ClassSession rows match
+ *  what the real mutation would produce. NOT a full mirror of every field:
+ *  `code` is a random `E2E-CB-<uuid>` stub, not the real QĐ 0036
+ *  `ClassBatchCodeCounter`-derived format (`nextClassBatchCode`) — harmless
+ *  here since journeys only ever match `code` against a dropdown option by
+ *  regex, never assert its format. */
+export async function seedClassBatch(opts: SeedClassBatchOptions): Promise<SeedClassBatchResult> {
+  const program = opts.program ?? 'UCREA';
+  const startDate = opts.startDate ?? ictDateOnlyOf(new Date());
+  const endDate = opts.endDate ?? addDaysToDateOnly(startDate, 7);
+  const slot: SlotForPlanning = {
+    weekday: weekdayOf(startDate),
+    startTime: opts.slotStartTime ?? '08:00',
+    endTime: opts.slotEndTime ?? '09:00',
+  };
+
+  return withFacility(
+    getDb(),
+    null,
+    async (tx) => {
+      const course = await tx.course.create({
+        data: {
+          facilityId: opts.facilityId,
+          program,
+          name: opts.courseName ?? `E2E Course ${randomUUID().slice(0, 8)}`,
+        },
+      });
+
+      const classBatch = await tx.classBatch.create({
+        data: {
+          facilityId: opts.facilityId,
+          code: `E2E-CB-${randomUUID().slice(0, 8).toUpperCase()}`,
+          courseId: course.id,
+          program,
+          startDate: ictToUtc(startDate, '00:00'),
+          endDate: ictToUtc(endDate, '00:00'),
+          teacherId: opts.teacherAppUserId ?? null,
+          teacherAppUserId: opts.teacherAppUserId ?? null,
+          createdById: 'e2e-seed',
+        },
+      });
+
+      const scheduleSlot = await tx.scheduleSlot.create({
+        data: {
+          facilityId: opts.facilityId,
+          classBatchId: classBatch.id,
+          weekday: slot.weekday,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        },
+      });
+
+      const planned = planClassSessions(startDate, endDate, [{ ...slot, id: scheduleSlot.id }]);
+      if (planned.length === 0) {
+        throw new Error(
+          'seedClassBatch: planClassSessions produced zero ClassSession rows — startDate/endDate/slot mismatch.',
+        );
+      }
+      // Individual creates (not `createMany`): the caller needs the real ids
+      // back (`sessionIds`), which `createMany` never returns.
+      const sessions = [];
+      for (const p of planned) {
+        sessions.push(
+          await tx.classSession.create({
+            data: {
+              facilityId: opts.facilityId,
+              classBatchId: classBatch.id,
+              scheduleSlotId: p.scheduleSlotId ?? null,
+              sessionDate: p.sessionDate,
+              startTime: p.startTime,
+              endTime: p.endTime,
+            },
+          }),
+        );
+      }
+
+      return {
+        courseId: course.id,
+        classBatchId: classBatch.id,
+        code: classBatch.code,
+        scheduleSlotId: scheduleSlot.id,
+        sessionIds: sessions.map((s) => s.id),
+      };
+    },
+    { bypass: true },
+  );
+}
+
+export interface SeedPresentAttendanceOptions {
+  facilityId: string;
+  classSessionId: string;
+  enrollmentId: string;
+  studentId: string;
+}
+
+/** Seeds one `present` Attendance row directly — see the PO-approved
+ *  exceptions header above (extension 2). `enrollmentId`/`studentId` are
+ *  expected to come from a DB read keyed on values a real role's UI action
+ *  already produced (e.g. the unique studentName typed into a real
+ *  `finance.receiptCreate` form), never from an id handed across a
+ *  DIFFERENT role's browser context — this function itself runs in test
+ *  orchestration code, not inside anyone's simulated session.
+ *
+ *  Not a full mirror of `attendance.mark`/`markAll`: this skips the AuditLog
+ *  row and `recomputeFinalGrade` those mutations always also do. Harmless for
+ *  every journey today (session-assessment's roster read depends on neither),
+ *  but a future journey asserting something downstream of FinalGrade or the
+ *  audit trail should not assume this helper produced one. */
+export async function seedPresentAttendance(opts: SeedPresentAttendanceOptions): Promise<{ id: string }> {
+  return withFacility(
+    getDb(),
+    null,
+    (tx) =>
+      tx.attendance.upsert({
+        where: {
+          classSessionId_enrollmentId: {
+            classSessionId: opts.classSessionId,
+            enrollmentId: opts.enrollmentId,
+          },
+        },
+        create: {
+          facilityId: opts.facilityId,
+          classSessionId: opts.classSessionId,
+          enrollmentId: opts.enrollmentId,
+          studentId: opts.studentId,
+          status: 'present',
+          markedById: 'e2e-seed',
+          markedAt: new Date(),
+        },
+        update: { status: 'present', markedById: 'e2e-seed', markedAt: new Date() },
+        select: { id: true },
+      }),
+    { bypass: true },
+  );
+}
+
+/** Read-only: `AppUser.id` for a given `userId` within a facility — recovers
+ *  the id a real `/admin/users` super_admin UI action just created
+ *  (`createStaffViaAdminUi`, apps/e2e/src/journey/create-staff-via-admin-ui.ts)
+ *  so a caller that needs a foreign key (e.g. `seedClassBatch`'s
+ *  `teacherAppUserId`) has something real to point at — the tRPC
+ *  `user.create` mutation's response isn't observable from Playwright, only
+ *  the `userId` the form was filled with is. Same "read back what a real UI
+ *  action already produced" principle as `findEnrollmentByClassAndStudentName`
+ *  below, just keyed by `userId` instead of a displayed name. */
+export async function findAppUserByUserId(opts: {
+  facilityId: string;
+  userId: string;
+}): Promise<{ id: string } | null> {
+  return withFacility(
+    getDb(),
+    null,
+    (tx) => tx.appUser.findFirst({ where: { facilityId: opts.facilityId, userId: opts.userId }, select: { id: true } }),
+    { bypass: true },
+  );
+}
+
+/** Read-only: the single `active`/`reserved` Enrollment for a (classBatchId,
+ *  studentId) pair — used to recover the enrollment/student ids
+ *  `finance.receiptApprove` provisioning creates but never returns to the
+ *  caller (`ReceiptApproveResult` carries no studentId/enrollmentId), so
+ *  `seedPresentAttendance` above has something real to point at. Matches by
+ *  the studentName a role's own UI action already typed, never by an id
+ *  smuggled out of another context. */
+export async function findEnrollmentByClassAndStudentName(opts: {
+  facilityId: string;
+  classBatchId: string;
+  studentName: string;
+}): Promise<{ enrollmentId: string; studentId: string } | null> {
+  return withFacility(
+    getDb(),
+    null,
+    async (tx) => {
+      const student = await tx.student.findFirst({
+        where: { facilityId: opts.facilityId, fullName: opts.studentName },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!student) return null;
+      const enrollment = await tx.enrollment.findFirst({
+        where: { facilityId: opts.facilityId, classBatchId: opts.classBatchId, studentId: student.id },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!enrollment) return null;
+      return { enrollmentId: enrollment.id, studentId: student.id };
+    },
+    { bypass: true },
+  );
+}
+
+/**
+ * Drains the `EmailOutbox` once via the real `relayEmailOutbox` worker
+ * function (apps/api/src/worker/relay-email-outbox.ts) — the standalone
+ * worker process (apps/api/src/worker/index.ts) that normally runs this on
+ * an interval is never started by `global-setup.ts` (only the tRPC api
+ * server is), so nothing would otherwise transition a `pending` row to
+ * `sent`. `ConsoleEmailTransport` for both transport keys matches the same
+ * non-production default `apps/api/src/worker/index.ts` itself picks
+ * whenever `NODE_ENV !== 'production'` (true for this whole e2e run) — no
+ * real email provider is ever contacted, and no real mailbox is ever read
+ * (same principle as scripts/ops-smoke.sh's mark 5: the assertion is the
+ * outbox row's `status` column, never inbox content).
+ */
+export async function drainEmailOutboxOnce(): Promise<{ sent: number; failed: number; dead: number }> {
+  const transport = { brevo: new ConsoleEmailTransport(), graph: new ConsoleEmailTransport() };
+  const result = await relayEmailOutbox(getDb(), transport);
+  return { sent: result.sent, failed: result.failed, dead: result.dead };
+}
+
+/** Read-only: status of the (at most one, deduped by `receiptId`) EmailOutbox
+ *  row a given receipt enqueued — mirrors the lookup
+ *  `finance/router.ts#enqueueReceiptEmail` itself uses for its own dedup
+ *  check. */
+export async function getEmailOutboxStatusByReceiptId(receiptId: string): Promise<string | null> {
+  const rows = await getDb().$queryRaw<{ status: string }[]>`
+    SELECT "status" FROM "EmailOutbox" WHERE "payload"->>'receiptId' = ${receiptId} LIMIT 1
+  `;
+  return rows[0]?.status ?? null;
+}
+
+/** EmailOutbox carries no `facilityId` (system-wide, like ParentAccount) so
+ *  `cleanupFacility` above cannot scope a delete to it — spec-local cleanup
+ *  by `receiptId`, same pattern `apps/api/src/finance/approve.test.ts`
+ *  already uses for its own EmailOutbox row. */
+export async function deleteEmailOutboxByReceiptId(receiptId: string): Promise<void> {
+  await getDb().$executeRaw`DELETE FROM "EmailOutbox" WHERE "payload"->>'receiptId' = ${receiptId}`;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5 (journey P4-01, plans/260723-1422-may-hoa-nghiem-thu-ba-tang/
+// phase-05-journey-10-luong-loi.md): one more seed exception, same
+// category/mechanism as Phase 4's `seedClassBatch`/`seedPresentAttendance`
+// above. Not a fresh per-instance PO sign-off — this is a technical finding
+// (confirmed by exhaustive grep to have NO real admin UI write path),
+// independently re-verified 2026-07-24 against the same pattern the user
+// accepted that day for Phase 4's two exceptions (see the phase-04 doc's own
+// 2026-07-24 correction note on that acceptance).
+//
+// `rewards.redeem` (the only mutation that ever creates a Reward row) is
+// `lmsProcedure`-gated — `apps/api/src/rewards/reward-router.ts` — reachable
+// only from the LMS student app's `/student/gifts`, which is `hoc_vien`/
+// parent-mediated and explicitly out of scope for this admin-only phase (see
+// this journey's own header). Grepped `apps/admin/src/pages/engagement`: the
+// two screens that exist there (`rewards.tsx`, `gifts.tsx`) only ever CONSUME
+// `rewards.list`/`gift.list` — neither writes a Reward. There is likewise no
+// admin UI that creates a bare Student row outside receipt-approval
+// provisioning (same finding as Phase 4's F2 comment) — irrelevant to a star
+// redemption, so seeding a minimal Student directly (no Enrollment) is the
+// narrowest fix rather than running an entire unrelated receipt-approval
+// flow just to get a Student row to hang a Reward off of.
+//
+// Narrowed to the one seam Q5 cannot reach: the actual regression this
+// journey exists to prove is the STAFF approve/deliver READ+WRITE path on
+// `/admin/engagement/rewards` (real UI, driven by the journey itself) — never
+// the redeem mechanism, which this seed intentionally bypasses.
+// ---------------------------------------------------------------------------
+
+export interface SeedPendingRewardOptions {
+  facilityId: string;
+  /** Name of a Gift a director's own real UI action already created
+   *  (`gift.upsert` via `/admin/engagement/gifts`) — resolved by its
+   *  DISPLAYED name, never a smuggled id, same principle as
+   *  `findEnrollmentByClassAndStudentName` above. */
+  giftName: string;
+  studentName?: string;
+}
+
+export interface SeedPendingRewardResult {
+  rewardId: string;
+  studentId: string;
+  giftId: string;
+}
+
+/**
+ * Read-only: resolves a (ShiftGroup, ShiftTemplate) pair created via the real
+ * `/admin/shift-config` UI (super_admin, `shift.createGroup`/`createTemplate`)
+ * by their DISPLAYED names — same "never smuggle an id across a role/context
+ * boundary" principle as `findEnrollmentByClassAndStudentName` above. Used by
+ * the P3-02 journey (plans/260723-1422-may-hoa-nghiem-thu-ba-tang/
+ * phase-05-journey-10-luong-loi.md) to feed `seedApprovedShiftRegistration`
+ * below, which needs real ids for a foreign key `shift.submit`'s own
+ * future-date-only guard makes impossible to register for TODAY via UI.
+ */
+export async function findShiftTemplateByNames(opts: {
+  facilityId: string;
+  groupName: string;
+  templateName: string;
+}): Promise<{ shiftGroupId: string; shiftTemplateId: string } | null> {
+  return withFacility(
+    getDb(),
+    null,
+    async (tx) => {
+      const group = await tx.shiftGroup.findFirst({
+        where: { facilityId: opts.facilityId, name: opts.groupName },
+      });
+      if (!group) return null;
+      const template = await tx.shiftTemplate.findFirst({
+        where: { facilityId: opts.facilityId, shiftGroupId: group.id, name: opts.templateName },
+      });
+      if (!template) return null;
+      return { shiftGroupId: group.id, shiftTemplateId: template.id };
+    },
+    { bypass: true },
+  );
+}
+
+/** Seeds a bare Student + a `pending` Reward against a Gift a real director
+ *  session already created via `/admin/engagement/gifts` — see the
+ *  PO-approved-exceptions header above. Every step after this (approve/
+ *  deliver on `/admin/engagement/rewards`) still goes through real UI. */
+export async function seedPendingReward(opts: SeedPendingRewardOptions): Promise<SeedPendingRewardResult> {
+  return withFacility(
+    getDb(),
+    null,
+    async (tx) => {
+      const gift = await tx.gift.findFirst({
+        where: { facilityId: opts.facilityId, name: opts.giftName },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!gift) {
+        throw new Error(
+          `seedPendingReward: no Gift named "${opts.giftName}" found for facility ${opts.facilityId} — ` +
+            'create it via the real /admin/engagement/gifts UI before calling this.',
+        );
+      }
+      const student = await tx.student.create({
+        data: {
+          facilityId: opts.facilityId,
+          fullName: opts.studentName ?? `E2E Reward Student ${randomUUID().slice(0, 8)}`,
+        },
+      });
+      const reward = await tx.reward.create({
+        data: { facilityId: opts.facilityId, studentId: student.id, giftId: gift.id, status: 'pending' },
+      });
+      return { rewardId: reward.id, studentId: student.id, giftId: gift.id };
+    },
+    { bypass: true },
+  );
 }

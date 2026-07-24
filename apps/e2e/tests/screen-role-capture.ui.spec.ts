@@ -18,10 +18,25 @@
 //    options may be missing data or missing permission — only the error code in
 //    the body tells them apart, never the rendered content.
 //
-// Known limitation, stated rather than buried: this only sees failures that
-// produce a request. A `canDo()` check in the page can stop a screen from
-// calling anything at all, and such a gate is invisible here. The capture
-// supplements a reading of those call sites; it does not replace one.
+// 3. A screen can be silently empty. A client-side `canDo()` gate can stop a
+//    screen from calling anything at all before any request is issued, and a
+//    call that never fires leaves nothing in `denied`/`notFound` to find. This
+//    capture additionally opens every `screen-should-call.ts` pair — one KNOWN
+//    to fire ≥1 request when the role belongs there — and flags a zero-call
+//    outcome as `silentScreens`.
+//
+// Known limitation, stated rather than buried: `silentScreens` only covers the
+// pairs declared in `screen-should-call.ts`. A screen outside that declared
+// set that goes silent for some other role is not caught here — the capture
+// supplements a reading of those call sites; it does not replace one. Nor does
+// this capture make any claim about payload shape: a call that returns
+// `{items: []}` reads as `ok` here regardless of whether that is the correct
+// answer for the seeded data. Proving a screen's data is non-empty for a real
+// scenario is a journey's job (`*.journey.ui.spec.ts`), not this capture's —
+// journeys create their own data through real UI action sequences, so a
+// non-empty assertion there is meaningful; this capture runs against a
+// deliberately empty DB (no business seed) where "empty" proves nothing about
+// data-shape correctness.
 //
 // Run: PLAYWRIGHT_UI=1 pnpm --filter @cmc/e2e test --project=ui-chromium \
 //        screen-role-capture
@@ -34,6 +49,7 @@ import { mintStaffCookie } from '../src/session-injection.js';
 import { seedAppUser } from '../src/db.js';
 import { STAFF_COOKIE_NAME } from '../../api/src/auth/staff-session.js';
 import type { ScreenRolePair } from '../src/screen-role-matrix.js';
+import { SCREEN_SHOULD_CALL } from '../src/screen-should-call.js';
 import type { Role } from '@cmc/auth';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -134,28 +150,40 @@ test.describe('screen × role runtime capture', () => {
       ]);
       const page = await context.newPage();
 
+      // Every `.json()` promise is collected here as it fires, rather than
+      // fire-and-forget (the prior `void response.json().then(...)` race):
+      // the parse can outlive the fixed wait below under load or CI resource
+      // contention, and closing the context while a parse is still pending
+      // drops that call's record — a pair that DID call something would then
+      // look identical to a genuine `silentScreens` finding. `allSettled`
+      // below waits out every promise collected here before either count is
+      // trusted.
+      const pending: Promise<void>[] = [];
+
       page.on('response', (response) => {
         const url = response.url();
         if (!url.includes('/trpc/')) return;
         const procedures = proceduresFromUrl(url);
-        void response
-          .json()
-          .then((body: unknown) => {
-            const elements = Array.isArray(body) ? body : [body];
-            elements.forEach((element, index) => {
-              const code = codeOfElement(element);
-              records.push({
-                path: pair.path,
-                role: pair.role,
-                procedure: procedures[index] ?? procedures[0] ?? 'unknown',
-                outcome: outcomeFor(code),
-                ...(code ? { code } : {}),
+        pending.push(
+          response
+            .json()
+            .then((body: unknown) => {
+              const elements = Array.isArray(body) ? body : [body];
+              elements.forEach((element, index) => {
+                const code = codeOfElement(element);
+                records.push({
+                  path: pair.path,
+                  role: pair.role,
+                  procedure: procedures[index] ?? procedures[0] ?? 'unknown',
+                  outcome: outcomeFor(code),
+                  ...(code ? { code } : {}),
+                });
               });
-            });
-          })
-          .catch(() => {
-            /* Non-JSON responses carry no procedure outcome. */
-          });
+            })
+            .catch(() => {
+              /* Non-JSON responses carry no procedure outcome. */
+            }),
+        );
       });
 
       // Deliberately not `networkidle`: a screen whose queries are being denied
@@ -166,12 +194,39 @@ test.describe('screen × role runtime capture', () => {
       await page.goto(pair.path, { waitUntil: 'domcontentloaded', timeout: 10_000 }).catch(() => {
         /* A screen that fails to load still yields whatever it called. */
       });
+      // Still needed to let requests get issued in the first place — not part
+      // of the race, a separate already-accepted design choice.
       await page.waitForTimeout(1_200);
+      // Drains every `.json()` promise collected above before the pair's call
+      // count is read anywhere below (the `denied`/`notFound` filters and,
+      // crucially, the `silentScreens` zero-call check after the loop) and
+      // before the context that owns those in-flight parses closes.
+      await Promise.allSettled(pending);
       await context.close();
     }
 
     const denied = records.filter((r) => r.outcome === 'forbidden');
     const notFound = records.filter((r) => r.outcome === 'notFound');
+
+    // `session.me` fires on every single pair — `SessionProvider`
+    // (apps/admin/src/main.tsx) mounts once above the router and queries it
+    // for the whole app shell, not per screen. A falsification run proved
+    // this the hard way: counting raw `records.length` never went to zero for
+    // ANY pair, session.me alone always keeping it at 1+, so a real
+    // client-side gate that blocked a screen's own query produced no finding
+    // at all. Only a screen's OWN on-mount call says anything about that
+    // screen, so the shell-level identity call is excluded here before the
+    // zero-call check below.
+    const SHELL_PROCEDURES = new Set(['session.me']);
+    const screenOwnRecords = records.filter((r) => !SHELL_PROCEDURES.has(r.procedure));
+
+    // Trusted only now: every response `.json()` promise fired during the
+    // sweep has been awaited (Promise.allSettled above), so a pair with zero
+    // screen-own records here really made zero screen-level calls — it is not
+    // an artifact of the context closing on an unresolved parse.
+    const silentScreens = SCREEN_SHOULD_CALL.filter(
+      (pair) => !screenOwnRecords.some((r) => r.path === pair.path && r.role === pair.role),
+    );
 
     mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
     writeFileSync(
@@ -185,6 +240,7 @@ test.describe('screen × role runtime capture', () => {
           callsObserved: records.length,
           denied,
           notFound,
+          silentScreens,
           records,
         },
         null,
@@ -197,9 +253,12 @@ test.describe('screen × role runtime capture', () => {
       const key = `${record.path} [${record.role}]`;
       summary.set(key, (summary.get(key) ?? new Set()).add(record.procedure));
     }
-    console.log(`\nscreen-role-capture — ${runnable.length} pairs, ${records.length} calls, ${denied.length} denied`);
+    console.log(`\nscreen-role-capture — ${runnable.length} pairs, ${records.length} calls, ${denied.length} denied, ${silentScreens.length} silent`);
     for (const [key, procedures] of [...summary.entries()].sort()) {
       console.log(`  DENIED ${key}: ${[...procedures].sort().join(', ')}`);
+    }
+    for (const pair of silentScreens) {
+      console.log(`  SILENT ${pair.path} [${pair.role}]`);
     }
     if (notFound.length > 0) {
       console.log(`  (${notFound.length} NOT_FOUND results — owner-checked procedures, reported separately)`);

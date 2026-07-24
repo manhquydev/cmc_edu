@@ -1,7 +1,9 @@
 ---
 phase: 1
 title: "Đo runtime baseline + quyết định F-B"
-status: pending
+status: done
+completed: '2026-07-24'
+report: 'plans/reports/phase-timing-baseline-260724-1511-report.md'
 priority: P1
 effort: "0.5d"
 dependencies: []

@@ -41,7 +41,7 @@ cùng sửa `scripts/acceptance-report/`).
 |---|---|---|
 | D0 | Kế thừa nguyên advise 260724: per-flow expansion (không Ngày-0), quét-hết-rồi-sửa, ERP→LMS, UAT M0 người thật vẫn là lần ký cuối | advise 260724 |
 | D1 (F-A) | **A2**: login UI thật (OTP từ `EmailOutbox.payload`) CHỈ trong journey mà login/kích hoạt LÀ nghiệp vụ; journey LMS khác inject session. **Hiệu chỉnh red-team (RT-1, user 2026-07-24):** token LMS ĐÃ ký HMAC (`apps/api/src/lms-auth/session-token.ts:50,78`) và helper mint ĐÃ có (`mintParentToken`/`mintStudentToken`, `apps/e2e/src/session-injection.ts:41,61`) — `mintLmsSession()` chỉ là wrapper ghi session vào browser storage, GỌI helper sẵn có; `session-injection.ts` là chủ sở hữu duy nhất của định dạng token. **RT-6 (user 2026-07-24):** wrapper parent bơm cache `children` từ DB (carve-out tường minh — `parent/home.tsx:124` render từ cache login) | brainstorm F-A + red-team |
-| D2 (F-B) | Ngưỡng lỏng **60–90 phút** cho tổng runtime; đo trước (Phase 1); vượt → nightly trước, shard sau, per-worker facility là cuối cùng | brainstorm F-B |
+| D2 (F-B) | Ngưỡng lỏng **60–90 phút** cho tổng runtime; đo trước (Phase 1); vượt → nightly trước, shard sau, per-worker facility là cuối cùng. **Số đo Phase 1 (2026-07-24):** 13 spec = 196 s local (2 run lệch 0.1%), median journey 2.6 s, `screen-role-capture` chiếm 65%; dự phóng ~40 spec = 4.6′–13.3′ local → **9′–53′ trên CI (hệ số 2–4× giả định)** ⇒ verdict **giữ full-suite serial mỗi push**, PROVISIONAL vì chưa có số CI thật (V4: CI chết vì billing) | brainstorm F-B + Phase 1 |
 | D3 (F-C) | **C1 ingestion**: trạng thái `xanh` per-flow CHỈ từ kết quả Playwright JSON; thiếu kết quả → "declared, unproven"; `statusReason{code,detail}` cho fixme/no-UI-path. **Hiệu chỉnh red-team (RT-2/3/4, user 2026-07-24):** threat model trung thực — ingestion NÂNG CHI PHÍ tự lừa, không chống giả mạo chủ động; (a) results ghi git SHA + metadata run; lệch SHA hoặc thiếu tập spec đã khai → unproven/"partial run"; (b) **nguồn chính danh cho sổ v1 = artifact job `ui-e2e` chạy FULL `ui-chromium` MỖI PUSH** (validate V1, user 2026-07-24 — chọn per-push thay nightly, chấp nhận chi phí runner; nếu job vượt ngưỡng D2 thì lùi theo thang F-B: nightly → shard; warn-first, không nâng gate), run local chỉ advisory; (c) json reporter gate theo `PLAYWRIGHT_UI` để run api không ghi đè | brainstorm F-C + red-team + validate |
 | D4 (F-D) | Đợt viết journey theo nhóm nghiệp vụ: tiền → ghi danh/vận hành lớp → HR → rewards/admin. **Hiệu chỉnh red-team (RT-8):** field `cluster` manifest là nhãn phase build (P1/P2/P3/P4/ADMIN), KHÔNG phải nhóm nghiệp vụ — Phase 2 sinh cột `flow→đợt` làm khóa chia đợt và gán chủ sở hữu P1-06/P1-07 (LMS) cho Phase 4/8 | advise + red-team |
 
@@ -57,9 +57,9 @@ cùng sửa `scripts/acceptance-report/`).
 
 | # | Phase | Status | Depends |
 |---|-------|--------|---------|
-| 1 | [Đo runtime baseline + quyết định F-B](./phase-01-do-runtime-baseline.md) | Pending | — |
-| 2 | [Triage 38 luồng](./phase-02-triage-38-luong.md) | Pending | — |
-| 3 | [Sổ trạng thái máy-chứng — ingestion vào AcceptanceState](./phase-03-so-4-trang-thai-va-ingestion.md) | Pending | — |
+| 1 | [Đo runtime baseline + quyết định F-B](./phase-01-do-runtime-baseline.md) | **Done** (2026-07-24, verdict PROVISIONAL — [report](../reports/phase-timing-baseline-260724-1511-report.md)) | — |
+| 2 | [Triage 38 luồng](./phase-02-triage-38-luong.md) | **Done** — 38/38 triaged; **chặn Phase 5-7**: 12 ngoại lệ seed/seam + 3 bế tắc chờ user duyệt ([tổng hợp](../reports/triage-260724-1530-38-luong-tong-hop-report.md)) | — |
+| 3 | [Sổ trạng thái máy-chứng — ingestion vào AcceptanceState](./phase-03-so-4-trang-thai-va-ingestion.md) | **Done** — 9/38 proven từ results thật; 6 falsification sống + mutation testing; job CI viết nhưng CHƯA XÁC MINH (V4) ([report](../reports/phase-03-ingestion-so-may-chung-260724-1545-report.md)) | — |
 | 4 | [Hạ tầng phiên LMS + 2 journey login/activation](./phase-04-ha-tang-phien-lms.md) | Pending | 2 |
 | 5 | [Đợt tiền — finance](./phase-05-dot-tien-finance.md) | Pending | 1,2,3 |
 | 6 | [Đợt ghi danh + vận hành lớp](./phase-06-dot-ghi-danh-van-hanh-lop.md) | Pending | 5 |
@@ -129,6 +129,23 @@ tích lũy (đợt sau rẻ hơn đợt trước) và giữ nghi thức 4×green
 | V1 | Nguồn artifact chính danh: nightly hay full mỗi push? | **Full `ui-chromium` MỖI PUSH** trong job `ui-e2e` (override khuyến nghị nightly của orchestrator) | Trade-off ghi nhận: chi phí runner 60-90'+/push; đường lùi nếu quá chậm = thang F-B (nightly → shard), không âm thầm đảo lại |
 | V2 | Ship branch `uat-prep-nav-and-boot-checks` trước khi chạy plan? | **Ship trước**, plan chạy trên branch mới từ main sạch | Khớp RT-7; PR gọn, baseline ổn định |
 | V3 | CI main fail ~2s mọi run — xử ở đâu? | **Điều kiện đầu Phase 3**: chẩn đoán + sửa lỗi workflow trước khi dựng job full-suite | Không có bước này thì V1 vô nghĩa |
+
+### Session 2 — 2026-07-24 (thực thi)
+
+| # | Câu hỏi | Quyết định (user) | Ghi chú |
+|---|---|---|---|
+| V4 | CI chết vì **billing**, không phải code (mọi run từ 2026-07-17 fail 3–4s, 0 step chạy; run mới nhất `30077288512` trên `a57e71d`; YAML hợp lệ, Actions `enabled`, repo private → hết Actions minutes/spending limit; chỉ sửa được ở GitHub web billing, `gh` thiếu scope `user`). Nguồn artifact của D3(f)/V1 do đó KHÔNG sinh được. Xử thế nào? | **Chạy tiếp; sổ v1 treo chờ CI.** Phase 1/2, Phase 3(a)–(e), Phase 4–7 thực thi đầy đủ. Job `ui-e2e` full-suite + upload artifact vẫn được viết thành code nhưng đánh dấu CHƯA XÁC MINH, ghi trạng thái CI thật vào report. Sổ v1 ở trạng thái "blocked on CI billing" cho tới khi user khôi phục minutes, rồi regen từ artifact CI đầu tiên. | V3 coi như **đã chẩn đoán, không sửa được từ repo** — không phải lỗi workflow. Kéo theo: V1 (full suite mỗi push) chọn khi chưa biết minutes đã cạn; xem lại chi phí khi billing khôi phục, theo thang F-B, không âm thầm đảo. |
+
+### Session 2 (tiếp) — cổng duyệt ngoại lệ seed, 2026-07-24
+
+Nguồn: bảng §4 của `plans/reports/triage-260724-1530-38-luong-tong-hop-report.md`.
+**User duyệt thật trong phiên 2026-07-24** (không phải suy diễn, không phải mặc định):
+
+| # | Câu hỏi | Quyết định (user 2026-07-24) |
+|---|---|---|
+| V5 | 12 ngoại lệ seed/seam — duyệt thế nào? | **Nguyên tắc: dữ liệu trơ thì được, cơ chế đang cần chứng minh thì KHÔNG.** Duyệt S1 (`seedClassBatch`), S4 (`seedSubmittedSubmission`), S8 (helper gọi `runReconcileFinanceFlags`), và seed `CurriculumUnit` như dữ liệu trơ cho P2-04. **Từ chối** S2 (goto `?session=`), S5 (seed `GuardianLinkRequest`), và nửa "gán unit vào session" của S3. Hệ quả: P2-02, P1-06, P2-03 nhận `statusReason` no-ui-path/red-fixme kèm bằng chứng grep; 2 lỗ sản phẩm (không link nào mang `?session`; provisioning không tạo `GuardianLinkRequest`) chuyển sang plan sửa |
+| V6 | P3-06/P3-08 bị chặn bởi `AppUser.managerId` không có UI | **Seed `managerId`** (dữ liệu cơ cấu tổ chức = trơ; cơ chế cần chứng minh là KPI confirm, không phải sửa sơ đồ tổ chức). Thiếu UI gán quản lý ghi vào sổ bàn giao plan sửa |
+| V7 | P3-10/P3-11 (worker nội bộ, bất khả journey UI) | **`no-ui-path` kèm bằng chứng grep**; spec API-level là ứng viên cho plan sau, KHÔNG làm trong plan này. Hai luồng này vẫn tính vào 38/38 vì có trạng thái tường minh |
 
 ### Whole-Plan Consistency Sweep — Validation Session 1
 - Files reread: plan.md + phase-01..08 (grep "nightly|CI/nightly|schedule")

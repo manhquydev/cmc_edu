@@ -37,6 +37,12 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/crm', '/crm/opportunities/:id'],
       models: ['Opportunity'],
     },
+    // Journey chứng minh đường THẤT BẠI của phễu: sale tạo cơ hội → mở màn chi
+    // tiết (opportunityGet) → đánh dấu mất kèm lý do (opportunityMarkLost). Khác
+    // crm-receipt (chỉ create + advance rồi rời board). Phủ hẹp có chủ ý:
+    // assign (assignableStaff + opportunityAssign) chỉ hiện với vai quản lý
+    // (isManager=GĐKD) và cần nhân sự assignable thật → để lại đợt sau.
+    journey: 'apps/e2e/tests/journeys/crm-opportunity-lost.journey.ui.spec.ts',
   },
   {
     id: 'P1-02',

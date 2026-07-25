@@ -748,6 +748,13 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/crm/aftersale'],
       models: ['AfterSaleCase'],
     },
+    // Journey drives the case lifecycle end-to-end on a GĐKD: create for a
+    // seeded student (afterSale.create → "Mở") → advance (→ "Đang xử lý") →
+    // resolve with an outcome (→ "Đã giải quyết") → close (→ "Đã đóng"). Each
+    // server transition is status-guarded, so the linear walk is real. The
+    // declared student.setLifecycle is wired on the /admin/students screen, not
+    // this care-case path, so this journey does not drive it.
+    journey: 'apps/e2e/tests/journeys/aftersale-case-lifecycle.journey.ui.spec.ts',
   },
 
   // ─────────────────────────────── ADMIN — Quản trị hệ thống ───────────────────────────────

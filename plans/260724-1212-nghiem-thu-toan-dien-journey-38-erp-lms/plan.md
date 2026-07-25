@@ -60,7 +60,7 @@ cùng sửa `scripts/acceptance-report/`).
 | 1 | [Đo runtime baseline + quyết định F-B](./phase-01-do-runtime-baseline.md) | **Done** (2026-07-24, verdict PROVISIONAL — [report](../reports/phase-timing-baseline-260724-1511-report.md)) | — |
 | 2 | [Triage 38 luồng](./phase-02-triage-38-luong.md) | **Done** — 38/38 triaged; **chặn Phase 5-7**: 12 ngoại lệ seed/seam + 3 bế tắc chờ user duyệt ([tổng hợp](../reports/triage-260724-1530-38-luong-tong-hop-report.md)) | — |
 | 3 | [Sổ trạng thái máy-chứng — ingestion vào AcceptanceState](./phase-03-so-4-trang-thai-va-ingestion.md) | **Done** — 9/38 proven từ results thật; 6 falsification sống + mutation testing; job CI viết nhưng CHƯA XÁC MINH (V4) ([report](../reports/phase-03-ingestion-so-may-chung-260724-1545-report.md)) | — |
-| 4 | [Hạ tầng phiên LMS + 2 journey login/activation](./phase-04-ha-tang-phien-lms.md) | **Một phần** — L-01 xanh 4×, `mintLmsSession` + helper OTP/sweep xong, sổ lên 10/38; **L-02 chưa làm** ([report](../reports/phase-04-ha-tang-phien-lms-260724-1620-report.md)) | 2 |
+| 4 | [Hạ tầng phiên LMS + 2 journey login/activation](./phase-04-ha-tang-phien-lms.md) | **Done** — L-01 + L-02 xanh 4× liên tiếp, `mintLmsSession` dùng thật ở L-02, sổ lên **11/38** ([L-01 report](../reports/phase-04-ha-tang-phien-lms-260724-1620-report.md) · [L-02 report](../reports/phase-04-l02-student-activation-260725-0900-report.md)) | 2 |
 | 5 | [Đợt tiền — finance](./phase-05-dot-tien-finance.md) | Pending | 1,2,3 |
 | 6 | [Đợt ghi danh + vận hành lớp](./phase-06-dot-ghi-danh-van-hanh-lop.md) | Pending | 5 |
 | 7 | [Đợt HR/payroll + rewards/admin](./phase-07-dot-hr-rewards-admin.md) | Pending | 6 |

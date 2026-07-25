@@ -541,11 +541,16 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/payroll', '/hr/salary-tiers', '/hr/my'],
       models: ['Payslip', 'SalaryTier', 'SalaryRate', 'CompensationPolicy'],
     },
-    // Phase 5 (plan 260723-1422, F4 regression — one of the 3 flows dead 16
-    // days): a staff member created via the real /admin/users super_admin UI
-    // shows up as a non-empty row on /hr/payroll's real `user.pickList` —
-    // direct intersection with this flow's `user.pickList` + `/hr/payroll`.
-    journey: 'apps/e2e/tests/journeys/payroll-roster.journey.ui.spec.ts',
+    // Journey drives the flow's core end-to-end on one GĐKD actor: create a
+    // KINH_DOANH salary tier (salaryTier.create) → assign it to a sale
+    // (compensation.assignTier) → assemble that sale's payslip into a draft
+    // (payslip.assemble, which requires the tier) → finalize it
+    // (payslip.finalize, badge "Nháp" → "Đã chốt"). The sale is created via the
+    // real /admin/users super_admin UI, so clicking its row on /hr/payroll also
+    // exercises the non-empty `user.pickList` roster that the F4 regression
+    // (plan 260723-1422) guards. payroll-roster.journey.ui.spec.ts is kept as
+    // the focused standalone guard for that specific regression.
+    journey: 'apps/e2e/tests/journeys/payroll-assemble-finalize.journey.ui.spec.ts',
   },
   {
     id: 'P3-06',

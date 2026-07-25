@@ -800,5 +800,11 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/shift-config'],
       models: ['ShiftGroup', 'ShiftTemplate', 'CompensationPolicy'],
     },
+    // Journey: super_admin tạo nhóm ca → thêm mẫu ca vào đúng nhóm đó (form
+    // per-group) → tab "Chính sách phạt" lưu 2 mức phạt. Drive đủ 5/5 procedure
+    // (createGroup/listGroups/createTemplate/compensationPolicy.get/upsert) qua
+    // UI thật. Nhóm seed sẵn nên nhận diện nhóm của run bằng tên unique; mẫu ca
+    // hiện trên card + banner "Đã lưu chính sách phạt." là bằng chứng sống.
+    journey: 'apps/e2e/tests/journeys/shift-config-admin.journey.ui.spec.ts',
   },
 ];

@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 import type { Browser } from '@playwright/test';
 import { expect } from '@playwright/test';
 
+import type { Role } from '@cmc/auth';
 import { mintStaffCookie } from '../session-injection.js';
 import { menuNav } from './menu-nav.js';
 import { findInList } from './find-in-list.js';
@@ -36,6 +37,15 @@ export interface ProvisionStudentOptions {
   /** When set, recorded on the receipt so the parent can also log in by email
    *  OTP. Provisioning upserts it onto the ParentAccount. */
   parentEmail?: string;
+  /** Fee to enter, as the string the input receives. Default '3000001' — the
+   *  trailing 1 is required (see the fill call). Pass a value > 20,000,000 to
+   *  exercise the second-eye path; then `approverRole` must be a second-eye
+   *  role or approval is refused. */
+  feeVnd?: string;
+  /** Role that approves the receipt. Default 'giam_doc_kinh_doanh'. A receipt
+   *  over the second-eye threshold must be approved by 'giam_doc_dao_tao' or
+   *  'super_admin', or the approve button never renders (canApprove=false). */
+  approverRole?: Role;
   /** A short, unique tag mixed into the staff cookie user ids so parallel or
    *  repeated runs never collide. */
   runId?: string;
@@ -49,9 +59,11 @@ export interface ProvisionStudentOptions {
 export async function provisionStudentViaReceipt(
   browser: Browser,
   options: ProvisionStudentOptions,
-): Promise<void> {
+): Promise<{ receiptId: string }> {
   const runId = options.runId ?? randomUUID().slice(0, 8);
   const classCode = options.classCode instanceof RegExp ? options.classCode : new RegExp(options.classCode);
+  const feeVnd = options.feeVnd ?? '3000001';
+  const approverRole = options.approverRole ?? 'giam_doc_kinh_doanh';
 
   // --- sale: create the receipt for this student ---
   const saleContext = await browser.newContext({ baseURL: ADMIN_URL });
@@ -78,10 +90,13 @@ export async function provisionStudentViaReceipt(
   // The trailing 1 is load-bearing. The fee input is min={1} step={100000}, so
   // the browser only accepts 1 + n×100000 — a round 3000000 is a step mismatch
   // that lands in React state as NaN and silently blocks submit (verified
-  // directly; recorded as a product finding). Do not "tidy" to a round number.
-  await salePage.getByRole('spinbutton', { name: /^Học phí/ }).fill('3000001');
+  // directly; recorded as a product finding). Keep any fee on that lattice.
+  await salePage.getByRole('spinbutton', { name: /^Học phí/ }).fill(feeVnd);
   await salePage.getByRole('button', { name: 'Tạo phiếu thu' }).click();
   await expect(salePage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
+  // The receipt id is the last path segment — the only place Playwright can
+  // observe it (receiptCreate's response is not visible to the browser tests).
+  const receiptId = new URL(salePage.url()).pathname.split('/').pop()!;
   await saleContext.close();
 
   // --- director: approve, which is what actually provisions the account ---
@@ -91,15 +106,15 @@ export async function provisionStudentViaReceipt(
     cookiePair(
       STAFF_COOKIE_NAME,
       mintStaffCookie({
-        userId: `e2e-prov-gdkd-${runId}`,
-        roles: ['giam_doc_kinh_doanh'],
+        userId: `e2e-prov-appr-${runId}`,
+        roles: [approverRole],
         facilityId: options.facilityId,
       }),
     ),
   );
   await approverPage.goto('/cockpit');
 
-  await menuNav(approverPage, 'Tài chính & Điều hành', 'Phiếu thu', { role: 'giam_doc_kinh_doanh' });
+  await menuNav(approverPage, 'Tài chính & Điều hành', 'Phiếu thu', { role: approverRole });
   const row = await findInList(approverPage, (text) => text.includes(options.studentName));
   await row.click();
   await approverPage.getByRole('button', { name: 'Duyệt & Kích hoạt' }).click();
@@ -110,4 +125,6 @@ export async function provisionStudentViaReceipt(
     approverPage.getByText('Phiếu đã được duyệt — tài khoản LMS đã tạo và email thông báo đã gửi'),
   ).toBeVisible();
   await approverContext.close();
+
+  return { receiptId };
 }

@@ -34,6 +34,7 @@ import { assertNotProdDatabase } from './assert-not-prod.js';
 import { planClassSessions, type SlotForPlanning } from '../../api/src/class/generate-sessions.js';
 import { relayEmailOutbox } from '../../api/src/worker/relay-email-outbox.js';
 import { ConsoleEmailTransport } from '../../api/src/worker/email-transport.js';
+import { runReconcileFinanceFlags } from '../../api/src/worker/reconcile-finance-flags.js';
 
 let dbSingleton: PrismaClient | undefined;
 
@@ -1015,6 +1016,15 @@ export async function drainEmailOutboxOnce(): Promise<{ sent: number; failed: nu
   const transport = { brevo: new ConsoleEmailTransport(), graph: new ConsoleEmailTransport() };
   const result = await relayEmailOutbox(getDb(), transport);
   return { sent: result.sent, failed: result.failed, dead: result.dead };
+}
+
+/** Runs the finance-reconciliation worker once, the same way `drainEmailOutboxOnce`
+ *  runs the email relay: it invokes the real worker, not a stub. A journey that
+ *  needs a ReconciliationFlag can create the anomaly through the UI and then call
+ *  this to surface it, instead of seeding a flag row (which would prove nothing
+ *  about the detection the flow exists to demonstrate). */
+export async function runReconcileFinanceFlagsOnce(): Promise<{ facilityCount: number; flagsCreated: number }> {
+  return runReconcileFinanceFlags(getDb());
 }
 
 /** Read-only: status of the (at most one, deduped by `receiptId`) EmailOutbox

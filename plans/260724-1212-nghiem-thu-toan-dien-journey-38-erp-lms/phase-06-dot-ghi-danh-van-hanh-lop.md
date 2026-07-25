@@ -2,9 +2,11 @@
 phase: 6
 title: "Đợt ghi danh + vận hành lớp"
 status: partial
-completed: '2026-07-25 — P1-01 xanh 4×; P2-01/02/03/05 no-ui-path (V5); sổ 13/38'
-remaining: 'P2-04 (exercise publish/close), P2-06 (grading), P2-08 GV-half (session evidence) — cần seed CurriculumUnit/Submission đã duyệt'
-report: 'plans/reports/phase-06-part1-ghi-danh-260725-1045-report.md'
+completed: '2026-07-25 — P1-01 + P2-06 xanh 4×; P2-01/02/03/05 no-ui-path (V5); sổ 14/38'
+remaining: 'P2-04 (exercise publish/close) + P2-08 GV-half (session evidence) — CẢ HAI cần file upload; đã de-risk: upload dùng LocalDiskBlobStorage (S3_ENDPOINT unset) → chạy được trong e2e'
+reports:
+  - 'plans/reports/phase-06-part1-ghi-danh-260725-1045-report.md'
+  - 'plans/reports/phase-06-part2-p206-grading-260725-1115-report.md'
 priority: P1
 effort: "3-5d"
 dependencies: [5]

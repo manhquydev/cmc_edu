@@ -62,7 +62,7 @@ cùng sửa `scripts/acceptance-report/`).
 | 3 | [Sổ trạng thái máy-chứng — ingestion vào AcceptanceState](./phase-03-so-4-trang-thai-va-ingestion.md) | **Done** — 9/38 proven từ results thật; 6 falsification sống + mutation testing; job CI viết nhưng CHƯA XÁC MINH (V4) ([report](../reports/phase-03-ingestion-so-may-chung-260724-1545-report.md)) | — |
 | 4 | [Hạ tầng phiên LMS + 2 journey login/activation](./phase-04-ha-tang-phien-lms.md) | **Done** — L-01 + L-02 xanh 4× liên tiếp, `mintLmsSession` dùng thật ở L-02, sổ lên **11/38** ([L-01 report](../reports/phase-04-ha-tang-phien-lms-260724-1620-report.md) · [L-02 report](../reports/phase-04-l02-student-activation-260725-0900-report.md)) | 2 |
 | 5 | [Đợt tiền — finance](./phase-05-dot-tien-finance.md) | **Done** — P1-09 xanh 4× (recon exceeds-threshold), P1-08 no-ui-path; sổ **12/38** ([report](../reports/phase-05-dot-tien-finance-260725-1015-report.md)) | 1,2,3 |
-| 6 | [Đợt ghi danh + vận hành lớp](./phase-06-dot-ghi-danh-van-hanh-lop.md) | **Một phần** — P1-01 xanh 4×; P2-01/02/03/05 no-ui-path; sổ **13/38**. Còn P2-04/P2-06/P2-08-GV ([report](../reports/phase-06-part1-ghi-danh-260725-1045-report.md)) | 5 |
+| 6 | [Đợt ghi danh + vận hành lớp](./phase-06-dot-ghi-danh-van-hanh-lop.md) | **Một phần** — P1-01 + P2-06 xanh 4×; P2-01/02/03/05 no-ui-path; sổ **14/38**. Còn P2-04/P2-08-GV (đều cần file upload, đã de-risk) ([part1](../reports/phase-06-part1-ghi-danh-260725-1045-report.md) · [part2](../reports/phase-06-part2-p206-grading-260725-1115-report.md)) | 5 |
 | 7 | [Đợt HR/payroll + rewards/admin](./phase-07-dot-hr-rewards-admin.md) | Pending | 6 |
 | 8 | [Đuôi LMS xuyên suốt + chốt sổ v1](./phase-08-duoi-lms-va-chot-so-v1.md) | Pending | 4,7 |
 

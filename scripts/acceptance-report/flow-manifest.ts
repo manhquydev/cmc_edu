@@ -499,6 +499,10 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/shifts'],
       models: ['ShiftRegistration', 'ShiftRegistrationEntry'],
     },
+    // Cùng 1 journey với P3-04/P3-07 (T1): ticket-lock "1 submitted/người" ép
+    // trình tự từ-chối→nộp-lại→duyệt→hủy, nên 3 flow chung spec. P3-03 = nộp
+    // (shift.submit/listGroups) + hủy (shift.myRegistrations/cancel).
+    journey: 'apps/e2e/tests/journeys/shift-register-approve-reject.journey.ui.spec.ts',
   },
   {
     id: 'P3-04',
@@ -510,6 +514,9 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/shifts'],
       models: ['ShiftRegistration'],
     },
+    // Cùng journey với P3-03/P3-07 (T1). P3-04 = GĐKD duyệt đơn đã nộp lại
+    // (shift.pendingForApproval + shift.approve qua ConfirmDialog).
+    journey: 'apps/e2e/tests/journeys/shift-register-approve-reject.journey.ui.spec.ts',
   },
   {
     id: 'P3-05',
@@ -561,6 +568,9 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/shifts'],
       models: ['ShiftRegistration'],
     },
+    // Cùng journey với P3-03/P3-04 (T1). P3-07 = GĐKD từ chối kèm lý do
+    // (shift.reject, reason bắt buộc ≥3 ký tự) — bước ĐẦU của chuỗi.
+    journey: 'apps/e2e/tests/journeys/shift-register-approve-reject.journey.ui.spec.ts',
   },
   {
     id: 'P3-08',

@@ -438,6 +438,13 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/teaching/session-evidence', '/parent/evidence/:studentId'],
       models: ['SessionEvidence', 'SessionEvidencePhoto'],
     },
+    // Journey NỬA GV: GV chọn lớp mình sở hữu + buổi → viết tóm tắt (upsert) →
+    // UPLOAD ảnh thật (/upload/session-photo) → công bố. Drive sessionEvidence.
+    // upsert/addPhoto/publish + classBatch.list/classSession.list qua UI thật;
+    // ảnh load-bearing ("Ảnh đã upload (1)"). PHỦ HẸP có chủ ý: nửa phụ huynh
+    // (listForChild, guardian.setPhotoConsent, /parent/evidence/:studentId) là
+    // journey xuyên app — thuộc Phase 8 (đuôi LMS), chưa drive ở đây.
+    journey: 'apps/e2e/tests/journeys/session-evidence-publish.journey.ui.spec.ts',
   },
 
   // ─────────────────────────────── P3 — Nhân sự & lương ───────────────────────────────

@@ -987,6 +987,15 @@ export async function findGuardianChildren(
   return guardians.map((g) => ({ studentId: g.student.id, fullName: g.student.fullName }));
 }
 
+/** Deletes a facility created directly by a journey (e.g. ADM-01), by its
+ * unique code. There is no `facility.delete` procedure, and the global teardown
+ * only reclaims this run's own E2E facility — so a facility a journey creates
+ * would otherwise leak. A freshly created facility has no child rows, so a plain
+ * delete on the privileged connection is safe. */
+export async function deleteFacilityByCode(code: string): Promise<void> {
+  await getPrivilegedDb().facility.deleteMany({ where: { code } });
+}
+
 /** Read-only: `ParentAccount.id` for a phone — recovers the account
  *  `finance.receiptApprove` provisioning created but never surfaces to
  *  Playwright, so a journey that injects a parent session (`mintLmsSession`)

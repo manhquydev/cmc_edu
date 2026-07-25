@@ -742,6 +742,11 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/facilities'],
       models: ['Facility'],
     },
+    // Journey: super_admin tạo cơ sở (dialog Thêm cơ sở) → sửa tên (click row →
+    // dialog Sửa tên). Drive đủ 3/3 procedure (create/list/update) qua UI thật.
+    // Không có facility.delete (T3) → afterAll xoá cơ sở tạo ra qua
+    // deleteFacilityByCode (privileged), không để rác — đã xác minh 0 leak.
+    journey: 'apps/e2e/tests/journeys/facility-admin-crud.journey.ui.spec.ts',
   },
   {
     id: 'ADM-02',

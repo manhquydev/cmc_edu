@@ -595,6 +595,15 @@ export const flows: FlowEntry[] = [
       uiRoutes: [],
       models: ['ClassSession', 'KpiScore'],
     },
+    // Worker `he_thong` chạy trong vòng lặp process — không procedure/route/UI
+    // call-site. Tự kiểm 2026-07-25: rg "runDoneSweep|runCancelSweep"
+    // apps/admin/src apps/lms/src → 0 matches. Không journey UI nào drive được
+    // (user duyệt: no-ui-path, spec API-level thuộc plan sau). `evaluateSessionDone`
+    // còn từ chối khi now < endTime → cần dữ liệu quá khứ.
+    statusReason: {
+      code: 'no-ui-path',
+      detail: 'Worker nội bộ, không procedure/route/UI: rg runDoneSweep|runCancelSweep apps/admin+lms = 0; spec API-level thuộc plan sau.',
+    },
   },
   {
     id: 'P3-11',
@@ -606,6 +615,14 @@ export const flows: FlowEntry[] = [
       trpc: [],
       uiRoutes: [],
       models: ['ClassSession', 'ScheduleSlot'],
+    },
+    // Worker `he_thong` (cancel-sweep) — cùng loại P3-10. Tự kiểm 2026-07-25:
+    // rg "runDoneSweep|runCancelSweep" apps/admin/src apps/lms/src → 0 matches.
+    // Cancel-sweep cần `endTime + 24h` → dữ liệu quá khứ; không journey UI nào
+    // drive được (user duyệt: no-ui-path, spec API-level thuộc plan sau).
+    statusReason: {
+      code: 'no-ui-path',
+      detail: 'Worker nội bộ (cancel-sweep), không UI: rg runDoneSweep|runCancelSweep apps/admin+lms = 0; cần dữ liệu quá khứ (+24h); spec API-level plan sau.',
     },
   },
 

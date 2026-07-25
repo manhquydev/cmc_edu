@@ -748,6 +748,13 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/users'],
       models: ['AppUser'],
     },
+    // Journey: super_admin tạo tài khoản nhân sự (form Thêm nhân viên) → gán vai
+    // trò qua modal Roles (MultiSelector). Drive 3/4 procedure: user.create,
+    // user.list, user.updateRoles. `user.update` (setter managerId) KHÔNG có UI
+    // — drift THẬT của ADM-02: rg "user\.update\b" apps/admin/src → 0 matches
+    // (khác user.updateRoles có UI). Không journey nào drive được; ghi sổ bàn
+    // giao. Chuyển badge vai trò từ vắng→hiện là bằng chứng sống.
+    journey: 'apps/e2e/tests/journeys/user-admin-roles.journey.ui.spec.ts',
   },
   {
     id: 'ADM-03',
@@ -759,6 +766,12 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/network-ip'],
       models: ['FacilityNetwork'],
     },
+    // Journey: super_admin thêm dải IP (self-detect + nhập CIDR) → sửa nhãn →
+    // xoá. Drive đủ 5/5 procedure (create/detectMyIp/list/update/delete) qua UI
+    // thật. KHÔNG bấm "Bật" (T2): dải ĐANG BẬT làm punch báo offsite → hỏng
+    // P3-01; dải tạo ra luôn ở trạng thái tắt rồi bị xoá. Vòng thêm→sửa→xoá đọc
+    // lại từ row là bằng chứng sống.
+    journey: 'apps/e2e/tests/journeys/network-ip-config.journey.ui.spec.ts',
   },
   {
     id: 'ADM-04',
@@ -770,6 +783,12 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/audit-log'],
       models: ['AuditLog'],
     },
+    // Journey: HAI super_admin mỗi người làm 1 hành động có audit
+    // (facilityNetwork.create ghi actor=userId). Lọc "Người thực hiện" theo actor
+    // A → entry A HIỆN, entry B VẮNG. Chứng minh bộ lọc thật sự cô lập theo actor
+    // (không chỉ là entry mới nhất của A nổi lên đầu — audit.list sort desc,
+    // không scope facility). Drive audit.list qua UI thật.
+    journey: 'apps/e2e/tests/journeys/audit-log-view.journey.ui.spec.ts',
   },
   {
     id: 'ADM-05',

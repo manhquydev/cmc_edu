@@ -61,7 +61,7 @@ cùng sửa `scripts/acceptance-report/`).
 | 2 | [Triage 38 luồng](./phase-02-triage-38-luong.md) | **Done** — 38/38 triaged; **chặn Phase 5-7**: 12 ngoại lệ seed/seam + 3 bế tắc chờ user duyệt ([tổng hợp](../reports/triage-260724-1530-38-luong-tong-hop-report.md)) | — |
 | 3 | [Sổ trạng thái máy-chứng — ingestion vào AcceptanceState](./phase-03-so-4-trang-thai-va-ingestion.md) | **Done** — 9/38 proven từ results thật; 6 falsification sống + mutation testing; job CI viết nhưng CHƯA XÁC MINH (V4) ([report](../reports/phase-03-ingestion-so-may-chung-260724-1545-report.md)) | — |
 | 4 | [Hạ tầng phiên LMS + 2 journey login/activation](./phase-04-ha-tang-phien-lms.md) | **Done** — L-01 + L-02 xanh 4× liên tiếp, `mintLmsSession` dùng thật ở L-02, sổ lên **11/38** ([L-01 report](../reports/phase-04-ha-tang-phien-lms-260724-1620-report.md) · [L-02 report](../reports/phase-04-l02-student-activation-260725-0900-report.md)) | 2 |
-| 5 | [Đợt tiền — finance](./phase-05-dot-tien-finance.md) | Pending | 1,2,3 |
+| 5 | [Đợt tiền — finance](./phase-05-dot-tien-finance.md) | **Done** — P1-09 xanh 4× (recon exceeds-threshold), P1-08 no-ui-path; sổ **12/38** ([report](../reports/phase-05-dot-tien-finance-260725-1015-report.md)) | 1,2,3 |
 | 6 | [Đợt ghi danh + vận hành lớp](./phase-06-dot-ghi-danh-van-hanh-lop.md) | Pending | 5 |
 | 7 | [Đợt HR/payroll + rewards/admin](./phase-07-dot-hr-rewards-admin.md) | Pending | 6 |
 | 8 | [Đuôi LMS xuyên suốt + chốt sổ v1](./phase-08-duoi-lms-va-chot-so-v1.md) | Pending | 4,7 |

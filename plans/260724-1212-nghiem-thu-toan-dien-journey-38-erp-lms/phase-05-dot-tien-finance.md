@@ -1,7 +1,9 @@
 ---
 phase: 5
 title: "Đợt tiền — finance cluster journeys"
-status: pending
+status: done
+completed: '2026-07-25 — P1-09 xanh 4×, P1-08 no-ui-path, sổ 12/38'
+report: 'plans/reports/phase-05-dot-tien-finance-260725-1015-report.md'
 priority: P1
 effort: "3-4d"
 dependencies: [1, 2, 3]

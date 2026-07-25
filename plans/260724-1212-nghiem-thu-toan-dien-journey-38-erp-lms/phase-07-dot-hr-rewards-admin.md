@@ -2,8 +2,8 @@
 phase: 7
 title: "Đợt HR/payroll + rewards/admin"
 status: partial
-completed: '2026-07-25 — ADM-01/02/03/04/05 + P3-09 xanh 4×; P3-10/11 no-ui-path (V7); sổ 22/38'
-remaining: 'HR nặng: shift(P3-03/04/07), payroll-assemble(P3-05), kpi-confirm(P3-06/08 + managerId seed B1/V6). Rewards: P4-03/04/05'
+completed: '2026-07-25 — ADM-01/02/03/04/05 + P3-09 + P3-03/04/07(shift) xanh 4×; P3-10/11 no-ui-path (V7); sổ 25/38'
+remaining: 'HR: payroll-assemble(P3-05), kpi-confirm(P3-06/08 + managerId seed B1/V6). Rewards: P4-03/04/05'
 report: 'plans/reports/phase-07-part1-admin-260725-1920-report.md'
 priority: P2
 effort: "3-4d"

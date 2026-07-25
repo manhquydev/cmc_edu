@@ -583,6 +583,11 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/kpi', '/hr/my'],
       models: ['KpiScore'],
     },
+    // Journey: NV (sale) mở /hr/my → bấm "Tính lại" (kpi.refresh, self-target,
+    // không guard ngày-3) → thẻ điểm KPI thay banner "Chưa có phiếu KPI". Drive
+    // kpi.refresh qua UI thật. NV là AppUser seed thật để ctx.subject có row
+    // chấm điểm. Chuyển empty-state → thẻ điểm là bằng chứng sống.
+    journey: 'apps/e2e/tests/journeys/kpi-refresh-my.journey.ui.spec.ts',
   },
   {
     id: 'P3-10',

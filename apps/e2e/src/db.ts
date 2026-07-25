@@ -601,6 +601,42 @@ export async function seedFacilityNetwork(opts: {
 // Phase-08: exercise + submission seeding helpers
 // ---------------------------------------------------------------------------
 
+/** Seeds one global CurriculumUnit and returns its id + title. Facility-agnostic
+ * (no facilityId), so the facility teardown does not remove it — delete via
+ * `cleanupCurriculumUnits`. Inert prerequisite data: a curriculum unit is a
+ * catalog entry a teacher picks when authoring an exercise, not a mechanism any
+ * flow proves. The unique title lets a journey find its own exercise row. */
+export async function seedCurriculumUnit(title?: string): Promise<{ unitId: string; title: string }> {
+  const unitTitle = title ?? `E2E Unit ${randomUUID().slice(0, 8)}`;
+  const unit = await getDb().curriculumUnit.create({
+    data: { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: unitTitle },
+  });
+  return { unitId: unit.id, title: unitTitle };
+}
+
+/** Deletes seeded CurriculumUnit rows (and any exercises + submissions
+ * referencing them, to avoid the FK trip) — mirror of `cleanupExercises` for
+ * units created directly. Uses the privileged migration-role connection:
+ * `cmc_app` has no DELETE grant on Exercise/CurriculumUnit.
+ *
+ * Does NOT delete ClassSession rows, which also FK-reference CurriculumUnit —
+ * safe only because callers seed no session against these units. A future
+ * caller that does must clear sessions first or this trips the session FK. */
+export async function cleanupCurriculumUnits(...unitIds: string[]): Promise<void> {
+  if (unitIds.length === 0) return;
+  const db = getPrivilegedDb();
+  const exercises = await db.exercise.findMany({
+    where: { curriculumUnitId: { in: unitIds } },
+    select: { id: true },
+  });
+  const exerciseIds = exercises.map((e) => e.id);
+  if (exerciseIds.length > 0) {
+    await db.submission.deleteMany({ where: { exerciseId: { in: exerciseIds } } });
+    await db.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
+  }
+  await db.curriculumUnit.deleteMany({ where: { id: { in: unitIds } } });
+}
+
 /** Seeds a global CurriculumUnit + published Exercise. Both are facility-
  * agnostic (no facilityId). Clean up with `cleanupExercises(exerciseId)`. */
 export async function seedPublishedExercise(opts?: {

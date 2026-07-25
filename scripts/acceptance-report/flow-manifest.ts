@@ -333,6 +333,13 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/teaching/exercises'],
       models: ['Exercise', 'CurriculumUnit'],
     },
+    // Journey: GĐĐT tạo bài tập (chọn unit từ curriculumUnit.list + loại + UPLOAD
+    // PDF thật qua /upload/exercise-pdf) → Publish → Đóng. Drive đủ 5 procedure
+    // khai (create/publish/close/list/curriculumUnit.list) + exercise.manage
+    // (upload). Unit seed unique (dữ liệu trơ, user đã duyệt seed loại này) để
+    // nhận diện đúng row. Vòng draft→published→closed đọc lại từ row là bằng
+    // chứng sống.
+    journey: 'apps/e2e/tests/journeys/exercise-publish-close.journey.ui.spec.ts',
   },
   {
     id: 'P2-05',

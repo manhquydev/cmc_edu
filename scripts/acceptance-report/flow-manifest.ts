@@ -256,6 +256,16 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/classes', '/admin/classes/:id'],
       models: ['ClassBatch', 'ClassSession', 'ScheduleSlot', 'Course', 'Room'],
     },
+    // Không màn nào tạo lớp / tự sinh lịch buổi qua UI (tự kiểm 2026-07-25):
+    //   rg "classBatch\.create|schedule\.generateSessions|course\.create" apps/admin/src apps/lms/src → 0 matches
+    // /admin/classes chỉ LIỆT KÊ + xem chi tiết; không có form tạo. Seed lớp
+    // (seedClassBatch) chính là cơ chế P2-01 tồn tại để chứng minh (auto sinh
+    // buổi) → user V5 chốt: dữ liệu trơ thì seed, cơ chế thì không → không viết
+    // journey. Chờ plan sửa xây màn tạo lớp.
+    statusReason: {
+      code: 'no-ui-path',
+      detail: 'Không có UI tạo lớp/sinh lịch: rg classBatch.create|schedule.generateSessions apps/admin+lms = 0; /admin/classes chỉ xem.',
+    },
   },
   {
     id: 'P2-02',
@@ -268,6 +278,16 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/teaching/attendance'],
       models: ['Attendance'],
     },
+    // Màn điểm danh CÓ trong nav (GV) nhưng đòi `?session=<id>` mà KHÔNG link
+    // in-app nào mang theo — vào từ menu là gặp empty-state "Vui lòng cung cấp
+    // ?session". Tự kiểm 2026-07-25: rg "attendance\?session=" apps/admin/src →
+    // chỉ có trong *.test.tsx, không có trong mã nguồn màn. User V5 từ chối S2
+    // (cho journey goto thẳng ?session) → không tới được trạng thái dùng được
+    // bằng menu → no-ui-path. Chờ plan sửa thêm session-picker / link mang session.
+    statusReason: {
+      code: 'no-ui-path',
+      detail: 'Màn điểm danh đòi ?session= nhưng không link in-app nào mang theo (rg attendance?session= chỉ ở test); S2 goto bị từ chối.',
+    },
   },
   {
     id: 'P2-03',
@@ -279,6 +299,16 @@ export const flows: FlowEntry[] = [
       trpc: ['exercise.openForStudent', 'exercise.listForStudent'],
       uiRoutes: ['/student/home', '/student/exercise/:exerciseId'],
       models: ['Exercise'],
+    },
+    // "Mở bài theo tiến độ" cần gán unit vào buổi để mở tier cho học viên —
+    // không màn nào làm việc đó. Tự kiểm 2026-07-25: rg
+    // "classSession\.assignUnit|assignUnit" apps/admin/src apps/lms/src → 0
+    // matches (curriculumUnitId chỉ xuất hiện ở FORM tạo bài — thuộc P2-04,
+    // không phải gán vào buổi). User V5 từ chối S3 (seed session→unit) vì đó là
+    // cơ chế open-tier chính P2-03 phải chứng minh → no-ui-path.
+    statusReason: {
+      code: 'no-ui-path',
+      detail: 'Open-tier (gán unit vào buổi) không có UI: rg classSession.assignUnit apps/admin+lms = 0; S3 seed session→unit bị từ chối.',
     },
   },
   {
@@ -308,6 +338,14 @@ export const flows: FlowEntry[] = [
       trpc: ['submission.saveDraft', 'submission.submit', 'submission.listForChild'],
       uiRoutes: ['/student/exercise/:exerciseId'],
       models: ['Submission'],
+    },
+    // Học viên chỉ nộp được khi bài đã mở (open-tier) — mà open-tier không có UI
+    // (xem P2-03). Seed submission (S4, đã duyệt) là để CHẤM ở P2-06, không
+    // chứng minh được thao tác NỘP của học viên (đó chính là cơ chế P2-05). Nên
+    // P2-05 no-ui-path tới khi open-tier có màn (plan sửa).
+    statusReason: {
+      code: 'no-ui-path',
+      detail: 'Nộp bài phụ thuộc open-tier (P2-03) không có UI; seed submission (S4) chỉ phục vụ chấm P2-06, không chứng minh thao tác nộp.',
     },
   },
   {

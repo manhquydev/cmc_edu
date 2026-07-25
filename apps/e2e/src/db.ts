@@ -21,6 +21,7 @@ import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { createPrismaClient, withFacility, PrismaClient } from '@cmc/db';
 import { addDaysToDateOnly, ictDateOnlyOf, ictToUtc, weekdayOf } from '@cmc/domain-time';
+import { normalizeLoginPhone } from '@cmc/domain-identity';
 import type { Role } from '@cmc/auth';
 import { randomVnPhone } from './random-vn-phone.js';
 import { assertNotProdDatabase } from './assert-not-prod.js';
@@ -175,14 +176,18 @@ export async function readOtpCodeByEmail(email: string): Promise<string> {
 export async function sweepParentIdentity(opts: { email?: string; phone?: string }): Promise<void> {
   const db = getDb();
   const email = opts.email?.toLowerCase();
+  // Provisioning and OTP rows store the login-normalized phone (`0964…` →
+  // `84964…`), so sweeping by the raw phone would silently miss the very rows
+  // it exists to clear.
+  const phone = opts.phone ? normalizeLoginPhone(opts.phone) : undefined;
 
   if (email) {
     await db.emailOutbox.deleteMany({ where: { to: email } });
     await db.loginOtp.deleteMany({ where: { email } });
   }
-  if (opts.phone) {
-    await db.loginOtp.deleteMany({ where: { phone: opts.phone } });
-    await cleanupParentAccountsByPhone(opts.phone);
+  if (phone) {
+    await db.loginOtp.deleteMany({ where: { phone } });
+    await cleanupParentAccountsByPhone(phone);
   }
   if (email) {
     // Provisioning reuses an account by phone, but the email column is unique:
@@ -918,6 +923,47 @@ export async function findAppUserByUserId(opts: {
     (tx) => tx.appUser.findFirst({ where: { facilityId: opts.facilityId, userId: opts.userId }, select: { id: true } }),
     { bypass: true },
   );
+}
+
+/** Read-only: the children linked to a parent, as `mintLmsSession` needs to
+ *  populate a parent session's `children` cache (the real app fills it from the
+ *  login response; an injected session has to read it from the DB).
+ *
+ *  Runs with a facility bypass: `Guardian`/`ParentAccount` are RLS-exempt (they
+ *  predate any facility session, ADR 0042), but `Student` is facility-scoped, so
+ *  the restricted app connection resolves the required `student` relation to
+ *  null and Prisma throws. The bypass is why this lives in db.ts (which owns the
+ *  privileged connection) rather than inline in the journey helper. */
+export async function findGuardianChildren(
+  parentAccountId: string,
+): Promise<Array<{ studentId: string; fullName: string }>> {
+  const guardians = await withFacility(
+    getDb(),
+    null,
+    (tx) =>
+      tx.guardian.findMany({
+        where: { parentAccountId },
+        select: { student: { select: { id: true, fullName: true } } },
+      }),
+    { bypass: true },
+  );
+  return guardians.map((g) => ({ studentId: g.student.id, fullName: g.student.fullName }));
+}
+
+/** Read-only: `ParentAccount.id` for a phone — recovers the account
+ *  `finance.receiptApprove` provisioning created but never surfaces to
+ *  Playwright, so a journey that injects a parent session (`mintLmsSession`)
+ *  has a real id to mint against. Not facility-scoped: ParentAccount predates
+ *  any facility session (same RLS exemption as Guardian, ADR 0042). */
+export async function findParentAccountIdByPhone(phone: string): Promise<string | null> {
+  // Provisioning stores the login-normalized form (`0964…` → `84964…`), so a
+  // lookup with the raw phone a spec generated would always miss. Normalize
+  // here, once, rather than at every call site.
+  const account = await getDb().parentAccount.findUnique({
+    where: { phone: normalizeLoginPhone(phone) },
+    select: { id: true },
+  });
+  return account?.id ?? null;
 }
 
 /** Read-only: the single `active`/`reserved` Enrollment for a (classBatchId,

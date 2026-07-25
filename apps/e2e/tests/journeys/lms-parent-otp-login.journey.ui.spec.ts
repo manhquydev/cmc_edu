@@ -23,22 +23,11 @@
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 
-import { mintStaffCookie } from '../../src/session-injection.js';
 import { readOtpCodeByEmail, seedClassBatch, sweepParentIdentity } from '../../src/db.js';
 import { randomVnPhone } from '../../src/random-vn-phone.js';
-import { menuNav } from '../../src/journey/menu-nav.js';
-import { findInList } from '../../src/journey/find-in-list.js';
-import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
+import { provisionStudentViaReceipt } from '../../src/journey/provision-student-via-receipt.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
-const ADMIN_URL = 'http://localhost:4173';
-
-function cookiePair(name: string, value: string) {
-  return [
-    { name, value, domain: '127.0.0.1', path: '/' },
-    { name, value, domain: 'localhost', path: '/' },
-  ];
-}
 
 test.describe('P1-07 journey — phụ huynh đăng nhập LMS bằng mã OTP qua email', () => {
   // A fresh identity per run. OTP rate limiting counts rows per identifier
@@ -64,65 +53,16 @@ test.describe('P1-07 journey — phụ huynh đăng nhập LMS bằng mã OTP qu
   }) => {
     const seeded = await seedClassBatch({ facilityId });
 
-    // --- sale: create the receipt, recording the parent's email on it ---
-    const saleContext = await browser.newContext({ baseURL: ADMIN_URL });
-    const salePage = await saleContext.newPage();
-    await saleContext.addCookies(
-      cookiePair(
-        STAFF_COOKIE_NAME,
-        mintStaffCookie({ userId: `e2e-p107-sale-${runId}`, roles: ['sale'], facilityId }),
-      ),
-    );
-    await salePage.goto('/cockpit');
-
-    await menuNav(salePage, 'Tài chính & Điều hành', 'Xếp lớp', { role: 'sale' });
-    await salePage.getByText('tạo phiếu thu mới').click();
-    await expect(salePage).toHaveURL(/\/finance\/new/);
-
-    await salePage.getByLabel('Họ tên học viên').fill(studentName);
-    await salePage.getByLabel('SĐT phụ huynh').fill(parentPhone);
-    await salePage.getByLabel('Email phụ huynh').fill(parentEmail);
-    await salePage.getByRole('button', { name: /^Lớp học/ }).click();
-    await salePage.getByRole('option', { name: new RegExp(seeded.code) }).click();
-    // The trailing 1 is load-bearing, not a typo. The fee input is min={1}
-    // step={100000}, so the only values the browser accepts are 1 + n×100000 —
-    // a round 3000000 is a step mismatch, lands in React state as NaN, and the
-    // form silently refuses to submit. Verified directly: 3000000 never
-    // submits, 3000001 does. Recorded as a product finding; do not "tidy" this
-    // to a round number.
-    await salePage.getByRole('spinbutton', { name: /^Học phí/ }).fill('3000001');
-    await salePage.getByRole('button', { name: 'Tạo phiếu thu' }).click();
-    await expect(salePage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
-    await saleContext.close();
-
-    // --- director: approve, which is what actually provisions the account ---
-    const approverContext = await browser.newContext({ baseURL: ADMIN_URL });
-    const approverPage = await approverContext.newPage();
-    await approverContext.addCookies(
-      cookiePair(
-        STAFF_COOKIE_NAME,
-        mintStaffCookie({
-          userId: `e2e-p107-gdkd-${runId}`,
-          roles: ['giam_doc_kinh_doanh'],
-          facilityId,
-        }),
-      ),
-    );
-    await approverPage.goto('/cockpit');
-
-    await menuNav(approverPage, 'Tài chính & Điều hành', 'Phiếu thu', {
-      role: 'giam_doc_kinh_doanh',
+    // The real money chain that creates the parent's account, recording the
+    // email on the receipt so the account can log in by email OTP.
+    await provisionStudentViaReceipt(browser, {
+      facilityId,
+      classCode: seeded.code,
+      studentName,
+      parentPhone,
+      parentEmail,
+      runId,
     });
-    const row = await findInList(approverPage, (text) => text.includes(studentName));
-    await row.click();
-    await approverPage.getByRole('button', { name: 'Duyệt & Kích hoạt' }).click();
-    const dialog = approverPage.getByRole('alertdialog');
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: 'Duyệt & Kích hoạt' }).click();
-    await expect(
-      approverPage.getByText('Phiếu đã được duyệt — tài khoản LMS đã tạo và email thông báo đã gửi'),
-    ).toBeVisible();
-    await approverContext.close();
 
     // --- parent: the real login screen, on the LMS origin ---
     const parentContext = await browser.newContext();

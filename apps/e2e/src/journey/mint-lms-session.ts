@@ -13,7 +13,7 @@
 
 import type { BrowserContext } from '@playwright/test';
 
-import { getDb } from '../db.js';
+import { findGuardianChildren } from '../db.js';
 import { mintParentToken, mintStudentToken } from '../session-injection.js';
 
 /** Mirrors `StoredLmsSession` in apps/lms/src/lib/trpc.ts. Kept as a local
@@ -58,7 +58,7 @@ export async function mintLmsSession(
           kind: 'parent',
           parentAccountId: options.parentAccountId,
           sessionToken: mintParentToken(options.parentAccountId),
-          children: await readLinkedChildren(options.parentAccountId),
+          children: await findGuardianChildren(options.parentAccountId),
         }
       : {
           kind: 'student',
@@ -82,14 +82,4 @@ export async function mintLmsSession(
 
   // addInitScript runs before page scripts on every page opened afterwards, so
   // call this before the first navigation in the context.
-}
-
-async function readLinkedChildren(
-  parentAccountId: string,
-): Promise<Array<{ studentId: string; fullName: string }>> {
-  const guardians = await getDb().guardian.findMany({
-    where: { parentAccountId },
-    select: { student: { select: { id: true, fullName: true } } },
-  });
-  return guardians.map((g) => ({ studentId: g.student.id, fullName: g.student.fullName }));
 }

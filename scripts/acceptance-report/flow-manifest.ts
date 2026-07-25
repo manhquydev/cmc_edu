@@ -95,6 +95,11 @@ export const flows: FlowEntry[] = [
       uiRoutes: [],
       models: ['StudentAccount', 'AppUser'],
     },
+    // Journey chứng minh trọn vòng đời tài khoản học sinh do provisioning sinh
+    // ra: đăng nhập mật khẩu mặc định → bị giữ ở cổng đổi mật khẩu → phụ huynh
+    // đặt lại → đăng nhập mật khẩu mới. Khớp H2: P1-04 chỉ khai models
+    // (StudentAccount), journey tạo và kích hoạt đúng model đó qua UI thật.
+    journey: 'apps/e2e/tests/journeys/lms-student-activation.journey.ui.spec.ts',
   },
   {
     id: 'P1-05',

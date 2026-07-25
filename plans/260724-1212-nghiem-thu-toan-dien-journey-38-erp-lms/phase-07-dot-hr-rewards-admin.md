@@ -1,7 +1,10 @@
 ---
 phase: 7
 title: "Đợt HR/payroll + rewards/admin"
-status: pending
+status: partial
+completed: '2026-07-25 — ADM-02/03/04 xanh 4×; P3-10/11 no-ui-path (V7); sổ 19/38'
+remaining: 'HR: shift(P3-03/04/07), payroll-assemble(P3-05), kpi-refresh(P3-09), kpi-confirm(P3-06/08 + managerId seed B1/V6), ADM-05. Rewards: P4-03/04/05, ADM-01'
+report: 'plans/reports/phase-07-part1-admin-260725-1920-report.md'
 priority: P2
 effort: "3-4d"
 dependencies: [6]

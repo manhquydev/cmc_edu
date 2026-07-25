@@ -365,6 +365,18 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/teaching/grading'],
       models: ['Submission', 'StarTransaction'],
     },
+    // Journey: GV mở /teaching/grading (chỉ thấy bài của lớp mình sở hữu —
+    // ownership filter server), chấm bài nộp → bài rời hàng đợi ungraded.
+    // PHỦ 2/3 procedure khai: drive submission.grade + submission.listForGrading
+    // qua UI thật. KHÔNG drive submission.saveTeacherAnnotation (ghi chú PDF —
+    // ngoài đường của journey này). KHÔNG assert cộng-sao qua UI: màn grading
+    // không có view bài đã chấm và banner "⭐ +1 sao" transient (refetch
+    // unmount), nên StarTransaction chỉ chạy (side-effect của grade) chứ journey
+    // không kiểm — luật cộng-sao-lần-đầu do server-test phủ
+    // (attendance-grading.spec.ts). "proven" ở đây = đường chấm của GV chạy
+    // thật, KHÔNG phải toàn bộ bề mặt khai. saveTeacherAnnotation + đuôi cộng-sao
+    // là ứng viên mở rộng đợt sau.
+    journey: 'apps/e2e/tests/journeys/grading-submission.journey.ui.spec.ts',
   },
   {
     id: 'P2-07',

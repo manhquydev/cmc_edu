@@ -2,8 +2,8 @@
 phase: 7
 title: "Đợt HR/payroll + rewards/admin"
 status: partial
-completed: '2026-07-25 — ADM-01/02/03/04/05 + P3-09 + P3-03/04/07(shift) + P3-05(payroll assemble→finalize, thay journey roster stopgap chỉ phủ pickList) xanh 4×; P3-10/11 no-ui-path (V7); sổ 25/38 (P3-05 vốn đã tính proven qua roster — journey mới đóng false-green: luồng "chốt lương" trước chỉ lái danh sách NV, chưa lái finalize)'
-remaining: 'HR: kpi-confirm(P3-06/08 + managerId seed B1/V6). Rewards: P4-03/04/05. Parent-link P1-06 (nếu có đường UnitedAdmin, không thì Phase 8). 6 luồng chưa có journey là count-mover; 7 luồng no-ui-path là gap có hồ sơ.'
+completed: '2026-07-25 — ADM-01/02/03/04/05 + P3-09 + P3-03/04/07(shift) + P3-05(payroll assemble→finalize) + P4-03(họp PH schedule/complete/cancel) xanh 4×; P3-10/11 no-ui-path (V7); sổ 26/38 (P3-05 đóng false-green roster; P4-03 là count-mover mới +1)'
+remaining: 'HR: kpi-confirm(P3-06/08 + managerId seed B1/V6). Rewards: P4-04(test đầu vào, cần Opportunity), P4-05(sau bán, cần student + lifecycle). Parent-link P1-06 (nếu có đường UI, không thì Phase 8). 5 luồng chưa có journey là count-mover; 7 luồng no-ui-path là gap có hồ sơ. Fixture student: seedStudent (db.ts) — không có student.create UI.'
 report: 'plans/reports/phase-07-part1-admin-260725-1920-report.md'
 priority: P2
 effort: "3-4d"

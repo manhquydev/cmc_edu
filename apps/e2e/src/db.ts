@@ -238,6 +238,30 @@ export async function seedActiveEnrollment(
   );
 }
 
+/** Seeds a bare Student in the facility (no enrollment). There is no
+ * `student.create` UI mutation — a student only ever comes into existence via
+ * the receipt money-chain — so a flow that merely needs a student to EXIST as a
+ * precondition (e.g. the parent-meeting picker searches `student.lookup` by
+ * name) seeds one directly, the same way this suite seeds every other fixture
+ * row. Facility-scoped, so `cleanupFacility` reclaims it. */
+export async function seedStudent(
+  opts: { facilityId: string; studentName?: string },
+): Promise<{ studentId: string; studentName: string }> {
+  return withFacility(
+    getDb(),
+    null,
+    async (tx) => {
+      const fullName = opts.studentName ?? `E2E Student ${randomUUID().slice(0, 8)}`;
+      const student = await tx.student.create({
+        data: { facilityId: opts.facilityId, fullName },
+        select: { id: true },
+      });
+      return { studentId: student.id, studentName: fullName };
+    },
+    { bypass: true },
+  );
+}
+
 /** Deletes every row this e2e run's dedicated Facility could have created,
  * then the Facility itself — same FK-ordered teardown shape as
  * apps/api/src/test/db.ts's `cleanupFacility`, extended for phase-08 specs

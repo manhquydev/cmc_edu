@@ -703,6 +703,13 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/crm/post-sale-meeting'],
       models: ['ParentMeeting'],
     },
+    // Journey drives the whole lifecycle on a GĐKD: schedule a meeting for a
+    // seeded student (parentMeeting.schedule), complete it with a result
+    // (parentMeeting.complete), then schedule a second slot and cancel it
+    // (parentMeeting.cancel) — the list is the evidence surface throughout. The
+    // student is a seeded precondition (no student.create UI exists; the picker
+    // only searches student.lookup by name), not part of what this flow proves.
+    journey: 'apps/e2e/tests/journeys/parent-meeting-schedule-complete.journey.ui.spec.ts',
   },
   {
     id: 'P4-04',

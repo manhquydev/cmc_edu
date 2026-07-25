@@ -1,12 +1,12 @@
 ---
 phase: 6
 title: "Đợt ghi danh + vận hành lớp"
-status: partial
-completed: '2026-07-25 — P1-01 + P2-06 xanh 4×; P2-01/02/03/05 no-ui-path (V5); sổ 14/38'
-remaining: 'P2-04 (exercise publish/close) + P2-08 GV-half (session evidence) — CẢ HAI cần file upload; đã de-risk: upload dùng LocalDiskBlobStorage (S3_ENDPOINT unset) → chạy được trong e2e'
+status: done
+completed: '2026-07-25 — P1-01 + P2-04 + P2-06 + P2-08-GV xanh 4×; P2-01/02/03/05 no-ui-path (V5); sổ 16/38. Nửa PH của P2-08 thuộc Phase 8'
 reports:
   - 'plans/reports/phase-06-part1-ghi-danh-260725-1045-report.md'
   - 'plans/reports/phase-06-part2-p206-grading-260725-1115-report.md'
+  - 'plans/reports/phase-06-part2-complete-260725-1145-report.md'
 priority: P1
 effort: "3-5d"
 dependencies: [5]

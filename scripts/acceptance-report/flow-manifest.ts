@@ -458,7 +458,20 @@ export const flows: FlowEntry[] = [
     // ảnh load-bearing ("Ảnh đã upload (1)"). PHỦ HẸP có chủ ý: nửa phụ huynh
     // (listForChild, guardian.setPhotoConsent, /parent/evidence/:studentId) là
     // journey xuyên app — thuộc Phase 8 (đuôi LMS), chưa drive ở đây.
-    journey: 'apps/e2e/tests/journeys/session-evidence-publish.journey.ui.spec.ts',
+    // Nửa GV: GV viết tóm tắt + ảnh rồi công bố (sessionEvidence.upsert/addPhoto/
+    // publish/getBySession).
+    // Nửa PHỤ HUYNH (Phase 8, xuyên app): PH mở /parent/evidence trên LMS thấy
+    // tóm tắt (sessionEvidence.listForChild), và cổng đồng ý ảnh
+    // (guardian.setPhotoConsent) được chứng minh có RĂNG: khi chưa bật đồng ý,
+    // tóm tắt qua được nhưng ẢNH BỊ GIỮ LẠI; bật đồng ý thì ảnh mới hiện. Negative
+    // assert TRƯỚC positive, và cùng một locator tìm thấy ảnh ở bước sau — nên
+    // count(0) ban đầu không phải "chưa render kịp".
+    // Gắn vào spec XUYÊN APP vì nó phủ RỘNG HƠN bề mặt P2-08 khai: nó chạy trọn
+    // nửa GV (upsert/addPhoto/publish) RỒI mở tiếp nửa PH trên LMS
+    // (listForChild + setPhotoConsent) — hai procedure mà spec nửa-GV không chạm.
+    // session-evidence-publish.journey.ui.spec.ts vẫn ở lại làm guard hẹp cho
+    // riêng đường công bố của giáo viên (cùng khuôn P3-05 giữ payroll-roster).
+    journey: 'apps/e2e/tests/journeys/lms-parent-evidence-consent.journey.ui.spec.ts',
   },
 
   // ─────────────────────────────── P3 — Nhân sự & lương ───────────────────────────────

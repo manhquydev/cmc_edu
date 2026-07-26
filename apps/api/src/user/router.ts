@@ -14,8 +14,13 @@ import { z } from 'zod';
 import { withFacility, Role as DbRole } from '@cmc/db';
 import { ACTIVE_ROLES } from '@cmc/auth';
 import type { Role as AuthRole } from '@cmc/auth';
+import { hashPassword, verifyPassword } from '../lms-auth/password-hash.js';
+import {
+  MAX_STAFF_LOGIN_ATTEMPTS,
+  STAFF_LOCKOUT_MINUTES,
+} from '../auth/password-routes.js';
 import { badRequest, forbidden, notFound } from '../errors.js';
-import { requirePermission, router, scoped } from '../trpc.js';
+import { protectedProcedure, requirePermission, router, scoped } from '../trpc.js';
 
 const createInput = z.object({
   userId: z.string().min(1).max(200),
@@ -29,6 +34,19 @@ const pickListInput = z.object({
   /** Narrows the list to one staff role — a teacher picker must not offer
    *  people who do not teach. */
   role: z.enum(ACTIVE_ROLES).optional(),
+});
+
+// Same minimum as the LMS password procedures (lms-auth/router.ts).
+const PASSWORD_MIN_LENGTH = 8;
+
+const changeOwnPasswordInput = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(PASSWORD_MIN_LENGTH).max(200),
+});
+
+const resetPasswordInput = z.object({
+  appUserId: z.string().uuid(),
+  tempPassword: z.string().min(PASSWORD_MIN_LENGTH).max(200),
 });
 
 const updateInput = z.object({
@@ -53,6 +71,25 @@ export interface AppUserDto {
   isActive: boolean;
 }
 
+/**
+ * Every procedure that returns AppUser rows to the admin client MUST use this
+ * select: AppUser now carries credential columns (passwordHash, lockout
+ * fields) that must never serialize over tRPC — a bare row + `as AppUserDto`
+ * cast would leak them into browser cache/devtools/HAR captures.
+ */
+const APP_USER_SELECT = {
+  id: true,
+  facilityId: true,
+  userId: true,
+  email: true,
+  fullName: true,
+  position: true,
+  managerId: true,
+  employeeCode: true,
+  roles: true,
+  isActive: true,
+} as const;
+
 function isPrismaP2002(err: unknown): boolean {
   return (
     err !== null &&
@@ -72,8 +109,16 @@ function p2002Target(err: unknown): string[] {
   ) {
     const target = ((err as { meta: { target?: unknown } }).meta).target;
     if (Array.isArray(target)) return target as string[];
+    // Expression indexes (e.g. the partial unique index on lower(email))
+    // surface as a string index name, not a column array.
+    if (typeof target === 'string') return [target];
   }
   return [];
+}
+
+/** True when a P2002 target (column list or index name) involves email. */
+function p2002IsEmail(err: unknown): boolean {
+  return p2002Target(err).some((t) => t.toLowerCase().includes('email'));
 }
 
 // ADR-D amendment: only 5 active roles can be assigned. DB enum keeps 9
@@ -116,11 +161,11 @@ export const userRouter = router({
               managerId: input.managerId ?? null,
               employeeCode,
             },
+            select: APP_USER_SELECT,
           });
         } catch (err: unknown) {
           if (isPrismaP2002(err)) {
-            const target = p2002Target(err);
-            if (target.includes('email')) {
+            if (p2002IsEmail(err)) {
               throw badRequest('This email is already in use by another staff member.');
             }
             // userId or employeeCode constraint
@@ -164,6 +209,7 @@ export const userRouter = router({
         const items = await tx.appUser.findMany({
           where: { facilityId },
           orderBy: { createdAt: 'asc' },
+          select: APP_USER_SELECT,
         });
         return { items: items as AppUserDto[] };
       });
@@ -203,6 +249,7 @@ export const userRouter = router({
               ...(input.managerId !== undefined ? { managerId: input.managerId } : {}),
               ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
             },
+            select: APP_USER_SELECT,
           });
         } catch (err: unknown) {
           if (isPrismaP2002(err)) {
@@ -211,6 +258,114 @@ export const userRouter = router({
           throw err;
         }
         return updated as AppUserDto;
+      });
+    }),
+
+  // Both password procedures are in AUDIT_EXCLUDED_PATHS (trpc.ts): their raw
+  // input carries plaintext passwords, which must never depend on field-name
+  // sanitization alone to stay out of AuditLog — each writes its own
+  // secret-free audit row inline instead.
+
+  /** Any authenticated staff member rotates their own password (also clears
+   *  the admin-provisioned mustChangePassword flag). */
+  changeOwnPassword: protectedProcedure
+    .input(changeOwnPasswordInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      // The failure paths MUST NOT throw inside the withFacility transaction:
+      // a throw rolls the transaction back, which would silently undo the
+      // lockout bookkeeping written on the wrong-password branch. Resolve an
+      // outcome inside, throw after commit.
+      const outcome = await withFacility(ctx.db, facilityId, async (tx) => {
+        const me = await tx.appUser.findFirst({
+          where: { userId: ctx.subject.userId, facilityId },
+        });
+        if (!me || !me.passwordHash) {
+          return 'no-password-login' as const;
+        }
+        // Same lockout counters as /auth/staff-login: without this, a
+        // hijacked session could brute-force the current password through
+        // this procedure and sidestep the login lockout entirely.
+        const now = new Date();
+        if (me.loginLockedUntil && me.loginLockedUntil > now) {
+          return 'wrong-password' as const;
+        }
+        if (!verifyPassword(input.currentPassword, me.passwordHash)) {
+          const attempts = me.loginAttempts + 1;
+          await tx.appUser.update({
+            where: { id: me.id },
+            data: {
+              loginAttempts: attempts,
+              loginLockedUntil:
+                attempts >= MAX_STAFF_LOGIN_ATTEMPTS
+                  ? new Date(now.getTime() + STAFF_LOCKOUT_MINUTES * 60_000)
+                  : null,
+            },
+          });
+          return 'wrong-password' as const;
+        }
+        await tx.appUser.update({
+          where: { id: me.id },
+          data: {
+            passwordHash: hashPassword(input.newPassword),
+            mustChangePassword: false,
+            loginAttempts: 0,
+            loginLockedUntil: null,
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'user.changeOwnPassword',
+            entity: 'AppUser',
+            entityId: me.id,
+          },
+        });
+        return 'ok' as const;
+      });
+
+      if (outcome === 'no-password-login') {
+        throw badRequest('Password login is not enabled for this account.');
+      }
+      if (outcome === 'wrong-password') {
+        throw badRequest('Current password is incorrect.');
+      }
+      return { ok: true };
+    }),
+
+  /** Admin provisions/resets a staff member's password to a temporary value;
+   *  the target is forced to change it at their next login. */
+  resetPassword: requirePermission('user', 'manage')
+    .input(resetPasswordInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const existing = await tx.appUser.findFirst({
+          where: { id: input.appUserId, facilityId },
+        });
+        if (!existing) throw notFound('AppUser not found.');
+        if (!existing.email) {
+          throw badRequest('Set a login email before enabling password login.');
+        }
+        await tx.appUser.update({
+          where: { id: existing.id },
+          data: {
+            passwordHash: hashPassword(input.tempPassword),
+            mustChangePassword: true,
+            loginAttempts: 0,
+            loginLockedUntil: null,
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'user.resetPassword',
+            entity: 'AppUser',
+            entityId: existing.id,
+            data: { targetUserId: existing.userId },
+          },
+        });
+        return { ok: true };
       });
     }),
 
@@ -265,13 +420,17 @@ export const userRouter = router({
         const beforeSorted = [...(existing.roles as string[])].sort().join(',');
         const afterSorted = [...input.roles].sort().join(',');
         if (beforeSorted === afterSorted) {
-          return (await tx.appUser.findFirst({ where: { id: input.appUserId } })) as AppUserDto;
+          return (await tx.appUser.findFirst({
+            where: { id: input.appUserId },
+            select: APP_USER_SELECT,
+          })) as AppUserDto;
         }
 
         const updated = await tx.appUser.update({
           where: { id: input.appUserId },
           // AuthRole === DbRole at runtime; drift-assertion test locks the values.
           data: { roles: input.roles as unknown as DbRole[] },
+          select: APP_USER_SELECT,
         });
 
         await tx.auditLog.create({

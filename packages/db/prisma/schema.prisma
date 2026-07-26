@@ -1080,6 +1080,10 @@ model AppUser {
   id           String   @id @default(uuid())
   facilityId   String
   userId       String   @unique
+  /// Login identifier for staff email/password auth. Uniqueness is enforced by
+  /// a partial unique index on lower(email) WHERE email <> '' (raw SQL in the
+  /// add-app-user-password-auth migration — Prisma cannot express partial
+  /// indexes declaratively). Empty string means "no login email".
   email        String   @default("")
   fullName     String   @default("")
   position     String   @default("")
@@ -1087,6 +1091,16 @@ model AppUser {
   employeeCode String   @unique
   roles        Role[]   @default([])
   isActive     Boolean  @default(true)
+  /// Staff password auth (fallback while Entra SSO is unavailable).
+  /// Format: pbkdf2:<saltHex>:<derivedKeyHex> — same helper as LMS accounts.
+  /// Null = account cannot log in with a password (e.g. SSO-only).
+  passwordHash       String?
+  /// Set when an admin provisions/resets the password; the SPA forces a
+  /// password change before entering the app, then this is cleared.
+  mustChangePassword Boolean   @default(false)
+  /// Failed-login lockout, mirroring StudentAccount: 5 attempts → 15 min lock.
+  loginAttempts      Int       @default(0)
+  loginLockedUntil   DateTime? @db.Timestamptz(3)
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 

@@ -234,6 +234,15 @@ export interface SeedAppUserOptions {
    *  exercises something that filters staff by role (a teacher picker, a
    *  salary tier that only applies to sale/giao_vien). */
   roles?: readonly Role[];
+  /** Overrides the derived `${userId}@test.cmc` — the partial unique index on
+   *  lower(email) is global, so cross-file tests must not collide on email. */
+  email?: string;
+  /** Staff password auth fields (email/password login tests). */
+  passwordHash?: string;
+  mustChangePassword?: boolean;
+  isActive?: boolean;
+  loginAttempts?: number;
+  loginLockedUntil?: Date;
 }
 
 /**
@@ -255,12 +264,21 @@ export async function seedAppUser(
       data: {
         facilityId: opts.facilityId,
         userId: opts.userId,
-        email: `${opts.userId}@test.cmc`,
+        email: opts.email ?? `${opts.userId}@test.cmc`,
         fullName: opts.fullName ?? opts.userId,
         position: opts.position ?? 'staff',
         managerId: opts.managerId ?? null,
         employeeCode,
         ...(opts.roles ? { roles: [...opts.roles] } : {}),
+        ...(opts.passwordHash !== undefined ? { passwordHash: opts.passwordHash } : {}),
+        ...(opts.mustChangePassword !== undefined
+          ? { mustChangePassword: opts.mustChangePassword }
+          : {}),
+        ...(opts.isActive !== undefined ? { isActive: opts.isActive } : {}),
+        ...(opts.loginAttempts !== undefined ? { loginAttempts: opts.loginAttempts } : {}),
+        ...(opts.loginLockedUntil !== undefined
+          ? { loginLockedUntil: opts.loginLockedUntil }
+          : {}),
       },
     });
   });

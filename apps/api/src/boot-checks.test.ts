@@ -75,7 +75,7 @@ describe('assertRequiredEnvForProd', () => {
   const KEYS = [
     'NODE_ENV', 'TEST_OTP_SEAM', 'APP_DATABASE_URL', 'DATABASE_URL', 'BREVO_API_KEY',
     'BREVO_SENDER_EMAIL',
-    'TRUSTED_PROXY_CIDRS', 'CORS_ORIGINS', 'S3_ENDPOINT', 'S3_BUCKET', 'S3_REGION',
+    'TRUSTED_PROXY_CIDRS', 'CORS_ORIGINS', 'ADMIN_APP_ORIGIN', 'S3_ENDPOINT', 'S3_BUCKET', 'S3_REGION',
     'S3_ACCESS_KEY', 'S3_SECRET_KEY', 'BLOB_STORAGE_DIR', 'SSO_ENABLED',
     'ENTRA_TENANT_ID', 'ENTRA_CLIENT_ID', 'ENTRA_CLIENT_SECRET', 'ERP_SSO_REDIRECT_URI',
     'GRAPH_TENANT_ID', 'GRAPH_CLIENT_ID', 'GRAPH_CLIENT_SECRET', 'GRAPH_SENDER_EMAIL',
@@ -105,6 +105,7 @@ describe('assertRequiredEnvForProd', () => {
     process.env.BREVO_SENDER_EMAIL = 'sender@example.com';
     process.env.TRUSTED_PROXY_CIDRS = 'x';
     process.env.CORS_ORIGINS = 'x';
+    process.env.ADMIN_APP_ORIGIN = 'https://erp.example.com';
     process.env.BLOB_STORAGE_DIR = './b';
   }
 
@@ -134,6 +135,12 @@ describe('assertRequiredEnvForProd', () => {
     setProdBase();
     process.env.S3_ENDPOINT = 'https://s3';
     expect(() => assertRequiredEnvForProd()).toThrow(/S3_BUCKET/);
+  });
+
+  it('requires ADMIN_APP_ORIGIN unconditionally (logout redirect target)', () => {
+    setProdBase();
+    delete process.env.ADMIN_APP_ORIGIN;
+    expect(() => assertRequiredEnvForProd()).toThrow(/ADMIN_APP_ORIGIN/);
   });
 
   it('requires Entra+Graph vars only when SSO_ENABLED=true', () => {

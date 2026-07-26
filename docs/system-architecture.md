@@ -89,8 +89,10 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 - **Plan:** `plans/260710-0236-astryx-ui-migration/` (5 phases, tracked development context).
 
 **Auth Integration:**
-- Staff: `x-dev-user` header (dev), Entra SSO (P0-debt)
-- LMS Parent: `lmsAuth.requestOtpEmail` / `verifyOtpEmail` — **BLOCKED-ON-COMMS** (ConsoleEmailTransport stub; OTP visible in server log only until Brevo/Graph creds configured)
+- Staff (2026-07-26, M365 tenant access lost): **email/password là đường đăng nhập production** — `POST /auth/staff-login` (mount vô điều kiện, `apps/api/src/auth/password-routes.ts`): PBKDF2-SHA256 (tái dùng `lms-auth/password-hash.ts`), lockout 5 lần/15′, thông điệp lỗi generic + dummy-hash chống enumeration, phát cùng cookie `cmc_staff_session` như đường SSO. Cấp mật khẩu: `SUPER_ADMIN_PASSWORD` (seed) hoặc `user.resetPassword` (trang Users, super_admin) → `mustChangePassword` ép đổi ở lần đăng nhập đầu (`/change-password`, enforce phía client — cùng pattern LMS). Schema: partial unique index `lower(email) WHERE email <> ''` trên AppUser.
+- Staff (tạm tắt): Entra SSO sau flag `SSO_ENABLED=false` + `VITE_SSO_ENABLED=false` — code giữ nguyên, bật lại chỉ bằng env. **Known issue khi bật lại:** `sso-routes.ts:220` lookup AppUser bằng client thuần (không `withFacility` bypass) — RLS trả 0 dòng ⇒ SSO sẽ từ chối mọi user; phải sửa lookup này (wrap `withFacility(..., {bypass:true})` như password-routes) trước khi bật SSO thật.
+- Staff (dev): `x-dev-user` header — không đổi.
+- LMS Parent: `lmsAuth.requestOtpEmail` / `verifyOtpEmail` — **BLOCKED-ON-COMMS** (ConsoleEmailTransport stub; OTP visible in server log only until Brevo creds configured; Graph tạm tắt cùng M365)
 - LMS Student: `lmsAuth.loginStudent` (PBKDF2-SHA256, mustChangePassword, 5-attempt lockout)
 
 ---

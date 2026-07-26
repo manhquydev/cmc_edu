@@ -1,7 +1,17 @@
 # M365 tạm tắt: email 100% Brevo + staff đăng nhập email/password
 
-- **Status**: draft — chờ duyệt plan
-- **Branch**: acceptance-journey-38-lms (commit khi user yêu cầu)
+- **Status**: DONE — 4/4 phase + vòng sửa theo code-review. Validation cuối:
+  typecheck 27/27, API 1009/1009, admin 404/404 (2026-07-26).
+- **Branch**: `feat/staff-password-auth` (user chuyển khỏi acceptance branch
+  giữa phiên, commit `b36e7c1`; vòng sửa review nằm working tree chờ commit).
+- **Review**: `plans/reports/code-reviewer-260726-1558-GH-38-m365-off-email-password-auth.md`
+  — verdict Request-changes; đã xử lý: C1 (chặn serialize passwordHash qua
+  `APP_USER_SELECT`), I1 (seed không ghi đè mật khẩu đã xoay), I2 (lockout cho
+  changeOwnPassword + fix rollback-nuốt-increment), I3 (ADMIN_APP_ORIGIN thành
+  env bắt buộc vô điều kiện), minor (P2002 expression-index message, nginx
+  /auth/staff-login vào zone auth 5r/m). Known issue ghi nhận, ngoài scope:
+  sso-routes.ts:220 lookup thiếu bypass RLS — phải sửa trước khi bật lại SSO
+  (đã ghi vào docs/system-architecture.md).
 - **Bối cảnh**: dự án mất quyền tenant M365. Entra SSO (đăng nhập staff) và Graph
   (email) phải chạy được ở chế độ TẮT, bật lại được bằng cấu hình khi có quyền.
 - **Phát hiện scout quyết định phạm vi**: mọi email hiện đã đi Brevo 100%

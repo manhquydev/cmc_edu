@@ -3,7 +3,7 @@ phase: 7
 title: "Đợt HR/payroll + rewards/admin"
 status: partial
 completed: '2026-07-25 — ADM-01/02/03/04/05 + P3-09 + P3-03/04/07(shift) + P3-05(payroll assemble→finalize) + P4-03(họp PH) + P4-05(sau bán tạo→tiếp nhận→giải quyết→đóng) xanh 4×; P3-10/11 no-ui-path (V7); sổ 27/38 (P3-05 đóng false-green roster; P4-03 + P4-05 là count-mover mới +2)'
-remaining: 'HR: kpi-confirm(P3-06/08 + managerId seed B1/V6). Rewards: P4-04(test đầu vào, cần Opportunity). Parent-link P1-06 (nếu có đường UI, không thì Phase 8). Còn 4 luồng chưa có journey là count-mover (P4-04, P3-06, P3-08, P1-06) → trần đạt được qua journey là 31/38; 7 luồng no-ui-path là gap có hồ sơ. Fixture student: seedStudent (db.ts) — không có student.create UI.'
+remaining: 'Còn 4 luồng chưa có journey, đều đã khảo sát là KHẢ THI (không cái nào phải red-fixme): (a) P3-06/P3-08 kpi-confirm + bulkApprove — RỦI RO TIME-TRAVEL ĐÃ GỠ 2026-07-26: submitSlipOpensAt(period) = ngày 3 tháng kế tiếp ICT (apps/api/src/kpi/auto-score.ts:275), nên kỳ 2026-06 mở từ 2026-07-03, hôm nay đã qua ⇒ dùng kỳ QUÁ KHỨ là chạy được tự nhiên, KHÔNG cần mock đồng hồ; vẫn cần seed managerId (B1/V6) + SalaryRate.tier (submitSlip chặn nếu chưa gán bậc). (b) P4-04 test đầu vào — crm.opportunityCreate có UI thật (create-lead-dialog) nên tạo Opportunity qua UI được. (c) P1-06 liên kết PH–con — màn /admin/parents có thật (guardian.listPendingLinks/approveLink/rejectLink); cần dựng được một pending link trước. Trần qua journey = 31/38; 7 luồng no-ui-path là gap có hồ sơ. Fixture student: seedStudent (db.ts) — không có student.create UI.'
 report: 'plans/reports/phase-07-part1-admin-260725-1920-report.md'
 priority: P2
 effort: "3-4d"

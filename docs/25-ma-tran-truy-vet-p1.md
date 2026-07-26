@@ -9,7 +9,7 @@
 ## 1. Cột & quy ước
 
 `WF` · `Vai trò` · `User Story` (ngôn ngữ người dùng) · `API (quyền)` · `UI/URL` (TL06) · `Test spec`
-(file test viết & chạy xanh — 695 API tests passing tại apps/api, cộng 20 e2e spec tại apps/e2e, live
+(file test viết & chạy xanh — đo trên CI 2026-07-26: 988 API test tại apps/api, cộng 39 e2e spec tại apps/e2e (27 journey UI), live
 run 2026-07-12 sau HR remediation phase 6) · `ADR/QĐ` · `Oversight`.
 
 > Ô **Test** trỏ tới file test **đã viết & verified chạy xanh** — không WF nào trống (cổng DoR, TL00 §5).

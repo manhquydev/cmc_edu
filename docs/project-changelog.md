@@ -6,6 +6,45 @@
 
 ---
 
+## [2026-07-26] Nghiệm thu journey 27/38 luồng + khôi phục CI (lần đầu chạy `ui-e2e`)
+
+**Context:** `plans/260724-1212-nghiem-thu-toan-dien-journey-38-erp-lms/` — mục tiêu: mọi luồng nghiệp vụ
+có trạng thái do MÁY chứng nhận, không phải tự khai. Bất biến của plan: **chỉ đo, KHÔNG sửa app**.
+
+**Nghiệm thu (sổ máy-chứng):**
+- **27/38 luồng đã chứng minh chạy** tại commit `22bbead` (cấu trúc: 37 built / 1 partial / 0 missing;
+  actor-audit 0 phát hiện). Thêm **27 journey UI spec**; project `ui-chromium` = 34 spec, xanh.
+- Mỗi journey lái **trình duyệt thật → build production admin/lms → tRPC → Postgres có RLS**, không mock.
+  Kỷ luật: falsification load-bearing (kiểm chứng test chuyển ĐỎ khi bỏ hành động cốt lõi) + 4× xanh liên tiếp.
+- Bắt được false-green thật: P3-05 "chốt lương" trước đây chỉ chứng minh danh sách nhân viên hiển thị,
+  chưa hề chạm `payslip.finalize` — journey mới lái đủ `assemble → finalize`.
+- **11 luồng còn lại:** 7 `no-ui-path` (không có UI ⇒ journey không lái được, là gap có hồ sơ) +
+  4 chưa viết journey (P3-06, P3-08, P4-04, P1-06). **Trần khả thi qua journey = 31/38.**
+
+**CI khôi phục:**
+- Từ 2026-07-17 đến 2026-07-26 mọi run fail sau 3–4 giây với **0 step chạy** — nguyên nhân là **hết
+  Actions minutes, KHÔNG phải lỗi workflow**. Chuyển repo sang public → chạy lại ngay, không sửa dòng YAML nào.
+- Job `ui-e2e` **chạy lần đầu tiên trong lịch sử dự án**; 2 run xanh liên tiếp `30184942661` (@`478495b`)
+  và `30185169572` (@`22bbead`), sinh artifact `gitDirty:false` — nguồn chính danh đầu tiên của sổ nghiệm thu.
+- Runtime đo thật: `ui-e2e` 6.1′, `typecheck-and-test` 3.8′, `e2e` (API) 2.0′ (dự phóng cũ 9′–53′) ⇒
+  giữ cadence full-suite mỗi push.
+- Test đơn vị/tích hợp trên CI cùng commit: `@cmc/api` 104 file/988 test, `@cmc/admin` 39 file/396 test,
+  `@cmc/ui` 12/45, `@cmc/domain-payroll` 2/38, `@cmc/domain-time` 1/31, `@cmc/domain-finance` 5/17.
+
+**Giới hạn phải nói rõ (không được đọc thành "đã xong"):**
+- Journey ở **mức smoke**: chứng minh luồng *chạy thông* và guard chặn đúng chỗ; **KHÔNG** chứng minh
+  *đúng số học nghiệp vụ* (công thức KPI, tiền phạt, proration). Mỗi journey đi 1 đường hạnh phúc + 1 negative.
+- **UAT người thật (M0) vẫn CHƯA chạy** — sổ máy-chứng là điều kiện *cần*, không phải *đủ*, để ký nghiệm thu.
+- Chưa có test tải/hiệu năng/bảo mật chủ động; dữ liệu chạy là tổng hợp, không giống production.
+- **Repo đang PUBLIC** để lấy Actions miễn phí (đã kiểm: không secret nào bị commit). Mã nghiệp vụ đang
+  công khai; chuyển lại private không thu hồi được bản đã fork. Cần quyết: bật lại billing + private,
+  hoặc self-hosted runner.
+
+**Còn treo (bàn giao plan sửa, red-team RT-15):** OTP plaintext-at-rest trong `EmailOutbox.payload` không RLS;
+secrets dev-default committed; `parseLmsToken` phía client không verify chữ ký.
+
+---
+
 ## [2026-07-19] Log system remediation Hướng A+ — T8 LLM egress audit, PII denylist sweep, docs sync, Docker log rotation
 
 **Context:** `plans/260719-1145-log-system-remediation-a-plus/` (brainstorm scope A+, 2 red-team rounds,

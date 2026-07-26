@@ -1,6 +1,6 @@
 # CMC EDU v2
 
-A **facility-scoped ERP/LMS platform** for educational centers. Monorepo-based, TypeScript+React+tRPC, production-ready with 889+ API tests passing and P1–P4 workflows complete.
+A **facility-scoped ERP/LMS platform** for educational centers. Monorepo-based, TypeScript+React+tRPC. P1–P4 workflows are built, and 27 of 38 business flows are proven end-to-end by real browser journey tests (measured 2026-07-26, commit `22bbead`). **Not certified production-ready:** those journeys prove a flow *runs*, not that its business arithmetic is right; 7 flows have no UI path yet; and real-human UAT (M0) has not been run. Current status: `pnpm acceptance:report`.
 
 **Current Status:** P1 (enrollment pipeline) ✓ · P2–P4 (classes, HR, payroll, rewards) built & tested · Astryx UI migration complete · Super-admin (facility mgmt, network CRUD, audit log) shipped · In active development.
 
@@ -53,7 +53,7 @@ D:\project\vip\CMC
 - **Frontend:** Vite + React — apps/admin (ERP) + apps/lms (LMS)
 - **UI Design:** Astryx (@astryxdesign/core@0.1.4) + premium design layer (@cmc/ui)
 - **Auth:** Registry-driven RBAC (centralized in @cmc/auth), facility scope via RLS
-- **Testing:** Vitest (API: 99 files/889 tests · admin: 33 files/258 tests) + Playwright (e2e: 11 spec files)
+- **Testing:** Vitest (API: 104 files/988 tests · admin: 39 files/396 tests — đo trên CI 2026-07-26, commit `22bbead`) + Playwright (e2e: 39 spec files, gồm 27 journey UI; project `ui-chromium` 34 spec xanh trên CI)
 
 ## Getting Started
 

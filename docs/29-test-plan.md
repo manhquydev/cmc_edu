@@ -62,6 +62,14 @@ Mỗi WF có ≥1 spec. Trích: `finance/approve.spec` · `provisioning/idempote
 Pipeline chặn merge: **typecheck → lint → unit → integration (RLS) → e2e critical → verify-RLS**. PR
 đụng module tiền/PII phải xanh 100% nhánh trọng yếu §4. Coverage report công khai theo module.
 
+> **THỰC TẾ ĐÃ DỰNG (ghi chú 2026-07-26 — tài liệu thiết kế đóng băng, chỉ chú thích, không viết lại ý định):**
+> CI thật là **GitHub Actions** (`.github/workflows/ci.yml`), không phải Jenkins. Và **chỉ job
+> `typecheck-and-test` thực sự chặn merge** (typecheck → lint → unit/integration RLS → gate coverage
+> `@cmc/domain-payroll` ≥90%). Các job/bước `e2e`, `ui-e2e`, drift ma trận màn×vai, và `acceptance:report`
+> đều đang `continue-on-error: true` ⇒ **chạy cảnh báo, KHÔNG chặn merge**. Không tồn tại job `verify-RLS`
+> riêng (kiểm RLS nằm trong integration test của `typecheck-and-test`).
+> Chủ ý là warn-first rồi mới nâng thành gate; mốc nâng `ui-e2e` bắt đầu đếm từ 2026-07-26 (2 run xanh liên tiếp).
+
 ## 7. Định nghĩa "Done" (khớp DoR TL00 §5)
 
 Một WF/màn "xong" khi: có spec ở §3, đạt target §2, phủ kịch bản §4 liên quan, e2e critical (nếu thuộc

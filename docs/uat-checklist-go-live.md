@@ -15,7 +15,7 @@ Version: v2.0 · Stack: cmcv2-prod · Mode B (V3) session-injection
 
 - [x] ENV phase complete: all services healthy (`docker compose -p cmcv2-prod ps`) — **✅ REDEPLOYED 2026-07-11 from main `5c2cd2e`** (F-FM1 verdict: REDEPLOY DONE — images rebuilt with Astryx UI #28/#29 + P4 hardening #31 + schema reconcile #32; 2 pending migrations applied via socat sidecar; boot-checks no FATAL; env-check OK prod 22 vars; dev-seams absent; health 200; SSO smoke 302 → login.microsoftonline.com; admin SPA 200) — **✅ LMS SPA also verified up + 200 on `/lms/` (2026-07-11, this session)**
 - [x] Restore drill passed (RT-13): `./scripts/restore-drill.sh` exits 0, backup host ≠ deploy host — **✅ PASSED 2026-07-09** (49 tables, escrow decrypt OK, pg_restore clean)
-- [x] E2E critical green 1st run (see Section 1) — **✅ RUN 1 + RUN 2 PASSED 2026-07-09** (17/18, Mode-B)
+- [ ] E2E critical green 1st run (see Section 1) — kết quả **2026-07-09** (17/18, Mode-B) **đã hết hiệu lực**: đã qua nhiều đợt merge sau đó (journey, sổ nghiệm thu, tách RBAC). CI `ui-e2e` xanh 34 spec ngày 2026-07-26 **KHÔNG thay thế cổng này** — CI không chạy chồng prod-config `cmcv2-prod`. Xem G1.
 - [ ] All CRITICAL/HIGH findings from red-team (RT-1..15) resolved via merged PRs
 
 ---
@@ -365,7 +365,7 @@ All of the following must be checked before proceeding to go-live:
 
 | # | Criteria | Status |
 |---|---------|--------|
-| G1 | E2E critical green ≥2 consecutive runs | ✅ 2026-07-09 (Run 1+2 PASS 17/1skip, Mode-B staging) — ⚠️ **cần chạy lại**: kết quả chạy trên server tsx riêng (staging), chưa qua 3 đợt merge tính năng sau mốc này |
+| G1 | E2E critical green ≥2 consecutive runs | ⚠️ **CHƯA ĐẠT — cần chạy lại.** Kết quả 2026-07-09 (Run 1+2 PASS 17/1skip, Mode-B staging) chạy trên server tsx riêng và đã qua nhiều đợt merge sau mốc đó (journey, sổ nghiệm thu, tách RBAC). CI `ui-e2e` xanh 2 run liên tiếp ngày 2026-07-26 (34 spec, commit `22bbead`) **KHÔNG thay thế cổng này**: CI không chạy chồng prod-config `cmcv2-prod` mà G1 yêu cầu |
 | G2 | All 6 rows in Section 2 sign-off table signed (4 active staff roles + PH + học sinh; ke_toan/cskh/ctv_mkt/hr no longer active per ADR-D amendment) | |
 | G3 | Cutover probe → 401 (RT-2) | |
 | G4 | 0 CRITICAL/HIGH open findings (UAT pre-conditions only) | ✅ 2026-07-09 — Phase 3 audit: 0 CRITICAL, 3 HIGH (UAT coverage gaps, not code defects). No blocking code findings. HIGH items tracked as UAT pre-conditions. — ⚠️ **cần audit lại**: mốc này có trước 3 đợt merge lớn, trong đó 1 lỗi rò rỉ OTP mức Critical được phát hiện+vá SAU mốc này (07-16) |

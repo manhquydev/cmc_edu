@@ -1,19 +1,27 @@
 # CMC EDU v2 — Codebase Summary
 
 **Status:** SSO landing complete (P1) · Flow audit complete (P3) · P2-P4 workflows BUILT & TESTED · UI migration COMPLETE (Astryx 100% admin+lms, Mantine fully removed) + premium design-language layer promoted to @cmc/ui + **premium ERP screen build-out merged to main** (21/21 non-blocked screens now on premium templates/composites, 8-phase TDD complete) + **HR remediation (shift/KPI/payroll) phases 1-6 complete**: salary-tier model, KPI auto-score lifecycle, session-done engine, e2e verify loop  
-**Last Updated:** 2026-07-12 (historical snapshot — see note below for current numbers)  
+**Last Updated:** 2026-07-26 (số liệu hiện hành nằm ở các banner bên dưới; khối "Build State" giữ nguyên làm ảnh chụp lịch sử 2026-07-12)  
 **Build State (2026-07-12, verified this session — HR remediation phase 6):** @cmc/api 695 tests passing (81 test files, live Postgres); @cmc/admin 229 tests passing (32 test files); @cmc/e2e 19 passed + 1 pre-existing skip (20 spec files, incl. new `shift-lifecycle.spec.ts` + `kpi-lifecycle.spec.ts`, dev-header mode); 14/14 apps build clean. See `docs/project-changelog.md` for the dated entry.
 
-> **Updated 2026-07-17 (acceptance-review audit):** test counts above predate 3 later merge waves (43 happy-path gaps, review-gap fixes, super-admin completion). Current as of 2026-07-17: apps/api 99 files/889 tests, apps/admin 33 files/258 tests, apps/e2e 11 spec files.
+> **Updated 2026-07-17 (acceptance-review audit):** test counts above predate 3 later merge waves (43 happy-path gaps, review-gap fixes, super-admin completion). Current as of 2026-07-17: apps/api 99 files/889 tests, apps/admin 33 files/258 tests, apps/e2e 11 spec files. **(Số liệu 07-17 — đã bị thay thế; số hiện hành ở banner 2026-07-26 bên dưới.)**
 >
-> **Updated 2026-07-24 (UAT prep — journey infrastructure + e2e capture/smoke):** Phase 4–5 added 13 new journey-related spec files (3 regression + 10 core flows in `apps/e2e/tests/journeys/*.journey.ui.spec.ts`). Current e2e count: ~21+ spec files. `acceptance:report` now shows journey coverage (9/10 linked to flow-manifest, 9/38 total flows covered). See `docs/project-changelog.md` for UAT delivery checklist.
+> **Updated 2026-07-24 (UAT prep — journey infrastructure + e2e capture/smoke):** Phase 4–5 added 13 new journey-related spec files (3 regression + 10 core flows in `apps/e2e/tests/journeys/*.journey.ui.spec.ts`). ~~Current e2e count: ~21+ spec files… (9/38 total flows covered)~~ — **superseded, xem banner 2026-07-26 ngay dưới.**
+>
+> **Updated 2026-07-26 (nghiệm thu journey + CI khôi phục):** e2e hiện có **39 spec file** — gồm **27 journey UI** (`apps/e2e/tests/journeys/*.journey.ui.spec.ts`); project `ui-chromium` chạy **34 spec, xanh trên CI**. Sổ nghiệm thu: **27/38 luồng đã chứng minh chạy** (commit `22bbead`), cấu trúc 37 built / 1 partial / 0 missing, actor-audit 0 phát hiện. **Trần khả thi qua journey = 31/38**: 7 luồng `no-ui-path` (không có UI nên journey không lái được), 4 luồng chưa viết journey. Đây là bằng chứng đầu tiên do CI sinh (`gitDirty:false`) — trước 2026-07-26 chỉ có run cục bộ mang nhãn tham khảo. **Giới hạn:** journey ở mức smoke — chứng minh luồng *chạy thông*, KHÔNG chứng minh *đúng số học nghiệp vụ*; UAT người thật (M0) vẫn chưa chạy. Test đơn vị/tích hợp đo trên CI cùng commit: `@cmc/api` 104 file/988 test, `@cmc/admin` 39 file/396 test, `@cmc/ui` 12/45, `@cmc/domain-payroll` 2/38, `@cmc/domain-time` 1/31, `@cmc/domain-finance` 5/17.
 
 > **Cập nhật 2026-07-23 — đợt gỡ lỗi phân quyền + siết sổ nghiệm thu.**
 > Đo tại `main` (`35d4df0`): `pnpm typecheck` 27/27 · `pnpm lint` sạch · `pnpm test` 22/22 task (api **977**, admin **352**) · `pnpm --filter @cmc/e2e test` 20 pass, **0 facility rò** · runtime capture 102 tổ hợp màn×vai **0 denied** (chạy 2026-07-22; phạm vi ma trận sau khi thêm nav entry 2026-07-23 là **98** cặp và **chưa** capture lại — xem `docs/runbook-uat-golive.md` §1).
+> *(Số e2e "20 pass" đo 2026-07-23; sau đó thêm 27 journey spec — CI 2026-07-26 chạy `ui-chromium` **34 spec xanh** tại commit `22bbead`. Số api/admin cập nhật cùng ngày: api **988**, admin **396**.)*
 >
 > **Ba luồng chưa từng chạy được từ 2026-07-06 đã gỡ.** Quyền đọc lớp bị gộp vào quyền tạo lớp ⇒ không vai nghiệp vụ nào thu nổi học phí, giáo viên thấy menu nhưng dropdown rỗng, hai giám đốc mở màn chốt lương mà danh sách nhân viên trống. Tách `class.read` · `classRoster.read` (hẹp hơn — trả họ tên trẻ em) · `staff.pickList` (key riêng, không mượn quyền tiền). **Không nới quyền ghi nào**; `class.create` vẫn chỉ GĐĐT, ADR-B nguyên vẹn.
 >
 > **Sổ nghiệm thu: 38/38 built → 37 built / 1 partial.** `acceptance:report` giờ nhận diện màn giữ chỗ (`EmptyState` không gọi procedure, và `ComingSoon`) — P1-08 rời `built` vì `/finance/refund` chưa xây. Thêm `actor-audit`: đối chiếu actor khai trong manifest với registry quyền, hiện **0 phát hiện** (từ 26). Gate `acceptance:report` đã vào CI ở mức **cảnh báo** (`continue-on-error`), chưa chặn merge.
+>
+> **Bổ sung 2026-07-26 — tầng *đã chứng minh chạy*:** con số `built` ở trên là quét TĨNH (mã có tồn tại không).
+> Tầng mạnh hơn là **journey UI thật chạy xanh**: hiện **27/38 luồng** tại commit `22bbead`, sinh từ artifact
+> CI `ui-e2e` (`gitDirty:false`) — trước 2026-07-26 chỉ có run cục bộ mang nhãn tham khảo. Trần khả thi qua
+> journey = **31/38** (7 luồng `no-ui-path`, 4 luồng chưa viết journey).
 >
 > **Giới hạn phải đọc là "chưa phủ", không phải "sạch":** 26 procedure ngoài tầm registry (owner-check, `lmsProcedure`, public) và 2 cặp (luồng, vai) audit không kết luận được. Runtime capture cũng không thấy được gate `canDo()` phía client — màn không gọi gì thì không có request để bắt.
 >
@@ -642,4 +650,4 @@ P1 implementation adheres to frozen design corpus (docs/TL00-TL31):
 **Repository:** CMC EDU v2 @ `D:\project\vip\CMC`  
 **Docs Root:** `docs/` (Vietnamese design corpus + English implementation notes)  
 **Reports:** `plans/reports/` (session audits, remediations, deep reviews)  
-**Last Updated:** 2026-07-10 (Astryx migration Phase 1 GO + e2e UI infrastructure online)
+**Last Updated:** 2026-07-26 — xem banner đầu file. *(Dòng cũ "2026-07-10 (Astryx migration Phase 1 GO…)" mô tả riêng đợt Astryx, không phải ngày cập nhật của cả tài liệu.)*

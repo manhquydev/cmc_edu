@@ -107,9 +107,22 @@ Kỳ `2026-06` mở nộp từ `2026-07-03`; hôm nay `2026-07-26` **đã qua m�
 | Phân quyền/guard chặn đúng chỗ | Công thức KPI, tiền phạt, proration ra đúng giá trị |
 | Chuyển trạng thái thật (Nháp→Đã chốt…) | Đúng với **mọi** input, biên, ngoại lệ |
 
-Ví dụ cụ thể: journey P3-05 xác nhận `assemble → finalize` tạo được phiếu lương nháp mang đúng lương cơ bản của bậc, rồi chốt. Nó **không** kiểm phần KPI (`%côngca × %chỉ-số × đơn giá`) hay tiền phạt có ra đúng số hay không. Phần đúng-số-học nằm ở unit test của `@cmc/domain-payroll` (38 test, coverage ≥90%) — tách bạch, và **chưa được đối chiếu chéo với journey**.
+Ví dụ cụ thể: journey P3-05 xác nhận `assemble → finalize` tạo được phiếu lương nháp mang đúng lương cơ bản của bậc, rồi chốt. Nó **không** tự kiểm phần KPI hay tiền phạt ra đúng số.
 
-Mỗi journey cũng chỉ đi **một đường hạnh phúc + một negative**, không phải ma trận đầy đủ.
+> **ĐÍNH CHÍNH (2026-07-26, sau khi kiểm source):** phát biểu ban đầu của mục này — ngụ ý đúng-số-học là
+> lỗ hổng lớn — **là quá bi quan**. Kiểm tra cho thấy phần số học ĐÃ được kiểm kỹ ở tầng hàm thuần:
+> - `assembleSlip()` trong `@cmc/domain-payroll` giữ toàn bộ số học; router **thực sự gọi nó**
+>   (`apps/api/src/payroll/router.ts:60` import + chú thích dòng 46 "Calls assembleSlip() for the arithmetic").
+> - Unit test kiểm **bằng số cụ thể và cả biên**: `phạt = lateMinutes × 500`, `early × 1000`, tổng hai loại,
+>   **trần phạt = (baseSalary + kpiPartAmount)**, **sàn `totalNet` = 0**, và `kpiBonus` mang ngữ nghĩa `kpiPartAmount`.
+> - CI có **gate coverage ≥90%** cho gói này.
+>
+> ⇒ Lỗ hổng còn lại hẹp: chưa có test khẳng định *đường journey* ra đúng con số mà hàm thuần tính. Vì router
+> đã chứng minh ủy thác cho hàm đó, rủi ro còn lại là **lỗi đấu dây, mức thấp**. **Quyết 2026-07-26: KHÔNG
+> đưa việc đối chiếu chéo vào plan này** (bất biến plan = chỉ đo, không sửa app); ghi nhận là mức phủ hiện
+> tại đã chấp nhận được, xem lại nếu sau này có bug thật về số tiền.
+
+Giới hạn còn đúng nguyên: mỗi journey chỉ đi **một đường hạnh phúc + một negative**, không phải ma trận đầy đủ.
 
 ### 3.4 Chưa đủ để ký nghiệm thu
 

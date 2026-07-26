@@ -193,10 +193,20 @@ jobs:
   # sign/verify with the same well-known, CI-only value. Setting NODE_ENV=production
   # here without a real STAFF_SESSION_SECRET would make the API refuse to boot.
   #
-  # continue-on-error: true — warn-first, same rationale as `e2e` above. Promote
-  # to blocking (drop continue-on-error) once this job has run warn-only in CI
-  # for at least 2 weeks with ~0 false positives (no failures other than genuine
-  # UI regressions).
+  # continue-on-error: true — warn-first, same rationale as `e2e` above.
+  #
+  # PROMOTION CRITERIA (decided 2026-07-26 — do not promote on a hunch):
+  # drop `continue-on-error` only when ALL of these hold, and record the evidence
+  # in the commit that promotes it.
+  #   1. >= 20 runs of this job on the branch it will gate, spanning >= 14 days.
+  #      Three green runs in one afternoon is not stability evidence.
+  #   2. Zero red runs in that window other than genuine UI regressions — a flake
+  #      that passed on retry resets nothing, but it must be logged and explained.
+  #   3. The runner environment has not changed inside the window. Moving to a
+  #      self-hosted runner restarts the clock, because timing and browser
+  #      behaviour differ from `ubuntu-latest`.
+  #   4. Runtime still leaves headroom under the 60-90 minute budget (D2).
+  # Clock started 2026-07-26 with runs 30184942661 / 30185169572 / 30186422346.
   #
   # VERIFIED IN CI 2026-07-26 (run 30184942661, commit 478495b): first real
   # execution after Actions had failed in 3-4 seconds with zero steps since

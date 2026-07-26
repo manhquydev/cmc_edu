@@ -197,18 +197,18 @@ jobs:
   # to blocking (drop continue-on-error) once this job has run warn-only in CI
   # for at least 2 weeks with ~0 false positives (no failures other than genuine
   # UI regressions).
-  # NOT YET VERIFIED IN CI. Actions on this repository has been failing in 3-4
-  # seconds with zero steps executed since 2026-07-17 — the workflow parses and
-  # the jobs are created, Actions is enabled, and the repository is private, so
-  # the signature is exhausted Actions minutes / a spending limit rather than
-  # anything in this file. Restoring it needs GitHub billing settings.
   #
-  # Consequence: the full-suite run and the artifact upload below have never
-  # executed once. They are written to be correct, not observed to be correct.
-  # The acceptance ledger stays "blocked on CI billing" until a real run
-  # produces the first artifact — do not read a green local run as this job
-  # working. Reconsider the every-push cadence at the same time: on a private
-  # repo these are billed minutes, and the estimate is 9-53 minutes per push.
+  # VERIFIED IN CI 2026-07-26 (run 30184942661, commit 478495b): first real
+  # execution after Actions had failed in 3-4 seconds with zero steps since
+  # 2026-07-17 — that signature was exhausted Actions minutes, never this file.
+  # The run was green (34/34 specs) and uploaded the first artifact that the
+  # acceptance ledger accepts as its source of record: gitDirty false, gitSha
+  # matching HEAD.
+  #
+  # Runtime measured here rather than estimated: this job took 6.1 minutes wall
+  # clock, against the 9-53 minute projection that made the every-push cadence
+  # provisional. Per-push therefore stays comfortably inside the 60-90 minute
+  # threshold and needs no move to nightly or sharding.
   ui-e2e:
     runs-on: ubuntu-latest
     # Push events only, for two reasons that both matter. (1) This workflow

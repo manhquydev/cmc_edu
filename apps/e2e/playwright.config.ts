@@ -17,7 +17,49 @@
 // failing every UI spec. UI specs run via the documented command instead:
 //   PLAYWRIGHT_UI=1 pnpm --filter @cmc/e2e test --project=ui-chromium
 
-import { defineConfig, devices } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+
+import { defineConfig, devices, type PlaywrightTestConfig } from '@playwright/test';
+
+// Commit the run was executed at, stamped into the report so the acceptance
+// ledger can refuse results produced against different code. CI passes it in
+// (the checkout there may be detached); locally it is read from git.
+function gitSha(): string {
+  if (process.env.GIT_SHA) return process.env.GIT_SHA;
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  } catch {
+    return '';
+  }
+}
+
+// A commit alone does not identify what actually ran: with uncommitted changes
+// in the tree, the code under test is not the code at that commit. Recording it
+// lets the ledger say so instead of quietly attributing the result to HEAD.
+function gitDirty(): boolean {
+  try {
+    return execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+// The json report is what scripts/acceptance-report ingests to decide which
+// flows are "đã chứng minh chạy". Two separate protections keep an API-only run
+// from destroying that evidence, because they fail differently:
+//
+//  1. The reporter is registered ONLY under PLAYWRIGHT_UI — the same gate as
+//     the ui-chromium project below. Otherwise a plain API run (which matches
+//     no UI specs at all) would rewrite the file with a report containing none
+//     of the journey specs, and every flow would silently drop to unproven.
+//  2. It is written OUTSIDE `test-results/`. Playwright wipes its outputDir at
+//     the start of every run, so a file kept there is deleted by the next API
+//     run whatever the reporter does — verified: an api-project run removed it.
+const reporter = process.env.PLAYWRIGHT_UI
+  ? ([['list'], ['json', { outputFile: 'acceptance-results/journeys.json' }]] as const)
+  : process.env.CI
+    ? 'github'
+    : 'list';
 
 // Must match UI_MODE_API_PORT in src/global-setup.ts. admin/lms bake
 // VITE_API_URL into the bundle at build time (Vite replaces import.meta.env
@@ -59,7 +101,8 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'github' : 'list',
+  reporter: reporter as PlaywrightTestConfig['reporter'],
+  metadata: { gitSha: gitSha(), gitDirty: gitDirty() },
   timeout: 30_000,
   globalSetup: './src/global-setup.ts',
 

@@ -5,7 +5,7 @@ Sinh ngày 2026-07-22 từ `acceptance-report/verification.json` (**không chép
 
 ## 1. UAT này tồn tại để chứng minh cái gì
 
-Nghiệp vụ chạy đúng **đã** có bằng chứng khác: unit/integration 977 test, e2e 20 spec, runtime capture **102 tổ hợp màn×vai, `0 denied`** (chạy 2026-07-22).
+Nghiệp vụ chạy đúng **đã** có bằng chứng khác: unit/integration (CI 2026-07-26: api 988 test, admin 396 test), e2e **43 spec — trong đó 31 journey UI chứng minh 31/38 luồng chạy thật** (artifact CI, commit `324bd12`), runtime capture **102 tổ hợp màn×vai, `0 denied`** (chạy 2026-07-22). Lưu ý: journey ở mức smoke — chứng minh luồng chạy thông, không chứng minh đúng số học nghiệp vụ.
 
 > ⚠️ **Đọc con số này cho đúng — 102 là KẾT QUẢ ĐO, không phải phạm vi hiện tại.**
 >

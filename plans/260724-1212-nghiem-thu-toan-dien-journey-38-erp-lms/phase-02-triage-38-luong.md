@@ -1,7 +1,12 @@
 ---
 phase: 2
 title: "Triage 38 luồng — bản đồ thi công"
-status: pending
+status: done
+completed: '2026-07-24'
+reports:
+  - 'plans/reports/triage-260724-1530-38-luong-tong-hop-report.md'
+  - 'plans/reports/triage-260724-1512-flows-p1-p2-report.md'
+  - 'plans/reports/triage-260724-1512-flows-p3-p4-adm-report.md'
 priority: P1
 effort: "2-3d"
 dependencies: []

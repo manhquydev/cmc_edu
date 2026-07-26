@@ -1,0 +1,187 @@
+{
+  "config": {
+    "metadata": {
+      "actualWorkers": 1,
+      "gitSha": "abc1234",
+      "gitDirty": false
+    }
+  },
+  "suites": [
+    {
+      "title": "journeys/alpha.journey.ui.spec.ts",
+      "file": "journeys/alpha.journey.ui.spec.ts",
+      "specs": [],
+      "suites": [
+        {
+          "title": "alpha journey — hai vai",
+          "file": "journeys/alpha.journey.ui.spec.ts",
+          "specs": [
+            {
+              "title": "sale tạo phiếu, GĐ duyệt",
+              "ok": true,
+              "tests": [
+                {
+                  "annotations": [],
+                  "projectName": "ui-chromium",
+                  "status": "expected",
+                  "results": [
+                    {
+                      "status": "passed",
+                      "duration": 1800
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "title": "sale không thấy nút duyệt của chính mình",
+              "ok": true,
+              "tests": [
+                {
+                  "annotations": [],
+                  "projectName": "ui-chromium",
+                  "status": "expected",
+                  "results": [
+                    {
+                      "status": "passed",
+                      "duration": 900
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "journeys/beta.journey.ui.spec.ts",
+      "file": "journeys/beta.journey.ui.spec.ts",
+      "specs": [
+        {
+          "title": "điểm danh buổi học",
+          "ok": false,
+          "tests": [
+            {
+              "annotations": [],
+              "projectName": "ui-chromium",
+              "status": "unexpected",
+              "results": [
+                {
+                  "status": "failed",
+                  "duration": 4200
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "journeys/gamma.journey.ui.spec.ts",
+      "file": "journeys/gamma.journey.ui.spec.ts",
+      "specs": [
+        {
+          "title": "chốt lương tháng",
+          "ok": true,
+          "tests": [
+            {
+              "annotations": [
+                {
+                  "type": "fixme",
+                  "description": "cần time-travel qua kỳ lương"
+                }
+              ],
+              "projectName": "ui-chromium",
+              "status": "skipped",
+              "results": [
+                {
+                  "status": "skipped",
+                  "duration": 0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "journeys/delta.journey.ui.spec.ts",
+      "file": "journeys/delta.journey.ui.spec.ts",
+      "specs": [
+        {
+          "title": "đổi quà bằng sao",
+          "ok": true,
+          "tests": [
+            {
+              "annotations": [],
+              "projectName": "ui-chromium",
+              "status": "expected",
+              "results": [
+                {
+                  "status": "passed",
+                  "duration": 2500
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "GĐ duyệt redemption ngoài giờ",
+          "ok": true,
+          "tests": [
+            {
+              "annotations": [
+                {
+                  "type": "skip"
+                }
+              ],
+              "projectName": "ui-chromium",
+              "status": "skipped",
+              "results": [
+                {
+                  "status": "skipped",
+                  "duration": 0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "journeys/epsilon.journey.ui.spec.ts",
+      "file": "journeys/epsilon.journey.ui.spec.ts",
+      "specs": [
+        {
+          "title": "gửi ảnh buổi học cho phụ huynh",
+          "ok": true,
+          "tests": [
+            {
+              "annotations": [],
+              "projectName": "ui-chromium",
+              "status": "flaky",
+              "results": [
+                {
+                  "status": "failed",
+                  "duration": 3100
+                },
+                {
+                  "status": "passed",
+                  "duration": 2800
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "expected": 4,
+    "unexpected": 1,
+    "flaky": 1,
+    "skipped": 2
+  }
+}

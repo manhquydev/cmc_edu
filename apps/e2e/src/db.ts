@@ -21,6 +21,7 @@ import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 import { createPrismaClient, withFacility, PrismaClient } from '@cmc/db';
 import { addDaysToDateOnly, ictDateOnlyOf, ictToUtc, weekdayOf } from '@cmc/domain-time';
+import { normalizeLoginPhone } from '@cmc/domain-identity';
 import type { Role } from '@cmc/auth';
 import { randomVnPhone } from './random-vn-phone.js';
 import { assertNotProdDatabase } from './assert-not-prod.js';
@@ -33,6 +34,7 @@ import { assertNotProdDatabase } from './assert-not-prod.js';
 import { planClassSessions, type SlotForPlanning } from '../../api/src/class/generate-sessions.js';
 import { relayEmailOutbox } from '../../api/src/worker/relay-email-outbox.js';
 import { ConsoleEmailTransport } from '../../api/src/worker/email-transport.js';
+import { runReconcileFinanceFlags } from '../../api/src/worker/reconcile-finance-flags.js';
 
 let dbSingleton: PrismaClient | undefined;
 
@@ -74,6 +76,26 @@ export async function disconnectDb(): Promise<void> {
 
 const OTP_CODE_SPACE = 1_000_000;
 
+/** Recovers the plaintext code behind a salted `codeHash` by walking the
+ * 6-digit space. `subject` only labels the error messages. */
+function recoverCodeFromHash(codeHash: string, subject: string): string {
+  const separatorIndex = codeHash.indexOf(':');
+  if (separatorIndex < 0) {
+    throw new Error(`Malformed LoginOtp.codeHash for ${subject}.`);
+  }
+  const salt = codeHash.slice(0, separatorIndex);
+  const digest = codeHash.slice(separatorIndex + 1);
+
+  for (let i = 0; i < OTP_CODE_SPACE; i += 1) {
+    const candidate = String(i).padStart(6, '0');
+    const candidateDigest = createHash('sha256').update(salt + candidate).digest('hex');
+    if (candidateDigest === digest) {
+      return candidate;
+    }
+  }
+  throw new Error(`Could not recover the OTP code for ${subject} (brute-force exhausted).`);
+}
+
 /** Recovers the plaintext 6-digit code for `phone`'s most recent pending
  * LoginOtp row (see file header) — throws if no pending row exists or the
  * hash cannot be matched (a real bug, not an expected test outcome). */
@@ -85,21 +107,100 @@ export async function readOtpCode(phone: string): Promise<string> {
   if (!otp) {
     throw new Error(`No pending LoginOtp row found for phone ${phone}.`);
   }
-  const separatorIndex = otp.codeHash.indexOf(':');
-  if (separatorIndex < 0) {
-    throw new Error(`Malformed LoginOtp.codeHash for phone ${phone}.`);
-  }
-  const salt = otp.codeHash.slice(0, separatorIndex);
-  const digest = otp.codeHash.slice(separatorIndex + 1);
+  return recoverCodeFromHash(otp.codeHash, `phone ${phone}`);
+}
 
-  for (let i = 0; i < OTP_CODE_SPACE; i += 1) {
-    const candidate = String(i).padStart(6, '0');
-    const candidateDigest = createHash('sha256').update(salt + candidate).digest('hex');
-    if (candidateDigest === digest) {
-      return candidate;
+/** Recovers the 6-digit code a parent would have received by email.
+ *
+ * Reads the queued email FIRST, because that row is the real delivery artifact:
+ * finding the code there proves the system actually enqueued a message, not
+ * merely that it minted a code. `lmsAuth.requestOtpEmail` only enqueues when a
+ * ParentAccount owns the address, so this doubles as proof the account exists.
+ *
+ * Falls back to recovering the code from the LoginOtp hash when the payload has
+ * already been scrubbed — the outbox worker overwrites delivered OTP payloads
+ * with `{kind:'otp', scrubbed:true}`, so a drain racing the read would
+ * otherwise fail the spec for a reason that has nothing to do with the flow. */
+export async function readOtpCodeByEmail(email: string): Promise<string> {
+  const address = email.toLowerCase();
+  const db = getDb();
+
+  // Absence of an outbox row is meaningful and must not be papered over.
+  // `lmsAuth.requestOtpEmail` ALWAYS mints the LoginOtp row (that is what keeps
+  // its response identical whether or not the address exists), but it enqueues
+  // an email only when a ParentAccount owns the address. So a code recovered
+  // from the hash alone proves nothing about the account — falling straight
+  // back to it would hand out a code that was never sent, and the spec would
+  // then fail several steps later with an unrelated-looking error.
+  const queued = await db.emailOutbox.findFirst({
+    where: { to: address, payload: { path: ['kind'], equals: 'otp' } },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!queued) {
+    throw new Error(
+      `No OTP email was queued for ${address}. lmsAuth.requestOtpEmail answers {ok:true} either ` +
+        `way, so this almost always means no ParentAccount owns this address — check that the ` +
+        `flow under test actually recorded it (e.g. the "Email phụ huynh" field on the receipt).`,
+    );
+  }
+
+  const payload = queued.payload as { code?: unknown } | null;
+  if (typeof payload?.code === 'string') {
+    return payload.code;
+  }
+
+  // The row exists but its payload was scrubbed: the outbox worker overwrites
+  // delivered OTP payloads with `{kind:'otp', scrubbed:true}`. The email WAS
+  // enqueued, so recovering the code from the hash is legitimate here.
+  const otp = await db.loginOtp.findFirst({
+    where: { email: address, status: 'pending' },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!otp) {
+    throw new Error(
+      `An OTP email was queued for ${address} but its payload is scrubbed and no pending ` +
+        `LoginOtp row remains — the code has expired or was already consumed.`,
+    );
+  }
+  return recoverCodeFromHash(otp.codeHash, `email ${address}`);
+}
+
+/** Clears anything a previous run left behind for this run's parent identity.
+ *
+ * Runs BEFORE the spec, not after, so a run that died halfway cannot poison the
+ * next one. Three separate leftovers matter, and they are keyed differently:
+ * OTP rate limiting counts LoginOtp rows per identifier (5 per 15 minutes), so
+ * stale rows under either the email OR the phone can make a fresh login fail
+ * for a reason the flow has nothing to do with; queued emails accumulate under
+ * `to`; and provisioning finds-or-creates a ParentAccount by phone, so a
+ * leftover account would be silently reused with the wrong email attached. */
+export async function sweepParentIdentity(opts: { email?: string; phone?: string }): Promise<void> {
+  const db = getDb();
+  const email = opts.email?.toLowerCase();
+  // Provisioning and OTP rows store the login-normalized phone (`0964…` →
+  // `84964…`), so sweeping by the raw phone would silently miss the very rows
+  // it exists to clear.
+  const phone = opts.phone ? normalizeLoginPhone(opts.phone) : undefined;
+
+  if (email) {
+    await db.emailOutbox.deleteMany({ where: { to: email } });
+    await db.loginOtp.deleteMany({ where: { email } });
+  }
+  if (phone) {
+    await db.loginOtp.deleteMany({ where: { phone } });
+    await cleanupParentAccountsByPhone(phone);
+  }
+  if (email) {
+    // Provisioning reuses an account by phone, but the email column is unique:
+    // an orphan holding this address would make the upsert throw P2002.
+    const orphan = await db.parentAccount.findUnique({ where: { email } });
+    if (orphan) {
+      await db.studentAccount.deleteMany({ where: { parentAccountId: orphan.id } });
+      await db.guardian.deleteMany({ where: { parentAccountId: orphan.id } });
+      await db.guardianLinkRequest.deleteMany({ where: { parentAccountId: orphan.id } });
+      await db.parentAccount.delete({ where: { id: orphan.id } });
     }
   }
-  throw new Error(`Could not recover the OTP code for phone ${phone} (brute-force exhausted).`);
 }
 
 export interface SeedActiveEnrollmentOptions {
@@ -135,6 +236,98 @@ export async function seedActiveEnrollment(
     },
     { bypass: true },
   );
+}
+
+/** Seeds a bare Student in the facility (no enrollment). There is no
+ * `student.create` UI mutation — a student only ever comes into existence via
+ * the receipt money-chain — so a flow that merely needs a student to EXIST as a
+ * precondition (e.g. the parent-meeting picker searches `student.lookup` by
+ * name) seeds one directly, the same way this suite seeds every other fixture
+ * row. Facility-scoped, so `cleanupFacility` reclaims it. */
+export async function seedStudent(
+  opts: { facilityId: string; studentName?: string },
+): Promise<{ studentId: string; studentName: string }> {
+  return withFacility(
+    getDb(),
+    null,
+    async (tx) => {
+      const fullName = opts.studentName ?? `E2E Student ${randomUUID().slice(0, 8)}`;
+      const student = await tx.student.create({
+        data: { facilityId: opts.facilityId, fullName },
+        select: { id: true },
+      });
+      return { studentId: student.id, studentName: fullName };
+    },
+    { bypass: true },
+  );
+}
+
+/** Points one AppUser's `managerId` at another, by their auth `userId`s.
+ *
+ * `kpi.confirm` requires `scoreOwner.managerId === confirmUser.id` and only
+ * `super_admin` bypasses it, so a faithful "direct manager confirms" journey has
+ * to establish that link. `/admin/users` exposes no manager field (verified —
+ * `user.create`/`user.update` accept `managerId`, the screen never sends it), so
+ * there is no UI path to drive; the link is seeded directly, same justification
+ * as `seedStudent`. Returns the manager's AppUser id. */
+export async function seedManagerLink(opts: {
+  facilityId: string;
+  /** Auth userId of the report (the person whose KPI slip gets confirmed). */
+  reportUserId: string;
+  /** Auth userId of their manager. */
+  managerUserId: string;
+}): Promise<{ managerAppUserId: string }> {
+  return withFacility(
+    getDb(),
+    null,
+    async (tx) => {
+      const manager = await tx.appUser.findFirst({
+        where: { facilityId: opts.facilityId, userId: opts.managerUserId },
+        select: { id: true },
+      });
+      if (!manager) {
+        throw new Error(
+          `seedManagerLink: no AppUser for managerUserId "${opts.managerUserId}" in facility ${opts.facilityId}. ` +
+            `kpi.confirm resolves the confirming user through this row, so the manager must exist first.`,
+        );
+      }
+      const updated = await tx.appUser.updateMany({
+        where: { facilityId: opts.facilityId, userId: opts.reportUserId },
+        data: { managerId: manager.id },
+      });
+      if (updated.count === 0) {
+        throw new Error(
+          `seedManagerLink: no AppUser for reportUserId "${opts.reportUserId}" in facility ${opts.facilityId}.`,
+        );
+      }
+      return { managerAppUserId: manager.id };
+    },
+    { bypass: true },
+  );
+}
+
+/** Clears `mustChangePassword` on a provisioned StudentAccount.
+ *
+ * `assertPasswordNotExpired` (apps/api/src/trpc.ts) blocks every student LMS
+ * mutation while the flag is set, and receipt provisioning always sets it. The
+ * activation flow that clears it for real (parent sets password → student
+ * logs in) is a proven journey of its own
+ * (lms-student-activation.journey.ui.spec.ts, P1-04) — and decision D1 of plan
+ * 260724-1212 explicitly carves out that LMS journeys where login/activation is
+ * NOT the business under test inject their session instead of re-driving it.
+ * This helper is the data half of that carve-out: the injected student session
+ * represents an already-activated account, so the flag is cleared to match. */
+export async function clearMustChangePassword(studentId: string): Promise<void> {
+  const updated = await getDb().studentAccount.updateMany({
+    where: { studentId },
+    data: { mustChangePassword: false },
+  });
+  if (updated.count === 0) {
+    throw new Error(
+      `clearMustChangePassword: no StudentAccount for studentId "${studentId}" — ` +
+        'provisioning must run first (it is what creates the account).',
+    );
+  }
 }
 
 /** Deletes every row this e2e run's dedicated Facility could have created,
@@ -500,6 +693,42 @@ export async function seedFacilityNetwork(opts: {
 // Phase-08: exercise + submission seeding helpers
 // ---------------------------------------------------------------------------
 
+/** Seeds one global CurriculumUnit and returns its id + title. Facility-agnostic
+ * (no facilityId), so the facility teardown does not remove it — delete via
+ * `cleanupCurriculumUnits`. Inert prerequisite data: a curriculum unit is a
+ * catalog entry a teacher picks when authoring an exercise, not a mechanism any
+ * flow proves. The unique title lets a journey find its own exercise row. */
+export async function seedCurriculumUnit(title?: string): Promise<{ unitId: string; title: string }> {
+  const unitTitle = title ?? `E2E Unit ${randomUUID().slice(0, 8)}`;
+  const unit = await getDb().curriculumUnit.create({
+    data: { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: unitTitle },
+  });
+  return { unitId: unit.id, title: unitTitle };
+}
+
+/** Deletes seeded CurriculumUnit rows (and any exercises + submissions
+ * referencing them, to avoid the FK trip) — mirror of `cleanupExercises` for
+ * units created directly. Uses the privileged migration-role connection:
+ * `cmc_app` has no DELETE grant on Exercise/CurriculumUnit.
+ *
+ * Does NOT delete ClassSession rows, which also FK-reference CurriculumUnit —
+ * safe only because callers seed no session against these units. A future
+ * caller that does must clear sessions first or this trips the session FK. */
+export async function cleanupCurriculumUnits(...unitIds: string[]): Promise<void> {
+  if (unitIds.length === 0) return;
+  const db = getPrivilegedDb();
+  const exercises = await db.exercise.findMany({
+    where: { curriculumUnitId: { in: unitIds } },
+    select: { id: true },
+  });
+  const exerciseIds = exercises.map((e) => e.id);
+  if (exerciseIds.length > 0) {
+    await db.submission.deleteMany({ where: { exerciseId: { in: exerciseIds } } });
+    await db.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
+  }
+  await db.curriculumUnit.deleteMany({ where: { id: { in: unitIds } } });
+}
+
 /** Seeds a global CurriculumUnit + published Exercise. Both are facility-
  * agnostic (no facilityId). Clean up with `cleanupExercises(exerciseId)`. */
 export async function seedPublishedExercise(opts?: {
@@ -825,6 +1054,56 @@ export async function findAppUserByUserId(opts: {
   );
 }
 
+/** Read-only: the children linked to a parent, as `mintLmsSession` needs to
+ *  populate a parent session's `children` cache (the real app fills it from the
+ *  login response; an injected session has to read it from the DB).
+ *
+ *  Runs with a facility bypass: `Guardian`/`ParentAccount` are RLS-exempt (they
+ *  predate any facility session, ADR 0042), but `Student` is facility-scoped, so
+ *  the restricted app connection resolves the required `student` relation to
+ *  null and Prisma throws. The bypass is why this lives in db.ts (which owns the
+ *  privileged connection) rather than inline in the journey helper. */
+export async function findGuardianChildren(
+  parentAccountId: string,
+): Promise<Array<{ studentId: string; fullName: string }>> {
+  const guardians = await withFacility(
+    getDb(),
+    null,
+    (tx) =>
+      tx.guardian.findMany({
+        where: { parentAccountId },
+        select: { student: { select: { id: true, fullName: true } } },
+      }),
+    { bypass: true },
+  );
+  return guardians.map((g) => ({ studentId: g.student.id, fullName: g.student.fullName }));
+}
+
+/** Deletes a facility created directly by a journey (e.g. ADM-01), by its
+ * unique code. There is no `facility.delete` procedure, and the global teardown
+ * only reclaims this run's own E2E facility — so a facility a journey creates
+ * would otherwise leak. A freshly created facility has no child rows, so a plain
+ * delete on the privileged connection is safe. */
+export async function deleteFacilityByCode(code: string): Promise<void> {
+  await getPrivilegedDb().facility.deleteMany({ where: { code } });
+}
+
+/** Read-only: `ParentAccount.id` for a phone — recovers the account
+ *  `finance.receiptApprove` provisioning created but never surfaces to
+ *  Playwright, so a journey that injects a parent session (`mintLmsSession`)
+ *  has a real id to mint against. Not facility-scoped: ParentAccount predates
+ *  any facility session (same RLS exemption as Guardian, ADR 0042). */
+export async function findParentAccountIdByPhone(phone: string): Promise<string | null> {
+  // Provisioning stores the login-normalized form (`0964…` → `84964…`), so a
+  // lookup with the raw phone a spec generated would always miss. Normalize
+  // here, once, rather than at every call site.
+  const account = await getDb().parentAccount.findUnique({
+    where: { phone: normalizeLoginPhone(phone) },
+    select: { id: true },
+  });
+  return account?.id ?? null;
+}
+
 /** Read-only: the single `active`/`reserved` Enrollment for a (classBatchId,
  *  studentId) pair — used to recover the enrollment/student ids
  *  `finance.receiptApprove` provisioning creates but never returns to the
@@ -874,6 +1153,15 @@ export async function drainEmailOutboxOnce(): Promise<{ sent: number; failed: nu
   const transport = { brevo: new ConsoleEmailTransport(), graph: new ConsoleEmailTransport() };
   const result = await relayEmailOutbox(getDb(), transport);
   return { sent: result.sent, failed: result.failed, dead: result.dead };
+}
+
+/** Runs the finance-reconciliation worker once, the same way `drainEmailOutboxOnce`
+ *  runs the email relay: it invokes the real worker, not a stub. A journey that
+ *  needs a ReconciliationFlag can create the anomaly through the UI and then call
+ *  this to surface it, instead of seeding a flag row (which would prove nothing
+ *  about the detection the flow exists to demonstrate). */
+export async function runReconcileFinanceFlagsOnce(): Promise<{ facilityCount: number; flagsCreated: number }> {
+  return runReconcileFinanceFlags(getDb());
 }
 
 /** Read-only: status of the (at most one, deduped by `receiptId`) EmailOutbox

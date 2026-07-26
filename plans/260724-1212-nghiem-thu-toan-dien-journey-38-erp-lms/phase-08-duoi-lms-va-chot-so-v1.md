@@ -1,10 +1,22 @@
 ---
 phase: 8
 title: "Đuôi LMS xuyên suốt + chốt sổ trạng thái v1"
-status: pending
+status: partial
 priority: P1
 effort: "2-3d"
 dependencies: [4, 7]
+completed: >-
+  2026-07-26 — 3 journey xuyên app xanh 4× (TZ=UTC) + falsification kiểm marker:
+  (1) P2-08-PH ảnh buổi học + cổng consent CÓ RĂNG; (2) P4-01 chấm bài sinh sao
+  → HS đổi quà LMS → GĐ duyệt+giao; (3) GV chấm → PH thấy "9 điểm · +5 sao".
+  ≥5 luồng đuôi LMS đạt. Report chốt sổ v1 đã mở
+  (plans/reports/chot-so-v1-260726-1621-…-report.md) — chuỗi RT-9 đang chạy:
+  run1 ✅ 30196118114 @1c1332b; run2 ui-e2e ✅ 30196370989 @179befd (workflow ❌
+  vì unit-test ngoài suite — finding i: kpi.refresh double-fire 500, lỗi sản
+  phẩm P2002-recovery trong transaction đã abort, ĐÃ ghi bàn giao).
+remaining: >-
+  Khép chuỗi RT-9 (run 3–4, commit chỉ chạm docs) → điền bảng §3 report chốt →
+  đóng plan. Nhắc: 2 việc tay user (private + runner) và quyết định merge PR #35.
 ---
 
 # Phase 8: Đuôi LMS xuyên suốt + chốt sổ v1
@@ -15,6 +27,8 @@ Chứng minh vòng đời đầy đủ tới NGƯỜI DÙNG CUỐI: 3–5 journe
 ## Requirements
 - Functional: tối thiểu 3 journey xuyên suốt: (a) điểm danh ERP → parent thấy trên LMS; (b) chấm bài/assessment ERP → student thấy điểm; (c) cộng sao → student đổi quà → GĐ duyệt redemption ERP. Phiên LMS dùng `mintLmsSession` (login KHÔNG phải nghiệp vụ ở đây — D1); bản parent ĐÃ bơm cache `children` (RT-6, Phase 4) nên màn chọn con hoạt động; dữ liệu ERP tạo theo trình tự vai thật.
 - Non-functional (RT-2/3 + validate V1, user 2026-07-24): **sổ v1 = artifact job `ui-e2e` full-suite (mỗi push)** (journeys.json) + git SHA + lệnh regen + **bảng tổng kết commit được** trong report chốt (đếm per trạng thái, per đợt) — KHÔNG phải con trỏ tới file gitignored local. <!-- Updated: Validation Session 1 - V1 per-push --> Docs cập nhật đúng phạm vi (codebase-summary: coverage mới; KHÔNG viết lại architecture).
+- ~~**Ràng buộc V4 (user 2026-07-24):** CI chết vì billing → bước 3–4 KHÔNG chạy được; sổ v1 treo ở "blocked on CI billing".~~ **GỠ 2026-07-26:** user chuyển repo sang public → Actions chạy lại. Job `ui-e2e` đã thực thi lần đầu và xanh 2 run liên tiếp (`30184942661` @478495b, `30185169572` @22bbead), sinh artifact `gitDirty:false` + SHA khớp HEAD. **Bước 3–4 giờ chạy được; nguồn chính danh đã tồn tại.** Runtime thật: `ui-e2e` 6.1′ (dự phóng cũ 9′–53′) ⇒ nghi thức full-suite 4× liên tiếp ở bước 3 tốn ~25′ CI, khả thi. Vẫn giữ nguyên luật: không hạ nguồn chính danh xuống local để lách.
+  - **Rủi ro kèm theo (mới, cần user quyết trước khi chốt sổ v1):** repo đang PUBLIC để lấy Actions miễn phí. Đã kiểm không có secret nào bị commit (chỉ `.env*.example`), nhưng toàn bộ mã nghiệp vụ đang công khai và fork/clone đã xảy ra thì không thu hồi được. Hai hướng bền: bật lại billing rồi private, hoặc self-hosted runner. Ghi vào report chốt như một mục bàn giao.
 - **Điều kiện env cho negative (RT-15):** negative RLS/consent chỉ có giá trị khi env chạy dùng secret session RIÊNG (không phải dev-default committed trong repo) — ghi điều kiện này vào spec + runbook; nếu env local dev-default thì negative được đánh dấu "điều kiện env chưa đạt", không tính bằng chứng.
 
 ## Architecture

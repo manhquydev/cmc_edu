@@ -37,6 +37,12 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/crm', '/crm/opportunities/:id'],
       models: ['Opportunity'],
     },
+    // Journey chứng minh đường THẤT BẠI của phễu: sale tạo cơ hội → mở màn chi
+    // tiết (opportunityGet) → đánh dấu mất kèm lý do (opportunityMarkLost). Khác
+    // crm-receipt (chỉ create + advance rồi rời board). Phủ hẹp có chủ ý:
+    // assign (assignableStaff + opportunityAssign) chỉ hiện với vai quản lý
+    // (isManager=GĐKD) và cần nhân sự assignable thật → để lại đợt sau.
+    journey: 'apps/e2e/tests/journeys/crm-opportunity-lost.journey.ui.spec.ts',
   },
   {
     id: 'P1-02',
@@ -95,6 +101,11 @@ export const flows: FlowEntry[] = [
       uiRoutes: [],
       models: ['StudentAccount', 'AppUser'],
     },
+    // Journey chứng minh trọn vòng đời tài khoản học sinh do provisioning sinh
+    // ra: đăng nhập mật khẩu mặc định → bị giữ ở cổng đổi mật khẩu → phụ huynh
+    // đặt lại → đăng nhập mật khẩu mới. Khớp H2: P1-04 chỉ khai models
+    // (StudentAccount), journey tạo và kích hoạt đúng model đó qua UI thật.
+    journey: 'apps/e2e/tests/journeys/lms-student-activation.journey.ui.spec.ts',
   },
   {
     id: 'P1-05',
@@ -154,6 +165,20 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/parents'],
       models: ['GuardianLinkRequest', 'Guardian', 'ParentAccount'],
     },
+    // Journey: phụ huynh thật (tạo qua chuỗi phiếu thu) gửi 2 yêu cầu liên kết,
+    // rồi nhân viên DUYỆT một và TỪ CHỐI một trên /admin/parents. Bằng chứng
+    // dương: mỗi hàng được tìm lại dưới đúng bộ lọc trạng thái của nó, không chỉ
+    // "biến mất khỏi danh sách chờ".
+    // HAI KHOẢNG TRỐNG của luồng này, journey phát hiện và GHI SỔ (không sửa):
+    // (1) `guardian.requestLink` KHÔNG có UI ở đâu cả — quét rộng apps/lms/src;
+    //     chính parent/home.tsx:149 bảo phụ huynh "Liên hệ nhân viên". Journey
+    //     gọi procedure THẬT qua phiên phụ huynh thật (createLmsClient), không
+    //     seed DB — procedure có thật, chỉ thiếu màn hình.
+    // (2) `/admin/parents` MỒ CÔI KHỎI ĐIỀU HƯỚNG: route có đăng ký
+    //     (admin.routes.tsx:58), màn hình xây đủ, nhưng KHÔNG mục nav nào trỏ tới
+    //     (đã đối chiếu toàn bộ danh sách path trong nav-registry.ts). Journey
+    //     phải vào bằng URL — đó cũng là đường duy nhất người dùng thật có.
+    journey: 'apps/e2e/tests/journeys/parent-link-approve-reject.journey.ui.spec.ts',
   },
   {
     id: 'P1-07',
@@ -161,12 +186,17 @@ export const flows: FlowEntry[] = [
     cluster: 'P1',
     actorRoles: ['phu_huynh'],
     expected: {
-      // Các biến thể OTP/login khác (loginStudent, requestOtpEmail…) thuộc namespace
-      // lmsAuth — đã whitelist hạ tầng auth (E4), không cần claim riêng.
-      trpc: ['lmsAuth.requestOtp', 'lmsAuth.verifyOtp', 'enrollment.mine'],
+      // Sửa 2026-07-24: khai cũ (`requestOtp`/`verifyOtp`/`enrollment.mine`) không
+      // procedure nào được UI gọi — màn đăng nhập phụ huynh dùng BIẾN THỂ EMAIL
+      // (`login.tsx:51,61`). Kiểm chứng: `rg "lmsAuth\.requestOtp\b" apps/lms/src`
+      // → 0 matches; `rg "enrollment\.mine" apps/lms/src` → 0 matches.
+      // `enrollment.mine` chuyển sang DOCUMENTED_GAPS trong verify.ts vì nó là
+      // capability thật nhưng chưa màn nào gọi.
+      trpc: ['lmsAuth.requestOtpEmail', 'lmsAuth.verifyOtpEmail'],
       uiRoutes: ['/login', '/parent/home'],
       models: ['LoginOtp'],
     },
+    journey: 'apps/e2e/tests/journeys/lms-parent-otp-login.journey.ui.spec.ts',
   },
   {
     id: 'P1-08',
@@ -177,6 +207,20 @@ export const flows: FlowEntry[] = [
       trpc: ['finance.receiptCancel', 'finance.refundCreate'],
       uiRoutes: ['/finance/:id', '/finance/refund'],
       models: ['Receipt', 'RefundRecord'],
+    },
+    // Không có đường UI cho CẢ hai thao tác — không viết journey được (triage
+    // 2026-07-24, tự kiểm lại 2026-07-25). Bằng chứng:
+    //   rg "trpc\.finance\.receiptCancel\b" apps/admin/src apps/lms/src → 0 matches
+    //   rg "trpc\.finance\.refundCreate\b"  apps/admin/src apps/lms/src → 0 matches
+    //   refund.tsx không gọi tRPC nào — là EmptyState "Tính năng chưa áp dụng".
+    // Entry nav /finance/refund đã bị gỡ CÓ CHỦ Ý (nav-registry.ts, mục "Hoàn
+    // tiền": màn chưa xây → không để GĐKD bấm vào trang trống ngày go-live).
+    // Chờ plan sửa xây màn; khi đó gắn journey + khôi phục entry.
+    statusReason: {
+      code: 'no-ui-path',
+      detail:
+        'Huỷ + hoàn tiền chưa có màn UI: rg receiptCancel/refundCreate trong apps/admin+lms = 0 matches; ' +
+        '/finance/refund là EmptyState, entry nav gỡ chủ ý (nav-registry.ts).',
     },
   },
   {
@@ -194,6 +238,14 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/ops/recon'],
       models: ['ReconciliationFlag'],
     },
+    // Journey: sale tạo phiếu >20M → GĐĐT (second-eye) duyệt → worker recon
+    // sinh cờ exceeds_threshold → GĐKD mở /ops/recon THẤY cờ. Dùng rule 2
+    // (exceeds_threshold) vì rule 1 (self_approved) KHÔNG chạy được qua UI:
+    // canApprove=notSelf ẩn nút duyệt với chính người tạo (finance/router.ts) →
+    // một người không tự tạo-rồi-tự-duyệt trên màn được. Phủ hẹp có chủ ý:
+    // journey drive listFlags (màn /ops/recon load cờ) + chứng minh vòng
+    // phát-hiện→hiển-thị; action/dismiss chưa drive (H2 hợp lệ, phủ hẹp).
+    journey: 'apps/e2e/tests/journeys/recon-exceeds-threshold.journey.ui.spec.ts',
   },
 
   // ─────────────────────────────── P2 — Vận hành lớp học ───────────────────────────────
@@ -224,6 +276,16 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/classes', '/admin/classes/:id'],
       models: ['ClassBatch', 'ClassSession', 'ScheduleSlot', 'Course', 'Room'],
     },
+    // Không màn nào tạo lớp / tự sinh lịch buổi qua UI (tự kiểm 2026-07-25):
+    //   rg "classBatch\.create|schedule\.generateSessions|course\.create" apps/admin/src apps/lms/src → 0 matches
+    // /admin/classes chỉ LIỆT KÊ + xem chi tiết; không có form tạo. Seed lớp
+    // (seedClassBatch) chính là cơ chế P2-01 tồn tại để chứng minh (auto sinh
+    // buổi) → user V5 chốt: dữ liệu trơ thì seed, cơ chế thì không → không viết
+    // journey. Chờ plan sửa xây màn tạo lớp.
+    statusReason: {
+      code: 'no-ui-path',
+      detail: 'Không có UI tạo lớp/sinh lịch: rg classBatch.create|schedule.generateSessions apps/admin+lms = 0; /admin/classes chỉ xem.',
+    },
   },
   {
     id: 'P2-02',
@@ -236,6 +298,16 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/teaching/attendance'],
       models: ['Attendance'],
     },
+    // Màn điểm danh CÓ trong nav (GV) nhưng đòi `?session=<id>` mà KHÔNG link
+    // in-app nào mang theo — vào từ menu là gặp empty-state "Vui lòng cung cấp
+    // ?session". Tự kiểm 2026-07-25: rg "attendance\?session=" apps/admin/src →
+    // chỉ có trong *.test.tsx, không có trong mã nguồn màn. User V5 từ chối S2
+    // (cho journey goto thẳng ?session) → không tới được trạng thái dùng được
+    // bằng menu → no-ui-path. Chờ plan sửa thêm session-picker / link mang session.
+    statusReason: {
+      code: 'no-ui-path',
+      detail: 'Màn điểm danh đòi ?session= nhưng không link in-app nào mang theo (rg attendance?session= chỉ ở test); S2 goto bị từ chối.',
+    },
   },
   {
     id: 'P2-03',
@@ -247,6 +319,16 @@ export const flows: FlowEntry[] = [
       trpc: ['exercise.openForStudent', 'exercise.listForStudent'],
       uiRoutes: ['/student/home', '/student/exercise/:exerciseId'],
       models: ['Exercise'],
+    },
+    // "Mở bài theo tiến độ" cần gán unit vào buổi để mở tier cho học viên —
+    // không màn nào làm việc đó. Tự kiểm 2026-07-25: rg
+    // "classSession\.assignUnit|assignUnit" apps/admin/src apps/lms/src → 0
+    // matches (curriculumUnitId chỉ xuất hiện ở FORM tạo bài — thuộc P2-04,
+    // không phải gán vào buổi). User V5 từ chối S3 (seed session→unit) vì đó là
+    // cơ chế open-tier chính P2-03 phải chứng minh → no-ui-path.
+    statusReason: {
+      code: 'no-ui-path',
+      detail: 'Open-tier (gán unit vào buổi) không có UI: rg classSession.assignUnit apps/admin+lms = 0; S3 seed session→unit bị từ chối.',
     },
   },
   {
@@ -265,6 +347,13 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/teaching/exercises'],
       models: ['Exercise', 'CurriculumUnit'],
     },
+    // Journey: GĐĐT tạo bài tập (chọn unit từ curriculumUnit.list + loại + UPLOAD
+    // PDF thật qua /upload/exercise-pdf) → Publish → Đóng. Drive đủ 5 procedure
+    // khai (create/publish/close/list/curriculumUnit.list) + exercise.manage
+    // (upload). Unit seed unique (dữ liệu trơ, user đã duyệt seed loại này) để
+    // nhận diện đúng row. Vòng draft→published→closed đọc lại từ row là bằng
+    // chứng sống.
+    journey: 'apps/e2e/tests/journeys/exercise-publish-close.journey.ui.spec.ts',
   },
   {
     id: 'P2-05',
@@ -276,6 +365,14 @@ export const flows: FlowEntry[] = [
       trpc: ['submission.saveDraft', 'submission.submit', 'submission.listForChild'],
       uiRoutes: ['/student/exercise/:exerciseId'],
       models: ['Submission'],
+    },
+    // Học viên chỉ nộp được khi bài đã mở (open-tier) — mà open-tier không có UI
+    // (xem P2-03). Seed submission (S4, đã duyệt) là để CHẤM ở P2-06, không
+    // chứng minh được thao tác NỘP của học viên (đó chính là cơ chế P2-05). Nên
+    // P2-05 no-ui-path tới khi open-tier có màn (plan sửa).
+    statusReason: {
+      code: 'no-ui-path',
+      detail: 'Nộp bài phụ thuộc open-tier (P2-03) không có UI; seed submission (S4) chỉ phục vụ chấm P2-06, không chứng minh thao tác nộp.',
     },
   },
   {
@@ -289,6 +386,18 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/teaching/grading'],
       models: ['Submission', 'StarTransaction'],
     },
+    // Journey: GV mở /teaching/grading (chỉ thấy bài của lớp mình sở hữu —
+    // ownership filter server), chấm bài nộp → bài rời hàng đợi ungraded.
+    // PHỦ 2/3 procedure khai: drive submission.grade + submission.listForGrading
+    // qua UI thật. KHÔNG drive submission.saveTeacherAnnotation (ghi chú PDF —
+    // ngoài đường của journey này). KHÔNG assert cộng-sao qua UI: màn grading
+    // không có view bài đã chấm và banner "⭐ +1 sao" transient (refetch
+    // unmount), nên StarTransaction chỉ chạy (side-effect của grade) chứ journey
+    // không kiểm — luật cộng-sao-lần-đầu do server-test phủ
+    // (attendance-grading.spec.ts). "proven" ở đây = đường chấm của GV chạy
+    // thật, KHÔNG phải toàn bộ bề mặt khai. saveTeacherAnnotation + đuôi cộng-sao
+    // là ứng viên mở rộng đợt sau.
+    journey: 'apps/e2e/tests/journeys/grading-submission.journey.ui.spec.ts',
   },
   {
     id: 'P2-07',
@@ -343,6 +452,26 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/teaching/session-evidence', '/parent/evidence/:studentId'],
       models: ['SessionEvidence', 'SessionEvidencePhoto'],
     },
+    // Journey NỬA GV: GV chọn lớp mình sở hữu + buổi → viết tóm tắt (upsert) →
+    // UPLOAD ảnh thật (/upload/session-photo) → công bố. Drive sessionEvidence.
+    // upsert/addPhoto/publish + classBatch.list/classSession.list qua UI thật;
+    // ảnh load-bearing ("Ảnh đã upload (1)"). PHỦ HẸP có chủ ý: nửa phụ huynh
+    // (listForChild, guardian.setPhotoConsent, /parent/evidence/:studentId) là
+    // journey xuyên app — thuộc Phase 8 (đuôi LMS), chưa drive ở đây.
+    // Nửa GV: GV viết tóm tắt + ảnh rồi công bố (sessionEvidence.upsert/addPhoto/
+    // publish/getBySession).
+    // Nửa PHỤ HUYNH (Phase 8, xuyên app): PH mở /parent/evidence trên LMS thấy
+    // tóm tắt (sessionEvidence.listForChild), và cổng đồng ý ảnh
+    // (guardian.setPhotoConsent) được chứng minh có RĂNG: khi chưa bật đồng ý,
+    // tóm tắt qua được nhưng ẢNH BỊ GIỮ LẠI; bật đồng ý thì ảnh mới hiện. Negative
+    // assert TRƯỚC positive, và cùng một locator tìm thấy ảnh ở bước sau — nên
+    // count(0) ban đầu không phải "chưa render kịp".
+    // Gắn vào spec XUYÊN APP vì nó phủ RỘNG HƠN bề mặt P2-08 khai: nó chạy trọn
+    // nửa GV (upsert/addPhoto/publish) RỒI mở tiếp nửa PH trên LMS
+    // (listForChild + setPhotoConsent) — hai procedure mà spec nửa-GV không chạm.
+    // session-evidence-publish.journey.ui.spec.ts vẫn ở lại làm guard hẹp cho
+    // riêng đường công bố của giáo viên (cùng khuôn P3-05 giữ payroll-roster).
+    journey: 'apps/e2e/tests/journeys/lms-parent-evidence-consent.journey.ui.spec.ts',
   },
 
   // ─────────────────────────────── P3 — Nhân sự & lương ───────────────────────────────
@@ -397,6 +526,10 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/shifts'],
       models: ['ShiftRegistration', 'ShiftRegistrationEntry'],
     },
+    // Cùng 1 journey với P3-04/P3-07 (T1): ticket-lock "1 submitted/người" ép
+    // trình tự từ-chối→nộp-lại→duyệt→hủy, nên 3 flow chung spec. P3-03 = nộp
+    // (shift.submit/listGroups) + hủy (shift.myRegistrations/cancel).
+    journey: 'apps/e2e/tests/journeys/shift-register-approve-reject.journey.ui.spec.ts',
   },
   {
     id: 'P3-04',
@@ -408,6 +541,9 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/shifts'],
       models: ['ShiftRegistration'],
     },
+    // Cùng journey với P3-03/P3-07 (T1). P3-04 = GĐKD duyệt đơn đã nộp lại
+    // (shift.pendingForApproval + shift.approve qua ConfirmDialog).
+    journey: 'apps/e2e/tests/journeys/shift-register-approve-reject.journey.ui.spec.ts',
   },
   {
     id: 'P3-05',
@@ -432,11 +568,16 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/payroll', '/hr/salary-tiers', '/hr/my'],
       models: ['Payslip', 'SalaryTier', 'SalaryRate', 'CompensationPolicy'],
     },
-    // Phase 5 (plan 260723-1422, F4 regression — one of the 3 flows dead 16
-    // days): a staff member created via the real /admin/users super_admin UI
-    // shows up as a non-empty row on /hr/payroll's real `user.pickList` —
-    // direct intersection with this flow's `user.pickList` + `/hr/payroll`.
-    journey: 'apps/e2e/tests/journeys/payroll-roster.journey.ui.spec.ts',
+    // Journey drives the flow's core end-to-end on one GĐKD actor: create a
+    // KINH_DOANH salary tier (salaryTier.create) → assign it to a sale
+    // (compensation.assignTier) → assemble that sale's payslip into a draft
+    // (payslip.assemble, which requires the tier) → finalize it
+    // (payslip.finalize, badge "Nháp" → "Đã chốt"). The sale is created via the
+    // real /admin/users super_admin UI, so clicking its row on /hr/payroll also
+    // exercises the non-empty `user.pickList` roster that the F4 regression
+    // (plan 260723-1422) guards. payroll-roster.journey.ui.spec.ts is kept as
+    // the focused standalone guard for that specific regression.
+    journey: 'apps/e2e/tests/journeys/payroll-assemble-finalize.journey.ui.spec.ts',
   },
   {
     id: 'P3-06',
@@ -448,6 +589,17 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/kpi', '/hr/my'],
       models: ['KpiScore'],
     },
+    // Journey (chung với P3-08): sale tự tính + nộp phiếu kỳ QUÁ KHỨ 2026-06
+    // (`submitSlipOpensAt` mở từ ngày 3 tháng kế tiếp ⇒ không cần mock đồng hồ),
+    // rồi QUẢN LÝ TRỰC TIẾP xác nhận. Bằng chứng dương: phiếu rời bộ lọc
+    // "Chờ xác nhận" và xuất hiện dưới "Đã xác nhận" — chỉ biến mất thôi thì
+    // một lỗi bất kỳ cũng tạo ra được. `kpi.override` không nằm trong journey
+    // (nhánh ghi đè của GĐ, khác nhánh xác nhận).
+    // Ràng buộc thứ tự do SERVER ép, journey này phát hiện: `kpi.confirm` trả
+    // 403 "Payslip for this period is finalized" nếu đã chốt lương, còn
+    // `kpi.bulkApprove` lại BỎ QUA phiếu chưa chốt lương ⇒ trình tự khả thi duy
+    // nhất là xác nhận → chốt lương → tất toán.
+    journey: 'apps/e2e/tests/journeys/kpi-submit-confirm-bulk-approve.journey.ui.spec.ts',
   },
   {
     id: 'P3-07',
@@ -459,6 +611,9 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/shifts'],
       models: ['ShiftRegistration'],
     },
+    // Cùng journey với P3-03/P3-04 (T1). P3-07 = GĐKD từ chối kèm lý do
+    // (shift.reject, reason bắt buộc ≥3 ký tự) — bước ĐẦU của chuỗi.
+    journey: 'apps/e2e/tests/journeys/shift-register-approve-reject.journey.ui.spec.ts',
   },
   {
     id: 'P3-08',
@@ -470,6 +625,13 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/kpi'],
       models: ['KpiScore'],
     },
+    // Cùng journey với P3-06 (bắt buộc chung: chỉ phiếu `confirmed` mới tất
+    // toán được, nên hai luồng nối đuôi nhau trong một lần chạy). Nút "Đã trả
+    // lương kỳ X" → `kpi.bulkApprove`; bằng chứng là phiếu chuyển sang bộ lọc
+    // "Đã duyệt". Bước chốt bảng lương TRƯỚC đó là điều kiện thật, không phải
+    // trang trí: bỏ nó ra thì bulkApprove chạy nhưng bỏ qua phiếu (đã kiểm bằng
+    // falsification — spec chuyển ĐỎ).
+    journey: 'apps/e2e/tests/journeys/kpi-submit-confirm-bulk-approve.journey.ui.spec.ts',
   },
   {
     id: 'P3-09',
@@ -481,6 +643,11 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/kpi', '/hr/my'],
       models: ['KpiScore'],
     },
+    // Journey: NV (sale) mở /hr/my → bấm "Tính lại" (kpi.refresh, self-target,
+    // không guard ngày-3) → thẻ điểm KPI thay banner "Chưa có phiếu KPI". Drive
+    // kpi.refresh qua UI thật. NV là AppUser seed thật để ctx.subject có row
+    // chấm điểm. Chuyển empty-state → thẻ điểm là bằng chứng sống.
+    journey: 'apps/e2e/tests/journeys/kpi-refresh-my.journey.ui.spec.ts',
   },
   {
     id: 'P3-10',
@@ -493,6 +660,15 @@ export const flows: FlowEntry[] = [
       uiRoutes: [],
       models: ['ClassSession', 'KpiScore'],
     },
+    // Worker `he_thong` chạy trong vòng lặp process — không procedure/route/UI
+    // call-site. Tự kiểm 2026-07-25: rg "runDoneSweep|runCancelSweep"
+    // apps/admin/src apps/lms/src → 0 matches. Không journey UI nào drive được
+    // (user duyệt: no-ui-path, spec API-level thuộc plan sau). `evaluateSessionDone`
+    // còn từ chối khi now < endTime → cần dữ liệu quá khứ.
+    statusReason: {
+      code: 'no-ui-path',
+      detail: 'Worker nội bộ, không procedure/route/UI: rg runDoneSweep|runCancelSweep apps/admin+lms = 0; spec API-level thuộc plan sau.',
+    },
   },
   {
     id: 'P3-11',
@@ -504,6 +680,14 @@ export const flows: FlowEntry[] = [
       trpc: [],
       uiRoutes: [],
       models: ['ClassSession', 'ScheduleSlot'],
+    },
+    // Worker `he_thong` (cancel-sweep) — cùng loại P3-10. Tự kiểm 2026-07-25:
+    // rg "runDoneSweep|runCancelSweep" apps/admin/src apps/lms/src → 0 matches.
+    // Cancel-sweep cần `endTime + 24h` → dữ liệu quá khứ; không journey UI nào
+    // drive được (user duyệt: no-ui-path, spec API-level thuộc plan sau).
+    statusReason: {
+      code: 'no-ui-path',
+      detail: 'Worker nội bộ (cancel-sweep), không UI: rg runDoneSweep|runCancelSweep apps/admin+lms = 0; cần dữ liệu quá khứ (+24h); spec API-level plan sau.',
     },
   },
 
@@ -525,7 +709,16 @@ export const flows: FlowEntry[] = [
     // then delivers a pending redemption on the real /admin/engagement/rewards
     // queue via menuNav ('Gắn kết' -> 'Đổi thưởng'), direct intersection with
     // rewards.approve/deliver/list + the admin uiRoute.
-    journey: 'apps/e2e/tests/journeys/rewards-redeem-approval.journey.ui.spec.ts',
+    // Gắn vào spec XUYÊN APP (Phase 8) vì nó phủ rộng hơn: chấm bài SINH sao
+    // thật (submission router mint homework_completed) → HỌC SINH đổi quà trên
+    // LMS bằng rewards.redeem thật (student-gated — spec ERP-half không thể
+    // chạm) → GĐ duyệt + giao trên ERP. Bằng chứng trừ sao không cào số: quà
+    // giá 3 sao, chấm bài cho 5 — CÙNG một card đổi từ "Đổi quà" (đủ sao)
+    // sang "Chưa đủ sao" (5−3=2<3) sau khi đổi. Falsification: bỏ bước chấm
+    // bài → không có sao → assertion "Đổi quà" ĐỎ (đã kiểm).
+    // rewards-redeem-approval.journey.ui.spec.ts ở lại làm guard hẹp cho hàng
+    // đợi duyệt/giao phía nhân viên (cùng khuôn P3-05/P2-08 giữ spec cũ).
+    journey: 'apps/e2e/tests/journeys/lms-stars-redeem-cycle.journey.ui.spec.ts',
   },
   {
     id: 'P4-02',
@@ -564,6 +757,13 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/crm/post-sale-meeting'],
       models: ['ParentMeeting'],
     },
+    // Journey drives the whole lifecycle on a GĐKD: schedule a meeting for a
+    // seeded student (parentMeeting.schedule), complete it with a result
+    // (parentMeeting.complete), then schedule a second slot and cancel it
+    // (parentMeeting.cancel) — the list is the evidence surface throughout. The
+    // student is a seeded precondition (no student.create UI exists; the picker
+    // only searches student.lookup by name), not part of what this flow proves.
+    journey: 'apps/e2e/tests/journeys/parent-meeting-schedule-complete.journey.ui.spec.ts',
   },
   {
     id: 'P4-04',
@@ -584,6 +784,19 @@ export const flows: FlowEntry[] = [
       // phase-07: entrance appointments now attach to and advance an Opportunity.
       models: ['TestAppointment', 'Opportunity'],
     },
+    // Journey lái trọn vòng trên một sale: tạo lead qua UI → chuyển O1→O2 → đặt
+    // 2 lịch test (schedule) → 1 vắng mặt (noShow) + 1 hoàn thành (complete, tự
+    // đẩy cơ hội sang O4_TESTED). Danh sách lịch (forOpportunity) là mặt bằng
+    // chứng. Trình tự do SERVER ép, không phải tuỳ chọn: complete ở O3 đẩy sang
+    // O4 làm nút "Đặt lịch test" biến mất, nên phải đặt đủ 2 lịch TRƯỚC khi hoàn
+    // thành cái nào.
+    // Journey này phát hiện 1 lỗi sản phẩm (ghi sổ để bàn giao, KHÔNG sửa — bất
+    // biến plan là chỉ đo): trang chi tiết cơ hội render từ `crm.opportunityGet`
+    // nhưng KHÔNG mutation nào trên trang invalidate query đó
+    // (`advanceMutation` và `useTestAppointmentActions` chỉ invalidate
+    // `crm.opportunityList` + `testAppointment.forOpportunity`), nên nhãn giai
+    // đoạn và các nút gate theo giai đoạn đứng yên cho tới khi tải lại trang.
+    journey: 'apps/e2e/tests/journeys/entrance-test-appointment.journey.ui.spec.ts',
   },
   {
     id: 'P4-05',
@@ -602,6 +815,13 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/crm/aftersale'],
       models: ['AfterSaleCase'],
     },
+    // Journey drives the case lifecycle end-to-end on a GĐKD: create for a
+    // seeded student (afterSale.create → "Mở") → advance (→ "Đang xử lý") →
+    // resolve with an outcome (→ "Đã giải quyết") → close (→ "Đã đóng"). Each
+    // server transition is status-guarded, so the linear walk is real. The
+    // declared student.setLifecycle is wired on the /admin/students screen, not
+    // this care-case path, so this journey does not drive it.
+    journey: 'apps/e2e/tests/journeys/aftersale-case-lifecycle.journey.ui.spec.ts',
   },
 
   // ─────────────────────────────── ADMIN — Quản trị hệ thống ───────────────────────────────
@@ -618,6 +838,11 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/facilities'],
       models: ['Facility'],
     },
+    // Journey: super_admin tạo cơ sở (dialog Thêm cơ sở) → sửa tên (click row →
+    // dialog Sửa tên). Drive đủ 3/3 procedure (create/list/update) qua UI thật.
+    // Không có facility.delete (T3) → afterAll xoá cơ sở tạo ra qua
+    // deleteFacilityByCode (privileged), không để rác — đã xác minh 0 leak.
+    journey: 'apps/e2e/tests/journeys/facility-admin-crud.journey.ui.spec.ts',
   },
   {
     id: 'ADM-02',
@@ -629,6 +854,13 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/users'],
       models: ['AppUser'],
     },
+    // Journey: super_admin tạo tài khoản nhân sự (form Thêm nhân viên) → gán vai
+    // trò qua modal Roles (MultiSelector). Drive 3/4 procedure: user.create,
+    // user.list, user.updateRoles. `user.update` (setter managerId) KHÔNG có UI
+    // — drift THẬT của ADM-02: rg "user\.update\b" apps/admin/src → 0 matches
+    // (khác user.updateRoles có UI). Không journey nào drive được; ghi sổ bàn
+    // giao. Chuyển badge vai trò từ vắng→hiện là bằng chứng sống.
+    journey: 'apps/e2e/tests/journeys/user-admin-roles.journey.ui.spec.ts',
   },
   {
     id: 'ADM-03',
@@ -640,6 +872,12 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/network-ip'],
       models: ['FacilityNetwork'],
     },
+    // Journey: super_admin thêm dải IP (self-detect + nhập CIDR) → sửa nhãn →
+    // xoá. Drive đủ 5/5 procedure (create/detectMyIp/list/update/delete) qua UI
+    // thật. KHÔNG bấm "Bật" (T2): dải ĐANG BẬT làm punch báo offsite → hỏng
+    // P3-01; dải tạo ra luôn ở trạng thái tắt rồi bị xoá. Vòng thêm→sửa→xoá đọc
+    // lại từ row là bằng chứng sống.
+    journey: 'apps/e2e/tests/journeys/network-ip-config.journey.ui.spec.ts',
   },
   {
     id: 'ADM-04',
@@ -651,6 +889,12 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/audit-log'],
       models: ['AuditLog'],
     },
+    // Journey: HAI super_admin mỗi người làm 1 hành động có audit
+    // (facilityNetwork.create ghi actor=userId). Lọc "Người thực hiện" theo actor
+    // A → entry A HIỆN, entry B VẮNG. Chứng minh bộ lọc thật sự cô lập theo actor
+    // (không chỉ là entry mới nhất của A nổi lên đầu — audit.list sort desc,
+    // không scope facility). Drive audit.list qua UI thật.
+    journey: 'apps/e2e/tests/journeys/audit-log-view.journey.ui.spec.ts',
   },
   {
     id: 'ADM-05',
@@ -662,5 +906,11 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/shift-config'],
       models: ['ShiftGroup', 'ShiftTemplate', 'CompensationPolicy'],
     },
+    // Journey: super_admin tạo nhóm ca → thêm mẫu ca vào đúng nhóm đó (form
+    // per-group) → tab "Chính sách phạt" lưu 2 mức phạt. Drive đủ 5/5 procedure
+    // (createGroup/listGroups/createTemplate/compensationPolicy.get/upsert) qua
+    // UI thật. Nhóm seed sẵn nên nhận diện nhóm của run bằng tên unique; mẫu ca
+    // hiện trên card + banner "Đã lưu chính sách phạt." là bằng chứng sống.
+    journey: 'apps/e2e/tests/journeys/shift-config-admin.journey.ui.spec.ts',
   },
 ];

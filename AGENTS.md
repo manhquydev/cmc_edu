@@ -46,6 +46,11 @@ request needs product knowledge, read in order:
 - `README.md` — what CMC EDU v2 is, stack, monorepo structure, getting started
 - `docs/README.md` — design corpus index (TL00–TL31, frozen docs)
 - `docs/system-architecture.md` — **authoritative as-built architecture** (P1–P4, all routers, test coverage, RLS, known issues)
+- **Trạng thái nghiệm thu là số ĐO, không phải số chép:** nguồn đúng luôn là `pnpm acceptance:report`
+  (sinh từ artifact CI job `ui-e2e`) + run CI gần nhất. Con số trong tài liệu là ảnh chụp kèm ngày —
+  nếu lệch, tin lệnh, đừng tin tài liệu. Tính tới 2026-07-26 (`22bbead`): **27/38 luồng đã chứng minh chạy**,
+  trần khả thi qua journey 31/38. Journey ở mức smoke (chạy thông ≠ đúng số học nghiệp vụ);
+  **UAT người thật chưa chạy** ⇒ chưa được mô tả dự án là "production-ready".
 - `docs/codebase-summary.md` — current implementation status, phases complete, build verification
 
 **Glossary:**

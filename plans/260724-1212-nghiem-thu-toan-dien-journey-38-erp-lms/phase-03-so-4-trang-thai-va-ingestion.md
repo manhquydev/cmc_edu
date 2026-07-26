@@ -1,7 +1,9 @@
 ---
 phase: 3
 title: "Sổ trạng thái máy-chứng: ingestion vào AcceptanceState có sẵn (TDD)"
-status: pending
+status: done
+completed: '2026-07-24'
+report: 'plans/reports/phase-03-ingestion-so-may-chung-260724-1545-report.md'
 priority: P1
 effort: "2.5d"
 dependencies: []
@@ -20,7 +22,7 @@ Nâng `acceptance:report` để trạng thái "đã chứng minh chạy" per-flo
   - (d) `verify` **FAIL** chỉ với dối cấu trúc: `journey:` trỏ file không tồn tại, hoặc mapping vi phạm H2 mà Phase 2 đã đánh dấu (RT-13 thu hẹp phạm vi FAIL).
   - (e) **Reporter gate (RT-4):** json reporter CHỈ bật khi `PLAYWRIGHT_UI=1` (cùng gate với project ui-chromium) — run api không bao giờ ghi đè `journeys.json`; output path theo project.
   - (f) **Nguồn chính danh (RT-3 + validate V1, user 2026-07-24):** mở rộng job `ui-e2e` chạy **full `ui-chromium` MỖI PUSH** + upload `journeys.json` làm artifact CI, GIỮ warn-first (`continue-on-error` giữ nguyên — không nâng gate). Sổ v1 chỉ sinh từ artifact này. Nếu job vượt ngưỡng D2 → thang F-B: nightly rồi shard (quyết định lại có số đo, không âm thầm đổi).
-  - (g) **Điều kiện tiên quyết (validate V3):** chẩn đoán + sửa nguyên nhân 5 run CI main gần nhất fail ~2 giây (lỗi mức workflow/runner, chưa rõ nguyên nhân) TRƯỚC khi dựng (f) — job full-suite vô nghĩa trên CI đang chết. <!-- Updated: Validation Session 1 - V1 per-push + V3 CI-fix -->  
+  - (g) **Điều kiện tiên quyết (validate V3) — ĐÃ CHẨN ĐOÁN, KHÔNG SỬA ĐƯỢC TỪ REPO (V4, user 2026-07-24):** nguyên nhân CI fail 3–4s là **billing**, không phải workflow: mọi run từ 2026-07-17 fail với 0 step chạy (mới nhất `30077288512` trên `a57e71d`), YAML hợp lệ (job được tạo), Actions `enabled`, repo private → hết Actions minutes/spending limit. Chỉ sửa được trong GitHub web billing; `gh` thiếu scope `user`. **Hệ quả (V4):** (f) vẫn được viết thành code nhưng đánh dấu CHƯA XÁC MINH; sổ v1 treo "blocked on CI billing" tới khi user khôi phục minutes, rồi regen từ artifact CI đầu tiên. KHÔNG khai xanh chay, KHÔNG hạ nguồn chính danh xuống local. <!-- Updated: Session 2 - V4 -->  
 - Non-functional: enum `FlowStatus` tĩnh (`built|partial|missing`) không đổi; render 2 tab tiếng Việt; `verification.json` không có consumer ngoài (đã grep) nên thêm field an toàn.
 
 ## Architecture

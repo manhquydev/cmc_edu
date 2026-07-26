@@ -4,9 +4,11 @@
 **Phase:** P1–P4 complete and tested (SSO landing · flow audit · Astryx UI Phase 3–4) · UI migration Phase 4 complete (apps/lms 100% Astryx) · Phase 5 (Mantine dep removal) next  
 **Build Status (as of 2026-07-11):** Merged to main · 532/532 tests passing (0 skipped) in 64 test files · 26/26 typecheck green · e2e UI 5 passed · API e2e 17 passed. *(2026-07-11: a stale local `node_modules` briefly made this look broken — resolved via `pnpm install --frozen-lockfile`; not a real code regression. See `docs/project-changelog.md` `[2026-07-11]`.)*
 
-> **Updated 2026-07-17 (acceptance-review audit):** test counts above are a historical snapshot, not current. As of 2026-07-17: apps/api 99 files/889 tests, apps/admin 33 files/258 tests, apps/e2e 11 spec files. Router/table/migration/RLS counts elsewhere in this doc were corrected the same day — see `docs/project-changelog.md` `[2026-07-17]`.
+> **Updated 2026-07-17 (acceptance-review audit):** test counts above are a historical snapshot, not current. As of 2026-07-17: apps/api 99 files/889 tests, apps/admin 33 files/258 tests, apps/e2e 11 spec files. **(Số liệu 07-17 — đã bị thay thế; số hiện hành ở banner 2026-07-26 bên dưới.)** Router/table/migration/RLS counts elsewhere in this doc were corrected the same day — see `docs/project-changelog.md` `[2026-07-17]`.
 >
-> **Updated 2026-07-24 (UAT prep — journey e2e):** Phase 4–5 journey infrastructure added 13 new spec files (3 regression + 10 core flows). Current e2e count: ~21+ spec files. See `docs/codebase-summary.md` for details on journey coverage in `acceptance:report`.
+> **Updated 2026-07-24 (UAT prep — journey e2e):** Phase 4–5 journey infrastructure added 13 new spec files (3 regression + 10 core flows). ~~Current e2e count: ~21+ spec files.~~ — **superseded, xem banner 2026-07-26.**
+>
+> **Updated 2026-07-26 (nghiệm thu journey + CI khôi phục):** e2e hiện **43 spec file** (31 journey UI), chạy trong project `ui-chromium` trên CI. Sổ nghiệm thu: **31/38 luồng đã chứng minh chạy** tại commit `324bd12`, sinh từ artifact CI (`gitDirty:false`) — **đã chạm trần journey**; 7 luồng còn lại `no-ui-path` ⇒ 38/38 đều có trạng thái máy-chứng. Journey ở mức smoke — chứng minh luồng chạy thông, không chứng minh đúng số học nghiệp vụ; UAT người thật chưa chạy. Chi tiết: `docs/codebase-summary.md`.
 
 ---
 
@@ -409,7 +411,7 @@ if (!canApprove) throw forbidden('Insufficient role for approval.');
 - Branches: ≥80%  
 - Special: finance ≥90/80, provisioning ≥90/75
 
-**CI Integration:** Pre-merge gate (all tests must pass)
+**CI Integration:** chỉ job `typecheck-and-test` chặn merge (typecheck → lint → unit/integration RLS → gate coverage payroll). Các job `e2e`, `ui-e2e`, `acceptance:report` và drift ma trận màn×vai chạy **cảnh báo** (`continue-on-error: true`), chưa chặn merge — xem `.github/workflows/ci.yml`.
 
 **Test Organization:**
 - `*.test.ts` colocated with source  

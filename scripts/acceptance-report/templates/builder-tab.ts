@@ -9,6 +9,8 @@ export function renderBuilderTab(result: VerificationResult): string {
   const partial = result.flows.filter((f) => f.status === 'partial').length;
   const missing = result.flows.filter((f) => f.status === 'missing').length;
   const pct = result.flows.length > 0 ? Math.round((built / result.flows.length) * 100) : 0;
+  const proven = result.flows.filter((f) => f.evidence.state === 'proven').length;
+  const untriagedRed = result.flows.filter((f) => f.evidence.badge === 'red-untriaged').length;
 
   const rows = result.flows
     .map((fv) => {
@@ -28,6 +30,13 @@ export function renderBuilderTab(result: VerificationResult): string {
           <div><strong>tRPC kỳ vọng:</strong> ${fv.flow.expected.trpc.map((s) => `<code>${escapeHtml(s)}</code>`).join(', ') || '—'}</div>
           <div><strong>UI routes kỳ vọng:</strong> ${fv.flow.expected.uiRoutes.map((s) => `<code>${escapeHtml(s)}</code>`).join(', ') || '—'}</div>
           <div><strong>Models kỳ vọng:</strong> ${fv.flow.expected.models.map((s) => `<code>${escapeHtml(s)}</code>`).join(', ') || '—'}</div>
+          <div><strong>Bài kiểm (journey):</strong> ${fv.flow.journey ? `<code>${escapeHtml(fv.flow.journey)}</code>` : '—'}</div>
+          <div><strong>Bằng chứng chạy:</strong> <code>${escapeHtml(fv.evidence.state)}</code> / <code>${escapeHtml(fv.evidence.badge)}</code></div>
+          ${
+            // Verbatim evidence (grep commands, procedure names) lives here and
+            // never in the Nghiệm thu tab, which is the copy that leaves the building.
+            fv.evidence.detail ? `<div><strong>Lý do:</strong> ${escapeHtml(fv.evidence.detail)}</div>` : ''
+          }
           ${missingList.length > 0 ? `<div class="missing-list"><strong>Thiếu:</strong> ${missingList.join(', ')}</div>` : ''}
         </div>
       </details>`;
@@ -59,6 +68,8 @@ export function renderBuilderTab(result: VerificationResult): string {
     </div>
     <div class="summary-band">
       <div class="stat"><div class="value">${built}/${result.flows.length}</div><div class="label">Luồng đã xây (${pct}%)</div></div>
+      <div class="stat"><div class="value">${proven}/${result.flows.length}</div><div class="label">Đã chứng minh chạy (từ kết quả thật)</div></div>
+      <div class="stat"><div class="value">${untriagedRed}</div><div class="label">Đỏ chưa triage</div></div>
       <div class="stat"><div class="value">${partial}</div><div class="label">Luồng thiếu một phần</div></div>
       <div class="stat"><div class="value">${missing}</div><div class="label">Luồng chưa có</div></div>
       <div class="stat"><div class="value">${result.orphans.procedures.length}</div><div class="label">Procedure mồ côi</div></div>

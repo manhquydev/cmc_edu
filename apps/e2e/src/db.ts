@@ -262,6 +262,50 @@ export async function seedStudent(
   );
 }
 
+/** Points one AppUser's `managerId` at another, by their auth `userId`s.
+ *
+ * `kpi.confirm` requires `scoreOwner.managerId === confirmUser.id` and only
+ * `super_admin` bypasses it, so a faithful "direct manager confirms" journey has
+ * to establish that link. `/admin/users` exposes no manager field (verified —
+ * `user.create`/`user.update` accept `managerId`, the screen never sends it), so
+ * there is no UI path to drive; the link is seeded directly, same justification
+ * as `seedStudent`. Returns the manager's AppUser id. */
+export async function seedManagerLink(opts: {
+  facilityId: string;
+  /** Auth userId of the report (the person whose KPI slip gets confirmed). */
+  reportUserId: string;
+  /** Auth userId of their manager. */
+  managerUserId: string;
+}): Promise<{ managerAppUserId: string }> {
+  return withFacility(
+    getDb(),
+    null,
+    async (tx) => {
+      const manager = await tx.appUser.findFirst({
+        where: { facilityId: opts.facilityId, userId: opts.managerUserId },
+        select: { id: true },
+      });
+      if (!manager) {
+        throw new Error(
+          `seedManagerLink: no AppUser for managerUserId "${opts.managerUserId}" in facility ${opts.facilityId}. ` +
+            `kpi.confirm resolves the confirming user through this row, so the manager must exist first.`,
+        );
+      }
+      const updated = await tx.appUser.updateMany({
+        where: { facilityId: opts.facilityId, userId: opts.reportUserId },
+        data: { managerId: manager.id },
+      });
+      if (updated.count === 0) {
+        throw new Error(
+          `seedManagerLink: no AppUser for reportUserId "${opts.reportUserId}" in facility ${opts.facilityId}.`,
+        );
+      }
+      return { managerAppUserId: manager.id };
+    },
+    { bypass: true },
+  );
+}
+
 /** Deletes every row this e2e run's dedicated Facility could have created,
  * then the Facility itself — same FK-ordered teardown shape as
  * apps/api/src/test/db.ts's `cleanupFacility`, extended for phase-08 specs

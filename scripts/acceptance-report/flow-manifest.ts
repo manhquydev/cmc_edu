@@ -562,6 +562,17 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/kpi', '/hr/my'],
       models: ['KpiScore'],
     },
+    // Journey (chung với P3-08): sale tự tính + nộp phiếu kỳ QUÁ KHỨ 2026-06
+    // (`submitSlipOpensAt` mở từ ngày 3 tháng kế tiếp ⇒ không cần mock đồng hồ),
+    // rồi QUẢN LÝ TRỰC TIẾP xác nhận. Bằng chứng dương: phiếu rời bộ lọc
+    // "Chờ xác nhận" và xuất hiện dưới "Đã xác nhận" — chỉ biến mất thôi thì
+    // một lỗi bất kỳ cũng tạo ra được. `kpi.override` không nằm trong journey
+    // (nhánh ghi đè của GĐ, khác nhánh xác nhận).
+    // Ràng buộc thứ tự do SERVER ép, journey này phát hiện: `kpi.confirm` trả
+    // 403 "Payslip for this period is finalized" nếu đã chốt lương, còn
+    // `kpi.bulkApprove` lại BỎ QUA phiếu chưa chốt lương ⇒ trình tự khả thi duy
+    // nhất là xác nhận → chốt lương → tất toán.
+    journey: 'apps/e2e/tests/journeys/kpi-submit-confirm-bulk-approve.journey.ui.spec.ts',
   },
   {
     id: 'P3-07',
@@ -587,6 +598,13 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/hr/kpi'],
       models: ['KpiScore'],
     },
+    // Cùng journey với P3-06 (bắt buộc chung: chỉ phiếu `confirmed` mới tất
+    // toán được, nên hai luồng nối đuôi nhau trong một lần chạy). Nút "Đã trả
+    // lương kỳ X" → `kpi.bulkApprove`; bằng chứng là phiếu chuyển sang bộ lọc
+    // "Đã duyệt". Bước chốt bảng lương TRƯỚC đó là điều kiện thật, không phải
+    // trang trí: bỏ nó ra thì bulkApprove chạy nhưng bỏ qua phiếu (đã kiểm bằng
+    // falsification — spec chuyển ĐỎ).
+    journey: 'apps/e2e/tests/journeys/kpi-submit-confirm-bulk-approve.journey.ui.spec.ts',
   },
   {
     id: 'P3-09',

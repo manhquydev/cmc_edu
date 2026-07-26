@@ -17,6 +17,10 @@ import { adminRoutes } from './admin.routes.js';
 import { useSession } from '../lib/session-context.js';
 
 const CockpitPage = lazy(() => import('../pages/cockpit.js'));
+// Auth-level page (sibling of /login, not a module route): rendered OUTSIDE
+// the Shell because a forced password rotation must complete before the user
+// enters the app proper.
+const ChangePasswordPage = lazy(() => import('../pages/change-password.js'));
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { me, isLoading } = useSession();
@@ -27,6 +31,16 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  {
+    path: '/change-password',
+    element: (
+      <RequireAuth>
+        <Suspense fallback={<Skeleton height="100vh" radius={0} />}>
+          <ChangePasswordPage />
+        </Suspense>
+      </RequireAuth>
+    ),
+  },
   {
     path: '/',
     element: <RequireAuth><Shell /></RequireAuth>,

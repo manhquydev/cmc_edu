@@ -44,6 +44,9 @@ interface UserRow {
   [key: string]: unknown;
 }
 
+// Same minimum the server enforces (user.resetPassword input schema).
+const PASSWORD_MIN_LENGTH = 8;
+
 const COLUMNS: TableColumn<UserRow>[] = [
   { key: 'employeeCode', label: 'Mã NV', width: 100 },
   { key: 'fullName', label: 'Họ tên' },
@@ -93,6 +96,9 @@ function UsersContent() {
   const [rolesModalUser, setRolesModalUser] = useState<UserRow | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [form, setForm] = useState<CreateForm>(EMPTY_FORM);
+  const [resetModalUser, setResetModalUser] = useState<UserRow | null>(null);
+  const [tempPassword, setTempPassword] = useState('');
+  const [resetDone, setResetDone] = useState(false);
 
   const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.user.list.useQuery();
@@ -111,6 +117,33 @@ function UsersContent() {
       void utils.user.list.invalidate();
     },
   });
+
+  const resetPasswordMut = trpc.user.resetPassword.useMutation({
+    onSuccess: () => {
+      // Keep the modal open so the admin can hand the temp password over —
+      // it is only ever displayed here, never stored readable anywhere.
+      setResetDone(true);
+    },
+  });
+
+  function openResetModal(user: UserRow) {
+    setResetModalUser(user);
+    setTempPassword('');
+    setResetDone(false);
+    resetPasswordMut.reset();
+  }
+
+  function closeResetModal() {
+    if (resetPasswordMut.isPending) return;
+    setResetModalUser(null);
+    setTempPassword('');
+    setResetDone(false);
+  }
+
+  function handleResetPassword() {
+    if (!resetModalUser) return;
+    resetPasswordMut.mutate({ appUserId: resetModalUser.id, tempPassword });
+  }
 
   function handleCreate() {
     createMut.mutate({
@@ -151,6 +184,28 @@ function UsersContent() {
 
   const rows = (data?.items as UserRow[] | undefined) ?? [];
 
+  // Actions column lives here (not in module-level COLUMNS) because it closes
+  // over openResetModal. The stopPropagation wrapper keeps the row's
+  // onRowClick (roles modal) from firing on the same click.
+  const columns: TableColumn<UserRow>[] = [
+    ...COLUMNS,
+    {
+      key: 'actions',
+      label: '',
+      width: 150,
+      render: (_v, row) => (
+        <span onClick={(e) => e.stopPropagation()}>
+          <Button
+            label="Đặt lại mật khẩu"
+            size="sm"
+            variant="secondary"
+            onClick={() => openResetModal(row)}
+          />
+        </span>
+      ),
+    },
+  ];
+
   return (
     <>
       <ListPage
@@ -166,7 +221,7 @@ function UsersContent() {
         }
       >
         <DataTable<UserRow>
-          columns={COLUMNS}
+          columns={columns}
           data={rows}
           loading={isLoading}
           error={error?.message}
@@ -298,6 +353,71 @@ function UsersContent() {
               isLoading={updateRolesMut.isPending}
             />
           </HStack>
+        </Stack>
+      </Dialog>
+
+      {/* Reset password modal — admin sets a temporary password; the target is
+          forced to change it at their next login (user.resetPassword). */}
+      <Dialog
+        isOpen={resetModalUser !== null}
+        onOpenChange={(next) => {
+          if (!next) closeResetModal();
+        }}
+        purpose="form"
+        width={400}
+      >
+        <DialogHeader
+          title={
+            resetModalUser ? `Đặt lại mật khẩu — ${resetModalUser.fullName}` : 'Đặt lại mật khẩu'
+          }
+          onOpenChange={(next) => {
+            if (!next) closeResetModal();
+          }}
+        />
+        <Stack gap={2} padding={4}>
+          {resetDone ? (
+            <>
+              <Text size="sm">
+                Đã đặt mật khẩu tạm. Hãy chuyển mật khẩu này cho nhân viên — họ sẽ bị yêu cầu đổi
+                ngay ở lần đăng nhập kế tiếp.
+              </Text>
+              <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+                <Button label="Đóng" variant="primary" onClick={closeResetModal} />
+              </HStack>
+            </>
+          ) : (
+            <>
+              <TextInput
+                label="Mật khẩu tạm"
+                placeholder={`Tối thiểu ${PASSWORD_MIN_LENGTH} ký tự…`}
+                value={tempPassword}
+                onChange={setTempPassword}
+                isRequired
+              />
+              {resetPasswordMut.error && (
+                // Text color enum has no error/danger slot — plain <span> with
+                // CSS var per migration flag rule.
+                <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
+                  {resetPasswordMut.error.message}
+                </span>
+              )}
+              <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+                <Button
+                  label="Hủy"
+                  variant="secondary"
+                  onClick={closeResetModal}
+                  isDisabled={resetPasswordMut.isPending}
+                />
+                <Button
+                  label="Đặt mật khẩu tạm"
+                  variant="primary"
+                  onClick={handleResetPassword}
+                  isLoading={resetPasswordMut.isPending}
+                  isDisabled={tempPassword.length < PASSWORD_MIN_LENGTH}
+                />
+              </HStack>
+            </>
+          )}
         </Stack>
       </Dialog>
     </>

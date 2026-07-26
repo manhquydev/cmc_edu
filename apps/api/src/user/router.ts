@@ -14,8 +14,9 @@ import { z } from 'zod';
 import { withFacility, Role as DbRole } from '@cmc/db';
 import { ACTIVE_ROLES } from '@cmc/auth';
 import type { Role as AuthRole } from '@cmc/auth';
+import { hashPassword, verifyPassword } from '../lms-auth/password-hash.js';
 import { badRequest, forbidden, notFound } from '../errors.js';
-import { requirePermission, router, scoped } from '../trpc.js';
+import { protectedProcedure, requirePermission, router, scoped } from '../trpc.js';
 
 const createInput = z.object({
   userId: z.string().min(1).max(200),
@@ -29,6 +30,19 @@ const pickListInput = z.object({
   /** Narrows the list to one staff role — a teacher picker must not offer
    *  people who do not teach. */
   role: z.enum(ACTIVE_ROLES).optional(),
+});
+
+// Same minimum as the LMS password procedures (lms-auth/router.ts).
+const PASSWORD_MIN_LENGTH = 8;
+
+const changeOwnPasswordInput = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(PASSWORD_MIN_LENGTH).max(200),
+});
+
+const resetPasswordInput = z.object({
+  appUserId: z.string().uuid(),
+  tempPassword: z.string().min(PASSWORD_MIN_LENGTH).max(200),
 });
 
 const updateInput = z.object({
@@ -211,6 +225,84 @@ export const userRouter = router({
           throw err;
         }
         return updated as AppUserDto;
+      });
+    }),
+
+  // Both password procedures are in AUDIT_EXCLUDED_PATHS (trpc.ts): their raw
+  // input carries plaintext passwords, which must never depend on field-name
+  // sanitization alone to stay out of AuditLog — each writes its own
+  // secret-free audit row inline instead.
+
+  /** Any authenticated staff member rotates their own password (also clears
+   *  the admin-provisioned mustChangePassword flag). */
+  changeOwnPassword: protectedProcedure
+    .input(changeOwnPasswordInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const me = await tx.appUser.findFirst({
+          where: { userId: ctx.subject.userId, facilityId },
+        });
+        if (!me || !me.passwordHash) {
+          throw badRequest('Password login is not enabled for this account.');
+        }
+        if (!verifyPassword(input.currentPassword, me.passwordHash)) {
+          throw badRequest('Current password is incorrect.');
+        }
+        await tx.appUser.update({
+          where: { id: me.id },
+          data: {
+            passwordHash: hashPassword(input.newPassword),
+            mustChangePassword: false,
+            loginAttempts: 0,
+            loginLockedUntil: null,
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'user.changeOwnPassword',
+            entity: 'AppUser',
+            entityId: me.id,
+          },
+        });
+        return { ok: true };
+      });
+    }),
+
+  /** Admin provisions/resets a staff member's password to a temporary value;
+   *  the target is forced to change it at their next login. */
+  resetPassword: requirePermission('user', 'manage')
+    .input(resetPasswordInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const existing = await tx.appUser.findFirst({
+          where: { id: input.appUserId, facilityId },
+        });
+        if (!existing) throw notFound('AppUser not found.');
+        if (!existing.email) {
+          throw badRequest('Set a login email before enabling password login.');
+        }
+        await tx.appUser.update({
+          where: { id: existing.id },
+          data: {
+            passwordHash: hashPassword(input.tempPassword),
+            mustChangePassword: true,
+            loginAttempts: 0,
+            loginLockedUntil: null,
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'user.resetPassword',
+            entity: 'AppUser',
+            entityId: existing.id,
+            data: { targetUserId: existing.userId },
+          },
+        });
+        return { ok: true };
       });
     }),
 

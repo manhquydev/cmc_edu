@@ -35,8 +35,10 @@ const usersListState: { data: { items: UserRow[] }; error: { message: string } |
 let sessionRoles: string[] = ['super_admin'];
 const createMutate = vi.fn();
 const updateRolesMutate = vi.fn();
+const resetPasswordMutate = vi.fn();
 let createOnSuccess: (() => void) | undefined;
 let updateRolesOnSuccess: (() => void) | undefined;
+let resetPasswordOnSuccess: (() => void) | undefined;
 
 vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
@@ -61,6 +63,10 @@ vi.mock('../../lib/trpc.js', async () => {
       'user.updateRoles.useMutation': (options: { onSuccess?: () => void }) => {
         updateRolesOnSuccess = options?.onSuccess;
         return mutationResult({ mutate: updateRolesMutate });
+      },
+      'user.resetPassword.useMutation': (options: { onSuccess?: () => void }) => {
+        resetPasswordOnSuccess = options?.onSuccess;
+        return mutationResult({ mutate: resetPasswordMutate });
       },
     }),
     makeQueryClient: () => ({}),
@@ -139,6 +145,29 @@ describe('UsersPage', () => {
     expect(invalidateSpy).not.toHaveBeenCalled();
     act(() => updateRolesOnSuccess?.());
     expect(invalidateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('resets a password with user.resetPassword({appUserId, tempPassword}) and shows the handover note', () => {
+    renderWithProviders(<UsersPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt lại mật khẩu' }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('Đặt lại mật khẩu — Nguyễn Văn A')).toBeInTheDocument();
+    // The action button must NOT also open the row's roles modal.
+    expect(screen.queryByText('Phân quyền — Nguyễn Văn A')).not.toBeInTheDocument();
+
+    fireEvent.change(within(dialog).getByLabelText(/^Mật khẩu tạm/), {
+      target: { value: 'temporary-pass-1' },
+    });
+    fireEvent.click(within(dialog).getByText('Đặt mật khẩu tạm'));
+
+    expect(resetPasswordMutate).toHaveBeenCalledWith({
+      appUserId: 'u-a',
+      tempPassword: 'temporary-pass-1',
+    });
+
+    act(() => resetPasswordOnSuccess?.());
+    expect(within(dialog).getByText(/Đã đặt mật khẩu tạm/)).toBeInTheDocument();
   });
 
   it('renders a gated premium EmptyState (no emoji) when the user lacks user.manage permission', () => {

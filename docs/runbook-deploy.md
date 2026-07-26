@@ -115,6 +115,25 @@ source .env.prod
 pnpm --filter @cmc/db exec prisma db seed
 ```
 
+### 1.9 Bootstrap the first super_admin login (email/password)
+
+Staff production login is email/password while the M365 tenant is unavailable
+(`SSO_ENABLED=false`). Seed the first super_admin WITH a bootstrap password —
+without it no one can log in to the admin SPA:
+
+```bash
+source .env.prod   # provides SUPER_ADMIN_EMAIL/FACILITY/PASSWORD
+npx tsx scripts/seed-super-admin.ts
+```
+
+- The first login with `SUPER_ADMIN_PASSWORD` forces a password change
+  (`mustChangePassword`).
+- Every other staff member gets a temporary password from a super_admin:
+  admin SPA → Quản trị → Nhân viên → "Đặt lại mật khẩu" — they are forced to
+  change it at their next login.
+- An AppUser needs a non-empty, unique `email` to use password login
+  (DB enforces case-insensitive uniqueness on non-empty emails).
+
 ---
 
 ## 2. Routine operations

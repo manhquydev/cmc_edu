@@ -112,6 +112,11 @@ const AUDIT_EXCLUDED_PATHS = new Set<string>([
   'reconciliation.dismiss',
   'reconciliation.action',
   'user.updateRoles',
+  // Staff password procedures: raw input is `{currentPassword,newPassword}` /
+  // `{tempPassword,...}` — secret-bearing, same rationale as the OTP verify
+  // exclusions above. Both write their own secret-free AuditLog row inline.
+  'user.changeOwnPassword',
+  'user.resetPassword',
   'attendance.mark',
   'attendance.markAll',
   'submission.saveTeacherAnnotation',

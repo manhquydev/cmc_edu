@@ -29,6 +29,7 @@ import {
   handleSsoLogin,
   handleSsoLogout,
 } from './auth/sso-routes.js';
+import { handleStaffPasswordLogin } from './auth/password-routes.js';
 
 const port = Number(process.env.PORT ?? 3000);
 
@@ -56,6 +57,23 @@ const SSO_ENABLED = process.env['SSO_ENABLED'] === 'true';
 const server = createServer((req, res) => {
   const urlPath = req.url?.split('?')[0];
 
+  // Email/password staff login — always mounted, independent of SSO_ENABLED,
+  // so staff can log in while the Entra tenant is unavailable.
+  if (req.method === 'POST' && urlPath === '/auth/staff-login') {
+    handleStaffPasswordLogin(req, res).catch((err: unknown) => {
+      // eslint-disable-next-line no-console
+      console.error('[api] staff password login failed:', err);
+      if (!res.headersSent) res.writeHead(500).end('Login error');
+    });
+    return;
+  }
+  // Logout only clears the staff cookie — auth-method-agnostic, so it stays
+  // mounted even when SSO is disabled (password sessions need it too).
+  if (req.method === 'GET' && urlPath === '/auth/logout') {
+    handleSsoLogout(req, res);
+    return;
+  }
+
   if (SSO_ENABLED) {
     if (req.method === 'GET' && urlPath === '/auth/login') {
       handleSsoLogin(req, res).catch((err: unknown) => {
@@ -71,10 +89,6 @@ const server = createServer((req, res) => {
         console.error('[api] SSO callback failed:', err);
         if (!res.headersSent) res.writeHead(500).end('SSO error');
       });
-      return;
-    }
-    if (req.method === 'GET' && urlPath === '/auth/logout') {
-      handleSsoLogout(req, res);
       return;
     }
   }

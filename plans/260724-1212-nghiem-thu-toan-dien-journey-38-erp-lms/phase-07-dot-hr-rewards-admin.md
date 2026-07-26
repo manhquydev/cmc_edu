@@ -1,9 +1,9 @@
 ---
 phase: 7
 title: "Đợt HR/payroll + rewards/admin"
-status: partial
-completed: "2026-07-26 — ADM-01/02/03/04/05 + P3-09 + P3-03/04/07(shift) + P3-05(payroll) + P4-03 + P4-05 + P4-04 + P3-06/P3-08(KPI nộp→xác nhận→tất toán) xanh 4×; P3-10/11 no-ui-path; **sổ 30/38 do CI chứng** (commit 7af135a)."
-remaining: 'CÒN ĐÚNG 1 luồng để chạm trần 31/38: P1-06 liên kết PH–con — công thức đầy đủ ở mục "Công thức P1-06" bên dưới (requestLink KHÔNG có UI, gọi qua LMS client thật; vế duyệt/từ chối có UI ở /admin/parents). 7 luồng no-ui-path là gap có hồ sơ, không thể phủ bằng journey.'
+status: done
+completed: "2026-07-26 — ĐÓNG ĐỢT. Toàn bộ luồng của Phase 7 xanh 4×: ADM-01/02/03/04/05, P3-09, P3-03/04/07(shift), P3-05(payroll), P4-03, P4-05, P4-04, P3-06/P3-08(KPI), P1-06(liên kết PH). **Sổ 31/38 do CI chứng** (commit eeba671) = TRẦN của journey: 7 luồng còn lại đều no-ui-path có hồ sơ, 0 luồng chưa phân loại ⇒ 38/38 đều có trạng thái máy-chứng."
+remaining: 'KHÔNG CÒN GÌ trong Phase 7. 7 luồng no-ui-path (P1-08, P2-01/02/03/05, P3-10/11) không thể phủ bằng journey — muốn phủ phải XÂY UI trước, việc đó thuộc plan sửa, không thuộc plan đo này.'
 report: 'plans/reports/phase-07-part1-admin-260725-1920-report.md'
 priority: P2
 effort: "3-4d"
@@ -32,9 +32,9 @@ Như Phase 5/6. Flow KPI/payroll phụ thuộc dữ liệu thời gian (punch th
 3. Kết đợt (nghi thức RT-9): 4× spec-của-đợt + 1× full suite (full-suite 4× liên tiếp dồn về Phase 8); regen report — thời điểm này 38/38 ERP có trạng thái.
 
 ## Success Criteria
-- [ ] 38/38 flow ERP có trạng thái máy-chứng trong sổ (proven/đỏ-fixme/no-ui-path — 0 not-written trừ khi triage xếp "trùng")
-- [ ] 4× spec-của-đợt xanh liên tiếp + 1× full suite xanh
-- [ ] Không có `seedAppUser` mới nào cho nhân sự (đường UI đã chứng minh tồn tại)
+- [x] 38/38 flow ERP có trạng thái máy-chứng trong sổ (proven/đỏ-fixme/no-ui-path — 0 not-written trừ khi triage xếp "trùng")
+- [x] 4× spec-của-đợt xanh liên tiếp + 1× full suite xanh
+- [x] Không có `seedAppUser` mới nào cho nhân sự (đường UI đã chứng minh tồn tại)
 
 ## Công thức P3-06/P3-08 (đã dò từ source 2026-07-26 — vào việc là chạy, không phải dò lại)
 

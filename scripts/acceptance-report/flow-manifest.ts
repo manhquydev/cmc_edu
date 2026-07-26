@@ -730,6 +730,19 @@ export const flows: FlowEntry[] = [
       // phase-07: entrance appointments now attach to and advance an Opportunity.
       models: ['TestAppointment', 'Opportunity'],
     },
+    // Journey lái trọn vòng trên một sale: tạo lead qua UI → chuyển O1→O2 → đặt
+    // 2 lịch test (schedule) → 1 vắng mặt (noShow) + 1 hoàn thành (complete, tự
+    // đẩy cơ hội sang O4_TESTED). Danh sách lịch (forOpportunity) là mặt bằng
+    // chứng. Trình tự do SERVER ép, không phải tuỳ chọn: complete ở O3 đẩy sang
+    // O4 làm nút "Đặt lịch test" biến mất, nên phải đặt đủ 2 lịch TRƯỚC khi hoàn
+    // thành cái nào.
+    // Journey này phát hiện 1 lỗi sản phẩm (ghi sổ để bàn giao, KHÔNG sửa — bất
+    // biến plan là chỉ đo): trang chi tiết cơ hội render từ `crm.opportunityGet`
+    // nhưng KHÔNG mutation nào trên trang invalidate query đó
+    // (`advanceMutation` và `useTestAppointmentActions` chỉ invalidate
+    // `crm.opportunityList` + `testAppointment.forOpportunity`), nên nhãn giai
+    // đoạn và các nút gate theo giai đoạn đứng yên cho tới khi tải lại trang.
+    journey: 'apps/e2e/tests/journeys/entrance-test-appointment.journey.ui.spec.ts',
   },
   {
     id: 'P4-05',

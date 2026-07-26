@@ -1,0 +1,22 @@
+# Local-sim override: run ONLY postgres + api from docker-compose.prod.yml,
+# published to the host, with no nginx/TLS/minio. The API stores blobs on a
+# local volume dir (storage layer falls back to a dir when S3_ENDPOINT is
+# unset), so the stack boots without an object store.
+#
+# Usage:
+#   docker compose -p cmcv2-prod --env-file .env.prod \
+#     -f docker-compose.prod.yml -f infra/compose.local-sim.yml \
+#     up -d --build postgres api
+services:
+  postgres:
+    ports:
+      - "5432:5432" # host-run prisma migrate/seed reaches the DB here
+
+  api:
+    ports:
+      - "3000:3000" # http://localhost:3000 — local sim / security-test surface
+    volumes:
+      - cmcv2-local-blobs:/data
+
+volumes:
+  cmcv2-local-blobs:

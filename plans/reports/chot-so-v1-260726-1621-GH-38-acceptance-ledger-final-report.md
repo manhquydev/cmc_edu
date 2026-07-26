@@ -50,8 +50,8 @@ Mỗi journey: falsification load-bearing đã kiểm (marker verified, RED th�
 |---|---|---|---|
 | 1 | `1c1332b` (spec cuối cùng vào suite) | `30196118114` | ✅ xanh |
 | 2 | `179befd` (report chốt) | `30196370989` | ✅ **ui-e2e XANH** · workflow ❌ do job `typecheck-and-test` — KHÔNG thuộc suite; xem finding (i). Theo luật (đối tượng chuỗi = job `ui-e2e`): ghi sổ, không reset |
-| 3 | (commit cập nhật plan/phase-08) | *điền khi run xong* | — |
-| 4 | (commit khép chuỗi) | *điền khi run xong* | — |
+| 3 | `0ed5672` (trạng thái phase-08) | run push tương ứng | ✅ xanh toàn workflow (ui-e2e ✅) |
+| 4 | commit này (khép chuỗi) | ID ghi trong PR #35 comment sau khi run xong — commit không thể tự chứa ID của run chạy trên chính nó | *xem PR #35* |
 
 ## 4. Danh sách bàn giao plan-sửa (đo được, KHÔNG sửa — bất biến plan)
 

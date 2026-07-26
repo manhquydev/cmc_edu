@@ -85,6 +85,15 @@ tích lũy (đợt sau rẻ hơn đợt trước) và giữ nghi thức 4×green
 - Nâng gate CI warn→chặn (điều kiện Q4 của `260723-1422`: ≥2 tuần dữ liệu, báo-giả ~0). Việc chạy full `ui-chromium` trong CI/nightly + upload artifact (RT-3) KHÔNG phải nâng gate — vẫn warn-first.
 - Automation Entra SSO/MFA (N3); capture LMS (N4) — journey LMS của plan này KHÔNG thay tầng capture.
 - 3 finding sản phẩm từ red-team đưa vào danh sách bàn giao plan-sửa (RT-15): (a) OTP plaintext-at-rest trong `EmailOutbox.payload` không RLS (`router.ts:423`); (b) secrets dev-default committed trong repo — negative RLS/consent chỉ có nghĩa khi env dùng secret riêng (điều kiện Phase 8); (c) `parseLmsToken` client không verify chữ ký (`lms-session.tsx:39` — token server ĐÃ ký, RT-1; sửa dòng doc cũ `docs/system-architecture.md:76` trong Phase 4).
+- **(d) MỚI — do journey P4-04 phát hiện 2026-07-26 (ghi sổ, KHÔNG sửa trong plan này):** trang chi tiết cơ hội
+  `apps/admin/src/pages/crm/opportunity-detail.tsx` render giai đoạn từ `crm.opportunityGet` (dòng 80), nhưng
+  **không mutation nào trên trang invalidate query đó**: `advanceMutation` (dòng 95) chỉ invalidate
+  `crm.opportunityList`, còn `useTestAppointmentActions` chỉ invalidate `crm.opportunityList` +
+  `testAppointment.forOpportunity`. Hệ quả người dùng thật: bấm "Chuyển lên" hoặc "Hoàn thành" → server ĐÃ đổi
+  giai đoạn, nhưng nhãn giai đoạn và các nút gate theo giai đoạn ("Đặt lịch test", "Chuyển lên") **đứng yên vô
+  thời hạn** cho tới khi tải lại trang — người dùng dễ tưởng thao tác hỏng và bấm lại. Bằng chứng: lần chạy đầu
+  của journey chờ 120 giây, nút "Đặt lịch test" không bao giờ hiện dù cơ hội đã sang O2 trong DB.
+  Sửa đề xuất (1 dòng/chỗ): thêm `void utils.crm.opportunityGet.invalidate({ id })` vào cả 2 chỗ onSuccess.
 
 ## Red Team Review
 

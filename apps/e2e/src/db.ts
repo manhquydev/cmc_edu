@@ -306,6 +306,30 @@ export async function seedManagerLink(opts: {
   );
 }
 
+/** Clears `mustChangePassword` on a provisioned StudentAccount.
+ *
+ * `assertPasswordNotExpired` (apps/api/src/trpc.ts) blocks every student LMS
+ * mutation while the flag is set, and receipt provisioning always sets it. The
+ * activation flow that clears it for real (parent sets password → student
+ * logs in) is a proven journey of its own
+ * (lms-student-activation.journey.ui.spec.ts, P1-04) — and decision D1 of plan
+ * 260724-1212 explicitly carves out that LMS journeys where login/activation is
+ * NOT the business under test inject their session instead of re-driving it.
+ * This helper is the data half of that carve-out: the injected student session
+ * represents an already-activated account, so the flag is cleared to match. */
+export async function clearMustChangePassword(studentId: string): Promise<void> {
+  const updated = await getDb().studentAccount.updateMany({
+    where: { studentId },
+    data: { mustChangePassword: false },
+  });
+  if (updated.count === 0) {
+    throw new Error(
+      `clearMustChangePassword: no StudentAccount for studentId "${studentId}" — ` +
+        'provisioning must run first (it is what creates the account).',
+    );
+  }
+}
+
 /** Deletes every row this e2e run's dedicated Facility could have created,
  * then the Facility itself — same FK-ordered teardown shape as
  * apps/api/src/test/db.ts's `cleanupFacility`, extended for phase-08 specs

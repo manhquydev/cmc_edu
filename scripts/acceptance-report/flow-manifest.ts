@@ -709,7 +709,16 @@ export const flows: FlowEntry[] = [
     // then delivers a pending redemption on the real /admin/engagement/rewards
     // queue via menuNav ('Gắn kết' -> 'Đổi thưởng'), direct intersection with
     // rewards.approve/deliver/list + the admin uiRoute.
-    journey: 'apps/e2e/tests/journeys/rewards-redeem-approval.journey.ui.spec.ts',
+    // Gắn vào spec XUYÊN APP (Phase 8) vì nó phủ rộng hơn: chấm bài SINH sao
+    // thật (submission router mint homework_completed) → HỌC SINH đổi quà trên
+    // LMS bằng rewards.redeem thật (student-gated — spec ERP-half không thể
+    // chạm) → GĐ duyệt + giao trên ERP. Bằng chứng trừ sao không cào số: quà
+    // giá 3 sao, chấm bài cho 5 — CÙNG một card đổi từ "Đổi quà" (đủ sao)
+    // sang "Chưa đủ sao" (5−3=2<3) sau khi đổi. Falsification: bỏ bước chấm
+    // bài → không có sao → assertion "Đổi quà" ĐỎ (đã kiểm).
+    // rewards-redeem-approval.journey.ui.spec.ts ở lại làm guard hẹp cho hàng
+    // đợi duyệt/giao phía nhân viên (cùng khuôn P3-05/P2-08 giữ spec cũ).
+    journey: 'apps/e2e/tests/journeys/lms-stars-redeem-cycle.journey.ui.spec.ts',
   },
   {
     id: 'P4-02',

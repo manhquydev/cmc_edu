@@ -1,10 +1,22 @@
 ---
 phase: 8
 title: "Đuôi LMS xuyên suốt + chốt sổ trạng thái v1"
-status: pending
+status: partial
 priority: P1
 effort: "2-3d"
 dependencies: [4, 7]
+completed: >-
+  2026-07-26 — 3 journey xuyên app xanh 4× (TZ=UTC) + falsification kiểm marker:
+  (1) P2-08-PH ảnh buổi học + cổng consent CÓ RĂNG; (2) P4-01 chấm bài sinh sao
+  → HS đổi quà LMS → GĐ duyệt+giao; (3) GV chấm → PH thấy "9 điểm · +5 sao".
+  ≥5 luồng đuôi LMS đạt. Report chốt sổ v1 đã mở
+  (plans/reports/chot-so-v1-260726-1621-…-report.md) — chuỗi RT-9 đang chạy:
+  run1 ✅ 30196118114 @1c1332b; run2 ui-e2e ✅ 30196370989 @179befd (workflow ❌
+  vì unit-test ngoài suite — finding i: kpi.refresh double-fire 500, lỗi sản
+  phẩm P2002-recovery trong transaction đã abort, ĐÃ ghi bàn giao).
+remaining: >-
+  Khép chuỗi RT-9 (run 3–4, commit chỉ chạm docs) → điền bảng §3 report chốt →
+  đóng plan. Nhắc: 2 việc tay user (private + runner) và quyết định merge PR #35.
 ---
 
 # Phase 8: Đuôi LMS xuyên suốt + chốt sổ v1

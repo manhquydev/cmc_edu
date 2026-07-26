@@ -49,7 +49,7 @@ Mỗi journey: falsification load-bearing đã kiểm (marker verified, RED th�
 | Run | Commit | CI run ID | Kết quả |
 |---|---|---|---|
 | 1 | `1c1332b` (spec cuối cùng vào suite) | `30196118114` | ✅ xanh |
-| 2 | (commit report này) | *điền khi run xong* | — |
+| 2 | `179befd` (report chốt) | `30196370989` | ✅ **ui-e2e XANH** · workflow ❌ do job `typecheck-and-test` — KHÔNG thuộc suite; xem finding (i). Theo luật (đối tượng chuỗi = job `ui-e2e`): ghi sổ, không reset |
 | 3 | (commit cập nhật plan/phase-08) | *điền khi run xong* | — |
 | 4 | (commit khép chuỗi) | *điền khi run xong* | — |
 
@@ -65,6 +65,7 @@ Mỗi journey: falsification load-bearing đã kiểm (marker verified, RED th�
 | f | `/admin/parents` mồ côi nav: route đăng ký (`admin.routes.tsx:58`), màn xây đủ, KHÔNG mục nav nào trỏ tới | đối chiếu toàn bộ path `nav-registry.ts` |
 | g | KPI kẹp hai đầu: `kpi.confirm` 403 sau chốt lương; `bulkApprove` bỏ qua im lặng khi chưa chốt (200 mà không đổi gì) | journey P3-06/08 + falsification |
 | h | Chấm 8.5 → LMS render "8 điểm" — mất phần thập phân giữa input chấm và render | journey xuyên app #3, run đầu |
+| i | **`kpi.refresh` double-fire trả 500**: đường phục hồi P2002 đọc lại hàng thắng cuộc TRONG transaction đã abort → Postgres `25P02` ("current transaction is aborted"). Phụ thuộc timing nên thường xanh; unit test `lifecycle.test.ts` "double-fire concurrent refresh does not 500" viết ĐÚNG và đã bắt được trên CI. Lỗi sản phẩm, không phải lỗi test | CI run `30196370989`, job typecheck-and-test |
 
 ## 5. Giới hạn phải đọc cùng con số 31/38
 

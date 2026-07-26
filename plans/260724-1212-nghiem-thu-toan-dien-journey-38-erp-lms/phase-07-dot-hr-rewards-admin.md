@@ -2,8 +2,8 @@
 phase: 7
 title: "Đợt HR/payroll + rewards/admin"
 status: partial
-completed: "2026-07-26 — ADM-01/02/03/04/05 + P3-09 + P3-03/04/07(shift) + P3-05(payroll) + P4-03(họp PH) + P4-05(sau bán) + P4-04(test đầu vào) xanh 4×; P3-10/11 no-ui-path (V7); sổ 28/38 do CI chứng (commit 2b0c27c). P4-04 lộ 1 lỗi sản phẩm (opportunityGet không được invalidate — bàn giao mục d) + 3 lỗi trong chính test đã sửa (nhãn trùng label nút; toHaveCount(0) sau reload; phụ thuộc múi giờ chỉ CI mới lộ)."
-remaining: 'Còn 3 luồng chưa có journey (P4-04 XONG 2026-07-26, sổ 28/38). Đều đã khảo sát KHẢ THI, không cái nào phải red-fixme. (a) P3-06 + P3-08 — công thức đầy đủ đã dò xong, xem mục "Công thức P3-06/P3-08" bên dưới. (b) P1-06 liên kết PH–con — màn /admin/parents có thật (guardian.listPendingLinks/approveLink/rejectLink); cần dựng được một pending link trước. Trần qua journey = 31/38; 7 luồng no-ui-path là gap có hồ sơ. Fixture: seedStudent (db.ts) — không có student.create UI.'
+completed: "2026-07-26 — ADM-01/02/03/04/05 + P3-09 + P3-03/04/07(shift) + P3-05(payroll) + P4-03 + P4-05 + P4-04 + P3-06/P3-08(KPI nộp→xác nhận→tất toán) xanh 4×; P3-10/11 no-ui-path; **sổ 30/38 do CI chứng** (commit 7af135a)."
+remaining: 'CÒN ĐÚNG 1 luồng để chạm trần 31/38: P1-06 liên kết PH–con — công thức đầy đủ ở mục "Công thức P1-06" bên dưới (requestLink KHÔNG có UI, gọi qua LMS client thật; vế duyệt/từ chối có UI ở /admin/parents). 7 luồng no-ui-path là gap có hồ sơ, không thể phủ bằng journey.'
 report: 'plans/reports/phase-07-part1-admin-260725-1920-report.md'
 priority: P2
 effort: "3-4d"
@@ -68,6 +68,38 @@ Nhãn trạng thái để assert: `draft`=Nháp · `submitted`=Chờ xác nhận
 **Bẫy đã biết (rút từ P4-04):** nhãn trạng thái có thể trùng label nút ⇒ assert phải neo vào sự hiện diện
 trước khi khẳng định vắng mặt; và nếu journey nhập ngày/giờ thì ghim `timezoneId: 'Asia/Ho_Chi_Minh'` cho
 browser context, nếu không sẽ xanh ở máy ICT và đỏ trên runner UTC.
+
+## Công thức P1-06 (đã dò 2026-07-26 — luồng cuối để chạm trần 31/38)
+
+**Phát hiện quyết định: `guardian.requestLink` KHÔNG có UI ở bất kỳ đâu.** Đã quét rộng `apps/lms/src`
+(`requestLink|liên kết|guardian|linkRequest|studentRef`): chỉ có `setPhotoConsent` và `parent/home.tsx`.
+Chính màn parent nói thẳng: *"Liên hệ nhân viên để yêu cầu duyệt liên kết"* (`parent/home.tsx:149`) —
+tức phụ huynh **không tự yêu cầu được** qua giao diện; đây là quy trình ngoài luồng.
+
+⇒ P1-06 là **no-ui-path MỘT PHẦN**: vế kích hoạt (`requestLink`) không có UI, nhưng vế quản trị
+(`listPendingLinks` / `approveLink` / `rejectLink` / `parentAccount.updateEmail`) có UI thật ở
+`/admin/parents`.
+
+**Cách làm đúng provenance (KHÔNG seed thẳng DB cho request):** gọi `guardian.requestLink` bằng
+**API thật với phiên phụ huynh thật** — `createLmsClient` / `createSignedLmsClient`
+(`apps/e2e/src/trpc-client.ts`), `DevLmsIdentity = { parentAccountId }`. Đây là chạy đúng procedure mà
+luồng khai, chỉ thiếu *màn hình*, nên không phải seed.
+
+Trình tự:
+
+1. `seedClassBatch` → `provisionStudentViaReceipt` (chuỗi phiếu thu thật) — tạo **ParentAccount** (find-or-create
+   theo phone) + học sinh A + Guardian đã duyệt. Đây là đường DUY NHẤT sinh ParentAccount; chưa có helper nhẹ hơn.
+2. `seedStudent` → học sinh **B** và **C** (chưa liên kết).
+3. Tra `parentAccountId` theo phone (đã có tiền lệ tra theo phone trong `db.ts`), dựng LMS client.
+4. Parent gọi `guardian.requestLink({ studentRef: B })` → `{ status: 'created' }` → sinh yêu cầu `pending`.
+   Lặp cho **C**.
+5. Admin mở `/admin/parents` → hàng của B bấm **"Duyệt"** (`approveLink`); hàng của C bấm **"Từ chối"**
+   (`rejectLink`). Bộ lọc "Lọc theo trạng thái" có `Từ chối` ⇒ dùng **bằng chứng dương** (chuyển bộ lọc và
+   thấy hàng ở trạng thái mới), đừng chỉ assert biến mất — bài học từ P3-06.
+6. Tuỳ chọn phủ nốt `parentAccount.updateEmail` bằng nút **"Cập nhật email"** trên cùng màn.
+
+**Rủi ro cần canh:** `requestLink` trả `already_linked` nếu phụ huynh đã liên kết học sinh đó — nên B và C
+phải là học sinh KHÁC với A do provisioning tạo.
 
 ## Risk Assessment
 - Payroll "qua kỳ lương" có thể không tái hiện trong 1 run → chấp nhận red-fixme trung thực thay vì mock đồng hồ (đổi hành vi test ≠ đổi hành vi app; mock time là quyết định thuộc plan sửa).

@@ -165,6 +165,20 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/admin/parents'],
       models: ['GuardianLinkRequest', 'Guardian', 'ParentAccount'],
     },
+    // Journey: phụ huynh thật (tạo qua chuỗi phiếu thu) gửi 2 yêu cầu liên kết,
+    // rồi nhân viên DUYỆT một và TỪ CHỐI một trên /admin/parents. Bằng chứng
+    // dương: mỗi hàng được tìm lại dưới đúng bộ lọc trạng thái của nó, không chỉ
+    // "biến mất khỏi danh sách chờ".
+    // HAI KHOẢNG TRỐNG của luồng này, journey phát hiện và GHI SỔ (không sửa):
+    // (1) `guardian.requestLink` KHÔNG có UI ở đâu cả — quét rộng apps/lms/src;
+    //     chính parent/home.tsx:149 bảo phụ huynh "Liên hệ nhân viên". Journey
+    //     gọi procedure THẬT qua phiên phụ huynh thật (createLmsClient), không
+    //     seed DB — procedure có thật, chỉ thiếu màn hình.
+    // (2) `/admin/parents` MỒ CÔI KHỎI ĐIỀU HƯỚNG: route có đăng ký
+    //     (admin.routes.tsx:58), màn hình xây đủ, nhưng KHÔNG mục nav nào trỏ tới
+    //     (đã đối chiếu toàn bộ danh sách path trong nav-registry.ts). Journey
+    //     phải vào bằng URL — đó cũng là đường duy nhất người dùng thật có.
+    journey: 'apps/e2e/tests/journeys/parent-link-approve-reject.journey.ui.spec.ts',
   },
   {
     id: 'P1-07',

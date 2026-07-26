@@ -2,8 +2,8 @@
 phase: 7
 title: "Đợt HR/payroll + rewards/admin"
 status: partial
-completed: '2026-07-25 — ADM-01/02/03/04/05 + P3-09 + P3-03/04/07(shift) + P3-05(payroll assemble→finalize) + P4-03(họp PH) + P4-05(sau bán tạo→tiếp nhận→giải quyết→đóng) xanh 4×; P3-10/11 no-ui-path (V7); sổ 27/38 (P3-05 đóng false-green roster; P4-03 + P4-05 là count-mover mới +2)'
-remaining: 'Còn 4 luồng chưa có journey, đều đã khảo sát là KHẢ THI (không cái nào phải red-fixme): (a) P3-06/P3-08 kpi-confirm + bulkApprove — RỦI RO TIME-TRAVEL ĐÃ GỠ 2026-07-26: submitSlipOpensAt(period) = ngày 3 tháng kế tiếp ICT (apps/api/src/kpi/auto-score.ts:275), nên kỳ 2026-06 mở từ 2026-07-03, hôm nay đã qua ⇒ dùng kỳ QUÁ KHỨ là chạy được tự nhiên, KHÔNG cần mock đồng hồ; vẫn cần seed managerId (B1/V6) + SalaryRate.tier (submitSlip chặn nếu chưa gán bậc). (b) P4-04 test đầu vào — crm.opportunityCreate có UI thật (create-lead-dialog) nên tạo Opportunity qua UI được. (c) P1-06 liên kết PH–con — màn /admin/parents có thật (guardian.listPendingLinks/approveLink/rejectLink); cần dựng được một pending link trước. Trần qua journey = 31/38; 7 luồng no-ui-path là gap có hồ sơ. Fixture student: seedStudent (db.ts) — không có student.create UI.'
+completed: "2026-07-26 — ADM-01/02/03/04/05 + P3-09 + P3-03/04/07(shift) + P3-05(payroll) + P4-03(họp PH) + P4-05(sau bán) + P4-04(test đầu vào) xanh 4×; P3-10/11 no-ui-path (V7); sổ 28/38 do CI chứng (commit 2b0c27c). P4-04 lộ 1 lỗi sản phẩm (opportunityGet không được invalidate — bàn giao mục d) + 3 lỗi trong chính test đã sửa (nhãn trùng label nút; toHaveCount(0) sau reload; phụ thuộc múi giờ chỉ CI mới lộ)."
+remaining: 'Còn 3 luồng chưa có journey (P4-04 XONG 2026-07-26, sổ 28/38). Đều đã khảo sát KHẢ THI, không cái nào phải red-fixme. (a) P3-06 + P3-08 — công thức đầy đủ đã dò xong, xem mục "Công thức P3-06/P3-08" bên dưới. (b) P1-06 liên kết PH–con — màn /admin/parents có thật (guardian.listPendingLinks/approveLink/rejectLink); cần dựng được một pending link trước. Trần qua journey = 31/38; 7 luồng no-ui-path là gap có hồ sơ. Fixture: seedStudent (db.ts) — không có student.create UI.'
 report: 'plans/reports/phase-07-part1-admin-260725-1920-report.md'
 priority: P2
 effort: "3-4d"
@@ -35,6 +35,39 @@ Như Phase 5/6. Flow KPI/payroll phụ thuộc dữ liệu thời gian (punch th
 - [ ] 38/38 flow ERP có trạng thái máy-chứng trong sổ (proven/đỏ-fixme/no-ui-path — 0 not-written trừ khi triage xếp "trùng")
 - [ ] 4× spec-của-đợt xanh liên tiếp + 1× full suite xanh
 - [ ] Không có `seedAppUser` mới nào cho nhân sự (đường UI đã chứng minh tồn tại)
+
+## Công thức P3-06/P3-08 (đã dò từ source 2026-07-26 — vào việc là chạy, không phải dò lại)
+
+Một journey phủ cả 2 luồng. Kỳ dùng **`2026-06`** (kỳ quá khứ): `submitSlipOpensAt` = ngày 3 tháng kế
+tiếp ICT (`apps/api/src/kpi/auto-score.ts:275`) ⇒ mở từ `2026-07-03`, hôm nay đã qua ⇒ **không cần mock
+đồng hồ**.
+
+Thứ tự bắt buộc (mỗi bước là điều kiện của bước sau):
+
+1. **Tạo NV `sale` qua UI** — `createStaffViaAdminUi(..., roleLabels: ['Sale'])`. Cần role DB thật vì màn
+   "Gán bậc" lọc theo `roles.includes('sale')`.
+2. **Tạo GĐKD như một AppUser** — `kpi.confirm` tra `confirmUser` theo `ctx.subject.userId`; nếu GĐKD
+   không có hàng AppUser thì guard **fail-closed**.
+3. **Gán `managerId`: sale.managerId = GĐKD.id** — `kpi.confirm` đòi `scoreOwner.managerId === confirmUser.id`
+   (`kpi/router.ts`, chỉ `super_admin` được bỏ qua). **KHÔNG có UI gán quản lý** (`/admin/users` không có
+   trường này, đã kiểm) ⇒ seed thẳng DB, cùng lý lẽ với `seedStudent`. `user.create/update` có nhận
+   `managerId` nhưng màn hình không phơi ra.
+4. **Tạo bậc lương + gán cho sale qua UI** — `submitSlip` chặn với "Chưa gán bậc lương…" nếu thiếu.
+   Khuôn có sẵn: `payroll-assemble-finalize.journey.ui.spec.ts`.
+5. **Sale: `/hr/my`, kỳ 2026-06 → "Tính lại" → "Nộp"** — `refresh` tạo hàng KpiScore `draft`;
+   `submitSlip` mới có cái để chuyển sang `submitted`. (P3-06 vế nộp)
+6. **GĐKD: `/hr/payroll` kỳ 2026-06 → "Tính lương" → "Chốt bảng lương"** — **bắt buộc**: `bulkApprove`
+   bỏ qua mọi phiếu KPI mà Payslip cùng kỳ chưa `finalized` (`skippedUnfinalized`), nên thiếu bước này
+   thì bước 8 chạy nhưng **không đổi gì** — đúng loại xanh-giả cần tránh.
+7. **GĐKD: `/hr/kpi` kỳ 2026-06 → "Xác nhận"** trên hàng của sale → `confirmed`. (P3-06 vế duyệt)
+8. **GĐKD: nút "Đã trả lương kỳ 2026-06"** → `bulkApprove` → `approved`. (P3-08)
+
+Nhãn trạng thái để assert: `draft`=Nháp · `submitted`=Chờ xác nhận · `confirmed`=Đã xác nhận ·
+`approved`=Đã duyệt.
+
+**Bẫy đã biết (rút từ P4-04):** nhãn trạng thái có thể trùng label nút ⇒ assert phải neo vào sự hiện diện
+trước khi khẳng định vắng mặt; và nếu journey nhập ngày/giờ thì ghim `timezoneId: 'Asia/Ho_Chi_Minh'` cho
+browser context, nếu không sẽ xanh ở máy ICT và đỏ trên runner UTC.
 
 ## Risk Assessment
 - Payroll "qua kỳ lương" có thể không tái hiện trong 1 run → chấp nhận red-fixme trung thực thay vì mock đồng hồ (đổi hành vi test ≠ đổi hành vi app; mock time là quyết định thuộc plan sửa).

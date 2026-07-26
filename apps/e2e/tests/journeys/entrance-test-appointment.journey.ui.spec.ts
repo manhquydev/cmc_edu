@@ -42,7 +42,16 @@ test.describe('P4-04 journey — test đầu vào: đặt lịch → vắng mặ
   const rowNoShow = '14:00 03/08/2026';
 
   test('a sale schedules two entrance tests, marks one no-show and completes the other', async ({ browser }) => {
-    const context = await browser.newContext({ baseURL: 'http://localhost:4173' });
+    // Pin the browser clock to ICT. The dialog's `datetime-local` value is parsed
+    // with `new Date(...)`, i.e. in the BROWSER's zone, while the list renders it
+    // back with `timeZone: 'Asia/Ho_Chi_Minh'`. Those only agree when the browser
+    // is already on ICT — true on a dev machine here, false on the CI runner (UTC),
+    // where 10:00 was sent as 10:00Z and came back rendered as 17:00. Without this
+    // the spec passes locally and fails in CI, which is exactly what happened.
+    const context = await browser.newContext({
+      baseURL: 'http://localhost:4173',
+      timezoneId: 'Asia/Ho_Chi_Minh',
+    });
     const page = await context.newPage();
     await context.addCookies(
       cookiePair(STAFF_COOKIE_NAME, mintStaffCookie({ userId: `e2e-p404-sale-${runId}`, roles: ['sale'], facilityId })),

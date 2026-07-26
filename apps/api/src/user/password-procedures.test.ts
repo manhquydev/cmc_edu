@@ -167,6 +167,72 @@ describe('user password procedures (integration)', () => {
     expect(row.mustChangePassword).toBe(false);
   });
 
+  it('user rows returned to the client never carry credential columns', async () => {
+    const target = uniqueUser();
+    const seeded = await seedAppUser({
+      facilityId,
+      userId: target.userId,
+      email: target.email,
+      passwordHash: hashPassword(OLD_PASSWORD),
+    });
+
+    const caller = superAdminCaller();
+    const { items } = await caller.user.list();
+    const row = items.find((i) => i.id === seeded.id) as Record<string, unknown> | undefined;
+    expect(row).toBeDefined();
+    for (const leaked of ['passwordHash', 'loginAttempts', 'loginLockedUntil', 'mustChangePassword']) {
+      expect(row).not.toHaveProperty(leaked);
+    }
+
+    const updated = (await caller.user.update({
+      appUserId: seeded.id,
+      position: 'Kiểm thử',
+    })) as unknown as Record<string, unknown>;
+    expect(updated).not.toHaveProperty('passwordHash');
+
+    const reroled = (await caller.user.updateRoles({
+      appUserId: seeded.id,
+      roles: ['sale'],
+    })) as unknown as Record<string, unknown>;
+    expect(reroled).not.toHaveProperty('passwordHash');
+  });
+
+  it('changeOwnPassword — locks after repeated wrong current passwords (no oracle)', async () => {
+    const me = uniqueUser();
+    const seeded = await seedAppUser({
+      facilityId,
+      userId: me.userId,
+      email: me.email,
+      roles: ['sale'],
+      passwordHash: hashPassword(OLD_PASSWORD),
+    });
+    const caller = appRouter.createCaller(
+      buildStaffContext({ facilityId, userId: me.userId, roles: ['sale'] }),
+    );
+
+    for (let i = 0; i < 5; i += 1) {
+      await expect(
+        caller.user.changeOwnPassword({
+          currentPassword: 'guess-attempt-x',
+          newPassword: NEW_PASSWORD,
+        }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    }
+
+    const row = await testDbBypass((tx) =>
+      tx.appUser.findUniqueOrThrow({ where: { id: seeded.id } }),
+    );
+    expect(row.loginLockedUntil).not.toBeNull();
+
+    // Even the CORRECT current password is rejected while locked.
+    await expect(
+      caller.user.changeOwnPassword({
+        currentPassword: OLD_PASSWORD,
+        newPassword: NEW_PASSWORD,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
   it('changeOwnPassword — rejects a wrong current password', async () => {
     const me = uniqueUser();
     await seedAppUser({

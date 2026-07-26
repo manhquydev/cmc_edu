@@ -184,6 +184,9 @@ export function assertRequiredEnvForProd(): void {
     'BREVO_SENDER_EMAIL',
     'TRUSTED_PROXY_CIDRS',
     'CORS_ORIGINS',
+    // /auth/logout redirects here and is mounted unconditionally (password
+    // login) — without it, production logout would 302 to a localhost default.
+    'ADMIN_APP_ORIGIN',
   ];
 
   if (process.env['S3_ENDPOINT']) {
@@ -195,7 +198,6 @@ export function assertRequiredEnvForProd(): void {
   if (process.env['SSO_ENABLED'] === 'true') {
     required.push(
       'ENTRA_TENANT_ID', 'ENTRA_CLIENT_ID', 'ENTRA_CLIENT_SECRET', 'ERP_SSO_REDIRECT_URI',
-      'ADMIN_APP_ORIGIN',
       'GRAPH_TENANT_ID', 'GRAPH_CLIENT_ID', 'GRAPH_CLIENT_SECRET', 'GRAPH_SENDER_EMAIL',
       'STAFF_EMAIL_DOMAIN',
     );

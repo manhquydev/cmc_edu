@@ -57,26 +57,32 @@ async function main(): Promise<void> {
       ? { passwordHash: hashPassword(password), mustChangePassword: true }
       : {};
 
-    // Upsert super_admin AppUser by email.
-    const appUser = await db.appUser.upsert({
-      where: { employeeCode },
-      update: {
-        email,
-        roles: [Role.super_admin],
-        isActive: true,
-        ...passwordFields,
-      },
-      create: {
-        userId,
-        facilityId: facility.id,
-        email,
-        fullName: 'Super Admin',
-        employeeCode,
-        roles: [Role.super_admin],
-        isActive: true,
-        ...passwordFields,
-      },
-    });
+    // Idempotent by employeeCode. On rerun the bootstrap password is applied
+    // ONLY when the row has no password yet — SUPER_ADMIN_PASSWORD lingering
+    // in .env must never silently revert a rotated admin password.
+    const existing = await db.appUser.findUnique({ where: { employeeCode } });
+    const appUser = existing
+      ? await db.appUser.update({
+          where: { employeeCode },
+          data: {
+            email,
+            roles: [Role.super_admin],
+            isActive: true,
+            ...(existing.passwordHash === null ? passwordFields : {}),
+          },
+        })
+      : await db.appUser.create({
+          data: {
+            userId,
+            facilityId: facility.id,
+            email,
+            fullName: 'Super Admin',
+            employeeCode,
+            roles: [Role.super_admin],
+            isActive: true,
+            ...passwordFields,
+          },
+        });
 
     console.log('[seed-super-admin] OK');
     console.log(`  facility: ${facility.name} (${facility.id})`);

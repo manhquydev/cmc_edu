@@ -6,20 +6,25 @@
 
 ---
 
-## [2026-07-26] Nghiệm thu journey 27/38 luồng + khôi phục CI (lần đầu chạy `ui-e2e`)
+## [2026-07-26] Nghiệm thu journey 31/38 luồng (chạm trần) + khôi phục CI (lần đầu chạy `ui-e2e`)
 
 **Context:** `plans/260724-1212-nghiem-thu-toan-dien-journey-38-erp-lms/` — mục tiêu: mọi luồng nghiệp vụ
 có trạng thái do MÁY chứng nhận, không phải tự khai. Bất biến của plan: **chỉ đo, KHÔNG sửa app**.
 
 **Nghiệm thu (sổ máy-chứng):**
-- **27/38 luồng đã chứng minh chạy** tại commit `22bbead` (cấu trúc: 37 built / 1 partial / 0 missing;
-  actor-audit 0 phát hiện). Thêm **27 journey UI spec**; project `ui-chromium` = 34 spec, xanh.
+- **31/38 luồng đã chứng minh chạy** tại commit `324bd12` (cấu trúc: 37 built / 1 partial / 0 missing;
+  actor-audit 0 phát hiện). Tổng **31 journey UI spec / 43 spec file**, chạy trong project `ui-chromium`.
+  Đây là **TRẦN của phương pháp journey** — 7 luồng còn lại không có UI để lái ⇒ **38/38 luồng đều có
+  trạng thái máy-chứng, 0 luồng chưa phân loại**.
 - Mỗi journey lái **trình duyệt thật → build production admin/lms → tRPC → Postgres có RLS**, không mock.
   Kỷ luật: falsification load-bearing (kiểm chứng test chuyển ĐỎ khi bỏ hành động cốt lõi) + 4× xanh liên tiếp.
 - Bắt được false-green thật: P3-05 "chốt lương" trước đây chỉ chứng minh danh sách nhân viên hiển thị,
   chưa hề chạm `payslip.finalize` — journey mới lái đủ `assemble → finalize`.
-- **11 luồng còn lại:** 7 `no-ui-path` (không có UI ⇒ journey không lái được, là gap có hồ sơ) +
-  4 chưa viết journey (P3-06, P3-08, P4-04, P1-06). **Trần khả thi qua journey = 31/38.**
+- **7 luồng còn lại** đều `no-ui-path` (P1-08, P2-01/02/03/05, P3-10/11): không có UI nên journey không
+  lái được — muốn phủ phải XÂY UI trước, việc đó thuộc plan sửa, không thuộc plan đo này.
+- Luồng bổ sung trong ngày: P4-04 (test đầu vào), P3-06+P3-08 (KPI nộp→xác nhận→tất toán), P1-06 (liên kết
+  PH–con), và journey **xuyên app** đầu tiên: GV công bố ảnh buổi học (ERP) → PH xem trên LMS, với cổng
+  đồng ý ảnh được chứng minh có răng (chưa đồng ý ⇒ tóm tắt qua được nhưng ảnh bị giữ lại).
 
 **CI khôi phục:**
 - Từ 2026-07-17 đến 2026-07-26 mọi run fail sau 3–4 giây với **0 step chạy** — nguyên nhân là **hết

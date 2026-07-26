@@ -8,7 +8,7 @@
 >
 > **Updated 2026-07-24 (UAT prep — journey e2e):** Phase 4–5 journey infrastructure added 13 new spec files (3 regression + 10 core flows). ~~Current e2e count: ~21+ spec files.~~ — **superseded, xem banner 2026-07-26.**
 >
-> **Updated 2026-07-26 (nghiệm thu journey + CI khôi phục):** e2e hiện **39 spec file** (27 journey UI); project `ui-chromium` = **34 spec, xanh trên CI**. Sổ nghiệm thu: **27/38 luồng đã chứng minh chạy** tại commit `22bbead`, sinh từ artifact CI (`gitDirty:false`). Trần khả thi qua journey = 31/38 (7 luồng `no-ui-path`, 4 chưa viết). Journey ở mức smoke — chứng minh luồng chạy thông, không chứng minh đúng số học nghiệp vụ; UAT người thật chưa chạy. Chi tiết: `docs/codebase-summary.md`.
+> **Updated 2026-07-26 (nghiệm thu journey + CI khôi phục):** e2e hiện **43 spec file** (31 journey UI), chạy trong project `ui-chromium` trên CI. Sổ nghiệm thu: **31/38 luồng đã chứng minh chạy** tại commit `324bd12`, sinh từ artifact CI (`gitDirty:false`) — **đã chạm trần journey**; 7 luồng còn lại `no-ui-path` ⇒ 38/38 đều có trạng thái máy-chứng. Journey ở mức smoke — chứng minh luồng chạy thông, không chứng minh đúng số học nghiệp vụ; UAT người thật chưa chạy. Chi tiết: `docs/codebase-summary.md`.
 
 ---
 

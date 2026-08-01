@@ -1,20 +1,56 @@
-# Local-sim override: run ONLY postgres + api from docker-compose.prod.yml,
-# published to the host, with no nginx/TLS/minio. The API stores blobs on a
-# local volume dir (storage layer falls back to a dir when S3_ENDPOINT is
-# unset), so the stack boots without an object store.
+# Local-sim override for docker-compose.prod.yml: the full production stack
+# (nginx + TLS + admin + lms + api + worker + postgres) on one machine, so a
+# tester sees exactly what production serves — production SPA bundles with no
+# dev-only affordances, no `x-dev-user` impersonation (NODE_ENV=production),
+# Secure session cookies, and same-origin /trpc through nginx.
+#
+# Two local-only deltas:
+#   - nginx uses nginx.local-sim.conf (localhost server_name, no HSTS, higher
+#     auth rate limit — see that file's header).
+#   - TLS is a self-signed cert for localhost, so browsers show a warning once.
+#     Generate it before the first `up`:
+#       openssl req -x509 -newkey rsa:2048 -nodes -days 825 \
+#         -keyout infra/nginx/certs/privkey.pem \
+#         -out infra/nginx/certs/fullchain.pem \
+#         -subj "/CN=localhost/O=CMC EDU local-sim" \
+#         -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 #
 # Usage:
 #   docker compose -p cmcv2-prod --env-file .env.prod \
-#     -f docker-compose.prod.yml -f infra/compose.local-sim.yml \
-#     up -d --build postgres api
+#     -f docker-compose.prod.yml -f infra/compose.local-sim.yml up -d --build
+#   -> https://localhost (admin ERP) · https://localhost/lms (parent/student)
+#
+# Postgres and the API are also published on the host (5432 / 3000) so
+# migrations, seeds, and probes can run outside the network.
 services:
+  nginx:
+    volumes:
+      - ./infra/nginx/nginx.local-sim.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/local-sim-api-locations.conf:/etc/nginx/local-sim-api-locations.conf:ro
+      - ./infra/nginx/certs:/etc/nginx/certs:ro
+
+  # Both SPA images ship a fallback that points at the server root while their
+  # bundles live in a sub-directory, so a refreshed deep link lands on nginx's
+  # welcome page. These overrides point each fallback at its own index.html.
+  admin:
+    volumes:
+      - ./infra/nginx/spa-fallback-admin.conf:/etc/nginx/conf.d/default.conf:ro
+
+  lms:
+    volumes:
+      - ./infra/nginx/spa-fallback-lms.conf:/etc/nginx/conf.d/default.conf:ro
+
   postgres:
     ports:
       - "5432:5432" # host-run prisma migrate/seed reaches the DB here
 
   api:
     ports:
-      - "3000:3000" # http://localhost:3000 — local sim / security-test surface
+      - "3000:3000" # direct API surface, bypassing nginx (probes, security tests)
+    volumes:
+      - cmcv2-local-blobs:/data
+
+  worker:
     volumes:
       - cmcv2-local-blobs:/data
 

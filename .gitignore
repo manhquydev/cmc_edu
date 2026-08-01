@@ -175,3 +175,12 @@ apps/e2e/acceptance-results/
 # Harness core maintenance binary
 scripts/bin/harness
 scripts/bin/harness.exe
+
+# Local-sim TLS material (self-signed, never commit keys)
+infra/nginx/certs/
+
+# Local-sim demo credentials (generated, never commit)
+.env.local-sim-accounts
+
+# Playwright MCP transient debug logs
+.playwright-mcp/

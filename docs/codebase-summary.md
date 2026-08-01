@@ -27,6 +27,17 @@
 >
 > **UAT người thật (Phase 4 plan `260707-2308`) VẪN CHƯA CHẠY** — xem `docs/runbook-uat-golive.md`.
 
+> **Cập nhật 2026-07-26 (chiều) — hợp nhất về `main` + staff đổi sang email/password.**
+> Toàn bộ công việc đã về `main` qua merge commit (PR #35 sổ nghiệm thu, PR #37 auth) — remote/local
+> **chỉ còn nhánh `main`**, không nhánh nào chưa merge. CI hậu merge xanh cả 3 job tại `0b933bf`.
+> **Auth staff đổi contract:** mất quyền tenant M365 ⇒ Entra SSO + Graph tạm tắt sau env flag; đăng nhập
+> production = email/password (`POST /auth/staff-login`), cấp mật khẩu qua seed/`user.resetPassword`,
+> ép đổi lần đầu — chi tiết + known issue khi bật lại SSO: `docs/system-architecture.md` (Auth
+> Integration), vận hành: `docs/runbook-deploy.md` §1.9. Journal: `docs/journals/260726-staff-password-auth-m365-off.md`.
+> **Flake CI đã ghi hồ sơ:** `kpi.refresh` double-fire fail chập chờn trên runner chậm — issue #36
+> (nghi race thật trong nhánh recovery P2002, `apps/api/src/kpi/auto-score.ts`). Đỏ ở test này trên
+> commit không liên quan ⇒ rerun, đừng chẩn regression.
+
 ---
 
 ## Monorepo Structure

@@ -6,6 +6,31 @@
 
 ---
 
+## [2026-07-26] Staff email/password thay Entra SSO (mất quyền M365) + hợp nhất toàn bộ về `main`
+
+**Context:** dự án mất quyền tenant M365 ⇒ Entra SSO và Graph email phải tắt được bằng cấu hình,
+email 100% Brevo, staff đăng nhập email/password. Plan:
+`plans/260726-1558-GH-38-m365-off-email-password-auth/`.
+
+**Auth (PR #37, merge `0b933bf`):** `AppUser` thêm passwordHash (PBKDF2 dùng chung helper LMS),
+`mustChangePassword`, lockout 5 lần/15′; partial unique index `lower(email) WHERE email <> ''`
+(migration `20260726000000_app_user_password_auth`, pre-check trùng fail-loud). `POST /auth/staff-login`
+mount vô điều kiện, phát cùng cookie `cmc_staff_session` như đường SSO; `/auth/logout` ra ngoài flag.
+`user.changeOwnPassword` / `user.resetPassword` (super_admin) + UI login/đổi mật khẩu/reset trong trang
+Users. nginx siết `= /auth/staff-login` vào zone auth 5r/m. Email: không đổi code — mọi luồng vốn đã
+Brevo; Graph giữ nguyên ở trạng thái không cấu hình.
+
+**Review trail:** code-review nội bộ Request-changes → đã đóng hết Critical/Important trong `aafdecb`
+(chặn serialize passwordHash về client bằng `APP_USER_SELECT`; lockout cho changeOwnPassword + fix bug
+throw-trong-transaction rollback mất increment; seed không ghi đè mật khẩu đã xoay; `ADMIN_APP_ORIGIN`
+bắt buộc vô điều kiện). **Known issue để lại có hồ sơ:** sso-routes lookup AppUser thiếu bypass RLS —
+bật lại SSO sẽ từ chối mọi user nếu chưa sửa (ghi ở `docs/system-architecture.md`).
+
+**Hợp nhất nhánh:** PR #35 (sổ nghiệm thu, 56 commit) merge trước, PR #37 sau — đều merge commit để giữ
+nguyên các SHA bằng chứng mà sổ nghiệm thu tham chiếu. Remote/local chỉ còn `main`; CI hậu merge xanh
+3/3 job. **Flake CI ghi nhận tại issue #36:** `kpi.refresh` double-fire — nghi race thật ở nhánh
+recovery P2002 (`apps/api/src/kpi/auto-score.ts:370`), fail cả trên commit docs-only, local 5/5 pass.
+
 ## [2026-07-26] Nghiệm thu journey 31/38 luồng (chạm trần) + khôi phục CI (lần đầu chạy `ui-e2e`)
 
 **Context:** `plans/260724-1212-nghiem-thu-toan-dien-journey-38-erp-lms/` — mục tiêu: mọi luồng nghiệp vụ

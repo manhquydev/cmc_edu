@@ -48,9 +48,11 @@ request needs product knowledge, read in order:
 - `docs/system-architecture.md` — **authoritative as-built architecture** (P1–P4, all routers, test coverage, RLS, known issues)
 - **Trạng thái nghiệm thu là số ĐO, không phải số chép:** nguồn đúng luôn là `pnpm acceptance:report`
   (sinh từ artifact CI job `ui-e2e`) + run CI gần nhất. Con số trong tài liệu là ảnh chụp kèm ngày —
-  nếu lệch, tin lệnh, đừng tin tài liệu. Tính tới 2026-07-26 (`22bbead`): **27/38 luồng đã chứng minh chạy**,
-  trần khả thi qua journey 31/38. Journey ở mức smoke (chạy thông ≠ đúng số học nghiệp vụ);
-  **UAT người thật chưa chạy** ⇒ chưa được mô tả dự án là "production-ready".
+  nếu lệch, tin lệnh, đừng tin tài liệu. Ảnh chụp 2026-07-26 (main `0b933bf`): **31/38 luồng đã chứng
+  minh chạy — đã chạm trần của phương pháp journey** (7 luồng còn lại `no-ui-path`). Journey ở mức smoke
+  (chạy thông ≠ đúng số học nghiệp vụ); **UAT người thật chưa chạy** ⇒ chưa được mô tả dự án là
+  "production-ready". Staff đăng nhập bằng email/password; Entra SSO + Graph tạm tắt vì mất quyền M365
+  (chi tiết + điều kiện bật lại: `docs/system-architecture.md`, mục Auth Integration).
 - `docs/codebase-summary.md` — current implementation status, phases complete, build verification
 
 **Glossary:**
@@ -80,7 +82,7 @@ only when a request actually calls for that flow.
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **cmc_edu**. Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **cmc_edu** (10991 symbols, 16227 relationships, 147 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

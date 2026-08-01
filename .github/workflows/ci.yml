@@ -219,6 +219,21 @@ jobs:
   # clock, against the 9-53 minute projection that made the every-push cadence
   # provisional. Per-push therefore stays comfortably inside the 60-90 minute
   # threshold and needs no move to nightly or sharding.
+  #
+  # M1 RESOLUTION (2026-08-02): branch protection on `main` now exists and
+  # requires `typecheck-and-test`. This job stays push-triggered — the two
+  # reasons above (double billing, synthetic merge SHA breaking the ledger)
+  # still hold, so the trigger itself is unchanged. What changed is how it can
+  # become a requirable PR check without adding a `pull_request` trigger: a
+  # push to a PR branch already produces a `ui-e2e` check run against that
+  # push's real HEAD SHA, and GitHub attaches check runs by commit SHA, not by
+  # triggering event — so the same check run shows up on the PR once the head
+  # commit matches. Once `continue-on-error` is dropped (see PROMOTION
+  # CRITERIA above — still gated on >= 20 runs / >= 14 days, unmet as of this
+  # note), that check becomes eligible to add as a required status check for
+  # `main`, no workflow trigger change needed. Verify on the first PR after
+  # promotion that a `ui-e2e` check actually appears on the PR's head commit
+  # before relying on it as a merge gate.
   ui-e2e:
     runs-on: ubuntu-latest
     # Push events only, for two reasons that both matter. (1) This workflow

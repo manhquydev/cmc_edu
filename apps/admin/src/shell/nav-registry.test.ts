@@ -87,12 +87,18 @@ describe('visibleModulesFor', () => {
     }
   });
 
-  it('gates admin shift-config entry with a permission key (module already super_admin-only)', () => {
-    const modules = visibleModulesFor(['super_admin'], allTrue);
-    const admin = modules.find((m) => m.id === 'admin');
-    const shiftConfig = admin?.children?.find((c) => c.id === 'shift-config');
+  it('lists shift-config under Nhân sự so the directors who may configure shifts can see it', () => {
+    // Under Quản trị it was unreachable: that module is roles:['super_admin'],
+    // so the two directors holding shift.manage never saw the entry.
+    const modules = visibleModulesFor(['giam_doc_dao_tao'], allTrue);
+    const hr = modules.find((m) => m.id === 'hr');
+    const shiftConfig = hr?.children?.find((c) => c.id === 'shift-config');
     expect(shiftConfig).toBeDefined();
-    expect(shiftConfig?.permission).toEqual({ module: 'compensationPolicy', action: 'manage' });
+    expect(shiftConfig?.permission).toEqual({ module: 'shift', action: 'manage' });
+    expect(shiftConfig?.path).toBe('/admin/shift-config');
+
+    const admin = modules.find((m) => m.id === 'admin');
+    expect(admin?.children?.find((c) => c.id === 'shift-config')).toBeUndefined();
   });
 
   it('gates admin network-ip entry with facilityNetwork.manage', () => {
@@ -116,6 +122,31 @@ describe('visibleModulesFor', () => {
     const classModule = modules.find((m) => m.id === 'classes-students');
     expect(classModule).toBeDefined();
     expect(classModule!.children?.some((c) => c.id === 'students')).toBe(true);
+  });
+
+  // Gap-closure: nav entry for the parent directory (parentAccount.list).
+  // Deliberately placed under Lớp & Học sinh, NOT Quản trị — the roster for
+  // parentAccount.updateEmail is giam_doc_kinh_doanh/sale, and Quản trị is
+  // `roles: ['super_admin']`, which would hide the entry from exactly the
+  // roles the permission grants it to (same class of bug as shift-config).
+  it('gates the parents entry with parentAccount.updateEmail under Lớp & Học sinh, not Quản trị', () => {
+    const classModule = NAV_MODULES.find((m) => m.id === 'classes-students');
+    const parentsChild = classModule?.children?.find((c) => c.id === 'parents');
+    expect(parentsChild).toBeDefined();
+    expect(parentsChild?.path).toBe('/admin/parents');
+    expect(parentsChild?.permission).toEqual({ module: 'parentAccount', action: 'updateEmail' });
+
+    const admin = NAV_MODULES.find((m) => m.id === 'admin');
+    expect(admin?.children?.find((c) => c.id === 'parents')).toBeUndefined();
+  });
+
+  it('shows the parents entry to sale and giam_doc_kinh_doanh (the parentAccount.updateEmail roster)', () => {
+    for (const role of ['sale', 'giam_doc_kinh_doanh'] as Role[]) {
+      const paths = visibleNavPathsFor([role], (mod, act) =>
+        can({ userId: 'u', roles: [role] }, mod, act),
+      );
+      expect(paths, `${role} should see /admin/parents`).toContain('/admin/parents');
+    }
   });
 
   it('keeps modules visible when at least one child has no permission gate', () => {

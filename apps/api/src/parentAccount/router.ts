@@ -1,13 +1,96 @@
 // parentAccount router — staff-facing parent account management.
-// Only `updateEmail` today: backfills email for parents provisioned before
-// email capture was added (phase-01b). Email is required for LMS parent login
-// (email-OTP); parents without an email cannot log into the LMS app.
+// `list` + `updateEmail`: `list` is the discovery step — provisioning
+// (finance/provisioning/provision-from-receipt.ts) creates ParentAccount rows
+// directly, so they never appear in guardian.listPendingLinks (that queue is
+// only for self-service link requests). Without `list`, staff had no way to
+// find a parent to backfill their email. `updateEmail` backfills email for
+// parents provisioned before email capture was added (phase-01b). Email is
+// required for LMS parent login (email-OTP); parents without an email cannot
+// log into the LMS app, and their child can never have its password reset
+// either (parent-only action).
 
 import { z } from 'zod';
+import type { Prisma } from '@cmc/db';
 import { conflict, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
+const listInput = z.object({
+  page: z.number().int().positive().default(1),
+  pageSize: z.number().int().positive().max(100).default(20),
+  /** Narrows to parents locked out of LMS login — the actionable subset. */
+  missingEmailOnly: z.boolean().optional(),
+  /** Matches phone (substring) or email (substring, case-insensitive). */
+  search: z.string().trim().min(1).max(254).optional(),
+});
+
+export interface ParentAccountListItemDto {
+  id: string;
+  phone: string;
+  email: string | null;
+  /** Guardian rows in the caller's facility — "số con đã liên kết". */
+  linkedChildrenCount: number;
+  createdAt: Date;
+}
+
 export const parentAccountRouter = router({
+  /**
+   * Staff-facing directory of parents scoped to the caller's facility (via
+   * their Guardian link — ParentAccount itself carries no facilityId).
+   * `Guardian` has no RLS policy (schema.prisma), so this is a plain `ctx.db`
+   * call with an explicit facilityId filter, same as `updateEmail` below —
+   * never an unscoped `ctx.db.parentAccount.findMany()`.
+   */
+  list: requirePermission('parentAccount', 'updateEmail')
+    .input(listInput)
+    .query(async ({ ctx, input }): Promise<{
+      items: ParentAccountListItemDto[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }> => {
+      const { facilityId } = scoped(ctx);
+
+      const where: Prisma.ParentAccountWhereInput = {
+        guardians: { some: { facilityId } },
+        ...(input.missingEmailOnly ? { email: null } : {}),
+        ...(input.search
+          ? {
+              OR: [
+                { phone: { contains: input.search } },
+                { email: { contains: input.search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      };
+
+      const [rows, total] = await Promise.all([
+        ctx.db.parentAccount.findMany({
+          where,
+          orderBy: { createdAt: 'asc' },
+          skip: (input.page - 1) * input.pageSize,
+          take: input.pageSize,
+          select: {
+            id: true,
+            phone: true,
+            email: true,
+            createdAt: true,
+            _count: { select: { guardians: { where: { facilityId } } } },
+          },
+        }),
+        ctx.db.parentAccount.count({ where }),
+      ]);
+
+      const items: ParentAccountListItemDto[] = rows.map((row) => ({
+        id: row.id,
+        phone: row.phone,
+        email: row.email,
+        linkedChildrenCount: row._count.guardians,
+        createdAt: row.createdAt,
+      }));
+
+      return { items, total, page: input.page, pageSize: input.pageSize };
+    }),
+
   /**
    * Staff updates (or sets for the first time) the email on a ParentAccount.
    * Facility-scoped via the Guardian link: the parent must have at least one

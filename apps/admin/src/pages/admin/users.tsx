@@ -11,6 +11,8 @@ import {
   ListPage,
   MultiSelector,
   PageHeader,
+  PasswordInput,
+  Selector,
   Stack,
   Text,
   TextInput,
@@ -87,9 +89,33 @@ interface CreateForm {
   email: string;
   fullName: string;
   position: string;
+  roles: string[];
+  managerId: string;
+  tempPassword: string;
 }
 
-const EMPTY_FORM: CreateForm = { userId: '', email: '', fullName: '', position: '' };
+const EMPTY_FORM: CreateForm = {
+  userId: '',
+  email: '',
+  fullName: '',
+  position: '',
+  roles: [],
+  managerId: '',
+  tempPassword: '',
+};
+
+const NO_MANAGER = '__none__';
+
+/** Job title suggested from the first role picked, so the free-text field
+ *  starts from the right answer instead of an empty box. Still editable —
+ *  two teachers can hold different titles. */
+const POSITION_FROM_ROLE: Record<string, string> = {
+  super_admin: 'Quản trị hệ thống',
+  giam_doc_kinh_doanh: 'Giám đốc kinh doanh',
+  giam_doc_dao_tao: 'Giám đốc đào tạo',
+  sale: 'Nhân viên kinh doanh',
+  giao_vien: 'Giáo viên',
+};
 
 function UsersContent() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -151,7 +177,31 @@ function UsersContent() {
       email: form.email.trim(),
       fullName: form.fullName.trim(),
       position: form.position.trim(),
+      roles: form.roles,
+      ...(form.managerId && form.managerId !== NO_MANAGER
+        ? { managerId: form.managerId }
+        : {}),
+      ...(form.tempPassword ? { tempPassword: form.tempPassword } : {}),
     });
+  }
+
+  // Reuses the list already on screen — a manager is by definition someone who
+  // already has a staff profile here.
+  const managerOptions = [
+    { value: NO_MANAGER, label: '— Chưa có —' },
+    ...(data?.items ?? []).map((u) => ({
+      value: u.id,
+      label: `${u.fullName} (${u.employeeCode})`,
+    })),
+  ];
+
+  /** Picking a role fills an empty job title with that role's usual one. */
+  function setRolesField(next: string[]) {
+    setForm((f) => ({
+      ...f,
+      roles: next,
+      position: f.position.trim() ? f.position : (POSITION_FROM_ROLE[next[0] ?? ''] ?? ''),
+    }));
   }
 
   function openRolesModal(user: UserRow) {
@@ -167,13 +217,19 @@ function UsersContent() {
     updateRolesMut.mutate({ appUserId: rolesModalUser.id, roles: selectedRoles });
   }
 
+  // A role is required: an account with none can sign in but reach nothing,
+  // which reads as a broken system rather than a pending setup step.
+  // The first password stays optional (8+ chars when given) — an admin may
+  // provision the profile now and hand over credentials later.
   const isFormValid =
     form.userId.trim().length > 0 &&
     form.email.trim().length > 0 &&
     form.fullName.trim().length > 0 &&
-    form.position.trim().length > 0;
+    form.position.trim().length > 0 &&
+    form.roles.length > 0 &&
+    (form.tempPassword.length === 0 || form.tempPassword.length >= PASSWORD_MIN_LENGTH);
 
-  function setField(field: keyof CreateForm) {
+  function setField(field: 'userId' | 'email' | 'fullName' | 'position' | 'tempPassword') {
     return (value: string) => setForm((f) => ({ ...f, [field]: value }));
   }
 
@@ -271,12 +327,35 @@ function UsersContent() {
             onChange={setField('email')}
             isRequired
           />
+          <MultiSelector
+            label="Vai trò"
+            options={ROLE_OPTIONS}
+            value={form.roles}
+            onChange={setRolesField}
+            hasSearch
+            hasClear
+            placeholder="Chọn vai trò…"
+          />
           <TextInput
             label="Vị trí"
             placeholder="VD: Giáo viên, Nhân viên kinh doanh…"
+            description="Chức danh hiển thị trên hồ sơ — quyền truy cập do Vai trò quyết định."
             value={form.position}
             onChange={setField('position')}
             isRequired
+          />
+          <Selector
+            label="Quản lý trực tiếp"
+            description="Người duyệt ca và xác nhận KPI cho nhân viên này."
+            options={managerOptions}
+            value={form.managerId || NO_MANAGER}
+            onChange={(v) => setForm((f) => ({ ...f, managerId: v }))}
+          />
+          <PasswordInput
+            label="Mật khẩu đầu tiên"
+            description="Tối thiểu 8 ký tự. Nhân viên bắt buộc đổi ở lần đăng nhập đầu. Bỏ trống nếu muốn cấp sau."
+            value={form.tempPassword}
+            onChange={setField('tempPassword')}
           />
           {createMut.error && (
             // TODO(astryx-review): Text color enum has no error/danger slot —

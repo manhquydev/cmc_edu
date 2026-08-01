@@ -148,6 +148,10 @@ export default function ReceiptDetailPage() {
     },
   });
 
+  // approveMutation.error is rendered below (overviewContent) — onError here
+  // only owns dialog lifecycle, not error display, so an SoD/threshold/
+  // conflict rejection from the API no longer disappears silently.
+
   if (isLoading) {
     return (
       <ResultPanel status="loading" title="Đang tải phiếu thu..." />
@@ -172,6 +176,14 @@ export default function ReceiptDetailPage() {
 
   const overviewContent = (
     <Stack gap={4} padding={4}>
+      {approveMutation.error && (
+        <Banner
+          status="error"
+          title="Duyệt phiếu thất bại"
+          description={approveMutation.error.message}
+        />
+      )}
+
       {approveResult && (
         <ResultPanel
           status={approveResult.provisioning === 'ok' ? 'success' : 'warning'}

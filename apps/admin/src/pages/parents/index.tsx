@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  Badge,
   Button,
+  CmcTabs,
   DataTable,
   Dialog,
   DialogHeader,
   HStack,
+  LineIcon,
   PageHeader,
   Selector,
   Stack,
@@ -17,6 +20,7 @@ import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
 type FilterStatus = 'pending' | 'approved' | 'rejected';
+type EmailFilter = 'missing' | 'all';
 
 interface LinkRow {
   id: string;
@@ -26,6 +30,24 @@ interface LinkRow {
   status: string;
   createdAt: string | Date;
   [key: string]: unknown;
+}
+
+interface ParentRow {
+  id: string;
+  phone: string;
+  email: string | null;
+  linkedChildrenCount: number;
+  createdAt: string | Date;
+  [key: string]: unknown;
+}
+
+/** Common shape the shared email modal needs, whichever tab opened it —
+ *  a guardian-link-request row and a parentAccount.list row carry different
+ *  fields, so each tab maps its own row into this before opening the modal. */
+interface EmailModalTarget {
+  parentAccountId: string;
+  parentPhone: string;
+  detail: string;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -39,6 +61,16 @@ const RELATION_OPTIONS = [
   { value: 'mother', label: 'Mẹ' },
   { value: 'guardian', label: 'Người giám hộ' },
 ];
+
+// Defaults to `missing` — the actionable subset (locked out of LMS login),
+// same reasoning as `guardian.listPendingLinks` defaulting its status filter
+// to `pending`: staff open this tab to fix something, not to browse everyone.
+const EMAIL_FILTER_OPTIONS: { value: EmailFilter; label: string }[] = [
+  { value: 'missing', label: 'Chưa có email (bị khoá LMS)' },
+  { value: 'all', label: 'Tất cả' },
+];
+
+const ALL_PARENTS_PAGE_SIZE = 20;
 
 const BASE_COLUMNS: TableColumn<LinkRow>[] = [
   { key: 'studentName', label: 'Học viên' },
@@ -59,17 +91,22 @@ const BASE_COLUMNS: TableColumn<LinkRow>[] = [
   },
 ];
 
-export default function ParentListPage() {
-  const { canDo } = useSession();
+/**
+ * Tab 1: the pre-existing guardian-link-request review queue
+ * (approve/reject a parent's self-service request to link to a student).
+ */
+function LinkRequestsTab({
+  canUpdateEmail,
+  onOpenEmailModal,
+}: {
+  canUpdateEmail: boolean;
+  onOpenEmailModal: (row: LinkRow) => void;
+}) {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('pending');
 
   // Approve modal state
   const [approveRow, setApproveRow] = useState<LinkRow | null>(null);
   const [relation, setRelation] = useState<string>('guardian');
-
-  // Email update modal state
-  const [emailRow, setEmailRow] = useState<LinkRow | null>(null);
-  const [emailInput, setEmailInput] = useState('');
 
   const utils = trpc.useUtils();
 
@@ -93,13 +130,6 @@ export default function ParentListPage() {
     },
   });
 
-  const updateEmailMut = trpc.parentAccount.updateEmail.useMutation({
-    onSuccess: () => {
-      setEmailRow(null);
-      setEmailInput('');
-    },
-  });
-
   function handleReject(requestId: string) {
     rejectMut.mutate({ requestId });
   }
@@ -111,21 +141,6 @@ export default function ParentListPage() {
       relation: relation as 'father' | 'mother' | 'guardian',
     });
   }
-
-  function handleOpenEmailModal(row: LinkRow) {
-    setEmailRow(row);
-    setEmailInput('');
-  }
-
-  function handleEmailSubmit() {
-    if (!emailRow) return;
-    updateEmailMut.mutate({
-      parentAccountId: emailRow.parentAccountId,
-      email: emailInput,
-    });
-  }
-
-  const canUpdateEmail = canDo('parentAccount', 'updateEmail');
 
   // Action column only appears on pending tab.
   const columns: TableColumn<LinkRow>[] =
@@ -168,7 +183,7 @@ export default function ParentListPage() {
                     label="Cập nhật email"
                     size="sm"
                     variant="secondary"
-                    onClick={() => handleOpenEmailModal(row)}
+                    onClick={() => onOpenEmailModal(row)}
                   />
                 </HStack>
               ),
@@ -184,12 +199,6 @@ export default function ParentListPage() {
 
   return (
     <>
-      <PageHeader
-        title="Phụ huynh"
-        subtitle="Duyệt yêu cầu liên kết phụ huynh — học viên"
-        breadcrumbs={[{ label: 'Quản trị' }, { label: 'Phụ huynh' }]}
-      />
-
       <HStack padding={4} gap={2}>
         <Text type="supporting" size="sm">
           Lọc:
@@ -283,15 +292,250 @@ export default function ParentListPage() {
           </Stack>
         )}
       </Dialog>
+    </>
+  );
+}
+
+/**
+ * Tab 2: the full parent directory — the discovery step provisioning never
+ * gave staff. `finance/provisioning/provision-from-receipt.ts` creates
+ * ParentAccount + an approved Guardian row directly, so a parent provisioned
+ * that way never has a `GuardianLinkRequest` and never shows up in
+ * `LinkRequestsTab`. Defaults to "chưa có email" — those parents are the ones
+ * actually locked out of LMS login (and whose child can never get their
+ * password reset, since only the parent can do that).
+ */
+function AllParentsTab({
+  onOpenEmailModal,
+}: {
+  onOpenEmailModal: (row: ParentRow) => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const [emailFilter, setEmailFilter] = useState<EmailFilter>('missing');
+  const [page, setPage] = useState(1);
+
+  // Narrowing/widening the result set can strand the user on a now
+  // out-of-range page — restart at page 1, same as crm/pipeline.tsx.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, emailFilter]);
+
+  const { data, isLoading, error } = trpc.parentAccount.list.useQuery({
+    ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    missingEmailOnly: emailFilter === 'missing',
+    page,
+    pageSize: ALL_PARENTS_PAGE_SIZE,
+  });
+
+  const columns: TableColumn<ParentRow>[] = [
+    { key: 'phone', label: 'SĐT phụ huynh', width: 160 },
+    {
+      key: 'email',
+      label: 'Email đăng nhập LMS',
+      render: (v) =>
+        v ? (
+          <Text size="sm">{String(v)}</Text>
+        ) : (
+          <Badge label="Chưa có email — bị khoá LMS" variant="warning" />
+        ),
+    },
+    { key: 'linkedChildrenCount', label: 'Số con đã liên kết', width: 160 },
+    {
+      key: 'createdAt',
+      label: 'Ngày tạo',
+      width: 140,
+      render: (v) => new Date(v as string | Date).toLocaleDateString('vi-VN'),
+    },
+    {
+      key: '_actions',
+      label: 'Thao tác',
+      width: 160,
+      render: (_v, row) => (
+        <HStack gap={1} onClick={(e) => e.stopPropagation()}>
+          <Button
+            label="Cập nhật email"
+            size="sm"
+            variant="secondary"
+            onClick={() => onOpenEmailModal(row)}
+          />
+        </HStack>
+      ),
+    },
+  ];
+
+  const rows: ParentRow[] = (data?.items ?? []).map((item) => ({ ...item, _actions: null }));
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / ALL_PARENTS_PAGE_SIZE));
+
+  return (
+    <Stack gap={2}>
+      <HStack padding={4} gap={2} align="center">
+        <div style={{ width: 220 }}>
+          <TextInput
+            label="Tìm kiếm"
+            isLabelHidden
+            placeholder="Tìm theo SĐT hoặc email…"
+            value={searchTerm}
+            onChange={setSearchTerm}
+            hasClear
+            size="sm"
+            startIcon={<LineIcon name="search" size={14} />}
+          />
+        </div>
+        <div style={{ width: 220 }}>
+          <Selector
+            label="Lọc theo email"
+            isLabelHidden
+            value={emailFilter}
+            onChange={(v) => setEmailFilter((v as EmailFilter) ?? 'missing')}
+            options={EMAIL_FILTER_OPTIONS}
+            size="sm"
+          />
+        </div>
+        {data && (
+          <Text type="supporting" size="sm">
+            {total} phụ huynh
+          </Text>
+        )}
+      </HStack>
+
+      <DataTable<ParentRow>
+        columns={columns}
+        data={rows}
+        loading={isLoading}
+        error={error?.message}
+        empty={
+          emailFilter === 'missing'
+            ? 'Không có phụ huynh nào đang thiếu email'
+            : 'Không có phụ huynh nào'
+        }
+      />
+
+      <HStack justify="between" align="center" padding={4}>
+        <Text type="supporting" size="xsm">
+          Trang {page}/{totalPages} — {total} phụ huynh
+        </Text>
+        <HStack gap={1}>
+          <Button
+            label="Trang trước"
+            size="sm"
+            variant="secondary"
+            isDisabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          />
+          <Button
+            label="Trang sau"
+            size="sm"
+            variant="secondary"
+            isDisabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          />
+        </HStack>
+      </HStack>
+    </Stack>
+  );
+}
+
+export default function ParentListPage() {
+  const { canDo } = useSession();
+  const canUpdateEmail = canDo('parentAccount', 'updateEmail');
+  const [activeTab, setActiveTab] = useState<'requests' | 'all'>('requests');
+
+  const utils = trpc.useUtils();
+
+  // Email update modal — shared by both tabs. They surface the exact same
+  // action (parentAccount.updateEmail); only the context line shown differs,
+  // captured in `EmailModalTarget.detail` by each tab's own open-handler.
+  const [emailTarget, setEmailTarget] = useState<EmailModalTarget | null>(null);
+  const [emailInput, setEmailInput] = useState('');
+
+  const updateEmailMut = trpc.parentAccount.updateEmail.useMutation({
+    onSuccess: () => {
+      setEmailTarget(null);
+      setEmailInput('');
+      void utils.parentAccount.list.invalidate();
+    },
+  });
+
+  function openEmailModalFromLink(row: LinkRow) {
+    setEmailTarget({
+      parentAccountId: row.parentAccountId,
+      parentPhone: row.parentPhone,
+      detail: `Học viên: ${row.studentName}`,
+    });
+    setEmailInput('');
+  }
+
+  function openEmailModalFromParent(row: ParentRow) {
+    setEmailTarget({
+      parentAccountId: row.id,
+      parentPhone: row.phone,
+      detail: `${row.linkedChildrenCount} con đã liên kết`,
+    });
+    // Prefilling with the current value lets staff correct a typo, not just
+    // fill a blank — this tab (unlike the link-request queue) knows it.
+    setEmailInput(row.email ?? '');
+  }
+
+  function closeEmailModal() {
+    if (updateEmailMut.isPending) return;
+    setEmailTarget(null);
+    setEmailInput('');
+  }
+
+  function handleEmailSubmit() {
+    if (!emailTarget) return;
+    updateEmailMut.mutate({ parentAccountId: emailTarget.parentAccountId, email: emailInput });
+  }
+
+  return (
+    <>
+      <PageHeader
+        title="Phụ huynh"
+        subtitle="Duyệt yêu cầu liên kết và quản lý tài khoản phụ huynh"
+        breadcrumbs={[{ label: 'Quản trị' }, { label: 'Phụ huynh' }]}
+      />
+
+      <CmcTabs
+        activeTab={activeTab}
+        onTabChange={(id) => setActiveTab(id === 'all' ? 'all' : 'requests')}
+        tabs={[
+          {
+            id: 'requests',
+            label: 'Yêu cầu liên kết',
+            content: (
+              <LinkRequestsTab
+                canUpdateEmail={canUpdateEmail}
+                onOpenEmailModal={openEmailModalFromLink}
+              />
+            ),
+          },
+          // Only offered when the caller can actually act on it — the tab
+          // itself would otherwise call a query gated by the same permission
+          // and render nothing but a FORBIDDEN error.
+          ...(canUpdateEmail
+            ? [
+                {
+                  id: 'all',
+                  label: 'Tất cả phụ huynh',
+                  content: <AllParentsTab onOpenEmailModal={openEmailModalFromParent} />,
+                },
+              ]
+            : []),
+        ]}
+      />
 
       {/* Email update modal — allows staff to set/update parent email for LMS login */}
       <Dialog
-        isOpen={Boolean(emailRow)}
+        isOpen={Boolean(emailTarget)}
         onOpenChange={(next) => {
-          if (!next && !updateEmailMut.isPending) {
-            setEmailRow(null);
-            setEmailInput('');
-          }
+          if (!next) closeEmailModal();
         }}
         purpose="form"
         width={400}
@@ -299,20 +543,15 @@ export default function ParentListPage() {
         <DialogHeader
           title="Cập nhật email phụ huynh"
           onOpenChange={(next) => {
-            if (!next && !updateEmailMut.isPending) {
-              setEmailRow(null);
-              setEmailInput('');
-            }
+            if (!next) closeEmailModal();
           }}
         />
-        {emailRow && (
+        {emailTarget && (
           <Stack gap={2} padding={4}>
             <Text size="sm">
-              Phụ huynh: <strong>{emailRow.parentPhone}</strong>
+              Phụ huynh: <strong>{emailTarget.parentPhone}</strong>
             </Text>
-            <Text size="sm">
-              Học viên: <strong>{emailRow.studentName}</strong>
-            </Text>
+            <Text size="sm">{emailTarget.detail}</Text>
             <TextInput
               label="Email đăng nhập LMS"
               placeholder="example@email.com"
@@ -332,10 +571,7 @@ export default function ParentListPage() {
               <Button
                 label="Hủy"
                 variant="secondary"
-                onClick={() => {
-                  setEmailRow(null);
-                  setEmailInput('');
-                }}
+                onClick={closeEmailModal}
                 isDisabled={updateEmailMut.isPending}
               />
               <Button

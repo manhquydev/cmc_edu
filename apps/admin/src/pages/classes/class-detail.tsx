@@ -6,7 +6,10 @@ import {
   Banner,
   Button,
   CmcTabs,
+  ConfirmDialog,
   DataTable,
+  Dialog,
+  DialogHeader,
   EmptyState,
   HStack,
   LineIcon,
@@ -16,10 +19,14 @@ import {
   Stack,
   StatusBadge,
   Text,
+  TextInput,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 // HR remediation phase 5 (R2 #C5): teacher picker — AppUser role giao_vien.
 function TeacherPicker({ classBatchId, currentTeacherId }: { classBatchId: string; currentTeacherId: string | null }) {
@@ -123,18 +130,117 @@ interface SessionTabRow {
   endTime: string | Date;
   status: string;
   isMakeup: boolean;
+  curriculumUnitId: string | null;
   [key: string]: unknown;
 }
 
-function SessionsTab({ classBatchId }: { classBatchId: string }) {
+interface CurriculumUnitRow {
+  id: string;
+  program: string;
+  level: number;
+  monthIndex: number;
+  unitType: string;
+  title: string;
+}
+
+// T2-I gap fix (docs/26 WF-P2-01 remainder): `classSession.assignUnit` is the
+// ONLY writer of `curriculumUnitId` (class-session-router.ts) — without this
+// picker, `exercise/open-tier.ts`'s `curriculumUnitId not null` filter is
+// always empty, so students can never open an exercise. `CurriculumUnit` is a
+// GLOBAL catalog (no courseId — schema.prisma), keyed by `program`+`level`, so
+// this filters the full list down to the class's own `program` client-side
+// (same shape the exercises.tsx picker uses, just program-scoped here).
+function SessionUnitPicker({
+  sessionId,
+  classBatchId,
+  currentUnitId,
+  options,
+  isLoading,
+  isDisabled,
+}: {
+  sessionId: string;
+  classBatchId: string;
+  currentUnitId: string | null;
+  options: { value: string; label: string }[];
+  isLoading: boolean;
+  isDisabled: boolean;
+}) {
+  const utils = trpc.useUtils();
+  const assignMut = trpc.classSession.assignUnit.useMutation({
+    onSuccess: () => void utils.classSession.list.invalidate({ classBatchId }),
+  });
+
+  return (
+    <Stack gap={0.5}>
+      <div style={{ width: 240 }}>
+        <Selector
+          label="Đơn vị học"
+          isLabelHidden
+          placeholder={isLoading ? 'Đang tải…' : 'Chọn đơn vị học'}
+          options={options}
+          value={currentUnitId ?? undefined}
+          onChange={(v) => v && assignMut.mutate({ sessionId, curriculumUnitId: v })}
+          hasClear={false}
+          hasSearch
+          isDisabled={isDisabled || isLoading}
+        />
+      </div>
+      {assignMut.error && (
+        <Text type="supporting" size="2xs" style={{ color: 'var(--cmc-danger)' }}>
+          {assignMut.error.message}
+        </Text>
+      )}
+    </Stack>
+  );
+}
+
+function SessionsTab({ classBatchId, program }: { classBatchId: string; program?: string }) {
   const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.classSession.list.useQuery({ classBatchId });
+  const { data: unitsData, isLoading: unitsLoading } = trpc.curriculumUnit.list.useQuery();
   const confirmMut = trpc.classSession.confirm.useMutation({
     onSuccess: () => void utils.classSession.list.invalidate({ classBatchId }),
   });
+  const [cancelTarget, setCancelTarget] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const cancelMut = trpc.classSession.cancel.useMutation({
-    onSuccess: () => void utils.classSession.list.invalidate({ classBatchId }),
+    onSuccess: () => {
+      void utils.classSession.list.invalidate({ classBatchId });
+      setCancelTarget(null);
+    },
+    onError: (err) => {
+      setCancelTarget(null);
+      setCancelError(err.message);
+    },
   });
+
+  const [makeupOpen, setMakeupOpen] = useState(false);
+  const [makeupForm, setMakeupForm] = useState({ sessionDate: '', startTime: '', endTime: '' });
+  const addMakeupMut = trpc.classSession.addMakeup.useMutation({
+    onSuccess: () => {
+      void utils.classSession.list.invalidate({ classBatchId });
+      setMakeupOpen(false);
+      setMakeupForm({ sessionDate: '', startTime: '', endTime: '' });
+    },
+  });
+
+  function closeMakeupDialog() {
+    if (addMakeupMut.isPending) return;
+    setMakeupOpen(false);
+    setMakeupForm({ sessionDate: '', startTime: '', endTime: '' });
+    addMakeupMut.reset();
+  }
+
+  const makeupValid =
+    DATE_RE.test(makeupForm.sessionDate) &&
+    TIME_RE.test(makeupForm.startTime) &&
+    TIME_RE.test(makeupForm.endTime) &&
+    makeupForm.startTime < makeupForm.endTime;
+
+  const units = ((unitsData?.items ?? []) as CurriculumUnitRow[]);
+  const unitOptions = units
+    .filter((u) => !program || u.program === program)
+    .map((u) => ({ value: u.id, label: `Lv${u.level} • T${u.monthIndex}: ${u.title}` }));
 
   // Cancelled sessions are dimmed (opacity) at the row level in the prior UI's
   // Table; DataTable has no per-row style hook, so each cell's rendered
@@ -187,6 +293,21 @@ function SessionsTab({ classBatchId }: { classBatchId: string }) {
         ),
     },
     {
+      key: 'curriculumUnitId',
+      label: 'Đơn vị học',
+      width: 260,
+      render: (v, row) => (
+        <SessionUnitPicker
+          sessionId={row.id}
+          classBatchId={classBatchId}
+          currentUnitId={v as string | null}
+          options={unitOptions}
+          isLoading={unitsLoading}
+          isDisabled={row.status === 'cancelled' || row.status === 'done'}
+        />
+      ),
+    },
+    {
       key: '_actions',
       label: 'Thao tác',
       width: 160,
@@ -206,8 +327,10 @@ function SessionsTab({ classBatchId }: { classBatchId: string }) {
               label="Huỷ"
               size="sm"
               variant="ghost"
-              isLoading={cancelMut.isPending}
-              onClick={() => cancelMut.mutate({ sessionId: row.id })}
+              onClick={() => {
+                setCancelError(null);
+                setCancelTarget(row.id);
+              }}
             />
           )}
         </HStack>
@@ -217,13 +340,110 @@ function SessionsTab({ classBatchId }: { classBatchId: string }) {
 
   return (
     <div style={{ padding: 16 }}>
-      <DataTable<SessionTabRow>
-        columns={columns}
-        data={(data as SessionTabRow[] | undefined) ?? []}
-        loading={isLoading}
-        error={error?.message}
-        empty='Chưa có buổi học nào. Dùng "Sinh buổi học" từ quản lý lớp.'
+      <Stack gap={2}>
+        <HStack justify="between" align="center">
+          <Text type="supporting" size="xsm">
+            Buổi học được sinh tự động khi tạo lớp (theo khung giờ đã chọn). Dùng nút bên phải để thêm buổi bù
+            phát sinh ngoài lịch.
+          </Text>
+          <Button label="+ Thêm buổi bù" size="sm" variant="secondary" onClick={() => setMakeupOpen(true)} />
+        </HStack>
+
+        {cancelError && (
+          <Banner status="error" title="Lỗi huỷ buổi học" description={cancelError} />
+        )}
+
+        <DataTable<SessionTabRow>
+          columns={columns}
+          data={(data as SessionTabRow[] | undefined) ?? []}
+          loading={isLoading}
+          error={error?.message}
+          empty='Chưa có buổi học nào. Dùng nút "+ Thêm buổi bù" để thêm một buổi.'
+        />
+      </Stack>
+
+      <ConfirmDialog
+        opened={cancelTarget !== null}
+        title="Huỷ buổi học"
+        message="Huỷ buổi học này? Buổi đã huỷ sẽ không được tính vào điểm danh và không thể khôi phục."
+        confirmLabel="Huỷ buổi"
+        confirmColor="red"
+        loading={cancelMut.isPending}
+        onConfirm={() => cancelTarget && cancelMut.mutate({ sessionId: cancelTarget })}
+        onCancel={() => setCancelTarget(null)}
       />
+
+      {/* Makeup session dialog — `classSession.addMakeup` (isMakeup=true),
+          scoped to this batch's own room (server resolves it, not the form). */}
+      <Dialog
+        isOpen={makeupOpen}
+        onOpenChange={(next) => {
+          if (!next) closeMakeupDialog();
+        }}
+        purpose="form"
+        width={400}
+      >
+        <DialogHeader
+          title="Thêm buổi bù"
+          onOpenChange={(next) => {
+            if (!next) closeMakeupDialog();
+          }}
+        />
+        <Stack gap={2} padding={4}>
+          <TextInput
+            label="Ngày (YYYY-MM-DD)"
+            placeholder="2026-08-15"
+            isRequired
+            value={makeupForm.sessionDate}
+            onChange={(v) => setMakeupForm((f) => ({ ...f, sessionDate: v }))}
+          />
+          <HStack gap={1}>
+            <div style={{ flex: 1 }}>
+              <TextInput
+                label="Giờ bắt đầu (HH:mm)"
+                placeholder="18:00"
+                isRequired
+                value={makeupForm.startTime}
+                onChange={(v) => setMakeupForm((f) => ({ ...f, startTime: v }))}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <TextInput
+                label="Giờ kết thúc (HH:mm)"
+                placeholder="19:30"
+                isRequired
+                value={makeupForm.endTime}
+                onChange={(v) => setMakeupForm((f) => ({ ...f, endTime: v }))}
+              />
+            </div>
+          </HStack>
+          {addMakeupMut.error && (
+            <Banner status="error" title="Lỗi thêm buổi bù" description={addMakeupMut.error.message} />
+          )}
+          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+            <Button
+              label="Hủy"
+              variant="secondary"
+              onClick={closeMakeupDialog}
+              isDisabled={addMakeupMut.isPending}
+            />
+            <Button
+              label="Thêm buổi bù"
+              variant="primary"
+              isLoading={addMakeupMut.isPending}
+              isDisabled={!makeupValid}
+              onClick={() =>
+                addMakeupMut.mutate({
+                  classBatchId,
+                  sessionDate: makeupForm.sessionDate,
+                  startTime: makeupForm.startTime,
+                  endTime: makeupForm.endTime,
+                })
+              }
+            />
+          </HStack>
+        </Stack>
+      </Dialog>
     </div>
   );
 }
@@ -315,7 +535,11 @@ function ClassDetailContent() {
   const tabs = [
     { id: 'overview', label: 'Tổng quan', content: overviewContent },
     { id: 'students', label: 'Học viên', content: id ? <StudentsTab classBatchId={id} /> : null },
-    { id: 'sessions', label: 'Buổi học', content: id ? <SessionsTab classBatchId={id} /> : null },
+    {
+      id: 'sessions',
+      label: 'Buổi học',
+      content: id ? <SessionsTab classBatchId={id} program={cls?.program} /> : null,
+    },
   ];
 
   return (

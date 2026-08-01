@@ -3,19 +3,32 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
-// Locks `attendance.listBySession.useQuery` binding + the `attendance.markAll`
-// BULK payload (full record set, byte-identical) BEFORE the ListPage refactor
-// (TDD per phase-07). The refactor only changes presentation — the toggle
-// cycle, save payload and invalidation-free onSuccess (local `saved` flag)
-// must stay unchanged.
+// Locks the class -> session picker flow (post-audit fix: the page used to
+// require a hand-typed `?session=<uuid>` URL param that no in-app link ever
+// supplied — a dead end). Picker pattern mirrors session-assessment.tsx
+// (classBatch.list -> classSession.list -> attendance.listBySession), and
+// locks the `attendance.markAll` BULK payload (full record set) + the
+// "never default an untouched row to present" fix.
+// vi.hoisted: referenced synchronously inside the vi.mock factory below,
+// which vitest hoists above regular top-level statements (same pattern as
+// session-assessment.test.tsx).
+const { CLASS_A, SESSION_A, STUDENTS } = vi.hoisted(() => ({
+  CLASS_A: { id: 'batch-1', code: 'CB001', program: 'IELTS Foundation' },
+  SESSION_A: { id: 'sess-1', sessionDate: '2026-07-10T00:00:00.000Z', status: 'confirmed' },
+  STUDENTS: [
+    { enrollmentId: 'enr-1', studentId: 'stu-11111111', fullName: 'Nguyễn Văn A', status: 'active' },
+    { enrollmentId: 'enr-2', studentId: 'stu-22222222', fullName: 'Trần Thị B', status: 'active' },
+  ],
+}));
+
 interface RosterItem {
   enrollmentId: string;
   studentId: string;
   status: string | null;
 }
 
-const ITEM_A: RosterItem = { enrollmentId: 'enr-1', studentId: 'stu-11111111', status: 'present' };
-const ITEM_B: RosterItem = { enrollmentId: 'enr-2', studentId: 'stu-22222222', status: 'present' };
+const ITEM_A: RosterItem = { enrollmentId: 'enr-1', studentId: 'stu-11111111', status: null };
+const ITEM_B: RosterItem = { enrollmentId: 'enr-2', studentId: 'stu-22222222', status: null };
 
 const rosterState: { items: RosterItem[]; error: { message: string } | null } = {
   items: [ITEM_A, ITEM_B],
@@ -42,7 +55,13 @@ vi.mock('../../lib/trpc.js', async () => {
         facilityId: 'f1',
         config: { approvalSecondEyeThreshold: 20_000_000 },
       }),
-      'attendance.listBySession.useQuery': (input: unknown) => {
+      'classBatch.list.useQuery': queryResult({ items: [CLASS_A] }),
+      'classSession.list.useQuery': (_input: unknown, opts: { enabled?: boolean } | undefined) =>
+        opts?.enabled ? queryResult([SESSION_A]) : queryResult(undefined),
+      'classBatch.listStudents.useQuery': (_input: unknown, opts: { enabled?: boolean } | undefined) =>
+        opts?.enabled ? queryResult(STUDENTS) : queryResult(undefined),
+      'attendance.listBySession.useQuery': (input: unknown, opts: { enabled?: boolean } | undefined) => {
+        if (!opts?.enabled) return queryResult(undefined);
         listQuerySpy(input);
         if (!cached || cachedItems !== rosterState.items || cachedError !== rosterState.error) {
           cachedItems = rosterState.items;
@@ -64,6 +83,13 @@ vi.mock('../../lib/trpc.js', async () => {
 
 import AttendancePage from './attendance.js';
 
+async function pickClassAndSession() {
+  fireEvent.click(screen.getByRole('button', { name: 'Chọn lớp học' }));
+  fireEvent.click(await screen.findByRole('option', { name: /CB001/ }));
+  fireEvent.click(await screen.findByRole('combobox', { name: 'Chọn buổi học' }));
+  fireEvent.click(await screen.findByRole('option', { name: /confirmed/ }));
+}
+
 describe('AttendancePage', () => {
   beforeEach(() => {
     rosterState.items = [ITEM_A, ITEM_B];
@@ -72,43 +98,70 @@ describe('AttendancePage', () => {
     markAllMutate.mockClear();
   });
 
-  it('queries attendance.listBySession with the sessionId from the URL', () => {
-    renderWithProviders(<AttendancePage />, { route: '/teaching/attendance?session=sess-1' });
+  it('does not query attendance.listBySession before a session is picked', () => {
+    renderWithProviders(<AttendancePage />);
+    expect(listQuerySpy).not.toHaveBeenCalled();
+  });
+
+  it('queries attendance.listBySession with the sessionId chosen via the class -> session picker', async () => {
+    renderWithProviders(<AttendancePage />);
+    await pickClassAndSession();
     expect(listQuerySpy).toHaveBeenCalledWith({ sessionId: 'sess-1' });
   });
 
-  it('renders a warning banner (description visible) when no session param is provided', () => {
-    renderWithProviders(<AttendancePage />, { route: '/teaching/attendance' });
+  it('renders roster rows with the student full name, not a raw UUID', async () => {
+    renderWithProviders(<AttendancePage />);
+    await pickClassAndSession();
+    expect(await screen.findByText('Nguyễn Văn A')).toBeInTheDocument();
+    expect(screen.getByText('Trần Thị B')).toBeInTheDocument();
+    expect(screen.queryByText('STU-1111')).toBeNull();
+  });
+
+  it('shows every untouched row as "Chưa điểm danh", not defaulted to present', async () => {
+    renderWithProviders(<AttendancePage />);
+    await pickClassAndSession();
+    expect(await screen.findAllByRole('button', { name: 'Chưa điểm danh' })).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Có mặt' })).toBeNull();
+  });
+
+  it('shows a validation banner and does NOT call markAll.mutate when Save is clicked with nothing marked', async () => {
+    renderWithProviders(<AttendancePage />);
+    await pickClassAndSession();
+    fireEvent.click(await screen.findByRole('button', { name: 'Lưu điểm danh' }));
+
+    expect(markAllMutate).not.toHaveBeenCalled();
     expect(
-      screen.getByText((_, node) => node?.textContent === 'Vui lòng cung cấp tham số ?session=<sessionId> trên URL.'),
+      await screen.findByText(
+        'Chưa có học sinh nào được điểm danh. Vui lòng chọn trạng thái cho ít nhất một học sinh trước khi lưu.',
+      ),
     ).toBeInTheDocument();
   });
 
-  it('renders roster rows bound to attendance.listBySession.useQuery', () => {
-    renderWithProviders(<AttendancePage />, { route: '/teaching/attendance?session=sess-1' });
-    expect(screen.getByText('STU-1111')).toBeInTheDocument();
-    expect(screen.getByText('STU-2222')).toBeInTheDocument();
-  });
+  it('calls attendance.markAll.mutate with only the explicitly toggled rows (bulk payload)', async () => {
+    renderWithProviders(<AttendancePage />);
+    await pickClassAndSession();
 
-  it('calls attendance.markAll.mutate with the FULL roster record set (bulk, byte-identical)', () => {
-    renderWithProviders(<AttendancePage />, { route: '/teaching/attendance?session=sess-1' });
+    const unmarkedButtons = await screen.findAllByRole('button', { name: 'Chưa điểm danh' });
+    fireEvent.click(unmarkedButtons[0]!); // enr-1 -> present
 
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điểm danh' }));
 
     expect(markAllMutate).toHaveBeenCalledWith({
       sessionId: 'sess-1',
-      entries: [
-        { enrollmentId: 'enr-1', status: 'present' },
-        { enrollmentId: 'enr-2', status: 'present' },
-      ],
+      entries: [{ enrollmentId: 'enr-1', status: 'present' }],
     });
   });
 
-  it('toggles a row status through the present -> late -> absent cycle before saving (bulk payload reflects toggle)', () => {
-    renderWithProviders(<AttendancePage />, { route: '/teaching/attendance?session=sess-1' });
+  it('toggles a row status through the present -> late -> absent cycle before saving', async () => {
+    rosterState.items = [
+      { enrollmentId: 'enr-1', studentId: 'stu-11111111', status: 'present' },
+      { enrollmentId: 'enr-2', studentId: 'stu-22222222', status: 'present' },
+    ];
+    renderWithProviders(<AttendancePage />);
+    await pickClassAndSession();
 
-    // Row A starts "Có mặt" (present) — one click cycles to "late".
-    fireEvent.click(screen.getAllByRole('button', { name: 'Có mặt' })[0]!);
+    // Row A starts "Có mặt" (present, seeded from a prior mark) — one click cycles to "late".
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Có mặt' }))[0]!);
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điểm danh' }));
 
     expect(markAllMutate).toHaveBeenCalledWith({
@@ -120,9 +173,10 @@ describe('AttendancePage', () => {
     });
   });
 
-  it('renders an error message when attendance.listBySession fails', () => {
+  it('renders an error message when attendance.listBySession fails', async () => {
     rosterState.error = { message: 'Lỗi mạng' };
-    renderWithProviders(<AttendancePage />, { route: '/teaching/attendance?session=sess-1' });
-    expect(screen.getByText('Lỗi mạng')).toBeInTheDocument();
+    renderWithProviders(<AttendancePage />);
+    await pickClassAndSession();
+    expect(await screen.findByText('Lỗi mạng')).toBeInTheDocument();
   });
 });

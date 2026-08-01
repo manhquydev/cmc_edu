@@ -41,6 +41,10 @@ beforeEach(async () => {
     userId: EMPLOYEE_USER_ID,
     fullName: 'Nguyễn Giáo Viên',
     position: 'giao_vien',
+
+    // Roles decide the shift track (resolveShiftGroup); the job title does not.
+
+    roles: ['giao_vien'],
   });
   employeeAppUserId = employee.id;
 

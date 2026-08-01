@@ -39,6 +39,8 @@ function defaultPeriodICT(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 7);
 }
 
+const PERIOD_PATTERN = /^\d{4}-\d{2}$/;
+
 const KPI_STATUS_LABELS: Record<string, string> = {
   draft: 'Nháp',
   submitted: 'Chờ xác nhận',
@@ -146,10 +148,18 @@ export default function KpiPage() {
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const { data, isLoading, error } = trpc.kpi.list.useQuery({
-    period,
-    ...(statusFilter ? { status: statusFilter as 'draft' | 'submitted' | 'confirmed' | 'approved' } : {}),
-  });
+  const isPeriodValid = PERIOD_PATTERN.test(period);
+
+  // Query only once the period looks like YYYY-MM — otherwise every keystroke
+  // while typing (e.g. "2026-", "2026-0") fires a request that the server
+  // rejects with a Zod validation error.
+  const { data, isLoading, error } = trpc.kpi.list.useQuery(
+    {
+      period,
+      ...(statusFilter ? { status: statusFilter as 'draft' | 'submitted' | 'confirmed' | 'approved' } : {}),
+    },
+    { enabled: isPeriodValid },
+  );
 
   const confirmMut = trpc.kpi.confirm.useMutation({
     onSuccess() {

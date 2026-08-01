@@ -20,6 +20,10 @@ describe('ShiftRegistration.status CHECK constraint (HR remediation phase 1)', (
       facilityId,
       userId: 'shift-status-check-employee-001',
       position: 'giao_vien',
+
+      // Roles decide the shift track (resolveShiftGroup); the job title does not.
+
+      roles: ['giao_vien'],
     });
     appUserId = appUser.id;
 

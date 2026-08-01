@@ -181,18 +181,22 @@ describe('compareDateOnly', () => {
 // ---------------------------------------------------------------------------
 
 describe('resolveShiftGroup', () => {
-  it('matches giao_vien and teacher (case-insensitive substring)', () => {
-    expect(resolveShiftGroup('giao_vien')).toBe('GIAO_VIEN');
-    expect(resolveShiftGroup('Giao_Vien')).toBe('GIAO_VIEN');
-    expect(resolveShiftGroup('teacher')).toBe('GIAO_VIEN');
-    expect(resolveShiftGroup('Teacher')).toBe('GIAO_VIEN');
-    expect(resolveShiftGroup('Giao_Vien_Senior')).toBe('GIAO_VIEN');
+  it('puts anyone holding the teacher role in the teaching group', () => {
+    expect(resolveShiftGroup(['giao_vien'])).toBe('GIAO_VIEN');
+    // A teacher who also runs training still teaches.
+    expect(resolveShiftGroup(['giam_doc_dao_tao', 'giao_vien'])).toBe('GIAO_VIEN');
   });
 
-  it('defaults to KINH_DOANH for all other positions', () => {
-    expect(resolveShiftGroup('sale')).toBe('KINH_DOANH');
-    expect(resolveShiftGroup('giam_doc_kinh_doanh')).toBe('KINH_DOANH');
-    expect(resolveShiftGroup('')).toBe('KINH_DOANH');
+  it('defaults to KINH_DOANH for every other role set', () => {
+    expect(resolveShiftGroup(['sale'])).toBe('KINH_DOANH');
+    expect(resolveShiftGroup(['giam_doc_kinh_doanh'])).toBe('KINH_DOANH');
+    expect(resolveShiftGroup([])).toBe('KINH_DOANH');
+  });
+
+  it('ignores the job title, which is free text and was never a reliable signal', () => {
+    // "Giáo viên" is what the staff form's own placeholder suggests typing.
+    expect(resolveShiftGroup(['sale'])).toBe('KINH_DOANH');
+    expect(resolveShiftGroup(['giao_vien'])).toBe('GIAO_VIEN');
   });
 });
 

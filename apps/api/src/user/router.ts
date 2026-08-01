@@ -22,14 +22,6 @@ import {
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { protectedProcedure, requirePermission, router, scoped } from '../trpc.js';
 
-const createInput = z.object({
-  userId: z.string().min(1).max(200),
-  email: z.string().email().max(200),
-  fullName: z.string().min(1).max(200),
-  position: z.string().min(1).max(100),
-  managerId: z.string().uuid().optional(),
-});
-
 const pickListInput = z.object({
   /** Narrows the list to one staff role — a teacher picker must not offer
    *  people who do not teach. */
@@ -131,6 +123,21 @@ const roleArraySchema = z
   .max(ACTIVE_ROLES.length)
   .transform((arr) => [...new Set(arr)] as AuthRole[]);
 
+// Declared after roleArraySchema/PASSWORD_MIN_LENGTH because it reuses both.
+const createInput = z.object({
+  userId: z.string().min(1).max(200),
+  email: z.string().email().max(200),
+  fullName: z.string().min(1).max(200),
+  position: z.string().min(1).max(100),
+  managerId: z.string().uuid().optional(),
+  // Roles and the first password belong to provisioning, not to follow-up
+  // work: a profile with neither cannot sign in, and once it can it may still
+  // do nothing. Both optional so existing callers keep working; updateRoles
+  // and resetPassword remain the way to change either one later.
+  roles: roleArraySchema.optional(),
+  tempPassword: z.string().min(PASSWORD_MIN_LENGTH).max(200).optional(),
+});
+
 export const userRouter = router({
   create: requirePermission('user', 'manage')
     .input(createInput)
@@ -160,6 +167,12 @@ export const userRouter = router({
               position: input.position,
               managerId: input.managerId ?? null,
               employeeCode,
+              roles: (input.roles ?? []) as DbRole[],
+              // Same contract as resetPassword: an admin-set password is
+              // temporary and must be rotated at first login.
+              ...(input.tempPassword
+                ? { passwordHash: hashPassword(input.tempPassword), mustChangePassword: true }
+                : {}),
             },
             select: APP_USER_SELECT,
           });
@@ -172,6 +185,32 @@ export const userRouter = router({
             throw badRequest('A staff profile already exists for this userId.');
           }
           throw err;
+        }
+        // Roles and password granted at creation are the same privileged
+        // changes updateRoles/resetPassword audit, so they leave the same
+        // trail — an auditor reading only `user.create` would otherwise never
+        // see who handed out a role.
+        if (input.roles?.length) {
+          await tx.auditLog.create({
+            data: {
+              actor: ctx.subject.userId,
+              action: 'user.updateRoles',
+              entity: 'AppUser',
+              entityId: user.id,
+              data: { targetUserId: user.userId, before: [], after: input.roles },
+            },
+          });
+        }
+        if (input.tempPassword) {
+          await tx.auditLog.create({
+            data: {
+              actor: ctx.subject.userId,
+              action: 'user.resetPassword',
+              entity: 'AppUser',
+              entityId: user.id,
+              data: { targetUserId: user.userId },
+            },
+          });
         }
         return user as AppUserDto;
       });

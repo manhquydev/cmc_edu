@@ -104,7 +104,7 @@ describe('UsersPage', () => {
     expect(screen.getByText('Lỗi mạng')).toBeInTheDocument();
   });
 
-  it('creates a user with byte-identical user.create input and invalidates user.list on success', () => {
+  it('creates a user with roles and the first password in one user.create call, and invalidates user.list on success', () => {
     const invalidateSpy = trpc.useUtils().user.list.invalidate;
     renderWithProviders(<UsersPage />);
 
@@ -114,7 +114,16 @@ describe('UsersPage', () => {
     fireEvent.change(within(dialog).getByLabelText(/^User ID/), { target: { value: 'newuser@cmc.edu.vn' } });
     fireEvent.change(within(dialog).getByLabelText(/^Họ tên/), { target: { value: 'Trần Thị B' } });
     fireEvent.change(within(dialog).getByLabelText(/^Email/), { target: { value: 'b@cmc.edu.vn' } });
-    fireEvent.change(within(dialog).getByLabelText(/^Vị trí/), { target: { value: 'Sale' } });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Vai trò' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Sale' }));
+
+    // Picking the role fills the still-empty job title with that role's usual one.
+    expect(within(dialog).getByLabelText(/^Vị trí/)).toHaveValue('Nhân viên kinh doanh');
+
+    fireEvent.change(within(dialog).getByLabelText(/^Mật khẩu đầu tiên/), {
+      target: { value: 'first-pass-123' },
+    });
 
     fireEvent.click(within(dialog).getByText('Tạo'));
 
@@ -122,12 +131,29 @@ describe('UsersPage', () => {
       userId: 'newuser@cmc.edu.vn',
       email: 'b@cmc.edu.vn',
       fullName: 'Trần Thị B',
-      position: 'Sale',
+      position: 'Nhân viên kinh doanh',
+      roles: ['sale'],
+      tempPassword: 'first-pass-123',
     });
 
     expect(invalidateSpy).not.toHaveBeenCalled();
     act(() => createOnSuccess?.());
     expect(invalidateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses to submit a staff profile with no role — an account that can sign in but reach nothing', () => {
+    renderWithProviders(<UsersPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm nhân viên' }));
+    const dialog = screen.getByRole('dialog');
+
+    fireEvent.change(within(dialog).getByLabelText(/^User ID/), { target: { value: 'norole@cmc.edu.vn' } });
+    fireEvent.change(within(dialog).getByLabelText(/^Họ tên/), { target: { value: 'Không Vai Trò' } });
+    fireEvent.change(within(dialog).getByLabelText(/^Email/), { target: { value: 'norole@cmc.edu.vn' } });
+    fireEvent.change(within(dialog).getByLabelText(/^Vị trí/), { target: { value: 'Sale' } });
+
+    fireEvent.click(within(dialog).getByText('Tạo'));
+    expect(createMutate).not.toHaveBeenCalled();
   });
 
   it('assigns roles with a byte-identical user.updateRoles.mutate({appUserId, roles}) payload and invalidates on success', () => {

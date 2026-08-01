@@ -40,6 +40,10 @@ beforeEach(async () => {
     userId: EMPLOYEE_USER_ID,
     fullName: 'Nguyễn Giáo Viên',
     position: 'giao_vien',
+
+    // Roles decide the shift track (resolveShiftGroup); the job title does not.
+
+    roles: ['giao_vien'],
   });
   employeeAppUserId = employee.id;
 
@@ -138,7 +142,11 @@ describe('shift.submit — overlap (submitted|approved, cross-group)', () => {
     // to submit a KINH_DOANH registration overlapping the same date range.
     // Overlap is checked "regardless of shift group" — same appUser, any group.
     await testDbBypass((tx) =>
-      tx.appUser.update({ where: { id: employeeAppUserId }, data: { position: 'sale' } }),
+      tx.appUser.update({
+        where: { id: employeeAppUserId },
+        // Roles, not the job title, decide which track a shift group belongs to.
+        data: { position: 'sale', roles: ['sale'] },
+      }),
     );
     await expect(
       caller(employeeCtx()).shift.submit({

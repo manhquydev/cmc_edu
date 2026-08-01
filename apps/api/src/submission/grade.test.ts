@@ -94,7 +94,7 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
    * Enrolls a student WITH an approved Guardian link, then drives the
    * saveDraft → submit flow so the grading tests have a real submitted row.
    */
-  async function seedSubmittedSubmission(): Promise<{
+  async function seedSubmittedSubmission(opts: { studentName?: string } = {}): Promise<{
     submissionId: string;
     studentId: string;
     enrollmentId: string;
@@ -103,6 +103,7 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
       facilityId: facility.id,
       classBatchId: classBatch.id,
       parentAccountId: parent.id,
+      studentName: opts.studentName,
     });
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
@@ -216,6 +217,14 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
 
     const queue = await teacher.submission.listForGrading({});
     expect(queue.items.map((s) => s.id)).toContain(submissionId);
+  });
+
+  it('listForGrading includes the student full name (post-audit fix: grading queue must not force teachers to identify students by raw UUID)', async () => {
+    const { submissionId } = await seedSubmittedSubmission({ studentName: 'Nguyễn Văn Test' });
+
+    const queue = await teacher.submission.listForGrading({});
+    const item = queue.items.find((s) => s.id === submissionId);
+    expect(item?.studentFullName).toBe('Nguyễn Văn Test');
   });
 
   it('listForGrading filters out a submission from a class the teacher does not own (post-implementation hardening MH1)', async () => {

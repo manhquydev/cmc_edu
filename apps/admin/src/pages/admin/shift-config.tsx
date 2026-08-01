@@ -274,9 +274,16 @@ function PolicyTab() {
 // ---------------------------------------------------------------------------
 export default function ShiftConfigPage() {
   const { canDo } = useSession();
-  const [activeTab, setActiveTab] = useState('groups');
+  // Two independent gates, not one: `shift.manage` (the 2 GĐ) owns Nhóm ca &
+  // mẫu ca, `compensationPolicy.manage` (super_admin only — empty role list)
+  // owns Chính sách phạt. A GĐ holding only the former must not be walled off
+  // by the latter, so the page renders whichever tab(s) the session can open
+  // instead of gating the whole screen on one key.
+  const canManageShift = canDo('shift', 'manage');
+  const canManagePolicy = canDo('compensationPolicy', 'manage');
+  const [activeTab, setActiveTab] = useState(canManageShift ? 'groups' : 'policy');
 
-  if (!canDo('compensationPolicy', 'manage')) {
+  if (!canManageShift && !canManagePolicy) {
     return (
       <>
         <PageHeader
@@ -285,12 +292,17 @@ export default function ShiftConfigPage() {
         />
         <EmptyState
           title="Không có quyền truy cập"
-          description="Trang này chỉ dành cho Super Admin."
+          description="Trang này yêu cầu quyền quản lý ca làm việc (shift.manage) hoặc chính sách phạt (compensationPolicy.manage)."
           icon={<LineIcon name="shield" size={28} />}
         />
       </>
     );
   }
+
+  const tabs = [
+    ...(canManageShift ? [{ id: 'groups', label: 'Nhóm ca & mẫu ca', content: <GroupsTab /> }] : []),
+    ...(canManagePolicy ? [{ id: 'policy', label: 'Chính sách phạt', content: <PolicyTab /> }] : []),
+  ];
 
   return (
     <>
@@ -299,14 +311,7 @@ export default function ShiftConfigPage() {
         subtitle="Nhóm ca, mẫu ca và chính sách phạt muộn/sớm"
         breadcrumbs={[{ label: 'Quản trị' }, { label: 'Ca làm việc' }]}
       />
-      <CmcTabs
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        tabs={[
-          { id: 'groups', label: 'Nhóm ca & mẫu ca', content: <GroupsTab /> },
-          { id: 'policy', label: 'Chính sách phạt', content: <PolicyTab /> },
-        ]}
-      />
+      <CmcTabs activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />
     </>
   );
 }

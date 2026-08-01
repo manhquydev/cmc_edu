@@ -37,6 +37,7 @@ const ROW_CONFIRMED = {
 let sessionRoles: string[] = ['giam_doc_dao_tao'];
 
 const listSpy = vi.fn();
+const listEnabledSpy = vi.fn();
 let listData: unknown[] = [ROW_SUBMITTED];
 
 const confirmMutate = vi.fn();
@@ -55,8 +56,9 @@ vi.mock('../../lib/trpc.js', async () => {
           facilityId: 'f1',
           config: { approvalSecondEyeThreshold: 20_000_000 },
         }),
-      'kpi.list.useQuery': (input: unknown) => {
+      'kpi.list.useQuery': (input: unknown, options?: { enabled?: boolean }) => {
         listSpy(input);
+        listEnabledSpy(options?.enabled);
         return queryResult(listData);
       },
       'kpi.confirm.useMutation': (opts: { onSuccess?: () => void }) =>
@@ -81,6 +83,7 @@ describe('KpiPage', () => {
     sessionRoles = ['giam_doc_dao_tao'];
     listData = [ROW_SUBMITTED];
     listSpy.mockClear();
+    listEnabledSpy.mockClear();
     confirmMutate.mockClear();
     overrideMutate.mockClear();
     bulkApproveMutate.mockClear();
@@ -197,5 +200,23 @@ describe('KpiPage', () => {
     listData = [{ ...ROW_SUBMITTED, tierMissing: true }];
     renderWithProviders(<KpiPage />);
     expect(screen.getByText('Chưa gán bậc')).toBeInTheDocument();
+  });
+
+  it('keeps kpi.list enabled for the default YYYY-MM period', () => {
+    renderWithProviders(<KpiPage />);
+    expect(listEnabledSpy).toHaveBeenLastCalledWith(true);
+  });
+
+  it('disables kpi.list while the period text does not match YYYY-MM', () => {
+    renderWithProviders(<KpiPage />);
+    fireEvent.change(screen.getByLabelText('Kỳ (YYYY-MM)'), { target: { value: '2026-0' } });
+    expect(listEnabledSpy).toHaveBeenLastCalledWith(false);
+  });
+
+  it('re-enables kpi.list once the period matches YYYY-MM again', () => {
+    renderWithProviders(<KpiPage />);
+    fireEvent.change(screen.getByLabelText('Kỳ (YYYY-MM)'), { target: { value: '2026-0' } });
+    fireEvent.change(screen.getByLabelText('Kỳ (YYYY-MM)'), { target: { value: '2026-08' } });
+    expect(listEnabledSpy).toHaveBeenLastCalledWith(true);
   });
 });

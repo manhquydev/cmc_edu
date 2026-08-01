@@ -6,7 +6,14 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // Locks class-detail's HR remediation phase 5 additions (R2 #C5, R2 #H6):
 // teacher picker (`classBatch.assignTeacher`, giao_vien-only dropdown) +
 // `done` SessionStatus badge + hidden "Huỷ" button for done sessions.
-const { CLASS, TEACHERS, SESSIONS } = vi.hoisted(() => ({
+//
+// Also locks the class-management UI gap fix: curriculum-unit assignment
+// (`classSession.assignUnit` — the ONLY writer of `curriculumUnitId`, which
+// gates whether a student can ever open an exercise, class-session-router.ts),
+// the "Thêm buổi bù" makeup-session dialog (`classSession.addMakeup`), and
+// the cancel-session confirmation step (`classSession.cancel` must only fire
+// after the ConfirmDialog confirm click).
+const { CLASS, TEACHERS, SESSIONS, UNITS } = vi.hoisted(() => ({
   CLASS: {
     id: 'cb-1',
     code: 'CB001',
@@ -26,12 +33,21 @@ const { CLASS, TEACHERS, SESSIONS } = vi.hoisted(() => ({
     ],
   },
   SESSIONS: [
-    { id: 'sess-1', sessionDate: '2026-01-05T00:00:00.000Z', startTime: '2026-01-05T08:00:00.000Z', endTime: '2026-01-05T09:00:00.000Z', status: 'done', isMakeup: false },
-    { id: 'sess-2', sessionDate: '2026-01-06T00:00:00.000Z', startTime: '2026-01-06T08:00:00.000Z', endTime: '2026-01-06T09:00:00.000Z', status: 'planned', isMakeup: false },
+    { id: 'sess-1', sessionDate: '2026-01-05T00:00:00.000Z', startTime: '2026-01-05T08:00:00.000Z', endTime: '2026-01-05T09:00:00.000Z', status: 'done', isMakeup: false, curriculumUnitId: null },
+    { id: 'sess-2', sessionDate: '2026-01-06T00:00:00.000Z', startTime: '2026-01-06T08:00:00.000Z', endTime: '2026-01-06T09:00:00.000Z', status: 'planned', isMakeup: false, curriculumUnitId: null },
   ],
+  UNITS: {
+    items: [
+      { id: 'unit-1', program: 'IELTS', level: 1, monthIndex: 1, unitType: 'lesson', title: 'Đơn vị 1' },
+      { id: 'unit-2', program: 'IELTS', level: 1, monthIndex: 2, unitType: 'lesson', title: 'Đơn vị 2' },
+    ],
+  },
 }));
 
 const assignTeacherMutate = vi.fn();
+const assignUnitMutate = vi.fn();
+const addMakeupMutate = vi.fn();
+const cancelMutate = vi.fn();
 const pickListSpy = vi.fn();
 
 vi.mock('react-router-dom', async () => {
@@ -52,6 +68,7 @@ vi.mock('../../lib/trpc.js', async () => {
       'classBatch.get.useQuery': queryResult(CLASS),
       'classBatch.listStudents.useQuery': queryResult([]),
       'classSession.list.useQuery': queryResult(SESSIONS),
+      'curriculumUnit.list.useQuery': queryResult(UNITS),
       'user.pickList.useQuery': (input: unknown) => {
         pickListSpy(input);
         return queryResult(TEACHERS);
@@ -59,7 +76,12 @@ vi.mock('../../lib/trpc.js', async () => {
       'classBatch.assignTeacher.useMutation': (opts: { onSuccess?: () => void }) =>
         mutationResult({ mutate: (...a: unknown[]) => { assignTeacherMutate(...a); opts?.onSuccess?.(); } }),
       'classSession.confirm.useMutation': () => mutationResult(),
-      'classSession.cancel.useMutation': () => mutationResult(),
+      'classSession.cancel.useMutation': (opts: { onSuccess?: () => void }) =>
+        mutationResult({ mutate: (...a: unknown[]) => { cancelMutate(...a); opts?.onSuccess?.(); } }),
+      'classSession.assignUnit.useMutation': (opts: { onSuccess?: () => void }) =>
+        mutationResult({ mutate: (...a: unknown[]) => { assignUnitMutate(...a); opts?.onSuccess?.(); } }),
+      'classSession.addMakeup.useMutation': (opts: { onSuccess?: () => void }) =>
+        mutationResult({ mutate: (...a: unknown[]) => { addMakeupMutate(...a); opts?.onSuccess?.(); } }),
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -72,6 +94,9 @@ import ClassDetailPage from './class-detail.js';
 describe('ClassDetailPage', () => {
   beforeEach(() => {
     assignTeacherMutate.mockClear();
+    assignUnitMutate.mockClear();
+    addMakeupMutate.mockClear();
+    cancelMutate.mockClear();
   });
 
   // The teacher-only rule now lives on the server (`user.pickList({role})`,
@@ -104,5 +129,83 @@ describe('ClassDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
     const plannedRow = screen.getByText(/6\/1\/2026/).closest('tr')!;
     expect(within(plannedRow).getByRole('button', { name: 'Huỷ' })).toBeInTheDocument();
+  });
+
+  // `classSession.assignUnit` is the ONLY writer of `curriculumUnitId`
+  // (class-session-router.ts) — without this picker calling it correctly,
+  // exercise/open-tier.ts's `curriculumUnitId not null` filter is always
+  // empty and students can never open an exercise.
+  it('calls classSession.assignUnit.mutate({sessionId, curriculumUnitId}) when a unit is picked for a session', async () => {
+    renderWithProviders(<ClassDetailPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
+    const plannedRow = screen.getByText(/6\/1\/2026/).closest('tr')!;
+    // The Selector trigger is a "button" (not "combobox") — `hasSearch` moves
+    // the combobox role onto the search input that only exists once opened.
+    fireEvent.click(within(plannedRow).getByRole('button', { name: 'Đơn vị học' }));
+    fireEvent.click(await screen.findByRole('option', { name: /Đơn vị 1/ }));
+    expect(assignUnitMutate).toHaveBeenCalledWith({ sessionId: 'sess-2', curriculumUnitId: 'unit-1' });
+  });
+
+  it('does not offer a unit picker for a done session (curriculumUnitId is locked server-side)', () => {
+    renderWithProviders(<ClassDetailPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
+    const doneRow = screen.getByText(/5\/1\/2026/).closest('tr')!;
+    // A disabled Selector trigger drops the "combobox" role (it can no
+    // longer act as one), so the accessible query targets "button" here.
+    expect(within(doneRow).getByRole('button', { name: 'Đơn vị học' })).toBeDisabled();
+  });
+
+  // Cancelling a session is one-way (attendance already recorded is dropped
+  // from the FinalGrade denominator) — the mutate call must only fire after
+  // the ConfirmDialog's own confirm click, never straight from the row button.
+  it('asks for confirmation before cancelling a session, and only calls classSession.cancel.mutate after confirming', () => {
+    renderWithProviders(<ClassDetailPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
+    const plannedRow = screen.getByText(/6\/1\/2026/).closest('tr')!;
+    fireEvent.click(within(plannedRow).getByRole('button', { name: 'Huỷ' }));
+    expect(cancelMutate).not.toHaveBeenCalled();
+
+    const dialog = screen.getByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Huỷ buổi' }));
+    expect(cancelMutate).toHaveBeenCalledWith({ sessionId: 'sess-2' });
+  });
+
+  it('cancelling the ConfirmDialog does not call classSession.cancel.mutate', () => {
+    renderWithProviders(<ClassDetailPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
+    const plannedRow = screen.getByText(/6\/1\/2026/).closest('tr')!;
+    fireEvent.click(within(plannedRow).getByRole('button', { name: 'Huỷ' }));
+    const dialog = screen.getByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+    expect(cancelMutate).not.toHaveBeenCalled();
+  });
+
+  // `classSession.addMakeup` — the only creator of an ad-hoc makeup session.
+  it('opens the makeup-session dialog and calls classSession.addMakeup.mutate with the entered date/time', () => {
+    renderWithProviders(<ClassDetailPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Thêm buổi bù' }));
+
+    // `isRequired` appends a " ∙ Required" badge inside the <label>, so the
+    // accessible name is not an exact match — same reasoning as
+    // finance/receipt-create.test.tsx's `/^Họ tên học viên/` pattern.
+    fireEvent.change(screen.getByLabelText(/^Ngày \(YYYY-MM-DD\)/), { target: { value: '2026-02-01' } });
+    fireEvent.change(screen.getByLabelText(/^Giờ bắt đầu \(HH:mm\)/), { target: { value: '18:00' } });
+    fireEvent.change(screen.getByLabelText(/^Giờ kết thúc \(HH:mm\)/), { target: { value: '19:30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm buổi bù' }));
+
+    expect(addMakeupMutate).toHaveBeenCalledWith({
+      classBatchId: 'cb-1',
+      sessionDate: '2026-02-01',
+      startTime: '18:00',
+      endTime: '19:30',
+    });
+  });
+
+  it('disables the makeup-session submit button until date/time are validly filled', () => {
+    renderWithProviders(<ClassDetailPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Thêm buổi bù' }));
+    expect(screen.getByRole('button', { name: 'Thêm buổi bù' })).toBeDisabled();
   });
 });

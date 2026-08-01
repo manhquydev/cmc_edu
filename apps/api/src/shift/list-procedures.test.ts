@@ -31,8 +31,8 @@ beforeEach(async () => {
   const other = await createTestFacility('ShiftListProc-Other-Facility');
   otherFacilityId = other.id;
 
-  await seedAppUser({ facilityId, userId: EMPLOYEE_A, position: 'giao_vien' });
-  await seedAppUser({ facilityId, userId: EMPLOYEE_B, position: 'giao_vien' });
+  await seedAppUser({ facilityId, userId: EMPLOYEE_A, position: 'giao_vien', roles: ['giao_vien'] });
+  await seedAppUser({ facilityId, userId: EMPLOYEE_B, position: 'giao_vien', roles: ['giao_vien'] });
   await seedAppUser({ facilityId, userId: GV_MANAGER, position: 'giam_doc_dao_tao' });
   await seedAppUser({ facilityId, userId: KD_MANAGER, position: 'giam_doc_kinh_doanh' });
 

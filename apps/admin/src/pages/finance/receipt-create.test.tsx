@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, act } from '@testing-library/react';
+import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // Locks receipt-create's query hydration (opportunityGet/opportunityLookup/
@@ -40,17 +41,23 @@ const createMutationState: { error: { message: string } | null; data: unknown } 
   error: null,
   data: undefined,
 };
+// Redirect-after-create (finding #1) depends on the caller's role: `sale`
+// lacks `finance.receiptGet` (packages/auth/src/index.ts) and must NOT be
+// routed to a page it can't open. Defaults to `sale` — the persona this bug
+// actually hit — and is overridden per-test for the GĐKD/`receiptGet` path.
+const sessionState: { roles: string[] } = { roles: ['sale'] };
 
 vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
   return {
     trpc: buildTrpcMock({
-      'session.me.useQuery': queryResult({
-        userId: 'u1',
-        roles: ['sale'],
-        facilityId: 'f1',
-        config: { approvalSecondEyeThreshold: 20_000_000 },
-      }),
+      'session.me.useQuery': () =>
+        queryResult({
+          userId: 'u1',
+          roles: sessionState.roles,
+          facilityId: 'f1',
+          config: { approvalSecondEyeThreshold: 20_000_000 },
+        }),
       'crm.opportunityGet.useQuery': (input: unknown, opts: { enabled?: boolean } | undefined) => {
         oppGetSpy(input, opts?.enabled);
         if (!opts?.enabled) return queryResult(undefined, { isLoading: false });
@@ -99,6 +106,22 @@ function submitForm() {
   fireEvent.submit(document.querySelector('form')!);
 }
 
+// Wraps the page in real routes so navigation (or its absence) is observable
+// via which route's content ends up on screen — a bare renderWithProviders
+// render has no <Routes>, so `navigate()` would change the URL with nothing
+// to react to it.
+function renderCreatePage(route = '/finance/new') {
+  return renderWithProviders(
+    <Routes>
+      <Route path="/finance/new" element={<ReceiptCreatePage />} />
+      <Route path="/finance/:id" element={<div>RECEIPT_DETAIL_PAGE</div>} />
+      <Route path="/crm" element={<div>CRM_PIPELINE_PAGE</div>} />
+      <Route path="/crm/opportunities/:id" element={<div>CRM_OPPORTUNITY_PAGE</div>} />
+    </Routes>,
+    { route },
+  );
+}
+
 describe('ReceiptCreatePage', () => {
   beforeEach(() => {
     classBatchState.data = { items: [BATCH_ROW] };
@@ -109,6 +132,7 @@ describe('ReceiptCreatePage', () => {
     createMutate.mockClear();
     createMutationState.error = null;
     createMutationState.data = undefined;
+    sessionState.roles = ['sale'];
   });
 
   it('does not query crm.opportunityGet when no opportunityId is present in the URL', () => {
@@ -144,6 +168,7 @@ describe('ReceiptCreatePage', () => {
 
     fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: '  Trần Thị B  ' } });
     fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: ' 0987654321 ' } });
+    fireEvent.change(screen.getByLabelText(/^Email phụ huynh/), { target: { value: 'ph@example.com' } });
     fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '5000000' } });
     await selectClassBatch();
 
@@ -152,7 +177,7 @@ describe('ReceiptCreatePage', () => {
     expect(createMutate).toHaveBeenCalledWith({
       studentName: 'Trần Thị B',
       parentPhone: '0987654321',
-      parentEmail: undefined,
+      parentEmail: 'ph@example.com',
       classBatchId: 'batch-1',
       amount: 5_000_000,
       opportunityId: undefined,
@@ -191,16 +216,80 @@ describe('ReceiptCreatePage', () => {
     expect(screen.getByText('SĐT đã có hồ sơ')).toBeInTheDocument();
   });
 
-  it('calls the receiptCreate onSuccess callback (navigates to the new receipt) after submit', async () => {
-    renderWithProviders(<ReceiptCreatePage />);
-    fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: 'Lê Văn C' } });
-    fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: '0900000009' } });
-    fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '1000000' } });
-    await selectClassBatch();
-    submitForm();
-    expect(createMutate).toHaveBeenCalled();
-    expect(createOnSuccess).toBeDefined();
-    act(() => createOnSuccess?.({ receipt: { id: 'new-receipt-1' } }));
+  describe('post-create routing (finding #1: sale lacks finance.receiptGet)', () => {
+    it('navigates to /finance/:id when the caller can open it (giam_doc_kinh_doanh)', async () => {
+      sessionState.roles = ['giam_doc_kinh_doanh'];
+      renderCreatePage();
+      fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: 'Lê Văn C' } });
+      fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: '0900000009' } });
+    fireEvent.change(screen.getByLabelText(/^Email phụ huynh/), { target: { value: 'ph@example.com' } });
+      fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '1000000' } });
+      await selectClassBatch();
+      submitForm();
+      expect(createMutate).toHaveBeenCalled();
+      act(() => createOnSuccess?.({ status: 'success', receipt: { id: 'new-receipt-1', code: 'SO0001' } }));
+
+      expect(screen.getByText('RECEIPT_DETAIL_PAGE')).toBeInTheDocument();
+    });
+
+    it('does NOT navigate a sale (no finance.receiptGet) to /finance/:id — shows the result in place instead', async () => {
+      renderCreatePage();
+      fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: 'Lê Văn C' } });
+      fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: '0900000009' } });
+    fireEvent.change(screen.getByLabelText(/^Email phụ huynh/), { target: { value: 'ph@example.com' } });
+      fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '1000000' } });
+      await selectClassBatch();
+      submitForm();
+      expect(createMutate).toHaveBeenCalled();
+      act(() => createOnSuccess?.({ status: 'success', receipt: { id: 'new-receipt-1', code: 'SO0001' } }));
+
+      expect(screen.queryByText('RECEIPT_DETAIL_PAGE')).not.toBeInTheDocument();
+      expect(screen.getByText('Đã tạo phiếu thu SO0001')).toBeInTheDocument();
+    });
+
+    it('sale success screen "Tạo phiếu khác" clears the result and re-enables the submit button', async () => {
+      renderCreatePage();
+      fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: 'Lê Văn C' } });
+      fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: '0900000009' } });
+    fireEvent.change(screen.getByLabelText(/^Email phụ huynh/), { target: { value: 'ph@example.com' } });
+      fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '1000000' } });
+      await selectClassBatch();
+      submitForm();
+      act(() => createOnSuccess?.({ status: 'success', receipt: { id: 'new-receipt-1', code: 'SO0001' } }));
+      expect(screen.getByRole('button', { name: 'Tạo phiếu thu' })).toBeDisabled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Tạo phiếu khác' }));
+
+      expect(screen.queryByText('Đã tạo phiếu thu SO0001')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Tạo phiếu thu' })).not.toBeDisabled();
+    });
+
+    it('sale success screen without an opportunityId routes "Về bảng kinh doanh" to /crm', async () => {
+      renderCreatePage();
+      fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: 'Lê Văn C' } });
+      fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: '0900000009' } });
+    fireEvent.change(screen.getByLabelText(/^Email phụ huynh/), { target: { value: 'ph@example.com' } });
+      fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '1000000' } });
+      await selectClassBatch();
+      submitForm();
+      act(() => createOnSuccess?.({ status: 'success', receipt: { id: 'new-receipt-1', code: 'SO0001' } }));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Về bảng kinh doanh' }));
+
+      expect(screen.getByText('CRM_PIPELINE_PAGE')).toBeInTheDocument();
+    });
+
+    it('sale success screen created from an opportunity routes "Xem cơ hội" to /crm/opportunities/:id', async () => {
+      renderCreatePage(`/finance/new?opportunityId=${VALID_OPP_ID}`);
+      fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '1000000' } });
+      await selectClassBatch();
+      submitForm();
+      act(() => createOnSuccess?.({ status: 'success', receipt: { id: 'new-receipt-1', code: 'SO0001' } }));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Xem cơ hội' }));
+
+      expect(screen.getByText('CRM_OPPORTUNITY_PAGE')).toBeInTheDocument();
+    });
   });
 
   // Metric & Data Integrity remediation (scenario audit, PO round 3):
@@ -212,6 +301,7 @@ describe('ReceiptCreatePage', () => {
       renderWithProviders(<ReceiptCreatePage />);
       fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: 'Bé Hai' } });
       fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: '0900000010' } });
+    fireEvent.change(screen.getByLabelText(/^Email phụ huynh/), { target: { value: 'ph@example.com' } });
       fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '1000000' } });
       await selectClassBatch();
       submitForm();
@@ -233,6 +323,7 @@ describe('ReceiptCreatePage', () => {
       renderWithProviders(<ReceiptCreatePage />);
       fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: 'Bé Hai' } });
       fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: '0900000011' } });
+    fireEvent.change(screen.getByLabelText(/^Email phụ huynh/), { target: { value: 'ph@example.com' } });
       fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '1000000' } });
       await selectClassBatch();
       submitForm();
@@ -256,6 +347,7 @@ describe('ReceiptCreatePage', () => {
       renderWithProviders(<ReceiptCreatePage />);
       fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: 'Bé Hai' } });
       fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: '0900000012' } });
+    fireEvent.change(screen.getByLabelText(/^Email phụ huynh/), { target: { value: 'ph@example.com' } });
       fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '1000000' } });
       await selectClassBatch();
       submitForm();

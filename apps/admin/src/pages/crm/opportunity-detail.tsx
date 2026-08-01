@@ -154,6 +154,19 @@ export default function OpportunityDetailPage() {
   const canScheduleTest =
     !isLost && (opp.stage === 'O2_CONTACTED' || opp.stage === 'O3_TEST_SCHEDULED');
 
+  // advance/reopen/complete/no-show all fire straight off this page's action
+  // bar (no confirm dialog of their own to surface an error), so none of
+  // them had anywhere to show a failure before this — first error wins.
+  // `markLostMutation` is shared with MarkLostDialog's "mark lost" flow,
+  // which already renders its own error inline while open; only surface it
+  // here for the "Mở lại cơ hội" (reopen) call, i.e. while that dialog is
+  // closed, so a failure isn't shown twice at once.
+  const actionError =
+    advanceMutation.error?.message ??
+    (!markLostOpen ? markLostMutation.error?.message : undefined) ??
+    completeMutation.error?.message ??
+    noShowMutation.error?.message;
+
   return (
     <>
       <PageHeader
@@ -231,6 +244,10 @@ export default function OpportunityDetailPage() {
 
       <div style={{ padding: 16, maxWidth: 640 }}>
         <Stack gap={5}>
+          {actionError && (
+            <Banner status="error" title="Thao tác thất bại" description={actionError} />
+          )}
+
           {isLost && (
             <Banner
               status="error"

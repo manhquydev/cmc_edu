@@ -62,6 +62,16 @@ export interface SubmissionDto {
   id: string;
   exerciseId: string;
   studentId: string;
+  /**
+   * Student's display name — populated only where the row was fetched with
+   * the `student` relation joined (currently `listForGrading`, so the
+   * teacher grading queue can show a name instead of a raw UUID). `undefined`
+   * for every other caller of `toSubmissionDto`, which never joins `student`.
+   * No new exposure boundary vs. existing peers: `classBatch.listStudents`
+   * (../class/class-batch-router.ts) already returns the same `fullName` to
+   * the same class-scoped teacher/staff roles.
+   */
+  studentFullName?: string;
   annotationLayer: unknown;
   /** Teacher's separate annotation overlay; null until first teacher annotation. */
   teacherAnnotationLayer: unknown;
@@ -90,11 +100,13 @@ function toSubmissionDto(row: {
   score: number | null;
   gradedById: string | null;
   exercise?: { basePdfRef: string } | null;
+  student?: { fullName: string } | null;
 }): SubmissionDto {
   return {
     id: row.id,
     exerciseId: row.exerciseId,
     studentId: row.studentId,
+    studentFullName: row.student?.fullName,
     annotationLayer: row.annotationLayer,
     teacherAnnotationLayer: row.teacherAnnotationLayer ?? null,
     answerText: row.answerText,
@@ -422,7 +434,11 @@ export const submissionRouter = router({
           where: { facilityId, exerciseId: input.exerciseId, status: input.status },
           orderBy: { submittedAt: 'asc' },
           take: 100,
-          include: { exercise: { select: { basePdfRef: true } } },
+          // `student` joined so the grading queue can show a name instead of
+          // a raw UUID (post-audit fix) — same field, same class-scoping
+          // (assertTeacherOwnsStudentClass below) as ../class/class-batch-router.ts's
+          // `listStudents.fullName`.
+          include: { exercise: { select: { basePdfRef: true } }, student: { select: { fullName: true } } },
         });
 
         // Post-implementation hardening (MH1): sibling `grade`/`saveTeacherAnnotation`

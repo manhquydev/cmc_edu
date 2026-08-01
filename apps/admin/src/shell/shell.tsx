@@ -6,6 +6,10 @@ import { isNavChildVisible, visibleModulesFor } from './nav-registry.js';
 import { RoleSwitcher } from './role-switcher.js';
 import { useState } from 'react';
 
+// Same convention as lib/trpc.ts: empty VITE_API_URL (production behind nginx)
+// keeps the request same-origin; unset falls back to the dev API.
+const API_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? 'http://localhost:3000';
+
 // App-specific shell wiring (design pilot, 2026-07-10; promoted to @cmc/ui in
 // P3 — AppFrame/SideNav ship the layout + tree nav). This file keeps only
 // session, permission-gated data (NAV_MODULES/visibleModulesFor), and the
@@ -54,6 +58,18 @@ export function Shell() {
             )}
             {me && me.roles[0] && <Badge label={me.roles[0]} variant="neutral" />}
             <RoleSwitcher />
+            {me && (
+              // Signing out was only reachable by typing /auth/logout. The API
+              // route clears the staff cookie and redirects, so this is a plain
+              // navigation rather than a fetch — same base-URL convention as
+              // lib/trpc.ts, where an empty VITE_API_URL means same-origin.
+              <button
+                className="sh-cta"
+                onClick={() => window.location.assign(`${API_URL}/auth/logout`)}
+              >
+                <LineIcon name="logout" size={15} strokeWidth={2.25} /> Đăng xuất
+              </button>
+            )}
           </>
         }
       >

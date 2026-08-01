@@ -15,6 +15,7 @@ import {
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { formatContactPhone } from '../../lib/format-contact-phone.js';
+import { useSession } from '../../lib/session-context.js';
 
 interface FormState {
   studentName: string;
@@ -36,7 +37,13 @@ function validate(values: FormState): FormErrors {
   const errors: FormErrors = {};
   if (!values.studentName.trim()) errors.studentName = 'Vui lòng nhập họ tên học viên';
   if (!values.parentPhone.trim()) errors.parentPhone = 'Vui lòng nhập SĐT phụ huynh';
-  if (values.parentEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.parentEmail))
+  // Required, not optional: the parent's email is their LMS credential (they
+  // sign in with an emailed OTP). A parent enrolled without one cannot log in,
+  // and since only a parent may reset a student's password, that child is
+  // locked out too. The API still accepts it as optional so older callers and
+  // back-office repairs keep working.
+  if (!values.parentEmail.trim()) errors.parentEmail = 'Vui lòng nhập email phụ huynh';
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.parentEmail))
     errors.parentEmail = 'Email không hợp lệ';
   if (!values.classBatchId) errors.classBatchId = 'Vui lòng chọn lớp học';
   if (values.amount === '' || values.amount === undefined)
@@ -50,6 +57,7 @@ function validate(values: FormState): FormErrors {
 export default function ReceiptCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { canDo } = useSession();
 
   // Deep-link: ?opportunityId= links receipt to an opportunity (passed to API).
   // Validate UUID format — a malformed param would fail server-side anyway, but
@@ -81,6 +89,12 @@ export default function ReceiptCreatePage() {
     message: string;
     existingStudents: { id: string; fullName: string }[];
   } | null>(null);
+
+  // Roles allowed to create a receipt but not to open its detail page (only
+  // `sale` today — `finance.receiptGet` excludes it by design, ADR-B SoD)
+  // would land straight on "Không tìm thấy phiếu thu" if we navigated there.
+  // For that case we stay on this page and show the result in place instead.
+  const [createdReceipt, setCreatedReceipt] = useState<{ id: string; code: string } | null>(null);
 
   const { data: oppData, isLoading: oppLoading } = trpc.crm.opportunityGet.useQuery(
     { opportunityId: opportunityId! },
@@ -114,9 +128,29 @@ export default function ReceiptCreatePage() {
         setNeedsConfirmation({ message: res.message, existingStudents: res.existingStudents });
         return;
       }
-      void navigate(`/finance/${res.receipt.id}`);
+      if (canDo('finance', 'receiptGet')) {
+        void navigate(`/finance/${res.receipt.id}`);
+        return;
+      }
+      setCreatedReceipt({ id: res.receipt.id, code: res.receipt.code });
     },
   });
+
+  // "Tạo phiếu khác" after the in-place success screen — re-primes the form
+  // the same way the initial opportunity prefill did, instead of leaving it
+  // stuck on the just-submitted values.
+  function resetForAnotherReceipt() {
+    setCreatedReceipt(null);
+    setForm({
+      studentName: oppData?.contact.name ?? '',
+      parentPhone: oppData?.contact.phone ?? '',
+      parentEmail: oppData?.contact.email ?? '',
+      classBatchId: '',
+      amount: '',
+    });
+    setErrors({});
+    setSubmitted(false);
+  }
 
   function submitReceipt(extra?: { studentId?: string; confirmNewStudent?: boolean }) {
     createMutation.mutate({
@@ -161,7 +195,23 @@ export default function ReceiptCreatePage() {
   // user clicks to expand, changing always-visible behavior. Same fallback
   // already used in receipt-detail.tsx/reconciliation.tsx: plain `Banner`
   // with `description` (always rendered) instead of `ResultPanel`.
-  const resultContent = createMutation.error ? (
+  const resultContent = createdReceipt ? (
+    <Stack gap={2}>
+      <Banner
+        status="success"
+        title={`Đã tạo phiếu thu ${createdReceipt.code}`}
+        description="Phiếu đang chờ duyệt. Vai trò của bạn không xem được chi tiết phiếu — theo dõi tiến độ tại cơ hội hoặc bảng kinh doanh."
+      />
+      <HStack gap={2}>
+        <Button label="Tạo phiếu khác" variant="secondary" onClick={resetForAnotherReceipt} />
+        <Button
+          label={opportunityId ? 'Xem cơ hội' : 'Về bảng kinh doanh'}
+          variant="primary"
+          onClick={() => void navigate(opportunityId ? `/crm/opportunities/${opportunityId}` : '/crm')}
+        />
+      </HStack>
+    </Stack>
+  ) : createMutation.error ? (
     <Banner status="error" title="Lỗi tạo phiếu thu" description={createMutation.error.message} />
   ) : createMutation.data?.status === 'warning' ? (
     <Banner status="warning" title="Cảnh báo" description={createMutation.data.message} />
@@ -197,6 +247,10 @@ export default function ReceiptCreatePage() {
               type="submit"
               variant="primary"
               isLoading={createMutation.isPending}
+              // Guards against a double-submit off stale form values while the
+              // in-place success screen (no `finance.receiptGet`) is showing —
+              // "Tạo phiếu khác" clears `createdReceipt` to re-enable this.
+              isDisabled={Boolean(createdReceipt)}
             />
             <Button
               label="Hủy"
@@ -276,8 +330,9 @@ export default function ReceiptCreatePage() {
 
           <TextInput
             label="Email phụ huynh"
-            placeholder="phu-huynh@example.com (tuỳ chọn)"
-            description="Dùng cho đăng nhập LMS bằng email. Không bắt buộc."
+            placeholder="phu-huynh@example.com"
+            description="Tài khoản đăng nhập LMS của phụ huynh — hệ thống gửi mã OTP về địa chỉ này. Phụ huynh cũng là người đổi mật khẩu cho học sinh."
+            isRequired
             value={form.parentEmail}
             onChange={(v) => handleField('parentEmail', v)}
             status={errors.parentEmail ? { type: 'error', message: errors.parentEmail } : undefined}
@@ -313,7 +368,11 @@ export default function ReceiptCreatePage() {
             placeholder="5000000"
             isRequired
             min={1}
-            step={100000}
+            // No `step`: HTML constraint validation reads step as "valid values
+            // are min + k*step", so a step of 100_000 with min 1 silently
+            // rejected every round tuition (5.000.000, 25.000.000 — the form
+            // just refused to submit, with no message). `isIntegerOnly` is what
+            // enforces whole VND.
             isIntegerOnly
             units="đ"
             description="Nhập số nguyên VND — không có xu"

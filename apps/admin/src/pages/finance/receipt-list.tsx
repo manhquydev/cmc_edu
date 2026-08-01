@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, DataTable, FilterBar, HStack, ListPage, PageHeader, StatusBadge } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
@@ -106,8 +106,15 @@ export default function ReceiptListPage() {
     );
   }) as ReceiptRow[];
 
-  // Reset page when filters change.
-  const handleFiltersChange = () => setPage(1);
+  // Reset page when filters change. FilterBar is left uncontrolled (no
+  // `value`/`onChange` props) so it owns URL read+write itself — passing an
+  // `onChange` here without `value` used to make FilterBar write nowhere
+  // (it called this callback instead of `setSearchParams`) while this page
+  // kept reading `status`/`q` from the URL, so the filter/search UI never
+  // actually did anything.
+  useEffect(() => {
+    setPage(1);
+  }, [status, q]);
 
   return (
     <>
@@ -136,7 +143,7 @@ export default function ReceiptListPage() {
             }
           />
         }
-        filters={<FilterBar filters={FILTERS} onChange={handleFiltersChange} />}
+        filters={<FilterBar filters={FILTERS} />}
       >
         <DataTable<ReceiptRow>
           columns={COLUMNS}

@@ -70,6 +70,14 @@ const scheduleTestMutate = vi.fn();
 const completeMutate = vi.fn();
 const noShowMutate = vi.fn();
 
+// Error-visibility remediation: advance/reopen/complete/no-show previously had
+// nowhere on the page to show a rejection — these states let a test simulate
+// each mutation's `.error` the same way `assignState` already does below.
+const advanceState: { error: { message: string } | null } = { error: null };
+const markLostState: { error: { message: string } | null } = { error: null };
+const completeState: { error: { message: string } | null } = { error: null };
+const noShowState: { error: { message: string } | null } = { error: null };
+
 // phase-10: owner assign. `sessionState.roles` toggles the manager-select vs
 // sale-claim UI (mirrors `opportunityAssign`'s row-level rule, server-side
 // source of truth). `assignState.error` simulates a FORBIDDEN rejection
@@ -98,8 +106,10 @@ vi.mock('../../lib/trpc.js', async () => {
         listQuerySpy(input);
         return queryResult(listState.items.find((item) => item.id === input.opportunityId));
       },
-      'crm.opportunityAdvance.useMutation': () => mutationResult({ mutate: advanceMutate }),
-      'crm.opportunityMarkLost.useMutation': () => mutationResult({ mutate: markLostMutate }),
+      'crm.opportunityAdvance.useMutation': () =>
+        mutationResult({ mutate: advanceMutate, error: advanceState.error }),
+      'crm.opportunityMarkLost.useMutation': () =>
+        mutationResult({ mutate: markLostMutate, error: markLostState.error }),
       'crm.opportunityAssign.useMutation': () =>
         mutationResult({ mutate: assignMutate, isPending: assignState.isPending, error: assignState.error }),
       'crm.assignableStaff.useQuery': (input: unknown, opts: { enabled?: boolean } | undefined) => {
@@ -112,8 +122,10 @@ vi.mock('../../lib/trpc.js', async () => {
         return queryResult(appointmentsState.items);
       },
       'testAppointment.schedule.useMutation': () => mutationResult({ mutate: scheduleTestMutate }),
-      'testAppointment.complete.useMutation': () => mutationResult({ mutate: completeMutate }),
-      'testAppointment.noShow.useMutation': () => mutationResult({ mutate: noShowMutate }),
+      'testAppointment.complete.useMutation': () =>
+        mutationResult({ mutate: completeMutate, error: completeState.error }),
+      'testAppointment.noShow.useMutation': () =>
+        mutationResult({ mutate: noShowMutate, error: noShowState.error }),
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -156,6 +168,10 @@ describe('OpportunityDetailPage', () => {
     assignState.error = null;
     assignableStaffState.data = [];
     assignableStaffQuerySpy.mockClear();
+    advanceState.error = null;
+    markLostState.error = null;
+    completeState.error = null;
+    noShowState.error = null;
   });
 
   it('queries crm.opportunityGet by route id so a lost or later-page opportunity resolves', () => {
@@ -186,6 +202,75 @@ describe('OpportunityDetailPage', () => {
     renderDetail(OPP_LOST.id);
     fireEvent.click(screen.getByRole('button', { name: 'Mở lại cơ hội' }));
     expect(markLostMutate).toHaveBeenCalledWith({ opportunityId: OPP_LOST.id, reopen: true });
+  });
+
+  describe('action-bar mutation errors (advance/reopen/complete/no-show)', () => {
+    it('surfaces an opportunityAdvance error in the shared action banner', () => {
+      advanceState.error = { message: 'Không thể chuyển giai đoạn.' };
+      renderDetail(OPP_O1.id);
+      fireEvent.click(screen.getByRole('button', { name: 'Chuyển lên' }));
+      expect(screen.getByText('Thao tác thất bại')).toBeInTheDocument();
+      expect(screen.getByText('Không thể chuyển giai đoạn.')).toBeInTheDocument();
+    });
+
+    it('surfaces a reopen (opportunityMarkLost) error in the shared action banner', () => {
+      markLostState.error = { message: 'Không thể mở lại cơ hội.' };
+      renderDetail(OPP_LOST.id);
+      fireEvent.click(screen.getByRole('button', { name: 'Mở lại cơ hội' }));
+      expect(screen.getByText('Thao tác thất bại')).toBeInTheDocument();
+      // MarkLostDialog (closed here — `markLostOpen` was never set) stays
+      // mounted with its own `markLostMutation.error` span regardless of
+      // `isOpen`, hidden only by the native <dialog>'s closed state — so the
+      // message legitimately matches twice in the DOM; assert with
+      // `getAllByText` instead of demanding a single match.
+      expect(screen.getAllByText('Không thể mở lại cơ hội.').length).toBeGreaterThan(0);
+    });
+
+    it('does not duplicate a mark-lost error into the page banner while the dialog is open (dialog already shows it inline)', () => {
+      markLostState.error = { message: 'Lỗi lưu lý do mất.' };
+      renderDetail(OPP_O4.id);
+      fireEvent.click(screen.getByRole('button', { name: 'Đánh dấu mất' }));
+      expect(screen.getAllByText('Lỗi lưu lý do mất.')).toHaveLength(1);
+      expect(screen.queryByText('Thao tác thất bại')).not.toBeInTheDocument();
+    });
+
+    it('surfaces a testAppointment.complete error in the shared action banner', () => {
+      completeState.error = { message: 'Không thể đánh dấu hoàn thành.' };
+      appointmentsState.items = [
+        {
+          id: 'appt-1',
+          type: 'entrance',
+          opportunityId: OPP_O2.id,
+          studentId: null,
+          scheduledAt: '2026-08-01T03:00:00.000Z',
+          status: 'scheduled',
+          notes: null,
+        },
+      ];
+      renderDetail(OPP_O2.id);
+      fireEvent.click(screen.getByRole('button', { name: 'Hoàn thành' }));
+      expect(screen.getByText('Thao tác thất bại')).toBeInTheDocument();
+      expect(screen.getByText('Không thể đánh dấu hoàn thành.')).toBeInTheDocument();
+    });
+
+    it('surfaces a testAppointment.noShow error in the shared action banner', () => {
+      noShowState.error = { message: 'Không thể đánh dấu vắng mặt.' };
+      appointmentsState.items = [
+        {
+          id: 'appt-1',
+          type: 'entrance',
+          opportunityId: OPP_O2.id,
+          studentId: null,
+          scheduledAt: '2026-08-01T03:00:00.000Z',
+          status: 'scheduled',
+          notes: null,
+        },
+      ];
+      renderDetail(OPP_O2.id);
+      fireEvent.click(screen.getByRole('button', { name: 'Vắng mặt' }));
+      expect(screen.getByText('Thao tác thất bại')).toBeInTheDocument();
+      expect(screen.getByText('Không thể đánh dấu vắng mặt.')).toBeInTheDocument();
+    });
   });
 
   it('shows no advance/mark-lost/reopen actions for an O5_ENROLLED (won) opportunity', () => {

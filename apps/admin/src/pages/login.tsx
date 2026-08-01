@@ -1,5 +1,5 @@
 import { Button, Card, Divider, Heading, PasswordInput, Stack, Text, TextField } from '@cmc/ui';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trpc } from '../lib/trpc.js';
 
@@ -15,25 +15,13 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  // In dev mode skip the login screen when a dev user is already stored.
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      const devUser = localStorage.getItem('cmc_dev_user');
-      if (devUser) {
-        void navigate('/', { replace: true });
-      }
-    }
-  }, [navigate]);
-
-  function loginAsDev() {
-    const defaultUser = {
-      userId: 'u-dev-1',
-      roles: ['giam_doc_dao_tao'],
-      facilityId: 'PLACEHOLDER',
-    };
-    localStorage.setItem('cmc_dev_user', JSON.stringify(defaultUser));
-    void navigate('/', { replace: true });
-  }
+  // A dev-login shortcut used to live here. It stored a dev user with a
+  // placeholder facility, which `requireValidFacility` rejects, so every
+  // session.me came back 401: the route guard bounced to /login, this page saw
+  // the stored user and bounced back to /, and the screen flickered between
+  // them until the entry was cleared by hand. Staff email/password login is
+  // now the single way in for every environment; the role switcher in the app
+  // shell still sets `cmc_dev_user` for impersonation once signed in.
 
   async function loginWithPassword() {
     setError(null);
@@ -104,9 +92,6 @@ export function LoginPage() {
             isLoading={pending}
             isDisabled={!canSubmit}
           />
-          {import.meta.env.DEV && (
-            <Button label="Đăng nhập (Dev)" variant="secondary" onClick={loginAsDev} />
-          )}
           {import.meta.env.VITE_SSO_ENABLED === 'true' && (
             <Button
               label="Đăng nhập Microsoft (Entra SSO)"

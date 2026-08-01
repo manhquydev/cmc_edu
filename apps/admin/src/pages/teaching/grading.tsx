@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { ComponentProps } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Badge, Banner, Button, HStack, MasterDetail, NumberInput, PageHeader, Skeleton, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { PdfAnnotator } from './pdf-annotator.js';
@@ -13,6 +12,10 @@ interface SubmissionItem {
   id: string;
   exerciseId: string;
   studentId: string;
+  /** Populated by `submission.listForGrading`; undefined only if the API's
+   * student join ever fails to resolve (deleted student row) — falls back to
+   * a truncated id at render time so the row never looks silently blank. */
+  studentFullName?: string;
   status: string;
   score: number | null;
   submittedAt: Date | string | null;
@@ -69,9 +72,8 @@ function SubmissionListItem({
       }}
     >
       <HStack justify="between" style={{ marginBottom: 2 }}>
-        {/* Never show studentCode — show truncated studentId only */}
         <Text size="sm" weight="medium">
-          HS: {item.studentId.slice(0, 8).toUpperCase()}
+          {item.studentFullName ?? `HS: ${item.studentId.slice(0, 8).toUpperCase()}`}
         </Text>
         <Badge label={STATUS_LABELS[item.status] ?? item.status} variant={STATUS_VARIANTS[item.status] ?? 'neutral'} />
       </HStack>
@@ -79,7 +81,7 @@ function SubmissionListItem({
         {item.submittedAt
           ? `Nộp: ${new Date(item.submittedAt as string).toLocaleDateString('vi-VN')}`
           : 'Chưa nộp'}
-        {item.score !== null ? ` · ${item.score}/10` : ''}
+        {item.score !== null ? ` · Điểm: ${item.score}` : ''}
       </Text>
     </div>
   );
@@ -111,10 +113,20 @@ function DetailPane({
     },
   });
 
+  // Bug fix: this used to hardcode `numScore > 10` and silently `return` —
+  // an exercise with maxScore=100 (apps/api/src/exercise/router.ts) could
+  // never be graded above 10, with no feedback at all. The client doesn't
+  // know each exercise's real maxScore (this DTO doesn't carry it), so it no
+  // longer second-guesses the number: `NumberInput`'s own `min={0}` already
+  // keeps the value non-negative and numeric (verified: it never calls
+  // `onChange` with NaN or a negative number), and `isDisabled` below blocks
+  // the empty-value case. The server is the one true ceiling check
+  // (submission/router.ts's `grade` rejects score > exercise.maxScore with a
+  // BAD_REQUEST) — its message is surfaced via `grade.error` below, so a
+  // rejection is always visible, never silent.
   function handleGrade() {
-    const numScore = typeof score === 'string' ? parseFloat(score) : score;
-    if (Number.isNaN(numScore) || numScore < 0 || numScore > 10) return;
-    grade.mutate({ submissionId: item.id, score: numScore });
+    if (score === '' || score === null) return;
+    grade.mutate({ submissionId: item.id, score: Number(score) });
   }
 
   // basePdfRef is the BlobStorage key (starts with 'exercise-pdf/'); the GET
@@ -130,7 +142,7 @@ function DetailPane({
             Bài nộp: {item.id.slice(0, 8).toUpperCase()}
           </Text>
           <Text type="supporting" size="xsm">
-            Học sinh: {item.studentId.slice(0, 8).toUpperCase()} · Bài tập: {item.exerciseId.slice(0, 8).toUpperCase()}
+            Học sinh: {item.studentFullName ?? item.studentId.slice(0, 8).toUpperCase()} · Bài tập: {item.exerciseId.slice(0, 8).toUpperCase()}
           </Text>
         </Stack>
         <Badge label={STATUS_LABELS[item.status] ?? item.status} variant={STATUS_VARIANTS[item.status] ?? 'neutral'} />
@@ -162,19 +174,18 @@ function DetailPane({
             {/* TODO(astryx-review): Astryx NumberInput has no confirmed
                 decimalScale prop (thousand/decimal formatting dropped per
                 mapping doc) — `step={0.5}` still constrains scoring
-                increments, just without forced 1-decimal display rounding. */}
+                increments, just without forced 1-decimal display rounding.
+                No `max` set: exercise.maxScore varies per exercise (not
+                always 10) and this DTO does not carry it — the server is the
+                real ceiling check (see handleGrade's comment above). */}
             <NumberInput
-              label="Điểm (0–10)"
+              label="Điểm"
               value={score === '' ? null : Number(score)}
               onChange={(v) => setScore(v ?? '')}
               min={0}
-              max={10}
               step={0.5}
             />
           </div>
-          <Text type="supporting" size="sm" style={{ paddingBottom: 4 }}>
-            / 10
-          </Text>
           <Button
             label={item.status === 'graded' ? 'Chấm lại' : 'Chấm bài'}
             size="sm"
@@ -245,9 +256,6 @@ function DetailPane({
 // ---------------------------------------------------------------------------
 
 export default function GradingPage() {
-  const [searchParams] = useSearchParams();
-  const classFilter = searchParams.get('class') ?? undefined;
-
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const {
@@ -285,11 +293,6 @@ export default function GradingPage() {
           </Text>
           {items.length > 0 && <Badge label={String(items.length)} variant="blue" />}
         </HStack>
-        {classFilter && (
-          <Text type="supporting" size="xsm" style={{ marginTop: 2 }}>
-            Lớp: {classFilter.slice(0, 8)}…
-          </Text>
-        )}
       </div>
 
       {error && (

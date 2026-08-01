@@ -85,13 +85,18 @@ export function compareDateOnly(a: string, b: string): number {
 }
 
 /**
- * P3-II: Resolves the shift group type from a staff member's position string.
- * Pure function — no DB access. Matches 'giao_vien'/'teacher' → GIAO_VIEN;
- * everything else → KINH_DOANH (business/operations staff).
+ * P3-II: Resolves the shift group type from a staff member's roles.
+ * Pure function — no DB access. Holding the teacher role puts someone in the
+ * teaching group; everyone else registers on the business/operations track.
+ *
+ * This used to read `AppUser.position`, a free-text job title. The match was
+ * for the role identifier ('giao_vien'), while the staff form asks for a human
+ * title, so a teacher entered as "Giáo viên" resolved to KINH_DOANH and was
+ * refused every teaching shift group. Roles are the assignable, validated
+ * field, so they decide.
  */
-export function resolveShiftGroup(position: string): 'KINH_DOANH' | 'GIAO_VIEN' {
-  const lower = position.toLowerCase();
-  return lower.includes('giao_vien') || lower.includes('teacher') ? 'GIAO_VIEN' : 'KINH_DOANH';
+export function resolveShiftGroup(roles: readonly string[]): 'KINH_DOANH' | 'GIAO_VIEN' {
+  return roles.includes('giao_vien') ? 'GIAO_VIEN' : 'KINH_DOANH';
 }
 
 const MONTH_ONLY_RE = /^(\d{4})-(\d{2})$/;

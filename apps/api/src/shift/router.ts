@@ -193,11 +193,11 @@ export const shiftRouter = router({
         });
         if (!group) throw notFound('ShiftGroup not found.');
 
-        // Validate: the group's type matches the employee's position type
-        const expectedType = resolveShiftGroup(appUser.position);
+        // Validate: the group's track matches the employee's roles
+        const expectedType = resolveShiftGroup(appUser.roles as string[]);
         if (group.type !== expectedType) {
           throw badRequest(
-            `This shift group is for ${group.type} staff; your position resolves to ${expectedType}.`,
+            `This shift group is for ${group.type} staff; your roles put you on the ${expectedType} track.`,
           );
         }
 

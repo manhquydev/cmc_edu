@@ -1,6 +1,9 @@
 import { lazy, Suspense } from 'react';
+import { Navigate } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
-import { ComingSoon } from '../pages/coming-soon.js';
+import { Skeleton } from '@cmc/ui';
+import { useSession } from '../lib/session-context.js';
+import { NAV_MODULES, isNavChildVisible } from '../shell/nav-registry.js';
 
 const CheckInOutPage = lazy(() => import('../pages/attendance/check-in-out.js'));
 const ShiftsPage = lazy(() => import('../pages/attendance/shifts.js'));
@@ -10,11 +13,24 @@ const MyHrPage = lazy(() => import('../pages/hr/my-hr.js'));
 const SalaryTiersPage = lazy(() => import('../pages/hr/salary-tiers.js'));
 
 function Fallback() {
-  return <ComingSoon />;
+  return <Skeleton height={200} radius={0} />;
+}
+
+// `/hr` itself has no screen of its own — the module mixes screens open to
+// every active role (Chấm công/Đăng ký ca/Của tôi, no permission key) with
+// director-only ones (Duyệt KPI/Chốt lương/Bậc lương). Land on the first
+// child the current role can actually open, reusing the same nav-registry
+// order and gate the sidebar already renders, instead of a ComingSoon dead
+// end nobody assigned this role can walk past.
+function HrIndex() {
+  const { canDo } = useSession();
+  const hrModule = NAV_MODULES.find((mod) => mod.id === 'hr');
+  const firstOpenChild = hrModule?.children?.find((child) => isNavChildVisible(child, canDo));
+  return <Navigate to={firstOpenChild?.path ?? '/hr/checkin'} replace />;
 }
 
 export const hrRoutes: RouteObject[] = [
-  { index: true, element: <ComingSoon /> },
+  { index: true, element: <HrIndex /> },
   {
     path: 'checkin',
     element: (

@@ -42,6 +42,17 @@ export const NAV_MODULES: NavModule[] = [
       // follows `course.manage` — the same key its route gate already uses,
       // which keeps the menu from offering a screen that answers 403.
       { id: 'courses', label: 'Khoá học', path: '/admin/courses', icon: 'book', permission: { module: 'course', action: 'manage' } },
+      // Gap-closure: parents provisioned automatically by receipt approval
+      // (provisioning/provision-from-receipt.ts) never surface in
+      // guardian.listPendingLinks (that queue is only self-service link
+      // requests), so this was the only way for staff to ever find one to
+      // backfill their email. Lives here rather than under Quản trị — same
+      // reason shift-config was moved out of it (comment above, `hr` group):
+      // permission roster for `parentAccount.updateEmail` is
+      // giam_doc_kinh_doanh/sale, but the whole Quản trị module is
+      // `roles: ['super_admin']`, which would hide this entry from the very
+      // roles the permission grants it to.
+      { id: 'parents', label: 'Phụ huynh', path: '/admin/parents', icon: 'users', permission: { module: 'parentAccount', action: 'updateEmail' } },
     ],
   },
   {
@@ -120,6 +131,12 @@ export const NAV_MODULES: NavModule[] = [
       { id: 'kpi', label: 'Duyệt KPI', path: '/hr/kpi', icon: 'target', permission: { module: 'kpi', action: 'confirm' } },
       { id: 'payroll', label: 'Chốt lương', path: '/hr/payroll', icon: 'dollar', permission: { module: 'payslip', action: 'assemble' } },
       { id: 'salary-tiers', label: 'Bậc lương', path: '/hr/salary-tiers', icon: 'layers', permission: { module: 'salaryTier', action: 'manage' } },
+      // Lives here rather than under Quản trị: configuring shift groups and
+      // templates is an HR task the two directors own (`shift.manage`), and the
+      // whole Quản trị module is gated `roles: ['super_admin']` — listing it
+      // there hid the screen from the very people allowed to use it. The route
+      // itself stays at /admin/shift-config.
+      { id: 'shift-config', label: 'Ca làm việc', path: '/admin/shift-config', icon: 'clock', permission: { module: 'shift', action: 'manage' } },
     ],
   },
   {
@@ -133,9 +150,6 @@ export const NAV_MODULES: NavModule[] = [
       { id: 'facilities', label: 'Cơ sở', path: '/admin/facilities', icon: 'building', permission: { module: 'facility', action: 'list' } },
       // Phase-03 super-admin-completion: IP range management + self-detect.
       { id: 'network-ip', label: 'IP mạng', path: '/admin/network-ip', icon: 'globe', permission: { module: 'facilityNetwork', action: 'manage' } },
-      // super_admin-only (compensationPolicy.manage has an empty role list —
-      // only the super_admin bypass in can() satisfies it).
-      { id: 'shift-config', label: 'Ca làm việc', path: '/admin/shift-config', icon: 'clock', permission: { module: 'compensationPolicy', action: 'manage' } },
       // Phase-04 super-admin-completion: global audit-log viewer.
       { id: 'audit-log', label: 'Nhật ký hệ thống', path: '/admin/audit-log', icon: 'search', permission: { module: 'audit', action: 'list' } },
     ],

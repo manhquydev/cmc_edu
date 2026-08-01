@@ -359,17 +359,27 @@ export async function refreshKpiScore(
 
   let score: Prisma.KpiScoreGetPayload<Record<string, never>>;
   if (!existing) {
-    try {
-      score = await tx.kpiScore.create({
-        data: { facilityId, appUserId, period, status: 'draft', ...snapshot },
-      });
-    } catch (err) {
-      if (!isPrismaErrorCode(err, 'P2002')) throw err;
-      // Concurrent create won the [appUserId, period] unique race — fall
-      // through to the same draft-only update guard as the "existing" branch.
-      const raced = await tx.kpiScore.findFirstOrThrow({ where: { appUserId, period } });
-      score = raced.status === 'draft' ? await draftUpdateOrCurrent(tx, raced.id, snapshot) : raced;
-    }
+    // `createMany` + skipDuplicates compiles to INSERT ... ON CONFLICT DO
+    // NOTHING, so losing the [appUserId, period] race is an ordinary zero-row
+    // result rather than a unique violation. A violation would abort the whole
+    // Postgres transaction ("current transaction is aborted, commands ignored"
+    // — 25P02), and every statement after it, including the recovery read that
+    // used to live in a catch block here, would then fail. That is what made
+    // concurrent refreshes flaky.
+    const inserted = await tx.kpiScore.createMany({
+      data: [{ facilityId, appUserId, period, status: 'draft', ...snapshot }],
+      skipDuplicates: true,
+    });
+    const current = await tx.kpiScore.findFirstOrThrow({ where: { appUserId, period } });
+    // We inserted it, so it is ours and already carries this snapshot. Losing
+    // the race falls through to the same draft-only guard the "existing"
+    // branch uses, which never overwrites a submitted+ row.
+    score =
+      inserted.count === 1
+        ? current
+        : current.status === 'draft'
+          ? await draftUpdateOrCurrent(tx, current.id, snapshot)
+          : current;
   } else if (existing.status === 'draft') {
     score = await draftUpdateOrCurrent(tx, existing.id, snapshot);
   } else {

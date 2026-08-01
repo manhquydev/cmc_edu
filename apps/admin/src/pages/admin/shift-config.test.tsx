@@ -63,12 +63,21 @@ describe('ShiftConfigPage', () => {
     sessionRoles = ['super_admin'];
   });
 
-  it('renders a gated EmptyState when the session lacks compensationPolicy.manage', () => {
+  it('renders a gated EmptyState when the session lacks both shift.manage and compensationPolicy.manage', () => {
     sessionRoles = ['giao_vien'];
     renderWithProviders(<ShiftConfigPage />);
     expect(screen.getByText('Không có quyền truy cập')).toBeInTheDocument();
     expect(screen.queryByText('Nhóm ca & mẫu ca')).not.toBeInTheDocument();
     expect(screen.queryByText('Chính sách phạt')).not.toBeInTheDocument();
+  });
+
+  it('shows only the Nhóm ca & mẫu ca tab for a GĐ holding shift.manage but not compensationPolicy.manage', () => {
+    sessionRoles = ['giam_doc_dao_tao'];
+    renderWithProviders(<ShiftConfigPage />);
+    expect(screen.queryByText('Không có quyền truy cập')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nhóm ca & mẫu ca' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Chính sách phạt' })).not.toBeInTheDocument();
+    expect(screen.getByText('Sale ca ngày')).toBeInTheDocument();
   });
 
   it('renders existing shift groups with their templates', () => {

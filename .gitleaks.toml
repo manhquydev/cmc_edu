@@ -1,0 +1,20 @@
+# gitleaks config for CMC EDU v2 — pre-commit + one-time history sweep.
+# GitHub-native secret scanning + push protection is the primary server-side
+# defense (repo is public); gitleaks here gives earlier local feedback.
+title = "CMC EDU gitleaks"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures + example files — never real secrets"
+# Placeholder shaped like a real Brevo key so boot-check format assertions run
+# for the right reason (see apps/api/src/boot-checks.test.ts). Not a live key.
+regexes = [
+  '''xkeysib-abc123def456''',
+]
+# Example/template env files are documentation, not secrets.
+paths = [
+  '''.*\.example$''',
+  '''.*/\.env\.example$''',
+]

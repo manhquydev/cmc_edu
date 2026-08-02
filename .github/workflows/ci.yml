@@ -13,6 +13,11 @@ env:
   PGPASSWORD: postgres
   CMC_APP_PASSWORD: cmc_app_ci_password
 
+# Least-privilege default for GITHUB_TOKEN. Jobs that upload artifacts raise
+# actions: write only where needed (ui-e2e, security-scan).
+permissions:
+  contents: read
+
 jobs:
   # The blocking gate (docs/26 phase-02 "CI-lite"): typecheck + unit/
   # integration test suite. e2e is wired as its own non-blocking job below —
@@ -236,6 +241,9 @@ jobs:
   # before relying on it as a merge gate.
   ui-e2e:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write # upload-artifact journey ledger
     # Push events only, for two reasons that both matter. (1) This workflow
     # triggers on push AND pull_request, so a PR branch would run this
     # 9-53-minute billed job twice for one commit. (2) On a pull_request event
@@ -342,6 +350,9 @@ jobs:
   # required checks until someone owns triaging its findings.
   security-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write # upload-artifact trivy report
     continue-on-error: true
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

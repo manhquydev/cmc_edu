@@ -37,11 +37,14 @@ COPY apps/api/ apps/api/
 RUN pnpm --filter @cmc/db exec prisma generate
 RUN pnpm --filter @cmc/api... run build
 
+# Process runs as stock Alpine `node` (UID 1000) via entrypoint su-exec after
+# chown of BLOB_STORAGE_DIR /data so named volumes remain writable.
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable pnpm
+RUN corepack enable pnpm \
+    && apk add --no-cache su-exec
 WORKDIR /app
 
 COPY --from=build /app/package.json          ./package.json
@@ -52,10 +55,13 @@ COPY --from=build /app/packages              ./packages
 COPY --from=build /app/apps/api/dist         ./apps/api/dist
 COPY --from=build /app/apps/api/package.json ./apps/api/package.json
 COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
+COPY infra/docker/docker-entrypoint-node.sh /usr/local/bin/docker-entrypoint-node.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint-node.sh
 
 WORKDIR /app/apps/api
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD wget -qO- http://localhost:3001/ || exit 1
 
+ENTRYPOINT ["docker-entrypoint-node.sh"]
 CMD ["node", "dist/worker/index.js"]

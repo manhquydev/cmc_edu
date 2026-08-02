@@ -20,8 +20,9 @@
 #     -f docker-compose.prod.yml -f infra/compose.local-sim.yml up -d --build
 #   -> https://localhost (admin ERP) · https://localhost/lms (parent/student)
 #
-# Postgres and the API are also published on the host (5432 / 3000) so
-# migrations, seeds, and probes can run outside the network.
+# Postgres and the API are published on the host loopback only
+# (127.0.0.1:5432 / 127.0.0.1:3000) so migrations, seeds, and probes can run
+# from this machine without exposing DB/API to the LAN.
 services:
   nginx:
     volumes:
@@ -42,11 +43,14 @@ services:
 
   postgres:
     ports:
-      - "5432:5432" # host-run prisma migrate/seed reaches the DB here
+      # Loopback only: host prisma migrate/seed still works via localhost;
+      # LAN/WAN cannot reach Postgres (safer prod-on-machine posture).
+      - "127.0.0.1:5432:5432"
 
   api:
     ports:
-      - "3000:3000" # direct API surface, bypassing nginx (probes, security tests)
+      # Loopback only: probes/security tests on host; not exposed to LAN.
+      - "127.0.0.1:3000:3000"
     volumes:
       - cmcv2-local-blobs:/data
 

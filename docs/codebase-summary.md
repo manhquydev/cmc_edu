@@ -38,6 +38,9 @@
 > (nghi race thật trong nhánh recovery P2002, `apps/api/src/kpi/auto-score.ts`). Đỏ ở test này trên
 > commit không liên quan ⇒ rerun, đừng chẩn regression.
 
+> **Cập nhật 2026-08-02 — Tier 1 guardrails + ui-e2e restoration + toolchain majors.**
+> Hôm nay merged 4 PR lớn: **#39** (GitHub secret scanning + push protection + Dependabot config + husky pre-commit + pnpm overrides HIGH advisories + branch protection on main requiring typecheck-and-test check), **#46** (ui-e2e regression fix — match corrected admin contracts from 01f6e4c; ui-chromium 40/40 specs green in CI, first genuinely-green e2e run), **#45** (Trivy config-scan report-only + GitHub Actions SHA-pinned), **#47** (vite 6→8, @vitejs/plugin-react 4→6, vitest 2→4 — zero config changes). **CodeQL default setup enabled** — first scan: 20 alerts (6 HIGH false-positive/by-design, 4 MEDIUM workflow-permission real, 10 LOW); 4 MEDIUM gaps being addressed in parallel hardening phase. Journal: `docs/journals/260802-tier1-guardrails-restoration.md`.
+
 ---
 
 ## Monorepo Structure

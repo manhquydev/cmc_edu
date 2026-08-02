@@ -11,15 +11,22 @@
 // P3-02/P4-02): `finance.receiptGet` (`packages/auth/src/index.ts`) is
 // `['giam_doc_kinh_doanh', 'giam_doc_dao_tao']` only — `sale` is excluded
 // from the procedure ENTIRELY, not merely from a button on a screen it can
-// load. finance-receipt.journey.ui.spec.ts (F1) already found the resulting
-// real behavior: `sale`'s own browser, on the very receipt it just created,
-// hits `receipt-detail.tsx`'s `error || !receipt` branch and renders a real
-// "Không tìm thấy phiếu thu" permission-denied banner — asserting a list-row
-// or button ABSENCE on a screen `sale` cannot even load would be a strictly
-// weaker, more vacuous proof than asserting the actual denial banner the app
-// renders. This journey asserts that banner directly, which is the stronger
-// signal available here (per this phase's own explicit guidance for this
-// flow).
+// load. `receipt-detail.tsx`'s `error || !receipt` branch renders a real
+// "Không tìm thấy phiếu thu" permission-denied banner for any `sale` session
+// that lands on `/finance/:id` — asserting a list-row or button ABSENCE on a
+// screen `sale` cannot even load would be a strictly weaker, more vacuous
+// proof than asserting the actual denial banner the app renders. This
+// journey asserts that banner directly, which is the stronger signal
+// available here (per this phase's own explicit guidance for this flow).
+//
+// Reaching that URL as `sale`: `finance.receiptCreate`'s own onSuccess
+// (receipt-create.tsx) only auto-navigates the creator there when they hold
+// `finance.receiptGet` — `sale` never does, so it stays on `/finance/new`
+// with an in-place success banner and never sees the receipt's UUID. The
+// negation below instead reaches `/finance/:id` directly, as a FRESH `sale`
+// session, once the approver's own navigation (which does have
+// `receiptGet`) reveals the real id — the permission boundary being proven
+// is unchanged; only how the URL is reached changed with it.
 
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
@@ -76,12 +83,13 @@ test.describe('P1-03 journey — duyệt phiếu kích hoạt học viên, sale 
     await salePage.getByRole('option', { name: new RegExp(seeded.code) }).click();
     await salePage.getByRole('spinbutton', { name: /^Học phí/ }).fill('5000001');
     await salePage.getByRole('button', { name: 'Tạo phiếu thu' }).click();
-    await expect(salePage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
-
-    // The negation: sale's OWN session, on the receipt it JUST created, gets
-    // the real permission-denied screen — never the approve button.
-    await expect(salePage.getByText('Không tìm thấy phiếu thu')).toBeVisible();
-    await expect(salePage.getByRole('button', { name: 'Duyệt & Kích hoạt' })).toHaveCount(0);
+    // `sale` lacks `finance.receiptGet` (packages/auth), so receipt-create.tsx's
+    // own onSuccess does NOT navigate `sale` to `/finance/:id` — it stays on
+    // `/finance/new` and shows the receipt's code in an in-place success
+    // banner instead. `sale` therefore never observes the receipt's UUID here;
+    // the negation below is proven directly, by URL, once the approver reveals
+    // the real id further down.
+    await expect(salePage.getByText(/^Đã tạo phiếu thu /)).toBeVisible();
     await saleContext.close();
 
     // --- a DIFFERENT GĐKD: find by displayed student name, approve for real ---
@@ -100,6 +108,31 @@ test.describe('P1-03 journey — duyệt phiếu kích hoạt học viên, sale 
     await row.click();
     await expect(approverPage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
     await expect(approverPage.getByRole('heading', { name: /^Phiếu thu /, level: 4 })).toBeVisible();
+    // The receipt id is the last path segment — the approver's role holds
+    // `finance.receiptGet`, so this is the first (and only) place either role
+    // in this test observes the real UUID.
+    const approverUrl = approverPage.url();
+    const receiptId = approverUrl.slice(approverUrl.lastIndexOf('/') + 1);
+
+    // The negation this journey exists to prove: `sale` cannot view/approve
+    // the very receipt it just created. `finance.receiptGet` excludes `sale`
+    // entirely (not merely a hidden button on a screen it can load), so a
+    // FRESH `sale` session navigating straight to the URL still hits
+    // `receipt-detail.tsx`'s real `error || !receipt` branch — same
+    // permission boundary as before, reached directly now that the app no
+    // longer auto-navigates a receipt's own creator there.
+    const negationContext = await browser.newContext();
+    const negationPage = await negationContext.newPage();
+    const negationCookie = mintStaffCookie({
+      userId: `e2e-p103-sale-negation-${randomUUID().slice(0, 8)}`,
+      roles: ['sale'],
+      facilityId,
+    });
+    await negationContext.addCookies(cookiePair(STAFF_COOKIE_NAME, negationCookie));
+    await negationPage.goto(`/finance/${receiptId}`);
+    await expect(negationPage.getByText('Không tìm thấy phiếu thu')).toBeVisible();
+    await expect(negationPage.getByRole('button', { name: 'Duyệt & Kích hoạt' })).toHaveCount(0);
+    await negationContext.close();
 
     await approverPage.getByRole('button', { name: 'Duyệt & Kích hoạt' }).click();
     const dialog = approverPage.getByRole('alertdialog');

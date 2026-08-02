@@ -84,7 +84,15 @@ test.describe('ADM-02 journey — quản trị nhân sự: tạo tài khoản + 
     await row.click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await dialog.getByLabel('Roles').click();
+    // `dialog.getByLabel('Roles')` is ambiguous here (strict mode: 2
+    // elements) — with a role already pre-selected (see above), the
+    // MultiSelector's own `hasClear` button renders too, labeled
+    // `aria-label="Clear all Roles"`, which `getByLabel`'s default substring
+    // match also picks up. `getByRole('button', { name: 'Roles', exact:
+    // true })` matches only the trigger (no `role="combobox"` override since
+    // `hasSearch` is set — same reasoning as create-staff-via-admin-ui.ts's
+    // "Vai trò" trigger).
+    await dialog.getByRole('button', { name: 'Roles', exact: true }).click();
     await page.getByRole('option', { name: 'Sale', exact: true }).click();
     await page.getByRole('option', { name: 'Giáo viên', exact: true }).click();
     await page.keyboard.press('Escape');

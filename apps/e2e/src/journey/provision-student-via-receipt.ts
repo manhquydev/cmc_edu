@@ -96,10 +96,13 @@ export async function provisionStudentViaReceipt(
   // directly; recorded as a product finding). Keep any fee on that lattice.
   await salePage.getByRole('spinbutton', { name: /^Học phí/ }).fill(feeVnd);
   await salePage.getByRole('button', { name: 'Tạo phiếu thu' }).click();
-  await expect(salePage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
-  // The receipt id is the last path segment — the only place Playwright can
-  // observe it (receiptCreate's response is not visible to the browser tests).
-  const receiptId = new URL(salePage.url()).pathname.split('/').pop()!;
+  // `sale` lacks `finance.receiptGet` (ADR-B SoD) — receipt-create.tsx's own
+  // onSuccess only navigates to `/finance/:id` when `canDo('finance',
+  // 'receiptGet')`; for `sale` it instead stays on `/finance/new` and shows
+  // the receipt CODE (not the UUID) in an in-place success banner. The UUID
+  // is only observable later, from the approver's own navigation into detail
+  // below (their role does hold `receiptGet`).
+  await expect(salePage.getByText(/^Đã tạo phiếu thu /)).toBeVisible();
   await saleContext.close();
 
   // --- director: approve, which is what actually provisions the account ---
@@ -120,6 +123,10 @@ export async function provisionStudentViaReceipt(
   await menuNav(approverPage, 'Tài chính & Điều hành', 'Phiếu thu', { role: approverRole });
   const row = await findInList(approverPage, (text) => text.includes(options.studentName));
   await row.click();
+  await expect(approverPage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
+  // The receipt id is the last path segment — the only place Playwright can
+  // observe it (receiptCreate's response is not visible to the browser tests).
+  const receiptId = new URL(approverPage.url()).pathname.split('/').pop()!;
   await approverPage.getByRole('button', { name: 'Duyệt & Kích hoạt' }).click();
   const dialog = approverPage.getByRole('alertdialog');
   await expect(dialog).toBeVisible();

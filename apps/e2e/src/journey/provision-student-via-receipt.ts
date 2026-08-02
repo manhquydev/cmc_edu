@@ -34,8 +34,12 @@ export interface ProvisionStudentOptions {
   classCode: string | RegExp;
   studentName: string;
   parentPhone: string;
-  /** When set, recorded on the receipt so the parent can also log in by email
-   *  OTP. Provisioning upserts it onto the ParentAccount. */
+  /** Recorded on the receipt so the parent can log in by email OTP —
+   *  provisioning upserts it onto the ParentAccount. The receipt-create form
+   *  now REQUIRES this field (it is the parent's LMS credential, see
+   *  receipt-create.tsx's `validate`); when omitted here, this helper fills a
+   *  generated `@e2e.cmc` address so the real "Tạo phiếu thu" submit is never
+   *  blocked by client-side validation. */
   parentEmail?: string;
   /** Fee to enter, as the string the input receives. Default '3000001' — the
    *  trailing 1 is required (see the fill call). Pass a value > 20,000,000 to
@@ -64,6 +68,7 @@ export async function provisionStudentViaReceipt(
   const classCode = options.classCode instanceof RegExp ? options.classCode : new RegExp(options.classCode);
   const feeVnd = options.feeVnd ?? '3000001';
   const approverRole = options.approverRole ?? 'giam_doc_kinh_doanh';
+  const parentEmail = options.parentEmail ?? `e2e-parent-${runId}@e2e.cmc`;
 
   // --- sale: create the receipt for this student ---
   const saleContext = await browser.newContext({ baseURL: ADMIN_URL });
@@ -82,9 +87,7 @@ export async function provisionStudentViaReceipt(
 
   await salePage.getByLabel('Họ tên học viên').fill(options.studentName);
   await salePage.getByLabel('SĐT phụ huynh').fill(options.parentPhone);
-  if (options.parentEmail) {
-    await salePage.getByLabel('Email phụ huynh').fill(options.parentEmail);
-  }
+  await salePage.getByLabel('Email phụ huynh').fill(parentEmail);
   await salePage.getByRole('button', { name: /^Lớp học/ }).click();
   await salePage.getByRole('option', { name: classCode }).click();
   // The trailing 1 is load-bearing. The fee input is min={1} step={100000}, so

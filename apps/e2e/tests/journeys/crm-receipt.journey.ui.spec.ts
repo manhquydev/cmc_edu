@@ -112,6 +112,12 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
     const normalizedPhone = `84${contactPhone.slice(1)}`;
     await expect(page.getByLabel('SĐT phụ huynh')).toHaveValue(normalizedPhone);
 
+    // The lead was created with only name + phone (no email), so the
+    // opportunity-prefill effect leaves this field empty — receipt-create.tsx
+    // now REQUIRES it (parent's LMS OTP login credential), so it must be
+    // filled here or the real submit stays silently blocked client-side.
+    await page.getByLabel('Email phụ huynh').fill(`e2e-p102-parent-${randomUUID().slice(0, 8)}@e2e.cmc`);
+
     await page.getByRole('button', { name: /^Lớp học/ }).click();
     await page.getByRole('option', { name: new RegExp(seeded.code) }).click();
     // Same HTML5 step-mismatch diagnosis as finance-receipt.journey.ui.spec.ts:

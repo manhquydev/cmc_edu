@@ -78,6 +78,9 @@ test.describe('P1-05 journey — kích hoạt ghi danh, rồi xếp thêm lớp 
 
     await salePage1.getByLabel('Họ tên học viên').fill(studentName);
     await salePage1.getByLabel('SĐT phụ huynh').fill(parentPhone);
+    // Required by receipt-create.tsx's validate() — the parent's LMS OTP
+    // login credential, without it the real submit stays client-side blocked.
+    await salePage1.getByLabel('Email phụ huynh').fill(`e2e-p105-parent-${randomUUID().slice(0, 8)}@e2e.cmc`);
     await salePage1.getByRole('button', { name: /^Lớp học/ }).click();
     await salePage1.getByRole('option', { name: new RegExp(classA.code) }).click();
     await salePage1.getByRole('spinbutton', { name: /^Học phí/ }).fill('5000001');

@@ -135,6 +135,9 @@ test.describe('F2 journey — session roster (Nhận xét buổi học)', () => 
 
     await salePage.getByLabel('Họ tên học viên').fill(studentName);
     await salePage.getByLabel('SĐT phụ huynh').fill(parentPhone);
+    // Required by receipt-create.tsx's validate() — the parent's LMS OTP
+    // login credential, without it the real submit stays client-side blocked.
+    await salePage.getByLabel('Email phụ huynh').fill(`e2e-f2-parent-${randomUUID().slice(0, 8)}@e2e.cmc`);
     await salePage.getByRole('button', { name: /^Lớp học/ }).click();
     await salePage.getByRole('option', { name: new RegExp(seeded.code) }).click();
     // NumberInput renders a native `min={1} step={100000}` spinbutton — the

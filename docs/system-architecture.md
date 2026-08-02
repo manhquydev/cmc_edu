@@ -459,6 +459,27 @@ if (!canApprove) throw forbidden('Insufficient role for approval.');
 
 ---
 
+## CI & Security (as of 2026-08-02)
+
+**Continuous Integration:**
+- **Blocking Gate:** `typecheck-and-test` (TypeScript validation + pnpm test suite)
+- **UI e2e:** `ui-e2e` runs on all pushes (continue-on-error; see PROMOTION_CRITERIA in .github/workflows/ci.yml)
+  - **Status 2026-08-02:** ui-chromium 40/40 specs green in CI — first genuinely-green run after regression fix #46
+  - All 31/38 journey UI flows + 9 regression/API specs restored after commit 01f6e4c tightened contracts
+- **Security Scanning:**
+  - **GitHub native:** Secret scanning + push protection enabled; `.gitleaks.toml` configured (0 real secrets, 2 test-fixture false-positives allowlisted)
+  - **Dependabot:** `.github/dependabot.yml` configured (auto-pull minor/patch; manual review for majors)
+  - **Trivy (IaC):** Report-only config/misconfig scan over Dockerfile/compose/nginx (`.github/workflows/ci.yml` security-scan job); continue-on-error, not blocking
+  - **CodeQL:** GitHub default setup enabled (javascript-typescript + actions) — first scan 2026-08-02: 20 alerts triaged (6 HIGH false-positive/by-design, 4 MEDIUM workflow-permission real, 10 LOW)
+- **Pre-commit:** Husky + lint-staged; eslint scoped via eslint.config.js (one-door @cmc/ui rule)
+- **Branch Protection:** main requires `typecheck-and-test` check (enforced 2026-08-02, PR #39)
+- **Dependency Hardening:**
+  - pnpm overrides patch fast-uri + brace-expansion HIGH advisories (no direct upgrade path)
+  - GitHub Actions SHA-pinned in ci.yml (no @v4 refs; explicit commit SHAs)
+  - Toolchain majors: vite 6→8, @vitejs/plugin-react 4→6, vitest 2→4 (PR #47; zero config changes)
+
+---
+
 ## Known Limitations & Workarounds
 
 | Issue | Mitigation | Planned Fix |
@@ -469,7 +490,8 @@ if (!canApprove) throw forbidden('Insufficient role for approval.');
 | **No retry scheduler** (K2) | Manual `reconcile-orphaned-receipts` trigger | Background job queue in ops phase |
 | **No real auth** | Dev stub accepts any header; RLS enforces tenant | Real OAuth2 in P2+ |
 | **classBatchId not validated** | Scalars accepted; FK created in P2 | P2 data backfill + constraint |
-| **tRPC basePath missing** (live bug) | Workaround: Vite dev/preview proxy | PR #27 (basePath: '/trpc/' + /health rewrite) |
+| **SSO (Entra) disabled** (M365 access lost) | Email/password staff login active 2026-07-26+; code preserved under env flag `SSO_ENABLED` | Restore M365 access; known issue: SSO reactivation needs RLS bypass at sso-routes.ts:220 |
+| **CodeQL workflow-permission gaps** (4 MEDIUM findings) | Not security-critical; being addressed separately | add explicit permissions block to .github/workflows |
 
 ---
 
@@ -581,5 +603,5 @@ This implementation strictly follows the frozen design:
 
 ---
 
-**Last Updated:** 2026-07-10 by docs-manager (Astryx migration Phase 1 complete + tRPC basePath bug documented)  
-**Aligns with:** main branch + plans/260710-0236-astryx-ui-migration/
+**Last Updated:** 2026-08-02 (security guardrails #39 + ui-e2e regression fix #46 + branch protection + CI/security section)  
+**Aligns with:** main branch commit c9af5f1

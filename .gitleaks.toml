@@ -13,8 +13,12 @@ description = "Test fixtures + example files — never real secrets"
 regexes = [
   '''xkeysib-abc123def456''',
 ]
-# Example/template env files are documentation, not secrets.
+# Example/template env files are documentation, not secrets. Exact committed
+# paths only (git ls-files '*.example') — a broad `.*\.example$` pattern would
+# exempt any future *.example file from scanning, including one that
+# accidentally holds a real secret.
 paths = [
-  '''.*\.example$''',
-  '''.*/\.env\.example$''',
+  '''^\.claude/\.env\.example$''',
+  '''^\.env\.example$''',
+  '''^\.env\.prod\.example$''',
 ]

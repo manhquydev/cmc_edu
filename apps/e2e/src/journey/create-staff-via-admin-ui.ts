@@ -24,9 +24,15 @@
 // primitive anywhere in the admin app or its e2e tests — no prior Playwright
 // pattern existed to reuse; this was discovered by driving the real dialog
 // and inspecting its rendered markup/ARIA tree):
-//   - Trigger: `page.getByLabel('Vai trò')` resolves the `<button
-//     aria-haspopup="listbox">` directly (its `<label for>` already points at
-//     it) — no role+name locator combo needed.
+//   - Trigger: an unscoped `page.getByLabel('Vai trò')` is AMBIGUOUS (strict
+//     mode: 3 elements) — Astryx's Dialog keeps every Dialog on the page
+//     mounted even when closed (only visually hidden), so it can match
+//     controls in other dialogs on this screen too. Scope to the open dialog
+//     first (`page.getByRole('dialog')`) and query by role — the trigger has
+//     no `role="combobox"` override when `hasSearch` is set (as it is here),
+//     so it renders as a plain `<button>` named by its `<label for>`. This is
+//     the same scoping `apps/admin/src/pages/admin/users.test.tsx` already
+//     uses (`within(dialog).getByRole('button', { name: 'Vai trò' })`).
 //   - Clicking it opens a `role="listbox"` popover
 //     (`aria-multiselectable="true"`) with `role="option"` rows, matched by
 //     their visible label (e.g. "Giáo viên").
@@ -127,7 +133,18 @@ export async function createStaffViaAdminUi(
       opts.roleLabels && opts.roleLabels.length > 0
         ? opts.roleLabels
         : [defaultRoleLabelForPosition(opts.position)];
-    await page.getByLabel('Vai trò').click();
+    // `getByLabel('Vai trò')` is ambiguous (strict-mode violation, resolves to
+    // 3 elements) — Astryx's Dialog keeps every Dialog on the page mounted
+    // (only visually hidden when closed), so an unscoped query can also match
+    // controls belonging to other, currently-closed dialogs on this same
+    // screen (e.g. the roles-assignment/reset-password modals). Scope to the
+    // open create dialog and query by role, mirroring the already-passing
+    // `within(dialog).getByRole('button', { name: 'Vai trò' })` pattern in
+    // apps/admin/src/pages/admin/users.test.tsx — the MultiSelector's trigger
+    // renders as a plain `<button>` (no `role="combobox"` override) because
+    // `hasSearch` is set on this field.
+    const createDialog = page.getByRole('dialog');
+    await createDialog.getByRole('button', { name: 'Vai trò', exact: true }).click();
     for (const label of roleLabelsToPick) {
       await page.getByRole('option', { name: label, exact: true }).click();
     }

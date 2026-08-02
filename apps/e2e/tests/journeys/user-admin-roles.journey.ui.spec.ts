@@ -54,11 +54,17 @@ test.describe('ADM-02 journey — quản trị nhân sự: tạo tài khoản + 
     // so the roles-modal step (user.updateRoles) still proves a real
     // transition instead of a no-op re-pick of the same role.
     await page.getByRole('button', { name: 'Thêm nhân viên' }).click();
+    const createDialog = page.getByRole('dialog');
     await page.getByLabel('User ID (auth identity)').fill(staffUserId);
     await page.getByLabel('Họ tên').fill(staffName);
     await page.getByLabel('Email').fill(`${staffUserId}@e2e.cmc`);
     await page.getByLabel('Vị trí').fill('Giáo viên E2E');
-    await page.getByLabel('Vai trò').click();
+    // Unscoped `getByLabel('Vai trò')` is ambiguous (strict mode: 3 elements)
+    // — Astryx's Dialog keeps every Dialog on the page mounted even when
+    // closed, so it can also match controls in the (closed) roles-assignment
+    // dialog below. Scope to the open create dialog, same as the roles-modal
+    // step further down already does for its own "Roles" MultiSelector.
+    await createDialog.getByRole('button', { name: 'Vai trò', exact: true }).click();
     await page.getByRole('option', { name: 'Sale', exact: true }).click();
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Tạo' }).click();

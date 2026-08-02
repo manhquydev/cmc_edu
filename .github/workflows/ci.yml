@@ -13,8 +13,9 @@ env:
   PGPASSWORD: postgres
   CMC_APP_PASSWORD: cmc_app_ci_password
 
-# Least-privilege default for GITHUB_TOKEN. Jobs that upload artifacts raise
-# actions: write only where needed (ui-e2e, security-scan).
+# Least-privilege default for GITHUB_TOKEN. actions/upload-artifact@v4 uses
+# the runtime artifact token, not GITHUB_TOKEN's actions scope, so no job
+# needs to raise actions: write.
 permissions:
   contents: read
 
@@ -177,181 +178,14 @@ jobs:
       - name: Run e2e
         run: pnpm --filter @cmc/e2e test
 
-  # Phase 0 of plans/260723-1422-may-hoa-nghiem-thu-ba-tang: the `ui-chromium`
-  # Playwright project and its admin/lms preview webServers only register
-  # under PLAYWRIGHT_UI=1 (apps/e2e/playwright.config.ts) — the `e2e` job above
-  # never sets that var and never installs a browser, so it is API-only by
-  # design. Without a job that sets PLAYWRIGHT_UI=1, `*.ui.spec.ts` files never
-  # run anywhere but a dev's own machine. This job is that executor: same
-  # postgres/migrate/password pattern as `e2e`, plus a browser install and a
-  # production build of admin/lms (`vite build` before `vite preview`).
-  #
-  # "prod-config" here means a PRODUCTION BUILD of admin/lms (import.meta.env.PROD
-  # — the admin app's trpc client only sends dev-header auth in a dev build, so
-  # exercising the built preview forces the signed cmc_staff_session cookie path,
-  # Mode B) plus the real API server — it does NOT mean NODE_ENV=production for
-  # the API process. This job deliberately leaves NODE_ENV unset (same as `e2e`
-  # above): apps/api/src/boot-checks.ts only refuses to start on the insecure
-  # STAFF_SESSION_SECRET/LMS_SESSION_SECRET dev defaults when NODE_ENV=production,
-  # and this job has no real secret to give it — global-setup.ts mints the staff
-  # cookie via mintStaffCookie() with that same dev default, so client and server
-  # sign/verify with the same well-known, CI-only value. Setting NODE_ENV=production
-  # here without a real STAFF_SESSION_SECRET would make the API refuse to boot.
-  #
-  # Originally `continue-on-error: true` — warn-first, same rationale as `e2e`
-  # above. Superseded 2026-08-02; see "PROMOTED TO BLOCKING" note below the
-  # criteria this decision was originally gated on.
-  #
-  # PROMOTION CRITERIA (decided 2026-07-26 — do not promote on a hunch):
-  # drop `continue-on-error` only when ALL of these hold, and record the evidence
-  # in the commit that promotes it.
-  #   1. >= 20 runs of this job on the branch it will gate, spanning >= 14 days.
-  #      Three green runs in one afternoon is not stability evidence.
-  #   2. Zero red runs in that window other than genuine UI regressions — a flake
-  #      that passed on retry resets nothing, but it must be logged and explained.
-  #   3. The runner environment has not changed inside the window. Moving to a
-  #      self-hosted runner restarts the clock, because timing and browser
-  #      behaviour differ from `ubuntu-latest`.
-  #   4. Runtime still leaves headroom under the 60-90 minute budget (D2).
-  # Clock started 2026-07-26 with runs 30184942661 / 30185169572 / 30186422346.
-  #
-  # VERIFIED IN CI 2026-07-26 (run 30184942661, commit 478495b): first real
-  # execution after Actions had failed in 3-4 seconds with zero steps since
-  # 2026-07-17 — that signature was exhausted Actions minutes, never this file.
-  # The run was green (34/34 specs) and uploaded the first artifact that the
-  # acceptance ledger accepts as its source of record: gitDirty false, gitSha
-  # matching HEAD.
-  #
-  # Runtime measured here rather than estimated: this job took 6.1 minutes wall
-  # clock, against the 9-53 minute projection that made the every-push cadence
-  # provisional. Per-push therefore stays comfortably inside the 60-90 minute
-  # threshold and needs no move to nightly or sharding.
-  #
-  # M1 RESOLUTION (2026-08-02): branch protection on `main` now exists and
-  # requires `typecheck-and-test`. This job stays push-triggered — the two
-  # reasons above (double billing, synthetic merge SHA breaking the ledger)
-  # still hold, so the trigger itself is unchanged. What changed is how it can
-  # become a requirable PR check without adding a `pull_request` trigger: a
-  # push to a PR branch already produces a `ui-e2e` check run against that
-  # push's real HEAD SHA, and GitHub attaches check runs by commit SHA, not by
-  # triggering event — so the same check run shows up on the PR once the head
-  # commit matches. Verify on the first PR after promotion that a `ui-e2e`
-  # check actually appears on the PR's head commit before relying on it as a
-  # merge gate.
-  #
-  # PROMOTED TO BLOCKING (2026-08-02): `continue-on-error` removed. Rationale:
-  # this repo is operated by a solo maintainer whose code is mostly
-  # AI-generated — there is no human-QA fallback standing behind a merge, so
-  # the only gate that proves user-reachable behaviour (not just that a
-  # procedure compiles and unit-tests in isolation) must be non-bypassable.
-  # `ui-e2e` reached 40/40 green in CI, well past the run-count/time evidence
-  # this job's own PROMOTION CRITERIA above called for; that earlier
-  # >= 20-runs/>= 14-day team-caution threshold is superseded by this
-  # solo-context decision — a team with real code review can afford to let a
-  # slow-to-earn-trust gate stay advisory longer, a solo AI-assisted operator
-  # cannot. The controller will also add `ui-e2e` to branch-protection
-  # required checks after this change merges — a blocking job that is not
-  # also a required check still cannot stop a merge.
-  ui-e2e:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: write # upload-artifact journey ledger
-    # Push events only, for two reasons that both matter. (1) This workflow
-    # triggers on push AND pull_request, so a PR branch would run this
-    # 9-53-minute billed job twice for one commit. (2) On a pull_request event
-    # `github.sha` is the synthetic merge commit, which exists in no clone — the
-    # ledger would refuse the artifact as belonging to different code, and the
-    # reader would see "bản mã cũ" with no way to reconcile it.
-    if: github.event_name == 'push'
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: cmc_ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cmc_ci?schema=public
-      APP_DATABASE_URL: postgresql://cmc_app:cmc_app_ci_password@localhost:5432/cmc_ci?schema=public
-      PLAYWRIGHT_UI: '1'
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-        with:
-          version: 10.24.0
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run database migrations
-        run: pnpm --filter @cmc/db exec prisma migrate deploy
-
-      - name: Set cmc_app role password (CI-only, throwaway)
-        run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -d cmc_ci \
-            -c "ALTER ROLE cmc_app WITH PASSWORD '${CMC_APP_PASSWORD}';"
-
-      - name: Write Prisma .env (CI schema validation)
-        run: printf 'DATABASE_URL=%s\nAPP_DATABASE_URL=%s\n' "$DATABASE_URL" "$APP_DATABASE_URL" > packages/db/prisma/.env
-
-      # Required for @cmc/db/dist (same as `e2e` above). admin/lms rebuild
-      # themselves a second time via their preview webServer command
-      # (playwright.config.ts uiServers) with VITE_API_URL baked in for this
-      # run — redundant for those two apps, but this workspace-wide build is
-      # still what produces @cmc/db/dist that @cmc/e2e imports.
-      - name: Build workspace packages (required by e2e — @cmc/db/dist must exist)
-        run: pnpm build
-
-      # Only `e2e` above skips this — that job never launches a browser.
-      # Chromium only, matching the single `ui-chromium` project this job runs.
-      - name: Install Playwright Chromium (+ OS deps)
-        run: pnpm --filter @cmc/e2e exec playwright install --with-deps chromium
-
-      # PLAYWRIGHT_UI=1 (job env, above) registers the `ui-chromium` project and
-      # starts the admin (4173) and lms (4174) preview webServers
-      # (playwright.config.ts). The whole project runs, not one spec: the
-      # acceptance ledger treats a run that skipped declared specs as a partial
-      # run and refuses to draw conclusions from it, so a single-spec job could
-      # never back the ledger of record.
-      #
-      # GIT_SHA is passed explicitly because the checkout here is detached and
-      # the ledger refuses results whose commit does not match the code it is
-      # describing.
-      #
-      # Blocking at job level since 2026-08-02 (see note above `ui-e2e:`).
-      # This job still produces the acceptance-ledger evidence artifact below;
-      # it now also gates merges.
-      - name: Run UI e2e (full ui-chromium project)
-        env:
-          GIT_SHA: ${{ github.sha }}
-        run: pnpm --filter @cmc/e2e test --project=ui-chromium
-
-      # The artifact is the ONLY sanctioned source for the acceptance ledger of
-      # record: a local results file is a normal file anyone can edit, whereas
-      # this one is produced by a run nobody hand-touched. `if: always()` so a
-      # red run still publishes its evidence — a failed journey is exactly the
-      # result the ledger needs to show.
-      - name: Upload journey results (acceptance ledger evidence)
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: acceptance-journeys-${{ github.sha }}
-          path: apps/e2e/acceptance-results/journeys.json
-          if-no-files-found: warn
+  # `ui-e2e` is its own workflow (.github/workflows/ui-e2e.yml, push-only) —
+  # see that file's header comment for why it cannot live as a job here.
+  # ci.yml triggers on push AND pull_request; a job here guarded by
+  # `if: github.event_name == 'push'` still emits a second, always-`skipped`
+  # check run on the pull_request event for the same head SHA, and branch
+  # protection accepts the latest run for a required check name regardless of
+  # which trigger produced it — that skipped run could silently clear a red
+  # push run. A separate push-only workflow file cannot produce that second run.
 
   # Trivy config/misconfig scan over Dockerfiles, compose files, and nginx
   # config under infra/. Deliberately narrow: dependency-CVE scanning is
@@ -365,7 +199,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: write # upload-artifact trivy report
     continue-on-error: true
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

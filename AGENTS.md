@@ -55,6 +55,24 @@ request needs product knowledge, read in order:
   (chi tiết + điều kiện bật lại: `docs/system-architecture.md`, mục Auth Integration).
 - `docs/codebase-summary.md` — current implementation status, phases complete, build verification
 
+## Operating model (solo + AI-generated code)
+
+Một người vận hành, phần lớn code do AI sinh ra ⇒ không có đội review con người
+đứng sau. Các gate tự động (CI) chính là đội review đó — coi chúng là
+non-bypassable, không phải gợi ý.
+
+- Trước khi báo một thay đổi "done": `typecheck-and-test` VÀ `ui-e2e` phải
+  xanh trên CI (cả hai đều là required checks trên `main`).
+- Luôn làm việc trên branch + PR; không bao giờ commit thẳng vào `main` cục bộ
+  (tránh sự cố `main` phân kỳ giữa local và remote).
+- Dependabot patch/minor auto-merge khi CI xanh (`.github/workflows/dependabot-auto-merge.yml`);
+  major/breaking dependency bump cần người xem lại thủ công.
+- Chạy `pnpm acceptance:report` trước khi phát biểu số liệu nghiệm thu — đó là
+  nguồn đo lường thật; số trong tài liệu chỉ là ảnh chụp có ngày.
+- Tín hiệu bảo mật (CodeQL, Trivy misconfig, secret scanning, Dependabot
+  security) — với một người vận hành, liếc qua tab Security khoảng mỗi tuần là
+  đủ; dismiss false-positive kèm bằng chứng cụ thể.
+
 **Glossary:**
 - `docs/07-glossary-san-pham.md` (TL07) — CMC product terms (ubiquitous language)
 - `docs/GLOSSARY.md` — Harness tooling terms

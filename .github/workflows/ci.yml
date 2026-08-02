@@ -198,7 +198,9 @@ jobs:
   # sign/verify with the same well-known, CI-only value. Setting NODE_ENV=production
   # here without a real STAFF_SESSION_SECRET would make the API refuse to boot.
   #
-  # continue-on-error: true — warn-first, same rationale as `e2e` above.
+  # Originally `continue-on-error: true` — warn-first, same rationale as `e2e`
+  # above. Superseded 2026-08-02; see "PROMOTED TO BLOCKING" note below the
+  # criteria this decision was originally gated on.
   #
   # PROMOTION CRITERIA (decided 2026-07-26 — do not promote on a hunch):
   # drop `continue-on-error` only when ALL of these hold, and record the evidence
@@ -233,12 +235,23 @@ jobs:
   # push to a PR branch already produces a `ui-e2e` check run against that
   # push's real HEAD SHA, and GitHub attaches check runs by commit SHA, not by
   # triggering event — so the same check run shows up on the PR once the head
-  # commit matches. Once `continue-on-error` is dropped (see PROMOTION
-  # CRITERIA above — still gated on >= 20 runs / >= 14 days, unmet as of this
-  # note), that check becomes eligible to add as a required status check for
-  # `main`, no workflow trigger change needed. Verify on the first PR after
-  # promotion that a `ui-e2e` check actually appears on the PR's head commit
-  # before relying on it as a merge gate.
+  # commit matches. Verify on the first PR after promotion that a `ui-e2e`
+  # check actually appears on the PR's head commit before relying on it as a
+  # merge gate.
+  #
+  # PROMOTED TO BLOCKING (2026-08-02): `continue-on-error` removed. Rationale:
+  # this repo is operated by a solo maintainer whose code is mostly
+  # AI-generated — there is no human-QA fallback standing behind a merge, so
+  # the only gate that proves user-reachable behaviour (not just that a
+  # procedure compiles and unit-tests in isolation) must be non-bypassable.
+  # `ui-e2e` reached 40/40 green in CI, well past the run-count/time evidence
+  # this job's own PROMOTION CRITERIA above called for; that earlier
+  # >= 20-runs/>= 14-day team-caution threshold is superseded by this
+  # solo-context decision — a team with real code review can afford to let a
+  # slow-to-earn-trust gate stay advisory longer, a solo AI-assisted operator
+  # cannot. The controller will also add `ui-e2e` to branch-protection
+  # required checks after this change merges — a blocking job that is not
+  # also a required check still cannot stop a merge.
   ui-e2e:
     runs-on: ubuntu-latest
     permissions:
@@ -251,7 +264,6 @@ jobs:
     # ledger would refuse the artifact as belonging to different code, and the
     # reader would see "bản mã cũ" with no way to reconcile it.
     if: github.event_name == 'push'
-    continue-on-error: true
     services:
       postgres:
         image: postgres:16
@@ -320,8 +332,9 @@ jobs:
       # the ledger refuses results whose commit does not match the code it is
       # describing.
       #
-      # Still `continue-on-error: true` at job level — warn-first. This job
-      # produces evidence; it does not gate merges.
+      # Blocking at job level since 2026-08-02 (see note above `ui-e2e:`).
+      # This job still produces the acceptance-ledger evidence artifact below;
+      # it now also gates merges.
       - name: Run UI e2e (full ui-chromium project)
         env:
           GIT_SHA: ${{ github.sha }}

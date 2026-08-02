@@ -1,0 +1,38 @@
+name: Dependabot auto-merge
+
+# pull_request, not pull_request_target: this workflow only reads PR metadata
+# (dependabot/fetch-metadata) and calls `gh pr merge`, both of which need no
+# access to the PR's own (potentially untrusted) workflow files or secrets
+# beyond GITHUB_TOKEN — pull_request_target's extra privilege (running the
+# base branch's workflow against a fork PR) is not needed and would only
+# widen the blast radius for no benefit here.
+on:
+  pull_request:
+
+jobs:
+  auto-merge:
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a # v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Patch and minor only — major/breaking dependency bumps stay manual.
+      # Supply-chain caution after the Axios incident (2026-03): an
+      # auto-merged major bump is exactly the kind of unreviewed change that
+      # bit projects that year. This step only *requests* auto-merge; the
+      # actual gate is repo auto-merge + the required status checks
+      # (typecheck-and-test, ui-e2e) — GitHub will not merge until those go
+      # green, so a bad patch/minor bump still has a chance to be caught by
+      # CI before landing.
+      - name: Enable auto-merge for patch/minor updates
+        if: ${{ steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge --auto --squash "${{ github.event.pull_request.html_url }}"

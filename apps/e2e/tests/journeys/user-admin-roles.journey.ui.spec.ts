@@ -49,34 +49,48 @@ test.describe('ADM-02 journey — quản trị nhân sự: tạo tài khoản + 
     await expect(page).toHaveURL(/\/admin\/users/);
 
     // --- create the staff account ---
+    // "Vai trò" is required on create (users.tsx's isFormValid), so a role
+    // must be picked here — 'Sale' rather than the target 'Giáo viên' below,
+    // so the roles-modal step (user.updateRoles) still proves a real
+    // transition instead of a no-op re-pick of the same role.
     await page.getByRole('button', { name: 'Thêm nhân viên' }).click();
     await page.getByLabel('User ID (auth identity)').fill(staffUserId);
     await page.getByLabel('Họ tên').fill(staffName);
     await page.getByLabel('Email').fill(`${staffUserId}@e2e.cmc`);
     await page.getByLabel('Vị trí').fill('Giáo viên E2E');
+    await page.getByLabel('Vai trò').click();
+    await page.getByRole('option', { name: 'Sale', exact: true }).click();
+    await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Tạo' }).click();
     // The create dialog closes on success — wait before searching the table.
     await expect(page.getByRole('button', { name: 'Tạo' })).toHaveCount(0);
 
-    // The new account appears in the list; a fresh staff has no role badge yet.
+    // The new account appears in the list, carrying the role picked at create
+    // time — not yet the target 'giao_vien' role this journey exists to prove.
     const row = await findInList(page, (text) => text.includes(staffName));
+    await expect(row.getByText('sale', { exact: true })).toBeVisible();
     await expect(row.getByText('giao_vien', { exact: true })).toHaveCount(0);
 
     // --- assign a role through the roles modal ---
+    // openRolesModal pre-selects the row's existing DB roles (['sale']), so
+    // the modal opens with 'Sale' already checked — toggle it off and
+    // 'Giáo viên' on to fully replace it, not just append.
     await row.click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await dialog.getByLabel('Roles').click();
+    await page.getByRole('option', { name: 'Sale', exact: true }).click();
     await page.getByRole('option', { name: 'Giáo viên', exact: true }).click();
     await page.keyboard.press('Escape');
     await dialog.getByRole('button', { name: 'Lưu' }).click();
     await expect(dialog).toHaveCount(0);
 
     // The role now shows as a badge on the row — the value 'giao_vien', not the
-    // 'Giáo viên' label. The badge was absent before (asserted above) and
-    // present now: that transition is the living proof updateRoles persisted.
+    // 'Giáo viên' label. It replaced the create-time 'sale' badge asserted
+    // above: that transition is the living proof updateRoles persisted.
     const updatedRow = await findInList(page, (text) => text.includes(staffName));
     await expect(updatedRow.getByText('giao_vien', { exact: true })).toBeVisible();
+    await expect(updatedRow.getByText('sale', { exact: true })).toHaveCount(0);
 
     await context.close();
   });

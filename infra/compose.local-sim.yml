@@ -25,6 +25,15 @@
 # from this machine without exposing DB/API to the LAN.
 services:
   nginx:
+    # Compose port lists MERGE (append) across files by default — the base
+    # docker-compose.prod.yml binds nginx to 0.0.0.0:80/443, and without
+    # `!override` this file's ports would only ADD to that, leaving the
+    # LAN-facing bind in place. `!override` replaces the base list outright so
+    # the local-sim stack is loopback-only end to end (matches postgres/api
+    # below).
+    ports: !override
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
     volumes:
       - ./infra/nginx/nginx.local-sim.conf:/etc/nginx/nginx.conf:ro
       - ./infra/nginx/local-sim-api-locations.conf:/etc/nginx/local-sim-api-locations.conf:ro

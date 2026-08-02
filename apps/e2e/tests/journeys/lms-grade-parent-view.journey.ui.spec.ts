@@ -103,7 +103,11 @@ test.describe('Journey xuyên app — GV chấm điểm ERP → phụ huynh th�
     );
     await teacherPage.goto('/cockpit');
     await menuNav(teacherPage, 'Giảng dạy', 'Chấm bài', { role: 'giao_vien' });
-    const queueRow = teacherPage.getByText(`HS: ${studentId.slice(0, 8).toUpperCase()}`);
+    // The queue identifies each submission by `studentFullName` when set
+    // (grading.tsx: `item.studentFullName ?? \`HS: ${prefix}\``) — the "HS:
+    // <id prefix>" form is only the fallback for a nameless student, which
+    // this seeded one (provisioned via a real receipt, real name) is not.
+    const queueRow = teacherPage.getByText(studentName);
     await expect(queueRow).toBeVisible();
     await queueRow.click();
     // A whole number on purpose: a first run graded 8.5 and the parent page

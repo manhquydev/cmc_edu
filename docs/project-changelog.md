@@ -6,6 +6,25 @@
 
 ---
 
+## [2026-08-02] Day-one authoring: course create UI + CurriculumUnit ensure (local-sim)
+
+**Context:** Timeline MCP e2e (org bootstrap → class → receipt → attendance)
+showed enrollment/attendance APIs work, but pure-UI day-one ops stalled on
+authoring gaps: `/admin/courses` was list-only while `course.create` existed;
+local-sim never ran prisma seed so `CurriculumUnit` was empty and exercise/
+grading UI unusable; bare `/classes` hit Coming Soon.
+
+**Product:** GĐĐT can create courses from Admin → Khoá học (`+ Tạo khoá`).
+`scripts/ensure-curriculum-units.ts` (gated allow-flag, idempotent) plants the
+minimal UCREA unit set; `seed-local-sim-demo.ts` invokes it best-effort. Admin
+redirects `/classes` → `/admin/classes`. Sale `receiptList` SoD and CRM Ghi
+danh destination left unchanged (by design).
+
+**Evidence:** `apps/admin` course create unit tests; plan
+`plans/260802-1500-day-one-authoring-ui-gaps/`.
+
+---
+
 ## [2026-07-26] Staff email/password thay Entra SSO (mất quyền M365) + hợp nhất toàn bộ về `main`
 
 **Context:** dự án mất quyền tenant M365 ⇒ Entra SSO và Graph email phải tắt được bằng cấu hình,

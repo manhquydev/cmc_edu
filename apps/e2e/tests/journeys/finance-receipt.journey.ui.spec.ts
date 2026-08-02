@@ -25,13 +25,16 @@
 // That link is a genuine UI click, not a `page.goto()`.
 //
 // Same reason `sale` locates nothing by receipt CODE: `finance.receiptCreate`'s
-// own onSuccess navigates sale to `/finance/<id>` (real app behavior), but
-// that detail screen calls `finance.receiptGet` — gated to
-// `giam_doc_kinh_doanh`/`giam_doc_dao_tao` only, NOT `sale` — so sale's own
-// browser shows a real "Không tìm thấy phiếu thu" permission banner there
-// (expected; not asserted on). The approver below instead finds the row by
-// the student name typed into the create form — a real, visible column on
-// the receipt list (`studentName`), unique enough with the random suffix.
+// own onSuccess checks `canDo('finance', 'receiptGet')` — gated to
+// `giam_doc_kinh_doanh`/`giam_doc_dao_tao` only, NOT `sale` — and only
+// navigates to `/finance/<id>` when that holds; for `sale` it stays on
+// `/finance/new` and shows the receipt's code in an in-place success banner
+// instead (real app behavior, receipt-create.tsx's own comment: "would land
+// straight on Không tìm thấy phiếu thu if we navigated there"). The approver
+// below instead finds the row by the student name typed into the create
+// form — a real, visible column on the receipt list (`studentName`), unique
+// enough with the random suffix — and its own navigation into detail is what
+// this test reads `receiptId` from, `sale` never observes the UUID at all.
 
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
@@ -104,14 +107,16 @@ test.describe('F1 journey — finance receipt (Phiếu thu)', () => {
       await amountInput.fill('5000001');
 
       await salePage.getByRole('button', { name: 'Tạo phiếu thu' }).click();
-      // Real app navigation on mutation success (receipt-create.tsx's own
-      // onSuccess), not a test-driven goto. The destination 403s for `sale`
-      // (see file header) — that is expected, real behavior, not asserted on;
-      // only the URL's receiptId is read here, for this test's own later
-      // DB-side outbox lookup/teardown (never handed to the approver below).
-      await expect(salePage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
-      const saleUrl = salePage.url();
-      receiptId = saleUrl.slice(saleUrl.lastIndexOf('/') + 1);
+      // `sale` lacks `finance.receiptGet` (packages/auth) — receipt-create.tsx's
+      // own onSuccess only navigates to `/finance/:id` when the caller holds
+      // that permission; for `sale` it stays on `/finance/new` and shows the
+      // receipt's code in an in-place success banner instead (its own comment:
+      // "would land straight on Không tìm thấy phiếu thu if we navigated
+      // there"). The receipt's UUID is only observable later, from the
+      // approver's own navigation into detail below (real behavior, not a
+      // test-driven goto) — that is where `receiptId` is read for this test's
+      // own later DB-side outbox lookup/teardown.
+      await expect(salePage.getByText(/^Đã tạo phiếu thu /)).toBeVisible();
       await saleContext.close();
 
       // --- a DIFFERENT GĐ: find the receipt by the displayed student name, approve ---
@@ -132,6 +137,11 @@ test.describe('F1 journey — finance receipt (Phiếu thu)', () => {
       const row = await findInList(approverPage, (text) => text.includes(studentName));
       await row.click();
       await expect(approverPage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
+      // The receipt id is the last path segment — the only place Playwright can
+      // observe it (receiptCreate's response is not visible to the browser
+      // tests, and `sale` above never navigates there to read it either).
+      const approverUrl = approverPage.url();
+      receiptId = approverUrl.slice(approverUrl.lastIndexOf('/') + 1);
       await expect(approverPage.getByRole('heading', { name: /^Phiếu thu /, level: 4 })).toBeVisible();
 
       await approverPage.getByRole('button', { name: 'Duyệt & Kích hoạt' }).click();

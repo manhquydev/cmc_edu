@@ -76,7 +76,7 @@ test.describe('P3-03/04/07 journey — đăng ký ca: từ chối → nộp lạ
       cookiePair(STAFF_COOKIE_NAME, mintStaffCookie({ userId: `e2e-p3shift-sa-${runId}`, roles: ['super_admin'], facilityId })),
     );
     await adminPage.goto('/cockpit');
-    await menuNav(adminPage, 'Quản trị', 'Ca làm việc', { role: 'super_admin' });
+    await menuNav(adminPage, 'Nhân sự', 'Ca làm việc', { role: 'super_admin' });
     await adminPage.getByLabel('Tên nhóm ca').fill(groupName);
     await adminPage.getByRole('button', { name: 'Thêm nhóm ca' }).click();
     const groupCard = adminPage.locator('div').filter({ hasText: groupName }).filter({ has: adminPage.getByLabel('Tên mẫu ca') }).last();

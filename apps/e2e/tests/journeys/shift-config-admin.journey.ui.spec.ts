@@ -39,7 +39,7 @@ test.describe('ADM-05 journey — cấu hình ca làm (nhóm + mẫu ca + chính
     );
     await page.goto('/cockpit');
 
-    await menuNav(page, 'Quản trị', 'Ca làm việc', { role: 'super_admin' });
+    await menuNav(page, 'Nhân sự', 'Ca làm việc', { role: 'super_admin' });
     await expect(page).toHaveURL(/\/admin\/shift-config/);
 
     // --- create a shift group (default type Kinh doanh) ---

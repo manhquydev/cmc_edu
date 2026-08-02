@@ -135,6 +135,9 @@ test.describe('F2 journey — session roster (Nhận xét buổi học)', () => 
 
     await salePage.getByLabel('Họ tên học viên').fill(studentName);
     await salePage.getByLabel('SĐT phụ huynh').fill(parentPhone);
+    // Required by receipt-create.tsx's validate() — the parent's LMS OTP
+    // login credential, without it the real submit stays client-side blocked.
+    await salePage.getByLabel('Email phụ huynh').fill(`e2e-f2-parent-${randomUUID().slice(0, 8)}@e2e.cmc`);
     await salePage.getByRole('button', { name: /^Lớp học/ }).click();
     await salePage.getByRole('option', { name: new RegExp(seeded.code) }).click();
     // NumberInput renders a native `min={1} step={100000}` spinbutton — the
@@ -144,7 +147,12 @@ test.describe('F2 journey — session roster (Nhận xét buổi học)', () => 
     await salePage.getByRole('spinbutton', { name: /^Học phí/ }).fill('5000001');
 
     await salePage.getByRole('button', { name: 'Tạo phiếu thu' }).click();
-    await expect(salePage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
+    // `sale` lacks `finance.receiptGet` (packages/auth), so receipt-create.tsx's
+    // own onSuccess does NOT navigate `sale` to `/finance/:id` — it stays on
+    // `/finance/new` and shows the receipt's code in an in-place success
+    // banner instead. The approver below finds this receipt by the displayed
+    // student name, not by an id `sale` never observes.
+    await expect(salePage.getByText(/^Đã tạo phiếu thu /)).toBeVisible();
     await saleContext.close();
 
     // --- GĐKD: find by displayed student name, approve -> provisioning

@@ -89,7 +89,7 @@ test.describe('P3-02 journey — duyệt phiếu chấm công offsite theo track
     await adminContext.addCookies(cookiePair(STAFF_COOKIE_NAME, adminCookie));
     await adminPage.goto('/cockpit');
 
-    await menuNav(adminPage, 'Quản trị', 'Ca làm việc', { role: 'super_admin' });
+    await menuNav(adminPage, 'Nhân sự', 'Ca làm việc', { role: 'super_admin' });
     await expect(adminPage).toHaveURL(/\/admin\/shift-config/);
     await adminPage.getByLabel('Tên nhóm ca').fill(groupName);
     await adminPage.getByRole('button', { name: 'Thêm nhóm ca' }).click();

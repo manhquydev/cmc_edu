@@ -78,11 +78,19 @@ test.describe('P1-05 journey — kích hoạt ghi danh, rồi xếp thêm lớp 
 
     await salePage1.getByLabel('Họ tên học viên').fill(studentName);
     await salePage1.getByLabel('SĐT phụ huynh').fill(parentPhone);
+    // Required by receipt-create.tsx's validate() — the parent's LMS OTP
+    // login credential, without it the real submit stays client-side blocked.
+    await salePage1.getByLabel('Email phụ huynh').fill(`e2e-p105-parent-${randomUUID().slice(0, 8)}@e2e.cmc`);
     await salePage1.getByRole('button', { name: /^Lớp học/ }).click();
     await salePage1.getByRole('option', { name: new RegExp(classA.code) }).click();
     await salePage1.getByRole('spinbutton', { name: /^Học phí/ }).fill('5000001');
     await salePage1.getByRole('button', { name: 'Tạo phiếu thu' }).click();
-    await expect(salePage1).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
+    // `sale` lacks `finance.receiptGet` (packages/auth), so receipt-create.tsx's
+    // own onSuccess does NOT navigate `sale` to `/finance/:id` — it stays on
+    // `/finance/new` and shows the receipt's code in an in-place success
+    // banner instead. The approver below finds this receipt by the displayed
+    // student name, not by an id `sale` never observes.
+    await expect(salePage1.getByText(/^Đã tạo phiếu thu /)).toBeVisible();
     await saleContext1.close();
 
     // --- GĐKD: approve -> provisioning creates the Student + activates

@@ -92,11 +92,29 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
     // 'O4_TESTED'` — its mere visibility here IS the proof all 3 one-step
     // advances landed exactly on stage, since a non-adjacent jump is
     // server-rejected (crm/router.ts) and would have left "Chuyển lên" showing
-    // instead. Scoped to `.sh-content` (packages/ui/src/components/
-    // app-frame.tsx) — the persistent topbar quick-action button
-    // (`shell.tsx`'s `sh-cta`) is ALSO labeled "Ghi danh" and lives in the
-    // sibling `.sh-top` region, so an unscoped query is ambiguous.
-    const createReceiptButton = page.locator('.sh-content').getByRole('button', { name: 'Ghi danh' });
+    // instead. Scoped to the specific OpportunityCard containing this
+    // journey's own `contactName` (pipeline.tsx: one `<div>` per card, name +
+    // button as siblings) rather than just ".sh-content" — a CI retry
+    // (playwright.config.ts: retries: 1 under CI) that got this far before an
+    // earlier version of this test failed on a later assertion would leave a
+    // second, orphaned O4_TESTED opportunity from the first attempt still on
+    // screen, and an unscoped "the only visible Ghi danh button" query would
+    // then resolve to 2 elements — scoping by this run's own contact name
+    // stays correct even when that happens.
+    // `pipeline.tsx`'s `OpportunityCard` renders the contact name inside its
+    // own inner `HStack` (a sibling of the "Ghi danh" button, not an
+    // ancestor) — filtering by `hasText` alone and taking `.last()` grabs
+    // that inner, button-less `HStack` div instead of the card. Also
+    // requiring `has` a "Ghi danh" button (mirrors
+    // shift-config-admin.journey.ui.spec.ts's `groupCard` pattern) narrows to
+    // divs that contain both, and `.last()` then correctly picks the
+    // innermost of those — the card's own `Stack` wrapper.
+    const opportunityCard = page
+      .locator('.sh-content div')
+      .filter({ hasText: contactName })
+      .filter({ has: page.getByRole('button', { name: 'Ghi danh' }) })
+      .last();
+    const createReceiptButton = opportunityCard.getByRole('button', { name: 'Ghi danh' });
     await expect(createReceiptButton).toBeVisible();
     await createReceiptButton.click();
     await expect(page).toHaveURL(/\/finance\/new\?opportunityId=/);
@@ -112,6 +130,12 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
     const normalizedPhone = `84${contactPhone.slice(1)}`;
     await expect(page.getByLabel('SĐT phụ huynh')).toHaveValue(normalizedPhone);
 
+    // The lead was created with only name + phone (no email), so the
+    // opportunity-prefill effect leaves this field empty — receipt-create.tsx
+    // now REQUIRES it (parent's LMS OTP login credential), so it must be
+    // filled here or the real submit stays silently blocked client-side.
+    await page.getByLabel('Email phụ huynh').fill(`e2e-p102-parent-${randomUUID().slice(0, 8)}@e2e.cmc`);
+
     await page.getByRole('button', { name: /^Lớp học/ }).click();
     await page.getByRole('option', { name: new RegExp(seeded.code) }).click();
     // Same HTML5 step-mismatch diagnosis as finance-receipt.journey.ui.spec.ts:
@@ -120,10 +144,12 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
     await page.getByRole('spinbutton', { name: /^Học phí/ }).fill('5000001');
 
     await page.getByRole('button', { name: 'Tạo phiếu thu' }).click();
-    // Real app navigation on `finance.receiptCreate` success — the destination
-    // 403s for `sale` (finance.receiptGet excludes sale, packages/auth), which
-    // is expected/unasserted, same as F1/F2. Only the URL shape (real receipt
-    // id) proves the mutation this flow exists to prove actually ran.
-    await expect(page).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
+    // `sale` lacks `finance.receiptGet` (packages/auth), so receipt-create.tsx's
+    // own onSuccess does NOT navigate to `/finance/:id` for this role — it
+    // stays on `/finance/new` and renders the receipt's code in an in-place
+    // success banner instead (its own comment: "would land straight on Không
+    // tìm thấy phiếu thu if we navigated there"). That banner, not a URL
+    // change, is the real, current proof `finance.receiptCreate` ran.
+    await expect(page.getByText(/^Đã tạo phiếu thu /)).toBeVisible();
   });
 });

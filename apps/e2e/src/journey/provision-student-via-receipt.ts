@@ -34,8 +34,12 @@ export interface ProvisionStudentOptions {
   classCode: string | RegExp;
   studentName: string;
   parentPhone: string;
-  /** When set, recorded on the receipt so the parent can also log in by email
-   *  OTP. Provisioning upserts it onto the ParentAccount. */
+  /** Recorded on the receipt so the parent can log in by email OTP —
+   *  provisioning upserts it onto the ParentAccount. The receipt-create form
+   *  now REQUIRES this field (it is the parent's LMS credential, see
+   *  receipt-create.tsx's `validate`); when omitted here, this helper fills a
+   *  generated `@e2e.cmc` address so the real "Tạo phiếu thu" submit is never
+   *  blocked by client-side validation. */
   parentEmail?: string;
   /** Fee to enter, as the string the input receives. Default '3000001' — the
    *  trailing 1 is required (see the fill call). Pass a value > 20,000,000 to
@@ -64,6 +68,7 @@ export async function provisionStudentViaReceipt(
   const classCode = options.classCode instanceof RegExp ? options.classCode : new RegExp(options.classCode);
   const feeVnd = options.feeVnd ?? '3000001';
   const approverRole = options.approverRole ?? 'giam_doc_kinh_doanh';
+  const parentEmail = options.parentEmail ?? `e2e-parent-${runId}@e2e.cmc`;
 
   // --- sale: create the receipt for this student ---
   const saleContext = await browser.newContext({ baseURL: ADMIN_URL });
@@ -82,9 +87,7 @@ export async function provisionStudentViaReceipt(
 
   await salePage.getByLabel('Họ tên học viên').fill(options.studentName);
   await salePage.getByLabel('SĐT phụ huynh').fill(options.parentPhone);
-  if (options.parentEmail) {
-    await salePage.getByLabel('Email phụ huynh').fill(options.parentEmail);
-  }
+  await salePage.getByLabel('Email phụ huynh').fill(parentEmail);
   await salePage.getByRole('button', { name: /^Lớp học/ }).click();
   await salePage.getByRole('option', { name: classCode }).click();
   // The trailing 1 is load-bearing. The fee input is min={1} step={100000}, so
@@ -93,10 +96,13 @@ export async function provisionStudentViaReceipt(
   // directly; recorded as a product finding). Keep any fee on that lattice.
   await salePage.getByRole('spinbutton', { name: /^Học phí/ }).fill(feeVnd);
   await salePage.getByRole('button', { name: 'Tạo phiếu thu' }).click();
-  await expect(salePage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
-  // The receipt id is the last path segment — the only place Playwright can
-  // observe it (receiptCreate's response is not visible to the browser tests).
-  const receiptId = new URL(salePage.url()).pathname.split('/').pop()!;
+  // `sale` lacks `finance.receiptGet` (ADR-B SoD) — receipt-create.tsx's own
+  // onSuccess only navigates to `/finance/:id` when `canDo('finance',
+  // 'receiptGet')`; for `sale` it instead stays on `/finance/new` and shows
+  // the receipt CODE (not the UUID) in an in-place success banner. The UUID
+  // is only observable later, from the approver's own navigation into detail
+  // below (their role does hold `receiptGet`).
+  await expect(salePage.getByText(/^Đã tạo phiếu thu /)).toBeVisible();
   await saleContext.close();
 
   // --- director: approve, which is what actually provisions the account ---
@@ -117,6 +123,10 @@ export async function provisionStudentViaReceipt(
   await menuNav(approverPage, 'Tài chính & Điều hành', 'Phiếu thu', { role: approverRole });
   const row = await findInList(approverPage, (text) => text.includes(options.studentName));
   await row.click();
+  await expect(approverPage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
+  // The receipt id is the last path segment — the only place Playwright can
+  // observe it (receiptCreate's response is not visible to the browser tests).
+  const receiptId = new URL(approverPage.url()).pathname.split('/').pop()!;
   await approverPage.getByRole('button', { name: 'Duyệt & Kích hoạt' }).click();
   const dialog = approverPage.getByRole('alertdialog');
   await expect(dialog).toBeVisible();

@@ -98,10 +98,11 @@ test.describe('P4-01 journey (xuyên app) — chấm bài sinh sao → học sin
     );
     await teacherPage.goto('/cockpit');
     await menuNav(teacherPage, 'Giảng dạy', 'Chấm bài', { role: 'giao_vien' });
-    // The queue renders cards, not table rows, keyed "HS: <id-prefix>" — same
-    // locator the P2-06 grading journey established.
-    const studentIdPrefix = studentId.slice(0, 8).toUpperCase();
-    const queueRow = teacherPage.getByText(`HS: ${studentIdPrefix}`);
+    // The queue identifies each submission by `studentFullName` when set
+    // (grading.tsx: `item.studentFullName ?? \`HS: ${prefix}\``) — the "HS:
+    // <id prefix>" form is only the fallback for a nameless student, which
+    // this seeded one (provisioned via a real receipt, real name) is not.
+    const queueRow = teacherPage.getByText(studentName);
     await expect(queueRow).toBeVisible();
     await queueRow.click();
     await teacherPage.getByRole('spinbutton', { name: /Điểm/ }).fill('8.5');

@@ -45,8 +45,8 @@ function cookiePair(name: string, value: string) {
 test.describe('P2-06 journey — chấm bài (GV chấm bài nộp, bài rời hàng đợi)', () => {
   const runId = randomUUID().slice(0, 8);
   const teacherUserId = `e2e-p206-teacher-${runId}`;
+  const studentName = `E2E P2-06 Student ${runId}`;
   let exerciseId = '';
-  let studentIdPrefix = '';
 
   test.beforeAll(async () => {
     // A teacher, and a class that teacher owns.
@@ -57,9 +57,8 @@ test.describe('P2-06 journey — chấm bài (GV chấm bài nộp, bài rời h
     const enrollment = await seedActiveEnrollment({
       facilityId,
       classBatchId: batch.classBatchId,
-      studentName: `E2E P2-06 Student ${runId}`,
+      studentName,
     });
-    studentIdPrefix = enrollment.studentId.slice(0, 8).toUpperCase();
     // A published exercise and a submission waiting to be graded.
     const exercise = await seedPublishedExercise();
     exerciseId = exercise.exerciseId;
@@ -85,9 +84,12 @@ test.describe('P2-06 journey — chấm bài (GV chấm bài nộp, bài rời h
     await menuNav(page, 'Giảng dạy', 'Chấm bài', { role: 'giao_vien' });
     await expect(page).toHaveURL(/\/teaching\/grading/);
 
-    // The list identifies each submission by the student id prefix (HS: …).
-    // It is present before grading — this is the falsifiable pre-condition.
-    const queueRow = page.getByText(`HS: ${studentIdPrefix}`);
+    // The list identifies each submission by the student's full name when one
+    // is set (grading.tsx: `item.studentFullName ?? \`HS: ${prefix}\``) — the
+    // "HS: <id prefix>" form is only the fallback for a nameless student,
+    // which this seeded one is not. It is present before grading — this is
+    // the falsifiable pre-condition.
+    const queueRow = page.getByText(studentName);
     await expect(queueRow).toBeVisible();
     await queueRow.click();
 

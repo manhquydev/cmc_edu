@@ -60,6 +60,9 @@ export const router = createBrowserRouter([
       { path: 'hr', children: hrRoutes },
       { path: 'ops', children: opsRoutes },
       { path: 'admin', children: adminRoutes },
+      // Footgun: bare /classes is not registered (list lives at /admin/classes).
+      // Redirect before the catch-all ComingSoon so typed/bookmarked URLs work.
+      { path: 'classes', element: <Navigate to="/admin/classes" replace /> },
       { path: '*', element: <ComingSoon /> },
     ],
   },

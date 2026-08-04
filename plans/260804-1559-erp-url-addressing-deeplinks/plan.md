@@ -38,7 +38,7 @@ Quyết định bổ sung sau red-team (user chốt 2026-08-04): payroll giữ C
 | # | Phase | Status |
 |---|-------|--------|
 | 1 | [Phase 1: ReturnTo Login Redirect](./phase-01-start.md) | Completed |
-| 2 | [Phase 2: Links Contract And Go Resolver](./phase-02-links-contract-and-go-resolver.md) | Pending |
+| 2 | [Phase 2: Links Contract And Go Resolver](./phase-02-links-contract-and-go-resolver.md) | In progress (2a done) |
 | 3 | [Phase 3: Attendance Workspace URL State](./phase-03-attendance-workspace-url-state.md) | Pending |
 | 4 | [Phase 4: Remaining Workspaces And Docs](./phase-04-remaining-workspaces-and-docs.md) | Pending |
 

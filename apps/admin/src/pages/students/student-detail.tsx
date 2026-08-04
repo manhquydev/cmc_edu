@@ -85,6 +85,12 @@ export default function StudentDetailPage() {
 
   const canSetLifecycle = canDo('student', 'setLifecycle');
   const displayName = student?.fullName ?? (getQ.isLoading ? 'Đang tải…' : 'Chi tiết học viên');
+  const notFound =
+    Boolean(id) &&
+    !getQ.isLoading &&
+    !getQ.isFetching &&
+    student == null &&
+    (getQ.isError || getQ.isSuccess);
 
   function handleApply() {
     if (!id || !pendingLifecycle) return;
@@ -219,6 +225,28 @@ export default function StudentDetailPage() {
     },
   ];
 
+  if (notFound) {
+    return (
+      <DetailPage
+        header={
+          <PageHeader
+            breadcrumbs={[
+              { label: 'Lớp & Học sinh', href: '/admin/students' },
+              { label: 'Học viên', href: '/admin/students' },
+              { label: 'Không tìm thấy' },
+            ]}
+          />
+        }
+      >
+        <EmptyState
+          title="Không tìm thấy học viên"
+          description="Liên kết có thể đã hết hạn hoặc học viên không thuộc cơ sở hiện tại."
+          icon={<LineIcon name="users" size={28} />}
+        />
+      </DetailPage>
+    );
+  }
+
   return (
     <>
       <DetailPage
@@ -242,8 +270,10 @@ export default function StudentDetailPage() {
             meta={
               student ? (
                 <span>Lifecycle · {student.lifecycle}</span>
+              ) : getQ.isLoading ? (
+                <span>Đang tải hồ sơ học viên…</span>
               ) : (
-                <span>Chưa có state học viên — mở từ danh sách để đủ dữ liệu</span>
+                <span>Chưa có dữ liệu học viên</span>
               )
             }
           />

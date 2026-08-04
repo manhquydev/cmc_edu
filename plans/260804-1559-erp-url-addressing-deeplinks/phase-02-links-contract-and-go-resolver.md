@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Links Contract And Go Resolver"
-status: pending
+status: in-progress
 priority: P1
 effort: "10h"
 dependencies: [1]
@@ -104,8 +104,8 @@ export function resolveGo(entity: string, id: string): string | null {
 ## Success Criteria
 
 PR 2a:
-- [ ] 4 route chi tiết có PermissionGate; e2e 403 chứng minh
-- [ ] E2e cold-navigation: student-detail render dữ liệu thật từ id (không còn phụ thuộc `location.state`)
+- [x] 4 route chi tiết có PermissionGate; e2e 403 chứng minh
+- [x] E2e cold-navigation: student-detail render dữ liệu thật từ id (không còn phụ thuộc `location.state`) — `student.get` đã có trên develop; bổ sung EmptyState not-found
 - [ ] CI 2 required checks xanh
 
 PR 2b:

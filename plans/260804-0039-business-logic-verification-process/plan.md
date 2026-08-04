@@ -97,6 +97,36 @@ broken"*.
   exercise-publish, session-evidence, parent-link, shift-config, user-admin...). 27/40 pass.
 - Prereq đã sửa để chạy được UI e2e: rebuild `@cmc/ui` (stale dist).
 
+## Phase 2b (2026-08-04): +3 money flows retrofitted → verified-correct
+
+Retrofitted 3 reachable-only money/state flows (each passed pinned-cli standalone, 3/3):
+- P1-09 recon: `reconciliation.listFlags` flag `detail.netAmount === 25000001` matched by receiptId
+  (worker flagged the right receipt with the right number).
+- P1-05 enrollment: getDb() readback — exactly 2 enrollments, class-A `active` + class-B `reserved`
+  (avoided tautological `student.lifecycle` which defaults active).
+- P1-04 activation: getDb() — StudentAccount→ParentAccount linkage (student-keyed select, parent-keyed
+  assert, non-circular; avoided `mustChangePassword` which a later reset falsifies).
+Two use the sanctioned getDb() RLS-bypass (no staff read-proc exposes enrollment status / SA linkage).
+
+## Definitive full-suite (pinned cli, clean, 2026-08-04): 30 passed / 10 failed
+
+Up from 27/40 baseline. Thread B overflow fixes recovered shift-config (ADM-05), shift-register
+(P3-04), checkin-offsite (P3-02).
+
+**Regression from the P2-06 `.int()` guard — FOUND & FIXED:** `lms-stars-redeem-cycle.journey`
+graded with `fill('8.5')` (line 110); the new integer guard rejected it → journey broke. My
+earlier impact grep searched `score: 8.5` and missed the UI `fill('8.5')` pattern. Fixed →
+`fill('8')` (only fractional grade fill in the whole e2e suite; lms-grade-parent-view already
+grades `9`). Lesson: when tightening an input validator, grep the UI-driver patterns
+(`fill('N.5')`), not just the API-shape literals.
+
+Remaining 10 failures (for the UI-refactor workstream / follow-up, NOT verify-tier blockers):
+overflow fixes landed the CLICK (errors changed from "intercepts pointer events" to later
+`toBeVisible` on success banners), so enrollment (P1-05), entrance-test (P4-04),
+session-evidence (P2-08), parent-link (P1-06) now fail at a downstream step — each needs its own
+probe. ADM-02 = role-not-displayed (separate). exercise (P2-04) suspected DataTable-width.
+lms-parent-evidence (P2-08 PH) had no matching HStack. admin-shell = safety net.
+
 ## Acceptance criteria (Phase 1)
 
 - [ ] `assertBusinessInvariant` tồn tại, có kiểu, có nhãn `business-invariant`.

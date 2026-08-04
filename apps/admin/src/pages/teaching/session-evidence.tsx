@@ -2,8 +2,11 @@
 // Flow: pick lớp → pick buổi → upsert evidence → add photos → publish.
 
 import { useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Badge, Banner, Button, ConfirmDialog, FormPage, Grid, HStack, LineIcon, PageHeader, Selector, Skeleton, Stack, Text, TextArea, useToast } from '@cmc/ui';
+import { UUID_RE, readUuidParam } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
+import { CopyLinkButton } from '../../lib/copy-link-button.js';
 
 const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').trim();
 
@@ -13,8 +16,10 @@ function photoUrl(blobRef: string): string {
 }
 
 export default function SessionEvidencePage() {
-  const [classBatchId, setClassBatchId] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const classBatchId = readUuidParam(searchParams, 'classBatchId');
+  const sessionId = readUuidParam(searchParams, 'sessionId');
+
   const [summary, setSummary] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -64,8 +69,24 @@ export default function SessionEvidencePage() {
     isDisabled: s.status === 'cancelled',
   }));
 
-  function resetSession() {
-    setSessionId(null);
+  function selectClass(id: string | null) {
+    const next = new URLSearchParams(searchParams);
+    if (id && UUID_RE.test(id)) next.set('classBatchId', id);
+    else next.delete('classBatchId');
+    next.delete('sessionId');
+    setSearchParams(next, { replace: true });
+    setSummary('');
+    setEvidenceId(null);
+    setPhotos([]);
+    setPublished(false);
+    setSaved(false);
+  }
+
+  function selectSession(id: string | null) {
+    const next = new URLSearchParams(searchParams);
+    if (id && UUID_RE.test(id)) next.set('sessionId', id);
+    else next.delete('sessionId');
+    setSearchParams(next, { replace: true });
     setSummary('');
     setEvidenceId(null);
     setPhotos([]);
@@ -180,6 +201,7 @@ export default function SessionEvidencePage() {
           title="Nhật ký buổi học"
           subtitle="Viết tóm tắt, upload ảnh, công bố cho phụ huynh"
           breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Nhật ký buổi học' }]}
+          actions={(classBatchId || sessionId) ? <CopyLinkButton mode="current" /> : undefined}
         />
       }
       result={resultContent}
@@ -203,7 +225,7 @@ export default function SessionEvidencePage() {
               placeholder="Chọn lớp học"
               options={classOptions}
               value={classBatchId ?? undefined}
-              onChange={(v) => { setClassBatchId(v ?? null); resetSession(); }}
+              onChange={(v) => selectClass(v ?? null)}
               hasSearch
               hasClear={false}
             />
@@ -223,7 +245,7 @@ export default function SessionEvidencePage() {
                 placeholder="Chọn buổi"
                 options={sessionOptions}
                 value={sessionId ?? undefined}
-                onChange={(v) => { setSessionId(v ?? null); setSummary(''); setEvidenceId(null); setPhotos([]); setPublished(false); setSaved(false); }}
+                onChange={(v) => selectSession(v ?? null)}
                 hasClear={false}
               />
             )}

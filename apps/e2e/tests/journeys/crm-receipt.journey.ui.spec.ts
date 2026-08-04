@@ -81,8 +81,15 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
     await expect(page.getByText(contactName)).toBeVisible();
 
     // --- advance O1 -> O2 -> O3 -> O4_TESTED, one real click at a time ---
+    // Scope "Chuyển lên" to this journey's card — deep-link / prior journeys
+    // leave other open opportunities on the shared facility (strict-mode trap).
     for (let step = 0; step < 3; step += 1) {
-      const advanceButton = page.getByRole('button', { name: 'Chuyển lên' });
+      const opportunityCard = page
+        .locator('.sh-content div')
+        .filter({ hasText: contactName })
+        .filter({ has: page.getByRole('button', { name: 'Chuyển lên' }) })
+        .last();
+      const advanceButton = opportunityCard.getByRole('button', { name: 'Chuyển lên' });
       await expect(advanceButton).toBeVisible();
       await advanceButton.click();
       // Settle: the optimistic update + onSettled invalidate both land before

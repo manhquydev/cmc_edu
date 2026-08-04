@@ -22,6 +22,7 @@ import {
   useToast,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { useSession } from '../../lib/session-context.js';
 
 // Receipt lifecycle stages shown in the side rail.
@@ -403,12 +404,15 @@ export default function ReceiptDetailPage() {
               { label: receipt.code },
             ]}
             actions={
-              <Button
-                label="← Danh sách"
-                variant="secondary"
-                size="sm"
-                onClick={() => void navigate('/finance')}
-              />
+              <>
+                {id ? <CopyLinkButton mode="go" entity="receipt" id={id} /> : null}
+                <Button
+                  label="← Danh sách"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void navigate('/finance')}
+                />
+              </>
             }
           />
         }

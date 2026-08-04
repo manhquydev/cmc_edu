@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { links } from '@cmc/links';
 import {
   Banner,
   Button,
@@ -349,7 +350,7 @@ function ClassListContent() {
           loading={isLoading}
           error={error?.message}
           empty="Chưa có lớp học nào"
-          onRowClick={(row) => void navigate(`/admin/classes/${row.id}`)}
+          onRowClick={(row) => void navigate(links.classBatch(row.id))}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
         />
@@ -388,7 +389,7 @@ function ClassListContent() {
                   onClick={() => {
                     const id = createResult.classBatchId;
                     closeCreateDialog();
-                    void navigate(`/admin/classes/${id}`);
+                    void navigate(links.classBatch(id));
                   }}
                 />
               </HStack>

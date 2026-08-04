@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { links } from '@cmc/links';
 import {
   BulkActionBar,
   Button,
@@ -130,7 +131,7 @@ export default function StudentListPage() {
           error={error?.message}
           empty="Không tìm thấy học viên"
           onRowClick={(row) =>
-            void navigate(`/admin/students/${row.id}`, { state: { student: row } })
+            void navigate(links.student(row.id), { state: { student: row } })
           }
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}

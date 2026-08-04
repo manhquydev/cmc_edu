@@ -5,6 +5,7 @@ import {
   Banner,
   Button,
   DetailPage,
+  EmptyState,
   EntityHeader,
   HighlightStrip,
   HStack,
@@ -22,6 +23,7 @@ import {
 import type { ComponentProps } from 'react';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
+import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { formatContactPhone } from '../../lib/format-contact-phone.js';
 import { LOST_REASON_LABELS, MarkLostDialog } from './mark-lost-dialog.js';
 import { SOURCE_LABELS } from './create-lead-dialog.js';
@@ -162,6 +164,8 @@ export default function OpportunityDetailPage() {
   }
 
   if (error) {
+    const code = (error.data as { code?: unknown } | null | undefined)?.code;
+    const isForbidden = code === 'FORBIDDEN';
     return (
       <DetailPage
         header={
@@ -169,12 +173,20 @@ export default function OpportunityDetailPage() {
             breadcrumbs={[
               { label: 'Kinh doanh', href: '/crm' },
               { label: 'Pipeline CRM', href: '/crm' },
-              { label: 'Lỗi' },
+              { label: isForbidden ? 'Không có quyền' : 'Lỗi' },
             ]}
           />
         }
       >
-        <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
+        {isForbidden ? (
+          <EmptyState
+            title="Không có quyền truy cập"
+            description="Bạn không có quyền xem cơ hội này (crm.opportunityList)."
+            icon={<LineIcon name="shield" size={28} />}
+          />
+        ) : (
+          <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
+        )}
       </DetailPage>
     );
   }
@@ -293,6 +305,7 @@ export default function OpportunityDetailPage() {
               { label: 'Pipeline CRM', href: '/crm' },
               { label: opp.contact.name },
             ]}
+            actions={id ? <CopyLinkButton mode="go" entity="opportunity" id={id} /> : undefined}
           />
         }
         entity={

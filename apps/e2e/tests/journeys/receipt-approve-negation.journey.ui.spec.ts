@@ -118,11 +118,10 @@ test.describe('P1-03 journey — duyệt phiếu kích hoạt học viên, sale 
 
     // The negation this journey exists to prove: `sale` cannot view/approve
     // the very receipt it just created. `finance.receiptGet` excludes `sale`
-    // entirely (not merely a hidden button on a screen it can load), so a
-    // FRESH `sale` session navigating straight to the URL still hits
-    // `receipt-detail.tsx`'s real `error || !receipt` branch — same
-    // permission boundary as before, reached directly now that the app no
-    // longer auto-navigates a receipt's own creator there.
+    // entirely. The route is now wrapped in PermissionGate (finance.receiptGet),
+    // so a FRESH sale session hits the gate EmptyState before the detail page
+    // mounts — same boundary as the API, surfaced as "Không có quyền truy cập"
+    // rather than the old in-page "Không tìm thấy phiếu thu" banner.
     const negationContext = await browser.newContext();
     const negationPage = await negationContext.newPage();
     const negationCookie = mintStaffCookie({
@@ -132,7 +131,8 @@ test.describe('P1-03 journey — duyệt phiếu kích hoạt học viên, sale 
     });
     await negationContext.addCookies(cookiePair(STAFF_COOKIE_NAME, negationCookie));
     await negationPage.goto(`/finance/${receiptId}`);
-    await expect(negationPage.getByText('Không tìm thấy phiếu thu')).toBeVisible();
+    await expect(negationPage.getByText('Không có quyền truy cập')).toBeVisible();
+    await expect(negationPage.getByText(/finance\.receiptGet/)).toBeVisible();
     await expect(negationPage.getByRole('button', { name: 'Duyệt & Kích hoạt' })).toHaveCount(0);
     await negationContext.close();
 

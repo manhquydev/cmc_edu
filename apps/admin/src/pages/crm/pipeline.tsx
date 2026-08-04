@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { links } from '@cmc/links';
 import { Badge, Button, FunnelBar, HStack, LineIcon, ListPage, PageHeader, Panel, Selector, Skeleton, Stack, Text, TextInput } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { formatContactPhone } from '../../lib/format-contact-phone.js';
@@ -91,7 +92,7 @@ function OpportunityCard({
         padding: '10px var(--cmc-keyline-x)',
         cursor: 'pointer',
       }}
-      onClick={() => void navigate(`/crm/opportunities/${opp.id}`)}
+      onClick={() => void navigate(links.opportunity(opp.id))}
     >
       <Stack gap={1.5}>
         <HStack justify="between" align="start">

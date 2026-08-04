@@ -2,10 +2,10 @@
 // Flow: pick lớp → pick buổi → upsert evidence → add photos → publish.
 
 import { useRef, useState } from 'react';
-import { Badge, Banner, Button, FormPage, Grid, HStack, LineIcon, PageHeader, Selector, Skeleton, Stack, Text, TextArea } from '@cmc/ui';
+import { Badge, Banner, Button, ConfirmDialog, FormPage, Grid, HStack, LineIcon, PageHeader, Selector, Skeleton, Stack, Text, TextArea, useToast } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
-const API_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? 'http://localhost:3000';
+const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').trim();
 
 function photoUrl(blobRef: string): string {
   if (blobRef.startsWith('http')) return blobRef;
@@ -45,6 +45,8 @@ export default function SessionEvidencePage() {
   const [photos, setPhotos] = useState<Array<{ id: string; blobRef: string }>>([]);
   const [published, setPublished] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
+  const { success: toastSuccess } = useToast();
 
   const classOptions = (classData?.items ?? []).map((c) => ({
     value: c.id,
@@ -112,9 +114,15 @@ export default function SessionEvidencePage() {
 
   async function handlePublish() {
     if (!evidenceId) return;
-    await publishMut.mutateAsync({ sessionEvidenceId: evidenceId });
-    setPublished(true);
-    void utils.sessionEvidence.invalidate();
+    try {
+      await publishMut.mutateAsync({ sessionEvidenceId: evidenceId });
+      setPublished(true);
+      setPublishConfirmOpen(false);
+      toastSuccess('Đã công bố nhật ký buổi học');
+      void utils.sessionEvidence.invalidate();
+    } catch {
+      // error surface via publishMut state if needed
+    }
   }
 
   // Bottom action bar mirrors the currently-active forward action: "Lưu tóm
@@ -125,7 +133,7 @@ export default function SessionEvidencePage() {
   const actionsContent = !sessionId ? undefined : published ? (
     <Badge label="Đã công bố" variant="success" />
   ) : (
-    <HStack gap={2}>
+    <HStack gap={2} style={{ flexWrap: 'wrap' }}>
       <Button
         label="Lưu tóm tắt"
         size="sm"
@@ -139,7 +147,7 @@ export default function SessionEvidencePage() {
           label="Công bố cho phụ huynh"
           size="sm"
           variant="secondary"
-          onClick={handlePublish}
+          onClick={() => setPublishConfirmOpen(true)}
           isLoading={publishMut.isPending}
         />
       )}
@@ -155,12 +163,23 @@ export default function SessionEvidencePage() {
   ) : undefined;
 
   return (
+    <>
+    <ConfirmDialog
+      opened={publishConfirmOpen}
+      title="Công bố nhật ký cho phụ huynh?"
+      message="Phụ huynh sẽ thấy tóm tắt và ảnh buổi học trên LMS. Kiểm tra nội dung trước khi công bố."
+      confirmLabel="Công bố"
+      confirmColor="green"
+      loading={publishMut.isPending}
+      onConfirm={() => { void handlePublish(); }}
+      onCancel={() => setPublishConfirmOpen(false)}
+    />
     <FormPage
       header={
         <PageHeader
           title="Nhật ký buổi học"
           subtitle="Viết tóm tắt, upload ảnh, công bố cho phụ huynh"
-          breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Nhật ký buổi học' }]}
+          breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Nhật ký buổi học' }]}
         />
       }
       result={resultContent}
@@ -277,7 +296,7 @@ export default function SessionEvidencePage() {
                 <img
                   key={p.id}
                   src={photoUrl(p.blobRef)}
-                  style={{ height: 80, width: '100%', objectFit: 'cover', borderRadius: 'var(--cmc-radius-xs)' }}
+                  style={{ height: 80, width: '100%', objectFit: 'cover', borderRadius: 'var(--cmc-radius-control)' }}
                   alt="Ảnh buổi học"
                 />
               ))}
@@ -293,5 +312,6 @@ export default function SessionEvidencePage() {
         )}
       </Stack>
     </FormPage>
+    </>
   );
 }

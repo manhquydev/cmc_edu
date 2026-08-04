@@ -91,8 +91,10 @@ describe('ReceiptDetailPage', () => {
 
   it('renders the loaded receipt fields', () => {
     renderDetail();
-    expect(screen.getByText('Phiếu thu SO0001')).toBeInTheDocument();
-    expect(screen.getByText('Nguyễn Văn A')).toBeInTheDocument();
+    // Single identity: EntityHeader h1 owns the code (no dual PageHeader title).
+    expect(screen.getByRole('heading', { name: 'SO0001' })).toBeInTheDocument();
+    expect(screen.getAllByText('Nguyễn Văn A').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('SO0001').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows "Không tìm thấy phiếu thu" when receiptGet errors (e.g. missing permission)', () => {

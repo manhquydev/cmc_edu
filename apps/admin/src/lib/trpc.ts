@@ -13,7 +13,10 @@ export function makeQueryClient(): QueryClient {
   });
 }
 
-const API_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? 'http://localhost:3000';
+// Empty base = same-origin (Vite proxies /trpc+/auth in dev; nginx in prod).
+// Do NOT default to http://localhost:3000 — that is cross-origin from :5173 and
+// the API has no CORS, so the browser throws and login shows "Không kết nối…".
+const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').trim();
 
 /** Reads dev-user impersonation JSON from localStorage (dev only). */
 export function getDevUserHeader(): string | null {

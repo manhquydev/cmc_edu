@@ -45,7 +45,7 @@ export default function ChangePasswordPage() {
   const errorMessage = localError ?? changeMut.error?.message ?? null;
 
   return (
-    <div style={{ maxWidth: 400, margin: '80px auto 0', paddingInline: 16 }}>
+    <div style={{ maxWidth: 400, margin: '80px auto 0', paddingInline: 'var(--cmc-space-3)' }}>
       <Card padding={5}>
         <Stack gap={2}>
           <Heading level={2} style={{ color: 'var(--cmc-brand)' }}>

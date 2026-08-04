@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Badge,
   Banner,
+  BulkActionBar,
   Button,
   DataTable,
   Dialog,
@@ -9,11 +10,13 @@ import {
   HStack,
   LineIcon,
   ListPage,
+  ListPagination,
   NumberInput,
   PageHeader,
   Stack,
   Text,
   TextInput,
+  useToast,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
@@ -71,6 +74,10 @@ const EMPTY_FORM: GiftFormState = { name: '', starsRequired: 1, stock: -1 };
 export default function GiftsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<GiftFormState>(EMPTY_FORM);
+  const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const pageSize = 20;
+  const { success: toastSuccess } = useToast();
 
   const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.gift.list.useQuery({ includeInactive: true });
@@ -100,9 +107,13 @@ export default function GiftsPage() {
   const isFormValid =
     form.name.trim().length > 0 && Number(form.starsRequired) >= 1;
 
+  const allRows = (data as GiftRow[] | undefined) ?? [];
+  const rows = allRows.slice((page - 1) * pageSize, page * pageSize);
+
   return (
     <>
       <ListPage
+        density="ops"
         header={
           <PageHeader
             title="Phần thưởng"
@@ -117,13 +128,53 @@ export default function GiftsPage() {
             }
           />
         }
+        controlFooter={
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            <BulkActionBar
+              selectionCount={selectedIds.length}
+              onClear={() => setSelectedIds([])}
+            >
+              <Button
+                label="Ẩn đã chọn"
+                size="sm"
+                variant="secondary"
+                isDisabled={selectedIds.length === 0 || upsertMut.isPending}
+                onClick={() => {
+                  const picked = allRows.filter((r) => selectedIds.includes(r.id));
+                  for (const g of picked) {
+                    upsertMut.mutate({
+                      id: g.id,
+                      name: g.name,
+                      starsRequired: g.starsRequired,
+                      stock: g.stock,
+                      isActive: false,
+                    });
+                  }
+                  setSelectedIds([]);
+                  toastSuccess(`Đã ẩn ${picked.length} phần thưởng`);
+                }}
+              />
+            </BulkActionBar>
+            <ListPagination
+              page={page}
+              pageSize={pageSize}
+              total={allRows.length}
+              onPageChange={(p) => {
+                setPage(p);
+                setSelectedIds([]);
+              }}
+            />
+          </div>
+        }
       >
         <DataTable<GiftRow>
           columns={COLUMNS}
-          data={(data as GiftRow[] | undefined) ?? []}
+          data={rows}
           loading={isLoading}
           error={error?.message}
           empty="Chưa có phần thưởng nào"
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
         />
       </ListPage>
 

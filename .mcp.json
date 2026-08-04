@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "gkg": {
-      "type": "http",
-      "url": "http://localhost:27495/mcp"
+    "gitnexus": {
+      "command": "npx",
+      "args": ["-y", "gitnexus@1.6.9", "mcp"]
     }
   }
 }

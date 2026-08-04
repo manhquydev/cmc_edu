@@ -2,7 +2,23 @@
 // (docs/16 — money gate must exclude `sale`).
 
 import { describe, expect, it } from 'vitest';
-import { ACTIVE_ROLES, can, PERMISSIONS, type Role } from './index.js';
+import { ACTIVE_ROLES, can, formatRole, formatRoles, PERMISSIONS, type Role } from './index.js';
+
+describe('formatRole', () => {
+  it('maps active role keys to Vietnamese labels', () => {
+    expect(formatRole('giao_vien')).toBe('Giáo viên');
+    expect(formatRole('giam_doc_dao_tao')).toBe('Giám đốc đào tạo');
+    expect(formatRole('sale')).toBe('Sale');
+  });
+
+  it('passes unknown keys through', () => {
+    expect(formatRole('not_a_role')).toBe('not_a_role');
+  });
+
+  it('joins multiple roles for greetings', () => {
+    expect(formatRoles(['giao_vien', 'sale'])).toBe('Giáo viên, Sale');
+  });
+});
 
 describe('can()', () => {
   it('denies a null (unauthenticated) subject', () => {

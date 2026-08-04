@@ -8,12 +8,13 @@ import {
   Banner,
   Button,
   Card,
-  CmcTabs,
   DataTable,
+  DetailPage,
   HStack,
   NumberInput,
   PageHeader,
   Selector,
+  SettingsShell,
   Stack,
   Text,
   TextInput,
@@ -389,23 +390,29 @@ function AssignTab() {
 // Page root
 // ---------------------------------------------------------------------------
 export default function SalaryTiersPage() {
-  const [activeTab, setActiveTab] = useState('tiers');
+  const [activeNav, setActiveNav] = useState('tiers');
 
   return (
-    <>
-      <PageHeader
-        title="Bậc lương & gán bậc"
-        subtitle="Quản lý bậc lương và gán bậc cho nhân viên sale/giáo viên"
-        breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Bậc lương' }]}
-      />
-      <CmcTabs
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        tabs={[
-          { id: 'tiers', label: 'Bậc lương', content: <TiersTab /> },
-          { id: 'assign', label: 'Gán bậc', content: <AssignTab /> },
+    <DetailPage
+      header={
+        <PageHeader
+          title="Bậc lương & gán bậc"
+          subtitle="Quản lý bậc lương và gán bậc cho nhân viên sale/giáo viên"
+          breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Bậc lương' }]}
+        />
+      }
+    >
+      <SettingsShell
+        title="Bậc lương"
+        activeId={activeNav}
+        onSelect={setActiveNav}
+        items={[
+          { id: 'tiers', label: 'Bậc lương', description: 'CRUD bậc & đơn giá' },
+          { id: 'assign', label: 'Gán bậc', description: 'Sale / giáo viên' },
         ]}
-      />
-    </>
+      >
+        {activeNav === 'tiers' ? <TiersTab /> : <AssignTab />}
+      </SettingsShell>
+    </DetailPage>
   );
 }

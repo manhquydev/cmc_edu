@@ -86,13 +86,16 @@ test.describe('P4-04 journey — test đầu vào: đặt lịch → vắng mặ
     // The reload here is that workaround. It waits for the mutation's own
     // response first: reloading straight after the click aborts the in-flight
     // POST, which is a race in the test, not a second product bug.
-    await expect(page.getByText('Cơ hội — Tiếp cận')).toBeVisible();
+    // The UI-cohesion refactor moved the stage out of the header subtitle
+    // ("Cơ hội — <stage>") into the EntityHeader meta ("Giai đoạn · <stage>");
+    // that meta line is the current single-node stage signal.
+    await expect(page.getByText('Giai đoạn · Tiếp cận')).toBeVisible();
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('crm.opportunityAdvance') && r.status() === 200),
       page.getByRole('button', { name: 'Chuyển lên' }).click(),
     ]);
     await page.reload();
-    await expect(page.getByText('Cơ hội — Đã liên hệ')).toBeVisible();
+    await expect(page.getByText('Giai đoạn · Đã liên hệ')).toBeVisible();
 
     // --- schedule BOTH tests before completing either (see header note) ---
     await scheduleTest(page, slotDone);
@@ -142,7 +145,7 @@ test.describe('P4-04 journey — test đầu vào: đặt lịch → vắng mặ
     await expect(page.getByRole('button', { name: 'Vắng mặt' })).toHaveCount(0);
     await expect(appointmentRowStatus(page, rowNoShow, 'Vắng mặt')).toBeVisible();
     await expect(appointmentRowStatus(page, rowDone, 'Hoàn thành')).toBeVisible();
-    await expect(page.getByText('Cơ hội — Đã kiểm tra')).toBeVisible();
+    await expect(page.getByText('Giai đoạn · Đã kiểm tra')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Đặt lịch test' })).toHaveCount(0);
 
     await context.close();

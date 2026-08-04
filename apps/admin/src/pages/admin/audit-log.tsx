@@ -83,6 +83,7 @@ function AuditLogContent() {
 
   return (
     <ListPage
+      density="ops"
       header={
         <PageHeader
           title="Nhật ký hệ thống"

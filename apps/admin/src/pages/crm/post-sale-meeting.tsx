@@ -1,7 +1,17 @@
 import { useState } from 'react';
 import type { ComponentProps } from 'react';
-import { Badge, Button, DataTable, HStack, LineIcon, ListPage, PageHeader, Selector, Stack, Text } from '@cmc/ui';
-import type { TableColumn } from '@cmc/ui';
+import {
+  Badge,
+  Button,
+  DataTable,
+  FilterBar,
+  HStack,
+  LineIcon,
+  ListPage,
+  ListPagination,
+  PageHeader,
+} from '@cmc/ui';
+import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useParentMeetingActions } from './use-parent-meeting-actions.js';
 import { ScheduleParentMeetingDialog } from './schedule-parent-meeting-dialog.js';
@@ -18,6 +28,19 @@ const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: 'scheduled', label: 'Đã đặt lịch' },
   { value: 'done', label: 'Hoàn thành' },
   { value: 'cancelled', label: 'Đã hủy' },
+];
+
+const MEETING_FILTERS: FilterDef[] = [
+  {
+    key: 'status',
+    label: 'Trạng thái',
+    type: 'select',
+    options: STATUS_FILTER_OPTIONS.filter((o) => o.value !== 'all').map((o) => ({
+      value: o.value,
+      label: o.label,
+    })),
+    placeholder: 'Tất cả',
+  },
 ];
 
 const STATUS_LABELS: Record<MeetingStatus, string> = {
@@ -58,10 +81,16 @@ interface MeetingRow {
 }
 
 export default function PostSaleMeetingPage() {
-  const [status, setStatus] = useState<StatusFilter>('all');
+  const [filters, setFilters] = useState<Record<string, string>>({ status: '' });
   const [page, setPage] = useState(1);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [completeMeetingId, setCompleteMeetingId] = useState<string | null>(null);
+
+  const statusRaw = filters.status ?? '';
+  const status: StatusFilter =
+    statusRaw && STATUS_FILTER_OPTIONS.some((o) => o.value === statusRaw)
+      ? (statusRaw as StatusFilter)
+      : 'all';
 
   const { data, isLoading, error } = trpc.parentMeeting.list.useQuery({
     ...(status !== 'all' ? { status } : {}),
@@ -73,7 +102,6 @@ export default function PostSaleMeetingPage() {
 
   const rows = (data?.items ?? []) as MeetingRow[];
   const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const columns: TableColumn<MeetingRow>[] = [
     { key: 'studentName', label: 'Học viên', render: (v) => (v as string | null) ?? '—' },
@@ -118,6 +146,7 @@ export default function PostSaleMeetingPage() {
   return (
     <>
       <ListPage
+        density="ops"
         header={
           <PageHeader
             title="Họp phụ huynh sau bán"
@@ -135,53 +164,31 @@ export default function PostSaleMeetingPage() {
           />
         }
         filters={
-          <div style={{ padding: '0 22px', width: 220 }}>
-            <Selector
-              label="Trạng thái"
-              isLabelHidden
-              value={status}
-              onChange={(v) => {
-                setStatus(v as StatusFilter);
-                setPage(1);
-              }}
-              options={STATUS_FILTER_OPTIONS}
-              size="sm"
-            />
-          </div>
+          <FilterBar
+            filters={MEETING_FILTERS}
+            value={filters}
+            onChange={(next) => {
+              setFilters({ status: next.status ?? '' });
+              setPage(1);
+            }}
+          />
+        }
+        controlFooter={
+          <ListPagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+          />
         }
       >
-        <Stack gap={3}>
-          <DataTable<MeetingRow>
-            columns={columns}
-            data={rows}
-            loading={isLoading}
-            error={error?.message}
-            empty="Chưa có lịch họp phụ huynh nào"
-          />
-          {!isLoading && !error && (
-            <HStack justify="between" align="center">
-              <Text type="supporting" size="xsm">
-                Trang {page}/{totalPages} — {total} lịch họp
-              </Text>
-              <HStack gap={1}>
-                <Button
-                  label="Trang trước"
-                  size="sm"
-                  variant="secondary"
-                  isDisabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                />
-                <Button
-                  label="Trang sau"
-                  size="sm"
-                  variant="secondary"
-                  isDisabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                />
-              </HStack>
-            </HStack>
-          )}
-        </Stack>
+        <DataTable<MeetingRow>
+          columns={columns}
+          data={rows}
+          loading={isLoading}
+          error={error?.message}
+          empty="Chưa có lịch họp phụ huynh nào"
+        />
       </ListPage>
 
       <ScheduleParentMeetingDialog opened={scheduleOpen} onClose={() => setScheduleOpen(false)} />

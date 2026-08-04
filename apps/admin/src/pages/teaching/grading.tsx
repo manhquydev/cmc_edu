@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ComponentProps } from 'react';
-import { Badge, Banner, Button, HStack, MasterDetail, NumberInput, PageHeader, Skeleton, Stack, Text } from '@cmc/ui';
+import { Badge, Banner, Button, HStack, ListPage, MasterDetail, NumberInput, PageHeader, Skeleton, Stack, Text, useToast } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { PdfAnnotator } from './pdf-annotator.js';
 
@@ -30,7 +30,7 @@ interface SubmissionItem {
 // ---------------------------------------------------------------------------
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const API_URL = ((import.meta as any).env?.['VITE_API_URL'] as string | undefined) ?? 'http://localhost:3000';
+const API_URL = (((import.meta as any).env?.['VITE_API_URL'] as string | undefined) ?? '').trim();
 
 type BadgeVariant = ComponentProps<typeof Badge>['variant'];
 
@@ -63,8 +63,8 @@ function SubmissionListItem({
     <div
       onClick={onClick}
       style={{
-        paddingInline: 16,
-        paddingBlock: 8,
+        paddingInline: 'var(--cmc-space-3)',
+        paddingBlock: 'var(--cmc-space-2)',
         borderBottom: '1px solid var(--cmc-border)',
         cursor: 'pointer',
         background: selected ? 'var(--cmc-accent-subtle, #e8f4fd)' : 'var(--cmc-surface)',
@@ -106,9 +106,11 @@ function DetailPane({
   // 'submitted' → 'graded'. On re-grades (already 'graded'), no star is given.
   const wasSubmitted = item.status === 'submitted';
 
+  const { success: toastSuccess } = useToast();
   const grade = trpc.submission.grade.useMutation({
     onSuccess: () => {
       if (wasSubmitted) setStarAwarded(true);
+      toastSuccess('Đã lưu điểm');
       onGraded();
     },
   });
@@ -134,7 +136,7 @@ function DetailPane({
   const pdfUrl = item.basePdfRef ? `${API_URL}/upload/exercise-pdf?ref=${item.basePdfRef}` : null;
 
   return (
-    <Stack gap={4} style={{ padding: 16 }}>
+    <Stack gap={4} style={{ padding: 'var(--cmc-space-3)' }}>
       {/* Header */}
       <HStack justify="between">
         <Stack gap={0.5}>
@@ -160,10 +162,10 @@ function DetailPane({
       {/* Score input + grade button */}
       <div
         style={{
-          padding: 12,
+          padding: 'var(--cmc-space-3)',
           background: 'var(--cmc-surface-2)',
           border: '1px solid var(--cmc-border)',
-          borderRadius: 4,
+          borderRadius: 'var(--cmc-radius-control)',
         }}
       >
         <Text type="supporting" size="xsm" weight="semibold" style={{ marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -171,19 +173,18 @@ function DetailPane({
         </Text>
         <HStack gap={2} align="end">
           <div style={{ width: 120 }}>
-            {/* TODO(astryx-review): Astryx NumberInput has no confirmed
-                decimalScale prop (thousand/decimal formatting dropped per
-                mapping doc) — `step={0.5}` still constrains scoring
-                increments, just without forced 1-decimal display rounding.
-                No `max` set: exercise.maxScore varies per exercise (not
-                always 10) and this DTO does not carry it — the server is the
-                real ceiling check (see handleGrade's comment above). */}
+            {/* `step={1}`: Submission.score is an Int column, so grades are
+                whole numbers — a fractional step would invite a value the
+                server now rejects (`grade` input is `z.number().int()`) and the
+                DB would truncate. No `max` set: exercise.maxScore varies per
+                exercise (not always 10) and this DTO does not carry it — the
+                server is the real ceiling check (see handleGrade's comment). */}
             <NumberInput
               label="Điểm"
               value={score === '' ? null : Number(score)}
               onChange={(v) => setScore(v ?? '')}
               min={0}
-              step={0.5}
+              step={1}
             />
           </div>
           <Button
@@ -200,11 +201,7 @@ function DetailPane({
             <Banner status="error" title={grade.error.message} />
           </div>
         )}
-        {grade.isSuccess && !starAwarded && (
-          <div style={{ marginTop: 8 }}>
-            <Banner status="success" title="Điểm đã được lưu." />
-          </div>
-        )}
+        {/* Success: toast via useToast (no second Banner on re-grade). Star Banner above remains. */}
       </div>
 
       {/* PDF viewer */}
@@ -215,7 +212,7 @@ function DetailPane({
         <div
           style={{
             border: '1px solid var(--cmc-border)',
-            borderRadius: 4,
+            borderRadius: 'var(--cmc-radius-control)',
             overflow: 'hidden',
             height: 400,
             background: 'var(--cmc-surface-2)',
@@ -228,7 +225,7 @@ function DetailPane({
               style={{ width: '100%', height: '100%', border: 'none' }}
             />
           ) : (
-            <Text type="supporting" size="sm" style={{ padding: 16 }}>
+            <Text type="supporting" size="sm" style={{ padding: 'var(--cmc-space-3)' }}>
               Bài chưa có file PDF
             </Text>
           )}
@@ -281,8 +278,8 @@ export default function GradingPage() {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div
         style={{
-          paddingInline: 16,
-          paddingBlock: 8,
+          paddingInline: 'var(--cmc-space-3)',
+          paddingBlock: 'var(--cmc-space-2)',
           borderBottom: '1px solid var(--cmc-border)',
           background: 'var(--cmc-surface-2)',
         }}
@@ -296,7 +293,7 @@ export default function GradingPage() {
       </div>
 
       {error && (
-        <div style={{ padding: 16 }}>
+        <div style={{ padding: 'var(--cmc-space-3)' }}>
           <Banner status="error" title={error.message} />
         </div>
       )}
@@ -305,14 +302,14 @@ export default function GradingPage() {
         {isLoading ? (
           <Stack gap={0}>
             {Array.from({ length: 5 }, (_, i) => (
-              <div key={i} style={{ paddingInline: 16, paddingBlock: 8, borderBottom: '1px solid var(--cmc-border)' }}>
+              <div key={i} style={{ paddingInline: 'var(--cmc-space-3)', paddingBlock: 'var(--cmc-space-2)', borderBottom: '1px solid var(--cmc-border)' }}>
                 <Skeleton height={14} radius={1} style={{ marginBottom: 4 }} />
                 <Skeleton height={11} width="60%" radius={1} />
               </div>
             ))}
           </Stack>
         ) : items.length === 0 ? (
-          <div style={{ padding: 32 }}>
+          <div style={{ padding: 'var(--cmc-space-4)' }}>
             <Text type="supporting" size="sm" justify="center" display="block">
               Không có bài nào chờ chấm.
             </Text>
@@ -361,13 +358,28 @@ export default function GradingPage() {
   // ---------------------------------------------------------------------------
 
   return (
-    <>
-      <PageHeader
-        title="Chấm bài"
-        subtitle="Danh sách bài nộp cần chấm điểm"
-        breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Chấm bài' }]}
-      />
-      <div style={{ height: 'calc(100vh - 120px)' }}>
+    <ListPage
+      density="ops"
+      header={
+        <PageHeader
+          title="Chấm bài"
+          subtitle="Danh sách bài nộp cần chấm điểm"
+          breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Chấm bài' }]}
+        />
+      }
+    >
+      {/* Flex fill under ControlBar — avoid calc(100vh - N) shell-offset math.
+          minHeight floor keeps the split usable when the page frame only has
+          min-height; flex:1 + height:100% fill when the chain is constrained. */}
+      <div
+        style={{
+          flex: 1,
+          minHeight: 520,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         <MasterDetail
           list={listPanel}
           detail={detailPanel}
@@ -375,6 +387,6 @@ export default function GradingPage() {
           listWidth={300}
         />
       </div>
-    </>
+    </ListPage>
   );
 }

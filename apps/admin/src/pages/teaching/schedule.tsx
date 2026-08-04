@@ -1,8 +1,25 @@
-import { useSearchParams } from 'react-router-dom';
-import type { ComponentProps } from 'react';
-import { Badge, Button, Card, DataTable, FilterBar, Grid, HStack, ListPage, PageHeader, Skeleton, Stack, Text } from '@cmc/ui';
-import type { FilterDef, TableColumn } from '@cmc/ui';
+import { useCallback, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Banner,
+  Callout,
+  DataTable,
+  FilterBar,
+  LineIcon,
+  ListPage,
+  PageHeader,
+  SessionCard,
+  StatusBadge,
+  WeekSchedule,
+  batchStatusToSession,
+  type FilterDef,
+  type IconName,
+  type SessionCardProps,
+  type TableColumn,
+} from '@cmc/ui';
+import { SoftOpsFullCalendar, type SoftOpsFcView } from '../../components/soft-ops-fullcalendar.js';
 import { trpc } from '../../lib/trpc.js';
+import { classSessionToEvents, toDateOnly } from './schedule-fc-events.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,32 +36,41 @@ interface ClassBatchRow {
   [key: string]: unknown;
 }
 
-type View = 'list' | 'calendar' | 'kanban';
+type View = 'list' | 'calendar' | 'kanban' | 'week';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const VIEWS: View[] = ['list', 'calendar', 'kanban'];
+const VIEWS: View[] = ['list', 'week', 'calendar', 'kanban'];
 
 const VIEW_LABELS: Record<View, string> = {
   list: 'Danh sách',
-  calendar: 'Lịch',
+  week: 'Tuần',
+  calendar: 'Theo tháng',
   kanban: 'Kanban',
+};
+
+/** Compact icon toggle — label stays on aria-label + title (tooltip). */
+const VIEW_ICONS: Record<View, IconName> = {
+  list: 'list',
+  week: 'calendar',
+  calendar: 'calendar-days',
+  kanban: 'kanban',
+};
+
+/**
+ * Soft Ops page toggle → FC initial view.
+ * Inside FC, user can further switch month/week/time/list via FC toolbar (y hệt FC).
+ */
+const VIEW_TO_FC: Record<'week' | 'calendar', SoftOpsFcView> = {
+  week: 'timeGridWeek',
+  calendar: 'dayGridMonth',
 };
 
 const FILTERS: FilterDef[] = [
   { key: 'courseId', label: 'ID khóa học', type: 'text', placeholder: 'Lọc theo khóa học' },
 ];
-
-type BadgeVariant = ComponentProps<typeof Badge>['variant'];
-
-const STATUS_VARIANTS: Record<string, BadgeVariant> = {
-  active: 'success',
-  completed: 'blue',
-  cancelled: 'error',
-  planned: 'neutral',
-};
 
 const LIST_COLUMNS: TableColumn<ClassBatchRow>[] = [
   { key: 'code', label: 'Mã lớp', width: 130 },
@@ -65,107 +91,137 @@ const LIST_COLUMNS: TableColumn<ClassBatchRow>[] = [
     key: 'status',
     label: 'Trạng thái',
     width: 120,
-    render: (v) => <Badge label={String(v)} variant={STATUS_VARIANTS[v as string] ?? 'neutral'} />,
+    render: (v) => <StatusBadge status={String(v)} label={String(v)} />,
   },
 ];
+
+const KANBAN_COLS: { key: string; label: string }[] = [
+  { key: 'planned', label: 'Sắp mở' },
+  { key: 'active', label: 'Trong kỳ' },
+  { key: 'completed', label: 'Kết thúc' },
+  { key: 'cancelled', label: 'Huỷ' },
+];
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function fmtRange(start: Date | string, end: Date | string): string {
+  const a = new Date(start).toLocaleDateString('vi-VN');
+  const b = new Date(end).toLocaleDateString('vi-VN');
+  return `${a} – ${b}`;
+}
+
+function toSessionCard(
+  row: ClassBatchRow,
+  density: 'default' | 'compact' = 'default',
+): SessionCardProps {
+  const fullRange = fmtRange(row.startDate, row.endDate);
+  const teacher = row.teacherId ? `GV · ${row.teacherId.slice(0, 8)}` : 'Chưa gán GV';
+  return {
+    title: row.code,
+    subtitle: row.program,
+    meta: teacher,
+    status: batchStatusToSession(row.status),
+    href: `/teaching/attendance?classBatch=${row.id}`,
+    actionLabel: 'Điểm danh',
+    density,
+    footPriority: 'identity',
+    detail: `${fullRange} · ${teacher}`,
+    timeLabel: fullRange,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Sub-views
 // ---------------------------------------------------------------------------
 
-function CalendarView({ rows, loading }: { rows: ClassBatchRow[]; loading: boolean }) {
-  if (loading) {
-    return (
-      <div style={{ padding: 16 }}>
-        <Grid columns={7} gap={1}>
-          {Array.from({ length: 28 }, (_, i) => (
-            <Skeleton key={i} height={40} radius={1} />
-          ))}
-        </Grid>
-      </div>
-    );
-  }
+/** Default ICT-ish local window before FC fires datesSet (~prev month → +2 months). */
+function defaultSessionRange(): { from: string; to: string } {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const to = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+  return { from: toDateOnly(from), to: toDateOnly(to) };
+}
 
-  // Group batches by month of startDate
-  const byMonth = new Map<string, ClassBatchRow[]>();
-  for (const row of rows) {
-    const key = new Date(row.startDate as string).toLocaleDateString('vi-VN', {
-      month: 'long',
-      year: 'numeric',
+/**
+ * FullCalendar body fed by ClassSession.listInRange (timed events).
+ * Range follows FC datesSet; string-compare avoids refetch thrash.
+ * placeholderData keeps prior events during range change so FC is not unmounted.
+ */
+function FullCalendarSessionView({
+  courseId,
+  fcView,
+  viewKey,
+}: {
+  courseId?: string;
+  fcView: SoftOpsFcView;
+  viewKey: string;
+}) {
+  const navigate = useNavigate();
+  const [range, setRange] = useState(defaultSessionRange);
+
+  const { data, isLoading, isFetching, isPlaceholderData, error } =
+    trpc.classSession.listInRange.useQuery(
+      {
+        from: range.from,
+        to: range.to,
+        ...(courseId ? { courseId } : {}),
+      },
+      {
+        // RQ v5: keep previous window while the new range loads (no empty flash / no unmount).
+        placeholderData: (prev) => prev,
+      },
+    );
+
+  const events = useMemo(() => classSessionToEvents(data ?? []), [data]);
+  // First paint with no data: blocking skeleton. Range change: soft fetching overlay.
+  const blockingLoad = isLoading && events.length === 0;
+  const softFetching = (isFetching || isPlaceholderData) && events.length > 0;
+
+  const onDatesSet = useCallback((info: { start: Date; end: Date }) => {
+    // FC end is exclusive; last visible day = end - 1ms.
+    const nextFrom = toDateOnly(info.start);
+    const nextTo = toDateOnly(new Date(info.end.getTime() - 1));
+    if (!nextFrom || !nextTo) return;
+    setRange((prev) => {
+      if (prev.from === nextFrom && prev.to === nextTo) return prev;
+      return { from: nextFrom, to: nextTo };
     });
-    const list = byMonth.get(key) ?? [];
-    list.push(row);
-    byMonth.set(key, list);
-  }
-
-  if (byMonth.size === 0) {
-    return (
-      <div style={{ padding: 32 }}>
-        <Text type="supporting" size="sm" justify="center" display="block">
-          Chưa có lớp học nào
-        </Text>
-      </div>
-    );
-  }
+  }, []);
 
   return (
-    <div style={{ padding: 16 }}>
-      {Array.from(byMonth.entries()).map(([month, items]) => (
-        <div key={month} style={{ marginBottom: 20 }}>
-          <Text
-            type="supporting"
-            size="sm"
-            weight="semibold"
-            style={{ marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}
-          >
-            {month}
-          </Text>
-          <Grid columns={{ minWidth: 220, max: 3 }} gap={1}>
-            {items.map((item) => (
-              <Card key={item.id} padding={2} style={{ borderColor: 'var(--cmc-border)' }}>
-                <HStack justify="between" style={{ marginBottom: 4 }}>
-                  <Text size="sm" weight="semibold">
-                    {item.code}
-                  </Text>
-                  <Badge label={item.status} variant={STATUS_VARIANTS[item.status] ?? 'neutral'} />
-                </HStack>
-                <Text type="supporting" size="xsm">
-                  {item.program}
-                </Text>
-                <Text type="supporting" size="xsm" style={{ marginTop: 2 }}>
-                  {new Date(item.startDate as string).toLocaleDateString('vi-VN')} —{' '}
-                  {new Date(item.endDate as string).toLocaleDateString('vi-VN')}
-                </Text>
-              </Card>
-            ))}
-          </Grid>
-        </div>
-      ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {error?.message ? (
+        <Banner status="error" title="Không tải được buổi học" description={error.message} />
+      ) : null}
+      <SoftOpsFullCalendar
+        events={events}
+        initialView={fcView}
+        viewKey={viewKey}
+        loading={blockingLoad}
+        fetching={softFetching}
+        height="auto"
+        aspectRatio={1.55}
+        showFcViewButtons
+        onDatesSet={onDatesSet}
+        onEventNavigate={(href) => {
+          void navigate(href);
+        }}
+      />
+      <Callout tone="info" title="FullCalendar · ClassSession timed">
+        Sự kiện = <strong>buổi học có giờ</strong> (ClassSession start/end), không phải kỳ lớp
+        all-day. Bấm sự kiện → <strong>chi tiết buổi</strong> (điểm danh / nhận xét / nhật ký).
+        Toolbar FC: tháng / tuần giờ / ngày / danh sách. Không kéo thả (editable=false). Lịch trống
+        nếu chưa generate buổi trong cửa sổ đang xem.
+      </Callout>
     </div>
   );
 }
 
 function KanbanView({ rows, loading }: { rows: ClassBatchRow[]; loading: boolean }) {
-  const KANBAN_COLS: { key: string; label: string }[] = [
-    { key: 'planned', label: 'Đã lên lịch' },
-    { key: 'active', label: 'Đang dạy' },
-    { key: 'completed', label: 'Đã kết thúc' },
-    { key: 'cancelled', label: 'Đã hủy' },
-  ];
-
   if (loading) {
-    return (
-      <HStack gap={4} align="start" style={{ padding: 16 }}>
-        {KANBAN_COLS.map((col) => (
-          <div key={col.key} style={{ minWidth: 220 }}>
-            <Skeleton height={24} radius={1} style={{ marginBottom: 8 }} />
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} height={64} radius={1} style={{ marginBottom: 4 }} />
-            ))}
-          </div>
-        ))}
-      </HStack>
-    );
+    return <WeekSchedule days={[]} loading />;
   }
 
   const byStatus = new Map<string, ClassBatchRow[]>();
@@ -176,43 +232,29 @@ function KanbanView({ rows, loading }: { rows: ClassBatchRow[]; loading: boolean
   }
 
   return (
-    <div style={{ padding: 16, overflowX: 'auto' }}>
-      <HStack gap={4} align="start" wrap="nowrap">
-        {KANBAN_COLS.map((col) => {
-          const items = byStatus.get(col.key) ?? [];
-          return (
-            <div key={col.key} style={{ minWidth: 220, flexShrink: 0 }}>
-              <HStack gap={1} style={{ marginBottom: 8 }}>
-                <Text type="supporting" size="xsm" weight="bold" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  {col.label}
-                </Text>
-                <Badge label={String(items.length)} variant={STATUS_VARIANTS[col.key] ?? 'neutral'} />
-              </HStack>
-              <Stack gap={1}>
-                {items.length === 0 ? (
-                  <Text type="supporting" size="xsm" justify="center" display="block" style={{ paddingBlock: 16 }}>
-                    Không có lớp
-                  </Text>
-                ) : (
-                  items.map((item) => (
-                    <Card key={item.id} padding={2} style={{ borderColor: 'var(--cmc-border)' }}>
-                      <Text size="sm" weight="semibold">
-                        {item.code}
-                      </Text>
-                      <Text type="supporting" size="xsm">
-                        {item.program}
-                      </Text>
-                      <Text type="supporting" size="xsm" style={{ marginTop: 2 }}>
-                        {new Date(item.startDate as string).toLocaleDateString('vi-VN')}
-                      </Text>
-                    </Card>
-                  ))
-                )}
-              </Stack>
+    <div className="ck-kanban">
+      {KANBAN_COLS.map((col) => {
+        const items = byStatus.get(col.key) ?? [];
+        return (
+          <div key={col.key} className="ck-kanban-col">
+            <div className="ck-kanban-head">
+              <span className="ck-kanban-title">{col.label}</span>
+              <StatusBadge
+                status={col.key === 'completed' ? 'approved' : col.key}
+                label={String(items.length)}
+                size="sm"
+              />
             </div>
-          );
-        })}
-      </HStack>
+            <div className="ck-kanban-body">
+              {items.length === 0 ? (
+                <div className="ck-kanban-empty">Không có lớp</div>
+              ) : (
+                items.map((item) => <SessionCard key={item.id} {...toSessionCard(item, 'default')} />)
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -223,14 +265,21 @@ function KanbanView({ rows, loading }: { rows: ClassBatchRow[]; loading: boolean
 
 export default function SchedulePage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const view = (searchParams.get('view') as View | null) ?? 'list';
+  const rawView = searchParams.get('view') as View | null;
+  // Default week — education ops land on calendar board, not raw batch list.
+  const view: View = rawView && VIEWS.includes(rawView) ? rawView : 'week';
   const courseIdFilter = searchParams.get('courseId') ?? undefined;
+  const needsBatchList = view === 'list' || view === 'kanban';
 
-  const { data, isLoading, error } = trpc.classBatch.list.useQuery({
-    page: 1,
-    pageSize: 50,
-    ...(courseIdFilter ? { courseId: courseIdFilter } : {}),
-  });
+  // Batch list only for Soft Ops list/kanban — calendar uses listInRange (sessions).
+  const { data, isLoading, error } = trpc.classBatch.list.useQuery(
+    {
+      page: 1,
+      pageSize: 50,
+      ...(courseIdFilter ? { courseId: courseIdFilter } : {}),
+    },
+    { enabled: needsBatchList },
+  );
 
   const rows = (data?.items ?? []) as ClassBatchRow[];
 
@@ -242,39 +291,66 @@ export default function SchedulePage() {
 
   return (
     <ListPage
+      density="ops"
       header={
         <PageHeader
           title="Lịch dạy"
-          subtitle="Quản lý lịch giảng dạy"
-          breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Lịch dạy' }]}
+          subtitle="FullCalendar · buổi học timed · list/kanban Soft Ops"
+          breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Lịch dạy' }]}
           actions={
-            <HStack gap={1}>
+            <div className="ck-view-toggle" role="toolbar" aria-label="Chế độ xem lịch">
               {VIEWS.map((v) => (
-                <Button
+                <button
                   key={v}
-                  label={VIEW_LABELS[v]}
-                  size="sm"
-                  variant={view === v ? 'primary' : 'secondary'}
+                  type="button"
+                  className={['ck-view-toggle-btn', view === v ? 'is-active' : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                  aria-label={VIEW_LABELS[v]}
+                  aria-pressed={view === v}
+                  title={VIEW_LABELS[v]}
+                  data-view={v}
                   onClick={() => setView(v)}
-                />
+                >
+                  <LineIcon name={VIEW_ICONS[v]} size={17} strokeWidth={1.85} />
+                </button>
               ))}
-            </HStack>
+            </div>
           }
         />
       }
       filters={<FilterBar filters={FILTERS} />}
     >
-      {view === 'list' && (
-        <DataTable<ClassBatchRow>
-          columns={LIST_COLUMNS}
-          data={rows}
-          loading={isLoading}
-          error={error?.message}
-          empty="Chưa có lớp học nào"
+      {needsBatchList && error?.message ? (
+        <Banner status="error" title="Không tải được lịch dạy" description={error.message} />
+      ) : null}
+      {view === 'list' && !error?.message && (
+        <div className="ck-table-shell">
+          <DataTable<ClassBatchRow>
+            columns={LIST_COLUMNS}
+            data={rows}
+            loading={isLoading}
+            empty="Chưa có lớp học nào"
+          />
+        </div>
+      )}
+      {view === 'week' && (
+        <FullCalendarSessionView
+          courseId={courseIdFilter}
+          fcView={VIEW_TO_FC.week}
+          viewKey="week"
         />
       )}
-      {view === 'calendar' && <CalendarView rows={rows} loading={isLoading} />}
-      {view === 'kanban' && <KanbanView rows={rows} loading={isLoading} />}
+      {view === 'calendar' && (
+        <FullCalendarSessionView
+          courseId={courseIdFilter}
+          fcView={VIEW_TO_FC.calendar}
+          viewKey="calendar"
+        />
+      )}
+      {view === 'kanban' && !error?.message && (
+        <KanbanView rows={rows} loading={isLoading} />
+      )}
     </ListPage>
   );
 }

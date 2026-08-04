@@ -11,16 +11,19 @@ export interface TaskRowProps {
   meta: string;
   href: string;
   tone: Tone;
+  /** Optional pill tag (e.g. "vượt ngưỡng", "O4"). */
+  tag?: string;
 }
 
-export function TaskRow({ title, meta, href, tone }: TaskRowProps) {
+export function TaskRow({ title, meta, href, tone, tag }: TaskRowProps) {
   return (
-    <Link to={href} className="ck-row">
+    <Link to={href} className="ck-row" title={`${title} — ${meta}`}>
       <span className="ck-dot" style={{ background: toneColor(tone) }} />
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span className="ck-row-title" style={{ display: 'block' }}>{title}</span>
-        <span className="ck-row-meta" style={{ display: 'block' }}>{meta}</span>
+      <span className="ck-row-main">
+        <span className="ck-row-title">{title}</span>
+        <span className="ck-row-meta">{meta}</span>
       </span>
+      {tag ? <span className="ck-row-tag">{tag}</span> : null}
       <span className="ck-chev"><LineIcon name="chevron" size={16} /></span>
     </Link>
   );

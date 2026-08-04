@@ -22,7 +22,7 @@ import './app.css';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { trpc, makeTrpcClient, makeQueryClient } from './lib/trpc.js';
 import { SessionProvider } from './lib/session-context.js';
-import { AstryxCmcProvider } from '@cmc/ui';
+import { AstryxCmcProvider, ToastProvider } from '@cmc/ui';
 import { router } from './routes/index.js';
 
 const queryClient = makeQueryClient();
@@ -38,9 +38,11 @@ createRoot(rootElement).render(
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <AstryxCmcProvider>
-          <SessionProvider>
-            <RouterProvider router={router} />
-          </SessionProvider>
+          <ToastProvider>
+            <SessionProvider>
+              <RouterProvider router={router} />
+            </SessionProvider>
+          </ToastProvider>
         </AstryxCmcProvider>
       </QueryClientProvider>
     </trpc.Provider>

@@ -149,6 +149,12 @@ describe('PostSaleMeetingPage', () => {
     expect(listQuerySpy).toHaveBeenCalledWith({ status: 'done', page: 1, pageSize: 20 });
   });
 
+  it('renders FilterBar search region and ListPagination footer', () => {
+    renderWithProviders(<PostSaleMeetingPage />);
+    expect(screen.getByRole('search', { name: 'Bộ lọc' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Phân trang' })).toBeInTheDocument();
+  });
+
   it('shows "Hoàn thành"/"Hủy" only on the scheduled meeting', () => {
     renderWithProviders(<PostSaleMeetingPage />);
     expect(screen.getAllByRole('button', { name: 'Hoàn thành' })).toHaveLength(1);

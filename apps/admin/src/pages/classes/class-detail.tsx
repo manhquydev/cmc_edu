@@ -8,12 +8,17 @@ import {
   CmcTabs,
   ConfirmDialog,
   DataTable,
+  DetailPage,
   Dialog,
   DialogHeader,
   EmptyState,
+  EntityHeader,
+  HighlightStrip,
   HStack,
+  KeyValueList,
   LineIcon,
   PageHeader,
+  SectionBlock,
   Selector,
   Skeleton,
   Stack,
@@ -104,14 +109,16 @@ function StudentsTab({ classBatchId }: { classBatchId: string }) {
   ];
 
   return (
-    <div style={{ padding: 16 }}>
-      <DataTable<StudentTabRow>
-        columns={columns}
-        data={(data as StudentTabRow[] | undefined) ?? []}
-        loading={isLoading}
-        error={error?.message}
-        empty="Chưa có học viên nào trong lớp."
-      />
+    <div className="tpl-detail-panel">
+      <div className="ck-table-shell">
+        <DataTable<StudentTabRow>
+          columns={columns}
+          data={(data as StudentTabRow[] | undefined) ?? []}
+          loading={isLoading}
+          error={error?.message}
+          empty="Chưa có học viên nào trong lớp."
+        />
+      </div>
     </div>
   );
 }
@@ -348,7 +355,7 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
   ];
 
   return (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: 'var(--cmc-space-3)' }}>
       <Stack gap={2}>
         <HStack justify="between" align="center">
           <Text type="supporting" size="xsm">
@@ -468,14 +475,23 @@ export default function ClassDetailPage() {
   // way around the list guard straight to the roster tab.
   if (!canDo('class', 'create')) {
     return (
-      <>
-        <PageHeader title="Chi tiết lớp" breadcrumbs={[{ label: 'Quản trị' }, { label: 'Lớp học' }]} />
+      <DetailPage
+        header={
+          <PageHeader
+            breadcrumbs={[
+              { label: 'Lớp & Học sinh', href: '/admin/students' },
+              { label: 'Lớp học', href: '/admin/classes' },
+              { label: 'Chi tiết' },
+            ]}
+          />
+        }
+      >
         <EmptyState
           title="Không có quyền truy cập"
           description="Trang này yêu cầu quyền quản lý lớp học (class.create)."
           icon={<LineIcon name="shield" size={28} />}
         />
-      </>
+      </DetailPage>
     );
   }
 
@@ -492,52 +508,52 @@ function ClassDetailContent() {
   );
 
   const overviewContent = (() => {
-    if (isLoading) return <Skeleton height={120} style={{ margin: 16 }} />;
-    if (error)
+    if (isLoading) {
       return (
-        <div style={{ margin: 16 }}>
+        <div className="tpl-detail-panel">
+          <Skeleton height={120} radius={1} />
+        </div>
+      );
+    }
+    if (error) {
+      return (
+        <div className="tpl-detail-panel">
           <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
         </div>
       );
+    }
     if (!cls) return null;
     return (
-      <Stack padding={4} gap={2}>
-        <HStack gap={6}>
-          <Stack gap={0.5}>
-            <Text type="supporting" size="2xs" weight="bold" style={{ textTransform: 'uppercase' }}>
-              Mã lớp
-            </Text>
-            <Text size="sm" weight="medium">{cls.code}</Text>
-          </Stack>
-          <Stack gap={0.5}>
-            <Text type="supporting" size="2xs" weight="bold" style={{ textTransform: 'uppercase' }}>
-              Chương trình
-            </Text>
-            <Text size="sm">{cls.program}</Text>
-          </Stack>
-          <Stack gap={0.5}>
-            <Text type="supporting" size="2xs" weight="bold" style={{ textTransform: 'uppercase' }}>
-              Trạng thái
-            </Text>
-            <StatusBadge status={cls.status} />
-          </Stack>
-        </HStack>
-        <HStack gap={6}>
-          <Stack gap={0.5}>
-            <Text type="supporting" size="2xs" weight="bold" style={{ textTransform: 'uppercase' }}>
-              Bắt đầu
-            </Text>
-            <Text size="sm">{new Date(cls.startDate).toLocaleDateString('vi-VN')}</Text>
-          </Stack>
-          <Stack gap={0.5}>
-            <Text type="supporting" size="2xs" weight="bold" style={{ textTransform: 'uppercase' }}>
-              Kết thúc
-            </Text>
-            <Text size="sm">{new Date(cls.endDate).toLocaleDateString('vi-VN')}</Text>
-          </Stack>
-          <TeacherPicker classBatchId={cls.id} currentTeacherId={cls.teacherAppUserId} />
-        </HStack>
-      </Stack>
+      <div className="tpl-detail-panel">
+        <div className="tpl-detail-stack">
+          <SectionBlock title="Thông tin lớp" description="Tổng quan kỳ học — cùng recipe KeyValue với màn chi tiết khác.">
+            <KeyValueList
+              items={[
+                { key: 'code', label: 'Mã lớp', value: cls.code },
+                { key: 'program', label: 'Chương trình', value: cls.program },
+                {
+                  key: 'status',
+                  label: 'Trạng thái',
+                  value: <StatusBadge status={cls.status} />,
+                },
+                {
+                  key: 'start',
+                  label: 'Bắt đầu',
+                  value: new Date(cls.startDate).toLocaleDateString('vi-VN'),
+                },
+                {
+                  key: 'end',
+                  label: 'Kết thúc',
+                  value: new Date(cls.endDate).toLocaleDateString('vi-VN'),
+                },
+              ]}
+            />
+          </SectionBlock>
+          <SectionBlock title="Phân công giáo viên">
+            <TeacherPicker classBatchId={cls.id} currentTeacherId={cls.teacherAppUserId} />
+          </SectionBlock>
+        </div>
+      </div>
     );
   })();
 
@@ -552,17 +568,56 @@ function ClassDetailContent() {
   ];
 
   return (
-    <>
-      <PageHeader
-        title={cls?.code ?? 'Chi tiết lớp học'}
-        breadcrumbs={[
-          { label: 'Quản trị' },
-          { label: 'Lớp học', href: '/admin/classes' },
-          { label: cls?.code ?? '…' },
-        ]}
-        actions={cls ? <StatusBadge status={cls.status} size="lg" /> : undefined}
-      />
-      <CmcTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
-    </>
+    <DetailPage
+      header={
+        <PageHeader
+          breadcrumbs={[
+            { label: 'Lớp & Học sinh', href: '/admin/students' },
+            { label: 'Lớp học', href: '/admin/classes' },
+            { label: cls?.code ?? '…' },
+          ]}
+        />
+      }
+      entity={
+        cls ? (
+          <EntityHeader
+            title={cls.code}
+            subtitle={cls.program}
+            initials={cls.code.slice(0, 2).toUpperCase()}
+            badges={<StatusBadge status={cls.status} />}
+            meta={
+              <span>
+                {new Date(cls.startDate).toLocaleDateString('vi-VN')}
+                {' – '}
+                {new Date(cls.endDate).toLocaleDateString('vi-VN')}
+              </span>
+            }
+          />
+        ) : isLoading ? (
+          <Skeleton height={88} radius={1} />
+        ) : null
+      }
+      summary={
+        cls ? (
+          <HighlightStrip
+            items={[
+              { key: 'code', label: 'Mã lớp', value: cls.code },
+              { key: 'program', label: 'Chương trình', value: cls.program },
+              {
+                key: 'status',
+                label: 'Trạng thái',
+                value: <StatusBadge status={cls.status} />,
+              },
+              {
+                key: 'range',
+                label: 'Thời gian',
+                value: `${new Date(cls.startDate).toLocaleDateString('vi-VN')} – ${new Date(cls.endDate).toLocaleDateString('vi-VN')}`,
+              },
+            ]}
+          />
+        ) : undefined
+      }
+      tabs={<CmcTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />}
+    />
   );
 }

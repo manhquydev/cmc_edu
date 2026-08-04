@@ -2,60 +2,80 @@ import { Stack, HStack } from '@astryxdesign/core/Stack';
 import { Breadcrumbs, BreadcrumbItem } from '@astryxdesign/core/Breadcrumbs';
 import { Text } from '@astryxdesign/core/Text';
 import { Heading } from '@astryxdesign/core/Heading';
-import { Link } from '@astryxdesign/core/Link';
 import type { ReactNode } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 
 export interface Breadcrumb {
   label: string;
+  /** SPA path — parent crumbs are clickable when set (not the current page). */
   href?: string;
 }
 
 export interface PageHeaderProps {
-  title: string;
+  /**
+   * Page title. Omit when an EntityHeader below owns the identity (single h1).
+   * Breadcrumbs-only chrome is valid for DetailPage.
+   */
+  title?: string;
   subtitle?: string;
   actions?: ReactNode;
   breadcrumbs?: Breadcrumb[];
 }
 
+/**
+ * Page chrome: sticky soft header + linked breadcrumbs.
+ * Parent crumbs with `href` use react-router (client nav), never full reload.
+ */
 export function PageHeader({ title, subtitle, actions, breadcrumbs }: PageHeaderProps) {
+  const showTitleBlock = Boolean(title) || Boolean(subtitle);
+  const showMainRow = showTitleBlock || Boolean(actions);
+
   return (
-    <Stack
-      gap={0.5}
-      paddingInline={3}
-      paddingBlock={2}
-      style={{
-        background: 'var(--cmc-surface)',
-        borderBottom: '1px solid var(--cmc-border)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 10,
-      }}
-    >
-      {breadcrumbs && breadcrumbs.length > 0 && (
-        <Breadcrumbs>
-          {breadcrumbs.map((bc, i) => {
-            const isLast = i === breadcrumbs.length - 1;
-            return (
-              <BreadcrumbItem key={i} href={isLast ? undefined : bc.href} isCurrent={isLast}>
-                {bc.href && !isLast ? <Link href={bc.href}>{bc.label}</Link> : bc.label}
-              </BreadcrumbItem>
-            );
-          })}
-        </Breadcrumbs>
-      )}
-      <HStack justify="between" align="end">
-        <Stack gap={0}>
-          <Heading level={4} color="primary">
-            {title}
-          </Heading>
-          {subtitle && (
-            <Text type="supporting" size="sm">
-              {subtitle}
-            </Text>
-          )}
-        </Stack>
-        {actions && <HStack gap={1}>{actions}</HStack>}
-      </HStack>
-    </Stack>
+    <div className="ck-page-header">
+      <Stack gap={0.5}>
+        {breadcrumbs && breadcrumbs.length > 0 && (
+          <nav className="ck-bc" aria-label="Đường dẫn">
+            <Breadcrumbs>
+              {breadcrumbs.map((bc, i) => {
+                const isLast = i === breadcrumbs.length - 1;
+                const clickable = Boolean(bc.href && !isLast);
+                return (
+                  <BreadcrumbItem key={`${bc.label}-${i}`} isCurrent={isLast}>
+                    {clickable ? (
+                      <RouterLink to={bc.href!} className="ck-bc-link">
+                        {bc.label}
+                      </RouterLink>
+                    ) : (
+                      <span className={isLast ? 'ck-bc-current' : 'ck-bc-plain'}>{bc.label}</span>
+                    )}
+                  </BreadcrumbItem>
+                );
+              })}
+            </Breadcrumbs>
+          </nav>
+        )}
+        {showMainRow ? (
+          <HStack justify="between" align="end">
+            {showTitleBlock ? (
+              <Stack gap={0}>
+                {title ? (
+                  <Heading level={4} color="primary">
+                    {title}
+                  </Heading>
+                ) : null}
+                {subtitle ? (
+                  <Text type="supporting" size="sm">
+                    {subtitle}
+                  </Text>
+                ) : null}
+              </Stack>
+            ) : (
+              <span />
+            )}
+            {actions ? <HStack gap={1}>{actions}</HStack> : null}
+          </HStack>
+        ) : null}
+      </Stack>
+    </div>
   );
 }

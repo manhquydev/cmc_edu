@@ -134,6 +134,12 @@ describe('AfterSalePage', () => {
     expect(listQuerySpy).toHaveBeenCalledWith({ status: 'open', page: 1, pageSize: 20 });
   });
 
+  it('renders FilterBar search region and ListPagination footer', () => {
+    renderWithProviders(<AfterSalePage />);
+    expect(screen.getByRole('search', { name: 'Bộ lọc' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Phân trang' })).toBeInTheDocument();
+  });
+
   it('shows "Tiếp nhận" only on the open case, and calls afterSale.advance.mutate({caseId})', () => {
     renderWithProviders(<AfterSalePage />);
     const advanceButtons = screen.getAllByRole('button', { name: 'Tiếp nhận' });

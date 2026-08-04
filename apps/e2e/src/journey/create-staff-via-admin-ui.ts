@@ -45,6 +45,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { expect, type Browser } from '@playwright/test';
+import { formatRole } from '@cmc/auth';
 import { mintStaffCookie } from '../session-injection.js';
 import { findInList } from './find-in-list.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
@@ -53,29 +54,35 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 
 // Best-effort mapping from a free-text `position` (as callers across this
 // suite already write it, with or without Vietnamese diacritics or the raw
-// DB role slug) to the "Vai trò" option label the create dialog renders
-// (users.tsx's `ROLE_LABELS`). Only used when a caller doesn't pass
+// DB role slug) to a DB role slug, which `formatRole` then renders into the
+// exact "Vai trò" option label the create dialog shows. The dialog builds its
+// options with `formatRole` too (users.tsx's `ROLE_OPTIONS`), so deriving the
+// picked label from that same source keeps this helper from drifting when the
+// canonical `@cmc/auth` labels change — they did once: users.tsx used to carry
+// a local short-form map ('GĐ Kinh doanh', 'Super Admin') that was replaced by
+// the canonical labels ('Giám đốc kinh doanh', 'Quản trị hệ thống'), which are
+// what the options now render as. Only used when a caller doesn't pass
 // `roleLabels` explicitly — those callers don't care which DB role lands on
 // the row (every permission gate this suite exercises reads roles from the
 // signed cookie, not this column), so the match only needs to be sensible,
 // not authoritative. Order matters: "kinh doanh" also appears inside "giám
 // đốc kinh doanh", so the director patterns are checked before the plain
 // "sale" one.
-const ROLE_LABEL_BY_POSITION_PATTERN: Array<[RegExp, string]> = [
-  [/gi[aá]m\s*đ[oố]c\s*đào\s*tạo|giam_doc_dao_tao/i, 'GĐ Đào tạo'],
-  [/gi[aá]m\s*đ[oố]c\s*kinh\s*doanh|giam_doc_kinh_doanh/i, 'GĐ Kinh doanh'],
-  [/gi[aá]o\s*vi[eê]n|giao_vien/i, 'Giáo viên'],
-  [/super[\s_]?admin/i, 'Super Admin'],
-  [/sale/i, 'Sale'],
+const ROLE_SLUG_BY_POSITION_PATTERN: Array<[RegExp, string]> = [
+  [/gi[aá]m\s*đ[oố]c\s*đào\s*tạo|giam_doc_dao_tao/i, 'giam_doc_dao_tao'],
+  [/gi[aá]m\s*đ[oố]c\s*kinh\s*doanh|giam_doc_kinh_doanh/i, 'giam_doc_kinh_doanh'],
+  [/gi[aá]o\s*vi[eê]n|giao_vien/i, 'giao_vien'],
+  [/super[\s_]?admin/i, 'super_admin'],
+  [/sale/i, 'sale'],
 ];
 
 function defaultRoleLabelForPosition(position: string): string {
-  const match = ROLE_LABEL_BY_POSITION_PATTERN.find(([pattern]) => pattern.test(position));
-  // 'Sale' is a safe, low-privilege fallback for a position string this
+  const match = ROLE_SLUG_BY_POSITION_PATTERN.find(([pattern]) => pattern.test(position));
+  // 'sale' is a safe, low-privilege fallback for a position string this
   // suite hasn't used before — it only needs to unblock the now-required
   // "Vai trò" field, not grant anything a specific caller didn't ask for via
   // `roleLabels`.
-  return match ? match[1] : 'Sale';
+  return formatRole(match ? match[1] : 'sale');
 }
 
 export interface CreateStaffViaAdminUiOptions {

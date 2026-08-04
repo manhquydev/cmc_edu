@@ -147,7 +147,7 @@ export default function SessionAssessmentPage() {
         <PageHeader
           title="Nhận xét buổi học"
           subtitle="Nhận xét cho học sinh có mặt trong buổi — điều kiện để buổi tự chuyển 'done'"
-          breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Nhận xét buổi học' }]}
+          breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Nhận xét buổi học' }]}
         />
       }
       actions={
@@ -250,7 +250,7 @@ export default function SessionAssessmentPage() {
                 const assessment = assessmentByStudentId.get(entry.studentId);
                 const isConfirmed = assessment?.status === 'confirmed';
                 return (
-                  <Stack key={entry.studentId} gap={1} padding={2} style={{ border: '1px solid var(--cmc-border)', borderRadius: 'var(--cmc-radius-sm)' }}>
+                  <Stack key={entry.studentId} gap={1} padding={2} style={{ border: '1px solid var(--cmc-border)', borderRadius: 'var(--cmc-radius-control)' }}>
                     <HStack justify="between" align="center">
                       <Text type="body" size="sm" weight="medium">{entry.fullName}</Text>
                       {isConfirmed ? (

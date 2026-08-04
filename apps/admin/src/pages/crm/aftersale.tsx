@@ -1,7 +1,19 @@
 import { useState } from 'react';
 import type { ComponentProps } from 'react';
-import { Badge, Button, DataTable, HStack, LineIcon, ListPage, PageHeader, Selector, Stack, Text } from '@cmc/ui';
-import type { TableColumn } from '@cmc/ui';
+import {
+  Badge,
+  BulkActionBar,
+  Button,
+  DataTable,
+  FilterBar,
+  HStack,
+  LineIcon,
+  ListPage,
+  ListPagination,
+  PageHeader,
+  useToast,
+} from '@cmc/ui';
+import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useAfterSaleActions } from './use-after-sale-actions.js';
 import { CreateAfterSaleCaseDialog } from './create-after-sale-case-dialog.js';
@@ -19,6 +31,20 @@ const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: 'in_progress', label: 'Đang xử lý' },
   { value: 'resolved', label: 'Đã giải quyết' },
   { value: 'closed', label: 'Đã đóng' },
+];
+
+const AFTERSALE_FILTERS: FilterDef[] = [
+  {
+    key: 'status',
+    label: 'Trạng thái',
+    type: 'select',
+    // Empty value = all (FilterBar select clear)
+    options: STATUS_FILTER_OPTIONS.filter((o) => o.value !== 'all').map((o) => ({
+      value: o.value,
+      label: o.label,
+    })),
+    placeholder: 'Tất cả',
+  },
 ];
 
 const STATUS_LABELS: Record<CaseStatus, string> = {
@@ -51,10 +77,18 @@ interface CaseRow {
 }
 
 export default function AfterSalePage() {
-  const [status, setStatus] = useState<StatusFilter>('all');
+  const [filters, setFilters] = useState<Record<string, string>>({ status: '' });
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [resolveCaseId, setResolveCaseId] = useState<string | null>(null);
+  const { success: toastSuccess } = useToast();
+
+  const statusRaw = filters.status ?? '';
+  const status: StatusFilter =
+    statusRaw && STATUS_FILTER_OPTIONS.some((o) => o.value === statusRaw)
+      ? (statusRaw as StatusFilter)
+      : 'all';
 
   const { data, isLoading, error } = trpc.afterSale.list.useQuery({
     ...(status !== 'all' ? { status } : {}),
@@ -66,7 +100,6 @@ export default function AfterSalePage() {
 
   const rows = (data?.items ?? []) as CaseRow[];
   const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const columns: TableColumn<CaseRow>[] = [
     { key: 'studentName', label: 'Học viên', render: (v) => (v as string | null) ?? '—' },
@@ -128,6 +161,7 @@ export default function AfterSalePage() {
   return (
     <>
       <ListPage
+        density="ops"
         header={
           <PageHeader
             title="Chăm sóc sau bán"
@@ -145,53 +179,57 @@ export default function AfterSalePage() {
           />
         }
         filters={
-          <div style={{ padding: '0 22px', width: 220 }}>
-            <Selector
-              label="Trạng thái"
-              isLabelHidden
-              value={status}
-              onChange={(v) => {
-                setStatus(v as StatusFilter);
-                setPage(1);
+          <FilterBar
+            filters={AFTERSALE_FILTERS}
+            value={filters}
+            onChange={(next) => {
+              setFilters({ status: next.status ?? '' });
+              setPage(1);
+              setSelectedIds([]);
+            }}
+          />
+        }
+        controlFooter={
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            <BulkActionBar
+              selectionCount={selectedIds.length}
+              onClear={() => setSelectedIds([])}
+            >
+              <Button
+                label="Sao chép mô tả"
+                size="sm"
+                variant="secondary"
+                isDisabled={selectedIds.length === 0}
+                onClick={() => {
+                  const texts = rows
+                    .filter((r) => selectedIds.includes(r.id))
+                    .map((r) => `${r.studentName ?? '—'} · ${r.description}`);
+                  void navigator.clipboard?.writeText(texts.join('\n'));
+                  toastSuccess(`Đã sao chép ${texts.length} case`);
+                }}
+              />
+            </BulkActionBar>
+            <ListPagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onPageChange={(p) => {
+                setPage(p);
+                setSelectedIds([]);
               }}
-              options={STATUS_FILTER_OPTIONS}
-              size="sm"
             />
           </div>
         }
       >
-        <Stack gap={3}>
-          <DataTable<CaseRow>
-            columns={columns}
-            data={rows}
-            loading={isLoading}
-            error={error?.message}
-            empty="Chưa có case chăm sóc sau bán nào"
-          />
-          {!isLoading && !error && (
-            <HStack justify="between" align="center">
-              <Text type="supporting" size="xsm">
-                Trang {page}/{totalPages} — {total} case
-              </Text>
-              <HStack gap={1}>
-                <Button
-                  label="Trang trước"
-                  size="sm"
-                  variant="secondary"
-                  isDisabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                />
-                <Button
-                  label="Trang sau"
-                  size="sm"
-                  variant="secondary"
-                  isDisabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                />
-              </HStack>
-            </HStack>
-          )}
-        </Stack>
+        <DataTable<CaseRow>
+          columns={columns}
+          data={rows}
+          loading={isLoading}
+          error={error?.message}
+          empty="Chưa có case chăm sóc sau bán nào"
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+        />
       </ListPage>
 
       <CreateAfterSaleCaseDialog opened={createOpen} onClose={() => setCreateOpen(false)} />

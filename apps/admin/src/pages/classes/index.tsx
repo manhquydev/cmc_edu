@@ -9,12 +9,16 @@ import {
   EmptyState,
   HStack,
   LineIcon,
+  BulkActionBar,
+  ListPage,
+  ListPagination,
   PageHeader,
   Selector,
   Stack,
   StatusBadge,
   Text,
   TextInput,
+  useToast,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
@@ -139,17 +143,21 @@ export default function ClassListPage() {
   // a class elsewhere; administering classes needs `class.create`.
   if (!canDo('class', 'create')) {
     return (
-      <>
-        <PageHeader
-          title="Lớp học"
-          breadcrumbs={[{ label: 'Quản trị' }, { label: 'Lớp học' }]}
-        />
+      <ListPage
+        density="ops"
+        header={
+          <PageHeader
+            title="Lớp học"
+            breadcrumbs={[{ label: 'Quản trị' }, { label: 'Lớp học' }]}
+          />
+        }
+      >
         <EmptyState
           title="Không có quyền truy cập"
           description="Trang này yêu cầu quyền quản lý lớp học (class.create)."
           icon={<LineIcon name="shield" size={28} />}
         />
-      </>
+      </ListPage>
     );
   }
 
@@ -163,9 +171,13 @@ function ClassListContent() {
   // add/remove — same pattern as attendance/shifts.tsx's `keyCounter`.
   const keyCounter = useState(() => ({ current: 0 }))[0];
 
+  const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const pageSize = 20;
+  const { success: toastSuccess } = useToast();
   const { data, isLoading, error } = trpc.classBatch.list.useQuery({
-    page: 1,
-    pageSize: 50,
+    page,
+    pageSize,
   });
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -281,20 +293,67 @@ function ClassListContent() {
 
   return (
     <>
-      <PageHeader
-        title="Lớp học"
-        subtitle="Danh sách lớp học tại cơ sở"
-        breadcrumbs={[{ label: 'Quản trị' }, { label: 'Lớp học' }]}
-        actions={<Button label="+ Tạo lớp" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />}
-      />
-      <DataTable<ClassRow>
-        columns={COLUMNS}
-        data={(data?.items as ClassRow[] | undefined) ?? []}
-        loading={isLoading}
-        error={error?.message}
-        empty="Chưa có lớp học nào"
-        onRowClick={(row) => void navigate(`/admin/classes/${row.id}`)}
-      />
+      <ListPage
+        density="ops"
+        header={
+          <PageHeader
+            title="Lớp học"
+            subtitle="Danh sách lớp học tại cơ sở"
+            breadcrumbs={[{ label: 'Quản trị' }, { label: 'Lớp học' }]}
+            actions={
+              <Button
+                label="+ Tạo lớp"
+                size="sm"
+                variant="primary"
+                onClick={() => setCreateOpen(true)}
+              />
+            }
+          />
+        }
+        controlFooter={
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            <BulkActionBar
+              selectionCount={selectedIds.length}
+              onClear={() => setSelectedIds([])}
+            >
+              <Button
+                label="Sao chép mã lớp"
+                size="sm"
+                variant="secondary"
+                isDisabled={selectedIds.length === 0}
+                onClick={() => {
+                  const items = (data?.items as ClassRow[] | undefined) ?? [];
+                  const codes = items
+                    .filter((r) => selectedIds.includes(r.id))
+                    .map((r) => r.code);
+                  void navigator.clipboard?.writeText(codes.join(', '));
+                  toastSuccess(`Đã sao chép ${codes.length} mã lớp`);
+                }}
+              />
+            </BulkActionBar>
+            <ListPagination
+              page={page}
+              pageSize={pageSize}
+              total={data?.total ?? data?.items?.length ?? 0}
+              onPageChange={(p) => {
+                setPage(p);
+                setSelectedIds([]);
+              }}
+            />
+          </div>
+        }
+      >
+        <DataTable<ClassRow>
+          columns={COLUMNS}
+          data={(data?.items as ClassRow[] | undefined) ?? []}
+          loading={isLoading}
+          error={error?.message}
+          empty="Chưa có lớp học nào"
+          onRowClick={(row) => void navigate(`/admin/classes/${row.id}`)}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+        />
+      </ListPage>
 
       {/* Create dialog — classBatch.create gộp sẵn tạo lớp + ScheduleSlot +
           sinh ClassSession trong 1 transaction (class-batch-router.ts); kết

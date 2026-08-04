@@ -3,12 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
-// Locks the FilterBar wiring fix (finding #3, audit-260726-2040): the page
-// used to pass `onChange` to `FilterBar` without `value`, which made
-// `FilterBar` call that callback instead of writing the URL while this page
-// kept reading `status`/`q` from the URL — so the status Selector and the
-// search TextInput were both dead (typing snapped back, selecting a status
-// changed nothing). `FilterBar` is now left fully uncontrolled here.
+// Controlled FilterBar (value + onChange): local filter state drives query/UI.
+// URL deep-link is best-effort (RR7 setSearchParams can AbortSignal-reject in jsdom).
 const ROWS = [
   {
     id: 'r1',
@@ -42,8 +38,10 @@ vi.mock('../../lib/trpc.js', async () => {
       }),
       'finance.receiptList.useQuery': (input: unknown) => {
         receiptListSpy(input);
-        return queryResult({ items: ROWS });
+        return queryResult({ items: ROWS, total: ROWS.length, page: 1, pageSize: 50 });
       },
+      // EnrollPicker mounts always (closed); avoid missing-mock noise.
+      'crm.opportunityList.useQuery': () => queryResult({ items: [] }),
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -97,5 +95,32 @@ describe('ReceiptListPage', () => {
 
     expect(screen.queryByText('Nguyễn Văn A')).not.toBeInTheDocument();
     expect(screen.getByText('Trần Thị B')).toBeInTheDocument();
+  });
+
+  it('renders ListPagination in the list control footer', () => {
+    renderWithProviders(<ReceiptListPage />, { route: '/finance' });
+    expect(screen.getByRole('navigation', { name: 'Phân trang' })).toBeInTheDocument();
+  });
+
+  it('enables row selection and bulk copy of receipt codes', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    renderWithProviders(<ReceiptListPage />, { route: '/finance' });
+
+    // Selection column: select-all checkbox in table header
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes.length).toBeGreaterThanOrEqual(1);
+    fireEvent.click(checkboxes[0]!);
+
+    const bulkBtn = screen.getByRole('button', { name: 'Sao chép mã phiếu' });
+    expect(bulkBtn).not.toBeDisabled();
+    fireEvent.click(bulkBtn);
+    expect(writeText).toHaveBeenCalled();
+    const arg = String(writeText.mock.calls[0]?.[0] ?? '');
+    expect(arg).toContain('SO0001');
   });
 });

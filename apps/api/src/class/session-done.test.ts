@@ -2,7 +2,11 @@
 // (docs/26 phase-07). No DB — every condition row is fabricated directly.
 
 import { describe, expect, it } from 'vitest';
-import { evaluateSessionDone, type SessionDoneEvaluationInput } from './session-done.js';
+import {
+  evaluateSessionDone,
+  evaluateSessionDoneProgress,
+  type SessionDoneEvaluationInput,
+} from './session-done.js';
 
 const endTime = new Date('2026-08-03T12:30:00.000Z');
 const now = new Date('2026-08-03T13:00:00.000Z'); // past endTime — clears the time gate
@@ -16,6 +20,54 @@ function baseInput(overrides?: Partial<SessionDoneEvaluationInput>): SessionDone
     ...overrides,
   };
 }
+
+describe('evaluateSessionDoneProgress', () => {
+  it('marks all flags true when eligible', () => {
+    const p = evaluateSessionDoneProgress(baseInput(), now);
+    expect(p).toMatchObject({
+      attendanceOk: true,
+      presentCount: 1,
+      assessmentOk: true,
+      assessmentsConfirmed: 1,
+      assessmentsRequired: 1,
+      evidenceOk: true,
+      photoCount: 1,
+      evidencePublished: true,
+      timeGatePassed: true,
+      eligible: true,
+    });
+  });
+
+  it('reports partial progress without time gate', () => {
+    const before = new Date(endTime.getTime() - 1_000);
+    const p = evaluateSessionDoneProgress(baseInput(), before);
+    expect(p.attendanceOk).toBe(true);
+    expect(p.assessmentOk).toBe(true);
+    expect(p.evidenceOk).toBe(true);
+    expect(p.timeGatePassed).toBe(false);
+    expect(p.eligible).toBe(false);
+  });
+
+  it('tracks assessment counts for multi-present roster', () => {
+    const p = evaluateSessionDoneProgress(
+      baseInput({
+        attendances: [
+          { studentId: 's1', status: 'present', markedAt: new Date() },
+          { studentId: 's2', status: 'present', markedAt: new Date() },
+        ],
+        assessments: [
+          { studentId: 's1', status: 'confirmed', confirmedAt: new Date() },
+        ],
+      }),
+      now,
+    );
+    expect(p.presentCount).toBe(2);
+    expect(p.assessmentsRequired).toBe(2);
+    expect(p.assessmentsConfirmed).toBe(1);
+    expect(p.assessmentOk).toBe(false);
+    expect(p.eligible).toBe(false);
+  });
+});
 
 describe('evaluateSessionDone', () => {
   it('returns doneAt = MAX(markedAt, confirmedAt, publishedAt) when all 3 conditions hold', () => {

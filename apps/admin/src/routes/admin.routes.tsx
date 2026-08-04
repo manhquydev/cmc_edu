@@ -52,14 +52,46 @@ export const adminRoutes: RouteObject[] = [
 
   // Students
   { path: 'students', element: <S><StudentListPage /></S> },
-  { path: 'students/:id', element: <S><StudentDetailPage /></S> },
+  {
+    path: 'students/:id',
+    element: (
+      <S>
+        {/* Match API: student.get → requirePermission('student','lookup'). */}
+        <PermissionGate
+          module="student"
+          action="lookup"
+          title="Chi tiết học viên"
+          breadcrumbs={[{ label: 'Lớp & Học sinh' }, { label: 'Học viên' }, { label: 'Chi tiết' }]}
+          requirementLabel="tra cứu học viên (student.lookup)"
+        >
+          <StudentDetailPage />
+        </PermissionGate>
+      </S>
+    ),
+  },
 
   // Parents (guardian link queue)
   { path: 'parents', element: <S><ParentListPage /></S> },
 
   // Classes
   { path: 'classes', element: <S><ClassListPage /></S> },
-  { path: 'classes/:id', element: <S><ClassDetailPage /></S> },
+  {
+    path: 'classes/:id',
+    element: (
+      <S>
+        {/* Match API: classBatch.get → requirePermission('class','read'). */}
+        <PermissionGate
+          module="class"
+          action="read"
+          title="Chi tiết lớp"
+          breadcrumbs={[{ label: 'Lớp & Học sinh' }, { label: 'Lớp học' }, { label: 'Chi tiết' }]}
+          requirementLabel="xem lớp học (class.read)"
+        >
+          <ClassDetailPage />
+        </PermissionGate>
+      </S>
+    ),
+  },
 
   // Courses. The menu now points here under Lớp & Học sinh, but the gate stays:
   // a hidden nav entry does not stop a typed URL, and without this check a role

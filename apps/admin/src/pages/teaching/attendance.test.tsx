@@ -13,8 +13,17 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // which vitest hoists above regular top-level statements (same pattern as
 // session-assessment.test.tsx).
 const { CLASS_A, SESSION_A, STUDENTS } = vi.hoisted(() => ({
-  CLASS_A: { id: 'batch-1', code: 'CB001', program: 'IELTS Foundation' },
-  SESSION_A: { id: 'sess-1', sessionDate: '2026-07-10T00:00:00.000Z', status: 'confirmed' },
+  // Real UUID shape so URL state filter (UUID_RE) accepts picker selections.
+  CLASS_A: {
+    id: '11111111-1111-4111-8111-111111111111',
+    code: 'CB001',
+    program: 'IELTS Foundation',
+  },
+  SESSION_A: {
+    id: '22222222-2222-4222-8222-222222222222',
+    sessionDate: '2026-07-10T00:00:00.000Z',
+    status: 'confirmed',
+  },
   STUDENTS: [
     { enrollmentId: 'enr-1', studentId: 'stu-11111111', fullName: 'Nguyễn Văn A', status: 'active' },
     { enrollmentId: 'enr-2', studentId: 'stu-22222222', fullName: 'Trần Thị B', status: 'active' },
@@ -35,6 +44,7 @@ const rosterState: { items: RosterItem[]; error: { message: string } | null } = 
   error: null,
 };
 const listQuerySpy = vi.fn();
+const sessionListSpy = vi.fn();
 const markAllMutate = vi.fn();
 
 vi.mock('../../lib/trpc.js', async () => {
@@ -56,8 +66,11 @@ vi.mock('../../lib/trpc.js', async () => {
         config: { approvalSecondEyeThreshold: 20_000_000 },
       }),
       'classBatch.list.useQuery': queryResult({ items: [CLASS_A] }),
-      'classSession.list.useQuery': (_input: unknown, opts: { enabled?: boolean } | undefined) =>
-        opts?.enabled ? queryResult([SESSION_A]) : queryResult(undefined),
+      'classSession.list.useQuery': (input: unknown, opts: { enabled?: boolean } | undefined) => {
+        if (!opts?.enabled) return queryResult(undefined);
+        sessionListSpy(input);
+        return queryResult([SESSION_A]);
+      },
       'classBatch.listStudents.useQuery': (_input: unknown, opts: { enabled?: boolean } | undefined) =>
         opts?.enabled ? queryResult(STUDENTS) : queryResult(undefined),
       'attendance.listBySession.useQuery': (input: unknown, opts: { enabled?: boolean } | undefined) => {
@@ -95,6 +108,7 @@ describe('AttendancePage', () => {
     rosterState.items = [ITEM_A, ITEM_B];
     rosterState.error = null;
     listQuerySpy.mockClear();
+    sessionListSpy.mockClear();
     markAllMutate.mockClear();
   });
 
@@ -106,7 +120,22 @@ describe('AttendancePage', () => {
   it('queries attendance.listBySession with the sessionId chosen via the class -> session picker', async () => {
     renderWithProviders(<AttendancePage />);
     await pickClassAndSession();
-    expect(listQuerySpy).toHaveBeenCalledWith({ sessionId: 'sess-1' });
+    expect(listQuerySpy).toHaveBeenCalledWith({ sessionId: SESSION_A.id });
+  });
+
+  it('hydrates class + session from URL query params', () => {
+    renderWithProviders(<AttendancePage />, {
+      route: `/teaching/attendance?classBatchId=${CLASS_A.id}&sessionId=${SESSION_A.id}`,
+    });
+    expect(listQuerySpy).toHaveBeenCalledWith({ sessionId: SESSION_A.id });
+  });
+
+  it('treats non-UUID query params as unset (no session list / roster queries)', () => {
+    renderWithProviders(<AttendancePage />, {
+      route: '/teaching/attendance?classBatchId=abc&sessionId=not-a-uuid',
+    });
+    expect(sessionListSpy).not.toHaveBeenCalled();
+    expect(listQuerySpy).not.toHaveBeenCalled();
   });
 
   it('renders roster rows with the student full name, not a raw UUID', async () => {
@@ -147,7 +176,7 @@ describe('AttendancePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điểm danh' }));
 
     expect(markAllMutate).toHaveBeenCalledWith({
-      sessionId: 'sess-1',
+      sessionId: SESSION_A.id,
       entries: [{ enrollmentId: 'enr-1', status: 'present' }],
     });
   });
@@ -165,7 +194,7 @@ describe('AttendancePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điểm danh' }));
 
     expect(markAllMutate).toHaveBeenCalledWith({
-      sessionId: 'sess-1',
+      sessionId: SESSION_A.id,
       entries: [
         { enrollmentId: 'enr-1', status: 'late' },
         { enrollmentId: 'enr-2', status: 'present' },

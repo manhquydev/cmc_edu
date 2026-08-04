@@ -6,22 +6,26 @@ import type { ComponentProps } from 'react';
 import {
   Badge,
   Banner,
+  BulkActionBar,
   Button,
+  ConfirmDialog,
   DataTable,
   Dialog,
   DialogHeader,
   HStack,
   ListPage,
+  ListPagination,
   PageHeader,
   Selector,
   Skeleton,
   Stack,
   Text,
+  useToast,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
-const API_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? 'http://localhost:3000';
+const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').trim();
 
 type BadgeVariant = ComponentProps<typeof Badge>['variant'];
 
@@ -52,8 +56,14 @@ export default function ExercisesPage() {
   const [pdfBlobRef, setPdfBlobRef] = useState<string | null>(null);
   const [pdfUploading, setPdfUploading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pendingPublishId, setPendingPublishId] = useState<string | null>(null);
+  const [pendingCloseId, setPendingCloseId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const pageSize = 20;
   const fileRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
+  const { success: toastSuccess } = useToast();
 
   const { data: unitsData, isLoading: unitsLoading } = trpc.curriculumUnit.list.useQuery();
   const { data, isLoading, error } = trpc.exercise.list.useQuery({});
@@ -66,10 +76,18 @@ export default function ExercisesPage() {
     },
   });
   const publishMut = trpc.exercise.publish.useMutation({
-    onSuccess: () => void utils.exercise.list.invalidate(),
+    onSuccess: () => {
+      void utils.exercise.list.invalidate();
+      setPendingPublishId(null);
+      toastSuccess('Đã công bố bài tập');
+    },
   });
   const closeMut = trpc.exercise.close.useMutation({
-    onSuccess: () => void utils.exercise.list.invalidate(),
+    onSuccess: () => {
+      void utils.exercise.list.invalidate();
+      setPendingCloseId(null);
+      toastSuccess('Đã đóng bài tập');
+    },
   });
 
   function resetForm() {
@@ -117,6 +135,7 @@ export default function ExercisesPage() {
   }));
 
   const exercises = (data?.items ?? []) as ExerciseRow[];
+  const pageRows = exercises.slice((page - 1) * pageSize, page * pageSize);
 
   const columns: TableColumn<ExerciseRow>[] = [
     {
@@ -147,11 +166,11 @@ export default function ExercisesPage() {
         <HStack gap={1}>
           {row.status === 'draft' && (
             <Button
-              label="Publish"
+              label="Công bố"
               size="sm"
               variant="primary"
-              isLoading={publishMut.isPending}
-              onClick={() => publishMut.mutate({ exerciseId: row.id })}
+              isLoading={publishMut.isPending && pendingPublishId === row.id}
+              onClick={() => setPendingPublishId(row.id)}
             />
           )}
           {row.status === 'published' && (
@@ -159,8 +178,8 @@ export default function ExercisesPage() {
               label="Đóng"
               size="sm"
               variant="destructive"
-              isLoading={closeMut.isPending}
-              onClick={() => closeMut.mutate({ exerciseId: row.id })}
+              isLoading={closeMut.isPending && pendingCloseId === row.id}
+              onClick={() => setPendingCloseId(row.id)}
             />
           )}
         </HStack>
@@ -170,15 +189,46 @@ export default function ExercisesPage() {
 
   return (
     <ListPage
+      density="ops"
       header={
         <PageHeader
           title="Quản lý bài tập"
           subtitle="Tạo và quản lý bài tập học viên"
-          breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Bài tập' }]}
+          breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Bài tập' }]}
           actions={
             <Button label="+ Tạo bài tập" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />
           }
         />
+      }
+      controlFooter={
+        !isLoading && !error ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            <BulkActionBar
+              selectionCount={selectedIds.length}
+              onClear={() => setSelectedIds([])}
+            >
+              <Button
+                label="Sao chép ID"
+                size="sm"
+                variant="secondary"
+                isDisabled={selectedIds.length === 0}
+                onClick={() => {
+                  void navigator.clipboard?.writeText(selectedIds.join(', '));
+                  toastSuccess(`Đã sao chép ${selectedIds.length} ID bài tập`);
+                }}
+              />
+            </BulkActionBar>
+            <ListPagination
+              page={page}
+              pageSize={pageSize}
+              total={exercises.length}
+              onPageChange={(p) => {
+                setPage(p);
+                setSelectedIds([]);
+              }}
+            />
+          </div>
+        ) : undefined
       }
     >
       {isLoading && (
@@ -193,13 +243,13 @@ export default function ExercisesPage() {
       )}
 
       {!isLoading && !error && (
-        <div style={{ padding: 16 }}>
-          <DataTable<ExerciseRow>
-            columns={columns}
-            data={exercises}
-            empty='Chưa có bài tập nào. Nhấn "Tạo bài tập" để bắt đầu.'
-          />
-        </div>
+        <DataTable<ExerciseRow>
+          columns={columns}
+          data={pageRows}
+          empty='Chưa có bài tập nào. Nhấn "Tạo bài tập" để bắt đầu.'
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+        />
       )}
 
       {/* Create dialog.
@@ -279,7 +329,7 @@ export default function ExercisesPage() {
             />
           </div>
 
-          <HStack justify="end" gap={2}>
+          <HStack justify="end" gap={2} style={{ flexWrap: 'wrap' }}>
             <Button label="Huỷ" variant="secondary" size="sm" onClick={closeDialog} />
             <Button
               label="Tạo bài tập"
@@ -299,6 +349,31 @@ export default function ExercisesPage() {
           </HStack>
         </Stack>
       </Dialog>
+
+      <ConfirmDialog
+        opened={pendingPublishId !== null}
+        title="Công bố bài tập?"
+        message="Học sinh sẽ có thể nộp bài sau khi công bố. Bạn có chắc muốn công bố bài tập này?"
+        confirmLabel="Công bố"
+        confirmColor="green"
+        loading={publishMut.isPending}
+        onConfirm={() => {
+          if (pendingPublishId) publishMut.mutate({ exerciseId: pendingPublishId });
+        }}
+        onCancel={() => setPendingPublishId(null)}
+      />
+      <ConfirmDialog
+        opened={pendingCloseId !== null}
+        title="Đóng bài tập?"
+        message="Sau khi đóng, học sinh không thể nộp bài mới. Hành động này nên dùng khi hết hạn nộp."
+        confirmLabel="Đóng bài tập"
+        confirmColor="red"
+        loading={closeMut.isPending}
+        onConfirm={() => {
+          if (pendingCloseId) closeMut.mutate({ exerciseId: pendingCloseId });
+        }}
+        onCancel={() => setPendingCloseId(null)}
+      />
     </ListPage>
   );
 }

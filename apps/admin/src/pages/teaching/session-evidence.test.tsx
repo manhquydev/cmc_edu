@@ -10,8 +10,16 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // upload target (`/upload/session-photo`) and published visibility must not
 // change; the refactor only relocates the forward-step buttons into the
 // FormPage bottom action bar.
-const CLASS_A = { id: 'batch-1', code: 'CB001', program: 'IELTS Foundation' };
-const SESSION_A = { id: 'sess-1', sessionDate: '2026-07-10T00:00:00.000Z', status: 'scheduled' };
+const CLASS_A = {
+  id: '11111111-1111-4111-8111-111111111111',
+  code: 'CB001',
+  program: 'IELTS Foundation',
+};
+const SESSION_A = {
+  id: '22222222-2222-4222-8222-222222222222',
+  sessionDate: '2026-07-10T00:00:00.000Z',
+  status: 'scheduled',
+};
 
 const classBatchSpy = vi.fn();
 const classSessionSpy = vi.fn();
@@ -93,7 +101,22 @@ describe('SessionEvidencePage', () => {
     renderWithProviders(<SessionEvidencePage />);
     fireEvent.click(screen.getByRole('button', { name: 'Chọn lớp học' }));
     fireEvent.click(await screen.findByRole('option', { name: /CB001/ }));
-    expect(classSessionSpy).toHaveBeenCalledWith({ classBatchId: 'batch-1' }, true);
+    expect(classSessionSpy).toHaveBeenCalledWith({ classBatchId: CLASS_A.id }, true);
+  });
+
+  it('hydrates class + session from URL query params', () => {
+    renderWithProviders(<SessionEvidencePage />, {
+      route: `/teaching/session-evidence?classBatchId=${CLASS_A.id}&sessionId=${SESSION_A.id}`,
+    });
+    expect(classSessionSpy).toHaveBeenCalledWith({ classBatchId: CLASS_A.id }, true);
+    expect(screen.getByLabelText('Tóm tắt buổi học')).toBeInTheDocument();
+  });
+
+  it('treats non-UUID query params as unset', () => {
+    renderWithProviders(<SessionEvidencePage />, {
+      route: '/teaching/session-evidence?classBatchId=abc&sessionId=xyz',
+    });
+    expect(classSessionSpy).toHaveBeenCalledWith({ classBatchId: null }, false);
   });
 
   it('calls sessionEvidence.upsert.mutateAsync with a byte-identical {classSessionId, summary} payload', async () => {
@@ -104,7 +127,10 @@ describe('SessionEvidencePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Lưu tóm tắt' }));
 
     await waitFor(() =>
-      expect(upsertMutateAsync).toHaveBeenCalledWith({ classSessionId: 'sess-1', summary: 'Hôm nay học Unit 3.' }),
+      expect(upsertMutateAsync).toHaveBeenCalledWith({
+        classSessionId: SESSION_A.id,
+        summary: 'Hôm nay học Unit 3.',
+      }),
     );
   });
 
@@ -150,7 +176,9 @@ describe('SessionEvidencePage', () => {
 
       await waitFor(() => expect(fetchMock).toHaveBeenCalled());
       const [url, opts] = fetchMock.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe('http://localhost:3000/upload/session-photo');
+      // Assert the target PATH (env-independent): API_URL comes from VITE_API_URL,
+      // which is unset in the jsdom test env, so the built URL is relative here.
+      expect(url).toMatch(/\/upload\/session-photo$/);
       expect(opts.method).toBe('POST');
       expect(opts.credentials).toBe('include');
       expect((opts.headers as Record<string, string>)['Content-Type']).toBe('image/jpeg');
@@ -201,6 +229,8 @@ describe('SessionEvidencePage', () => {
 
     expect(invalidateSpy).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Công bố cho phụ huynh' }));
+    expect(publishMutateAsync).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Công bố' }));
 
     await waitFor(() => expect(publishMutateAsync).toHaveBeenCalledWith({ sessionEvidenceId: 'ev-1' }));
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalledTimes(1));

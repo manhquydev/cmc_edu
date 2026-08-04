@@ -100,15 +100,21 @@ describe('ExercisesPage', () => {
     expect(within(table).getByText('Kiểm tra định kỳ')).toBeInTheDocument();
   });
 
-  it('publish action calls exercise.publish.mutate({exerciseId}) for a draft row', () => {
+  it('publish action calls exercise.publish.mutate only after ConfirmDialog confirm', () => {
     renderWithProviders(<ExercisesPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Công bố' }));
+    expect(publishMutate).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    const confirmButtons = screen.getAllByRole('button', { name: 'Công bố' });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]!);
     expect(publishMutate).toHaveBeenCalledWith({ exerciseId: 'ex-1' });
   });
 
-  it('close action calls exercise.close.mutate({exerciseId}) for a published row', () => {
+  it('close action calls exercise.close.mutate only after ConfirmDialog confirm', () => {
     renderWithProviders(<ExercisesPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+    expect(closeMutate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng bài tập' }));
     expect(closeMutate).toHaveBeenCalledWith({ exerciseId: 'ex-2' });
   });
 

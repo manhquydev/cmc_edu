@@ -6,6 +6,7 @@ import {
   FilterBar,
   HStack,
   ListPage,
+  ListPagination,
   PageHeader,
   StatusBadge,
   Text,
@@ -50,6 +51,8 @@ const FILTERS: FilterDef[] = [
 export default function RewardsQueuePage() {
   const [searchParams] = useSearchParams();
   const utils = trpc.useUtils();
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
 
   const statusParam = searchParams.get('status');
   const status: RewardStatus | undefined =
@@ -58,6 +61,8 @@ export default function RewardsQueuePage() {
       : undefined;
 
   const { data, isLoading, error } = trpc.rewards.list.useQuery({ status });
+  const allRows = (data as RewardRow[] | undefined) ?? [];
+  const pageRows = allRows.slice((page - 1) * pageSize, page * pageSize);
 
   // Track which row triggered the current mutation so only that row's button
   // spins — otherwise `isPending` from useMutation applies globally and every
@@ -152,6 +157,7 @@ export default function RewardsQueuePage() {
 
   return (
     <ListPage
+      density="ops"
       header={
         <PageHeader
           title="Yêu cầu đổi quà"
@@ -164,10 +170,18 @@ export default function RewardsQueuePage() {
         />
       }
       filters={<FilterBar filters={FILTERS} />}
+      controlFooter={
+        <ListPagination
+          page={page}
+          pageSize={pageSize}
+          total={allRows.length}
+          onPageChange={setPage}
+        />
+      }
     >
       <DataTable<RewardRow>
         columns={COLUMNS}
-        data={(data as RewardRow[] | undefined) ?? []}
+        data={pageRows}
         loading={isLoading}
         error={error?.message}
         empty="Chưa có yêu cầu đổi quà nào"

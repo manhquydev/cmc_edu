@@ -54,14 +54,18 @@ test.describe('P1-01 journey — phễu tuyển sinh: tạo cơ hội rồi đá
     await page.getByRole('button', { name: 'Tạo' }).click();
 
     // The new lead appears as a card on the board; opening it is opportunityGet.
-    const card = page.getByText(leadName);
-    await expect(card).toBeVisible();
-    await card.click();
+    // Click the contact *name* (not the card shell): card center often hits the
+    // "Đánh dấu mất" button which stopPropagates and never navigates to detail.
+    // Unique leadName avoids multi-match from leftover board fixtures.
+    const nameOnBoard = page.getByText(leadName, { exact: true });
+    await expect(nameOnBoard).toBeVisible();
+    await nameOnBoard.click();
     await expect(page).toHaveURL(/\/crm\/opportunities\/[0-9a-f-]{36}/);
 
-    // A fresh lead can be marked lost — the button is present before, gone after.
+    // Detail page: EntityHeader title + single mark-lost action (not the board).
+    await expect(page.getByRole('heading', { name: leadName })).toBeVisible();
     const markLostButton = page.getByRole('button', { name: 'Đánh dấu mất' });
-    await expect(markLostButton).toBeVisible();
+    await expect(markLostButton).toHaveCount(1);
     await markLostButton.click();
 
     // The reason field is an Astryx Selector rendered as a combobox; "Xác nhận"

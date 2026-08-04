@@ -1,14 +1,16 @@
 import { Button, Card, Divider, Heading, PasswordInput, Stack, Text, TextField } from '@cmc/ui';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { trpc } from '../lib/trpc.js';
+import { safeReturnTo } from '../lib/safe-return-to.js';
 
-// Same base-URL convention as lib/trpc.ts: empty VITE_API_URL (production
-// behind nginx) keeps requests same-origin; unset falls back to the dev API.
-const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000';
+// Same-origin by default so Vite /auth proxy works (API has no CORS).
+// Absolute VITE_API_URL only when intentionally set (rare).
+const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').trim();
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const utils = trpc.useUtils();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,7 +45,15 @@ export function LoginPage() {
       }
       // The staff cookie is set — refetch the session before entering the app.
       await utils.session.me.invalidate();
-      void navigate(body.mustChangePassword ? '/change-password' : '/', { replace: true });
+      const dest = safeReturnTo(searchParams.get('returnTo'));
+      if (body.mustChangePassword) {
+        // Carry returnTo through forced rotation so the user still lands on
+        // the original deep link after change-password (client UX only —
+        // mustChangePassword is still a client hint today).
+        void navigate(`/change-password?returnTo=${encodeURIComponent(dest)}`, { replace: true });
+      } else {
+        void navigate(dest, { replace: true });
+      }
     } catch {
       setError('Không kết nối được máy chủ.');
     } finally {
@@ -51,11 +61,14 @@ export function LoginPage() {
     }
   }
 
+  // When Entra SSO is re-enabled, the server callback must accept returnTo
+  // (RelayState / OAuth state) and apply the same safeReturnTo policy —
+  // out of scope while SSO remains disabled.
   const ssoUrl = `${API_URL}/auth/login`;
   const canSubmit = email.trim().length > 0 && password.length > 0 && !pending;
 
   return (
-    <div style={{ maxWidth: 400, margin: '80px auto 0', paddingInline: 16 }}>
+    <div style={{ maxWidth: 400, margin: '80px auto 0', paddingInline: 'var(--cmc-space-3)' }}>
       <Card padding={5}>
         <Stack gap={2}>
           <Heading level={2} style={{ color: 'var(--cmc-brand)' }}>

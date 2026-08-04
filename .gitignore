@@ -184,3 +184,8 @@ infra/nginx/certs/
 
 # Playwright MCP transient debug logs
 .playwright-mcp/
+
+# Session analysis artifacts (screenshots + scan output) — not source code
+/*.png
+/codeql-agent-results/
+/cockpit-gdkd-snapshot.md

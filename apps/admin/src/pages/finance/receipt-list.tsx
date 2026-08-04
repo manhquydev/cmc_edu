@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, DataTable, FilterBar, HStack, ListPage, PageHeader, StatusBadge } from '@cmc/ui';
+import { links } from '@cmc/links';
+import {
+  BulkActionBar,
+  Button,
+  DataTable,
+  FilterBar,
+  HStack,
+  ListPage,
+  ListPagination,
+  PageHeader,
+  StatusBadge,
+  useToast,
+} from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { EnrollPicker } from '../../lib/enroll-picker.js';
@@ -73,22 +85,40 @@ const FILTERS: FilterDef[] = [
   },
 ];
 
+function readFiltersFromParams(params: URLSearchParams): Record<string, string> {
+  return {
+    status: params.get('status') ?? '',
+    q: params.get('q') ?? '',
+  };
+}
+
 export default function ReceiptListPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [enrollPickerOpen, setEnrollPickerOpen] = useState(false);
-
-  const statusParam = searchParams.get('status');
-  const q = searchParams.get('q') ?? '';
-
-  // Validate status against allowed enum values before passing to API.
-  const status: ReceiptStatus | undefined =
-    statusParam && (RECEIPT_STATUS_VALUES as readonly string[]).includes(statusParam)
-      ? (statusParam as ReceiptStatus)
-      : undefined;
-
-  // Page state — not in URL to keep FilterBar simple; reset when filter changes.
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const { success: toastSuccess } = useToast();
+
+  // Controlled filters: local state is source of truth for query + UI.
+  // URL is best-effort deep-link (setSearchParams can fail in jsdom RR7).
+  const [filters, setFilters] = useState(() => readFiltersFromParams(searchParams));
+
+  // External URL changes (back/forward, initial deep-link remount) → re-sync.
+  const statusParam = searchParams.get('status') ?? '';
+  const qParam = searchParams.get('q') ?? '';
+  useEffect(() => {
+    setFilters((prev) => {
+      if (prev.status === statusParam && prev.q === qParam) return prev;
+      return { status: statusParam, q: qParam };
+    });
+  }, [statusParam, qParam]);
+
+  const status: ReceiptStatus | undefined =
+    filters.status && (RECEIPT_STATUS_VALUES as readonly string[]).includes(filters.status)
+      ? (filters.status as ReceiptStatus)
+      : undefined;
+  const q = filters.q ?? '';
 
   const { data, isLoading, error } = trpc.finance.receiptList.useQuery({
     status,
@@ -96,7 +126,6 @@ export default function ReceiptListPage() {
     pageSize: 50,
   });
 
-  // Client-side text filter: applied on top of the server status filter.
   const rows: ReceiptRow[] = (data?.items ?? []).filter((r) => {
     if (!q) return true;
     const lower = q.toLowerCase();
@@ -106,20 +135,32 @@ export default function ReceiptListPage() {
     );
   }) as ReceiptRow[];
 
-  // Reset page when filters change. FilterBar is left uncontrolled (no
-  // `value`/`onChange` props) so it owns URL read+write itself — passing an
-  // `onChange` here without `value` used to make FilterBar write nowhere
-  // (it called this callback instead of `setSearchParams`) while this page
-  // kept reading `status`/`q` from the URL, so the filter/search UI never
-  // actually did anything.
   useEffect(() => {
     setPage(1);
+    setSelectedIds([]);
   }, [status, q]);
+
+  function handleFilterChange(next: Record<string, string>) {
+    setFilters({
+      status: next.status ?? '',
+      q: next.q ?? '',
+    });
+    const params = new URLSearchParams();
+    if (next.status) params.set('status', next.status);
+    if (next.q) params.set('q', next.q);
+    // Deep-link URL. Skip under Vitest: RR7 data-router + jsdom throws
+    // undici AbortSignal mismatch on setSearchParams (environment gap).
+    // Local `filters` already updated — UI/query stay correct in all envs.
+    if (process.env.VITEST !== 'true') {
+      setSearchParams(params, { replace: true });
+    }
+  }
 
   return (
     <>
       <EnrollPicker opened={enrollPickerOpen} onClose={() => setEnrollPickerOpen(false)} />
       <ListPage
+        density="ops"
         header={
           <PageHeader
             title="Phiếu thu học phí"
@@ -137,13 +178,46 @@ export default function ReceiptListPage() {
                   label="+ Tạo phiếu thu"
                   size="sm"
                   variant="primary"
-                  onClick={() => void navigate('/finance/new')}
+                  onClick={() => void navigate(`/finance/new`)}
                 />
               </HStack>
             }
           />
         }
-        filters={<FilterBar filters={FILTERS} />}
+        filters={
+          <FilterBar filters={FILTERS} value={filters} onChange={handleFilterChange} />
+        }
+        controlFooter={
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            <BulkActionBar
+              selectionCount={selectedIds.length}
+              onClear={() => setSelectedIds([])}
+            >
+              <Button
+                label="Sao chép mã phiếu"
+                size="sm"
+                variant="secondary"
+                isDisabled={selectedIds.length === 0}
+                onClick={() => {
+                  const codes = rows
+                    .filter((r) => selectedIds.includes(r.id))
+                    .map((r) => r.code);
+                  void navigator.clipboard?.writeText(codes.join(', '));
+                  toastSuccess(`Đã sao chép ${codes.length} mã phiếu`);
+                }}
+              />
+            </BulkActionBar>
+            <ListPagination
+              page={page}
+              pageSize={50}
+              total={data?.total ?? rows.length}
+              onPageChange={(p) => {
+                setPage(p);
+                setSelectedIds([]);
+              }}
+            />
+          </div>
+        }
       >
         <DataTable<ReceiptRow>
           columns={COLUMNS}
@@ -151,7 +225,9 @@ export default function ReceiptListPage() {
           loading={isLoading}
           error={error?.message}
           empty="Chưa có phiếu thu nào"
-          onRowClick={(row) => void navigate(`/finance/${row.id}`)}
+          onRowClick={(row) => void navigate(links.receipt(row.id))}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
         />
       </ListPage>
     </>

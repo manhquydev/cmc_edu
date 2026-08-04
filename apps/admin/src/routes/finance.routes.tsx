@@ -71,7 +71,16 @@ export const financeRoutes: RouteObject[] = [
     path: ':id',
     element: (
       <Suspense fallback={<Fallback />}>
-        <ReceiptDetailPage />
+        {/* Match API: finance.receiptGet → requirePermission('finance','receiptGet'). */}
+        <PermissionGate
+          module="finance"
+          action="receiptGet"
+          title="Chi tiết phiếu thu"
+          breadcrumbs={[{ label: 'Tài chính & Điều hành' }, { label: 'Phiếu thu' }, { label: 'Chi tiết' }]}
+          requirementLabel="xem phiếu thu (finance.receiptGet)"
+        >
+          <ReceiptDetailPage />
+        </PermissionGate>
       </Suspense>
     ),
   },

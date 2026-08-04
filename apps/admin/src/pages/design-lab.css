@@ -1,0 +1,456 @@
+/* Design Lab — visual inventory of CMC EDU design system.
+   Scoped under .dl-root. Mirrors production raised language so lab ≠ flat island. */
+
+.dl-root {
+  --dl-max: 1120px;
+  background: var(--cmc-canvas);
+  min-height: 100%;
+  color: var(--cmc-text);
+  font-family: var(--cmc-font-sans);
+}
+
+.dl-hero {
+  padding: 28px 28px 20px;
+  max-width: var(--dl-max);
+  margin: 0 auto;
+}
+
+.dl-hero-kicker {
+  font-size: var(--cmc-fs-label);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cmc-brand);
+  margin: 0 0 8px;
+}
+
+.dl-hero h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.dl-hero-lead {
+  margin: 10px 0 0;
+  max-width: 68ch;
+  font-size: 15px;
+  line-height: var(--cmc-lh-body);
+  color: var(--cmc-text-muted);
+}
+
+.dl-toc {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  padding: 10px 28px;
+  background: color-mix(in srgb, var(--cmc-canvas) 88%, transparent);
+  backdrop-filter: var(--cmc-blur-nav);
+  border-bottom: 1px solid var(--cmc-border-subtle);
+}
+
+.dl-toc a {
+  font-size: var(--cmc-fs-meta);
+  font-weight: 500;
+  color: var(--cmc-text-2);
+  text-decoration: none;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--cmc-surface-raised);
+  border: 1px solid var(--cmc-border-subtle);
+  box-shadow: var(--cmc-shadow-xs);
+  transition: background var(--cmc-transition), color var(--cmc-transition), border-color var(--cmc-transition);
+}
+
+.dl-toc a:hover {
+  color: var(--cmc-brand);
+  border-color: var(--cmc-accent-soft);
+}
+
+.dl-toc a[href='#upgrade'],
+.dl-toc a[href='#redteam'],
+.dl-toc a[href='#layout-knowledge'],
+.dl-toc a[href='#wireframes'],
+.dl-toc a[href='#styles'],
+.dl-toc a[href='#xia'] {
+  background: var(--cmc-brand-muted);
+  border-color: color-mix(in srgb, var(--cmc-brand) 28%, var(--cmc-border-subtle));
+  color: var(--cmc-brand-ink);
+  font-weight: 600;
+}
+
+.dl-toc a[href='#upgrade'] {
+  background: var(--cmc-success-soft);
+  border-color: color-mix(in srgb, var(--cmc-success) 28%, var(--cmc-border-subtle));
+  color: var(--cmc-success-ink);
+}
+
+.dl-toc a[href='#redteam'] {
+  background: var(--cmc-danger-soft);
+  border-color: color-mix(in srgb, var(--cmc-danger) 28%, var(--cmc-border-subtle));
+  color: var(--cmc-danger-ink);
+}
+
+.dl-body {
+  max-width: var(--dl-max);
+  margin: 0 auto;
+  padding: 8px 28px 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+.dl-section {
+  scroll-margin-top: 56px;
+}
+
+.dl-section-head {
+  margin-bottom: 14px;
+}
+
+.dl-section-head h2 {
+  margin: 0;
+  font-size: var(--cmc-fs-h3);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.dl-section-head p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--cmc-text-muted);
+  max-width: 72ch;
+}
+
+/* Raised inventory surface — same family as .ck-pnl / MetricCard */
+.dl-card {
+  background: var(--cmc-surface-raised);
+  border-radius: var(--cmc-radius-md);
+  border: 1px solid var(--cmc-border-subtle);
+  box-shadow: var(--cmc-shadow-sm);
+  padding: var(--cmc-pad-card) var(--cmc-pad-card-x);
+}
+
+.dl-card + .dl-card {
+  margin-top: 12px;
+}
+
+.dl-card--flush {
+  padding: 0;
+  overflow: hidden;
+}
+
+.dl-card--canvas {
+  background: var(--cmc-canvas);
+  border: none;
+  box-shadow: none;
+  padding: 16px;
+}
+
+.dl-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.dl-grid-swatch {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+.dl-swatch {
+  border-radius: var(--cmc-radius-control);
+  overflow: hidden;
+  border: 1px solid var(--cmc-border-subtle);
+  background: var(--cmc-surface-raised);
+  box-shadow: var(--cmc-shadow-xs);
+}
+
+.dl-swatch-chip {
+  height: 56px;
+}
+
+.dl-swatch-meta {
+  padding: 8px 10px 10px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.dl-swatch-meta strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cmc-text);
+  margin-bottom: 2px;
+}
+
+.dl-swatch-meta span {
+  color: var(--cmc-text-muted);
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+}
+
+.dl-type-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--cmc-border-subtle);
+}
+
+.dl-type-row:last-child {
+  border-bottom: none;
+}
+
+.dl-type-meta {
+  font-size: 11px;
+  color: var(--cmc-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dl-scale-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.dl-space-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--cmc-text-muted);
+}
+
+.dl-space-box i {
+  display: block;
+  background: var(--cmc-brand-muted);
+  border: 1px dashed var(--cmc-brand);
+  border-radius: 4px;
+}
+
+.dl-radius-demo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.dl-radius-item {
+  width: 76px;
+  height: 76px;
+  background: var(--cmc-brand-muted);
+  border: 1px solid var(--cmc-accent-soft);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cmc-brand);
+  gap: 2px;
+}
+
+.dl-radius-item span {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--cmc-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dl-shadow-item {
+  width: 120px;
+  height: 72px;
+  background: var(--cmc-surface-raised);
+  border-radius: var(--cmc-radius-md);
+  border: 1px solid var(--cmc-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--cmc-text-muted);
+}
+
+.dl-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+}
+
+.dl-icon-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 8px;
+  border-radius: var(--cmc-radius-control);
+  background: var(--cmc-surface-sunken);
+  color: var(--cmc-text-2);
+  font-size: 10px;
+  text-align: center;
+}
+
+.dl-row-gap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.dl-stack-gap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dl-callout {
+  padding: 14px 16px;
+  border-radius: var(--cmc-radius-control);
+  background: var(--cmc-brand-muted);
+  border: 1px solid var(--cmc-accent-soft);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--cmc-text-2);
+}
+
+.dl-callout strong {
+  color: var(--cmc-brand-ink);
+}
+
+.dl-diag {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.dl-diag li {
+  list-style: none;
+  padding: 10px 14px;
+  border-radius: var(--cmc-radius-control);
+  background: var(--cmc-surface-raised);
+  border: 1px solid var(--cmc-border-subtle);
+  border-left: 3px solid var(--cmc-success);
+  box-shadow: var(--cmc-shadow-xs);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--cmc-text-2);
+}
+
+.dl-frame-mock {
+  border: 1px solid var(--cmc-border-subtle);
+  border-radius: var(--cmc-radius-md);
+  padding: 14px;
+  background: var(--cmc-surface-raised);
+  box-shadow: var(--cmc-shadow-xs);
+  font-size: 11px;
+  color: var(--cmc-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.dl-footer-note {
+  font-size: 12px;
+  color: var(--cmc-text-muted);
+  padding-top: 8px;
+  border-top: 1px solid var(--cmc-border-subtle);
+}
+
+/* Hover language matrix */
+.dl-hover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.dl-hover-cell {
+  border-radius: var(--cmc-radius-md);
+  border: 1px solid var(--cmc-border-subtle);
+  background: var(--cmc-surface-raised);
+  padding: 14px;
+  min-height: 88px;
+  transition: background var(--cmc-transition), box-shadow var(--cmc-transition), border-color var(--cmc-transition);
+}
+
+.dl-hover-cell strong {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 6px;
+  color: var(--cmc-text);
+}
+
+.dl-hover-cell p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--cmc-text-muted);
+  line-height: 1.4;
+}
+
+.dl-hover-cell--row:hover {
+  background: var(--cmc-surface-sunken);
+}
+
+.dl-hover-cell--metric:hover {
+  box-shadow: var(--cmc-shadow-md);
+  border-color: var(--cmc-accent-soft);
+}
+
+.dl-hover-cell--field {
+  background: var(--cmc-surface-sunken);
+}
+
+.dl-hover-cell--field:hover {
+  border-color: color-mix(in srgb, var(--cmc-text-muted) 35%, var(--cmc-border));
+  background: color-mix(in srgb, var(--cmc-surface-sunken) 70%, var(--cmc-surface-raised));
+}
+
+.dl-anti {
+  border-left-color: var(--cmc-danger) !important;
+}
+
+.dl-ladder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+}
+
+.dl-ladder-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--cmc-text-muted);
+  text-align: center;
+}
+
+.dl-ladder-box {
+  background: var(--cmc-surface-raised);
+  border: 1px solid var(--cmc-border-subtle);
+  box-shadow: var(--cmc-shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cmc-brand);
+}
+
+.dl-compose-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--cmc-canvas);
+  border-radius: var(--cmc-radius-md);
+  padding: 16px;
+  border: 1px dashed var(--cmc-border);
+}

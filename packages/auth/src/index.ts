@@ -34,6 +34,29 @@ export const ACTIVE_ROLES = [
 
 export type ActiveRole = (typeof ACTIVE_ROLES)[number];
 
+/** Human-readable Vietnamese labels for UI badges/greetings (not for API keys). */
+export const ROLE_LABELS: Record<Role, string> = {
+  super_admin: 'Quản trị hệ thống',
+  giam_doc_kinh_doanh: 'Giám đốc kinh doanh',
+  giam_doc_dao_tao: 'Giám đốc đào tạo',
+  sale: 'Sale',
+  giao_vien: 'Giáo viên',
+  ke_toan: 'Kế toán',
+  cskh: 'CSKH',
+  ctv_mkt: 'CTV marketing',
+  hr: 'Nhân sự',
+};
+
+/** Display label for a role key; unknown strings pass through unchanged. */
+export function formatRole(role: string): string {
+  return ROLE_LABELS[role as Role] ?? role;
+}
+
+/** Join multiple roles for greetings: "Giáo viên, Sale". */
+export function formatRoles(roles: readonly string[]): string {
+  return roles.map(formatRole).join(', ');
+}
+
 export type PermissionModule = string;
 export type PermissionAction = string;
 

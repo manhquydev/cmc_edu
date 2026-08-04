@@ -20,6 +20,7 @@ import {
   Dialog,
   DialogHeader,
   HStack,
+  ListPage,
   NumberInput,
   PageHeader,
   Selector,
@@ -27,6 +28,7 @@ import {
   StatusBadge,
   TextArea,
   TextInput,
+  useToast,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { useSession } from '../../lib/session-context.js';
@@ -141,6 +143,7 @@ function OverrideModal({
 export default function KpiPage() {
   const { canDo } = useSession();
   const utils = trpc.useUtils();
+  const { success: toastSuccess } = useToast();
   const [period, setPeriod] = useState(defaultPeriodICT());
   const [statusFilter, setStatusFilter] = useState<string | undefined>('submitted');
   const [confirmTarget, setConfirmTarget] = useState<KpiRow | null>(null);
@@ -164,6 +167,7 @@ export default function KpiPage() {
   const confirmMut = trpc.kpi.confirm.useMutation({
     onSuccess() {
       setConfirmTarget(null);
+      toastSuccess('Đã xác nhận KPI');
       void utils.kpi.list.invalidate();
     },
     onError(err) {
@@ -179,6 +183,7 @@ export default function KpiPage() {
         ok: true,
         text: `Đã tất toán ${res.approved} phiếu KPI. ${res.skippedSelf > 0 ? `${res.skippedSelf} phiếu của bạn bị loại tự động. ` : ''}${res.skippedUnfinalized.length > 0 ? `${res.skippedUnfinalized.length} phiếu chưa chốt lương, bỏ qua.` : ''}`,
       });
+      toastSuccess('Đã tất toán KPI');
       void utils.kpi.list.invalidate();
     },
     onError(err) {
@@ -234,36 +239,39 @@ export default function KpiPage() {
 
   return (
     <>
-      <PageHeader
-        title="Duyệt KPI"
-        subtitle="Xác nhận, ghi đè và tất toán điểm KPI theo kỳ"
-        breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Duyệt KPI' }]}
-        actions={
-          <HStack gap={1} align="end">
-            <div style={{ width: 160 }}>
-              <Selector
-                label="Trạng thái"
-                options={STATUS_FILTER_OPTIONS}
-                value={statusFilter}
-                onChange={(v) => setStatusFilter(v)}
-              />
-            </div>
-            <div style={{ width: 130 }}>
-              <TextInput size="sm" label="Kỳ (YYYY-MM)" value={period} onChange={(v) => setPeriod(v)} />
-            </div>
-            {canDo('kpi', 'bulkApprove') && (
-              <Button
-                label={`Đã trả lương kỳ ${period}`}
-                size="sm"
-                variant="primary"
-                onClick={() => setBulkConfirmOpen(true)}
-              />
-            )}
-          </HStack>
+      <ListPage
+        density="ops"
+        header={
+          <PageHeader
+            title="Duyệt KPI"
+            subtitle="Xác nhận, ghi đè và tất toán điểm KPI theo kỳ"
+            breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Duyệt KPI' }]}
+            actions={
+              <HStack gap={1} align="end">
+                <div style={{ width: 160 }}>
+                  <Selector
+                    label="Trạng thái"
+                    options={STATUS_FILTER_OPTIONS}
+                    value={statusFilter}
+                    onChange={(v) => setStatusFilter(v)}
+                  />
+                </div>
+                <div style={{ width: 130 }}>
+                  <TextInput size="sm" label="Kỳ (YYYY-MM)" value={period} onChange={(v) => setPeriod(v)} />
+                </div>
+                {canDo('kpi', 'bulkApprove') && (
+                  <Button
+                    label={`Đã trả lương kỳ ${period}`}
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setBulkConfirmOpen(true)}
+                  />
+                )}
+              </HStack>
+            }
+          />
         }
-      />
-
-      <div style={{ padding: 16 }}>
+      >
         <Stack gap={2}>
           {result && <Banner status={result.ok ? 'success' : 'error'} title={result.text} />}
 
@@ -275,7 +283,7 @@ export default function KpiPage() {
             empty="Không có phiếu KPI nào phù hợp bộ lọc."
           />
         </Stack>
-      </div>
+      </ListPage>
 
       <ConfirmDialog
         opened={confirmTarget !== null}

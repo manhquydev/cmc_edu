@@ -54,6 +54,8 @@ import { seedApprovedShiftRegistration, findShiftTemplateByNames, findAppUserByU
 import { menuNav } from '../../src/journey/menu-nav.js';
 import { findInList } from '../../src/journey/find-in-list.js';
 import { createStaffViaAdminUi } from '../../src/journey/create-staff-via-admin-ui.js';
+import { createE2eStaffClient } from '../../src/trpc-client.js';
+import { assertBusinessInvariant } from '../../src/journey/assert-business.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -225,6 +227,27 @@ test.describe('P3-02 journey — duyệt phiếu chấm công offsite theo track
     await expect(confirmDialog).toBeVisible();
     await confirmDialog.getByRole('button', { name: 'Duyệt' }).click();
     await expect(gdkdPage.getByText('Đã duyệt yêu cầu chấm công.')).toBeVisible();
+
+    // ── business invariant ──
+    // The success banner proves the approve mutation ran, but not the durable
+    // state it left on the sale's ticket. Read it back through the SAME track
+    // filter the UI uses: a GĐKD `manualPunch.list({ scope: 'inbox' })` returns
+    // the tickets of AppUsers in the sale track (the inbox track filter reads
+    // the ticket owner's roles, so a fresh cookie-only GĐKD client needs no
+    // AppUser row of its own). Locate the sale's own ticket by `appUserId ===
+    // sale.id` (the AppUser row already resolved above) and assert `.status ===
+    // 'approved'` — the exact value manualPunch.approve writes. This turns
+    // P3-02 from reachable-only into verified-correct on the real authorized
+    // read path, not a DB back-door.
+    const gdkdClient = createE2eStaffClient(process.env.E2E_BASE_URL!, {
+      userId: `e2e-p302-gdkd-readback-${randomUUID().slice(0, 8)}`,
+      roles: ['giam_doc_kinh_doanh'],
+      facilityId,
+    });
+    const inbox = await gdkdClient.manualPunch.list.query({ scope: 'inbox' });
+    const ticket = inbox.find((t) => t.appUserId === sale.id);
+    expect(ticket, `phiếu chấm công của sale (${sale.id}) phải có trong inbox GĐKD`).toBeTruthy();
+    assertBusinessInvariant('phiếu chấm công offsite sau duyệt = approved', ticket!.status, 'approved');
 
     await gdkdContext.close();
   });

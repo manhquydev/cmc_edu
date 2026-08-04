@@ -43,7 +43,10 @@ const submitInput = z.object({ exerciseId: z.string().uuid() });
 
 const gradeInput = z.object({
   submissionId: z.string().uuid(),
-  score: z.number().nonnegative(),
+  // Whole numbers only: Submission.score is an Int column, so a fractional
+  // grade (e.g. 8.5) would be silently truncated to 8 on persist. Reject it at
+  // the boundary instead of storing a number the teacher did not intend.
+  score: z.number().int('Điểm phải là số nguyên.').nonnegative(),
 });
 
 const listForChildInput = z.object({ studentId: z.string().uuid() });

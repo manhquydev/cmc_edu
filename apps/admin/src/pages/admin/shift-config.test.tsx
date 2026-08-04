@@ -75,8 +75,8 @@ describe('ShiftConfigPage', () => {
     sessionRoles = ['giam_doc_dao_tao'];
     renderWithProviders(<ShiftConfigPage />);
     expect(screen.queryByText('Không có quyền truy cập')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Nhóm ca & mẫu ca' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Chính sách phạt' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Nhóm ca & mẫu ca/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Chính sách phạt/ })).not.toBeInTheDocument();
     expect(screen.getByText('Sale ca ngày')).toBeInTheDocument();
   });
 
@@ -114,14 +114,14 @@ describe('ShiftConfigPage', () => {
 
   it('switches to the Chính sách phạt tab and pre-fills existing policy rates', () => {
     renderWithProviders(<ShiftConfigPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Chính sách phạt' }));
+    fireEvent.click(screen.getByRole('button', { name: /Chính sách phạt/ }));
     expect(screen.getByLabelText('Phạt mỗi phút đi muộn (VND)')).toHaveValue(500);
     expect(screen.getByLabelText('Phạt mỗi phút về sớm (VND)')).toHaveValue(1000);
   });
 
   it('saves the policy via compensationPolicy.upsert.mutate', () => {
     renderWithProviders(<ShiftConfigPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Chính sách phạt' }));
+    fireEvent.click(screen.getByRole('button', { name: /Chính sách phạt/ }));
     fireEvent.change(screen.getByLabelText('Phạt mỗi phút đi muộn (VND)'), { target: { value: '600' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chính sách' }));
     expect(policyUpsertMutate).toHaveBeenCalledWith({
@@ -133,7 +133,7 @@ describe('ShiftConfigPage', () => {
   it('shows a fallback-rate info banner when no policy is configured yet', () => {
     policyData = null;
     renderWithProviders(<ShiftConfigPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Chính sách phạt' }));
+    fireEvent.click(screen.getByRole('button', { name: /Chính sách phạt/ }));
     expect(screen.getByText('Chưa cấu hình chính sách phạt')).toBeInTheDocument();
   });
 });

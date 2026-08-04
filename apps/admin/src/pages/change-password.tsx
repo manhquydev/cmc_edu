@@ -6,13 +6,15 @@
 
 import { Button, Card, Divider, Heading, PasswordInput, Stack, Text } from '@cmc/ui';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { trpc } from '../lib/trpc.js';
+import { safeReturnTo } from '../lib/safe-return-to.js';
 
 const PASSWORD_MIN_LENGTH = 8;
 
 export default function ChangePasswordPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,7 +22,8 @@ export default function ChangePasswordPage() {
 
   const changeMut = trpc.user.changeOwnPassword.useMutation({
     onSuccess: () => {
-      void navigate('/', { replace: true });
+      // Restore the deep link that login carried through ?returnTo=.
+      void navigate(safeReturnTo(searchParams.get('returnTo')), { replace: true });
     },
   });
 
@@ -45,7 +48,7 @@ export default function ChangePasswordPage() {
   const errorMessage = localError ?? changeMut.error?.message ?? null;
 
   return (
-    <div style={{ maxWidth: 400, margin: '80px auto 0', paddingInline: 16 }}>
+    <div style={{ maxWidth: 400, margin: '80px auto 0', paddingInline: 'var(--cmc-space-3)' }}>
       <Card padding={5}>
         <Stack gap={2}>
           <Heading level={2} style={{ color: 'var(--cmc-brand)' }}>

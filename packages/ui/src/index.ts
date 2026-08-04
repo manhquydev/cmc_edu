@@ -24,6 +24,9 @@ export const tokens = {
   },
   radius: {
     xs: 'var(--cmc-radius-xs)',
+    control: 'var(--cmc-radius-control)',
+    card: 'var(--cmc-radius-card)',
+    dialog: 'var(--cmc-radius-dialog)',
     md: 'var(--cmc-radius-md)',
     lg: 'var(--cmc-radius-lg)',
     pill: 'var(--cmc-radius-pill)',
@@ -47,20 +50,34 @@ export const tokens = {
     surfaceSunken: 'var(--cmc-surface-sunken)',
     hover: 'var(--cmc-hover)',
     borderSubtle: 'var(--cmc-border-subtle)',
+    shadowXs: 'var(--cmc-shadow-xs)',
     shadowSm: 'var(--cmc-shadow-sm)',
     shadowMd: 'var(--cmc-shadow-md)',
     shadowLg: 'var(--cmc-shadow-lg)',
     blurNav: 'var(--cmc-blur-nav)',
     ease: 'var(--cmc-ease)',
     transition: 'var(--cmc-transition)',
+    focusHalo: 'var(--cmc-focus-halo)',
     fsLabel: 'var(--cmc-fs-label)',
+    fsMeta: 'var(--cmc-fs-meta)',
     fsBody: 'var(--cmc-fs-body)',
+    fsTitle: 'var(--cmc-fs-title)',
     fsH3: 'var(--cmc-fs-h3)',
+    fsPage: 'var(--cmc-fs-page)',
     fsMetric: 'var(--cmc-fs-metric)',
     lhBody: 'var(--cmc-lh-body)',
     padCard: 'var(--cmc-pad-card)',
+    padCardX: 'var(--cmc-pad-card-x)',
+    gapCluster: 'var(--cmc-gap-cluster)',
     gapSection: 'var(--cmc-gap-section)',
     accentSoft: 'var(--cmc-accent-soft)',
+    /* Structure system */
+    rowH: 'var(--cmc-row-h)',
+    headH: 'var(--cmc-head-h)',
+    keylineX: 'var(--cmc-keyline-x)',
+    raisedBg: 'var(--cmc-raised-bg)',
+    chipHSm: 'var(--cmc-chip-h-sm)',
+    ctaH: 'var(--cmc-cta-h)',
   },
 } as const;
 
@@ -82,8 +99,13 @@ export { Panel } from './components/panel.js';
 export type { PanelProps } from './components/panel.js';
 export { TaskRow } from './components/task-row.js';
 export type { TaskRowProps } from './components/task-row.js';
-export { FunnelBar } from './components/funnel-bar.js';
+// TaskRowProps re-exported for WorkInbox consumers in apps
+export { FunnelBar, funnelFillWidth } from './components/funnel-bar.js';
 export type { FunnelBarProps } from './components/funnel-bar.js';
+export { InsightMetric } from './components/insight-metric.js';
+export type { InsightMetricProps } from './components/insight-metric.js';
+export { FocusCard } from './components/focus-card.js';
+export type { FocusCardProps } from './components/focus-card.js';
 
 // Astryx theme scope provider — see astryx-theme-cmc.css for token values.
 export { AstryxCmcProvider } from './astryx-provider.js';
@@ -127,6 +149,9 @@ export type { CmcTabsProps, CmcTabDef } from './components/cmc-tabs.js';
 export { ConfirmDialog } from './components/confirm-dialog.js';
 export type { ConfirmDialogProps } from './components/confirm-dialog.js';
 
+export { ToastProvider, useToast } from './components/toast.js';
+export type { ToastInput, ToastItem, ToastTone } from './components/toast.js';
+
 export { ResultPanel } from './components/result-panel.js';
 export type { ResultPanelProps, ResultStatus } from './components/result-panel.js';
 
@@ -146,7 +171,70 @@ export type { AppFrameProps } from './components/app-frame.js';
 // pages own tRPC + business logic. Require @cmc/ui/premium.css (.tpl-*).
 export { ListPage } from './components/list-page.js';
 export type { ListPageProps } from './components/list-page.js';
+export { ControlBar } from './components/control-bar.js';
+export type { ControlBarProps } from './components/control-bar.js';
 export { DetailPage } from './components/detail-page.js';
 export type { DetailPageProps } from './components/detail-page.js';
 export { FormPage } from './components/form-page.js';
 export type { FormPageProps } from './components/form-page.js';
+export { DashboardPage } from './components/dashboard-page.js';
+export type { DashboardPageProps } from './components/dashboard-page.js';
+export { ShortcutChip } from './components/shortcut-chip.js';
+export type { ShortcutChipProps } from './components/shortcut-chip.js';
+export { WorkInbox } from './components/work-inbox.js';
+export type { WorkInboxProps, WorkInboxSection } from './components/work-inbox.js';
+export { StageFunnel } from './components/stage-funnel.js';
+export type {
+  StageFunnelProps,
+  StageFunnelStage,
+  StageFunnelLayout,
+} from './components/stage-funnel.js';
+
+// Completeness pack — detail / list / form / settings patterns
+export { SectionBlock } from './components/section-block.js';
+export type { SectionBlockProps } from './components/section-block.js';
+export { KeyValueList } from './components/key-value-list.js';
+export type { KeyValueListProps, KeyValueItem } from './components/key-value-list.js';
+export { BulkActionBar } from './components/bulk-action-bar.js';
+export type { BulkActionBarProps } from './components/bulk-action-bar.js';
+export { ListPagination } from './components/list-pagination.js';
+export type { ListPaginationProps } from './components/list-pagination.js';
+export { ProgressSteps } from './components/progress-steps.js';
+export type { ProgressStepsProps, ProgressStep } from './components/progress-steps.js';
+export { SettingsSection, SettingsRow } from './components/settings-section.js';
+export type {
+  SettingsSectionProps,
+  SettingsRowProps,
+} from './components/settings-section.js';
+export { EntityHeader } from './components/entity-header.js';
+export type { EntityHeaderProps } from './components/entity-header.js';
+export { HighlightStrip } from './components/highlight-strip.js';
+export type { HighlightStripProps, HighlightItem } from './components/highlight-strip.js';
+export { StatActions } from './components/stat-actions.js';
+export type { StatActionsProps, StatActionItem } from './components/stat-actions.js';
+export { WorkflowStatusbar } from './components/workflow-statusbar.js';
+export type { WorkflowStatusbarProps } from './components/workflow-statusbar.js';
+export { SettingsShell } from './components/settings-shell.js';
+export type { SettingsShellProps, SettingsNavItem } from './components/settings-shell.js';
+export { CommandPalette, useCommandPaletteHotkey } from './components/command-palette.js';
+export type { CommandPaletteProps, CommandItem } from './components/command-palette.js';
+
+// Xia port pack — patterns adapted from Shopify / GitHub / Cal / Airbnb DESIGN.md
+export { Callout } from './components/callout.js';
+export type { CalloutProps, CalloutTone } from './components/callout.js';
+export { Avatar } from './components/avatar.js';
+export type { AvatarProps } from './components/avatar.js';
+export { MetaRow, MetaItem } from './components/meta-row.js';
+export type { MetaRowProps, MetaItemProps } from './components/meta-row.js';
+export { CountBadge } from './components/count-badge.js';
+export type { CountBadgeProps } from './components/count-badge.js';
+export { ActivityTimeline } from './components/activity-timeline.js';
+export type { ActivityTimelineProps, ActivityItem } from './components/activity-timeline.js';
+
+// Education schedule
+export { SessionCard } from './components/session-card.js';
+export type { SessionCardProps, SessionStatus } from './components/session-card.js';
+export { WeekSchedule } from './components/week-schedule.js';
+export type { WeekScheduleProps, WeekDayColumn } from './components/week-schedule.js';
+export { ScheduleMonth, batchStatusToSession } from './components/schedule-month.js';
+export type { ScheduleMonthProps, ScheduleMonthGroup } from './components/schedule-month.js';

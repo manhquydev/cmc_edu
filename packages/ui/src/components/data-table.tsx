@@ -20,6 +20,14 @@ export interface DataTableProps<T extends Record<string, unknown>> {
   error?: string;
   empty?: string;
   onRowClick?: (row: T) => void;
+  /**
+   * Controlled row selection (ids). When set with `onSelectionChange`,
+   * a leading checkbox column is rendered.
+   */
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
+  /** Defaults to `row.id` string. */
+  getRowId?: (row: T) => string;
 }
 
 const SKELETON_ROWS = 5;
@@ -31,7 +39,14 @@ export function DataTable<T extends Record<string, unknown>>({
   error,
   empty = 'Không có dữ liệu',
   onRowClick,
+  selectedIds,
+  onSelectionChange,
+  getRowId,
 }: DataTableProps<T>) {
+  const resolveId =
+    getRowId ??
+    ((row: T) => (row['id'] as string | undefined) ?? JSON.stringify(row));
+
   if (error) {
     return <Banner status="error" title="Lỗi tải dữ liệu" description={error} />;
   }
@@ -50,37 +65,89 @@ export function DataTable<T extends Record<string, unknown>>({
     return <EmptyState title={empty} />;
   }
 
+  const selectionEnabled = selectedIds != null && onSelectionChange != null;
+  const selectedSet = new Set(selectedIds ?? []);
+  const allIds = data.map((row) => resolveId(row));
+  const allSelected = allIds.length > 0 && allIds.every((id) => selectedSet.has(id));
+  const someSelected = allIds.some((id) => selectedSet.has(id));
+
+  function toggleOne(id: string, checked: boolean) {
+    if (!onSelectionChange || !selectedIds) return;
+    if (checked) {
+      onSelectionChange(selectedIds.includes(id) ? selectedIds : [...selectedIds, id]);
+    } else {
+      onSelectionChange(selectedIds.filter((x) => x !== id));
+    }
+  }
+
+  function toggleAll(checked: boolean) {
+    if (!onSelectionChange) return;
+    onSelectionChange(checked ? [...allIds] : []);
+  }
+
+  const mappedColumns = [
+    ...(selectionEnabled
+      ? [
+          {
+            key: '__select',
+            header: (
+              <input
+                type="checkbox"
+                aria-label="Chọn tất cả trên trang"
+                checked={allSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = someSelected && !allSelected;
+                }}
+                onChange={(e) => toggleAll(e.target.checked)}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ),
+            width: pixel(44),
+            renderCell: (row: T) => {
+              const id = resolveId(row);
+              return (
+                <input
+                  type="checkbox"
+                  aria-label="Chọn dòng"
+                  checked={selectedSet.has(id)}
+                  onChange={(e) => toggleOne(id, e.target.checked)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              );
+            },
+          },
+        ]
+      : []),
+    ...columns.map((col) => ({
+      key: col.key,
+      header: col.label,
+      width: typeof col.width === 'number' ? pixel(col.width) : proportional(1),
+      renderCell: (row: T) => {
+        const content = col.render ? (
+          col.render(row[col.key], row)
+        ) : (
+          <Text type="body" size="sm">
+            {String(row[col.key] ?? '')}
+          </Text>
+        );
+        if (!onRowClick) return content;
+        return (
+          <div onClick={() => onRowClick(row)} style={{ cursor: 'pointer' }}>
+            {content}
+          </div>
+        );
+      },
+    })),
+  ];
+
   return (
     <Table<T>
       data={data}
-      idKey={(row) => (row['id'] as string | undefined) ?? JSON.stringify(row)}
+      idKey={(row) => resolveId(row)}
       density="compact"
       dividers="rows"
       hasHover={!!onRowClick}
-      columns={columns.map((col) => ({
-        key: col.key,
-        header: col.label,
-        width: typeof col.width === 'number' ? pixel(col.width) : proportional(1),
-        renderCell: (row: T) => {
-          const content = col.render ? (
-            col.render(row[col.key], row)
-          ) : (
-            <Text type="body" size="sm">
-              {String(row[col.key] ?? '')}
-            </Text>
-          );
-          // Table has no row-level onClick (checked the installed package's
-          // .d.ts, not just prose docs) — every cell's rendered content is
-          // wrapped so clicking anywhere in a cell triggers navigation,
-          // matching the prior row-click UX used by 8 call sites across the app.
-          if (!onRowClick) return content;
-          return (
-            <div onClick={() => onRowClick(row)} style={{ cursor: 'pointer' }}>
-              {content}
-            </div>
-          );
-        },
-      }))}
+      columns={mappedColumns}
     />
   );
 }

@@ -23,10 +23,12 @@
 
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
+import { withFacility } from '@cmc/db';
 
-import { findParentAccountIdByPhone, seedClassBatch, sweepParentIdentity } from '../../src/db.js';
+import { findParentAccountIdByPhone, getDb, seedClassBatch, sweepParentIdentity } from '../../src/db.js';
 import { randomVnPhone } from '../../src/random-vn-phone.js';
 import { provisionStudentViaReceipt } from '../../src/journey/provision-student-via-receipt.js';
+import { assertBusinessInvariant } from '../../src/journey/assert-business.js';
 import { mintLmsSession } from '../../src/journey/mint-lms-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -122,5 +124,36 @@ test.describe('P1-04 journey — kích hoạt học sinh: cổng đổi mật kh
     await expect(oldPwPage.getByText(/không đúng/i)).toBeVisible();
     await expect(oldPwPage).not.toHaveURL(/\/student\/(home|change-password)/);
     await oldPwContext.close();
+
+    // ── business invariant ──
+    // The login flows above prove the account is USABLE; they do not prove
+    // provisioning wired it to the right people. The receipt carried only a
+    // studentName and a parentPhone; provisioning (provision-from-receipt.ts)
+    // find-or-creates the ParentAccount by that phone and links a StudentAccount
+    // to both the new Student and that ParentAccount. This reads the account back
+    // by its STUDENT side (unique studentName) and asserts its PARENT side equals
+    // the ParentAccount that owns parentPhone (resolved independently above) — a
+    // join-integrity check across the money-chain's output, not an echo of any
+    // typed value. mustChangePassword is deliberately NOT asserted: the parent
+    // reset earlier in this flow cleared it, so the stable provisioned linkage is
+    // the correct invariant. No staff/LMS read-proc exposes StudentAccount
+    // linkage, so this uses the getDb() RLS-bypass seam. Turns P1-04 from
+    // reachable-only into verified-correct.
+    const studentAccount = await withFacility(
+      getDb(),
+      null,
+      (tx) =>
+        tx.studentAccount.findFirst({
+          where: { student: { facilityId, fullName: studentName } },
+          select: { parentAccountId: true, student: { select: { fullName: true } } },
+        }),
+      { bypass: true },
+    );
+    expect(studentAccount, 'provisioning phải tạo StudentAccount cho học sinh này').not.toBeNull();
+    assertBusinessInvariant(
+      'tài khoản LMS được liên kết đúng phụ huynh đã đóng phí (StudentAccount → ParentAccount)',
+      studentAccount!.parentAccountId,
+      parentAccountId,
+    );
   });
 });

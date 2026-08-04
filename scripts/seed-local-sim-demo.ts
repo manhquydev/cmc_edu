@@ -8,12 +8,18 @@
 // Usage (stack must be up, see infra/compose.local-sim.yml):
 //   LOCAL_SIM_SEED_ALLOW=1 tsx scripts/seed-local-sim-demo.ts
 //
+// Prerequisite (global curriculum catalog — exercise.create needs it):
+//   LOCAL_SIM_SEED_ALLOW=1 DATABASE_URL=postgresql://…@127.0.0.1:5432/cmc_prod \
+//     npx tsx scripts/ensure-curriculum-units.ts
+//   (or full `pnpm --filter @cmc/db exec prisma db seed` once per empty DB)
+//
 // Reads the bootstrap super-admin credentials from .env.prod
 // (SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD) and writes the final per-role
 // passwords to .env.local-sim-accounts (gitignored) — they are never printed.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 
 const BASE = process.env.LOCAL_SIM_BASE ?? 'https://erp.localhost';
 
@@ -92,6 +98,19 @@ const ROLES = [
 const ACCOUNTS_FILE = '.env.local-sim-accounts';
 
 async function main() {
+  // Best-effort: fill empty CurriculumUnit catalog so exercise UI is usable.
+  // Requires host-reachable DATABASE_URL (rewrite postgres→127.0.0.1 is inside
+  // ensure-curriculum-units). Failure is non-fatal — HTTP staff seed continues.
+  const viaTsx = spawnSync('npx', ['tsx', 'scripts/ensure-curriculum-units.ts'], {
+    env: { ...process.env, LOCAL_SIM_SEED_ALLOW: '1' },
+    encoding: 'utf8',
+    cwd: new URL('..', import.meta.url).pathname,
+  });
+  if (viaTsx.stdout) process.stdout.write(viaTsx.stdout);
+  if (viaTsx.status !== 0 && viaTsx.stderr) {
+    process.stderr.write(`[curriculum-ensure] ${viaTsx.stderr}`);
+  }
+
   const accounts: Record<string, string> = {};
 
   // Written after every rotation, not at the end: a password that has already

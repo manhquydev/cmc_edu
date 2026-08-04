@@ -34,11 +34,13 @@
 
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
+import { withFacility } from '@cmc/db';
 import { mintStaffCookie } from '../../src/session-injection.js';
-import { seedClassBatch } from '../../src/db.js';
+import { seedClassBatch, getDb } from '../../src/db.js';
 import { randomVnPhone } from '../../src/random-vn-phone.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
 import { findInList } from '../../src/journey/find-in-list.js';
+import { assertBusinessInvariant } from '../../src/journey/assert-business.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -136,7 +138,12 @@ test.describe('P1-05 journey — kích hoạt ghi danh, rồi xếp thêm lớp 
 
     await salePage2.getByRole('button', { name: /^Lớp học/ }).click();
     await salePage2.getByRole('option', { name: new RegExp(classB.code) }).click();
+    // "Xác nhận xếp lớp" now opens a ConfirmDialog (UI-cohesion refactor) — the
+    // real enrollment.enroll click only fires from the dialog's "Xếp lớp" button.
     await salePage2.getByRole('button', { name: 'Xác nhận xếp lớp' }).click();
+    const enrollDialog = salePage2.getByRole('alertdialog');
+    await expect(enrollDialog).toBeVisible();
+    await enrollDialog.getByRole('button', { name: 'Xếp lớp', exact: true }).click();
 
     await expect(salePage2.getByText('Đã xếp lớp thành công')).toBeVisible();
 
@@ -144,8 +151,9 @@ test.describe('P1-05 journey — kích hoạt ghi danh, rồi xếp thêm lớp 
     await menuNav(salePage2, 'Lớp & Học sinh', 'Học viên', { role: 'sale' });
     await expect(salePage2).toHaveURL(/\/admin\/students$/);
 
-    await salePage2.getByLabel('Tìm kiếm học viên').fill(studentName);
-    await salePage2.getByRole('button', { name: 'Tìm kiếm' }).click();
+    // Students search is now a reactive FilterBar (label "Tìm kiếm"); student.lookup
+    // fires on input once ≥2 chars — no submit button to click.
+    await salePage2.getByLabel('Tìm kiếm').fill(studentName);
 
     const studentRow = await findInList(salePage2, (text) => text.includes(studentName));
     await studentRow.click();
@@ -153,5 +161,45 @@ test.describe('P1-05 journey — kích hoạt ghi danh, rồi xếp thêm lớp 
     await expect(salePage2.getByRole('heading', { name: studentName })).toBeVisible();
 
     await saleContext2.close();
+
+    // ── business invariant ──
+    // The green above proves the screens are reachable; it does not prove the
+    // money-chain produced the right ENROLLMENT state. Two distinct writes ran:
+    // receipt approval provisioning activated the class-A seat
+    // (activate-enrollment.ts flips reserved→active — the only path to `active`),
+    // and the direct enrollment.enroll click created the class-B seat as
+    // `reserved`. Student.lifecycle defaults to `active` at creation, so it would
+    // be tautological to check; the enrollment status flip is the real product of
+    // approving the receipt. No staff read-proc returns enrollment status
+    // (enrollment.mine is parent-only), so this reads the rows back directly with
+    // an RLS bypass — the same getDb() seam the suite's other no-read-proc
+    // readbacks use. This turns P1-05 from reachable-only into verified-correct.
+    const enrollments = await withFacility(
+      getDb(),
+      null,
+      (tx) =>
+        tx.enrollment.findMany({
+          where: { facilityId, student: { fullName: studentName } },
+          select: { classBatchId: true, status: true },
+        }),
+      { bypass: true },
+    );
+    assertBusinessInvariant(
+      'học viên có đúng 2 lượt ghi danh (lớp A đã đóng phí + lớp B xếp thêm)',
+      enrollments.length,
+      2,
+    );
+    const classAEnrollment = enrollments.find((e) => e.classBatchId === classA.classBatchId);
+    assertBusinessInvariant(
+      'ghi danh lớp A được kích hoạt khi duyệt phiếu thu (reserved→active)',
+      classAEnrollment?.status,
+      'active',
+    );
+    const classBEnrollment = enrollments.find((e) => e.classBatchId === classB.classBatchId);
+    assertBusinessInvariant(
+      'ghi danh lớp B (xếp thêm, chưa đóng phí) ở trạng thái reserved',
+      classBEnrollment?.status,
+      'reserved',
+    );
   });
 });

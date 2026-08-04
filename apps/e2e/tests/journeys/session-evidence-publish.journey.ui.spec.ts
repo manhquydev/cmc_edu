@@ -82,12 +82,19 @@ test.describe('P2-08 journey (nửa GV) — gửi ảnh & tóm tắt buổi, cô
     });
     await expect(page.getByText('Ảnh đã upload (1)')).toBeVisible();
 
-    // 5. Publish to parents. The success state is the "Đã công bố" badge, which
-    //    is the living proof — it appears only after a real publish.
+    // 5. Publish to parents. The publish button now opens a confirm dialog
+    //    ("Công bố nhật ký cho phụ huynh?"); the real publish only runs once its
+    //    own "Công bố" is clicked. Scope to the alertdialog so that button is
+    //    unambiguous against the trigger "Công bố cho phụ huynh".
     await expect(page.getByRole('button', { name: 'Công bố cho phụ huynh' })).toBeVisible();
     await page.getByRole('button', { name: 'Công bố cho phụ huynh' }).click();
-    // "Đã công bố" renders both as a status line and a badge — either confirms
-    // the publish; assert one and that the publish button is gone.
+    await page
+      .getByRole('alertdialog', { name: 'Công bố nhật ký cho phụ huynh?' })
+      .getByRole('button', { name: 'Công bố' })
+      .click();
+    // The success feedback is a transient toast, but the durable published state
+    // is the "Đã công bố" badge/banner, which appears only after a real publish;
+    // assert it and that the publish button is gone.
     await expect(page.getByText('Đã công bố').first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Công bố cho phụ huynh' })).toHaveCount(0);
 

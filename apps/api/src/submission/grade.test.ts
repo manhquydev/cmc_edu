@@ -171,6 +171,14 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
     });
   });
 
+  it('rejects a fractional score (Int column would silently truncate 8.5 → 8)', async () => {
+    const { submissionId } = await seedSubmittedSubmission();
+
+    await expect(teacher.submission.grade({ submissionId, score: 8.5 })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+  });
+
   it('allows a score exactly at maxScore (boundary)', async () => {
     const { submissionId } = await seedSubmittedSubmission();
     const graded = await teacher.submission.grade({ submissionId, score: 10 });

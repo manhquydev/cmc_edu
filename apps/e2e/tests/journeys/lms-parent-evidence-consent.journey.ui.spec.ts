@@ -99,7 +99,13 @@ test.describe('P2-08 journey (nửa PH) — GV công bố ảnh buổi học →
       buffer: TINY_PNG,
     });
     await expect(teacherPage.getByText('Ảnh đã upload (1)')).toBeVisible();
+    // Publish now goes through a confirm dialog ("Công bố nhật ký cho phụ
+    // huynh?"); the real publish only runs when its own "Công bố" is clicked.
     await teacherPage.getByRole('button', { name: 'Công bố cho phụ huynh' }).click();
+    await teacherPage
+      .getByRole('alertdialog', { name: 'Công bố nhật ký cho phụ huynh?' })
+      .getByRole('button', { name: 'Công bố' })
+      .click();
     await expect(teacherPage.getByText('Đã công bố').first()).toBeVisible();
     await teacherContext.close();
 

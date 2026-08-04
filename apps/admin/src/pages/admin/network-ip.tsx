@@ -5,14 +5,17 @@ import {
   Button,
   ConfirmDialog,
   DataTable,
+  DetailPage,
   Dialog,
   DialogHeader,
   EmptyState,
   HStack,
   LineIcon,
-  ListPage,
   PageHeader,
+  SettingsSection,
+  SettingsShell,
   Stack,
+  Text,
   TextInput,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
@@ -39,6 +42,7 @@ function NetworkIpContent() {
   const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.facilityNetwork.list.useQuery();
   const detectQuery = trpc.facilityNetwork.detectMyIp.useQuery(undefined, { enabled: false });
+  const [settingsNav, setSettingsNav] = useState<'list' | 'guide'>('list');
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateForm>(EMPTY_CREATE_FORM);
@@ -127,40 +131,76 @@ function NetworkIpContent() {
 
   return (
     <>
-      <ListPage
+      <DetailPage
+        density="ops"
         header={
           <PageHeader
             title="Quản lý IP mạng"
             subtitle="Dải IP được phép chấm công tại cơ sở"
             breadcrumbs={[{ label: 'Quản trị' }, { label: 'IP mạng' }]}
             actions={
-              <Button label="Thêm dải mạng" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />
+              settingsNav === 'list' ? (
+                <Button label="Thêm dải mạng" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />
+              ) : undefined
             }
           />
         }
       >
-        <Stack gap={2} padding={4}>
-          <Banner
-            status="info"
-            title="Ảnh hưởng khi bật dải mạng"
-            description="Bật dải mạng sẽ khiến chấm công ngoài mạng cần nhập lý do + tạo yêu cầu duyệt. Thêm dải mới mặc định ở trạng thái tắt — hãy kiểm tra kỹ trước khi bật."
-          />
-          <Banner
-            status="info"
-            title="Hướng dẫn nhập tay"
-            description="CIDR là dải IP, vd 192.168.1.0/24 (cả dải văn phòng) hoặc một IP đơn 10.0.0.5/32. Nếu nút tự dò không chính xác (do proxy/CDN/IP di động), hãy tự tra IP công cộng của thiết bị (vd truy cập whatismyip) và nhập tay."
-          />
-          {updateMut.error && !editRow && <Banner status="error" title={updateMut.error.message} />}
-          {deleteMut.error && <Banner status="error" title={deleteMut.error.message} />}
-          <DataTable<NetworkRow>
-            columns={COLUMNS}
-            data={rows}
-            loading={isLoading}
-            error={error?.message}
-            empty="Chưa có dải mạng nào"
-          />
-        </Stack>
-      </ListPage>
+        <SettingsShell
+          title="IP mạng"
+          activeId={settingsNav}
+          onSelect={(id) => setSettingsNav(id as 'list' | 'guide')}
+          items={[
+            { id: 'list', label: 'Dải mạng', description: 'CRUD CIDR / bật tắt' },
+            { id: 'guide', label: 'Hướng dẫn', description: 'CIDR · tự dò · ngoài mạng' },
+          ]}
+        >
+          {settingsNav === 'list' ? (
+            <Stack gap={2} padding={4}>
+              <Banner
+                status="info"
+                title="Ảnh hưởng khi bật dải mạng"
+                description="Bật dải mạng sẽ khiến chấm công ngoài mạng cần nhập lý do + tạo yêu cầu duyệt. Thêm dải mới mặc định ở trạng thái tắt — hãy kiểm tra kỹ trước khi bật."
+              />
+              {updateMut.error && !editRow && <Banner status="error" title={updateMut.error.message} />}
+              {deleteMut.error && <Banner status="error" title={deleteMut.error.message} />}
+              <DataTable<NetworkRow>
+                columns={COLUMNS}
+                data={rows}
+                loading={isLoading}
+                error={error?.message}
+                empty="Chưa có dải mạng nào"
+              />
+            </Stack>
+          ) : (
+            <Stack gap={3} padding={4} style={{ maxWidth: 640 }}>
+              <SettingsSection
+                title="Hướng dẫn nhập CIDR"
+                description="Dùng khi nút tự dò không chính xác (proxy / CDN / IP di động)."
+              >
+                <Text type="body" size="sm">
+                  CIDR là dải IP, ví dụ <code>192.168.1.0/24</code> (cả dải văn phòng) hoặc một IP
+                  đơn <code>10.0.0.5/32</code>. Có thể tự tra IP công cộng (vd. whatismyip) rồi nhập
+                  tay trong form Thêm dải mạng.
+                </Text>
+              </SettingsSection>
+              <SettingsSection title="Hệ quả khi bật dải" description="Liên quan chấm công ngoài mạng.">
+                <Text type="body" size="sm">
+                  Khi có dải đang bật, chấm công ngoài mạng yêu cầu lý do và tạo yêu cầu duyệt. Luôn
+                  kiểm tra kỹ trước khi bật dải mới.
+                </Text>
+              </SettingsSection>
+              <Button
+                label="Quay lại danh sách"
+                size="sm"
+                variant="secondary"
+                style={{ alignSelf: 'flex-start' }}
+                onClick={() => setSettingsNav('list')}
+              />
+            </Stack>
+          )}
+        </SettingsShell>
+      </DetailPage>
 
       <Dialog
         isOpen={createOpen}

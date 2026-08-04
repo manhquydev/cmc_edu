@@ -381,6 +381,19 @@ FOR SELECT USING (facilityId = current_setting('app.facility_id')::uuid)
 
 **Migration:** `20260706150000_p1_remediation_wavea_privilege_hardening`
 
+### URL addressing & deep links
+
+Machine-readable builders live in `@cmc/links` (`packages/links`). Product rules:
+
+- **Shareable state is in the URL.** Params answer “what am I looking at?” (entity id, class/session, payroll period/user). Draft text, modal open state, and uploads stay in component state.
+- **Entity detail** uses path `:id` builders (`links.opportunity`, `receipt`, `student`, `classBatch`) plus canonical `/go/:entity/:id` (`goPath` / `resolveGo`). Ids must be UUIDs; unknown entity or non-UUID → EmptyState, never open-redirect.
+- **Workspaces** use query params + builders (`attendancePath`, `gradingPath` `?submissionId=`, `payrollPath` `?userId=&period=`, `sessionEvidencePath`) — not `/go/`. Schedule already had URL view state independently.
+- **returnTo:** unauthenticated deep links capture via `RequireAuth` → `/login?returnTo=…`. Only `safeReturnTo` / `shouldCaptureReturnTo` (`apps/admin/src/lib/safe-return-to.ts`) may accept or restore destinations.
+- **Garbage params:** non-UUID id query values are treated as unset (`readUuidParam`); never passed into tRPC inputs.
+- **Sensitive identity in URL (HR):** payroll may carry `userId` (AppUser UUID) for shareable payslip deep links. Serving layer must send `Referrer-Policy: same-origin` (`infra/nginx/nginx.conf`, `nginx.local-sim.conf`). Prefer not to add more PII than a UUID to query params. Logs/proxies will see these URLs.
+- **Audit note:** `/go/*` is a `needsParam` route and sits outside `screen-role-capture`; real RBAC UI gate is `PermissionGate` on the destination detail route.
+- **Known limit:** `mustChangePassword` remains a client hint (see staff login); server-side enforcement is tracked separately (GitHub #58).
+
 ---
 
 ## Error Handling

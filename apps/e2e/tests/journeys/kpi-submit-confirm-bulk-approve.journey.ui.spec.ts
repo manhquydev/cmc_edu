@@ -25,6 +25,8 @@ import { mintStaffCookie } from '../../src/session-injection.js';
 import { seedManagerLink } from '../../src/db.js';
 import { createStaffViaAdminUi } from '../../src/journey/create-staff-via-admin-ui.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
+import { createE2eStaffClient } from '../../src/trpc-client.js';
+import { assertBusinessInvariant } from '../../src/journey/assert-business.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -145,6 +147,25 @@ test.describe('P3-06/P3-08 journey — phiếu KPI: nộp → xác nhận → t�
     await selectStatusFilter(gdPage, 'Đã xác nhận');
     await expect(gdPage.getByRole('row', { name: new RegExp(saleName) })).toBeVisible();
 
+    // ── business invariant (P3-06) ──
+    // The row moving into the "Đã xác nhận" filter proves the list re-queried,
+    // but the durable proof is the persisted KpiScore.status. Read it back
+    // through the authorized director query (kpi.list, GĐKD track = sale) and
+    // assert the slip is really 'confirmed' (kpi/router.ts: confirm writes
+    // `status: 'confirmed'`). gdUserId is reused as the reader — it already
+    // exists as an AppUser and holds the director role, so kpi.list returns the
+    // sale's track. This turns the confirm half from reachable-only into
+    // verified-correct.
+    const directorClient = createE2eStaffClient(process.env.E2E_BASE_URL!, {
+      userId: gdUserId,
+      roles: ['giam_doc_kinh_doanh'],
+      facilityId,
+    });
+    const confirmedScores = await directorClient.kpi.list.query({ period: PERIOD, status: 'confirmed' });
+    const confirmedRow = confirmedScores.find((s) => s.fullName === saleName);
+    expect(confirmedRow, `KPI của ${saleName} phải xuất hiện dưới trạng thái confirmed`).toBeTruthy();
+    assertBusinessInvariant('phiếu KPI sau xác nhận có trạng thái confirmed', confirmedRow!.status, 'confirmed');
+
     // --- now finalize payroll: bulkApprove skips scores without a finalized
     // payslip, so without this the settle step would run and change nothing ---
     await menuNav(gdPage, 'Nhân sự', 'Chốt lương', { role: 'giam_doc_kinh_doanh' });
@@ -169,6 +190,17 @@ test.describe('P3-06/P3-08 journey — phiếu KPI: nộp → xác nhận → t�
     await expect(gdPage.getByRole('row', { name: new RegExp(saleName) })).toHaveCount(0);
     await selectStatusFilter(gdPage, 'Đã duyệt');
     await expect(gdPage.getByRole('row', { name: new RegExp(saleName) })).toBeVisible();
+
+    // ── business invariant (P3-08) ──
+    // bulkApprove only flips scores whose payslip is finalized and only from
+    // 'confirmed' (kpi/router.ts: the atomic `status: 'confirmed'` claim). The
+    // "Đã duyệt" filter row is the UI hint; the durable proof is the persisted
+    // status. Re-read via the same director query and assert the settled slip is
+    // really 'approved' — verified-correct for the settle half.
+    const approvedScores = await directorClient.kpi.list.query({ period: PERIOD, status: 'approved' });
+    const approvedRow = approvedScores.find((s) => s.fullName === saleName);
+    expect(approvedRow, `KPI của ${saleName} phải xuất hiện dưới trạng thái approved`).toBeTruthy();
+    assertBusinessInvariant('phiếu KPI sau tất toán có trạng thái approved', approvedRow!.status, 'approved');
 
     await gdContext.close();
   });

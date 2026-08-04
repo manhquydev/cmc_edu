@@ -23,6 +23,7 @@ import {
 import type { ComponentProps } from 'react';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
+import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { formatContactPhone } from '../../lib/format-contact-phone.js';
 import { LOST_REASON_LABELS, MarkLostDialog } from './mark-lost-dialog.js';
 import { SOURCE_LABELS } from './create-lead-dialog.js';
@@ -304,6 +305,7 @@ export default function OpportunityDetailPage() {
               { label: 'Pipeline CRM', href: '/crm' },
               { label: opp.contact.name },
             ]}
+            actions={id ? <CopyLinkButton mode="go" entity="opportunity" id={id} /> : undefined}
           />
         }
         entity={

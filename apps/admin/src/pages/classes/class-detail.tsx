@@ -29,6 +29,7 @@ import {
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
+import { CopyLinkButton } from '../../lib/copy-link-button.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -576,6 +577,7 @@ function ClassDetailContent() {
             { label: 'Lớp học', href: '/admin/classes' },
             { label: cls?.code ?? '…' },
           ]}
+          actions={id ? <CopyLinkButton mode="go" entity="classBatch" id={id} /> : undefined}
         />
       }
       entity={

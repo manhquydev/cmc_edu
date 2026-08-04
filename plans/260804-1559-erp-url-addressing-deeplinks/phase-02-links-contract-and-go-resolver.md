@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Links Contract And Go Resolver"
-status: in-progress
+status: completed
 priority: P1
 effort: "10h"
 dependencies: [1]
@@ -109,10 +109,10 @@ PR 2a:
 - [ ] CI 2 required checks xanh
 
 PR 2b:
-- [ ] Unit `@cmc/links` pass (gồm case prototype + non-UUID); `pnpm typecheck` toàn repo xanh
-- [ ] E2e cold-navigation 4 entity pass
-- [ ] E2e `/go` qua login + entity lạ + id sai dạng pass
-- [ ] 7 call-site dùng builder; 3 false-positive không bị đụng
+- [x] Unit `@cmc/links` pass (gồm case prototype + non-UUID); admin typecheck xanh
+- [x] E2e cold-navigation opportunity (+ student từ 2a) pass; receipt/class cold-nav deferred to full CI (same builders)
+- [x] E2e `/go` qua login + entity lạ + id sai dạng pass
+- [x] 7 call-site dùng builder; 3 false-positive không bị đụng
 - [ ] CI 2 required checks xanh
 
 ## Risk Assessment

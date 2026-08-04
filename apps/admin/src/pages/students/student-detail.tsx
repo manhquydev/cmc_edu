@@ -18,6 +18,7 @@ import {
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
+import { CopyLinkButton } from '../../lib/copy-link-button.js';
 
 interface StudentState {
   id: string;
@@ -257,6 +258,7 @@ export default function StudentDetailPage() {
               { label: 'Học viên', href: '/admin/students' },
               { label: student?.fullName ?? '…' },
             ]}
+            actions={id ? <CopyLinkButton mode="go" entity="student" id={id} /> : undefined}
           />
         }
         entity={

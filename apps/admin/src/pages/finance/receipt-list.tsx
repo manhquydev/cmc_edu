@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { links } from '@cmc/links';
 import {
   BulkActionBar,
   Button,
@@ -224,7 +225,7 @@ export default function ReceiptListPage() {
           loading={isLoading}
           error={error?.message}
           empty="Chưa có phiếu thu nào"
-          onRowClick={(row) => void navigate(`/finance/${row.id}`)}
+          onRowClick={(row) => void navigate(links.receipt(row.id))}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
         />

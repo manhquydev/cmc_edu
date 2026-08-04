@@ -34,6 +34,8 @@ import { menuNav } from '../../src/journey/menu-nav.js';
 import { findInList } from '../../src/journey/find-in-list.js';
 import { mintLmsSession } from '../../src/journey/mint-lms-session.js';
 import { provisionStudentViaReceipt } from '../../src/journey/provision-student-via-receipt.js';
+import { createE2eLmsStudentClient } from '../../src/trpc-client.js';
+import { assertBusinessInvariant } from '../../src/journey/assert-business.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -171,6 +173,24 @@ test.describe('P4-01 journey (xuyên app) — chấm bài sinh sao → học sin
     );
     await expect(deliveredRow).toBeVisible();
     await expect(deliveredRow.getByRole('button')).toHaveCount(0);
+
+    // ── business invariant ──
+    // The card's "Đổi quà" → "Chưa đủ sao" flip proves the balance crossed
+    // below the gift's cost, but not the exact remaining number. Read the real
+    // balance back from the student's own LMS session: `gift.listForStudent`
+    // returns `starBalance` = SUM(StarTransaction.amount) for this student.
+    // Grading minted 5 stars (seedPublishedExercise starReward: 5) and the
+    // redeem spent the gift's 3, so the durable balance must be exactly 5 − 3 =
+    // 2. Delivery is a reward status transition and does not touch
+    // StarTransaction, so reading here (post-deliver) still yields 2. Uses the
+    // same in-scope `parentAccountId` + `studentId` the UI session used — this
+    // is the exact number the affordability UI only asserted a bound on.
+    const studentClient = createE2eLmsStudentClient(process.env.E2E_BASE_URL!, {
+      parentAccountId: parentAccountId!,
+      studentId,
+    });
+    const { starBalance } = await studentClient.gift.listForStudent.query();
+    assertBusinessInvariant('số dư sao sau đổi quà = sao kiếm được − giá quà', starBalance, 2);
 
     await gdContext.close();
   });

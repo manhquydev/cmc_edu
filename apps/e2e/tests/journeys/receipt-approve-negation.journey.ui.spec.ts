@@ -35,6 +35,8 @@ import { seedClassBatch } from '../../src/db.js';
 import { randomVnPhone } from '../../src/random-vn-phone.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
 import { findInList } from '../../src/journey/find-in-list.js';
+import { createE2eStaffClient } from '../../src/trpc-client.js';
+import { assertBusinessInvariant } from '../../src/journey/assert-business.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -143,6 +145,25 @@ test.describe('P1-03 journey — duyệt phiếu kích hoạt học viên, sale 
       approverPage.getByText('Phiếu đã được duyệt — tài khoản LMS đã tạo và email thông báo đã gửi'),
     ).toBeVisible();
     await expect(approverPage.getByRole('button', { name: 'Duyệt & Kích hoạt' })).toHaveCount(0);
+
+    // ── business invariant ──
+    // The success banner + button disappearance prove the approve mutation RAN,
+    // but not that the receipt's persisted state actually flipped to 'approved'
+    // (finance/router.ts: receiptApprove writes `status: 'approved'` only under
+    // the atomic `status: 'draft'` claim — a lost race would leave the row
+    // untouched while the UI still showed the optimistic banner). Read the row
+    // back through the authorized query (same GĐKD role that holds
+    // `finance.receiptGet`) and assert the durable status. This turns P1-03 from
+    // reachable-only into verified-correct: the number a stakeholder cares about
+    // here is the STATE — the phiếu really is 'approved' server-side, not just
+    // on screen. Read-path is real (authorized query + RLS facility scope), not
+    // a DB back-door.
+    const receipt = await createE2eStaffClient(process.env.E2E_BASE_URL!, {
+      userId: `e2e-p103-gdkd-readback-${randomUUID().slice(0, 8)}`,
+      roles: ['giam_doc_kinh_doanh'],
+      facilityId,
+    }).finance.receiptGet.query({ receiptId });
+    assertBusinessInvariant('phiếu thu sau duyệt có trạng thái approved', receipt.status, 'approved');
 
     await approverContext.close();
   });

@@ -31,6 +31,8 @@ import {
   cleanupExercises,
 } from '../../src/db.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
+import { createE2eStaffClient } from '../../src/trpc-client.js';
+import { assertBusinessInvariant } from '../../src/journey/assert-business.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -95,13 +97,41 @@ test.describe('P2-06 journey — chấm bài (GV chấm bài nộp, bài rời h
 
     const scoreInput = page.getByRole('spinbutton', { name: /Điểm/ });
     await expect(scoreInput).toBeVisible();
-    await scoreInput.fill('8.5');
+    await scoreInput.fill('8');
     // "Chấm bài" is also the side-nav entry for this screen — scope to content.
     await page.locator('.sh-main').getByRole('button', { name: 'Chấm bài' }).click();
 
     // Falsification of the grade: once graded, the submission leaves the
     // ungraded queue. If the grade had not taken effect the row would remain.
     await expect(queueRow).toHaveCount(0);
+
+    // ── business invariant ──
+    // The queue transition proves the submission was graded, but says nothing
+    // about WHICH score was stored — a grade of 0 would drop the row just the
+    // same. The grading screen has no view of graded work, so read it back with
+    // the SAME teacher role (which holds `submission.grade` and passes the
+    // per-submission ownership filter, assertTeacherOwnsStudentClass): the
+    // `status: 'graded'` queue (the enum accepts it, listForGradingInput) now
+    // returns this student's row. Matching by studentFullName (the display name
+    // toSubmissionDto joins for the grading queue) isolates it; asserting
+    // `.score === 8` proves the typed number persisted intact (score is an Int
+    // column and the `grade` input now rejects fractional scores), and
+    // `.status === 'graded'` proves the submitted→graded transition. Turns P2-06 from
+    // reachable-only into verified-correct. Read-path is the authorized query
+    // under RLS facility scope, not a DB back-door.
+    const teacherClient = createE2eStaffClient(process.env.E2E_BASE_URL!, {
+      userId: teacherUserId,
+      roles: ['giao_vien'],
+      facilityId,
+    });
+    const { items } = await teacherClient.submission.listForGrading.query({
+      exerciseId,
+      status: 'graded',
+    });
+    const graded = items.find((s) => s.studentFullName === studentName);
+    expect(graded, `graded submission for "${studentName}" phải đọc lại được ở hàng đợi đã chấm`).toBeTruthy();
+    assertBusinessInvariant('bài đã chấm lưu đúng điểm đã nhập', graded!.score, 8);
+    assertBusinessInvariant('bài đã chấm chuyển trạng thái graded', graded!.status, 'graded');
 
     await context.close();
   });

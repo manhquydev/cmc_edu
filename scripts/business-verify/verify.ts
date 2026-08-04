@@ -149,6 +149,18 @@ function main(): void {
   const criticalReachableOnly = results.filter(
     (r) => r.moneyStateCritical && r.correctness === 'reachable-only',
   );
+  // Positive floor for --strict: at least one money/state flow must actually be
+  // verified-correct, so the gate can never pass VACUOUSLY (e.g. a run that
+  // proved nothing degrades every flow to not-proven → criticalReachableOnly is
+  // empty → strict would otherwise pass with zero real coverage).
+  const moneyStateVerifiedCorrect = results.filter(
+    (r) => r.moneyStateCritical && r.correctness === 'verified-correct',
+  ).length;
+  // The ledger (static scan at HEAD) and the results (a Playwright run) must
+  // describe the SAME commit, or correctness labels pair a fresh scan with a
+  // stale run. `ledger.commit` is the short sha; `facts.sha` is the full one, so
+  // compare by prefix. A null sha is a run that never stamped its commit.
+  const shaMismatch = facts !== null && (facts.sha === null || !facts.sha.startsWith(ledger.commit));
 
   const output = {
     generatedAt: new Date().toISOString(),
@@ -179,11 +191,24 @@ function main(): void {
   }
   console.log(`\n  → ${path.relative(REPO_ROOT, OUTPUT_PATH)}\n`);
 
-  if (strict && criticalReachableOnly.length > 0) {
-    console.error(
-      `  STRICT: ${criticalReachableOnly.length} luồng money/state-critical chưa có invariant nghiệp vụ.`,
-    );
-    process.exit(1);
+  if (strict) {
+    const failures: string[] = [];
+    if (!output.resultsPresent) {
+      failures.push('không có journeys.json — không có bằng chứng chạy nào để xét (gate không pass rỗng).');
+    }
+    if (shaMismatch) {
+      failures.push(`kết quả (sha ${facts?.sha ?? 'null'}) không khớp ledger commit ${ledger.commit}.`);
+    }
+    if (moneyStateVerifiedCorrect === 0) {
+      failures.push('không luồng money/state nào đạt verified-correct — gate từ chối pass rỗng.');
+    }
+    if (criticalReachableOnly.length > 0) {
+      failures.push(`${criticalReachableOnly.length} luồng money/state-critical mới ở mức smoke.`);
+    }
+    if (failures.length > 0) {
+      for (const f of failures) console.error(`  STRICT: ${f}`);
+      process.exit(1);
+    }
   }
 }
 

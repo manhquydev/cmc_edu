@@ -136,6 +136,15 @@ lms-parent-evidence (P2-08 PH) had no matching HStack. admin-shell = safety net.
   code hiện tại (chưa flow nào có invariant) — đó là sự thật cần phơi ra.
 - [ ] Không đụng `flow-evidence.ts` / `verify.ts`; required-check không đổi.
 
+## Deferred (tracked from PR #54 review)
+
+- **Grading UI step consistency:** `.int()` now rejects fractional grades at the API, but the
+  committed `grading.tsx` still has `NumberInput step={0.5}` (inviting a value the server rejects
+  — a clear BAD_REQUEST, NOT silent truncation, so DATA is safe). The `step={1}` fix already
+  exists in the in-flight UI-cohesion refactor WIP (out of this PR's scope and entangled with 60+
+  refactor edits, so not cleanly extractable). It lands when that refactor is committed. Until
+  then: API-safe, UI wart only. Do NOT re-fix here to avoid duplicating/​conflicting with the WIP.
+
 ## Non-goals
 
 - Không retrofit toàn bộ 38 journey trong Phase 1 (đó là Phase 2, từng PR).

@@ -1,24 +1,21 @@
 /**
  * Teacher Session Detail hub — ClassSession as work object (RCWS).
- * Browse: /teaching/schedule → open /teaching/sessions/:sessionId?tab=
- * Tabs: overview | attendance | assessment | evidence
+ * /teaching/sessions/:sessionId?tab=overview|attendance|assessment|evidence
  */
 import { useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
+  Badge,
   Banner,
   Button,
   CmcTabs,
   DetailPage,
-  EntityHeader,
-  KeyValueList,
+  HStack,
   PageHeader,
-  SectionBlock,
   Spinner,
   Stack,
   StatusBadge,
   Text,
-  WorkflowStatusbar,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { AttendancePanel } from './panels/attendance-panel.js';
@@ -76,16 +73,17 @@ export default function SessionDetailPage() {
     setSearchParams(next, { replace: true });
   }
 
-  // ProgressSteps: i < activeIndex = done; i === activeIndex = current.
-  // Order: Điểm danh → Nhận xét → Nhật ký → Done.
-  const progressIndex = useMemo(() => {
-    if (!progress) return 0;
-    if (progress.eligible || progress.status === 'done') return 3;
-    // All three conditions met but time-gate / sweep pending → Done is current.
-    if (progress.attendanceOk && progress.assessmentOk && progress.evidenceOk) return 3;
-    if (progress.attendanceOk && progress.assessmentOk) return 2;
-    if (progress.attendanceOk) return 1;
-    return 0;
+  const progressLabel = useMemo(() => {
+    if (!progress) return '…';
+    if (progress.eligible || progress.status === 'done') return 'Đủ điều kiện done';
+    const parts = [
+      progress.attendanceOk ? 'Điểm danh ✓' : 'Điểm danh ✗',
+      progress.assessmentOk
+        ? `Nhận xét ✓ ${progress.assessmentsConfirmed}/${progress.assessmentsRequired}`
+        : `Nhận xét ${progress.assessmentsConfirmed}/${progress.assessmentsRequired}`,
+      progress.evidenceOk ? 'Nhật ký ✓' : 'Nhật ký ✗',
+    ];
+    return parts.join(' · ');
   }, [progress]);
 
   if (!sessionId) {
@@ -93,6 +91,7 @@ export default function SessionDetailPage() {
       <DetailPage
         header={
           <PageHeader
+            title="Buổi học"
             breadcrumbs={[
               { label: 'Giảng dạy', href: '/teaching' },
               { label: 'Lịch dạy', href: '/teaching/schedule' },
@@ -111,6 +110,7 @@ export default function SessionDetailPage() {
       <DetailPage
         header={
           <PageHeader
+            title="Buổi học"
             breadcrumbs={[
               { label: 'Giảng dạy', href: '/teaching' },
               { label: 'Lịch dạy', href: '/teaching/schedule' },
@@ -134,6 +134,7 @@ export default function SessionDetailPage() {
       <DetailPage
         header={
           <PageHeader
+            title="Buổi học"
             breadcrumbs={[
               { label: 'Giảng dạy', href: '/teaching' },
               { label: 'Lịch dạy', href: '/teaching/schedule' },
@@ -152,90 +153,55 @@ export default function SessionDetailPage() {
   }
 
   const title = session.batchCode || session.classBatchId.slice(0, 8);
-  const subtitle = session.program || undefined;
 
   const overview = (
-    <div className="tpl-detail-panel">
-      <div className="tpl-detail-stack">
-        <SectionBlock title="Thông tin buổi" description="Bản ghi ClassSession — điểm vào các thao tác ngày dạy.">
-          <KeyValueList
-            items={[
-              { key: 'code', label: 'Lớp', value: title },
-              { key: 'program', label: 'Chương trình', value: session.program || '—' },
-              {
-                key: 'time',
-                label: 'Thời gian',
-                value: fmtRange(session.startTime, session.endTime),
-              },
-              {
-                key: 'status',
-                label: 'Trạng thái',
-                value: <StatusBadge status={session.status} label={session.status} />,
-              },
-              {
-                key: 'makeup',
-                label: 'Buổi bù',
-                value: session.isMakeup ? 'Có' : 'Không',
-              },
-            ]}
+    <Stack gap={3} style={{ padding: 'var(--cmc-space-3)', maxWidth: 720 }}>
+      <Text type="body" size="sm">
+        <strong>Lớp:</strong> {title}
+        {session.program ? ` · ${session.program}` : ''}
+      </Text>
+      <Text type="body" size="sm">
+        <strong>Thời gian:</strong> {fmtRange(session.startTime, session.endTime)}
+      </Text>
+      <Text type="body" size="sm">
+        <strong>Trạng thái:</strong> {session.status}
+        {session.isMakeup ? ' · buổi bù' : ''}
+      </Text>
+      <Text type="body" size="sm">
+        <strong>Tiến độ session-done:</strong> {progressLabel}
+      </Text>
+      {progress ? (
+        <HStack gap={1} style={{ flexWrap: 'wrap' }}>
+          <Badge
+            label={progress.attendanceOk ? `Điểm danh ✓ (${progress.presentCount})` : 'Điểm danh ✗'}
+            variant={progress.attendanceOk ? 'success' : 'neutral'}
           />
-        </SectionBlock>
-        {progress ? (
-          <SectionBlock title="Tiến độ hoàn tất buổi (session-done)">
-            <KeyValueList
-              items={[
-                {
-                  key: 'att',
-                  label: 'Điểm danh',
-                  value: progress.attendanceOk
-                    ? `✓ ${progress.presentCount} có mặt`
-                    : '✗ Chưa có present',
-                },
-                {
-                  key: 'asm',
-                  label: 'Nhận xét',
-                  value: progress.assessmentOk
-                    ? `✓ ${progress.assessmentsConfirmed}/${progress.assessmentsRequired}`
-                    : `${progress.assessmentsConfirmed}/${progress.assessmentsRequired} confirmed`,
-                },
-                {
-                  key: 'ev',
-                  label: 'Nhật ký / ảnh',
-                  value: progress.evidenceOk
-                    ? `✓ published · ${progress.photoCount} ảnh`
-                    : progress.evidencePublished
-                      ? `published nhưng thiếu ảnh`
-                      : '✗ Chưa công bố',
-                },
-                {
-                  key: 'time',
-                  label: 'Cổng giờ (endTime)',
-                  value: progress.timeGatePassed ? '✓ Đã qua giờ kết thúc' : 'Chưa đến endTime',
-                },
-                {
-                  key: 'elig',
-                  label: 'Đủ điều kiện done',
-                  value: progress.eligible ? 'Có' : 'Chưa',
-                },
-              ]}
-            />
-          </SectionBlock>
-        ) : null}
-        <SectionBlock title="Thao tác nhanh">
-          <Stack gap={2} style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            <Button label="Điểm danh" size="sm" variant="primary" onClick={() => setTab('attendance')} />
-            <Button label="Nhận xét" size="sm" variant="secondary" onClick={() => setTab('assessment')} />
-            <Button label="Nhật ký" size="sm" variant="secondary" onClick={() => setTab('evidence')} />
-            <Button
-              label="Lớp học"
-              size="sm"
-              variant="secondary"
-              onClick={() => navigate(`/admin/classes/${session.classBatchId}`)}
-            />
-          </Stack>
-        </SectionBlock>
-      </div>
-    </div>
+          <Badge
+            label={`Nhận xét ${progress.assessmentsConfirmed}/${progress.assessmentsRequired}`}
+            variant={progress.assessmentOk ? 'success' : 'neutral'}
+          />
+          <Badge
+            label={progress.evidenceOk ? `Ảnh ✓ (${progress.photoCount})` : 'Ảnh ✗'}
+            variant={progress.evidenceOk ? 'success' : 'neutral'}
+          />
+          <Badge
+            label={progress.timeGatePassed ? 'Đã qua endTime' : 'Chưa endTime'}
+            variant={progress.timeGatePassed ? 'success' : 'neutral'}
+          />
+        </HStack>
+      ) : null}
+      <HStack gap={2} style={{ flexWrap: 'wrap' }}>
+        <Button label="Điểm danh" size="sm" variant="primary" onClick={() => setTab('attendance')} />
+        <Button label="Nhận xét" size="sm" variant="secondary" onClick={() => setTab('assessment')} />
+        <Button label="Nhật ký" size="sm" variant="secondary" onClick={() => setTab('evidence')} />
+        <Button
+          label="Lớp học"
+          size="sm"
+          variant="secondary"
+          onClick={() => navigate(`/admin/classes/${session.classBatchId}`)}
+        />
+      </HStack>
+    </Stack>
   );
 
   const tabs = [
@@ -267,48 +233,21 @@ export default function SessionDetailPage() {
 
   return (
     <DetailPage
-      density="ops"
       header={
         <PageHeader
+          title={title}
+          subtitle={`${session.program ? `${session.program} · ` : ''}${fmtRange(session.startTime, session.endTime)} · ${progressLabel}`}
           breadcrumbs={[
             { label: 'Giảng dạy', href: '/teaching' },
             { label: 'Lịch dạy', href: '/teaching/schedule' },
             { label: title },
           ]}
-        />
-      }
-      entity={
-        <EntityHeader
-          title={title}
-          subtitle={subtitle}
-          initials={title.slice(0, 2).toUpperCase()}
-          badges={
-            <>
-              <StatusBadge status={session.status} label={session.status} />
-              {session.isMakeup ? <StatusBadge status="planned" label="Buổi bù" /> : null}
-            </>
-          }
-          meta={fmtRange(session.startTime, session.endTime)}
-        />
-      }
-      summary={
-        <WorkflowStatusbar
-          steps={[
-            { id: 'att', label: 'Điểm danh' },
-            { id: 'asm', label: 'Nhận xét' },
-            { id: 'ev', label: 'Nhật ký' },
-            { id: 'done', label: 'Done' },
-          ]}
-          activeIndex={progressIndex}
-          onStepClick={(i) => {
-            if (i === 0) setTab('attendance');
-            else if (i === 1) setTab('assessment');
-            else if (i === 2) setTab('evidence');
-            else setTab('overview');
-          }}
+          actions={<StatusBadge status={session.status} label={session.status} />}
         />
       }
       tabs={<CmcTabs tabs={tabs} activeTab={activeTab} onTabChange={setTab} />}
-    />
+    >
+      {null}
+    </DetailPage>
   );
 }

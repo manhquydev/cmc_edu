@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Badge, Banner, Button, Grid, HStack, LineIcon, ListPage, PageHeader, Selector, Skeleton, Stack, Text, useToast } from '@cmc/ui';
+import { Badge, Banner, Button, Grid, HStack, LineIcon, ListPage, PageHeader, Selector, Skeleton, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
-import { useUnsavedBlocker } from '../../lib/use-unsaved-blocker.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -60,8 +59,8 @@ function CountTile({
       style={{
         background: 'var(--cmc-surface)',
         border: '1px solid var(--cmc-border)',
-        borderRadius: 'var(--cmc-radius-control)',
-        padding: 'var(--cmc-space-3) var(--cmc-keyline-x)',
+        borderRadius: 4,
+        padding: '12px 16px',
         textAlign: 'center',
       }}
     >
@@ -96,8 +95,8 @@ function StudentRow({
     <HStack
       justify="between"
       style={{
-        paddingInline: 'var(--cmc-space-3)',
-        paddingBlock: 'var(--cmc-space-2)',
+        paddingInline: 16,
+        paddingBlock: 8,
         borderBottom: '1px solid var(--cmc-border)',
         minHeight: TOUCH_MIN_HEIGHT,
         background: 'var(--cmc-surface)',
@@ -138,32 +137,17 @@ function StudentRow({
 
 export default function AttendancePage() {
   const [searchParams] = useSearchParams();
-  // Deep-link with session → Session Detail hub (RCWS). Keep picker page for bare /attendance.
+  // Deep-link with session → Session Detail hub (RCWS). Picker page remains for bare /attendance.
   const deepSession = searchParams.get('session');
 
-  // Deep-link: ?classBatch= preselects class once on mount; user can still change Selector.
-  const [classBatchId, setClassBatchId] = useState<string | null>(
-    () => searchParams.get('classBatch'),
-  );
+  const [classBatchId, setClassBatchId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  // Optional ?session= applied once sessions for the class have loaded.
-  const initialSessionParamRef = useRef(searchParams.get('session'));
-  const sessionHydratedRef = useRef(false);
 
   const [localStatus, setLocalStatus] = useState<
     Record<string, AttendanceStatus>
   >({});
   const [saved, setSaved] = useState(false);
-  /** True only after a user toggle — seed from server must not block navigation. */
-  const [dirty, setDirty] = useState(false);
   const [saveValidationError, setSaveValidationError] = useState<string | null>(null);
-  const { dialog: leaveDialog } = useUnsavedBlocker({
-    dirty,
-    title: 'Rời trang điểm danh?',
-    message: 'Thay đổi điểm danh chưa lưu sẽ bị mất. Bạn có chắc muốn rời đi?',
-    confirmLabel: 'Rời trang',
-    cancelLabel: 'Ở lại',
-  });
 
   const { data: classData, isLoading: classLoading } = trpc.classBatch.list.useQuery({
     page: 1,
@@ -187,26 +171,9 @@ export default function AttendancePage() {
     { enabled: Boolean(sessionId) },
   );
 
-  const { success: toastSuccess } = useToast();
   const markAll = trpc.attendance.markAll.useMutation({
-    onSuccess: () => {
-      setSaved(true);
-      setDirty(false);
-      toastSuccess('Đã lưu điểm danh');
-    },
+    onSuccess: () => setSaved(true),
   });
-
-  // Hydrate session from URL only when that session exists in the loaded list.
-  // Apply once so later Selector changes / leave-guard dirty state are not overwritten.
-  useEffect(() => {
-    if (sessionHydratedRef.current) return;
-    const wanted = initialSessionParamRef.current;
-    if (!wanted || !sessions) return;
-    if (sessions.some((s) => s.id === wanted)) {
-      setSessionId(wanted);
-      sessionHydratedRef.current = true;
-    }
-  }, [sessions]);
 
   // Initialise local state when roster loads — only entries with an ALREADY
   // marked status are seeded; anything else stays absent from the map
@@ -219,7 +186,6 @@ export default function AttendancePage() {
     }
     setLocalStatus(init);
     setSaved(false);
-    setDirty(false);
     setSaveValidationError(null);
   }, [data]);
 
@@ -228,7 +194,6 @@ export default function AttendancePage() {
     setSessionId(null);
     setLocalStatus({});
     setSaved(false);
-    setDirty(false);
     setSaveValidationError(null);
   }
 
@@ -236,7 +201,6 @@ export default function AttendancePage() {
     setSessionId(id);
     setLocalStatus({});
     setSaved(false);
-    setDirty(false);
     setSaveValidationError(null);
   }
 
@@ -248,7 +212,6 @@ export default function AttendancePage() {
       return { ...prev, [enrollmentId]: STATUS_CYCLE[nextIdx] };
     });
     setSaved(false);
-    setDirty(true);
     setSaveValidationError(null);
   }
 
@@ -309,10 +272,7 @@ export default function AttendancePage() {
   }
 
   return (
-    <>
-    {leaveDialog}
     <ListPage
-      density="ops"
       header={
         <PageHeader
           title="Điểm danh"
@@ -321,7 +281,7 @@ export default function AttendancePage() {
               ? `Buổi học: ${sessionOptions.find((s) => s.value === sessionId)?.label ?? sessionId.slice(0, 8)}`
               : undefined
           }
-          breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Điểm danh' }]}
+          breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Điểm danh' }]}
           actions={
             sessionId ? (
               <Button
@@ -340,7 +300,7 @@ export default function AttendancePage() {
       }
     >
       {/* Step 1+2: pick class -> session (same picker pattern as session-assessment.tsx) */}
-      <div style={{ paddingInline: 'var(--cmc-space-3)', paddingBlock: 'var(--cmc-space-3)', borderBottom: '1px solid var(--cmc-border)' }}>
+      <div style={{ paddingInline: 16, paddingBlock: 16, borderBottom: '1px solid var(--cmc-border)' }}>
         <Stack gap={3}>
           <div>
             <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
@@ -390,8 +350,8 @@ export default function AttendancePage() {
           {/* Count tiles */}
           <div
             style={{
-              paddingInline: 'var(--cmc-space-3)',
-              paddingBlock: 'var(--cmc-space-2)',
+              paddingInline: 16,
+              paddingBlock: 8,
               background: 'var(--cmc-surface-2)',
               borderBottom: '1px solid var(--cmc-border)',
             }}
@@ -407,17 +367,17 @@ export default function AttendancePage() {
 
           {/* Error states */}
           {listError && (
-            <div style={{ padding: 'var(--cmc-space-3)' }}>
+            <div style={{ padding: 16 }}>
               <Banner status="error" title="Lỗi tải danh sách" description={listError.message} />
             </div>
           )}
           {markAll.error && (
-            <div style={{ paddingInline: 'var(--cmc-space-3)', paddingTop: 'var(--cmc-space-2)' }}>
+            <div style={{ paddingInline: 16, paddingTop: 8 }}>
               <Banner status="error" title="Lưu thất bại" description={markAll.error.message} />
             </div>
           )}
           {saveValidationError && (
-            <div style={{ paddingInline: 'var(--cmc-space-3)', paddingTop: 'var(--cmc-space-2)' }}>
+            <div style={{ paddingInline: 16, paddingTop: 8 }}>
               <Banner status="warning" title="Chưa thể lưu" description={saveValidationError} />
             </div>
           )}
@@ -430,8 +390,8 @@ export default function AttendancePage() {
                   <div
                     key={i}
                     style={{
-                      paddingInline: 'var(--cmc-space-3)',
-                      paddingBlock: 'var(--cmc-space-2)',
+                      paddingInline: 16,
+                      paddingBlock: 8,
                       borderBottom: '1px solid var(--cmc-border)',
                       minHeight: TOUCH_MIN_HEIGHT,
                     }}
@@ -444,7 +404,7 @@ export default function AttendancePage() {
                 ))}
               </Stack>
             ) : roster.length === 0 ? (
-              <div style={{ padding: 'var(--cmc-space-4)' }}>
+              <div style={{ padding: 32 }}>
                 <Text type="supporting" size="sm" justify="center" display="block">
                   Không có học sinh nào trong buổi học này.
                 </Text>
@@ -460,7 +420,7 @@ export default function AttendancePage() {
 
           {/* Session summary */}
           {saved && (
-            <div style={{ paddingInline: 'var(--cmc-space-3)', paddingBlock: 'var(--cmc-space-2)' }}>
+            <div style={{ paddingInline: 16, paddingBlock: 8 }}>
               <Badge
                 label={`Điểm danh đã được lưu — ${presentCount} có mặt / ${lateCount} muộn / ${absentCount} vắng`}
                 variant="success"
@@ -470,6 +430,5 @@ export default function AttendancePage() {
         </>
       )}
     </ListPage>
-    </>
   );
 }

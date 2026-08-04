@@ -13,7 +13,6 @@ import {
   Stack,
   Text,
   TextArea,
-  useToast,
 } from '@cmc/ui';
 import { trpc } from '../../../lib/trpc.js';
 
@@ -44,7 +43,6 @@ export function EvidencePanel({ sessionId }: EvidencePanelProps) {
   const [published, setPublished] = useState(false);
   const [saved, setSaved] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
-  const { success: toastSuccess } = useToast();
 
   // getBySession returns { status, photos } only (no id/summary) — same as
   // legacy session-evidence page: seed photos/status; id comes from upsert.
@@ -115,7 +113,6 @@ export function EvidencePanel({ sessionId }: EvidencePanelProps) {
       await publishMut.mutateAsync({ sessionEvidenceId: evidenceId });
       setPublished(true);
       setPublishConfirmOpen(false);
-      toastSuccess('Đã công bố nhật ký buổi học');
       void utils.sessionEvidence.invalidate();
       void utils.classSession.doneProgress.invalidate({ sessionId });
     } catch {

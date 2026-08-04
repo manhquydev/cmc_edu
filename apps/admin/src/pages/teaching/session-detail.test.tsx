@@ -87,7 +87,7 @@ describe('SessionDetailPage', () => {
     renderSession('/teaching/sessions/sess-1?tab=overview');
 
     expect(await screen.findByRole('heading', { name: 'CMC-UCREA-001' })).toBeTruthy();
-    expect(screen.getAllByText('UCREA').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/UCREA/).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Tổng quan').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Điểm danh').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Nhận xét').length).toBeGreaterThan(0);
@@ -97,14 +97,5 @@ describe('SessionDetailPage', () => {
   it('default tab is attendance when tab query omitted', async () => {
     renderSession('/teaching/sessions/sess-1');
     expect(await screen.findByRole('button', { name: /Lưu điểm danh|Đã lưu/ })).toBeTruthy();
-  });
-
-  it('statusbar advances to Nhật ký when attendance + assessment ok', async () => {
-    // Reuse mock with assessmentOk true — override via re-import not available;
-    // assert default progress: attendanceOk true → step "Nhận xét" is current (index 1).
-    renderSession('/teaching/sessions/sess-1?tab=overview');
-    expect(await screen.findByRole('heading', { name: 'CMC-UCREA-001' })).toBeTruthy();
-    const current = document.querySelector('.ck-steps-item.is-current .ck-steps-label');
-    expect(current?.textContent).toBe('Nhận xét');
   });
 });

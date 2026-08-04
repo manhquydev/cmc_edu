@@ -1,6 +1,5 @@
 /**
  * Session-scoped attendance roster — no class/session pickers.
- * Used by Session Detail hub (and can be embedded where sessionId is known).
  */
 import { useEffect, useState } from 'react';
 import {
@@ -13,10 +12,8 @@ import {
   Skeleton,
   Stack,
   Text,
-  useToast,
 } from '@cmc/ui';
 import { trpc } from '../../../lib/trpc.js';
-import { useUnsavedBlocker } from '../../../lib/use-unsaved-blocker.js';
 
 type AttendanceStatus = 'present' | 'absent' | 'late';
 
@@ -98,23 +95,13 @@ function StudentRow({
 export interface AttendancePanelProps {
   sessionId: string;
   classBatchId: string;
-  /** When true, omit leave-dialog chrome (parent owns navigation). */
   embedded?: boolean;
 }
 
-export function AttendancePanel({ sessionId, classBatchId, embedded = true }: AttendancePanelProps) {
+export function AttendancePanel({ sessionId, classBatchId }: AttendancePanelProps) {
   const [localStatus, setLocalStatus] = useState<Record<string, AttendanceStatus>>({});
   const [saved, setSaved] = useState(false);
-  const [dirty, setDirty] = useState(false);
   const [saveValidationError, setSaveValidationError] = useState<string | null>(null);
-
-  const { dialog: leaveDialog } = useUnsavedBlocker({
-    dirty: !embedded && dirty,
-    title: 'Rời trang điểm danh?',
-    message: 'Thay đổi điểm danh chưa lưu sẽ bị mất. Bạn có chắc muốn rời đi?',
-    confirmLabel: 'Rời trang',
-    cancelLabel: 'Ở lại',
-  });
 
   const { data: studentsData } = trpc.classBatch.listStudents.useQuery(
     { classBatchId },
@@ -128,12 +115,9 @@ export function AttendancePanel({ sessionId, classBatchId, embedded = true }: At
   } = trpc.attendance.listBySession.useQuery({ sessionId }, { enabled: Boolean(sessionId) });
 
   const utils = trpc.useUtils();
-  const { success: toastSuccess } = useToast();
   const markAll = trpc.attendance.markAll.useMutation({
     onSuccess: () => {
       setSaved(true);
-      setDirty(false);
-      toastSuccess('Đã lưu điểm danh');
       void utils.classSession.doneProgress.invalidate({ sessionId });
       void utils.attendance.listBySession.invalidate({ sessionId });
     },
@@ -147,7 +131,6 @@ export function AttendancePanel({ sessionId, classBatchId, embedded = true }: At
     }
     setLocalStatus(init);
     setSaved(false);
-    setDirty(false);
     setSaveValidationError(null);
   }, [data]);
 
@@ -159,7 +142,6 @@ export function AttendancePanel({ sessionId, classBatchId, embedded = true }: At
       return { ...prev, [enrollmentId]: STATUS_CYCLE[nextIdx]! };
     });
     setSaved(false);
-    setDirty(true);
     setSaveValidationError(null);
   }
 
@@ -200,7 +182,6 @@ export function AttendancePanel({ sessionId, classBatchId, embedded = true }: At
 
   return (
     <>
-      {!embedded ? leaveDialog : null}
       <div
         style={{
           paddingInline: 'var(--cmc-space-3)',

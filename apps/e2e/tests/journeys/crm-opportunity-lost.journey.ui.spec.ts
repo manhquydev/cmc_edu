@@ -54,15 +54,12 @@ test.describe('P1-01 journey — phễu tuyển sinh: tạo cơ hội rồi đá
     await page.getByRole('button', { name: 'Tạo' }).click();
 
     // The new lead appears as a card on the board; opening it is opportunityGet.
-    // Scope by this run's leadName — other journeys leave open opportunities on
-    // the shared facility, each with their own "Đánh dấu mất" on the board.
-    const card = page
-      .locator('.sh-content div')
-      .filter({ hasText: leadName })
-      .filter({ has: page.getByRole('button', { name: 'Đánh dấu mất' }) })
-      .last();
-    await expect(card).toBeVisible();
-    await card.click();
+    // Click the contact *name* (not the card shell): card center often hits the
+    // "Đánh dấu mất" button which stopPropagates and never navigates to detail.
+    // Unique leadName avoids multi-match from leftover board fixtures.
+    const nameOnBoard = page.getByText(leadName, { exact: true });
+    await expect(nameOnBoard).toBeVisible();
+    await nameOnBoard.click();
     await expect(page).toHaveURL(/\/crm\/opportunities\/[0-9a-f-]{36}/);
 
     // Detail page: EntityHeader title + single mark-lost action (not the board).

@@ -493,6 +493,18 @@ export const flows: FlowEntry[] = [
     journey: 'apps/e2e/tests/journeys/checkin-punch.journey.ui.spec.ts',
   },
   {
+    id: 'P3-01b',
+    displayName: 'Chấm công GPS geofence (OR gate)',
+    cluster: 'P3',
+    actorRoles: ['sale', 'giao_vien', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'super_admin'],
+    expected: {
+      trpc: ['checkInOut.punch', 'checkInOut.geoPunchSummary', 'manualPunch.dayPunches'],
+      uiRoutes: ['/hr/checkin', '/admin/network-ip'],
+      models: ['TimePunch', 'FacilityGeofence'],
+    },
+    journey: 'apps/e2e/tests/journeys/checkin-geofence.journey.ui.spec.ts',
+  },
+  {
     id: 'P3-02',
     displayName: 'Duyệt phiếu chấm công offsite',
     cluster: 'P3',
@@ -501,9 +513,16 @@ export const flows: FlowEntry[] = [
     // duyệt được, nên tập chạy được thực tế là sale/giáo viên; GĐ ở đây là bên duyệt.
     actorRoles: ['sale', 'giao_vien', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
     expected: {
-      trpc: ['manualPunch.approve', 'manualPunch.reject', 'manualPunch.resubmit', 'manualPunch.list'],
+      trpc: [
+        'manualPunch.approve',
+        'manualPunch.reject',
+        'manualPunch.resubmit',
+        'manualPunch.list',
+        'manualPunch.dayPunches',
+        'checkInOut.geoPunchSummary',
+      ],
       uiRoutes: ['/hr/checkin'],
-      models: ['ManualAttendanceTicket'],
+      models: ['ManualAttendanceTicket', 'TimePunch'],
     },
     // Phase 5 (plan 260723-1422): sale punches offsite (real ticket via
     // checkInOut.punch's own ensureDayTicket side effect — manualPunch.create
@@ -868,9 +887,20 @@ export const flows: FlowEntry[] = [
     cluster: 'ADMIN',
     actorRoles: ['super_admin'],
     expected: {
-      trpc: ['facilityNetwork.create', 'facilityNetwork.update', 'facilityNetwork.delete', 'facilityNetwork.list', 'facilityNetwork.detectMyIp'],
+      trpc: [
+        'facilityNetwork.create',
+        'facilityNetwork.update',
+        'facilityNetwork.delete',
+        'facilityNetwork.list',
+        'facilityNetwork.detectMyIp',
+        'facilityGeofence.create',
+        'facilityGeofence.update',
+        'facilityGeofence.delete',
+        'facilityGeofence.list',
+        'facilityGeofence.testMyPosition',
+      ],
       uiRoutes: ['/admin/network-ip'],
-      models: ['FacilityNetwork'],
+      models: ['FacilityNetwork', 'FacilityGeofence'],
     },
     // Journey: super_admin thêm dải IP (self-detect + nhập CIDR) → sửa nhãn →
     // xoá. Drive đủ 5/5 procedure (create/detectMyIp/list/update/delete) qua UI

@@ -241,6 +241,7 @@ model Facility {
   /// ManualAttendanceTicket were introduced (P3-I HR/identity phase).
   appUsers           AppUser[]
   facilityNetworks   FacilityNetwork[]
+  facilityGeofences  FacilityGeofence[]
   timePunches        TimePunch[]
   manualTickets      ManualAttendanceTicket[]
   /// P3-II back-relations — HR shifts, payroll, and KPI.
@@ -1141,6 +1142,27 @@ model FacilityNetwork {
   @@index([facilityId])
 }
 
+/// GPS circular geofence around a facility for clock-in location verification.
+/// Gate OR with FacilityNetwork: either IP match or GPS-in-radius admits the
+/// punch. New ranges default `isActive=false` so they never silently end
+/// open-mode. Facility-scoped, RLS. See ADR geofence-gps-or-gate.
+model FacilityGeofence {
+  id           String   @id @default(uuid())
+  facilityId   String
+  lat          Float
+  lng          Float
+  radiusM      Int
+  /// Max accepted GPS accuracy (m). Per-geofence so indoor sites can raise it.
+  accuracyMaxM Int      @default(200)
+  label        String   @default("")
+  isActive     Boolean  @default(false)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  facility Facility @relation(fields: [facilityId], references: [id])
+
+  @@index([facilityId])
+}
+
 /// Single-row global sequence for `CMC####` employee codes. Row id=1 is
 /// inserted once in the migration; `next` is incremented atomically on each
 /// `user.create` call.
@@ -1157,6 +1179,11 @@ model EmployeeCodeCounter {
 /// flow (`checkInOut.punch`) both read this flag. Rows written before ADR
 /// 0043 default to `true` (pre-0043 the app rejected offsite punches
 /// outright, so every pre-existing row is, by construction, within-network).
+///
+/// Geofence extension: `verification` labels how the punch was admitted
+/// (`network` | `geo` | `open` | `none`). Snapshot fields capture geofence
+/// evidence at write time; `matchedGeofenceId` is intentionally NOT an FK so
+/// geofences stay hard-deletable while punches remain append-only.
 model TimePunch {
   id            String   @id @default(uuid())
   facilityId    String
@@ -1166,10 +1193,25 @@ model TimePunch {
   ip            String?
   withinNetwork Boolean  @default(true)
 
+  lat                 Float?
+  lng                 Float?
+  accuracyM           Float?
+  /// 'network' | 'geo' | 'open' | 'none' — see ADR geofence-gps-or-gate.
+  verification        String  @default("none")
+  /// Snapshot: matching geofence id at punch time (dangling ok; no FK).
+  matchedGeofenceId   String?
+  /// Snapshot: distance (m) to matched or nearest geofence center.
+  geofenceDistanceM   Float?
+  /// Snapshot: radiusM of the chosen geofence at punch time.
+  matchedRadiusM      Int?
+  /// Snapshot: accuracyMaxM of the chosen geofence at punch time.
+  matchedAccuracyMaxM Int?
+
   facility Facility @relation(fields: [facilityId], references: [id])
   appUser  AppUser  @relation(fields: [appUserId], references: [id])
 
   @@index([facilityId, appUserId])
+  @@index([facilityId, punchAt])
 }
 
 /// Manual attendance correction ticket. `status` lifecycle:

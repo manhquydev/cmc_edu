@@ -130,6 +130,7 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
   await privilegedDb().timePunch.deleteMany({ where: { facilityId } });
   await privilegedDb().appUser.deleteMany({ where: { facilityId } });
   await privilegedDb().facilityNetwork.deleteMany({ where: { facilityId } });
+  await privilegedDb().facilityGeofence.deleteMany({ where: { facilityId } });
   // Guardian has FK constraints on both Student and ParentAccount — it must
   // be deleted before Student (below) and before `cleanupParentAccountsByPhone`
   // runs (called separately, after this function returns). Guardian itself

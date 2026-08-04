@@ -65,16 +65,22 @@ describe('resolveIp / trusted-proxy (RT-5)', () => {
     expect(ctx.ip).toBe('192.168.1.1');
   });
 
-  it('handles custom TRUSTED_PROXY_CIDRS env var', () => {
-    process.env['TRUSTED_PROXY_CIDRS'] = '10.0.0.0/8,127.0.0.1/32';
-    // Force re-import would be needed to pick up new env; since CIDR list is
-    // module-level, this test verifies that the default (loopback only) ignores
-    // XFF from untrusted 10.x — if the env were applied at import time.
-    // Functional guarantee: remoteAddress NOT in CIDR → XFF ignored.
+  it('handles custom TRUSTED_PROXY_CIDRS env var — untrusted peer ignores XFF', () => {
+    process.env['TRUSTED_PROXY_CIDRS'] = '172.28.0.10/32,127.0.0.1/32';
+    // Peer not in the pinned proxy list → XFF ignored.
     const ctx = createContext({
       req: makeReq('99.99.99.99', '10.0.0.1') as IncomingMessage,
     });
     expect(ctx.ip).toBe('99.99.99.99');
+  });
+
+  it('trusted remoteAddr (pinned nginx /32) takes rightmost non-trusted XFF hop', () => {
+    process.env['TRUSTED_PROXY_CIDRS'] = '172.28.0.10/32,127.0.0.1/32';
+    const ctx = createContext({
+      req: makeReq('172.28.0.10', '203.0.113.55, 172.28.0.10') as IncomingMessage,
+    });
+    // Rightmost hop is trusted nginx itself → walk left to client.
+    expect(ctx.ip).toBe('203.0.113.55');
   });
 
   it('returns null when req is undefined', () => {

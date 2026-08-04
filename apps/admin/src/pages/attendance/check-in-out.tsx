@@ -18,11 +18,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
+  Badge,
   Banner,
   Button,
   Card,
   CmcTabs,
-  ConfirmDialog,
   DataTable,
   Dialog,
   DialogHeader,
@@ -35,6 +35,7 @@ import {
   TextArea,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
+import { captureGeolocation, type CapturedGeo } from '../../lib/capture-geolocation.js';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
 
@@ -43,6 +44,39 @@ const PUNCH_RECORDED_DISPLAY_MS = 5_000;
 function readAppCode(err: { data?: unknown; message?: string }): string | undefined {
   const data = err.data as { appCode?: unknown } | null | undefined;
   return typeof data?.appCode === 'string' ? data.appCode : undefined;
+}
+
+function readGeoThresholdM(err: { data?: unknown }): number | undefined {
+  const data = err.data as { appData?: { geoThresholdM?: unknown } } | null | undefined;
+  const v = data?.appData?.geoThresholdM;
+  return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+}
+
+/** Client-side offsite message from local capture state + server geoThresholdM. */
+export function offsiteGeoHint(
+  captured: CapturedGeo | null,
+  geoThresholdM: number | undefined,
+): string {
+  if (!captured) {
+    return 'Không lấy được vị trí (bị chặn/timeout) — punch ghi nhận offsite, cần lý do.';
+  }
+  if (geoThresholdM !== undefined && captured.accuracyM > geoThresholdM) {
+    return `GPS sai số ±${Math.round(captured.accuracyM)}m, vượt ngưỡng ${geoThresholdM}m — thử ra gần cửa sổ/ngoài trời rồi chấm lại.`;
+  }
+  return 'Bạn đang ngoài vùng cho phép.';
+}
+
+function verificationBadge(v: string): { label: string; variant: 'success' | 'warning' | 'neutral' } {
+  switch (v) {
+    case 'network':
+      return { label: 'Mạng cơ sở', variant: 'success' };
+    case 'geo':
+      return { label: 'GPS', variant: 'warning' };
+    case 'open':
+      return { label: 'Không kiểm chứng', variant: 'neutral' };
+    default:
+      return { label: 'Offsite', variant: 'neutral' };
+  }
 }
 
 function fmtTime(v: unknown): string {
@@ -106,6 +140,7 @@ function OffsiteReasonDialog({
   onReasonChange,
   onConfirm,
   onClose,
+  hint,
 }: {
   isOpen: boolean;
   isPending: boolean;
@@ -113,6 +148,7 @@ function OffsiteReasonDialog({
   onReasonChange: (reason: string) => void;
   onConfirm: (reason: string) => void;
   onClose: () => void;
+  hint: string;
 }) {
   return (
     <Dialog
@@ -124,7 +160,7 @@ function OffsiteReasonDialog({
       <DialogHeader title="Ngoài mạng cơ sở — nhập lý do" onOpenChange={(next) => { if (!next) onClose(); }} />
       <Stack gap={2}>
         <Text type="supporting" size="2xs">
-          Thiết bị không khớp dải mạng WiFi cơ sở. Nhập lý do để ghi nhận — quản lý sẽ xét duyệt.
+          {hint}
         </Text>
         <TextArea
           label="Lý do"
@@ -314,27 +350,49 @@ interface InboxTicketRow {
   [key: string]: unknown;
 }
 
+interface DayPunchRow {
+  punchAt: string | Date;
+  verification: string;
+  accuracyM: number | null;
+  geofenceDistanceM: number | null;
+  matchedRadiusM: number | null;
+}
+
+interface GeoSummaryRow {
+  appUserId: string;
+  fullName: string;
+  geoPunchCount: number;
+  lastGeoPunchAt: string | Date;
+  [key: string]: unknown;
+}
+
 function ApproveTicketsTab() {
   const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.manualPunch.list.useQuery({ scope: 'inbox' });
-  const [approveTarget, setApproveTarget] = useState<string | null>(null);
+  const geoSummary = trpc.checkInOut.geoPunchSummary.useQuery({ days: 30 });
+  const [detailTicket, setDetailTicket] = useState<InboxTicketRow | null>(null);
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const dayPunchesQuery = trpc.manualPunch.dayPunches.useQuery(
+    { ticketId: detailTicket?.id ?? '' },
+    { enabled: detailTicket !== null },
+  );
+
   function invalidate() {
     void utils.manualPunch.list.invalidate();
+    void utils.checkInOut.geoPunchSummary.invalidate();
   }
 
   const approveMut = trpc.manualPunch.approve.useMutation({
     onSuccess() {
       setResult({ ok: true, text: 'Đã duyệt yêu cầu chấm công.' });
-      setApproveTarget(null);
+      setDetailTicket(null);
       invalidate();
     },
     onError(err) {
       setResult({ ok: false, text: err.message ?? 'Lỗi không xác định.' });
-      setApproveTarget(null);
     },
   });
 
@@ -343,6 +401,7 @@ function ApproveTicketsTab() {
       setResult({ ok: true, text: 'Đã từ chối yêu cầu chấm công.' });
       setRejectTarget(null);
       setRejectReason('');
+      setDetailTicket(null);
       invalidate();
     },
     onError(err) {
@@ -351,6 +410,8 @@ function ApproveTicketsTab() {
   });
 
   const rows = (data as InboxTicketRow[] | undefined) ?? [];
+  const dayPunches = (dayPunchesQuery.data as DayPunchRow[] | undefined) ?? [];
+  const geoRows = (geoSummary.data as GeoSummaryRow[] | undefined) ?? [];
 
   const columns: TableColumn<InboxTicketRow>[] = [
     { key: 'appUser', label: 'Nhân viên', render: (_v, row) => row.appUser.fullName },
@@ -368,7 +429,7 @@ function ApproveTicketsTab() {
       width: 180,
       render: (_v, row) => (
         <HStack gap={1}>
-          <Button label="Duyệt" size="sm" variant="primary" onClick={() => setApproveTarget(row.id)} />
+          <Button label="Duyệt" size="sm" variant="primary" onClick={() => setDetailTicket(row)} />
           <Button
             label="Từ chối"
             size="sm"
@@ -377,6 +438,17 @@ function ApproveTicketsTab() {
           />
         </HStack>
       ),
+    },
+  ];
+
+  const geoColumns: TableColumn<GeoSummaryRow>[] = [
+    { key: 'fullName', label: 'Nhân viên' },
+    { key: 'geoPunchCount', label: 'Số punch GPS', width: 120 },
+    {
+      key: 'lastGeoPunchAt',
+      label: 'Lần cuối',
+      width: 160,
+      render: (v) => fmtDateTime(v),
     },
   ];
 
@@ -391,16 +463,106 @@ function ApproveTicketsTab() {
         empty="Không có yêu cầu chờ duyệt."
       />
 
-      <ConfirmDialog
-        opened={approveTarget !== null}
-        title="Duyệt yêu cầu chấm công"
-        message="Duyệt yêu cầu chấm công này? Giờ vào/ra sẽ được ghi nhận hợp lệ."
-        confirmLabel="Duyệt"
-        confirmColor="blue"
-        loading={approveMut.isPending}
-        onConfirm={() => approveTarget && approveMut.mutate({ ticketId: approveTarget })}
-        onCancel={() => setApproveTarget(null)}
-      />
+      <Stack gap={1} style={{ marginTop: 16 }}>
+        <Text type="body" size="sm" weight="semibold">
+          Chấm công GPS gần đây
+        </Text>
+        <DataTable<GeoSummaryRow>
+          columns={geoColumns}
+          data={geoRows}
+          loading={geoSummary.isLoading}
+          empty="Không có punch GPS 30 ngày qua."
+        />
+      </Stack>
+
+      <Dialog
+        isOpen={detailTicket !== null}
+        onOpenChange={(next) => {
+          if (!next && !approveMut.isPending) setDetailTicket(null);
+        }}
+        width={560}
+        purpose="form"
+      >
+        <DialogHeader
+          title={
+            detailTicket
+              ? `${detailTicket.appUser.fullName} — ${new Date(detailTicket.ticketDate as string).toLocaleDateString('vi-VN')}`
+              : 'Chi tiết chấm công'
+          }
+          onOpenChange={(next) => {
+            if (!next) setDetailTicket(null);
+          }}
+        />
+        <Stack gap={2} padding={2}>
+          {detailTicket?.note ? (
+            <Text type="supporting" size="2xs">
+              Lý do: {detailTicket.note}
+            </Text>
+          ) : null}
+          {dayPunchesQuery.isLoading ? (
+            <Text type="supporting" size="2xs">
+              Đang tải punch…
+            </Text>
+          ) : dayPunches.length === 0 ? (
+            <Text type="supporting" size="2xs">
+              Không có punch trong ngày.
+            </Text>
+          ) : (
+            <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left', padding: '4px 0' }}>Giờ</th>
+                  <th style={{ textAlign: 'left', padding: '4px 0' }}>Nhãn</th>
+                  <th style={{ textAlign: 'left', padding: '4px 0' }}>Sai số</th>
+                  <th style={{ textAlign: 'left', padding: '4px 0' }}>Khoảng cách</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dayPunches.map((p, i) => {
+                  const badge = verificationBadge(p.verification);
+                  const dist =
+                    p.geofenceDistanceM != null && p.matchedRadiusM != null
+                      ? `cách tâm ${Math.round(p.geofenceDistanceM)}m (bán kính ${p.matchedRadiusM}m)`
+                      : '—';
+                  return (
+                    <tr key={i}>
+                      <td style={{ padding: '4px 0' }}>{fmtTime(p.punchAt)}</td>
+                      <td style={{ padding: '4px 0' }}>
+                        <Badge label={badge.label} variant={badge.variant} />
+                      </td>
+                      <td style={{ padding: '4px 0' }}>
+                        {p.accuracyM != null ? `±${Math.round(p.accuracyM)}m` : '—'}
+                      </td>
+                      <td style={{ padding: '4px 0' }}>{dist}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+            <Button label="Đóng" variant="secondary" size="sm" onClick={() => setDetailTicket(null)} />
+            <Button
+              label="Từ chối"
+              size="sm"
+              variant="destructive"
+              onClick={() => {
+                if (detailTicket) {
+                  setRejectTarget(detailTicket.id);
+                  setRejectReason('');
+                }
+              }}
+            />
+            <Button
+              label="Duyệt"
+              size="sm"
+              variant="primary"
+              isLoading={approveMut.isPending}
+              onClick={() => detailTicket && approveMut.mutate({ ticketId: detailTicket.id })}
+            />
+          </HStack>
+        </Stack>
+      </Dialog>
 
       <Dialog
         isOpen={rejectTarget !== null}
@@ -443,6 +605,7 @@ function ApproveTicketsTab() {
 // ---------------------------------------------------------------------------
 type PunchAlert =
   | { kind: 'none' }
+  | { kind: 'locating' }
   | { kind: 'success'; timeStr: string }
   | { kind: 'offsite_reason_required' }
   | { kind: 'cooldown' }
@@ -454,6 +617,12 @@ function CheckInTab() {
   const [recorded, setRecorded] = useState(false);
   const [offsiteModalOpen, setOffsiteModalOpen] = useState(false);
   const [offsiteReason, setOffsiteReason] = useState('');
+  const [capturing, setCapturing] = useState(false);
+  /** Keep last geo for offsite-reason retry — do not re-capture. */
+  const capturedGeoRef = useRef<CapturedGeo | null>(null);
+  const [offsiteHint, setOffsiteHint] = useState(
+    'Thiết bị không khớp dải mạng WiFi cơ sở. Nhập lý do để ghi nhận — quản lý sẽ xét duyệt.',
+  );
   const revertTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => () => {
@@ -469,6 +638,7 @@ function CheckInTab() {
       // close handler) so stale text can't reappear on the next offsite punch.
       setOffsiteModalOpen(false);
       setOffsiteReason('');
+      capturedGeoRef.current = null;
       setRecorded(true);
       if (revertTimerRef.current) clearTimeout(revertTimerRef.current);
       revertTimerRef.current = setTimeout(() => setRecorded(false), PUNCH_RECORDED_DISPLAY_MS);
@@ -477,6 +647,7 @@ function CheckInTab() {
     onError(err) {
       const appCode = readAppCode(err);
       if (appCode === 'OFFSITE_REASON_REQUIRED') {
+        setOffsiteHint(offsiteGeoHint(capturedGeoRef.current, readGeoThresholdM(err)));
         setPunchAlert({ kind: 'offsite_reason_required' });
         setOffsiteModalOpen(true);
       } else if (appCode === 'COOLDOWN') {
@@ -487,8 +658,19 @@ function CheckInTab() {
     },
   });
 
+  async function handlePunch() {
+    setCapturing(true);
+    setPunchAlert({ kind: 'locating' });
+    const geo = await captureGeolocation();
+    capturedGeoRef.current = geo;
+    setCapturing(false);
+    punchMut.mutate(geo ? { geo } : {});
+  }
+
   const resultContent =
-    punchAlert.kind === 'success' ? (
+    punchAlert.kind === 'locating' ? (
+      <Banner status="info" title="Đang lấy vị trí…" description="Có thể mất vài giây. Nếu bị chặn, chấm công vẫn tiếp tục." />
+    ) : punchAlert.kind === 'success' ? (
       <Banner
         status="success"
         title="Đã ghi nhận"
@@ -498,7 +680,7 @@ function CheckInTab() {
       <Banner
         status="warning"
         title="Ngoài mạng cơ sở — cần nhập lý do"
-        description="Thiết bị không khớp dải mạng WiFi cơ sở. Nhập lý do trong hộp thoại để ghi nhận."
+        description={offsiteHint}
       />
     ) : punchAlert.kind === 'cooldown' ? (
       <Banner
@@ -510,18 +692,31 @@ function CheckInTab() {
       <Banner status="error" title="Lỗi chấm công" description={punchAlert.msg} />
     ) : undefined;
 
+  const busy = punchMut.isPending || capturing;
+
   return (
     <FormPage
       header={null}
       result={resultContent}
       actions={
-        <Button
-          label={recorded ? 'Đã chấm công ✓' : 'Chấm công'}
-          size="lg"
-          isLoading={punchMut.isPending}
-          isDisabled={recorded}
-          onClick={() => punchMut.mutate({})}
-        />
+        <Stack gap={1} hAlign="center">
+          <Button
+            label={
+              recorded
+                ? 'Đã chấm công ✓'
+                : capturing
+                  ? 'Đang lấy vị trí…'
+                  : 'Chấm công'
+            }
+            size="lg"
+            isLoading={busy && !recorded}
+            isDisabled={recorded}
+            onClick={() => void handlePunch()}
+          />
+          <Text type="supporting" size="2xs">
+            Trình duyệt có thể hỏi quyền vị trí — từ chối vẫn chấm được (cần lý do nếu ngoài mạng).
+          </Text>
+        </Stack>
       }
     >
       <Stack gap={3} style={{ maxWidth: 560 }}>
@@ -553,7 +748,11 @@ function CheckInTab() {
         isPending={punchMut.isPending}
         reason={offsiteReason}
         onReasonChange={setOffsiteReason}
-        onConfirm={(reason) => punchMut.mutate({ reason })}
+        hint={offsiteHint}
+        onConfirm={(reason) => {
+          const geo = capturedGeoRef.current;
+          punchMut.mutate(geo ? { reason, geo } : { reason });
+        }}
         onClose={() => { setOffsiteModalOpen(false); setOffsiteReason(''); }}
       />
     </FormPage>

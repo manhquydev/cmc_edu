@@ -1,7 +1,7 @@
 ---
 title: "geofence-gps-punch-verification"
 description: "Gate OR (IP-match hoặc GPS-trong-vùng) + nhãn phân tầng verification cho chấm công HR; admin setup geofence không cần kỹ thuật"
-status: pending
+status: in-progress
 priority: P1
 effort: "26h"
 tags: [checkin, attendance, geofence, hr]
@@ -53,10 +53,10 @@ học viên). Research: `plans/reports/research-260804-2112-checkin-location-ver
 
 | # | Phase | Status |
 |---|-------|--------|
-| 1 | [Phase 1: Schema + geo helper](./phase-01-start.md) | Pending |
-| 2 | [Phase 2: API geofence router + punch gate](./phase-02-api-geofence-router-punch-gate.md) | Pending |
-| 3 | [Phase 3: Admin UI setup + punch capture + labels](./phase-03-admin-ui-setup-punch-capture-labels.md) | Pending |
-| 4 | [Phase 4: Tests e2e + config audit + docs](./phase-04-tests-e2e-config-audit-docs.md) | Pending |
+| 1 | [Phase 1: Schema + geo helper](./phase-01-start.md) | Done |
+| 2 | [Phase 2: API geofence router + punch gate](./phase-02-api-geofence-router-punch-gate.md) | Done |
+| 3 | [Phase 3: Admin UI setup + punch capture + labels](./phase-03-admin-ui-setup-punch-capture-labels.md) | Done |
+| 4 | [Phase 4: Tests e2e + config audit + docs](./phase-04-tests-e2e-config-audit-docs.md) | Partial — code/docs done; ui-e2e/CI/acceptance not proven |
 
 Dependencies: 1 → 2 → 3 → 4 (tuần tự). Toàn plan ship trong MỘT PR (đóng cửa sổ
 deploy-lệch P1/P2 — red-team D; P2 vẫn mang re-backfill idempotent phòng ship lẻ).
@@ -104,18 +104,18 @@ deploy-lệch P1/P2 — red-team D; P2 vẫn mang re-backfill idempotent phòng 
 
 ## Success Criteria
 
-- [ ] IP không khớp + GPS trong vùng (accuracy ≤ ngưỡng vùng) → punch `withinNetwork=true`, `verification='geo'`, không hỏi lý do (unit test chứng minh).
-- [ ] Cả hai nhánh fail → `OFFSITE_REASON_REQUIRED` (+`appData.geoThresholdM`, không kèm khoảng cách) + ticket y hệt hiện tại; test checkin hiện có pass không sửa.
-- [ ] Từ chối quyền GPS / timeout → punch vẫn thành công.
-- [ ] 0 network + 0 geofence active → open mode giữ hành vi hôm nay, nhãn `open`.
-- [ ] Cross-facility `facilityGeofence.update/delete` theo id bị RLS chặn (test dưới role `cmc_app`).
-- [ ] Ngày toàn-geo hiện trong bảng "Chấm công GPS gần đây" của giám đốc dù không có ticket.
-- [ ] Dialog duyệt ticket hiện nhãn + khoảng-cách-snapshot cho từng punch trong ngày.
-- [ ] Geo-verified day → `resolveDayCredit` full credit (regression test khóa hợp đồng payroll).
-- [ ] super_admin tạo + test + kích hoạt geofence không cần nhập tọa độ tay khi đứng tại cơ sở.
-- [ ] Cảnh báo CIDR rộng hơn /29; cảnh báo bật-geofence-đầu-tiên khi 0 network.
-- [ ] `pnpm acceptance:report` exit 0 (manifest đã claim procedure mới).
-- [ ] `typecheck-and-test` + `ui-e2e` xanh trên CI (required checks).
+- [x] IP không khớp + GPS trong vùng (accuracy ≤ ngưỡng vùng) → punch `withinNetwork=true`, `verification='geo'`, không hỏi lý do (unit test chứng minh).
+- [x] Cả hai nhánh fail → `OFFSITE_REASON_REQUIRED` (+`appData.geoThresholdM`, không kèm khoảng cách) + ticket y hệt hiện tại; test checkin hiện có pass không sửa.
+- [x] Từ chối quyền GPS / timeout → punch vẫn thành công.
+- [x] 0 network + 0 geofence active → open mode giữ hành vi hôm nay, nhãn `open`.
+- [x] Cross-facility `facilityGeofence.update/delete` theo id bị RLS chặn (test dưới role `cmc_app`).
+- [x] Ngày toàn-geo hiện trong bảng "Chấm công GPS gần đây" của giám đốc dù không có ticket.
+- [x] Dialog duyệt ticket hiện nhãn + khoảng-cách-snapshot cho từng punch trong ngày.
+- [x] Geo-verified day → `resolveDayCredit` full credit (regression test khóa hợp đồng payroll).
+- [x] super_admin tạo + test + kích hoạt geofence không cần nhập tọa độ tay khi đứng tại cơ sở.
+- [x] Cảnh báo CIDR rộng hơn /29; cảnh báo bật-geofence-đầu-tiên khi 0 network.
+- [ ] `pnpm acceptance:report` exit 0 (manifest đã claim procedure mới) — needs full artifact run.
+- [ ] `typecheck-and-test` + `ui-e2e` xanh trên CI (required checks) — after PR.
 
 ## Risk summary
 

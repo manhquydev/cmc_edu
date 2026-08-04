@@ -120,12 +120,13 @@ function parseBearerLmsToken(
 // in this list. Format: comma-separated IPv4 CIDR or IPv6 exact-match strings.
 // Default = loopback only (safe for direct deployments; set TRUSTED_PROXY_CIDRS
 // when the API sits behind an nginx/LB whose address is known).
-const TRUSTED_PROXY_CIDRS: string[] = (
-  process.env['TRUSTED_PROXY_CIDRS'] ?? '127.0.0.1/32,::1/128'
-)
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
+// Read at call time so tests and runtime env changes apply without re-import.
+function trustedProxyCidrs(): string[] {
+  return (process.env['TRUSTED_PROXY_CIDRS'] ?? '127.0.0.1/32,::1/128')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 function ipv4ToUint32(ip: string): number | null {
   const parts = ip.split('.');
@@ -140,7 +141,7 @@ function ipv4ToUint32(ip: string): number | null {
 }
 
 function isTrustedProxy(ip: string): boolean {
-  for (const entry of TRUSTED_PROXY_CIDRS) {
+  for (const entry of trustedProxyCidrs()) {
     const slash = entry.indexOf('/');
     if (slash === -1) {
       if (entry === ip) return true;

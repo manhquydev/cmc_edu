@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   CmcTabs,
+  DetailPage,
   EmptyState,
   HStack,
   LineIcon,
@@ -241,7 +242,7 @@ function MyPayslipTab({ period }: { period: string }) {
               justify="between"
               paddingBlock={1.5}
               style={{
-                paddingInline: 12,
+                paddingInline: 'var(--cmc-space-3)',
                 margin: '0 -16px',
                 borderBottom: '1px solid var(--cmc-border)',
                 background: 'color-mix(in srgb, var(--cmc-danger) 7%, transparent)',
@@ -296,25 +297,29 @@ export default function MyHrPage() {
   );
 
   return (
-    <>
-      <PageHeader
-        title="Của tôi"
-        subtitle="KPI và bảng lương cá nhân theo kỳ"
-        breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Của tôi' }]}
-        actions={
-          <div style={{ width: 130 }}>
-            <TextInput size="sm" label="Kỳ (YYYY-MM)" value={period} onChange={(v) => setPeriod(v)} />
-          </div>
-        }
-      />
-      <CmcTabs
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        tabs={[
-          { id: 'kpi', label: 'KPI', content: kpiContent },
-          { id: 'payslip', label: 'Lương', content: payslipContent },
-        ]}
-      />
-    </>
+    <DetailPage
+      header={
+        <PageHeader
+          title="Của tôi"
+          subtitle="KPI và bảng lương cá nhân theo kỳ"
+          breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Của tôi' }]}
+          actions={
+            <div style={{ width: 130 }}>
+              <TextInput size="sm" label="Kỳ (YYYY-MM)" value={period} onChange={(v) => setPeriod(v)} />
+            </div>
+          }
+        />
+      }
+      tabs={
+        <CmcTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          tabs={[
+            { id: 'kpi', label: 'KPI', content: kpiContent },
+            { id: 'payslip', label: 'Lương', content: payslipContent },
+          ]}
+        />
+      }
+    />
   );
 }

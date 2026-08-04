@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trpc } from '../lib/trpc.js';
 
-// Same base-URL convention as lib/trpc.ts: empty VITE_API_URL (production
-// behind nginx) keeps requests same-origin; unset falls back to the dev API.
-const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000';
+// Same-origin by default so Vite /auth proxy works (API has no CORS).
+// Absolute VITE_API_URL only when intentionally set (rare).
+const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').trim();
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -55,7 +55,7 @@ export function LoginPage() {
   const canSubmit = email.trim().length > 0 && password.length > 0 && !pending;
 
   return (
-    <div style={{ maxWidth: 400, margin: '80px auto 0', paddingInline: 16 }}>
+    <div style={{ maxWidth: 400, margin: '80px auto 0', paddingInline: 'var(--cmc-space-3)' }}>
       <Card padding={5}>
         <Stack gap={2}>
           <Heading level={2} style={{ color: 'var(--cmc-brand)' }}>

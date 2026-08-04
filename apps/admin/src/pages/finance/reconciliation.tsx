@@ -22,6 +22,7 @@ import {
   Selector,
   Stack,
   Text,
+  useToast,
 } from '@cmc/ui';
 import { useSearchParams } from 'react-router-dom';
 import { useSession } from '../../lib/session-context.js';
@@ -175,6 +176,7 @@ export default function ReconciliationPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const kindFilter = (searchParams.get('kind') ?? '') as FlagKind | '';
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const { success: toastSuccess } = useToast();
 
   const utils = trpc.useUtils();
 
@@ -189,9 +191,10 @@ export default function ReconciliationPage() {
   const dismissMut = trpc.reconciliation.dismiss.useMutation();
   const actionMut = trpc.reconciliation.action.useMutation();
 
-  function afterMutateSuccess() {
+  function afterMutateSuccess(type: 'dismiss' | 'action') {
     void utils.reconciliation.listFlags.invalidate();
     setPendingAction(null);
+    toastSuccess(type === 'dismiss' ? 'Đã bỏ qua cảnh báo' : 'Đã đánh dấu xử lý');
   }
 
   function afterMutateError() {
@@ -218,6 +221,7 @@ export default function ReconciliationPage() {
   return (
     <>
       <ListPage
+        density="ops"
         header={
           <PageHeader
             title="Đối soát tài chính"
@@ -226,7 +230,7 @@ export default function ReconciliationPage() {
           />
         }
         filters={
-          <div style={{ width: 260, padding: '12px 16px 0' }}>
+          <div style={{ width: 260, padding: 'var(--cmc-space-3) var(--cmc-keyline-x) 0' }}>
             <Selector
               size="sm"
               label="Lọc theo loại cảnh báo"
@@ -310,7 +314,10 @@ export default function ReconciliationPage() {
           if (pendingAction) {
             dismissMut.mutate(
               { flagId: pendingAction.flagId },
-              { onSuccess: afterMutateSuccess, onError: afterMutateError },
+              {
+                onSuccess: () => afterMutateSuccess('dismiss'),
+                onError: afterMutateError,
+              },
             );
           }
         }}
@@ -329,7 +336,10 @@ export default function ReconciliationPage() {
           if (pendingAction) {
             actionMut.mutate(
               { flagId: pendingAction.flagId },
-              { onSuccess: afterMutateSuccess, onError: afterMutateError },
+              {
+                onSuccess: () => afterMutateSuccess('action'),
+                onError: afterMutateError,
+              },
             );
           }
         }}

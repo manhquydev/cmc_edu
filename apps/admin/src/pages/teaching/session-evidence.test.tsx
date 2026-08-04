@@ -201,6 +201,8 @@ describe('SessionEvidencePage', () => {
 
     expect(invalidateSpy).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Công bố cho phụ huynh' }));
+    expect(publishMutateAsync).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Công bố' }));
 
     await waitFor(() => expect(publishMutateAsync).toHaveBeenCalledWith({ sessionEvidenceId: 'ev-1' }));
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalledTimes(1));

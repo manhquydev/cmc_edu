@@ -193,8 +193,8 @@ function SubmitTab() {
             hasClear={false}
           />
 
-          <HStack gap={1}>
-            <div style={{ flex: 1 }}>
+          <HStack gap={1} style={{ flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <TextInput
                 label="Từ ngày (YYYY-MM-DD)"
                 placeholder="2099-01-08"
@@ -204,7 +204,7 @@ function SubmitTab() {
                 size="sm"
               />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <TextInput
                 label="Đến ngày (YYYY-MM-DD)"
                 placeholder="2099-01-31"
@@ -223,7 +223,7 @@ function SubmitTab() {
           <Divider label="Danh sách ngày đăng ký" />
 
           {entries.map((entry) => (
-            <HStack key={entry._key} align="end" gap={1} wrap="nowrap">
+            <HStack key={entry._key} align="end" gap={1} wrap="wrap">
               <div style={{ flex: '0 0 160px' }}>
                 <TextInput
                   label="Ngày (YYYY-MM-DD)"
@@ -233,7 +233,7 @@ function SubmitTab() {
                   size="sm"
                 />
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <Selector
                   label="Mẫu ca"
                   placeholder={selectedGroup ? 'Chọn mẫu ca' : 'Chọn nhóm ca trước'}

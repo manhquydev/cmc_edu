@@ -10,6 +10,8 @@ import {
   Dialog,
   DialogHeader,
   HStack,
+  ListPage,
+  ListPagination,
   PageHeader,
   Selector,
   Stack,
@@ -49,10 +51,12 @@ export default function CourseListPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [program, setProgram] = useState<string | null>(null);
   const [name, setName] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
 
   const { data, isLoading, error } = trpc.course.list.useQuery({
-    page: 1,
-    pageSize: 50,
+    page,
+    pageSize,
   });
 
   const createMut = trpc.course.create.useMutation({
@@ -78,26 +82,40 @@ export default function CourseListPage() {
 
   return (
     <>
-      <PageHeader
-        title="Khoá học"
-        subtitle="Danh mục khoá học tại cơ sở"
-        breadcrumbs={[{ label: 'Quản trị' }, { label: 'Khoá học' }]}
-        actions={
-          <Button
-            label="+ Tạo khoá"
-            size="sm"
-            variant="primary"
-            onClick={() => setCreateOpen(true)}
+      <ListPage
+        density="ops"
+        header={
+          <PageHeader
+            title="Khoá học"
+            subtitle="Danh mục khoá học tại cơ sở"
+            breadcrumbs={[{ label: 'Quản trị' }, { label: 'Khoá học' }]}
+            actions={
+              <Button
+                label="+ Tạo khoá"
+                size="sm"
+                variant="primary"
+                onClick={() => setCreateOpen(true)}
+              />
+            }
           />
         }
-      />
-      <DataTable<CourseRow>
-        columns={COLUMNS}
-        data={(data?.items as CourseRow[] | undefined) ?? []}
-        loading={isLoading}
-        error={error?.message}
-        empty="Chưa có khoá học nào"
-      />
+        controlFooter={
+          <ListPagination
+            page={page}
+            pageSize={pageSize}
+            total={data?.total ?? data?.items?.length ?? 0}
+            onPageChange={setPage}
+          />
+        }
+      >
+        <DataTable<CourseRow>
+          columns={COLUMNS}
+          data={(data?.items as CourseRow[] | undefined) ?? []}
+          loading={isLoading}
+          error={error?.message}
+          empty="Chưa có khoá học nào"
+        />
+      </ListPage>
 
       <Dialog
         isOpen={createOpen}

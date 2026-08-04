@@ -76,9 +76,9 @@ export function ScheduleTestDialog({
             value={scheduledAt}
             onChange={(e) => setScheduledAt(e.target.value)}
             style={{
-              padding: '8px 10px',
+              padding: 'var(--cmc-space-2) 10px',
               border: '1px solid var(--cmc-border)',
-              borderRadius: 'var(--cmc-radius-xs)',
+              borderRadius: 'var(--cmc-radius-control)',
               fontSize: 14,
               fontFamily: 'inherit',
               color: 'var(--cmc-text)',
@@ -93,7 +93,7 @@ export function ScheduleTestDialog({
             {scheduleMutation.error.message}
           </span>
         )}
-        <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+        <HStack justify="end" gap={1} style={{ marginTop: 8, flexWrap: 'wrap' }}>
           <Button label="Hủy" variant="secondary" onClick={close} isDisabled={scheduleMutation.isPending} />
           <Button
             label="Đặt lịch"

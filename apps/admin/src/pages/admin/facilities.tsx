@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  BulkActionBar,
   Button,
   DataTable,
   Dialog,
@@ -8,9 +9,11 @@ import {
   HStack,
   LineIcon,
   ListPage,
+  ListPagination,
   PageHeader,
   Stack,
   TextInput,
+  useToast,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
@@ -45,9 +48,13 @@ const EMPTY_CREATE_FORM: CreateForm = { name: '', code: '' };
 // Separate query component so the hook is only called when permission is granted.
 function FacilitiesContent() {
   const utils = trpc.useUtils();
+  const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const pageSize = 20;
+  const { success: toastSuccess } = useToast();
   const { data, isLoading, error } = trpc.facility.list.useQuery({
-    page: 1,
-    pageSize: 50,
+    page,
+    pageSize,
   });
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -86,6 +93,7 @@ function FacilitiesContent() {
   return (
     <>
       <ListPage
+        density="ops"
         header={
           <PageHeader
             title="Cơ sở"
@@ -96,6 +104,38 @@ function FacilitiesContent() {
             }
           />
         }
+        controlFooter={
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            <BulkActionBar
+              selectionCount={selectedIds.length}
+              onClear={() => setSelectedIds([])}
+            >
+              <Button
+                label="Sao chép mã cơ sở"
+                size="sm"
+                variant="secondary"
+                isDisabled={selectedIds.length === 0}
+                onClick={() => {
+                  const items = (data?.items as FacilityRow[] | undefined) ?? [];
+                  const codes = items
+                    .filter((r) => selectedIds.includes(r.id))
+                    .map((r) => r.code);
+                  void navigator.clipboard?.writeText(codes.join(', '));
+                  toastSuccess(`Đã sao chép ${codes.length} mã cơ sở`);
+                }}
+              />
+            </BulkActionBar>
+            <ListPagination
+              page={page}
+              pageSize={pageSize}
+              total={data?.total ?? data?.items?.length ?? 0}
+              onPageChange={(p) => {
+                setPage(p);
+                setSelectedIds([]);
+              }}
+            />
+          </div>
+        }
       >
         <DataTable<FacilityRow>
           columns={COLUMNS}
@@ -104,6 +144,8 @@ function FacilitiesContent() {
           error={error?.message}
           empty="Chưa có cơ sở nào"
           onRowClick={(row) => openEditModal(row)}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
         />
       </ListPage>
 

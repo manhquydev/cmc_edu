@@ -43,4 +43,27 @@ describe('ListPage', () => {
     expect(getByText('CUSTOM EMPTY')).toBeInTheDocument();
     expect(queryByText('TABLE')).toBeNull();
   });
+
+  it('renders tpl-wrap--ops when density is ops', () => {
+    const { container } = render(
+      <ListPage density="ops" header={<div>HEADER</div>}>
+        <div>TABLE</div>
+      </ListPage>,
+    );
+    expect(container.querySelector('.tpl-wrap--ops')).not.toBeNull();
+  });
+
+  it('wraps chrome in ControlBar and supports controlFooter', () => {
+    const { getByText, container } = render(
+      <ListPage
+        header={<div>HEADER</div>}
+        filters={<div>FILTERS</div>}
+        controlFooter={<div>PAGER</div>}
+      >
+        <div>TABLE</div>
+      </ListPage>,
+    );
+    expect(container.querySelector('.tpl-control-bar')).toBeTruthy();
+    expect(getByText('PAGER')).toBeInTheDocument();
+  });
 });

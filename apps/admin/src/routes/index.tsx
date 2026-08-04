@@ -17,6 +17,8 @@ import { adminRoutes } from './admin.routes.js';
 import { useSession } from '../lib/session-context.js';
 
 const CockpitPage = lazy(() => import('../pages/cockpit.js'));
+// Living design inventory — not a product module; visual review of tokens + composites.
+const DesignLabPage = lazy(() => import('../pages/design-lab.js'));
 // Auth-level page (sibling of /login, not a module route): rendered OUTSIDE
 // the Shell because a forced password rotation must complete before the user
 // enters the app proper.
@@ -51,6 +53,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Skeleton height={200} radius={0} />}>
             <CockpitPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'design',
+        element: (
+          <Suspense fallback={<Skeleton height={200} radius={0} />}>
+            <DesignLabPage />
           </Suspense>
         ),
       },

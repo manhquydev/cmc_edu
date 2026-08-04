@@ -72,10 +72,12 @@ test.describe('ADM-02 journey — quản trị nhân sự: tạo tài khoản + 
     await expect(page.getByRole('button', { name: 'Tạo' })).toHaveCount(0);
 
     // The new account appears in the list, carrying the role picked at create
-    // time — not yet the target 'giao_vien' role this journey exists to prove.
+    // time — not yet the target 'Giáo viên' role this journey exists to prove.
+    // The Roles column renders the canonical `formatRole` label ('Sale'), not
+    // the raw DB slug — same source the create dialog's picker options use.
     const row = await findInList(page, (text) => text.includes(staffName));
-    await expect(row.getByText('sale', { exact: true })).toBeVisible();
-    await expect(row.getByText('giao_vien', { exact: true })).toHaveCount(0);
+    await expect(row.getByText('Sale', { exact: true })).toBeVisible();
+    await expect(row.getByText('Giáo viên', { exact: true })).toHaveCount(0);
 
     // --- assign a role through the roles modal ---
     // openRolesModal pre-selects the row's existing DB roles (['sale']), so
@@ -99,12 +101,13 @@ test.describe('ADM-02 journey — quản trị nhân sự: tạo tài khoản + 
     await dialog.getByRole('button', { name: 'Lưu' }).click();
     await expect(dialog).toHaveCount(0);
 
-    // The role now shows as a badge on the row — the value 'giao_vien', not the
-    // 'Giáo viên' label. It replaced the create-time 'sale' badge asserted
-    // above: that transition is the living proof updateRoles persisted.
+    // The role now shows as a badge on the row — the canonical 'Giáo viên'
+    // label. It replaced the create-time 'Sale' badge asserted above: that
+    // transition is the living proof updateRoles persisted. Exact match keeps
+    // this off the "Giáo viên E2E" position cell, which is not an exact hit.
     const updatedRow = await findInList(page, (text) => text.includes(staffName));
-    await expect(updatedRow.getByText('giao_vien', { exact: true })).toBeVisible();
-    await expect(updatedRow.getByText('sale', { exact: true })).toHaveCount(0);
+    await expect(updatedRow.getByText('Giáo viên', { exact: true })).toBeVisible();
+    await expect(updatedRow.getByText('Sale', { exact: true })).toHaveCount(0);
 
     await context.close();
   });

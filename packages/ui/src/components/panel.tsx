@@ -7,15 +7,25 @@ import { LineIcon, type IconName } from './line-icon.js';
 export interface PanelProps {
   title: string;
   icon?: IconName;
+  /** Right-side header control (link / badge). Replaces default icon when set. */
+  action?: ReactNode;
   children: ReactNode;
 }
 
-export function Panel({ title, icon, children }: PanelProps) {
+export function Panel({ title, icon, action, children }: PanelProps) {
   return (
     <div className="ck-pnl">
       <div className="ck-pnl-head">
         <span className="ck-pnl-title">{title}</span>
-        {icon && <span className="ck-pnl-icon"><LineIcon name={icon} size={17} /></span>}
+        {action != null ? (
+          <span className="ck-pnl-action-slot">{action}</span>
+        ) : (
+          icon && (
+            <span className="ck-pnl-icon">
+              <LineIcon name={icon} size={17} />
+            </span>
+          )
+        )}
       </div>
       {children}
     </div>

@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, act } from '@testing-library/react';
-import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // Locks the class-management UI gap fix: `classBatch.create` gộp sẵn tạo lớp
@@ -15,11 +14,22 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // `const`s run — fixtures referenced directly (not inside a deferred
 // closure) by the mock factory MUST be `vi.hoisted`, same as
 // class-detail.test.tsx's CLASS/TEACHERS/SESSIONS/UNITS.
-const { COURSES, TEACHERS, CLASSES } = vi.hoisted(() => ({
+const { COURSES, TEACHERS, CLASSES, navigateSpy } = vi.hoisted(() => ({
   COURSES: { items: [{ id: 'course-1', program: 'UCREA', name: 'UCREA Cấp 1' }] },
   TEACHERS: { items: [{ id: 't-1', fullName: 'Trần Thị B' }] },
   CLASSES: { items: [], total: 0, page: 1, pageSize: 50 },
+  // Spy navigate: createMemoryRouter + nested <Routes> hits RR7 data-router
+  // AbortSignal errors in jsdom when asserting destination pages via real nav.
+  navigateSpy: vi.fn(),
 }));
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => navigateSpy,
+  };
+});
 
 const courseListSpy = vi.fn();
 const pickListSpy = vi.fn();
@@ -63,13 +73,7 @@ vi.mock('../../lib/trpc.js', async () => {
 import ClassListPage from './index.js';
 
 function renderListPage(route = '/admin/classes') {
-  return renderWithProviders(
-    <Routes>
-      <Route path="/admin/classes" element={<ClassListPage />} />
-      <Route path="/admin/classes/:id" element={<div>CLASS_DETAIL_PAGE</div>} />
-    </Routes>,
-    { route },
-  );
+  return renderWithProviders(<ClassListPage />, { route });
 }
 
 async function openCreateDialog() {
@@ -101,6 +105,7 @@ describe('ClassListPage — Tạo lớp', () => {
     courseListSpy.mockClear();
     pickListSpy.mockClear();
     createMutate.mockClear();
+    navigateSpy.mockClear();
     createOnSuccess = undefined;
   });
 
@@ -170,6 +175,6 @@ describe('ClassListPage — Tạo lớp', () => {
     expect(screen.getByText('Đã sinh 1 khung giờ và 20 buổi học.')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Xem lớp' }));
-    expect(screen.getByText('CLASS_DETAIL_PAGE')).toBeInTheDocument();
+    expect(navigateSpy).toHaveBeenCalledWith('/admin/classes/new-cb-1');
   });
 });

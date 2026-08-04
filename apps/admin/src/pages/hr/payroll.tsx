@@ -32,6 +32,7 @@ import {
   DetailPage,
   HStack,
   LineIcon,
+  ListPage,
   PageHeader,
   Stack,
   StatusBadge,
@@ -332,7 +333,7 @@ function PenaltyRow({
       justify="between"
       paddingBlock={1.5}
       style={{
-        paddingInline: 12,
+        paddingInline: 'var(--cmc-space-3)',
         margin: '0 -16px',
         borderBottom: '1px solid var(--cmc-border)',
         background: 'color-mix(in srgb, var(--cmc-danger) 7%, transparent)',
@@ -433,6 +434,8 @@ export default function PayrollPage() {
     setSearchParams(p, { replace: true });
   }
 
+  // Frame branch only — all hooks above run unconditionally (list + detail share
+  // period/search state; payslip queries live inside PayslipDetail).
   if (selectedUser) {
     return (
       <DetailPage
@@ -469,35 +472,37 @@ export default function PayrollPage() {
   }
 
   return (
-    <>
-      <PageHeader
-        title="Bảng lương"
-        subtitle="Chọn nhân viên để xem / chốt lương theo tháng"
-        breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Bảng lương' }]}
-        actions={
-          <div style={{ width: 140 }}>
-            <TextInput
-              size="sm"
-              label="Kỳ lương (YYYY-MM)"
-              placeholder={defaultPeriod}
-              value={period}
-              onChange={(v) => setPeriod(v)}
-            />
-          </div>
-        }
-      />
-      <div style={{ padding: 16 }}>
-        <DataTable<StaffRow>
-          columns={STAFF_COLS}
-          data={staffRows}
-          loading={isLoading}
-          error={error?.message}
-          empty="Chưa có nhân viên nào"
-          onRowClick={(row) =>
-            setSelectedUser({ id: row.id, name: row.fullName })
+    <ListPage
+      density="ops"
+      header={
+        <PageHeader
+          title="Bảng lương"
+          subtitle="Chọn nhân viên để xem / chốt lương theo tháng"
+          breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Bảng lương' }]}
+          actions={
+            <div style={{ width: 140 }}>
+              <TextInput
+                size="sm"
+                label="Kỳ lương (YYYY-MM)"
+                placeholder={defaultPeriod}
+                value={period}
+                onChange={(v) => setPeriod(v)}
+              />
+            </div>
           }
         />
-      </div>
-    </>
+      }
+    >
+      <DataTable<StaffRow>
+        columns={STAFF_COLS}
+        data={staffRows}
+        loading={isLoading}
+        error={error?.message}
+        empty="Chưa có nhân viên nào"
+        onRowClick={(row) =>
+          setSelectedUser({ id: row.id, name: row.fullName })
+        }
+      />
+    </ListPage>
   );
 }

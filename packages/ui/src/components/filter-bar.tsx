@@ -1,4 +1,3 @@
-import { HStack } from '@astryxdesign/core/Stack';
 import { Selector } from '@astryxdesign/core/Selector';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { useSearchParams } from 'react-router-dom';
@@ -6,7 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 export interface FilterDef {
   key: string;
   label: string;
-  type: 'text' | 'select';
+  type: 'text' | 'select' | 'date';
   options?: { value: string; label: string }[];
   placeholder?: string;
 }
@@ -27,7 +26,6 @@ export interface FilterBarProps {
 export function FilterBar({ filters, value: externalValue, onChange: externalOnChange }: FilterBarProps) {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Derive current values: external overrides URL, URL is the fallback.
   const currentValues: Record<string, string> = externalValue
     ? externalValue
     : Object.fromEntries(filters.map((f) => [f.key, searchParams.get(f.key) ?? '']));
@@ -48,13 +46,7 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
   }
 
   return (
-    <HStack
-      gap={1}
-      paddingInline={3}
-      paddingBlock={2}
-      wrap="wrap"
-      style={{ background: 'var(--cmc-surface-2)', borderBottom: '1px solid var(--cmc-border)' }}
-    >
+    <div className="ck-filter-bar" role="search" aria-label="Bộ lọc">
       {filters.map((f) => {
         const val = currentValues[f.key] ?? '';
         if (f.type === 'select') {
@@ -72,6 +64,35 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
             </div>
           );
         }
+        if (f.type === 'date') {
+          return (
+            <div key={f.key} style={{ width: 160 }}>
+              <label className="ck-filter-date">
+                <span className="ck-label-upper" style={{ display: 'block', marginBottom: 4 }}>
+                  {f.label}
+                </span>
+                <input
+                  type="date"
+                  className="ck-filter-date-input"
+                  aria-label={f.label}
+                  value={val}
+                  onChange={(e) => handleChange(f.key, e.target.value)}
+                  style={{
+                    width: '100%',
+                    height: 34,
+                    padding: '0 10px',
+                    borderRadius: 'var(--cmc-radius-control)',
+                    border: '1px solid var(--cmc-border)',
+                    background: 'var(--cmc-surface-sunken)',
+                    color: 'var(--cmc-text)',
+                    fontSize: 13,
+                    fontFamily: 'var(--cmc-font-sans)',
+                  }}
+                />
+              </label>
+            </div>
+          );
+        }
         return (
           <div key={f.key} style={{ width: 180 }}>
             <TextInput
@@ -84,6 +105,6 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
           </div>
         );
       })}
-    </HStack>
+    </div>
   );
 }

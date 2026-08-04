@@ -57,7 +57,9 @@ test.describe('admin shell (UI safety net)', () => {
 
     // Role badge reflects the injected staff session (proves the cookie auth
     // path actually resolved `me`, not just that the page didn't crash).
-    await expect(page.getByText('giam_doc_kinh_doanh', { exact: true })).toBeVisible();
+    // Role badge renders the canonical label (formatRole/ROLE_LABELS in @cmc/auth),
+    // not the raw slug — the UI-cohesion refactor moved to the shared formatter.
+    await expect(page.getByText('Giám đốc kinh doanh', { exact: true })).toBeVisible();
 
     // Nav: cockpit has no permission gate, always visible.
     await expect(page.getByRole('button', { name: 'Tổng quan', exact: true })).toBeVisible();

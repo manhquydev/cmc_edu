@@ -4,6 +4,7 @@ import { Skeleton } from '@cmc/ui';
 
 const CockpitPage = lazy(() => import('../pages/cockpit.js'));
 const SchedulePage = lazy(() => import('../pages/teaching/schedule.js'));
+const SessionDetailPage = lazy(() => import('../pages/teaching/session-detail.js'));
 const AttendancePage = lazy(() => import('../pages/teaching/attendance.js'));
 const GradingPage = lazy(() => import('../pages/teaching/grading.js'));
 const SessionEvidencePage = lazy(() => import('../pages/teaching/session-evidence.js'));
@@ -30,6 +31,14 @@ export const teachingRoutes: RouteObject[] = [
     element: (
       <Suspense fallback={<PageFallback />}>
         <SchedulePage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'sessions/:sessionId',
+    element: (
+      <Suspense fallback={<PageFallback />}>
+        <SessionDetailPage />
       </Suspense>
     ),
   },

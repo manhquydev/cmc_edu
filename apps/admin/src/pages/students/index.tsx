@@ -1,7 +1,19 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, DataTable, HStack, PageHeader, StatusBadge, Text, TextInput } from '@cmc/ui';
-import type { TableColumn } from '@cmc/ui';
+import {
+  BulkActionBar,
+  Button,
+  DataTable,
+  FilterBar,
+  HStack,
+  ListPage,
+  ListPagination,
+  PageHeader,
+  StatusBadge,
+  Text,
+  useToast,
+} from '@cmc/ui';
+import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 interface StudentRow {
@@ -21,11 +33,24 @@ const COLUMNS: TableColumn<StudentRow>[] = [
   },
 ];
 
+const STUDENT_FILTERS: FilterDef[] = [
+  {
+    key: 'q',
+    label: 'Tìm kiếm',
+    type: 'text',
+    placeholder: 'Tên hoặc SĐT phụ huynh (≥2 ký tự)',
+  },
+];
+
 export default function StudentListPage() {
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
-  const [submitted, setSubmitted] = useState('');
+  const [filters, setFilters] = useState<Record<string, string>>({ q: '' });
+  const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const pageSize = 10;
+  const { success: toastSuccess } = useToast();
 
+  const submitted = (filters.q ?? '').trim();
   // Detect phone (starts with digit) vs name search.
   const lookupInput = /^\d/.test(submitted)
     ? { phone: submitted }
@@ -35,38 +60,62 @@ export default function StudentListPage() {
     enabled: submitted.length >= 2,
   });
 
-  function handleSearch() {
-    const q = query.trim();
-    if (q.length >= 2) setSubmitted(q);
+  const allRows = (data as StudentRow[] | undefined) ?? [];
+  const rows = allRows.slice((page - 1) * pageSize, page * pageSize);
+
+  function handleFilterChange(next: Record<string, string>) {
+    setFilters({ q: next.q ?? '' });
+    setPage(1);
+    setSelectedIds([]);
   }
 
   return (
-    <>
-      <PageHeader
-        title="Học viên"
-        subtitle="Tra cứu học viên theo tên hoặc SĐT phụ huynh (tối đa 20 kết quả)"
-        breadcrumbs={[{ label: 'Quản trị' }, { label: 'Học viên' }]}
-      />
-      <HStack padding={4} gap={2}>
-        <div style={{ flex: 1, maxWidth: 400 }}>
-          <TextInput
-            label="Tìm kiếm học viên"
-            isLabelHidden
-            placeholder="Nhập tên hoặc SĐT phụ huynh…"
-            value={query}
-            onChange={(v) => setQuery(v)}
-            onEnter={handleSearch}
-            size="sm"
-          />
-        </div>
-        <Button
-          label="Tìm kiếm"
-          size="sm"
-          variant="primary"
-          onClick={handleSearch}
-          isDisabled={query.trim().length < 2}
+    <ListPage
+      density="ops"
+      header={
+        <PageHeader
+          title="Học viên"
+          subtitle="Tra cứu học viên theo tên hoặc SĐT phụ huynh (tối đa 20 kết quả)"
+          breadcrumbs={[{ label: 'Quản trị' }, { label: 'Học viên' }]}
         />
-      </HStack>
+      }
+      filters={
+        <FilterBar filters={STUDENT_FILTERS} value={filters} onChange={handleFilterChange} />
+      }
+      controlFooter={
+        submitted.length >= 2 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            <BulkActionBar
+              selectionCount={selectedIds.length}
+              onClear={() => setSelectedIds([])}
+            >
+              <Button
+                label="Sao chép tên"
+                size="sm"
+                variant="secondary"
+                isDisabled={selectedIds.length === 0}
+                onClick={() => {
+                  const names = allRows
+                    .filter((r) => selectedIds.includes(r.id))
+                    .map((r) => r.fullName);
+                  void navigator.clipboard?.writeText(names.join(', '));
+                  toastSuccess(`Đã sao chép ${names.length} tên học viên`);
+                }}
+              />
+            </BulkActionBar>
+            <ListPagination
+              page={page}
+              pageSize={pageSize}
+              total={allRows.length}
+              onPageChange={(p) => {
+                setPage(p);
+                setSelectedIds([]);
+              }}
+            />
+          </div>
+        ) : undefined
+      }
+    >
       {submitted.length < 2 ? (
         <HStack padding={4}>
           <Text type="supporting" size="sm">
@@ -76,15 +125,17 @@ export default function StudentListPage() {
       ) : (
         <DataTable<StudentRow>
           columns={COLUMNS}
-          data={(data as StudentRow[] | undefined) ?? []}
+          data={rows}
           loading={isLoading}
           error={error?.message}
           empty="Không tìm thấy học viên"
           onRowClick={(row) =>
             void navigate(`/admin/students/${row.id}`, { state: { student: row } })
           }
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
         />
       )}
-    </>
+    </ListPage>
   );
 }

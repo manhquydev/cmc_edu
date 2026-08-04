@@ -1,6 +1,24 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
-import { Badge, Banner, Button, Grid, HStack, LineIcon, PageHeader, Selector, Spinner, Stack, Text } from '@cmc/ui';
+import {
+  Badge,
+  Banner,
+  Button,
+  DetailPage,
+  EntityHeader,
+  HighlightStrip,
+  HStack,
+  KeyValueList,
+  LineIcon,
+  PageHeader,
+  SectionBlock,
+  Selector,
+  Spinner,
+  Stack,
+  StatActions,
+  Text,
+  WorkflowStatusbar,
+} from '@cmc/ui';
 import type { ComponentProps } from 'react';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
@@ -69,6 +87,13 @@ const ADVANCE_NEXT: Record<string, 'O2_CONTACTED' | 'O3_TEST_SCHEDULED' | 'O4_TE
   O3_TEST_SCHEDULED: 'O4_TESTED',
 };
 
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0] ?? ''}${parts[parts.length - 1]![0] ?? ''}`.toUpperCase();
+}
+
 export default function OpportunityDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -115,28 +140,64 @@ export default function OpportunityDetailPage() {
 
   if (isLoading) {
     return (
-      <Stack hAlign="center" gap={2} style={{ paddingBlock: 64 }}>
-        <Spinner size="md" />
-        <Text type="supporting" size="sm">
-          Đang tải thông tin cơ hội...
-        </Text>
-      </Stack>
+      <DetailPage
+        header={
+          <PageHeader
+            breadcrumbs={[
+              { label: 'Kinh doanh', href: '/crm' },
+              { label: 'Pipeline CRM', href: '/crm' },
+              { label: '…' },
+            ]}
+          />
+        }
+      >
+        <Stack hAlign="center" gap={2} style={{ paddingBlock: 'var(--cmc-space-4)' }}>
+          <Spinner size="md" />
+          <Text type="supporting" size="sm">
+            Đang tải thông tin cơ hội...
+          </Text>
+        </Stack>
+      </DetailPage>
     );
   }
 
   if (error) {
     return (
-      <div style={{ padding: 16 }}>
+      <DetailPage
+        header={
+          <PageHeader
+            breadcrumbs={[
+              { label: 'Kinh doanh', href: '/crm' },
+              { label: 'Pipeline CRM', href: '/crm' },
+              { label: 'Lỗi' },
+            ]}
+          />
+        }
+      >
         <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
-      </div>
+      </DetailPage>
     );
   }
 
   if (!opp) {
     return (
-      <div style={{ padding: 16 }}>
-        <Banner status="warning" title="Không tìm thấy cơ hội" description="Cơ hội không tồn tại hoặc bạn không có quyền truy cập." />
-      </div>
+      <DetailPage
+        header={
+          <PageHeader
+            breadcrumbs={[
+              { label: 'Kinh doanh', href: '/crm' },
+              { label: 'Pipeline CRM', href: '/crm' },
+              { label: 'Không tìm thấy' },
+            ]}
+          />
+        }
+      >
+        <Banner
+          status="warning"
+          title="Không tìm thấy cơ hội"
+          description="Cơ hội không tồn tại hoặc bạn không có quyền truy cập."
+        />
+      </DetailPage>
     );
   }
 
@@ -167,83 +228,161 @@ export default function OpportunityDetailPage() {
     completeMutation.error?.message ??
     noShowMutation.error?.message;
 
+  const entityActions = (
+    <HStack gap={2} style={{ flexWrap: 'wrap' }}>
+      {isLost && (
+        <Button
+          label="Mở lại cơ hội"
+          variant="secondary"
+          size="sm"
+          isLoading={markLostMutation.isPending}
+          onClick={() => markLostMutation.mutate({ opportunityId: opp.id, reopen: true })}
+        />
+      )}
+      {!isLost && nextStage && (
+        <Button
+          label="Chuyển lên"
+          variant="secondary"
+          size="sm"
+          endContent={<LineIcon name="chevron" size={12} />}
+          isLoading={advanceMutation.isPending}
+          onClick={() => advanceMutation.mutate({ opportunityId: opp.id, toStage: nextStage })}
+        />
+      )}
+      {canMarkLost && (
+        <Button
+          label="Đánh dấu mất"
+          variant="secondary"
+          size="sm"
+          onClick={() => setMarkLostOpen(true)}
+        />
+      )}
+      {canScheduleTest && (
+        <Button
+          label="Đặt lịch test"
+          variant="secondary"
+          size="sm"
+          onClick={() => setScheduleTestOpen(true)}
+        />
+      )}
+      {opp.stage === 'O4_TESTED' && !isLost && (
+        <Button
+          label="Tạo phiếu thu"
+          variant="primary"
+          size="sm"
+          onClick={() => void navigate(`/finance/new?opportunityId=${opp.id}`)}
+        />
+      )}
+      <Button
+        label="← Pipeline"
+        variant="secondary"
+        size="sm"
+        onClick={() => void navigate('/crm')}
+      />
+    </HStack>
+  );
+
   return (
     <>
-      <PageHeader
-        title={opp.contact.name}
-        subtitle={`Cơ hội — ${stageLabel}`}
-        breadcrumbs={[
-          { label: 'Kinh doanh' },
-          { label: 'Pipeline CRM', href: '/crm' },
-          { label: opp.contact.name },
-        ]}
-        actions={
-          <HStack gap={2}>
-            {isLost && (
-              <Button
-                label="Mở lại cơ hội"
-                variant="secondary"
-                size="sm"
-                isLoading={markLostMutation.isPending}
-                onClick={() => markLostMutation.mutate({ opportunityId: opp.id, reopen: true })}
-              />
-            )}
-            {!isLost && nextStage && (
-              <Button
-                label="Chuyển lên"
-                variant="secondary"
-                size="sm"
-                endContent={<LineIcon name="chevron" size={12} />}
-                isLoading={advanceMutation.isPending}
-                onClick={() => advanceMutation.mutate({ opportunityId: opp.id, toStage: nextStage })}
-              />
-            )}
-            {canMarkLost && (
-              <Button
-                label="Đánh dấu mất"
-                variant="secondary"
-                size="sm"
-                onClick={() => setMarkLostOpen(true)}
-              />
-            )}
-            {canScheduleTest && (
-              <Button
-                label="Đặt lịch test"
-                variant="secondary"
-                size="sm"
-                onClick={() => setScheduleTestOpen(true)}
-              />
-            )}
-            {opp.stage === 'O4_TESTED' && !isLost && (
-              <Button
-                label="Tạo phiếu thu"
-                variant="primary"
-                size="sm"
-                onClick={() => void navigate(`/finance/new?opportunityId=${opp.id}`)}
-              />
-            )}
-            <Button
-              label="← Pipeline"
-              variant="secondary"
-              size="sm"
-              onClick={() => void navigate('/crm')}
-            />
-          </HStack>
+      <DetailPage
+        density="ops"
+        header={
+          <PageHeader
+            breadcrumbs={[
+              { label: 'Kinh doanh', href: '/crm' },
+              { label: 'Pipeline CRM', href: '/crm' },
+              { label: opp.contact.name },
+            ]}
+          />
         }
-      />
-
-      <MarkLostDialog
-        opportunityId={markLostOpen ? opp.id : null}
-        onClose={() => setMarkLostOpen(false)}
-      />
-
-      <ScheduleTestDialog
-        opportunityId={scheduleTestOpen ? opp.id : null}
-        onClose={() => setScheduleTestOpen(false)}
-      />
-
-      <div style={{ padding: 16, maxWidth: 640 }}>
-        <Stack gap={5}>
+        entity={
+          <EntityHeader
+            title={opp.contact.name}
+            subtitle={formatContactPhone(opp.contact.phone)}
+            initials={initialsFromName(opp.contact.name)}
+            badges={
+              <Badge
+                label={isLost ? 'Lost' : stageLabel}
+                variant={isLost ? 'error' : stageVariant}
+                style={
+                  !isLost && opp.stage !== 'O5_ENROLLED'
+                    ? { background: 'var(--cmc-brand)', color: '#fff' }
+                    : undefined
+                }
+              />
+            }
+            meta={
+              <span>
+                Giai đoạn · {isLost ? 'Lost' : stageLabel}
+                {opp.assignedTo?.fullName ? ` · ${opp.assignedTo.fullName}` : ''}
+              </span>
+            }
+            actions={entityActions}
+          />
+        }
+        summary={
+          <div className="tpl-detail-stack">
+            <HighlightStrip
+              items={[
+                { key: 'phone', label: 'SĐT', value: formatContactPhone(opp.contact.phone) },
+                {
+                  key: 'stage',
+                  label: 'Giai đoạn',
+                  value: isLost ? 'Lost' : stageLabel,
+                },
+                {
+                  key: 'owner',
+                  label: 'Phụ trách',
+                  value: opp.assignedTo?.fullName ?? 'Chưa giao',
+                },
+                {
+                  key: 'source',
+                  label: 'Nguồn',
+                  value: opp.source ? SOURCE_LABELS[opp.source] ?? opp.source : '—',
+                },
+              ]}
+            />
+            <WorkflowStatusbar
+              steps={(
+                [
+                  'O1_LEAD',
+                  'O2_CONTACTED',
+                  'O3_TEST_SCHEDULED',
+                  'O4_TESTED',
+                  'O5_ENROLLED',
+                ] as const
+              ).map((s) => ({ id: s, label: STAGE_LABELS[s] ?? s }))}
+              activeIndex={Math.max(
+                0,
+                (
+                  [
+                    'O1_LEAD',
+                    'O2_CONTACTED',
+                    'O3_TEST_SCHEDULED',
+                    'O4_TESTED',
+                    'O5_ENROLLED',
+                  ] as const
+                ).indexOf(opp.stage as 'O1_LEAD'),
+              )}
+            />
+            <StatActions
+              items={[
+                { key: 'pipeline', label: 'Pipeline', href: '/crm' },
+                ...(opp.stage === 'O4_TESTED' && !isLost
+                  ? [
+                      {
+                        key: 'receipt',
+                        label: 'Tạo phiếu thu',
+                        href: `/finance/new?opportunityId=${opp.id}`,
+                      },
+                    ]
+                  : []),
+              ]}
+            />
+          </div>
+        }
+      >
+        <div className="tpl-detail-stack">
           {actionError && (
             <Banner status="error" title="Thao tác thất bại" description={actionError} />
           )}
@@ -260,195 +399,156 @@ export default function OpportunityDetailPage() {
             />
           )}
 
-          {/* Stage indicator */}
-          <HStack gap={3} align="center">
-            <Text
-              type="supporting"
-              size="xsm"
-              weight="semibold"
-              style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}
-            >
-              Giai đoạn hiện tại
-            </Text>
-            <Badge
-              label={isLost ? 'Lost' : stageLabel}
-              variant={isLost ? 'error' : stageVariant}
-              style={
-                !isLost && opp.stage !== 'O5_ENROLLED'
-                  ? { background: 'var(--cmc-brand)', color: '#fff' }
-                  : undefined
-              }
-            />
-          </HStack>
+          <div className="tpl-detail-split">
+            <div className="tpl-detail-stack">
+              <SectionBlock title="Phụ trách & nguồn" description="Giao việc và kênh lead.">
+                <KeyValueList
+                  items={[
+                    {
+                      key: 'owner',
+                      label: 'Chủ sở hữu',
+                      value: opp.assignedTo?.fullName ?? 'Chưa giao',
+                    },
+                    {
+                      key: 'source',
+                      label: 'Nguồn',
+                      value: opp.source ? SOURCE_LABELS[opp.source] ?? opp.source : '—',
+                    },
+                  ]}
+                />
+                {me && (
+                  <div style={{ marginTop: 12 }}>
+                    {isManager ? (
+                      <div style={{ maxWidth: 260 }}>
+                        <Selector
+                          label="Giao cho"
+                          options={ownerSelectOptions}
+                          value={opp.assignedTo?.userId ?? UNASSIGNED_VALUE}
+                          onChange={(v) =>
+                            assignMutation.mutate({
+                              opportunityId: opp.id,
+                              assigneeUserId: v === UNASSIGNED_VALUE ? null : v,
+                            })
+                          }
+                          size="sm"
+                        />
+                      </div>
+                    ) : (
+                      (!opp.assignedTo || opp.assignedTo.userId === me.userId) && (
+                        <Button
+                          label="Nhận cơ hội"
+                          size="sm"
+                          variant="secondary"
+                          isLoading={assignMutation.isPending}
+                          onClick={() =>
+                            assignMutation.mutate({
+                              opportunityId: opp.id,
+                              assigneeUserId: me.userId,
+                            })
+                          }
+                        />
+                      )
+                    )}
+                    {assignMutation.error && (
+                      // TODO(astryx-review): Text color enum has no error/danger slot —
+                      // plain <span> with CSS var per migration flag rule (see users.tsx).
+                      <span
+                        style={{
+                          fontSize: 13,
+                          color: 'var(--cmc-danger)',
+                          display: 'block',
+                          marginTop: 8,
+                        }}
+                      >
+                        {assignMutation.error.message}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </SectionBlock>
 
-          {/* Ownership + source (phase-10) */}
-          <div
-            style={{
-              border: '1px solid var(--cmc-border)',
-              borderRadius: 'var(--cmc-radius-xs)',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                paddingInline: 16,
-                paddingBlock: 8,
-                background: 'var(--cmc-surface-2)',
-                borderBottom: '1px solid var(--cmc-border)',
-              }}
-            >
-              <Text
-                type="supporting"
-                size="xsm"
-                weight="semibold"
-                style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
-              >
-                Phụ trách & nguồn
-              </Text>
-            </div>
-            <div style={{ paddingInline: 16, paddingBlock: 8 }}>
-              <Grid columns={2} gap={4}>
-                <Stack gap={0.5}>
-                  <Text type="supporting" size="xsm">
-                    Chủ sở hữu
-                  </Text>
-                  <Text size="sm" weight="medium">
-                    {opp.assignedTo?.fullName ?? 'Chưa giao'}
-                  </Text>
-                </Stack>
-                <Stack gap={0.5}>
-                  <Text type="supporting" size="xsm">
-                    Nguồn
-                  </Text>
-                  <Text size="sm">{opp.source ? SOURCE_LABELS[opp.source] ?? opp.source : '—'}</Text>
-                </Stack>
-              </Grid>
+              <SectionBlock title="Thông tin liên hệ">
+                <KeyValueList
+                  items={[
+                    {
+                      key: 'name',
+                      label: 'Họ tên',
+                      value: opp.contact.name,
+                    },
+                    {
+                      key: 'phone',
+                      label: 'Số điện thoại',
+                      value: formatContactPhone(opp.contact.phone),
+                    },
+                  ]}
+                />
+              </SectionBlock>
 
-              {me && (
-                <div style={{ marginTop: 12 }}>
-                  {isManager ? (
-                    <div style={{ maxWidth: 260 }}>
-                      <Selector
-                        label="Giao cho"
-                        options={ownerSelectOptions}
-                        value={opp.assignedTo?.userId ?? UNASSIGNED_VALUE}
-                        onChange={(v) =>
-                          assignMutation.mutate({
-                            opportunityId: opp.id,
-                            assigneeUserId: v === UNASSIGNED_VALUE ? null : v,
-                          })
-                        }
-                        size="sm"
-                      />
-                    </div>
-                  ) : (
-                    (!opp.assignedTo || opp.assignedTo.userId === me.userId) && (
-                      <Button
-                        label="Nhận cơ hội"
-                        size="sm"
-                        variant="secondary"
-                        isLoading={assignMutation.isPending}
-                        onClick={() =>
-                          assignMutation.mutate({ opportunityId: opp.id, assigneeUserId: me.userId })
-                        }
-                      />
-                    )
-                  )}
-                  {assignMutation.error && (
-                    // TODO(astryx-review): Text color enum has no error/danger slot —
-                    // plain <span> with CSS var per migration flag rule (see users.tsx).
-                    <span style={{ fontSize: 13, color: 'var(--cmc-danger)', display: 'block', marginTop: 8 }}>
-                      {assignMutation.error.message}
-                    </span>
-                  )}
-                </div>
-              )}
+              <SectionBlock title="Lịch test đầu vào" description="testAppointment.forOpportunity">
+                {!appointments || appointments.length === 0 ? (
+                  <div className="ck-empty">Chưa có lịch test</div>
+                ) : (
+                  <Stack gap={0}>
+                    {appointments.map((appt, idx) => (
+                      <HStack
+                        key={appt.id}
+                        justify="between"
+                        align="center"
+                        style={{
+                          flexWrap: 'wrap',
+                          paddingBlock: 'var(--cmc-space-2)',
+                          borderBottom:
+                            idx < appointments.length - 1
+                              ? '1px solid var(--cmc-border)'
+                              : undefined,
+                        }}
+                      >
+                        <Stack gap={0.5}>
+                          <Text size="sm">{fmtAppointmentTime(appt.scheduledAt)}</Text>
+                          <Badge
+                            label={APPT_STATUS_LABELS[appt.status] ?? appt.status}
+                            variant={APPT_STATUS_VARIANT[appt.status] ?? 'neutral'}
+                          />
+                        </Stack>
+                        {appt.status === 'scheduled' && (
+                          <HStack gap={1}>
+                            <Button
+                              label="Hoàn thành"
+                              size="sm"
+                              variant="secondary"
+                              isLoading={completeMutation.isPending}
+                              onClick={() => completeMutation.mutate({ appointmentId: appt.id })}
+                            />
+                            <Button
+                              label="Vắng mặt"
+                              size="sm"
+                              variant="ghost"
+                              isLoading={noShowMutation.isPending}
+                              onClick={() => noShowMutation.mutate({ appointmentId: appt.id })}
+                            />
+                          </HStack>
+                        )}
+                      </HStack>
+                    ))}
+                  </Stack>
+                )}
+              </SectionBlock>
             </div>
-          </div>
 
-          {/* Contact information */}
-          <div
-            style={{
-              border: '1px solid var(--cmc-border)',
-              borderRadius: 'var(--cmc-radius-xs)',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                paddingInline: 16,
-                paddingBlock: 8,
-                background: 'var(--cmc-surface-2)',
-                borderBottom: '1px solid var(--cmc-border)',
-              }}
-            >
-              <Text
-                type="supporting"
-                size="xsm"
-                weight="semibold"
-                style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
-              >
-                Thông tin liên hệ
-              </Text>
-            </div>
-            <div style={{ paddingInline: 16, paddingBlock: 8 }}>
-              <Grid columns={2} gap={4}>
-                <Stack gap={0.5}>
-                  <Text type="supporting" size="xsm">
-                    Họ tên
-                  </Text>
-                  <Text size="sm" weight="medium">
-                    {opp.contact.name}
-                  </Text>
-                </Stack>
-                <Stack gap={0.5}>
-                  <Text type="supporting" size="xsm">
-                    Số điện thoại
-                  </Text>
-                  <Text size="sm">{formatContactPhone(opp.contact.phone)}</Text>
-                </Stack>
-                {/* email is not included in opportunityList contact select — omitted */}
-              </Grid>
-            </div>
-          </div>
-
-          {/* Timeline summary */}
-          <div
-            style={{
-              border: '1px solid var(--cmc-border)',
-              borderRadius: 'var(--cmc-radius-xs)',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                paddingInline: 16,
-                paddingBlock: 8,
-                background: 'var(--cmc-surface-2)',
-                borderBottom: '1px solid var(--cmc-border)',
-              }}
-            >
-              <Text
-                type="supporting"
-                size="xsm"
-                weight="semibold"
-                style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
-              >
-                Timeline
-              </Text>
-            </div>
-            <Stack gap={0}>
-              {(['O1_LEAD', 'O2_CONTACTED', 'O3_TEST_SCHEDULED', 'O4_TESTED', 'O5_ENROLLED'] as const).map(
-                (stage, idx, arr) => {
-                  const stageOrder = arr.indexOf(opp.stage as typeof arr[number]);
+            <SectionBlock title="Timeline" description="Tiến độ giai đoạn O1–O5.">
+              <Stack gap={0}>
+                {(
+                  [
+                    'O1_LEAD',
+                    'O2_CONTACTED',
+                    'O3_TEST_SCHEDULED',
+                    'O4_TESTED',
+                    'O5_ENROLLED',
+                  ] as const
+                ).map((stage, idx, arr) => {
+                  const stageOrder = arr.indexOf(opp.stage as (typeof arr)[number]);
                   const done = idx <= stageOrder;
                   const isCurrent = opp.stage === stage;
-                  // TODO(astryx-review): Astryx Text's `color` prop is a fixed
-                  // semantic enum (primary/secondary/disabled/placeholder/accent/
-                  // inherit) with no raw-CSS-var escape hatch, but this line needs
-                  // the brand-blue token specifically for the "current" step — kept
-                  // as a plain <span style> like StatCard's value line, per the
-                  // documented fallback for arbitrary-color Text usages.
                   const stepColor = isCurrent
                     ? 'var(--cmc-brand)'
                     : done
@@ -459,11 +559,12 @@ export default function OpportunityDetailPage() {
                       key={stage}
                       gap={3}
                       style={{
-                        paddingInline: 16,
-                        paddingBlock: 8,
+                        paddingBlock: 'var(--cmc-space-2)',
                         borderBottom:
                           idx < arr.length - 1 ? '1px solid var(--cmc-border)' : undefined,
                         background: isCurrent ? 'var(--cmc-brand-muted)' : undefined,
+                        borderRadius: isCurrent ? 'var(--cmc-radius-control)' : undefined,
+                        paddingInline: isCurrent ? 'var(--cmc-space-2)' : undefined,
                       }}
                     >
                       <div
@@ -479,105 +580,45 @@ export default function OpportunityDetailPage() {
                             : 'var(--cmc-border)',
                         }}
                       />
-                      <span style={{ fontSize: 14, fontWeight: isCurrent ? 600 : 400, color: stepColor }}>
+                      <span
+                        style={{ fontSize: 14, fontWeight: isCurrent ? 600 : 400, color: stepColor }}
+                      >
                         {STAGE_LABELS[stage]}
                       </span>
                     </HStack>
                   );
-                },
-              )}
-              {isLost && (
-                <HStack gap={3} style={{ paddingInline: 16, paddingBlock: 8 }}>
-                  <div
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: 'var(--cmc-danger)',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--cmc-danger)' }}>
-                    Đã đóng (Lost)
-                  </span>
-                </HStack>
-              )}
-            </Stack>
-          </div>
-
-          {/* Entrance test appointments — testAppointment.forOpportunity */}
-          <div
-            style={{
-              border: '1px solid var(--cmc-border)',
-              borderRadius: 'var(--cmc-radius-xs)',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                paddingInline: 16,
-                paddingBlock: 8,
-                background: 'var(--cmc-surface-2)',
-                borderBottom: '1px solid var(--cmc-border)',
-              }}
-            >
-              <Text
-                type="supporting"
-                size="xsm"
-                weight="semibold"
-                style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
-              >
-                Lịch test đầu vào
-              </Text>
-            </div>
-            {!appointments || appointments.length === 0 ? (
-              <div className="ck-empty">Chưa có lịch test</div>
-            ) : (
-              <Stack gap={0}>
-                {appointments.map((appt, idx) => (
-                  <HStack
-                    key={appt.id}
-                    justify="between"
-                    align="center"
-                    style={{
-                      paddingInline: 16,
-                      paddingBlock: 8,
-                      borderBottom:
-                        idx < appointments.length - 1 ? '1px solid var(--cmc-border)' : undefined,
-                    }}
-                  >
-                    <Stack gap={0.5}>
-                      <Text size="sm">{fmtAppointmentTime(appt.scheduledAt)}</Text>
-                      <Badge
-                        label={APPT_STATUS_LABELS[appt.status] ?? appt.status}
-                        variant={APPT_STATUS_VARIANT[appt.status] ?? 'neutral'}
-                      />
-                    </Stack>
-                    {appt.status === 'scheduled' && (
-                      <HStack gap={1}>
-                        <Button
-                          label="Hoàn thành"
-                          size="sm"
-                          variant="secondary"
-                          isLoading={completeMutation.isPending}
-                          onClick={() => completeMutation.mutate({ appointmentId: appt.id })}
-                        />
-                        <Button
-                          label="Vắng mặt"
-                          size="sm"
-                          variant="ghost"
-                          isLoading={noShowMutation.isPending}
-                          onClick={() => noShowMutation.mutate({ appointmentId: appt.id })}
-                        />
-                      </HStack>
-                    )}
+                })}
+                {isLost && (
+                  <HStack gap={3} style={{ paddingBlock: 'var(--cmc-space-2)' }}>
+                    <div
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: 'var(--cmc-danger)',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--cmc-danger)' }}>
+                      Đã đóng (Lost)
+                    </span>
                   </HStack>
-                ))}
+                )}
               </Stack>
-            )}
+            </SectionBlock>
           </div>
-        </Stack>
-      </div>
+        </div>
+      </DetailPage>
+
+      <MarkLostDialog
+        opportunityId={markLostOpen ? opp.id : null}
+        onClose={() => setMarkLostOpen(false)}
+      />
+
+      <ScheduleTestDialog
+        opportunityId={scheduleTestOpen ? opp.id : null}
+        onClose={() => setScheduleTestOpen(false)}
+      />
     </>
   );
 }

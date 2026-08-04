@@ -21,18 +21,59 @@ const STATUS_VARIANTS: Record<string, AstryxBadgeVariant> = {
   warning: 'warning',
 };
 
+/** Soft pastel appearance (Polaris/Primer dense tables) — preferred for ops lists. */
+type SoftTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+
+const STATUS_SOFT: Record<string, SoftTone> = {
+  active: 'success',
+  approved: 'success',
+  sent: 'info',
+  pending: 'warning',
+  draft: 'neutral',
+  rejected: 'danger',
+  error: 'danger',
+  cancelled: 'danger',
+  disabled: 'neutral',
+  withdrawn: 'warning',
+  warning: 'warning',
+};
+
 export interface StatusBadgeProps {
   status: Status;
   label?: string;
-  /** Astryx's Badge has no native size axis (checked: only variant/label/icon
-   * props exist) — 'lg' is approximated with a CSS scale on the 2 call
-   * sites (detail-page headers) that use it today. */
+  /** Astryx's Badge has no native size axis — 'lg' is CSS scale for detail headers. */
   size?: 'sm' | 'md' | 'lg';
+  /**
+   * `soft` — pastel chips for dense tables (default, modern ops).
+   * `solid` — Astryx filled badge (legacy emphasis).
+   */
+  appearance?: 'soft' | 'solid';
 }
 
-export function StatusBadge({ status, label, size = 'md' }: StatusBadgeProps) {
+export function StatusBadge({
+  status,
+  label,
+  size = 'md',
+  appearance = 'soft',
+}: StatusBadgeProps) {
+  const text = label ?? status;
+
+  if (appearance === 'soft') {
+    const tone = STATUS_SOFT[status] ?? 'info';
+    const el = (
+      <span className={`ck-badge-soft ck-badge-soft--${tone}`}>{text}</span>
+    );
+    if (size === 'lg') {
+      return <span style={{ display: 'inline-block', fontSize: '1.15em' }}>{el}</span>;
+    }
+    if (size === 'sm') {
+      return <span style={{ display: 'inline-block', fontSize: '0.9em' }}>{el}</span>;
+    }
+    return el;
+  }
+
   const variant = STATUS_VARIANTS[status] ?? 'blue';
-  const badge = <Badge label={label ?? status} variant={variant} />;
+  const badge = <Badge label={text} variant={variant} />;
   if (size === 'lg') {
     return <span style={{ display: 'inline-block', fontSize: '1.15em' }}>{badge}</span>;
   }

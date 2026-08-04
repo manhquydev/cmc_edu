@@ -11,7 +11,8 @@ export type IconName =
   | 'calendar' | 'check-circle' | 'edit' | 'camera' | 'clipboard'
   | 'receipt' | 'dollar' | 'search' | 'user' | 'building' | 'layers'
   | 'target' | 'alert' | 'chevron' | 'chevron-down' | 'filter' | 'plus' | 'logout'
-  | 'globe' | 'clock' | 'trophy' | 'gift' | 'star';
+  | 'globe' | 'clock' | 'trophy' | 'gift' | 'star'
+  | 'list' | 'kanban' | 'calendar-days';
 
 const PATHS: Record<IconName, ReactNode> = {
   grid: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></>,
@@ -20,6 +21,10 @@ const PATHS: Record<IconName, ReactNode> = {
   card: <><rect x="1" y="4" width="22" height="16" rx="2" /><path d="M1 10h22" /></>,
   shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
   calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
+  // List / board view toggles (Feather-style)
+  list: <><path d="M8 6h13M8 12h13M8 18h13" /><path d="M3 6h.01M3 12h.01M3 18h.01" /></>,
+  kanban: <><rect x="3" y="3" width="5" height="18" rx="1" /><rect x="10" y="3" width="5" height="12" rx="1" /><rect x="17" y="3" width="5" height="15" rx="1" /></>,
+  'calendar-days': <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" /></>,
   'check-circle': <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="M22 4 12 14.01l-3-3" /></>,
   edit: <><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></>,
   camera: <><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></>,

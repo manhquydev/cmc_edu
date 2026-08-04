@@ -107,7 +107,10 @@ test.describe('P4-01 journey (xuyên app) — chấm bài sinh sao → học sin
     const queueRow = teacherPage.getByText(studentName);
     await expect(queueRow).toBeVisible();
     await queueRow.click();
-    await teacherPage.getByRole('spinbutton', { name: /Điểm/ }).fill('8.5');
+    // Whole-number grade: submission.grade now rejects fractional scores (Int
+    // column), so this journey grades an integer — the star mint depends on the
+    // grade landing, not on the score value.
+    await teacherPage.getByRole('spinbutton', { name: /Điểm/ }).fill('8');
     await teacherPage.locator('.sh-main').getByRole('button', { name: 'Chấm bài' }).click();
     await expect(queueRow).toHaveCount(0);
     await teacherContext.close();

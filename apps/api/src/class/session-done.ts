@@ -52,6 +52,74 @@ export interface SessionDoneResult {
   doneAt: Date;
 }
 
+/** UI/hub progress flags — same 3 conditions as `evaluateSessionDone`, without collapsing to null. */
+export interface SessionDoneProgress {
+  /** ≥1 attendance row with status `present`. */
+  attendanceOk: boolean;
+  presentCount: number;
+  /** Every present student has a confirmed qualitative assessment. */
+  assessmentOk: boolean;
+  assessmentsConfirmed: number;
+  assessmentsRequired: number;
+  /** Evidence published with ≥1 photo. */
+  evidenceOk: boolean;
+  photoCount: number;
+  evidencePublished: boolean;
+  /** `now >= endTime` (done-sweep time gate). */
+  timeGatePassed: boolean;
+  /** All 3 conditions + time gate (eligible for done flip). */
+  eligible: boolean;
+}
+
+/**
+ * Pure progress snapshot for session hub / checklist UI.
+ * Does not flip session status — only reports condition flags.
+ */
+export function evaluateSessionDoneProgress(
+  input: SessionDoneEvaluationInput,
+  now: Date,
+): SessionDoneProgress {
+  const present = input.attendances.filter((a) => a.status === 'present');
+  const attendanceOk = present.length > 0;
+
+  const confirmedAtByStudent = new Map<string, Date>();
+  for (const assessment of input.assessments) {
+    if (assessment.status === 'confirmed' && assessment.confirmedAt) {
+      confirmedAtByStudent.set(assessment.studentId, assessment.confirmedAt);
+    }
+  }
+  let assessmentsConfirmed = 0;
+  for (const attendance of present) {
+    if (confirmedAtByStudent.has(attendance.studentId)) assessmentsConfirmed += 1;
+  }
+  const assessmentsRequired = present.length;
+  const assessmentOk = attendanceOk && assessmentsConfirmed === assessmentsRequired;
+
+  const photoCount = input.evidence?.photoCount ?? 0;
+  const evidencePublished = input.evidence?.status === 'published';
+  const evidenceOk =
+    Boolean(input.evidence) &&
+    evidencePublished &&
+    photoCount >= 1 &&
+    Boolean(input.evidence?.publishedAt);
+
+  const timeGatePassed = now >= input.endTime;
+  const eligible = attendanceOk && assessmentOk && evidenceOk && timeGatePassed;
+
+  return {
+    attendanceOk,
+    presentCount: present.length,
+    assessmentOk,
+    assessmentsConfirmed,
+    assessmentsRequired,
+    evidenceOk,
+    photoCount,
+    evidencePublished,
+    timeGatePassed,
+    eligible,
+  };
+}
+
 /**
  * Pure evaluation of the 3 done-conditions against already-fetched rows — no
  * DB access, fully unit-testable. Returns `null` whenever the session is not
@@ -63,31 +131,19 @@ export function evaluateSessionDone(
   input: SessionDoneEvaluationInput,
   now: Date,
 ): SessionDoneResult | null {
-  if (now < input.endTime) return null;
+  const progress = evaluateSessionDoneProgress(input, now);
+  if (!progress.eligible) return null;
 
   const present = input.attendances.filter((a) => a.status === 'present');
-  if (present.length === 0) return null;
-
   const confirmedAtByStudent = new Map<string, Date>();
   for (const assessment of input.assessments) {
     if (assessment.status === 'confirmed' && assessment.confirmedAt) {
       confirmedAtByStudent.set(assessment.studentId, assessment.confirmedAt);
     }
   }
-  for (const attendance of present) {
-    if (!confirmedAtByStudent.has(attendance.studentId)) return null;
-  }
 
-  if (
-    !input.evidence ||
-    input.evidence.status !== 'published' ||
-    input.evidence.photoCount < 1 ||
-    !input.evidence.publishedAt
-  ) {
-    return null;
-  }
-
-  let doneAt = input.evidence.publishedAt;
+  // eligible ⇒ evidence published with publishedAt + ≥1 photo
+  let doneAt = input.evidence!.publishedAt!;
   for (const attendance of present) {
     if (attendance.markedAt > doneAt) doneAt = attendance.markedAt;
     const confirmedAt = confirmedAtByStudent.get(attendance.studentId);

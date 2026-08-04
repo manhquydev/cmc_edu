@@ -16,6 +16,10 @@ import type { PlannedSession } from './generate-sessions.js';
 import { assertNoRoomConflict } from './room-conflict.js';
 import { ictDateOnlyOf, ictToUtc, isValidDateOnly, isValidTimeOfDay } from '@cmc/domain-time';
 import { recomputeFinalGrade } from '../submission/router.js';
+import {
+  evaluateSessionDoneProgress,
+  type SessionDoneProgress,
+} from './session-done.js';
 
 const dateOnlySchema = z.string().refine(isValidDateOnly, { message: 'Expected YYYY-MM-DD.' });
 const timeOfDaySchema = z.string().refine(isValidTimeOfDay, { message: 'Expected HH:mm (24h).' });
@@ -79,6 +83,15 @@ const listSessionsInput = z.object({
   classBatchId: z.string().uuid(),
 });
 
+/** Single-session identity for teacher Session Detail hub. */
+export interface ClassSessionGetDto extends ClassSessionDto {
+  batchCode: string;
+  program: string;
+  teacherId: string | null;
+  courseId: string;
+  batchStatus: string;
+}
+
 export const classSessionRouter = router({
   // Read-only: list all sessions for a batch (schedule, confirm/cancel UI).
   list: requirePermission('class', 'read')
@@ -93,6 +106,96 @@ export const classSessionRouter = router({
         return rows.map(toClassSessionDto);
       });
     }),
+
+  /**
+   * Single session + batch denorm for Session Detail hub (cold-start by id).
+   * Permission matches list (`class.read`).
+   */
+  get: requirePermission('class', 'read')
+    .input(sessionIdInput)
+    .query(async ({ ctx, input }): Promise<ClassSessionGetDto> => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const row = await tx.classSession.findFirst({
+          where: { id: input.sessionId, facilityId },
+          include: {
+            classBatch: {
+              select: {
+                code: true,
+                program: true,
+                teacherId: true,
+                courseId: true,
+                status: true,
+              },
+            },
+          },
+        });
+        if (!row) {
+          throw notFound('ClassSession not found.');
+        }
+        return {
+          ...toClassSessionDto(row),
+          batchCode: row.classBatch.code,
+          program: row.classBatch.program,
+          teacherId: row.classBatch.teacherId,
+          courseId: row.classBatch.courseId,
+          batchStatus: row.classBatch.status,
+        };
+      });
+    }),
+
+  /**
+   * Session-done checklist flags for hub UI (does not flip status).
+   * Same three conditions as `evaluateSessionDone` / done-sweep.
+   */
+  doneProgress: requirePermission('class', 'read')
+    .input(sessionIdInput)
+    .query(async ({ ctx, input }): Promise<SessionDoneProgress & { sessionId: string; status: string }> => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const session = await tx.classSession.findFirst({
+          where: { id: input.sessionId, facilityId },
+          select: { id: true, endTime: true, status: true },
+        });
+        if (!session) {
+          throw notFound('ClassSession not found.');
+        }
+
+        const [attendances, assessments, evidence] = await Promise.all([
+          tx.attendance.findMany({
+            where: { classSessionId: session.id },
+            select: { studentId: true, status: true, markedAt: true },
+          }),
+          tx.qualitativeAssessment.findMany({
+            where: { classSessionId: session.id },
+            select: { studentId: true, status: true, confirmedAt: true },
+          }),
+          tx.sessionEvidence.findUnique({
+            where: { classSessionId: session.id },
+            select: { status: true, publishedAt: true, photos: { select: { id: true } } },
+          }),
+        ]);
+
+        const progress = evaluateSessionDoneProgress(
+          {
+            endTime: session.endTime,
+            attendances,
+            assessments,
+            evidence: evidence
+              ? {
+                  status: evidence.status,
+                  publishedAt: evidence.publishedAt,
+                  photoCount: evidence.photos.length,
+                }
+              : null,
+          },
+          new Date(),
+        );
+
+        return { sessionId: session.id, status: session.status, ...progress };
+      });
+    }),
+
   // planned/confirmed -> cancelled. Cancelled sessions are excluded from
   // attendance (docs/19 §5 gate 1) — enforced in ../attendance/router.ts.
   cancel: requirePermission('schedule', 'generate')

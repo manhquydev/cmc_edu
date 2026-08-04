@@ -17,6 +17,8 @@ import { addDaysToDateOnly, ictDateOnlyOf } from '@cmc/domain-time';
 import { mintStaffCookie } from '../../src/session-injection.js';
 import { createStaffViaAdminUi } from '../../src/journey/create-staff-via-admin-ui.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
+import { createE2eStaffClient } from '../../src/trpc-client.js';
+import { assertBusinessInvariant } from '../../src/journey/assert-business.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -125,6 +127,29 @@ test.describe('P3-03/04/07 journey — đăng ký ca: từ chối → nộp lạ
     await approveDialog.getByRole('button', { name: 'Duyệt' }).click();
     await expect(gdPage.getByRole('row', { name: new RegExp(saleName) })).toHaveCount(0);
     await gdContext.close();
+
+    // ── business invariant (read AFTER approve, BEFORE the sale cancels) ──
+    // The pending queue emptying only proves the reg LEFT 'submitted' — a reject
+    // clears it too, so it does NOT prove the approve landed on 'approved'. No
+    // director-facing read returns an approved reg (pendingForApproval is
+    // submitted-only), so the OWNER reads it back. shift.myRegistrations is
+    // self-scoped (resolves the AppUser from ctx.subject.userId), so this client
+    // MUST reuse saleUserId — the exact id that minted the sale's cookie above
+    // and that createStaffViaAdminUi seeded as an AppUser row. This run's sale
+    // has one rejected reg + one resubmitted reg; exactly that resubmitted one
+    // must now read back as 'approved'. This must run before the cancel step
+    // below, which would flip it to 'cancelled'.
+    const saleReadClient = createE2eStaffClient(process.env.E2E_BASE_URL!, {
+      userId: saleUserId,
+      roles: ['sale'],
+      facilityId,
+    });
+    const myRegs = await saleReadClient.shift.myRegistrations.query();
+    assertBusinessInvariant(
+      'đăng ký ca sau duyệt = đúng 1 bản ghi approved',
+      myRegs.filter((r) => r.status === 'approved').length,
+      1,
+    );
 
     // --- sale cancels the approved registration (P3-03) ---
     const saleContext = await browser.newContext({ baseURL: 'http://localhost:4173' });

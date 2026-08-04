@@ -39,6 +39,8 @@ import { mintStaffCookie } from '../../src/session-injection.js';
 import { seedClassBatch } from '../../src/db.js';
 import { randomVnPhone } from '../../src/random-vn-phone.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
+import { createE2eStaffClient } from '../../src/trpc-client.js';
+import { assertBusinessInvariant } from '../../src/journey/assert-business.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -151,5 +153,32 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
     // tìm thấy phiếu thu if we navigated there"). That banner, not a URL
     // change, is the real, current proof `finance.receiptCreate` ran.
     await expect(page.getByText(/^Đã tạo phiếu thu /)).toBeVisible();
+
+    // ── business invariant ──
+    // The banner proves a receipt was CREATED; it says nothing about whether it
+    // stored the tuition amount that was typed (5000001). `sale` cannot read it
+    // back — it lacks finance.receiptGet/receiptList (packages/auth SoD roster)
+    // — so a manager-role client reads the same facility's queue and asserts the
+    // persisted number. This is the assertion that turns P1-02 from
+    // `reachable-only` (green, unchecked) into `verified-correct` in
+    // business:verify. Read-path is real (goes through the authorized query +
+    // RLS facility scope), not a DB back-door.
+    const bannerText = await page.getByText(/^Đã tạo phiếu thu /).textContent();
+    const receiptCode = bannerText!.replace('Đã tạo phiếu thu ', '').trim();
+
+    const managerClient = createE2eStaffClient(process.env.E2E_BASE_URL!, {
+      userId: `e2e-p102-gdkd-${randomUUID().slice(0, 8)}`,
+      roles: ['giam_doc_kinh_doanh'],
+      facilityId,
+    });
+    // Newest-first (orderBy createdAt desc), pageSize 100 » the handful of
+    // receipts a single e2e run creates, so the just-created one is on page 1.
+    const { items } = await managerClient.finance.receiptList.query({ pageSize: 100 });
+    const created = items.find((r) => r.code === receiptCode);
+    expect(created, `receipt ${receiptCode} phải đọc lại được trong hàng đợi cùng cơ sở`).toBeTruthy();
+
+    // No discount in this journey, so netAmount === the tuition typed in
+    // (finance/router.ts: receiptCreate sets `netAmount: input.amount`).
+    assertBusinessInvariant('phiếu thu lưu đúng học phí đã nhập (VND)', created!.netAmount, 5000001);
   });
 });

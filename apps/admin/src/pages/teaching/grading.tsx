@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import type { ComponentProps } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Badge, Banner, Button, HStack, ListPage, MasterDetail, NumberInput, PageHeader, Skeleton, Stack, Text, useToast } from '@cmc/ui';
+import { UUID_RE, readUuidParam } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
+import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { PdfAnnotator } from './pdf-annotator.js';
 
 // ---------------------------------------------------------------------------
@@ -253,7 +256,9 @@ function DetailPane({
 // ---------------------------------------------------------------------------
 
 export default function GradingPage() {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Selected submission id lives in the URL so a teacher can share "this essay".
+  const submissionId = readUuidParam(searchParams, 'submissionId');
 
   const {
     data,
@@ -268,7 +273,15 @@ export default function GradingPage() {
   );
 
   const items = (data?.items ?? []) as SubmissionItem[];
-  const selected = items.find((it) => it.id === selectedId) ?? null;
+  // Stale/missing id in URL → treat as unset (empty detail pane), never crash.
+  const selected = items.find((it) => it.id === submissionId) ?? null;
+
+  function selectSubmission(id: string | null) {
+    const next = new URLSearchParams(searchParams);
+    if (id && UUID_RE.test(id)) next.set('submissionId', id);
+    else next.delete('submissionId');
+    setSearchParams(next, { replace: true });
+  }
 
   // ---------------------------------------------------------------------------
   // List panel
@@ -319,8 +332,8 @@ export default function GradingPage() {
             <SubmissionListItem
               key={item.id}
               item={item}
-              selected={item.id === selectedId}
-              onClick={() => setSelectedId(item.id)}
+              selected={item.id === submissionId}
+              onClick={() => selectSubmission(item.id)}
             />
           ))
         )}
@@ -365,6 +378,7 @@ export default function GradingPage() {
           title="Chấm bài"
           subtitle="Danh sách bài nộp cần chấm điểm"
           breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Chấm bài' }]}
+          actions={submissionId ? <CopyLinkButton mode="current" /> : undefined}
         />
       }
     >
@@ -383,7 +397,7 @@ export default function GradingPage() {
         <MasterDetail
           list={listPanel}
           detail={detailPanel}
-          selectedId={selectedId ?? undefined}
+          selectedId={submissionId ?? undefined}
           listWidth={300}
         />
       </div>

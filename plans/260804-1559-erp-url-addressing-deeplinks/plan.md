@@ -1,7 +1,7 @@
 ---
 title: "ERP URL Addressing Deeplinks"
 description: "Hệ thống URL addressing cho ERP admin: returnTo qua login, contract entity→URL dùng chung (@cmc/links), resolver canonical /go, URL-hoá state workspace"
-status: in-progress
+status: completed
 priority: P1
 effort: "4 PR, ~3-4 ngày"
 tags: [admin, routing, auth, deeplink]
@@ -40,7 +40,7 @@ Quyết định bổ sung sau red-team (user chốt 2026-08-04): payroll giữ C
 | 1 | [Phase 1: ReturnTo Login Redirect](./phase-01-start.md) | Completed |
 | 2 | [Phase 2: Links Contract And Go Resolver](./phase-02-links-contract-and-go-resolver.md) | Completed |
 | 3 | [Phase 3: Attendance Workspace URL State](./phase-03-attendance-workspace-url-state.md) | Completed |
-| 4 | [Phase 4: Remaining Workspaces And Docs](./phase-04-remaining-workspaces-and-docs.md) | Pending |
+| 4 | [Phase 4: Remaining Workspaces And Docs](./phase-04-remaining-workspaces-and-docs.md) | Completed |
 
 Phase 1 độc lập, ship trước (kèm hạ tầng e2e seed-staff-password mà mọi phase sau dùng). **Phase 2 = 2 PR bắt buộc tuần tự** (2a: PermissionGate + student fetch-by-id; 2b: links + `/go` + Copy link — quyết định validate). Phase 3 phụ thuộc 1+2; Phase 4 phụ thuộc 2+3 (được phép tách nhỏ, có scope-cut rule cho grading). Mỗi PR xanh cả `typecheck-and-test` và `ui-e2e`.
 

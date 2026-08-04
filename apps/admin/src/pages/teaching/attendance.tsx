@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Badge, Banner, Button, Grid, HStack, LineIcon, ListPage, PageHeader, Selector, Skeleton, Stack, Text } from '@cmc/ui';
-import { UUID_RE } from '@cmc/links';
+import { UUID_RE, readUuidParam } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
 
@@ -137,20 +137,14 @@ function StudentRow({
 // Page
 // ---------------------------------------------------------------------------
 
-/** Read a query param only when it is a UUID — garbage ids never reach the API. */
-function uuidParam(params: URLSearchParams, key: string): string | null {
-  const raw = params.get(key);
-  return raw && UUID_RE.test(raw) ? raw : null;
-}
-
 export default function AttendancePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   // Legacy deep-link: ?session= → Session Detail hub (RCWS). Picker page remains for bare /attendance.
   const deepSession = searchParams.get('session');
 
   // Shareable workspace state lives in the URL (replace:true — no history spam).
-  const classBatchId = uuidParam(searchParams, 'classBatchId');
-  const sessionId = uuidParam(searchParams, 'sessionId');
+  const classBatchId = readUuidParam(searchParams, 'classBatchId');
+  const sessionId = readUuidParam(searchParams, 'sessionId');
 
   const [localStatus, setLocalStatus] = useState<
     Record<string, AttendanceStatus>

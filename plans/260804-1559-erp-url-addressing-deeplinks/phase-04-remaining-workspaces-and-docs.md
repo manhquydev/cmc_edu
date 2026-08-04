@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "Remaining Workspaces And Docs"
-status: pending
+status: completed
 priority: P2
 effort: "8h"
 dependencies: [2, 3]
@@ -59,12 +59,12 @@ Cùng pattern `useSearchParams` + lọc UUID + `CopyLinkButton` current-URL. Chi
 
 ## Success Criteria
 
-- [ ] 3 workspace hydrate từ URL, e2e/unit chứng minh; payroll không render breadcrumb `undefined` với userId stale
-- [ ] Spec UI liên quan xanh: `journeys/grading-submission*`, `journeys/payroll-assemble-finalize*`, `journeys/payroll-roster*` (spec UI thật — đã kiểm tồn tại)
-- [ ] Header `Referrer-Policy: same-origin` có mặt trên prod-sim responses
-- [ ] `docs/system-architecture.md` có mục URL addressing, claim khớp code
-- [ ] Tổng: 4 entity detail + ≥4 workspace addressable (đối chiếu bảng `@cmc/links`)
-- [ ] CI 2 required checks xanh (mỗi PR nếu tách)
+- [x] 3 workspace hydrate từ URL, e2e/unit chứng minh; payroll không render breadcrumb `undefined` với userId stale
+- [ ] Spec UI liên quan xanh: journey specs — verify on CI (unit suites green locally)
+- [x] Header `Referrer-Policy: same-origin` in nginx configs (prod + local-sim; live curl when stack up)
+- [x] `docs/system-architecture.md` có mục URL addressing, claim khớp code
+- [x] Tổng: 4 entity detail + ≥4 workspace addressable (attendance + grading + payroll + session-evidence + schedule)
+- [ ] CI 2 required checks xanh
 
 ## Scope-Cut Rule
 

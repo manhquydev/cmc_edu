@@ -22,8 +22,9 @@
 // Note: no payslip.list endpoint exists. The list is built from user.pickList +
 // per-user payslip queries opened on demand.
 
-import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { UUID_RE, readUuidParam } from '@cmc/links';
+import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import {
   Banner,
   Button,
@@ -34,6 +35,7 @@ import {
   LineIcon,
   ListPage,
   PageHeader,
+  Skeleton,
   Stack,
   StatusBadge,
   Text,
@@ -409,11 +411,8 @@ export default function PayrollPage() {
     .toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })
     .slice(0, 7);
   const period = searchParams.get('period') ?? defaultPeriod;
-
-  const [selectedUser, setSelectedUser] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  // AppUser.id in the URL — hydrate name from pickList (never breadcrumb `undefined`).
+  const userIdParam = readUuidParam(searchParams, 'userId');
 
   const { data, isLoading, error } = trpc.user.pickList.useQuery({});
 
@@ -423,6 +422,10 @@ export default function PayrollPage() {
     employeeCode: u.employeeCode,
     position: u.position,
   }));
+
+  const selectedFromList = userIdParam
+    ? staffRows.find((r) => r.id === userIdParam) ?? null
+    : null;
 
   function setPeriod(value: string) {
     const p = new URLSearchParams(searchParams);
@@ -434,9 +437,19 @@ export default function PayrollPage() {
     setSearchParams(p, { replace: true });
   }
 
+  function selectUser(user: { id: string; name: string } | null) {
+    const p = new URLSearchParams(searchParams);
+    if (user && UUID_RE.test(user.id)) p.set('userId', user.id);
+    else p.delete('userId');
+    setSearchParams(p, { replace: true });
+  }
+
   // Frame branch only — all hooks above run unconditionally (list + detail share
   // period/search state; payslip queries live inside PayslipDetail).
-  if (selectedUser) {
+
+  // Deep-link hydrate: userId present, pickList still loading → explicit loading
+  // chrome (not breadcrumb with undefined name).
+  if (userIdParam && isLoading) {
     return (
       <DetailPage
         header={
@@ -446,26 +459,52 @@ export default function PayrollPage() {
             breadcrumbs={[
               { label: 'Nhân sự' },
               { label: 'Bảng lương' },
-              { label: selectedUser.name },
+              { label: 'Đang tải…' },
+            ]}
+            actions={<CopyLinkButton mode="current" />}
+          />
+        }
+      >
+        <Skeleton height={200} radius={1} />
+      </DetailPage>
+    );
+  }
+
+  // Resolved selection from pickList. Stale userId (not in list) falls through
+  // to the staff list — treat as unset, never render undefined employee name.
+  if (userIdParam && selectedFromList) {
+    return (
+      <DetailPage
+        header={
+          <PageHeader
+            title="Bảng lương"
+            subtitle="Chi tiết phiếu lương nhân viên"
+            breadcrumbs={[
+              { label: 'Nhân sự' },
+              { label: 'Bảng lương' },
+              { label: selectedFromList.fullName },
             ]}
             actions={
-              <div style={{ width: 120 }}>
-                <TextInput
-                  size="sm"
-                  label="Kỳ lương"
-                  value={period}
-                  onChange={(v) => setPeriod(v)}
-                />
-              </div>
+              <HStack gap={1} align="end">
+                <CopyLinkButton mode="current" />
+                <div style={{ width: 120 }}>
+                  <TextInput
+                    size="sm"
+                    label="Kỳ lương"
+                    value={period}
+                    onChange={(v) => setPeriod(v)}
+                  />
+                </div>
+              </HStack>
             }
           />
         }
       >
         <PayslipDetail
-          appUserId={selectedUser.id}
+          appUserId={selectedFromList.id}
           period={period}
-          employeeName={selectedUser.name}
-          onBack={() => setSelectedUser(null)}
+          employeeName={selectedFromList.fullName}
+          onBack={() => selectUser(null)}
         />
       </DetailPage>
     );
@@ -500,7 +539,7 @@ export default function PayrollPage() {
         error={error?.message}
         empty="Chưa có nhân viên nào"
         onRowClick={(row) =>
-          setSelectedUser({ id: row.id, name: row.fullName })
+          selectUser({ id: row.id, name: row.fullName })
         }
       />
     </ListPage>

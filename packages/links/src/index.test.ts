@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { UUID_RE, attendancePath, goPath, links, resolveGo } from './index.js';
+import {
+  UUID_RE,
+  attendancePath,
+  goPath,
+  gradingPath,
+  links,
+  payrollPath,
+  readUuidParam,
+  resolveGo,
+  sessionEvidencePath,
+} from './index.js';
 
 const UUID = '550e8400-e29b-41d4-a716-446655440000';
 
@@ -62,5 +72,33 @@ describe('attendancePath', () => {
     );
     expect(attendancePath({ classBatchId: 'abc' })).toBe('/teaching/attendance');
     expect(attendancePath({})).toBe('/teaching/attendance');
+  });
+});
+
+describe('workspace builders + readUuidParam', () => {
+  it('gradingPath uses submissionId', () => {
+    expect(gradingPath({ submissionId: UUID })).toBe(
+      `/teaching/grading?submissionId=${UUID}`,
+    );
+    expect(gradingPath({ submissionId: 'sub-1' })).toBe('/teaching/grading');
+  });
+
+  it('payrollPath keeps period and filters userId by UUID', () => {
+    expect(payrollPath({ period: '2026-08', userId: UUID })).toBe(
+      `/hr/payroll?period=2026-08&userId=${UUID}`,
+    );
+    expect(payrollPath({ period: 'bad', userId: 'nope' })).toBe('/hr/payroll');
+  });
+
+  it('sessionEvidencePath mirrors attendance params', () => {
+    expect(sessionEvidencePath({ classBatchId: UUID, sessionId: UUID })).toBe(
+      `/teaching/session-evidence?classBatchId=${UUID}&sessionId=${UUID}`,
+    );
+  });
+
+  it('readUuidParam rejects garbage', () => {
+    const p = new URLSearchParams('a=abc&b=' + UUID);
+    expect(readUuidParam(p, 'a')).toBeNull();
+    expect(readUuidParam(p, 'b')).toBe(UUID);
   });
 });

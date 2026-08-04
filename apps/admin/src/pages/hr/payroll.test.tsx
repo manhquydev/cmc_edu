@@ -17,7 +17,7 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // under the tier model); "Thưởng KPI" RELABELED to "Phần KPI (%côngca ×
 // %chỉ-số × đơn giá)" (kpiBonus column reused, value unchanged).
 const STAFF = {
-  id: 'u-1',
+  id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   fullName: 'Nguyễn Văn A',
   employeeCode: 'NV001',
   position: 'Giáo viên',
@@ -158,12 +158,32 @@ describe('PayrollPage', () => {
     expect(getForUserSpy).not.toHaveBeenCalled();
   });
 
+  it('hydrates staff from ?userId= after pickList loads', () => {
+    renderWithProviders(<PayrollPage />, {
+      route: `/hr/payroll?userId=${STAFF.id}&period=2026-08`,
+    });
+    expect(getForUserSpy).toHaveBeenCalled();
+    const [input] = getForUserSpy.mock.calls[0] as [{ appUserId: string; period: string }];
+    expect(input.appUserId).toBe(STAFF.id);
+    expect(input.period).toBe('2026-08');
+    expect(screen.getByText('Nguyễn Văn A')).toBeInTheDocument();
+  });
+
+  it('treats stale ?userId= as unset (shows list, no undefined breadcrumb)', () => {
+    renderWithProviders(<PayrollPage />, {
+      route: '/hr/payroll?userId=99999999-9999-4999-8999-999999999999',
+    });
+    expect(getForUserSpy).not.toHaveBeenCalled();
+    expect(screen.getByText('NV001')).toBeInTheDocument();
+    expect(screen.queryByText('undefined')).toBeNull();
+  });
+
   it('queries payslip.getForUser({appUserId, period}) with the current period after selecting a staff row', () => {
     renderWithProviders(<PayrollPage />);
     selectStaff();
     expect(getForUserSpy).toHaveBeenCalledTimes(1);
     const [input] = getForUserSpy.mock.calls[0] as [{ appUserId: string; period: string }];
-    expect(input.appUserId).toBe('u-1');
+    expect(input.appUserId).toBe(STAFF.id);
     expect(input.period).toMatch(/^\d{4}-\d{2}$/);
   });
 
@@ -194,7 +214,7 @@ describe('PayrollPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tính lương (assemble)' }));
     expect(assembleMutate).toHaveBeenCalledTimes(1);
     const [payload] = assembleMutate.mock.calls[0] as [{ appUserId: string; period: string }];
-    expect(payload.appUserId).toBe('u-1');
+    expect(payload.appUserId).toBe(STAFF.id);
     expect(payload.period).toMatch(/^\d{4}-\d{2}$/);
   });
 

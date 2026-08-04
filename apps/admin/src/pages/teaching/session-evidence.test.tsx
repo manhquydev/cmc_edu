@@ -150,7 +150,9 @@ describe('SessionEvidencePage', () => {
 
       await waitFor(() => expect(fetchMock).toHaveBeenCalled());
       const [url, opts] = fetchMock.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe('http://localhost:3000/upload/session-photo');
+      // Assert the target PATH (env-independent): API_URL comes from VITE_API_URL,
+      // which is unset in the jsdom test env, so the built URL is relative here.
+      expect(url).toMatch(/\/upload\/session-photo$/);
       expect(opts.method).toBe('POST');
       expect(opts.credentials).toBe('include');
       expect((opts.headers as Record<string, string>)['Content-Type']).toBe('image/jpeg');

@@ -92,6 +92,20 @@ container, never the local-sim `cmc_prod` stack):
 SYNTH_SEED_ALLOW=1 scripts/synthetic-seed-env.sh [--fresh]   # print APP_DATABASE_URL/DATABASE_URL to export
 ```
 
+Local-sim (production compose on loopback — see `infra/compose.local-sim.yml`)
+needs the **global CurriculumUnit catalog** for exercise create / grading. Full
+`pnpm --filter @cmc/db exec prisma db seed` already plants it; if the stack was
+only bootstrapped with super-admin + `scripts/seed-local-sim-demo.ts`, run:
+
+```bash
+LOCAL_SIM_SEED_ALLOW=1 DATABASE_URL="postgresql://…@127.0.0.1:5432/cmc_prod" \
+  npx tsx scripts/ensure-curriculum-units.ts
+```
+
+(`seed-local-sim-demo.ts` invokes the same ensure best-effort when the URL is
+reachable.) GĐĐT creates facility **courses** from Admin → Lớp & Học sinh →
+Khoá học (`+ Tạo khoá`); bare `/classes` redirects to `/admin/classes`.
+
 ### Platform Notes (Windows vs Linux)
 
 The repo builds identically on both, but the local Postgres plumbing differs.

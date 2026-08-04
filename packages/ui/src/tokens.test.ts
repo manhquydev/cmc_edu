@@ -25,8 +25,13 @@ describe('design tokens parity (typed object vs tokens.css)', () => {
     assertVarsDeclared(tokens.premium);
   });
 
-  it('premium radius scale (md/lg/pill) is declared', () => {
-    assertVarsDeclared({ md: tokens.radius.md, lg: tokens.radius.lg, pill: tokens.radius.pill });
+  it('premium radius scale (control/md/lg/pill) is declared', () => {
+    assertVarsDeclared({
+      control: tokens.radius.control,
+      md: tokens.radius.md,
+      lg: tokens.radius.lg,
+      pill: tokens.radius.pill,
+    });
   });
 
   it('tokens.css actually declares the core premium custom properties', () => {

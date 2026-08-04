@@ -1,0 +1,183 @@
+/**
+ * FullCalendar v6 standard visual fidelity (layout / radius / chrome).
+ * Intentionally uses FC default CSS variables so bo góc + toolbar match
+ * https://github.com/fullcalendar/fullcalendar standard theme — not Soft Ops card chrome.
+ *
+ * Scope: only under .ck-fc so page ListPage Soft Ops is untouched.
+ */
+
+.ck-fc {
+  /* —— FC standard palette (from @fullcalendar/core injected :root defaults) —— */
+  --fc-small-font-size: 0.85em;
+  --fc-page-bg-color: #fff;
+  --fc-neutral-bg-color: hsla(0, 0%, 82%, 0.3);
+  --fc-neutral-text-color: grey;
+  --fc-border-color: #ddd;
+  --fc-button-text-color: #fff;
+  --fc-button-bg-color: #2c3e50;
+  --fc-button-border-color: #2c3e50;
+  --fc-button-hover-bg-color: #1e2b37;
+  --fc-button-hover-border-color: #1a252f;
+  --fc-button-active-bg-color: #1a252f;
+  --fc-button-active-border-color: #151e27;
+  --fc-event-bg-color: #3788d8;
+  --fc-event-border-color: #3788d8;
+  --fc-event-text-color: #fff;
+  --fc-event-selected-overlay-color: rgba(0, 0, 0, 0.25);
+  --fc-more-link-bg-color: #d0d0d0;
+  --fc-more-link-text-color: inherit;
+  --fc-today-bg-color: rgba(255, 220, 40, 0.15);
+  --fc-now-indicator-color: red;
+  --fc-highlight-color: rgba(188, 232, 241, 0.3);
+  --fc-non-business-color: hsla(0, 0%, 84%, 0.3);
+
+  /* No Soft Ops card shell — flat like FC demos */
+  background: var(--fc-page-bg-color);
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  overflow: visible;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color: #000;
+}
+
+/* Title size matches FC default toolbar */
+.ck-fc .fc .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 1.5em;
+}
+
+.ck-fc .fc .fc-toolbar-title {
+  font-size: 1.75em;
+  font-weight: 400;
+  margin: 0;
+}
+
+/* Button geometry: FC standard 0.25em radius (not Soft Ops 12px) */
+.ck-fc .fc .fc-button {
+  border-radius: 0.25em;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 0.4em 0.65em;
+  text-transform: none;
+  box-shadow: none;
+}
+
+/* Button groups: shared edges like FC (left/right flush) */
+.ck-fc .fc-direction-ltr .fc-button-group > .fc-button:not(:first-child) {
+  border-bottom-left-radius: 0;
+  border-top-left-radius: 0;
+  margin-left: -1px;
+}
+
+.ck-fc .fc-direction-ltr .fc-button-group > .fc-button:not(:last-child) {
+  border-bottom-right-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* Events: square-ish FC chips (default ~0 radius feel; slight 0 for classic) */
+.ck-fc .fc .fc-event {
+  border-radius: 0;
+  border-width: 1px;
+  font-size: 0.85em;
+  font-weight: 400;
+  cursor: pointer;
+  padding: 0 1px;
+}
+
+.ck-fc .fc .fc-daygrid-event {
+  border-radius: 0;
+}
+
+/* Status classes still tint via border/background but keep FC event shape */
+.ck-fc .fc .fc-event.ck-fc-ev--active {
+  background: var(--fc-event-bg-color);
+  border-color: var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
+}
+
+.ck-fc .fc .fc-event.ck-fc-ev--planned {
+  background: #6c757d;
+  border-color: #6c757d;
+  color: #fff;
+}
+
+.ck-fc .fc .fc-event.ck-fc-ev--done {
+  background: #28a745;
+  border-color: #28a745;
+  color: #fff;
+}
+
+.ck-fc .fc .fc-event.ck-fc-ev--cancelled {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.ck-fc .fc .fc-col-header-cell-cushion,
+.ck-fc .fc .fc-daygrid-day-number {
+  text-decoration: none;
+  color: inherit;
+}
+
+.ck-fc .fc a[data-navlink]:hover {
+  text-decoration: underline;
+}
+
+/* docs: eventContent injection layout */
+.ck-fc .ck-fc-ev-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.35em;
+  overflow: hidden;
+  line-height: 1.25;
+  padding: 1px 2px;
+}
+
+.ck-fc .ck-fc-ev-time {
+  font-weight: 700;
+  font-size: 0.85em;
+}
+
+.ck-fc .ck-fc-ev-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.ck-fc .ck-fc-ev-status {
+  font-size: 0.75em;
+  opacity: 0.9;
+  text-transform: uppercase;
+}
+
+/* Week number column (docs: week-numbers) */
+.ck-fc .fc .fc-daygrid-week-number {
+  font-size: 0.85em;
+  color: grey;
+}
+
+.ck-fc-loading {
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: grey;
+  font-size: 0.95rem;
+}
+
+/* Soft range refetch: keep FC mounted, dim slightly, status bar above grid */
+.ck-fc.ck-fc-fetching .fc {
+  opacity: 0.72;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.ck-fc-fetching-bar {
+  font-size: 0.85rem;
+  color: grey;
+  padding: 0.35rem 0.5rem;
+  margin-bottom: 0.25rem;
+}

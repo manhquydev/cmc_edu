@@ -28,7 +28,7 @@ interface SubmissionItem {
 }
 
 const ITEM_SUBMITTED: SubmissionItem = {
-  id: 'sub-1',
+  id: '33333333-3333-4333-8333-333333333333',
   exerciseId: 'ex-1',
   studentId: 'stu-11111111',
   studentFullName: 'Nguyễn Văn A',
@@ -105,6 +105,20 @@ describe('GradingPage', () => {
     expect(screen.getByText(/Học sinh: Nguyễn Văn A/)).toBeInTheDocument();
   });
 
+  it('hydrates selection from ?submissionId= URL param', () => {
+    renderWithProviders(<GradingPage />, {
+      route: `/teaching/grading?submissionId=${ITEM_SUBMITTED.id}`,
+    });
+    expect(screen.getByText(/Học sinh: Nguyễn Văn A/)).toBeInTheDocument();
+  });
+
+  it('treats non-UUID submissionId as unset', () => {
+    renderWithProviders(<GradingPage />, {
+      route: '/teaching/grading?submissionId=not-a-uuid',
+    });
+    expect(screen.getByText('Chọn một bài để chấm')).toBeInTheDocument();
+  });
+
   it('falls back to a truncated id when studentFullName is missing', () => {
     listItems = [{ ...ITEM_SUBMITTED, studentFullName: undefined }];
     renderWithProviders(<GradingPage />);
@@ -118,7 +132,7 @@ describe('GradingPage', () => {
     fireEvent.change(screen.getByLabelText(/^Điểm/), { target: { value: '85' } });
     fireEvent.click(screen.getByRole('button', { name: 'Chấm bài' }));
 
-    expect(gradeMutate).toHaveBeenCalledWith({ submissionId: 'sub-1', score: 85 });
+    expect(gradeMutate).toHaveBeenCalledWith({ submissionId: ITEM_SUBMITTED.id, score: 85 });
   });
 
   it('shows a real server rejection (score above exercise.maxScore) via the error banner, not silently', () => {
@@ -129,7 +143,7 @@ describe('GradingPage', () => {
     fireEvent.change(screen.getByLabelText(/^Điểm/), { target: { value: '150' } });
     fireEvent.click(screen.getByRole('button', { name: 'Chấm bài' }));
 
-    expect(gradeMutate).toHaveBeenCalledWith({ submissionId: 'sub-1', score: 150 });
+    expect(gradeMutate).toHaveBeenCalledWith({ submissionId: ITEM_SUBMITTED.id, score: 150 });
     expect(screen.getByText('score (150) exceeds exercise.maxScore (100).')).toBeInTheDocument();
   });
 

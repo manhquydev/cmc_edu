@@ -89,13 +89,24 @@ test.describe('P2-04 journey — cung cấp bài tập PDF (tạo → publish �
     await expect(row).toBeVisible();
     await expect(row.getByText('draft')).toBeVisible();
 
-    // Publish → the row flips to published and now offers "Đóng".
-    await row.getByRole('button', { name: 'Publish' }).click();
+    // Publish → the row's "Công bố" action opens a confirm dialog ("Công bố bài
+    // tập?"); confirming it flips the row to published, which then offers "Đóng".
+    await row.getByRole('button', { name: 'Công bố' }).click();
+    await page
+      .getByRole('alertdialog', { name: 'Công bố bài tập?' })
+      .getByRole('button', { name: 'Công bố' })
+      .click();
     await expect(row.getByText('published')).toBeVisible();
 
-    // Close → the row flips to closed. This draft → published → closed march is
-    // the living proof: each transition is read back off the row, not assumed.
+    // Close → the row's "Đóng" action opens a confirm dialog ("Đóng bài tập?");
+    // confirming it flips the row to closed. This draft → published → closed
+    // march is the living proof: each transition is read back off the row, not
+    // assumed.
     await row.getByRole('button', { name: 'Đóng' }).click();
+    await page
+      .getByRole('alertdialog', { name: 'Đóng bài tập?' })
+      .getByRole('button', { name: 'Đóng bài tập' })
+      .click();
     await expect(row.getByText('closed')).toBeVisible();
 
     await context.close();

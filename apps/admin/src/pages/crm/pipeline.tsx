@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Badge, Button, FunnelBar, HStack, LineIcon, PageHeader, Panel, Selector, Skeleton, Stack, Text, TextInput } from '@cmc/ui';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { links } from '@cmc/links';
+import { Badge, Button, FunnelBar, HStack, LineIcon, ListPage, PageHeader, Panel, Selector, Skeleton, Stack, Text, TextInput } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { formatContactPhone } from '../../lib/format-contact-phone.js';
 import { CreateLeadDialog } from './create-lead-dialog.js';
@@ -88,10 +89,10 @@ function OpportunityCard({
       style={{
         background: 'var(--cmc-surface)',
         borderBottom: '1px solid var(--cmc-border-subtle)',
-        padding: '10px 22px',
+        padding: '10px var(--cmc-keyline-x)',
         cursor: 'pointer',
       }}
-      onClick={() => void navigate(`/crm/opportunities/${opp.id}`)}
+      onClick={() => void navigate(links.opportunity(opp.id))}
     >
       <Stack gap={1.5}>
         <HStack justify="between" align="start">
@@ -186,6 +187,13 @@ function OpportunityCard({
 
 export default function CrmPipelinePage() {
   const utils = trpc.useUtils();
+  const [searchParams] = useSearchParams();
+  const stageFromUrl = searchParams.get('stage');
+  const stageFilter =
+    stageFromUrl && STAGES.some((s) => s.key === stageFromUrl)
+      ? (stageFromUrl as (typeof STAGES)[number]['key'])
+      : undefined;
+
   const [advancingId, setAdvancingId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [markLostId, setMarkLostId] = useState<string | null>(null);
@@ -207,7 +215,7 @@ export default function CrmPipelinePage() {
   // a now-out-of-range page.
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, lostFilter]);
+  }, [debouncedSearch, lostFilter, stageFilter]);
 
   // Single source of truth for the current query input — reused by the
   // optimistic-advance mutation's cancel/getData/setData calls below so they
@@ -215,6 +223,7 @@ export default function CrmPipelinePage() {
   // as `search`/`lost`/`page` change the key.
   const listInput = {
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    ...(stageFilter ? { stage: stageFilter } : {}),
     lost: lostFilter,
     page,
     pageSize: PAGE_SIZE,
@@ -280,143 +289,152 @@ export default function CrmPipelinePage() {
 
   const ready = !isLoading && !error;
 
+  // Stage columns always exist (O1→O5). Never set isEmpty — ListPage would
+  // hide the FunnelBar + kanban board behind a page-level empty state.
   return (
     <>
-      <PageHeader
-        title="Pipeline CRM"
-        subtitle="Theo dõi cơ hội từ Tiếp cận đến Ghi danh"
-        breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Pipeline CRM' }]}
-        actions={
-          <HStack gap={2} align="center">
-            <div style={{ width: 220 }}>
-              <TextInput
-                label="Tìm kiếm"
+      <ListPage
+        density="ops"
+        header={
+          <PageHeader
+            title="Pipeline CRM"
+            subtitle="Theo dõi cơ hội từ Tiếp cận đến Ghi danh"
+            breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Pipeline CRM' }]}
+            actions={
+              <HStack gap={2} align="center">
+                <div style={{ width: 220 }}>
+                  <TextInput
+                    label="Tìm kiếm"
+                    isLabelHidden
+                    placeholder="Tìm theo tên hoặc SĐT…"
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    hasClear
+                    size="sm"
+                    startIcon={<LineIcon name="search" size={14} />}
+                  />
+                </div>
+                <Button
+                  label="Thêm cơ hội"
+                  size="sm"
+                  variant="primary"
+                  endContent={<LineIcon name="plus" size={14} />}
+                  onClick={() => setCreateOpen(true)}
+                />
+              </HStack>
+            }
+          />
+        }
+        filters={
+          <HStack gap={2} align="center" style={{ padding: '0 var(--cmc-keyline-x)' }}>
+            <Text type="supporting" size="sm">
+              Hiển thị:
+            </Text>
+            <div style={{ width: 180 }}>
+              <Selector
+                label="Hiển thị cơ hội đã mất"
                 isLabelHidden
-                placeholder="Tìm theo tên hoặc SĐT…"
-                value={searchTerm}
-                onChange={setSearchTerm}
-                hasClear
+                value={lostFilter}
+                onChange={(v) => setLostFilter(v as LostVisibility)}
+                options={LOST_FILTER_OPTIONS}
                 size="sm"
-                startIcon={<LineIcon name="search" size={14} />}
               />
             </div>
-            <Button
-              label="Thêm cơ hội"
-              size="sm"
-              variant="primary"
-              endContent={<LineIcon name="plus" size={14} />}
-              onClick={() => setCreateOpen(true)}
-            />
           </HStack>
         }
-      />
-      <Stack gap={5} padding={4}>
-        <HStack gap={2} align="center">
-          <Text type="supporting" size="sm">
-            Hiển thị:
-          </Text>
-          <div style={{ width: 180 }}>
-            <Selector
-              label="Hiển thị cơ hội đã mất"
-              isLabelHidden
-              value={lostFilter}
-              onChange={(v) => setLostFilter(v as LostVisibility)}
-              options={LOST_FILTER_OPTIONS}
-              size="sm"
-            />
-          </div>
-        </HStack>
+      >
+        <Stack gap={5}>
+          <Panel title="Pipeline O1 → O5" icon="filter">
+            {isLoading ? (
+              <div style={{ padding: '0 var(--cmc-keyline-x) 20px' }}>
+                <Skeleton height={120} radius={0} data-testid="crm-pipeline-skeleton" />
+              </div>
+            ) : error ? (
+              <div className="ck-empty">
+                <span className="ck-empty-icon"><LineIcon name="alert" size={22} /></span>
+                {error.message || 'Lỗi tải pipeline CRM'}
+              </div>
+            ) : (
+              <>
+                <div className="ck-fn">
+                  {STAGES.map((stage) => (
+                    <FunnelBar
+                      key={stage.key}
+                      label={stage.label}
+                      value={stageCounts[stage.key] ?? 0}
+                      max={maxCount}
+                    />
+                  ))}
+                </div>
+                <div style={{ padding: '0 var(--cmc-keyline-x) 18px' }}>
+                  <Text type="supporting" size="xsm">
+                    {lostCount} cơ hội đã mất
+                  </Text>
+                </div>
+              </>
+            )}
+          </Panel>
 
-        <Panel title="Pipeline O1 → O5" icon="filter">
-          {isLoading ? (
-            <div style={{ padding: '0 22px 20px' }}>
-              <Skeleton height={120} radius={0} data-testid="crm-pipeline-skeleton" />
+          {ready && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                gap: 16,
+              }}
+            >
+              {STAGES.map((stage) => {
+                const stageItems = byStage.get(stage.key) ?? [];
+                return (
+                  <Panel key={stage.key} title={`${stage.label} · ${stageCounts[stage.key] ?? 0}`}>
+                    {stageItems.length === 0 ? (
+                      <div className="ck-empty">Chưa có</div>
+                    ) : (
+                      <div>
+                        {stageItems.map((opp) => (
+                          <OpportunityCard
+                            key={opp.id}
+                            opp={opp}
+                            nextStage={stage.next as AdvanceableStage | null}
+                            onAdvance={handleAdvance}
+                            advancing={advancingId === opp.id}
+                            onMarkLost={setMarkLostId}
+                            onScheduleTest={setScheduleTestId}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </Panel>
+                );
+              })}
             </div>
-          ) : error ? (
-            <div className="ck-empty">
-              <span className="ck-empty-icon"><LineIcon name="alert" size={22} /></span>
-              {error.message || 'Lỗi tải pipeline CRM'}
-            </div>
-          ) : (
-            <>
-              <div className="ck-fn">
-                {STAGES.map((stage) => (
-                  <FunnelBar
-                    key={stage.key}
-                    label={stage.label}
-                    value={stageCounts[stage.key] ?? 0}
-                    max={maxCount}
-                  />
-                ))}
-              </div>
-              <div style={{ padding: '0 22px 18px' }}>
-                <Text type="supporting" size="xsm">
-                  {lostCount} cơ hội đã mất
-                </Text>
-              </div>
-            </>
           )}
-        </Panel>
 
-        {ready && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-              gap: 16,
-            }}
-          >
-            {STAGES.map((stage) => {
-              const stageItems = byStage.get(stage.key) ?? [];
-              return (
-                <Panel key={stage.key} title={`${stage.label} · ${stageCounts[stage.key] ?? 0}`}>
-                  {stageItems.length === 0 ? (
-                    <div className="ck-empty">Chưa có</div>
-                  ) : (
-                    <div>
-                      {stageItems.map((opp) => (
-                        <OpportunityCard
-                          key={opp.id}
-                          opp={opp}
-                          nextStage={stage.next as AdvanceableStage | null}
-                          onAdvance={handleAdvance}
-                          advancing={advancingId === opp.id}
-                          onMarkLost={setMarkLostId}
-                          onScheduleTest={setScheduleTestId}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </Panel>
-              );
-            })}
-          </div>
-        )}
-
-        {ready && (
-          <HStack justify="between" align="center">
-            <Text type="supporting" size="xsm">
-              Trang {page}/{totalPages} — {total} cơ hội
-            </Text>
-            <HStack gap={1}>
-              <Button
-                label="Trang trước"
-                size="sm"
-                variant="secondary"
-                isDisabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              />
-              <Button
-                label="Trang sau"
-                size="sm"
-                variant="secondary"
-                isDisabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              />
+          {ready && (
+            <HStack justify="between" align="center">
+              <Text type="supporting" size="xsm">
+                Trang {page}/{totalPages} — {total} cơ hội
+              </Text>
+              <HStack gap={1}>
+                <Button
+                  label="Trang trước"
+                  size="sm"
+                  variant="secondary"
+                  isDisabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                />
+                <Button
+                  label="Trang sau"
+                  size="sm"
+                  variant="secondary"
+                  isDisabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                />
+              </HStack>
             </HStack>
-          </HStack>
-        )}
-      </Stack>
+          )}
+        </Stack>
+      </ListPage>
 
       <CreateLeadDialog opened={createOpen} onClose={() => setCreateOpen(false)} />
       <MarkLostDialog opportunityId={markLostId} onClose={() => setMarkLostId(null)} />

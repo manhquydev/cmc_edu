@@ -1,7 +1,10 @@
 /*
  * @cmc/ui design tokens — CSS custom properties (TL12 design system).
- * Apple-minimal + ERP density. One interactive blue (#0071E3), flat surfaces,
- * xs radius (4px). Consumers import this once at the app root.
+ * Soft ops ERP: warm canvas, nested radius 12/16/20, whisper elevation.
+ * One interactive blue (#0071E3). Inter. Consumers import once at app root.
+ *
+ * Cohesion pass 2026-08-02 (research ERP + token rhythm + composite rules):
+ * warm cool-gray leftovers, on-grid pad, elevation roles, focus/status soft.
  */
 :root {
   /* Brand */
@@ -10,87 +13,140 @@
   --cmc-brand-muted: #e8f1fc;
   --cmc-brand-ink: #003d99;
 
-  /* Text */
+  /* Text — warm-tinted neutrals (no cool silver on cream canvas) */
   --cmc-text: #1d1d1f;
   --cmc-text-2: #3c3c43;
   --cmc-text-muted: #6e6e73;
-  --cmc-text-faint: #aeaeb2;
+  --cmc-text-faint: #a39e96;
 
   /* Surface */
   --cmc-surface: #ffffff;
-  --cmc-surface-2: #f5f5f7;
-  --cmc-border: #d2d2d7;
+  --cmc-surface-2: #f0ede7; /* warm chrome (filter / master list) — not cool #f5f5f7 */
+  --cmc-border: #e0ddd5;
 
-  /* Status semantics (TL12 §3) */
+  /* Status semantics (TL12 §3) — solid for dots; soft pairs for badges */
   --cmc-success: #2e7d32;
   --cmc-warning: #b26a00;
   --cmc-danger: #c62828;
+  --cmc-success-soft: #e6f2e9;
+  --cmc-success-ink: #1b5e2a;
+  --cmc-warning-soft: #faf0df;
+  --cmc-warning-ink: #8a5200;
+  --cmc-danger-soft: #fce8e8;
+  --cmc-danger-ink: #9b1c1c;
+  --cmc-info-soft: #e8f1fc;
+  --cmc-info-ink: #003d99;
+  --cmc-neutral-soft: #f0ede7;
+  --cmc-neutral-ink: #5c5c62;
 
-  /* Radius / spacing */
-  --cmc-radius-xs: 4px;
+  /* Radius / spacing — soft ops (controls 12, cards 16, large 20)
+     Nested harmony: control ≤ card ≤ dialog. */
+  --cmc-radius-xs: 12px;
+  --cmc-radius-control: 12px; /* TextInput / Button / Selector / nav item */
+  --cmc-radius-card: 16px;    /* alias md — Metric / Panel / PageHeader */
+  --cmc-radius-dialog: 20px;  /* alias lg — toast / confirm / large shell */
   --cmc-space-1: 4px;
   --cmc-space-2: 8px;
   --cmc-space-3: 16px;
   --cmc-space-4: 24px;
 
-  /* Typography — Inter (self-hosted via @fontsource) leads; system fallback.
-     Inter is Notion's face; on Windows it replaces the dated Segoe UI default
-     and is the single biggest "looks professional" lever (ref: notion decon). */
+  /* Typography — Inter (self-hosted via @fontsource) leads; system fallback. */
   --cmc-font-sans: "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --cmc-font-size-data: 13px;
   --cmc-font-size-column: 11px;
 
   /* -------------------------------------------------------------------------
-   * Premium design-language layer (2026-07-10, v2 — grounded in the Apple +
-   * Notion deconstructions at D:/Downloads/design). Additive only.
-   *
-   * Core lesson from the references: premium = RESTRAINT + WHITESPACE +
-   * TYPOGRAPHY + SURFACE CONTRAST, not decoration. Apple: "don't add borders
-   * or shadows to cards — use surface contrast". Notion: "don't add borders
-   * where spacing alone separates; don't use heavy shadows — Notion is flat".
-   * So: warm near-flat surfaces, hairline only where needed, shadows reserved
-   * for truly-floating layers, one interactive color, near-black numerals.
+   * Premium design-language layer.
+   * Soft ops: warm canvas + hairline + whisper shadow on raised cards.
+   * Still one accent, near-black numerals, no decorative gradients.
    * ---------------------------------------------------------------------- */
 
-  /* Warm canvas (Notion #F7F6F3) — paper-like, friendly; cards sit white on it
-     so separation comes from SURFACE CONTRAST, not borders/shadows. */
-  --cmc-canvas: #f7f6f3;
+  /* Warm paper canvas */
+  --cmc-canvas: #f5f3ee;
   --cmc-surface-raised: #ffffff;
-  --cmc-surface-sunken: #f1f0ec;
-  --cmc-hover: #ebeced;          /* Notion warm-gray hover */
-  --cmc-border-subtle: #ebeced;  /* hairline, used sparingly */
+  --cmc-surface-sunken: #ebe8e2;
+  --cmc-hover: #e8e6e1;
+  --cmc-border-subtle: #efece6;
 
-  /* Elevation — Notion's exact scale, reserved for floating layers only
-     (dropdowns/popovers/modals). Flat cards use surface contrast instead. */
-  --cmc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --cmc-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --cmc-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  /* Elevation roles (warm-tint)
+     xs = sticky chrome · sm = raised rest · md = hover/float · lg = modal */
+  --cmc-shadow-xs: 0 1px 2px rgba(28, 25, 20, 0.035);
+  --cmc-shadow-sm: 0 1px 2px rgba(28, 25, 20, 0.045), 0 1px 3px rgba(28, 25, 20, 0.035);
+  --cmc-shadow-md: 0 4px 12px rgba(28, 25, 20, 0.08), 0 1px 2px rgba(28, 25, 20, 0.04);
+  --cmc-shadow-lg: 0 12px 32px rgba(28, 25, 20, 0.14), 0 2px 6px rgba(28, 25, 20, 0.06);
 
-  /* Radius — softened toward Apple's premium feel (their cards use 18px; we
-     land at 12 for ERP density). Inputs keep the flat 4px xs. */
-  --cmc-radius-md: 12px;
-  --cmc-radius-lg: 16px;
-  --cmc-radius-pill: 9999px;      /* Apple: all primary CTAs are pills */
+  /* Radius scale */
+  --cmc-radius-md: 16px;
+  --cmc-radius-lg: 20px;
+  --cmc-radius-pill: 9999px;
 
-  /* Apple sticky-nav treatment — translucent + blur instead of a shadow */
+  /* Sticky-nav glass */
   --cmc-blur-nav: saturate(180%) blur(20px);
 
-  /* Motion — one restrained easing */
+  /* Motion */
   --cmc-ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --cmc-transition: 140ms var(--cmc-ease);
+  --cmc-duration-fast: 120ms;
+  --cmc-duration: 160ms;
+  --cmc-duration-slow: 280ms;
+  --cmc-duration-enter: 480ms;
+  --cmc-transition: 160ms var(--cmc-ease);
 
-  /* Type scale (Inter; max two weights per surface — Apple rule) */
-  --cmc-fs-label: 11px;   /* uppercase eyebrow */
+  /* Focus (a11y) — soft brand halo */
+  --cmc-focus-halo: 0 0 0 3px var(--cmc-brand-muted);
+  --cmc-focus-ring: 2px solid var(--cmc-brand);
+
+  /* Type scale — roles not orphans */
+  --cmc-fs-label: 11px;
+  --cmc-fs-meta: 12px;
   --cmc-fs-body: 14px;
+  --cmc-fs-title: 16px;
   --cmc-fs-h3: 18px;
-  --cmc-fs-metric: 34px;  /* headline numeral, near-black not colored */
-  --cmc-lh-body: 1.6;     /* Notion generous line height */
+  --cmc-fs-page: 24px;
+  --cmc-fs-metric: 32px;
+  --cmc-lh-body: 1.55;
+  --cmc-lh-tight: 1.25;
 
-  /* Whitespace rhythm (Apple: whitespace is the premium signal) */
+  /* Whitespace rhythm — on-grid soft ops (not consumer-sparse) */
   --cmc-pad-card: 24px;
-  --cmc-gap-section: 28px;
+  --cmc-pad-card-x: 20px;
+  --cmc-gap-cluster: 16px;
+  --cmc-gap-section: 24px;
 
-  /* One interactive color only (Apple). Status shown by a small dot, never by
-     recoloring the whole number. Single restrained accent for data-viz bars. */
+  /* Soft brand wash for chips / tags */
   --cmc-accent-soft: #d6e9fb;
+
+  /* -------------------------------------------------------------------------
+   * Structure system — shared anatomy so every composite stays in one family.
+   * Use these for height/slot sync (rows, chips, CTAs). Do not invent one-offs.
+   * Mobile: prefer compact tier; desktop: default. Touch targets ≥44px separate.
+   * ---------------------------------------------------------------------- */
+
+  /* Density tiers (row / control heights) */
+  --cmc-row-h: 48px;
+  --cmc-row-h-compact: 40px;
+  --cmc-head-h: 48px; /* panel / card header strip */
+  --cmc-chip-h: 22px;
+  --cmc-chip-h-sm: 18px;
+  --cmc-cta-h: 34px;
+  --cmc-cta-h-sm: 28px;
+  --cmc-dot-size: 7px;
+  --cmc-rail-w: 3px; /* status accent rail on session tiles */
+
+  /* Single-line type slots (prevent jagged multi-line reflow) */
+  --cmc-line-label: 14px;
+  --cmc-line-title: 20px;
+  --cmc-line-meta: 16px;
+  --cmc-line-body: 20px;
+
+  /* Shared raised surface recipe (Metric · Panel · Table · Week shell) */
+  --cmc-raised-bg: var(--cmc-surface-raised);
+  --cmc-raised-border: 1px solid var(--cmc-border-subtle);
+  --cmc-raised-shadow: var(--cmc-shadow-sm);
+  --cmc-raised-radius: var(--cmc-radius-md);
+
+  /* Keyline inset — horizontal padding shared by header/row/footer */
+  --cmc-keyline-x: var(--cmc-pad-card-x);
+
+  /* Breakpoints (documented for CSS media; not used as CSS vars in older Safari) */
+  /* mobile ≤767 · tablet 768–1099 · desktop ≥1100 */
 }

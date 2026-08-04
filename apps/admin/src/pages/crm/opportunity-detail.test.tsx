@@ -400,25 +400,26 @@ describe('OpportunityDetailPage', () => {
   describe('owner + source (phase-10, crm.opportunityAssign)', () => {
     it('shows the owner fullName and "Chưa giao" when unassigned', () => {
       renderDetail(OPP_O2.id);
-      expect(screen.getByText('Chưa giao')).toBeInTheDocument();
+      // HighlightStrip + KeyValueList both surface owner.
+      expect(screen.getAllByText('Chưa giao').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows the resolved owner fullName when assignedTo is set', () => {
       listState.items = [{ ...OPP_O2, assignedTo: { userId: 'u1', fullName: 'Nguyễn Văn Sale' } }];
       renderDetail(OPP_O2.id);
-      expect(screen.getByText('Nguyễn Văn Sale')).toBeInTheDocument();
+      expect(screen.getAllByText('Nguyễn Văn Sale').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows the mapped Vietnamese source label', () => {
       listState.items = [{ ...OPP_O2, source: 'fanpage' }];
       renderDetail(OPP_O2.id);
-      expect(screen.getByText('Fanpage')).toBeInTheDocument();
+      expect(screen.getAllByText('Fanpage').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows "—" when source is null', () => {
       listState.items = [{ ...OPP_O2, source: null }];
       renderDetail(OPP_O2.id);
-      expect(screen.getByText('—')).toBeInTheDocument();
+      expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1);
     });
 
     it('a manager (giam_doc_kinh_doanh) sees a "Giao cho" owner select populated from assignableStaff', () => {

@@ -9,13 +9,15 @@ import {
   Banner,
   Button,
   Card,
-  CmcTabs,
+  DetailPage,
   EmptyState,
   HStack,
   LineIcon,
   NumberInput,
   PageHeader,
   Selector,
+  SettingsSection,
+  SettingsShell,
   Stack,
   Text,
   TextInput,
@@ -123,8 +125,8 @@ function NewTemplateForm({ groupId }: { groupId: string }) {
 
   return (
     <Stack gap={1} paddingBlock={1}>
-      <HStack gap={1} align="end">
-        <div style={{ flex: 1 }}>
+      <HStack gap={1} align="end" style={{ flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <TextInput label="Tên mẫu ca" value={name} onChange={setName} size="sm" />
         </div>
         <div style={{ flex: '0 0 100px' }}>
@@ -220,7 +222,7 @@ function PolicyTab() {
   const canSubmit = lateRate !== undefined && lateRate >= 0 && earlyRate !== undefined && earlyRate >= 0;
 
   return (
-    <Stack gap={3} padding={4} style={{ maxWidth: 480 }}>
+    <Stack gap={3} padding={4} style={{ maxWidth: 560 }}>
       {isLoading && (
         <Text type="supporting" size="sm">Đang tải…</Text>
       )}
@@ -233,9 +235,11 @@ function PolicyTab() {
         />
       )}
 
-      <Card padding={3}>
+      <SettingsSection
+        title="Chính sách phạt muộn/sớm"
+        description="Áp dụng theo cơ sở hiện tại khi tính phạt trên bảng lương."
+      >
         <Stack gap={2}>
-          <Text type="body" size="sm" weight="semibold">Chính sách phạt muộn/sớm</Text>
           <NumberInput
             label="Phạt mỗi phút đi muộn (VND)"
             min={0}
@@ -264,7 +268,7 @@ function PolicyTab() {
             }
           />
         </Stack>
-      </Card>
+      </SettingsSection>
     </Stack>
   );
 }
@@ -285,33 +289,51 @@ export default function ShiftConfigPage() {
 
   if (!canManageShift && !canManagePolicy) {
     return (
-      <>
-        <PageHeader
-          title="Cấu hình ca làm việc"
-          breadcrumbs={[{ label: 'Quản trị' }, { label: 'Ca làm việc' }]}
-        />
+      <DetailPage
+        header={
+          <PageHeader
+            title="Cấu hình ca làm việc"
+            breadcrumbs={[{ label: 'Quản trị' }, { label: 'Ca làm việc' }]}
+          />
+        }
+      >
         <EmptyState
           title="Không có quyền truy cập"
           description="Trang này yêu cầu quyền quản lý ca làm việc (shift.manage) hoặc chính sách phạt (compensationPolicy.manage)."
           icon={<LineIcon name="shield" size={28} />}
         />
-      </>
+      </DetailPage>
     );
   }
 
-  const tabs = [
-    ...(canManageShift ? [{ id: 'groups', label: 'Nhóm ca & mẫu ca', content: <GroupsTab /> }] : []),
-    ...(canManagePolicy ? [{ id: 'policy', label: 'Chính sách phạt', content: <PolicyTab /> }] : []),
+  const railItems = [
+    ...(canManageShift
+      ? [{ id: 'groups', label: 'Nhóm ca & mẫu ca', description: 'Shift groups + templates' }]
+      : []),
+    ...(canManagePolicy
+      ? [{ id: 'policy', label: 'Chính sách phạt', description: 'Muộn / về sớm theo cơ sở' }]
+      : []),
   ];
 
   return (
-    <>
-      <PageHeader
-        title="Cấu hình ca làm việc"
-        subtitle="Nhóm ca, mẫu ca và chính sách phạt muộn/sớm"
-        breadcrumbs={[{ label: 'Quản trị' }, { label: 'Ca làm việc' }]}
-      />
-      <CmcTabs activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />
-    </>
+    <DetailPage
+      header={
+        <PageHeader
+          title="Cấu hình ca làm việc"
+          subtitle="Nhóm ca, mẫu ca và chính sách phạt muộn/sớm — SettingsShell"
+          breadcrumbs={[{ label: 'Quản trị' }, { label: 'Ca làm việc' }]}
+        />
+      }
+    >
+      <SettingsShell
+        title="Cấu hình"
+        items={railItems}
+        activeId={activeTab}
+        onSelect={setActiveTab}
+      >
+        {activeTab === 'groups' && canManageShift ? <GroupsTab /> : null}
+        {activeTab === 'policy' && canManagePolicy ? <PolicyTab /> : null}
+      </SettingsShell>
+    </DetailPage>
   );
 }

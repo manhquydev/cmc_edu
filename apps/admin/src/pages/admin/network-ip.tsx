@@ -5,13 +5,15 @@ import {
   Button,
   ConfirmDialog,
   DataTable,
+  DetailPage,
   Dialog,
   DialogHeader,
   EmptyState,
   HStack,
   LineIcon,
-  ListPage,
   PageHeader,
+  SettingsSection,
+  SettingsShell,
   Stack,
   Text,
   TextInput,
@@ -77,6 +79,7 @@ function NetworkIpContent() {
   const { data, isLoading, error } = trpc.facilityNetwork.list.useQuery();
   const geoQuery = trpc.facilityGeofence.list.useQuery();
   const detectQuery = trpc.facilityNetwork.detectMyIp.useQuery(undefined, { enabled: false });
+  const [settingsNav, setSettingsNav] = useState<'list' | 'geo' | 'guide'>('list');
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateForm>(EMPTY_CREATE_FORM);
@@ -320,101 +323,143 @@ function NetworkIpContent() {
 
   return (
     <>
-      <ListPage
+      <DetailPage
+        density="ops"
         header={
           <PageHeader
             title="Chấm công & vị trí"
             subtitle="Dải IP và vùng GPS được phép chấm công tại cơ sở"
             breadcrumbs={[{ label: 'Quản trị' }, { label: 'Chấm công & vị trí' }]}
             actions={
-              <HStack gap={1}>
+              settingsNav === 'list' ? (
+                <Button label="Thêm dải mạng" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />
+              ) : settingsNav === 'geo' ? (
                 <Button
                   label="Thêm vùng GPS"
                   size="sm"
-                  variant="secondary"
+                  variant="primary"
                   onClick={() => setGeoCreateOpen(true)}
                 />
-                <Button label="Thêm dải mạng" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />
-              </HStack>
+              ) : undefined
             }
           />
         }
       >
-        <Stack gap={2} padding={4}>
-          <Banner
-            status="info"
-            title="Ảnh hưởng khi bật dải mạng / vùng GPS"
-            description="Bật dải mạng hoặc vùng GPS sẽ kết thúc chế độ mở: chấm công ngoài mạng/vùng cần nhập lý do + tạo yêu cầu duyệt. Thêm mới mặc định tắt — kiểm tra trước khi bật."
-          />
-          <Banner
-            status="info"
-            title="Hướng dẫn nhập tay"
-            description="CIDR là dải IP, vd 192.168.1.0/24 (cả dải văn phòng) hoặc một IP đơn 10.0.0.5/32. Nếu nút tự dò không chính xác (do proxy/CDN/IP di động), hãy tự tra IP công cộng của thiết bị (vd truy cập whatismyip) và nhập tay."
-          />
-          {updateMut.error && !editRow && <Banner status="error" title={updateMut.error.message} />}
-          {deleteMut.error && <Banner status="error" title={deleteMut.error.message} />}
-
-          <Text type="body" size="sm" weight="semibold">
-            Mạng IP
-          </Text>
-          <DataTable<NetworkRow>
-            columns={COLUMNS}
-            data={rows}
-            loading={isLoading}
-            error={error?.message}
-            empty="Chưa có dải mạng nào"
-          />
-
-          <Text type="body" size="sm" weight="semibold" style={{ marginTop: 16 }}>
-            Vùng vị trí (GPS)
-          </Text>
-          {geoCreatedBanner && (
-            <Banner
-              status="warning"
-              title="Vùng đang TẮT"
-              description="Bấm Kiểm tra vị trí rồi bật vùng khi đã đứng đúng tại cơ sở."
-            />
-          )}
-          <HStack gap={1}>
-            <Button
-              label={testLoading ? 'Đang kiểm tra…' : 'Kiểm tra vị trí hiện tại'}
-              size="sm"
-              variant="secondary"
-              onClick={() => void handleTestPosition()}
-              isDisabled={testLoading}
-            />
-          </HStack>
-          {testResults && testResults.length === 0 && (
-            <Banner status="warning" title="Không lấy được vị trí hoặc chưa có vùng." />
-          )}
-          {testResults && testResults.length > 0 && (
-            <Stack gap={1}>
-              {testResults.map((r) => {
-                let msg: string;
-                if (r.within) {
-                  msg = `TRONG vùng — cách tâm ${Math.round(r.distanceM)}m`;
-                } else if (!r.accuracyOk) {
-                  msg = `Trong bán kính nhưng sai số vượt ngưỡng ${r.accuracyMaxM}m — cách tâm ${Math.round(r.distanceM)}m`;
-                } else {
-                  msg = `NGOÀI vùng — cách tâm ${Math.round(r.distanceM)}m`;
-                }
-                return (
-                  <Text key={r.id} type="supporting" size="2xs">
-                    {r.label || r.id.slice(0, 8)}: {msg}
-                  </Text>
-                );
-              })}
+        <SettingsShell
+          title="Chấm công & vị trí"
+          activeId={settingsNav}
+          onSelect={(id) => setSettingsNav(id as 'list' | 'geo' | 'guide')}
+          items={[
+            { id: 'list', label: 'Dải mạng', description: 'CRUD CIDR / bật tắt' },
+            { id: 'geo', label: 'Vùng GPS', description: 'Geofence · kiểm tra vị trí' },
+            { id: 'guide', label: 'Hướng dẫn', description: 'CIDR · GPS · ngoài mạng' },
+          ]}
+        >
+          {settingsNav === 'list' ? (
+            <Stack gap={2} padding={4}>
+              <Banner
+                status="info"
+                title="Ảnh hưởng khi bật dải mạng / vùng GPS"
+                description="Bật dải mạng hoặc vùng GPS sẽ kết thúc chế độ mở: chấm công ngoài mạng/vùng cần nhập lý do + tạo yêu cầu duyệt. Thêm mới mặc định tắt — kiểm tra trước khi bật."
+              />
+              {updateMut.error && !editRow && <Banner status="error" title={updateMut.error.message} />}
+              {deleteMut.error && <Banner status="error" title={deleteMut.error.message} />}
+              <DataTable<NetworkRow>
+                columns={COLUMNS}
+                data={rows}
+                loading={isLoading}
+                error={error?.message}
+                empty="Chưa có dải mạng nào"
+              />
+            </Stack>
+          ) : settingsNav === 'geo' ? (
+            <Stack gap={2} padding={4}>
+              <Banner
+                status="info"
+                title="Vùng vị trí GPS"
+                description="Nhân viên trong bán kính + sai số GPS hợp lệ được chấm như trong mạng. Vùng mới mặc định TẮT."
+              />
+              {geoCreatedBanner && (
+                <Banner
+                  status="warning"
+                  title="Vùng đang TẮT"
+                  description="Bấm Kiểm tra vị trí rồi bật vùng khi đã đứng đúng tại cơ sở."
+                />
+              )}
+              <HStack gap={1}>
+                <Button
+                  label={testLoading ? 'Đang kiểm tra…' : 'Kiểm tra vị trí hiện tại'}
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void handleTestPosition()}
+                  isDisabled={testLoading}
+                />
+              </HStack>
+              {testResults && testResults.length === 0 && (
+                <Banner status="warning" title="Không lấy được vị trí hoặc chưa có vùng." />
+              )}
+              {testResults && testResults.length > 0 && (
+                <Stack gap={1}>
+                  {testResults.map((r) => {
+                    let msg: string;
+                    if (r.within) {
+                      msg = `TRONG vùng — cách tâm ${Math.round(r.distanceM)}m`;
+                    } else if (!r.accuracyOk) {
+                      msg = `Trong bán kính nhưng sai số vượt ngưỡng ${r.accuracyMaxM}m — cách tâm ${Math.round(r.distanceM)}m`;
+                    } else {
+                      msg = `NGOÀI vùng — cách tâm ${Math.round(r.distanceM)}m`;
+                    }
+                    return (
+                      <Text key={r.id} type="supporting" size="2xs">
+                        {r.label || r.id.slice(0, 8)}: {msg}
+                      </Text>
+                    );
+                  })}
+                </Stack>
+              )}
+              <DataTable<GeofenceRow>
+                columns={GEO_COLUMNS}
+                data={geoRows}
+                loading={geoQuery.isLoading}
+                error={geoQuery.error?.message}
+                empty="Chưa có vùng GPS nào"
+              />
+            </Stack>
+          ) : (
+            <Stack gap={3} padding={4} style={{ maxWidth: 640 }}>
+              <SettingsSection
+                title="Hướng dẫn nhập CIDR"
+                description="Dùng khi nút tự dò không chính xác (proxy / CDN / IP di động)."
+              >
+                <Text type="body" size="sm">
+                  CIDR là dải IP, ví dụ <code>192.168.1.0/24</code> (cả dải văn phòng) hoặc một IP
+                  đơn <code>10.0.0.5/32</code>. Có thể tự tra IP công cộng (vd. whatismyip) rồi nhập
+                  tay trong form Thêm dải mạng. Dải rộng hơn /29 có cảnh báo CGNAT.
+                </Text>
+              </SettingsSection>
+              <SettingsSection title="Vùng GPS" description="Đường dự phòng khi WiFi/IP cơ sở hỏng.">
+                <Text type="body" size="sm">
+                  Tại cơ sở: dùng «Vị trí hiện tại». Từ xa: dán lat/lng từ Google Maps. Bật vùng đầu
+                  tiên khi chưa có mạng active sẽ tắt chế độ mở — xác nhận rõ trước khi bật.
+                </Text>
+              </SettingsSection>
+              <SettingsSection title="Hệ quả khi bật" description="Liên quan chấm công ngoài mạng/vùng.">
+                <Text type="body" size="sm">
+                  Khi có dải hoặc vùng đang bật, chấm công ngoài mạng/vùng yêu cầu lý do và tạo yêu
+                  cầu duyệt. Luôn kiểm tra kỹ trước khi bật.
+                </Text>
+              </SettingsSection>
+              <Button
+                label="Quay lại danh sách"
+                size="sm"
+                variant="secondary"
+                style={{ alignSelf: 'flex-start' }}
+                onClick={() => setSettingsNav('list')}
+              />
             </Stack>
           )}
-          <DataTable<GeofenceRow>
-            columns={GEO_COLUMNS}
-            data={geoRows}
-            loading={geoQuery.isLoading}
-            error={geoQuery.error?.message}
-            empty="Chưa có vùng GPS nào"
-          />
-        </Stack>
-      </ListPage>
+        </SettingsShell>
+      </DetailPage>
 
       {/* Network create */}
       <Dialog

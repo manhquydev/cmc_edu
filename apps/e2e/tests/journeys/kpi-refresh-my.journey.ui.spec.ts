@@ -10,9 +10,12 @@
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 
+import { ictMonthOf } from '@cmc/domain-time';
 import { mintStaffCookie } from '../../src/session-injection.js';
 import { seedAppUser } from '../../src/db.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
+import { createE2eStaffClient } from '../../src/trpc-client.js';
+import { assertBusinessInvariant } from '../../src/journey/assert-business.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -58,6 +61,24 @@ test.describe('P3-09 journey — nhân viên tự tính lại điểm KPI kỳ h
     // the empty-state banner is gone. This is the living proof the recompute ran.
     await expect(page.getByText(/Công ca/)).toBeVisible();
     await expect(page.getByText('Chưa có phiếu KPI')).toHaveCount(0);
+
+    // ── business invariant ──
+    // The score card replacing the empty state proves the UI re-fetched
+    // something; it does not prove a current-period KpiScore row now durably
+    // exists as a draft. kpi.myScore is self-scoped (resolves the AppUser from
+    // ctx.subject.userId), so this client MUST reuse staffUserId — the exact id
+    // seedAppUser created as an AppUser row and that minted the acting cookie.
+    // The numeric `value` is auto-scored from near-empty seed activity (not a
+    // stable constant), so the invariant asserts the STATE: the row now EXISTS
+    // and is 'draft' — the real "recompute created the slip" proof.
+    const period = ictMonthOf(new Date());
+    const selfReadClient = createE2eStaffClient(process.env.E2E_BASE_URL!, {
+      userId: staffUserId,
+      roles: ['sale'],
+      facilityId,
+    });
+    const score = await selfReadClient.kpi.myScore.query({ period });
+    assertBusinessInvariant('phiếu KPI kỳ hiện tại được tạo (draft)', score?.status ?? null, 'draft');
 
     await context.close();
   });

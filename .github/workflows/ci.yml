@@ -107,6 +107,11 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # Soft Ops frame adoption: bulk-enabled lists ≥5 (Option B cohesion gate).
+      # Strict exit 1 when bulkListsOk fails. Script lives at scripts/check-ui-frames.mjs.
+      - name: UI frame adoption (Soft Ops bulk gate)
+        run: pnpm check:ui-frames && pnpm test:ui-frames
+
       - name: Test
         run: pnpm test
 

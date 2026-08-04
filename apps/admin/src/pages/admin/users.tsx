@@ -8,7 +8,9 @@ import {
   EmptyState,
   HStack,
   LineIcon,
+  BulkActionBar,
   ListPage,
+  ListPagination,
   MultiSelector,
   PageHeader,
   PasswordInput,
@@ -16,23 +18,16 @@ import {
   Stack,
   Text,
   TextInput,
+  useToast,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
-import { ACTIVE_ROLES } from '@cmc/auth';
+import { ACTIVE_ROLES, formatRole } from '@cmc/auth';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
-const ROLE_LABELS: Record<string, string> = {
-  super_admin: 'Super Admin',
-  giam_doc_kinh_doanh: 'GĐ Kinh doanh',
-  giam_doc_dao_tao: 'GĐ Đào tạo',
-  sale: 'Sale',
-  giao_vien: 'Giáo viên',
-};
-
 const ROLE_OPTIONS = ACTIVE_ROLES.map((r) => ({
   value: r,
-  label: ROLE_LABELS[r] ?? r,
+  label: formatRole(r),
 }));
 
 interface UserRow {
@@ -68,7 +63,7 @@ const COLUMNS: TableColumn<UserRow>[] = [
       return (
         <HStack gap={0.5}>
           {roles.map((r) => (
-            <Badge key={r} label={r} variant="info" />
+            <Badge key={r} label={formatRole(r)} variant="info" />
           ))}
         </HStack>
       );
@@ -125,6 +120,10 @@ function UsersContent() {
   const [resetModalUser, setResetModalUser] = useState<UserRow | null>(null);
   const [tempPassword, setTempPassword] = useState('');
   const [resetDone, setResetDone] = useState(false);
+  const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const pageSize = 20;
+  const { success: toastSuccess } = useToast();
 
   const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.user.list.useQuery();
@@ -238,7 +237,8 @@ function UsersContent() {
     setForm(EMPTY_FORM);
   }
 
-  const rows = (data?.items as UserRow[] | undefined) ?? [];
+  const allRows = (data?.items as UserRow[] | undefined) ?? [];
+  const rows = allRows.slice((page - 1) * pageSize, page * pageSize);
 
   // Actions column lives here (not in module-level COLUMNS) because it closes
   // over openResetModal. The stopPropagation wrapper keeps the row's
@@ -265,6 +265,7 @@ function UsersContent() {
   return (
     <>
       <ListPage
+        density="ops"
         header={
           <PageHeader
             title="Nhân viên"
@@ -275,6 +276,38 @@ function UsersContent() {
             }
           />
         }
+        controlFooter={
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            <BulkActionBar
+              selectionCount={selectedIds.length}
+              onClear={() => setSelectedIds([])}
+            >
+              <Button
+                label="Sao chép email"
+                size="sm"
+                variant="secondary"
+                isDisabled={selectedIds.length === 0}
+                onClick={() => {
+                  const emails = allRows
+                    .filter((r) => selectedIds.includes(r.id))
+                    .map((r) => r.email)
+                    .filter(Boolean);
+                  void navigator.clipboard?.writeText(emails.join(', '));
+                  toastSuccess(`Đã sao chép ${emails.length} email`);
+                }}
+              />
+            </BulkActionBar>
+            <ListPagination
+              page={page}
+              pageSize={pageSize}
+              total={allRows.length}
+              onPageChange={(p) => {
+                setPage(p);
+                setSelectedIds([]);
+              }}
+            />
+          </div>
+        }
       >
         <DataTable<UserRow>
           columns={columns}
@@ -283,6 +316,8 @@ function UsersContent() {
           error={error?.message}
           empty="Chưa có nhân viên nào"
           onRowClick={(row) => openRolesModal(row)}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
         />
       </ListPage>
 
@@ -364,7 +399,7 @@ function UsersContent() {
               {createMut.error.message}
             </span>
           )}
-          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+          <HStack justify="end" gap={1} style={{ marginTop: 8, flexWrap: 'wrap' }}>
             <Button
               label="Hủy"
               variant="secondary"

@@ -30,60 +30,92 @@
 
   /* Surface */
   --color-background-surface: var(--cmc-surface);
-  --color-background-body: var(--cmc-surface-2);
+  --color-background-body: var(--cmc-canvas);
   --color-background-card: var(--cmc-surface);
+  --color-background-muted: var(--cmc-surface-sunken);
+
+  /* Borders — soft warm (Astryx default #d4d4d4 reads as hard spreadsheet) */
+  --color-border: var(--cmc-border-subtle);
+  --color-border-emphasized: var(--cmc-border);
 
   /* Semantic (Badge/Banner variants — TL12 §3) */
   --color-success: var(--cmc-success);
   --color-warning: var(--cmc-warning);
   --color-error: var(--cmc-danger);
 
-  /* Radius: tokens.css documents "flat surfaces, xs radius (4px)" as a
-     deliberate CMC design choice — apply it to every Astryx radius scale
-     step (Card uses --radius-container=12px by default, Dialog uses
-     --radius-page, etc.; only --radius-none coincidentally already matched
-     4px, verified in the Phase 1 spike) so nothing reverts to Astryx's
-     rounder defaults. --radius-full (pills/avatars) is intentionally left
-     alone — "full" has no flat equivalent. */
-  --radius-none: var(--cmc-radius-xs);
-  --radius-inner: var(--cmc-radius-xs);
-  --radius-element: var(--cmc-radius-xs);
-  --radius-container: var(--cmc-radius-xs);
-  --radius-page: var(--cmc-radius-xs);
+  /* Radius scale — nested harmony: control 12 ≤ card 16 ≤ page 20.
+     Astryx TextInput/Selector/Button shells use --radius-element. */
+  --radius-none: 0px;
+  --radius-inner: 10px;
+  --radius-element: var(--cmc-radius-control);
+  --radius-container: var(--cmc-radius-md);
+  --radius-page: var(--cmc-radius-lg);
 
   /* Typography */
   --font-family-body: var(--cmc-font-sans);
   --font-family-heading: var(--cmc-font-sans);
 
-  /* Focus ring: Astryx components derive focus-ring color from
-     --color-accent (no separate --color-focus-* token exists in
-     theme-neutral, confirmed by inspecting theme.css directly). Buttons pick
-     up a visible ring from --color-accent, but Astryx TextInput's wrapper
-     focus box-shadow renders transparent/collapsed under this theme (verified
-     against the rendered login DOM: a keyboard-focused input matches
-     :focus-visible but shows no ring). The fallback rule below guarantees a
-     visible brand-colored focus indicator on form controls — an accessibility
-     blocking requirement (TL12 §6, plan Phase 3/4 auth-screen check). */
-
   color-scheme: light;
 }
 
-/* Focus-visible fallback: a brand outline on any keyboard-focused form control
-   or interactive element, so no field/button is left without a visible focus
-   indicator regardless of Astryx's internal focus styling. */
-[data-astryx-theme='neutral'] :is(input, textarea, select, button, a, [role='button'], [tabindex]):focus-visible {
-  outline: 2px solid var(--cmc-brand);
-  outline-offset: 1px;
+/* ---------------------------------------------------------------------------
+ * Soft form controls
+ * Astryx Field wrappers use StyleX + --_field-radius / --color-border-emphasized.
+ * They still feel "hard boxes" with white fill + cool gray border + inset hover.
+ * Soften via :has(> input|textarea) so we never depend on StyleX hash classes.
+ * --------------------------------------------------------------------------- */
+[data-astryx-theme='neutral'] :is(
+  :has(> input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']):not([type='color']):not([type='file']):not([type='submit']):not([type='button']):not([type='image'])),
+  :has(> textarea)
+) {
+  border-radius: var(--cmc-radius-control) !important;
+  background-color: var(--cmc-surface-sunken);
+  border-color: var(--cmc-border);
+  box-shadow: none;
+  transition: border-color var(--cmc-transition), background-color var(--cmc-transition),
+    box-shadow var(--cmc-transition);
 }
 
-/* Mobile touch targets (TL12 §7, ≥44px). Astryx's default control heights are
-   desktop-compact (~32px). On small screens (LMS is mobile-first) bump the
-   min tap-target to 44px; desktop admin keeps its ERP density unchanged. */
+[data-astryx-theme='neutral'] :is(
+  :has(> input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']):not([type='color']):not([type='file']):not([type='submit']):not([type='button']):not([type='image'])),
+  :has(> textarea)
+):hover:not(:focus-within) {
+  /* Kill Astryx hard 2px inset ring; soft border lift instead */
+  box-shadow: none !important;
+  border-color: color-mix(in srgb, var(--cmc-text-muted) 35%, var(--cmc-border));
+  background-color: color-mix(in srgb, var(--cmc-surface-sunken) 70%, var(--cmc-surface-raised));
+}
+
+[data-astryx-theme='neutral'] :is(
+  :has(> input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']):not([type='color']):not([type='file']):not([type='submit']):not([type='button']):not([type='image'])),
+  :has(> textarea)
+):focus-within {
+  border-color: var(--cmc-brand) !important;
+  background-color: var(--cmc-surface-raised);
+  box-shadow: var(--cmc-focus-halo) !important;
+}
+
+/* Selector / combobox triggers often use button role inside bordered shell */
+[data-astryx-theme='neutral'] button[aria-haspopup='listbox'],
+[data-astryx-theme='neutral'] [role='combobox'] {
+  border-radius: var(--cmc-radius-control);
+}
+
+/* Soft primary/secondary buttons — same control radius family */
+[data-astryx-theme='neutral'] button {
+  border-radius: var(--_button-radius, var(--cmc-radius-control));
+}
+
+/* Focus-visible fallback (a11y) — softer offset ring */
+[data-astryx-theme='neutral'] :is(input, textarea, select, button, a, [role='button'], [tabindex]):focus-visible {
+  outline: 2px solid var(--cmc-brand);
+  outline-offset: 2px;
+}
+
+/* Mobile touch targets (TL12 §7, ≥44px). */
 @media (max-width: 768px) {
   [data-astryx-theme='neutral'] .astryx-button,
   [data-astryx-theme='neutral'] .astryx-text-input,
-  /* text-like inputs only — do NOT stretch checkbox/radio/color/range, which
-     have intrinsic sizes and would break vertical rhythm in option rows. */
   [data-astryx-theme='neutral'] input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']) {
     min-height: 44px;
   }

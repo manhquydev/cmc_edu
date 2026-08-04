@@ -75,9 +75,9 @@ export function ScheduleParentMeetingDialog({ opened, onClose }: { opened: boole
                 value={scheduledAt}
                 onChange={(e) => setScheduledAt(e.target.value)}
                 style={{
-                  padding: '8px 10px',
+                  padding: 'var(--cmc-space-2) 10px',
                   border: '1px solid var(--cmc-border)',
-                  borderRadius: 'var(--cmc-radius-xs)',
+                  borderRadius: 'var(--cmc-radius-control)',
                   fontSize: 14,
                   fontFamily: 'inherit',
                   color: 'var(--cmc-text)',

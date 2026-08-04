@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import type { RouteObject } from 'react-router-dom';
 import { ComingSoon } from '../pages/coming-soon.js';
+import { PermissionGate } from '../lib/permission-gate.js';
 
 const CrmPipelinePage = lazy(() => import('../pages/crm/pipeline.js'));
 const OpportunityDetailPage = lazy(() => import('../pages/crm/opportunity-detail.js'));
@@ -27,7 +28,16 @@ export const crmRoutes: RouteObject[] = [
     path: 'opportunities/:id',
     element: (
       <Suspense fallback={<Fallback />}>
-        <OpportunityDetailPage />
+        {/* Match API: crm.opportunityGet → requirePermission('crm','opportunityList'). */}
+        <PermissionGate
+          module="crm"
+          action="opportunityList"
+          title="Chi tiết cơ hội"
+          breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Pipeline CRM' }, { label: 'Chi tiết' }]}
+          requirementLabel="xem cơ hội CRM (crm.opportunityList)"
+        >
+          <OpportunityDetailPage />
+        </PermissionGate>
       </Suspense>
     ),
   },

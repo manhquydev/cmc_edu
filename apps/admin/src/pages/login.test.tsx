@@ -20,10 +20,15 @@ vi.mock('../lib/trpc.js', async () => {
 
 import { LoginPage } from './login.js';
 
-/** Exposes the router's current pathname so redirects are assertable. */
+/** Exposes pathname + search so returnTo carry is assertable, not only path. */
 function LocationProbe() {
   const location = useLocation();
-  return <div data-testid="location-probe">{location.pathname}</div>;
+  return (
+    <div data-testid="location-probe">
+      {location.pathname}
+      {location.search}
+    </div>
+  );
 }
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -91,6 +96,43 @@ describe('LoginPage — staff email/password form', () => {
     await waitFor(() =>
       expect(screen.getByTestId('location-probe')).toHaveTextContent('/change-password'),
     );
+  });
+
+  it('navigates to safe returnTo after a successful login', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse(200, { ok: true, mustChangePassword: false }));
+    renderWithProviders(
+      <>
+        <LoginPage />
+        <LocationProbe />
+      </>,
+      { route: '/login?returnTo=%2Fcrm%2Fopportunities%2Fabc' },
+    );
+
+    fillAndSubmit('staff@cmc.test', 'secret-password-1');
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(
+        '/crm/opportunities/abc',
+      ),
+    );
+  });
+
+  it('carries returnTo onto change-password when rotation is forced', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse(200, { ok: true, mustChangePassword: true }));
+    renderWithProviders(
+      <>
+        <LoginPage />
+        <LocationProbe />
+      </>,
+      { route: '/login?returnTo=%2Ffinance%3Fpage%3D2' },
+    );
+
+    fillAndSubmit('staff@cmc.test', 'temporary-pass-1');
+
+    await waitFor(() => {
+      const probe = screen.getByTestId('location-probe').textContent ?? '';
+      expect(probe).toBe('/change-password?returnTo=%2Ffinance%3Fpage%3D2');
+    });
   });
 
   it('shows the server error message on rejected credentials', async () => {

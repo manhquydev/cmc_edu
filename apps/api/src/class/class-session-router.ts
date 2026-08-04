@@ -14,11 +14,25 @@ import { requirePermission, router, scoped } from '../trpc.js';
 import { assertSessionActive } from './assert-session-active.js';
 import type { PlannedSession } from './generate-sessions.js';
 import { assertNoRoomConflict } from './room-conflict.js';
-import { ictDateOnlyOf, ictToUtc, isValidDateOnly, isValidTimeOfDay } from '@cmc/domain-time';
+import {
+  compareDateOnly,
+  ictDateOnlyOf,
+  ictToUtc,
+  isValidDateOnly,
+  isValidTimeOfDay,
+} from '@cmc/domain-time';
 import { recomputeFinalGrade } from '../submission/router.js';
+import { spanDaysInclusive } from './generate-sessions.js';
+import {
+  evaluateSessionDoneProgress,
+  type SessionDoneProgress,
+} from './session-done.js';
 
 const dateOnlySchema = z.string().refine(isValidDateOnly, { message: 'Expected YYYY-MM-DD.' });
 const timeOfDaySchema = z.string().refine(isValidTimeOfDay, { message: 'Expected HH:mm (24h).' });
+
+/** Max calendar window for listInRange (calendar lazy load; prevents unbounded scans). */
+const LIST_IN_RANGE_MAX_DAYS = 120;
 
 const sessionIdInput = z.object({ sessionId: z.string().uuid() });
 
@@ -79,6 +93,63 @@ const listSessionsInput = z.object({
   classBatchId: z.string().uuid(),
 });
 
+/**
+ * Facility calendar range query for FullCalendar (timeGrid/dayGrid).
+ * `from`/`to` are inclusive ICT calendar days (YYYY-MM-DD).
+ */
+const listInRangeInput = z
+  .object({
+    from: dateOnlySchema,
+    to: dateOnlySchema,
+    courseId: z.string().uuid().optional(),
+    includeCancelled: z.boolean().optional().default(false),
+  })
+  .superRefine((input, ctx) => {
+    if (compareDateOnly(input.from, input.to) > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '`from` must be on or before `to`.',
+        path: ['from'],
+      });
+      return;
+    }
+    const span = spanDaysInclusive(input.from, input.to);
+    if (span > LIST_IN_RANGE_MAX_DAYS) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Date range must span at most ${LIST_IN_RANGE_MAX_DAYS} days (got ${span}).`,
+        path: ['to'],
+      });
+    }
+  });
+
+/** Session row for calendar with batch denorm for titles/hrefs. */
+export interface ClassSessionInRangeDto {
+  id: string;
+  classBatchId: string;
+  scheduleSlotId: string | null;
+  sessionDate: Date;
+  startTime: Date;
+  endTime: Date;
+  status: string;
+  isMakeup: boolean;
+  curriculumUnitId: string | null;
+  batchCode: string;
+  program: string;
+  teacherId: string | null;
+  courseId: string;
+  batchStatus: string;
+}
+
+/** Single-session identity for teacher Session Detail hub. */
+export interface ClassSessionGetDto extends ClassSessionDto {
+  batchCode: string;
+  program: string;
+  teacherId: string | null;
+  courseId: string;
+  batchStatus: string;
+}
+
 export const classSessionRouter = router({
   // Read-only: list all sessions for a batch (schedule, confirm/cancel UI).
   list: requirePermission('class', 'read')
@@ -93,6 +164,152 @@ export const classSessionRouter = router({
         return rows.map(toClassSessionDto);
       });
     }),
+
+  /**
+   * Single session + batch denorm for Session Detail hub (cold-start by id).
+   * Permission matches list/listInRange (`class.read`).
+   */
+  get: requirePermission('class', 'read')
+    .input(sessionIdInput)
+    .query(async ({ ctx, input }): Promise<ClassSessionGetDto> => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const row = await tx.classSession.findFirst({
+          where: { id: input.sessionId, facilityId },
+          include: {
+            classBatch: {
+              select: {
+                code: true,
+                program: true,
+                teacherId: true,
+                courseId: true,
+                status: true,
+              },
+            },
+          },
+        });
+        if (!row) {
+          throw notFound('ClassSession not found.');
+        }
+        return {
+          ...toClassSessionDto(row),
+          batchCode: row.classBatch.code,
+          program: row.classBatch.program,
+          teacherId: row.classBatch.teacherId,
+          courseId: row.classBatch.courseId,
+          batchStatus: row.classBatch.status,
+        };
+      });
+    }),
+
+  /**
+   * Session-done checklist flags for hub UI (does not flip status).
+   * Same three conditions as `evaluateSessionDone` / done-sweep.
+   */
+  doneProgress: requirePermission('class', 'read')
+    .input(sessionIdInput)
+    .query(async ({ ctx, input }): Promise<SessionDoneProgress & { sessionId: string; status: string }> => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const session = await tx.classSession.findFirst({
+          where: { id: input.sessionId, facilityId },
+          select: { id: true, endTime: true, status: true },
+        });
+        if (!session) {
+          throw notFound('ClassSession not found.');
+        }
+
+        const [attendances, assessments, evidence] = await Promise.all([
+          tx.attendance.findMany({
+            where: { classSessionId: session.id },
+            select: { studentId: true, status: true, markedAt: true },
+          }),
+          tx.qualitativeAssessment.findMany({
+            where: { classSessionId: session.id },
+            select: { studentId: true, status: true, confirmedAt: true },
+          }),
+          tx.sessionEvidence.findUnique({
+            where: { classSessionId: session.id },
+            select: { status: true, publishedAt: true, photos: { select: { id: true } } },
+          }),
+        ]);
+
+        const progress = evaluateSessionDoneProgress(
+          {
+            endTime: session.endTime,
+            attendances,
+            assessments,
+            evidence: evidence
+              ? {
+                  status: evidence.status,
+                  publishedAt: evidence.publishedAt,
+                  photoCount: evidence.photos.length,
+                }
+              : null,
+          },
+          new Date(),
+        );
+
+        return { sessionId: session.id, status: session.status, ...progress };
+      });
+    }),
+
+  /**
+   * Facility-scoped sessions in an ICT date window for the teaching calendar.
+   * Uses `sessionDate` (ICT midnight) + index `[facilityId, sessionDate]`.
+   * Cancelled sessions excluded unless `includeCancelled`.
+   */
+  listInRange: requirePermission('class', 'read')
+    .input(listInRangeInput)
+    .query(async ({ ctx, input }): Promise<ClassSessionInRangeDto[]> => {
+      const { facilityId } = scoped(ctx);
+      // sessionDate is ICT midnight for the calendar day — inclusive bounds.
+      const fromInstant = ictToUtc(input.from, '00:00');
+      const toInstant = ictToUtc(input.to, '00:00');
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const rows = await tx.classSession.findMany({
+          where: {
+            facilityId,
+            sessionDate: { gte: fromInstant, lte: toInstant },
+            ...(input.includeCancelled ? {} : { status: { not: 'cancelled' as const } }),
+            ...(input.courseId
+              ? { classBatch: { courseId: input.courseId } }
+              : {}),
+          },
+          include: {
+            classBatch: {
+              select: {
+                code: true,
+                program: true,
+                teacherId: true,
+                courseId: true,
+                status: true,
+              },
+            },
+          },
+          orderBy: [{ startTime: 'asc' }],
+        });
+
+        return rows.map((row) => ({
+          id: row.id,
+          classBatchId: row.classBatchId,
+          scheduleSlotId: row.scheduleSlotId,
+          sessionDate: row.sessionDate,
+          startTime: row.startTime,
+          endTime: row.endTime,
+          status: row.status,
+          isMakeup: row.isMakeup,
+          curriculumUnitId: row.curriculumUnitId,
+          batchCode: row.classBatch.code,
+          program: row.classBatch.program,
+          teacherId: row.classBatch.teacherId,
+          courseId: row.classBatch.courseId,
+          batchStatus: row.classBatch.status,
+        }));
+      });
+    }),
+
   // planned/confirmed -> cancelled. Cancelled sessions are excluded from
   // attendance (docs/19 §5 gate 1) — enforced in ../attendance/router.ts.
   cancel: requirePermission('schedule', 'generate')

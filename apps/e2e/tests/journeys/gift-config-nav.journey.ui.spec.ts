@@ -24,6 +24,8 @@ import { test, expect } from '@playwright/test';
 import { mintStaffCookie } from '../../src/session-injection.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
 import { findInList } from '../../src/journey/find-in-list.js';
+import { createE2eStaffClient } from '../../src/trpc-client.js';
+import { assertBusinessInvariant } from '../../src/journey/assert-business.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -61,12 +63,32 @@ test.describe('P4-02 journey — cấu hình quà đổi sao (Quà tặng), sale
 
     await gdkdPage.getByRole('button', { name: 'Thêm phần thưởng' }).click();
     await gdkdPage.getByLabel('Tên phần thưởng').fill(giftName);
-    // NumberInput default (1) already satisfies "Số sao cần" — leave as-is;
-    // only the name needs filling for `isFormValid`.
+    // Type a DISTINCT star cost (7) rather than leaving the NumberInput default
+    // (1): the readback below asserts the persisted `starsRequired`, and a value
+    // equal to the form default would make that assertion vacuous (it could pass
+    // even if the typed value were dropped). NumberInput renders a spinbutton,
+    // not a labelled text input (same selector P4-01's journey uses).
+    await gdkdPage.getByRole('spinbutton', { name: 'Số sao cần' }).fill('7');
     await gdkdPage.getByRole('button', { name: 'Tạo', exact: true }).click();
 
     const row = await findInList(gdkdPage, (text) => text.includes(giftName));
     await expect(row).toBeVisible();
+
+    // ── business invariant ──
+    // The row appearing proves gift.upsert RAN, but not that it stored the star
+    // cost that was typed (7). Read the gift back through the authorized staff
+    // query (same GĐKD role that holds `gift.list`) and assert the persisted
+    // `starsRequired` — the number a stakeholder configuring a reward cares
+    // about. This turns P4-02 from reachable-only into verified-correct.
+    const gifts = await createE2eStaffClient(process.env.E2E_BASE_URL!, {
+      userId: `e2e-p402-gdkd-readback-${randomUUID().slice(0, 8)}`,
+      roles: ['giam_doc_kinh_doanh'],
+      facilityId,
+    }).gift.list.query({});
+    const createdGift = gifts.find((g) => g.name === giftName);
+    expect(createdGift, `quà "${giftName}" phải đọc lại được qua gift.list`).toBeTruthy();
+    assertBusinessInvariant('quà lưu đúng số sao đã nhập', createdGift!.starsRequired, 7);
+
     await gdkdContext.close();
 
     // --- sale: the entry must be genuinely absent from sale's own side-nav ---

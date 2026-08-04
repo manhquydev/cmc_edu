@@ -1,0 +1,88 @@
+# @cmc/ui — CMC EDU design system (agent brief)
+
+> Stack: React + CSS custom properties + Astryx primitives. **Do not** install shadcn/Tailwind as a second system.
+> Brand: one interactive blue `#0071E3`. Font: Inter. Canvas: warm paper `#f5f3ee`.
+
+## Closed tokens (use only these)
+
+See `src/tokens.css`. Key roles:
+
+- Brand: `--cmc-brand`, `--cmc-brand-hover`, `--cmc-brand-muted`, `--cmc-brand-ink`
+- Text: `--cmc-text`, `--cmc-text-2`, `--cmc-text-muted`, `--cmc-text-faint`
+- Surface: `--cmc-canvas`, `--cmc-surface-raised`, `--cmc-surface-2`, `--cmc-surface-sunken`
+- Border: `--cmc-border`, `--cmc-border-subtle`
+- Radius: control 12 · card/md 16 · dialog/lg 20 · pill
+- Elevation: shadow-xs (sticky) · sm (raised rest) · md (hover) · lg (modal)
+- Status solid: success / warning / danger · soft pairs for chips
+- Focus: `--cmc-focus-halo`
+
+**Do not invent** new accent colors, cool gray `#f5f5f7` / `#d4d4d4`, or radius 4px.
+
+## Nested harmony
+
+```
+control 12 ≤ card 16 ≤ dialog 20
+sunken field → raised card → floating overlay
+```
+
+## Structure system (anti-fragmentation)
+
+All raised composites share:
+- `--cmc-raised-bg|border|shadow|radius`
+- `--cmc-keyline-x` horizontal inset
+- `--cmc-row-h` / `--cmc-head-h` / `--cmc-chip-h*` / `--cmc-cta-h*`
+- 1-line title/meta truncate (+ title tooltip)
+
+Utilities: `.ck-surface`, `.ck-truncate`, `.ck-label-upper`, `.ck-title-1line`, `.ck-meta-1line`, `.ck-keyline`.
+
+Full rules: `design-system/cmc-edu/STRUCTURE.md`.
+
+## Page frames (mandatory)
+
+`DashboardPage` | `ListPage` | `DetailPage` | `FormPage` — see `design-system/cmc-edu/PAGE-FRAMES.md`.
+
+**A11y baseline (partial, role smoke — not WCAG cert):** `design-system/cmc-edu/A11Y-BASELINE.md`.
+
+**Interaction grammar (Odoo map, ControlBar, exemptions):** `design-system/cmc-edu/VIEW-GRAMMAR.md`.
+
+List chrome: `ListPage` embeds **ControlBar** (header · filters · footer/pager; quiet sticky surface).
+
+FilterBar types: `text` | `select` | `date`.
+
+## Composites (import from `@cmc/ui`)
+
+| Role | Component |
+|------|-----------|
+| Metric | MetricCard, InsightMetric, FocusCard |
+| Pipeline | FunnelBar, StageFunnel (stack\|rail\|split) |
+| Queue | WorkInbox, TaskRow, Panel |
+| List | FilterBar, DataTable (optional selection), BulkActionBar, ListPagination |
+| Detail frame | **DetailPage** — tiers: **full** (EH+HS+WF) · **standard** (EH+HS) · **settings** (SettingsShell) · **thin** (ops residual). See `design-system/cmc-edu/PAGE-FRAMES.md` §C |
+| Detail atoms | EntityHeader, HighlightStrip, StatActions, WorkflowStatusbar, KeyValueList, SectionBlock, CmcTabs |
+| Form | FormPage, ProgressSteps, ResultPanel |
+| Settings | SettingsSection, SettingsRow |
+| Feedback | Toast, Banner, Callout, ConfirmDialog, EmptyState |
+| Identity | Avatar, MetaRow/MetaItem, CountBadge |
+| Activity | ActivityTimeline |
+| Schedule (edu) | SessionCard (P0 time/title/status/CTA, P1 program, P2 room/GV, P3 tooltip), WeekSchedule, ScheduleMonth |
+| Status | StatusBadge appearance soft (default) \| solid |
+| Shell | AppFrame, SideNav, PageHeader, CommandPalette (⌘K) |
+| Settings | SettingsShell (rail), SettingsSection, SettingsRow |
+| Auth | TextField, PasswordInput |
+
+## Xia port rules (from ~/Downloads/design)
+
+Port patterns only from Shopify / GitHub / Cal / Airbnb DESIGN.md:
+- Port: Callout, soft status, MetaRow, CountBadge, Avatar, Timeline, Settings
+- Skip: their brand colors, sharp 3–6px radius as default, marketing sparsity, dual CTA accents
+
+
+CSS: import `@cmc/ui/tokens.css` then `astryx-theme-cmc.css` then `premium.css` once at app root.
+
+## Living inventory
+
+Admin route `/design` (Design Lab) — visual source of truth.
+
+## Research reports
+
+`plans/260802-design-lab-visual-system/reports/`

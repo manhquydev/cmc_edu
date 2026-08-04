@@ -3,17 +3,20 @@ import {
   Badge,
   Button,
   CmcTabs,
+  ConfirmDialog,
   DataTable,
   Dialog,
   DialogHeader,
   HStack,
   LineIcon,
+  ListPage,
   PageHeader,
   Selector,
   Stack,
   StatusBadge,
   Text,
   TextInput,
+  useToast,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
@@ -107,8 +110,11 @@ function LinkRequestsTab({
   // Approve modal state
   const [approveRow, setApproveRow] = useState<LinkRow | null>(null);
   const [relation, setRelation] = useState<string>('guardian');
+  // Reject confirm — never mutate immediately on the destructive button.
+  const [rejectRow, setRejectRow] = useState<LinkRow | null>(null);
 
   const utils = trpc.useUtils();
+  const { success: toastSuccess } = useToast();
 
   const { data, isLoading, error } = trpc.guardian.listPendingLinks.useQuery({
     status: filterStatus,
@@ -120,19 +126,21 @@ function LinkRequestsTab({
     onSuccess: () => {
       setApproveRow(null);
       setRelation('guardian');
+      toastSuccess('Đã duyệt liên kết');
       void utils.guardian.listPendingLinks.invalidate();
     },
   });
 
   const rejectMut = trpc.guardian.rejectLink.useMutation({
     onSuccess: () => {
+      setRejectRow(null);
+      toastSuccess('Đã từ chối yêu cầu');
       void utils.guardian.listPendingLinks.invalidate();
     },
+    onError: () => {
+      setRejectRow(null);
+    },
   });
-
-  function handleReject(requestId: string) {
-    rejectMut.mutate({ requestId });
-  }
 
   function handleApproveSubmit() {
     if (!approveRow) return;
@@ -152,7 +160,7 @@ function LinkRequestsTab({
             label: 'Thao tác',
             width: 180,
             render: (_v, row) => (
-              <HStack gap={1} onClick={(e) => e.stopPropagation()}>
+              <HStack gap={1} style={{ flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
                 <Button
                   label="Duyệt"
                   size="sm"
@@ -164,7 +172,7 @@ function LinkRequestsTab({
                   size="sm"
                   variant="destructive"
                   isLoading={rejectMut.isPending && rejectMut.variables?.requestId === row.id}
-                  onClick={() => handleReject(row.id)}
+                  onClick={() => setRejectRow(row)}
                 />
               </HStack>
             ),
@@ -292,6 +300,20 @@ function LinkRequestsTab({
           </Stack>
         )}
       </Dialog>
+
+      <ConfirmDialog
+        opened={rejectRow !== null}
+        title="Từ chối yêu cầu liên kết?"
+        message={`Từ chối yêu cầu của phụ huynh ${rejectRow?.parentPhone ?? ''} với học viên "${rejectRow?.studentName ?? ''}". Phụ huynh sẽ không được liên kết với học viên này. Hành động không thể hoàn tác.`}
+        confirmLabel="Từ chối"
+        confirmColor="red"
+        loading={rejectMut.isPending}
+        onConfirm={() => {
+          if (!rejectRow) return;
+          rejectMut.mutate({ requestId: rejectRow.id });
+        }}
+        onCancel={() => setRejectRow(null)}
+      />
     </>
   );
 }
@@ -496,40 +518,45 @@ export default function ParentListPage() {
 
   return (
     <>
-      <PageHeader
-        title="Phụ huynh"
-        subtitle="Duyệt yêu cầu liên kết và quản lý tài khoản phụ huynh"
-        breadcrumbs={[{ label: 'Quản trị' }, { label: 'Phụ huynh' }]}
-      />
-
-      <CmcTabs
-        activeTab={activeTab}
-        onTabChange={(id) => setActiveTab(id === 'all' ? 'all' : 'requests')}
-        tabs={[
-          {
-            id: 'requests',
-            label: 'Yêu cầu liên kết',
-            content: (
-              <LinkRequestsTab
-                canUpdateEmail={canUpdateEmail}
-                onOpenEmailModal={openEmailModalFromLink}
-              />
-            ),
-          },
-          // Only offered when the caller can actually act on it — the tab
-          // itself would otherwise call a query gated by the same permission
-          // and render nothing but a FORBIDDEN error.
-          ...(canUpdateEmail
-            ? [
-                {
-                  id: 'all',
-                  label: 'Tất cả phụ huynh',
-                  content: <AllParentsTab onOpenEmailModal={openEmailModalFromParent} />,
-                },
-              ]
-            : []),
-        ]}
-      />
+      <ListPage
+        density="ops"
+        header={
+          <PageHeader
+            title="Phụ huynh"
+            subtitle="Duyệt yêu cầu liên kết và quản lý tài khoản phụ huynh"
+            breadcrumbs={[{ label: 'Quản trị' }, { label: 'Phụ huynh' }]}
+          />
+        }
+      >
+        <CmcTabs
+          activeTab={activeTab}
+          onTabChange={(id) => setActiveTab(id === 'all' ? 'all' : 'requests')}
+          tabs={[
+            {
+              id: 'requests',
+              label: 'Yêu cầu liên kết',
+              content: (
+                <LinkRequestsTab
+                  canUpdateEmail={canUpdateEmail}
+                  onOpenEmailModal={openEmailModalFromLink}
+                />
+              ),
+            },
+            // Only offered when the caller can actually act on it — the tab
+            // itself would otherwise call a query gated by the same permission
+            // and render nothing but a FORBIDDEN error.
+            ...(canUpdateEmail
+              ? [
+                  {
+                    id: 'all',
+                    label: 'Tất cả phụ huynh',
+                    content: <AllParentsTab onOpenEmailModal={openEmailModalFromParent} />,
+                  },
+                ]
+              : []),
+          ]}
+        />
+      </ListPage>
 
       {/* Email update modal — allows staff to set/update parent email for LMS login */}
       <Dialog

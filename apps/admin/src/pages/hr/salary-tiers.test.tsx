@@ -97,7 +97,7 @@ describe('SalaryTiersPage', () => {
 
   it('switches to the Gán bậc tab and filters staff to sale/giao_vien only', () => {
     renderWithProviders(<SalaryTiersPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Gán bậc' }));
+    fireEvent.click(screen.getByRole('button', { name: /Gán bậc/ }));
     expect(screen.getByText('Nguyễn Văn A')).toBeInTheDocument();
     expect(screen.getByText('Trần Thị B')).toBeInTheDocument();
     expect(screen.queryByText('Lê Văn C')).toBeNull();
@@ -105,9 +105,9 @@ describe('SalaryTiersPage', () => {
 
   it('assigns a tier via compensation.assignTier.mutate({appUserId, tierId})', async () => {
     renderWithProviders(<SalaryTiersPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Gán bậc' }));
+    fireEvent.click(screen.getByRole('button', { name: /Gán bậc/ }));
     const row = screen.getByText('Nguyễn Văn A').closest('tr')!;
-    fireEvent.click(within(row).getByRole('button', { name: 'Gán bậc' }));
+    fireEvent.click(within(row).getByRole('button', { name: /Gán bậc/ }));
     fireEvent.click(within(row).getByRole('combobox', { name: 'Bậc lương' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Bậc 1' }));
     fireEvent.click(within(row).getByRole('button', { name: 'Lưu' }));

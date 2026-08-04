@@ -2,10 +2,13 @@
 // Flow: pick lớp → pick buổi → upsert evidence → add photos → publish.
 
 import { useRef, useState } from 'react';
-import { Badge, Banner, Button, FormPage, Grid, HStack, LineIcon, PageHeader, Selector, Skeleton, Stack, Text, TextArea } from '@cmc/ui';
+import { useSearchParams } from 'react-router-dom';
+import { Badge, Banner, Button, ConfirmDialog, FormPage, Grid, HStack, LineIcon, PageHeader, Selector, Skeleton, Stack, Text, TextArea, useToast } from '@cmc/ui';
+import { UUID_RE, readUuidParam } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
+import { CopyLinkButton } from '../../lib/copy-link-button.js';
 
-const API_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? 'http://localhost:3000';
+const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').trim();
 
 function photoUrl(blobRef: string): string {
   if (blobRef.startsWith('http')) return blobRef;
@@ -13,8 +16,10 @@ function photoUrl(blobRef: string): string {
 }
 
 export default function SessionEvidencePage() {
-  const [classBatchId, setClassBatchId] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const classBatchId = readUuidParam(searchParams, 'classBatchId');
+  const sessionId = readUuidParam(searchParams, 'sessionId');
+
   const [summary, setSummary] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -45,6 +50,8 @@ export default function SessionEvidencePage() {
   const [photos, setPhotos] = useState<Array<{ id: string; blobRef: string }>>([]);
   const [published, setPublished] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
+  const { success: toastSuccess } = useToast();
 
   const classOptions = (classData?.items ?? []).map((c) => ({
     value: c.id,
@@ -62,8 +69,24 @@ export default function SessionEvidencePage() {
     isDisabled: s.status === 'cancelled',
   }));
 
-  function resetSession() {
-    setSessionId(null);
+  function selectClass(id: string | null) {
+    const next = new URLSearchParams(searchParams);
+    if (id && UUID_RE.test(id)) next.set('classBatchId', id);
+    else next.delete('classBatchId');
+    next.delete('sessionId');
+    setSearchParams(next, { replace: true });
+    setSummary('');
+    setEvidenceId(null);
+    setPhotos([]);
+    setPublished(false);
+    setSaved(false);
+  }
+
+  function selectSession(id: string | null) {
+    const next = new URLSearchParams(searchParams);
+    if (id && UUID_RE.test(id)) next.set('sessionId', id);
+    else next.delete('sessionId');
+    setSearchParams(next, { replace: true });
     setSummary('');
     setEvidenceId(null);
     setPhotos([]);
@@ -112,9 +135,15 @@ export default function SessionEvidencePage() {
 
   async function handlePublish() {
     if (!evidenceId) return;
-    await publishMut.mutateAsync({ sessionEvidenceId: evidenceId });
-    setPublished(true);
-    void utils.sessionEvidence.invalidate();
+    try {
+      await publishMut.mutateAsync({ sessionEvidenceId: evidenceId });
+      setPublished(true);
+      setPublishConfirmOpen(false);
+      toastSuccess('Đã công bố nhật ký buổi học');
+      void utils.sessionEvidence.invalidate();
+    } catch {
+      // error surface via publishMut state if needed
+    }
   }
 
   // Bottom action bar mirrors the currently-active forward action: "Lưu tóm
@@ -125,7 +154,7 @@ export default function SessionEvidencePage() {
   const actionsContent = !sessionId ? undefined : published ? (
     <Badge label="Đã công bố" variant="success" />
   ) : (
-    <HStack gap={2}>
+    <HStack gap={2} style={{ flexWrap: 'wrap' }}>
       <Button
         label="Lưu tóm tắt"
         size="sm"
@@ -139,7 +168,7 @@ export default function SessionEvidencePage() {
           label="Công bố cho phụ huynh"
           size="sm"
           variant="secondary"
-          onClick={handlePublish}
+          onClick={() => setPublishConfirmOpen(true)}
           isLoading={publishMut.isPending}
         />
       )}
@@ -155,12 +184,24 @@ export default function SessionEvidencePage() {
   ) : undefined;
 
   return (
+    <>
+    <ConfirmDialog
+      opened={publishConfirmOpen}
+      title="Công bố nhật ký cho phụ huynh?"
+      message="Phụ huynh sẽ thấy tóm tắt và ảnh buổi học trên LMS. Kiểm tra nội dung trước khi công bố."
+      confirmLabel="Công bố"
+      confirmColor="green"
+      loading={publishMut.isPending}
+      onConfirm={() => { void handlePublish(); }}
+      onCancel={() => setPublishConfirmOpen(false)}
+    />
     <FormPage
       header={
         <PageHeader
           title="Nhật ký buổi học"
           subtitle="Viết tóm tắt, upload ảnh, công bố cho phụ huynh"
-          breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Nhật ký buổi học' }]}
+          breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Nhật ký buổi học' }]}
+          actions={(classBatchId || sessionId) ? <CopyLinkButton mode="current" /> : undefined}
         />
       }
       result={resultContent}
@@ -184,7 +225,7 @@ export default function SessionEvidencePage() {
               placeholder="Chọn lớp học"
               options={classOptions}
               value={classBatchId ?? undefined}
-              onChange={(v) => { setClassBatchId(v ?? null); resetSession(); }}
+              onChange={(v) => selectClass(v ?? null)}
               hasSearch
               hasClear={false}
             />
@@ -204,7 +245,7 @@ export default function SessionEvidencePage() {
                 placeholder="Chọn buổi"
                 options={sessionOptions}
                 value={sessionId ?? undefined}
-                onChange={(v) => { setSessionId(v ?? null); setSummary(''); setEvidenceId(null); setPhotos([]); setPublished(false); setSaved(false); }}
+                onChange={(v) => selectSession(v ?? null)}
                 hasClear={false}
               />
             )}
@@ -277,7 +318,7 @@ export default function SessionEvidencePage() {
                 <img
                   key={p.id}
                   src={photoUrl(p.blobRef)}
-                  style={{ height: 80, width: '100%', objectFit: 'cover', borderRadius: 'var(--cmc-radius-xs)' }}
+                  style={{ height: 80, width: '100%', objectFit: 'cover', borderRadius: 'var(--cmc-radius-control)' }}
                   alt="Ảnh buổi học"
                 />
               ))}
@@ -293,5 +334,6 @@ export default function SessionEvidencePage() {
         )}
       </Stack>
     </FormPage>
+    </>
   );
 }

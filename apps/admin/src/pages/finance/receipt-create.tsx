@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { links } from '@cmc/links';
 import {
   Banner,
   Button,
@@ -129,7 +130,7 @@ export default function ReceiptCreatePage() {
         return;
       }
       if (canDo('finance', 'receiptGet')) {
-        void navigate(`/finance/${res.receipt.id}`);
+        void navigate(links.receipt(res.receipt.id));
         return;
       }
       setCreatedReceipt({ id: res.receipt.id, code: res.receipt.code });
@@ -207,7 +208,7 @@ export default function ReceiptCreatePage() {
         <Button
           label={opportunityId ? 'Xem cơ hội' : 'Về bảng kinh doanh'}
           variant="primary"
-          onClick={() => void navigate(opportunityId ? `/crm/opportunities/${opportunityId}` : '/crm')}
+          onClick={() => void navigate(opportunityId ? links.opportunity(opportunityId) : '/crm')}
         />
       </HStack>
     </Stack>

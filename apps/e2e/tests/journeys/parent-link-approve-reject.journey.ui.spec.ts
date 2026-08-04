@@ -112,10 +112,15 @@ test.describe('P1-06 journey — liên kết phụ huynh–con: yêu cầu → d
       approveDialog.getByRole('button', { name: 'Xác nhận duyệt' }).click(),
     ]);
 
-    // --- reject C (a direct mutation, no dialog) ---
+    // --- reject C — the destructive action now goes through a ConfirmDialog
+    // (UI-cohesion refactor). The row button only opens the dialog; guardian.rejectLink
+    // fires from the dialog's own "Từ chối" confirm button. ---
+    await rowC.getByRole('button', { name: 'Từ chối' }).click();
+    const rejectDialog = page.getByRole('alertdialog');
+    await expect(rejectDialog).toBeVisible();
     await Promise.all([
       page.waitForResponse((r) => r.url().includes('guardian.rejectLink') && r.status() === 200),
-      rowC.getByRole('button', { name: 'Từ chối' }).click(),
+      rejectDialog.getByRole('button', { name: 'Từ chối' }).click(),
     ]);
 
     // Both left the pending list. Absence alone is weak evidence, so each is then

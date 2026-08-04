@@ -8,7 +8,7 @@
 // - Bar width proportional to group revenue vs. max group revenue.
 // - DateRange filter synced to URL query param ?range= (deep-linkable).
 
-import { Banner, Grid, HStack, PageHeader, Panel, Skeleton, Stack, StatCard, Text, tokens } from '@cmc/ui';
+import { Banner, DashboardPage, Grid, HStack, Panel, Skeleton, Stack, StatCard, Text, tokens } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 // ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ function RevenueBarChart({
                 flex: 1,
                 height: 22,
                 background: 'var(--cmc-surface-2)',
-                borderRadius: 3,
+                borderRadius: 'var(--cmc-radius-control)',
                 position: 'relative',
                 overflow: 'hidden',
               }}
@@ -120,7 +120,7 @@ function RevenueBarChart({
                   inset: '0 auto 0 0',
                   width: `${pct}%`,
                   background: tokens.color.brand,
-                  borderRadius: 3,
+                  borderRadius: 'var(--cmc-radius-control)',
                   minWidth: pct > 0 ? 4 : 0,
                   transition: 'width 0.25s ease',
                 }}
@@ -177,28 +177,13 @@ export default function RevenueReportPage() {
   const totalReceiptsAll = data?.total ?? 0;
   const isTruncated = data !== undefined && data.total > items.length;
 
+  // Metrics-primary surface → DashboardPage (KPI strip + primary chart panel).
+  // StatCard/chart keep their own loading skeletons; no full-page loading swap.
   return (
-    <>
-      <PageHeader
-        title="Doanh thu"
-        subtitle="Tổng hợp phiếu thu đã duyệt theo lớp"
-        breadcrumbs={[{ label: 'Ops' }, { label: 'Doanh thu' }]}
-      />
-
-      <Stack gap={5} padding={4}>
-        {error && (
-          <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
-        )}
-
-        {isTruncated && (
-          <Banner
-            status="warning"
-            title="Dữ liệu bị cắt bớt"
-            description={`Chỉ hiển thị ${items.length} / ${data.total} phiếu thu. Biểu đồ chưa phản ánh toàn bộ doanh thu — phân trang server-side chưa được triển khai.`}
-          />
-        )}
-
-        {/* Stat cards */}
+    <DashboardPage
+      title="Doanh thu"
+      subtitle="Tổng hợp phiếu thu đã duyệt theo lớp"
+      metrics={
         <Grid columns={{ minWidth: 220, max: 3 }} gap={4}>
           <StatCard
             label="Tổng doanh thu (đã duyệt)"
@@ -216,14 +201,28 @@ export default function RevenueReportPage() {
             loading={isLoading}
           />
         </Grid>
+      }
+      primary={
+        <Stack gap={4}>
+          {error && (
+            <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
+          )}
 
-        {/* Bar chart section */}
-        <Panel title="Doanh thu theo lớp học" icon="dollar">
-          <div style={{ padding: '0 22px 20px' }}>
-            <RevenueBarChart rows={rows} loading={isLoading} />
-          </div>
-        </Panel>
-      </Stack>
-    </>
+          {isTruncated && (
+            <Banner
+              status="warning"
+              title="Dữ liệu bị cắt bớt"
+              description={`Chỉ hiển thị ${items.length} / ${data.total} phiếu thu. Biểu đồ chưa phản ánh toàn bộ doanh thu — phân trang server-side chưa được triển khai.`}
+            />
+          )}
+
+          <Panel title="Doanh thu theo lớp học" icon="dollar">
+            <div style={{ padding: '0 22px 20px' }}>
+              <RevenueBarChart rows={rows} loading={isLoading} />
+            </div>
+          </Panel>
+        </Stack>
+      }
+    />
   );
 }

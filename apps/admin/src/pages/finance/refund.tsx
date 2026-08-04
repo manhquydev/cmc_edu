@@ -9,21 +9,29 @@
 // form here would either hardcode a receiptId lookup UX (out of this
 // phase's UI-nav scope) or invent an approval flow with no spec. Needs its
 // own plan.
-import { EmptyState, LineIcon, PageHeader } from '@cmc/ui';
+import { EmptyState, LineIcon, ListPage, PageHeader } from '@cmc/ui';
 
 export default function RefundPage() {
   return (
-    <>
-      <PageHeader
-        title="Hoàn tiền"
-        subtitle="Xử lý yêu cầu hoàn tiền cho phiếu thu đã duyệt"
-        breadcrumbs={[{ label: 'Tài chính' }, { label: 'Hoàn tiền' }]}
-      />
-      <EmptyState
-        title="Tính năng chưa áp dụng"
-        description="finance.refundCreate đã tồn tại nhưng chưa có màn tìm phiếu thu / duyệt hoàn tiền — cần plan UX riêng."
-        icon={<LineIcon name="card" size={28} />}
-      />
-    </>
+    <ListPage
+      density="ops"
+      header={
+        <PageHeader
+          title="Hoàn tiền"
+          subtitle="Xử lý yêu cầu hoàn tiền cho phiếu thu đã duyệt"
+          breadcrumbs={[{ label: 'Tài chính' }, { label: 'Hoàn tiền' }]}
+        />
+      }
+      isEmpty
+      empty={
+        <EmptyState
+          title="Tính năng chưa áp dụng"
+          description="finance.refundCreate đã tồn tại nhưng chưa có màn tìm phiếu thu / duyệt hoàn tiền — cần plan UX riêng."
+          icon={<LineIcon name="card" size={28} />}
+        />
+      }
+    >
+      {null}
+    </ListPage>
   );
 }

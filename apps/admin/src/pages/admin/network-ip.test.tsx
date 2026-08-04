@@ -92,9 +92,10 @@ describe('NetworkIpPage', () => {
     expect(screen.getByText(/cần nhập lý do/)).toBeInTheDocument();
   });
 
-  it('shows manual-entry CIDR guidance', () => {
+  it('shows manual-entry CIDR guidance on the SettingsShell guide rail', () => {
     renderWithProviders(<NetworkIpPage />);
-    expect(screen.getByText(/nút tự dò không chính xác/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Hướng dẫn/i }));
+    expect(screen.getByText(/tự dò không chính xác/)).toBeInTheDocument();
   });
 
   it('creates a network via facilityNetwork.create.mutate with cidr + label', () => {

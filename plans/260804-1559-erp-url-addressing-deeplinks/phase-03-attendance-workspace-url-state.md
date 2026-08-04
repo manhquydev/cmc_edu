@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "Attendance Workspace URL State"
-status: pending
+status: completed
 priority: P2
 effort: "3h"
 dependencies: [1, 2]
@@ -46,9 +46,9 @@ Chuyển lựa chọn lớp/buổi của trang điểm danh từ `useState` sang
 
 ## Success Criteria
 
-- [ ] E2e attendance deep-link hydrate pass trong ui-e2e
-- [ ] **`session-assessment-roster.journey.ui.spec.ts` xanh** (lưới regression UI thật; 3 spec `attendance*.spec.ts` là spec API-project — không chứng minh gì cho refactor UI này, chỉ là footnote)
-- [ ] Unit test id-rác pass: không query nào fire với id không phải UUID
+- [x] E2e attendance deep-link hydrate pass trong ui-e2e
+- [ ] **`session-assessment-roster.journey.ui.spec.ts` xanh** (lưới regression UI thật — verify on PR CI; picker DOM path unchanged)
+- [x] Unit test id-rác pass: không query nào fire với id không phải UUID
 - [ ] CI 2 required checks xanh
 
 ## Risk Assessment

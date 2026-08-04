@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { UUID_RE, goPath, links, resolveGo } from './index.js';
+import { UUID_RE, attendancePath, goPath, links, resolveGo } from './index.js';
 
 const UUID = '550e8400-e29b-41d4-a716-446655440000';
 
@@ -52,5 +52,15 @@ describe('resolveGo', () => {
     expect(resolveGo('opportunity', '..%2F..%2Fadmin%2Fusers')).toBeNull();
     expect(resolveGo('opportunity', '')).toBeNull();
     expect(resolveGo('student', 'not-a-uuid')).toBeNull();
+  });
+});
+
+describe('attendancePath', () => {
+  it('builds workspace query params only for UUIDs', () => {
+    expect(attendancePath({ classBatchId: UUID, sessionId: UUID })).toBe(
+      `/teaching/attendance?classBatchId=${UUID}&sessionId=${UUID}`,
+    );
+    expect(attendancePath({ classBatchId: 'abc' })).toBe('/teaching/attendance');
+    expect(attendancePath({})).toBe('/teaching/attendance');
   });
 });

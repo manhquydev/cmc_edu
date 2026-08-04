@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Badge, Banner, Button, Grid, HStack, LineIcon, ListPage, PageHeader, Selector, Skeleton, Stack, Text } from '@cmc/ui';
+import { UUID_RE } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
+import { CopyLinkButton } from '../../lib/copy-link-button.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -135,13 +137,20 @@ function StudentRow({
 // Page
 // ---------------------------------------------------------------------------
 
+/** Read a query param only when it is a UUID — garbage ids never reach the API. */
+function uuidParam(params: URLSearchParams, key: string): string | null {
+  const raw = params.get(key);
+  return raw && UUID_RE.test(raw) ? raw : null;
+}
+
 export default function AttendancePage() {
-  const [searchParams] = useSearchParams();
-  // Deep-link with session → Session Detail hub (RCWS). Picker page remains for bare /attendance.
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Legacy deep-link: ?session= → Session Detail hub (RCWS). Picker page remains for bare /attendance.
   const deepSession = searchParams.get('session');
 
-  const [classBatchId, setClassBatchId] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  // Shareable workspace state lives in the URL (replace:true — no history spam).
+  const classBatchId = uuidParam(searchParams, 'classBatchId');
+  const sessionId = uuidParam(searchParams, 'sessionId');
 
   const [localStatus, setLocalStatus] = useState<
     Record<string, AttendanceStatus>
@@ -190,15 +199,22 @@ export default function AttendancePage() {
   }, [data]);
 
   function selectClass(id: string | null) {
-    setClassBatchId(id);
-    setSessionId(null);
+    const next = new URLSearchParams(searchParams);
+    if (id && UUID_RE.test(id)) next.set('classBatchId', id);
+    else next.delete('classBatchId');
+    // Choosing a new class always clears the session (same as prior useState reset).
+    next.delete('sessionId');
+    setSearchParams(next, { replace: true });
     setLocalStatus({});
     setSaved(false);
     setSaveValidationError(null);
   }
 
   function selectSession(id: string | null) {
-    setSessionId(id);
+    const next = new URLSearchParams(searchParams);
+    if (id && UUID_RE.test(id)) next.set('sessionId', id);
+    else next.delete('sessionId');
+    setSearchParams(next, { replace: true });
     setLocalStatus({});
     setSaved(false);
     setSaveValidationError(null);
@@ -283,18 +299,21 @@ export default function AttendancePage() {
           }
           breadcrumbs={[{ label: 'Giảng dạy' }, { label: 'Điểm danh' }]}
           actions={
-            sessionId ? (
-              <Button
-                label={saved ? 'Đã lưu' : 'Lưu điểm danh'}
-                icon={saved ? <LineIcon name="check-circle" size={16} /> : undefined}
-                size="sm"
-                variant="primary"
-                isLoading={markAll.isPending}
-                isDisabled={isLoading || total === 0}
-                onClick={handleSave}
-                style={{ minHeight: TOUCH_MIN_HEIGHT }}
-              />
-            ) : undefined
+            <>
+              {(classBatchId || sessionId) ? <CopyLinkButton mode="current" /> : null}
+              {sessionId ? (
+                <Button
+                  label={saved ? 'Đã lưu' : 'Lưu điểm danh'}
+                  icon={saved ? <LineIcon name="check-circle" size={16} /> : undefined}
+                  size="sm"
+                  variant="primary"
+                  isLoading={markAll.isPending}
+                  isDisabled={isLoading || total === 0}
+                  onClick={handleSave}
+                  style={{ minHeight: TOUCH_MIN_HEIGHT }}
+                />
+              ) : null}
+            </>
           }
         />
       }

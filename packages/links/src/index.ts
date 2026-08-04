@@ -30,3 +30,19 @@ export function resolveGo(entity: string, id: string): string | null {
   if (!UUID_RE.test(id)) return null;
   return links[entity as LinkEntity](id);
 }
+
+/** Workspace deep-link builders (query params — not routed through /go). */
+export function attendancePath(q: {
+  classBatchId?: string;
+  sessionId?: string;
+}): string {
+  const params = new URLSearchParams();
+  if (q.classBatchId && UUID_RE.test(q.classBatchId)) {
+    params.set('classBatchId', q.classBatchId);
+  }
+  if (q.sessionId && UUID_RE.test(q.sessionId)) {
+    params.set('sessionId', q.sessionId);
+  }
+  const qs = params.toString();
+  return qs ? `/teaching/attendance?${qs}` : '/teaching/attendance';
+}

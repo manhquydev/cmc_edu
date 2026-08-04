@@ -110,7 +110,7 @@ PR 2a:
 
 PR 2b:
 - [x] Unit `@cmc/links` pass (gồm case prototype + non-UUID); admin typecheck xanh
-- [x] E2e cold-navigation opportunity (+ student từ 2a) pass; receipt/class cold-nav deferred to full CI (same builders)
+- [x] E2e cold-navigation 4 entity pass (opp + student + receipt + class in `deeplink-detail-gates.ui.spec.ts`)
 - [x] E2e `/go` qua login + entity lạ + id sai dạng pass
 - [x] 7 call-site dùng builder; 3 false-positive không bị đụng
 - [ ] CI 2 required checks xanh

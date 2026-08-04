@@ -1,4 +1,4 @@
-// Phase 2a: PermissionGate on detail routes + student cold-navigation.
+// Phase 2a: PermissionGate on detail routes + cold-nav for all 4 entity detail pages.
 // Complements deeplink-return-to.ui.spec.ts (Phase 1 form-login returnTo).
 
 import { randomUUID } from 'node:crypto';
@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
 
 import { mintStaffCookie } from '../src/session-injection.js';
 import { createE2eStaffClient } from '../src/trpc-client.js';
-import { seedStudent } from '../src/db.js';
+import { seedClassBatch, seedStudent } from '../src/db.js';
 import { randomVnPhone } from '../src/random-vn-phone.js';
 import { STAFF_COOKIE_NAME } from '../../api/src/auth/staff-session.js';
 
@@ -21,7 +21,7 @@ function cookiePair(name: string, value: string) {
   ];
 }
 
-test.describe('detail-route PermissionGate + student cold-nav', () => {
+test.describe('detail-route PermissionGate + entity cold-nav', () => {
   test.use({ baseURL: ADMIN_ORIGIN });
 
   test('role without crm.opportunityList sees 403 EmptyState on opportunity URL', async ({
@@ -81,6 +81,78 @@ test.describe('detail-route PermissionGate + student cold-nav', () => {
     // Must render the real name, not the fallback "ID: <uuid>" placeholder.
     await expect(page.getByText(studentName).first()).toBeVisible();
     await expect(page.getByText(new RegExp(`ID:\\s*${studentId}`))).toHaveCount(0);
+    await context.close();
+  });
+
+  test('receipt detail cold-navigates by id (receiptGet holder)', async ({ browser }) => {
+    const runId = randomUUID().slice(0, 8);
+    const { classBatchId } = await seedClassBatch({ facilityId });
+    const sale = createE2eStaffClient(baseUrl, {
+      userId: `e2e-p2a-sale-rcpt-${runId}`,
+      roles: ['sale'],
+      facilityId,
+    });
+    const parentPhone = randomVnPhone();
+    const opp = await sale.crm.opportunityCreate.mutate({
+      contactName: `E2E Cold Rcpt Parent ${runId}`,
+      phone: parentPhone,
+    });
+    for (const toStage of ['O2_CONTACTED', 'O3_TEST_SCHEDULED', 'O4_TESTED'] as const) {
+      await sale.crm.opportunityAdvance.mutate({ opportunityId: opp.id, toStage });
+    }
+    const created = await sale.finance.receiptCreate.mutate({
+      opportunityId: opp.id,
+      studentName: `E2E Cold Rcpt Student ${runId}`,
+      parentPhone,
+      amount: 5_000_000,
+      classBatchId,
+    });
+    if (created.status !== 'success') {
+      throw new Error(`receiptCreate failed: ${created.message}`);
+    }
+    const receiptId = created.receipt.id;
+    const receiptCode = created.receipt.code;
+
+    // sale cannot receiptGet — open as giam_doc_kinh_doanh (has finance.receiptGet).
+    const context = await browser.newContext({ baseURL: ADMIN_ORIGIN });
+    const page = await context.newPage();
+    await context.addCookies(
+      cookiePair(
+        STAFF_COOKIE_NAME,
+        mintStaffCookie({
+          userId: `e2e-p2a-gdkd-rcpt-${runId}`,
+          roles: ['giam_doc_kinh_doanh'],
+          facilityId,
+        }),
+      ),
+    );
+
+    await page.goto(`/finance/${receiptId}`);
+    await expect(page.getByText(receiptCode).first()).toBeVisible();
+    await context.close();
+  });
+
+  test('class detail cold-navigates by id (class.create holder)', async ({ browser }) => {
+    const runId = randomUUID().slice(0, 8);
+    // seedClassBatch is facility-scoped; page also requires class.create (GĐĐT),
+    // which is narrower than the route PermissionGate (class.read).
+    const { classBatchId, code } = await seedClassBatch({ facilityId });
+
+    const context = await browser.newContext({ baseURL: ADMIN_ORIGIN });
+    const page = await context.newPage();
+    await context.addCookies(
+      cookiePair(
+        STAFF_COOKIE_NAME,
+        mintStaffCookie({
+          userId: `e2e-p2a-gddt-cls-${runId}`,
+          roles: ['giam_doc_dao_tao'],
+          facilityId,
+        }),
+      ),
+    );
+
+    await page.goto(`/admin/classes/${classBatchId}`);
+    await expect(page.getByText(code).first()).toBeVisible();
     await context.close();
   });
 });

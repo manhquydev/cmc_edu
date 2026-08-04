@@ -53,22 +53,26 @@ export default function StudentDetailPage() {
   const { canDo } = useSession();
 
   // Prefer route fetch so deep-link / refresh still loads identity (red-team C1).
-  // location.state is a warm-path cache from the list click only.
+  // location.state is a warm-path optimistic seed ONLY while the query is in
+  // flight — once settled, the query is the sole source so a deleted/other-
+  // facility id shows EmptyState even when list state still holds a row.
   const stateStudent = (location.state as { student?: StudentState } | null)?.student;
   const getQ = trpc.student.get.useQuery(
     { id: id ?? '' },
     { enabled: Boolean(id && id.length > 0), refetchOnWindowFocus: false },
   );
-  const student: StudentState | undefined =
-    getQ.data != null
-      ? {
-          id: getQ.data.id,
-          fullName: getQ.data.fullName,
-          lifecycle: getQ.data.lifecycle,
-        }
-      : stateStudent?.id === id
-        ? stateStudent
-        : undefined;
+  const mapStudent = (row: { id: string; fullName: string; lifecycle: string }): StudentState => ({
+    id: row.id,
+    fullName: row.fullName,
+    lifecycle: row.lifecycle,
+  });
+  const querySettled = !getQ.isLoading && !getQ.isFetching;
+  const student: StudentState | undefined = (() => {
+    if (getQ.data != null) return mapStudent(getQ.data);
+    // Warm seed only during load — never after success/error (H1 code review).
+    if (!querySettled && stateStudent?.id === id) return stateStudent;
+    return undefined;
+  })();
 
   const [pendingLifecycle, setPendingLifecycle] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -85,13 +89,9 @@ export default function StudentDetailPage() {
   });
 
   const canSetLifecycle = canDo('student', 'setLifecycle');
-  const displayName = student?.fullName ?? (getQ.isLoading ? 'Đang tải…' : 'Chi tiết học viên');
+  const displayName = student?.fullName ?? (!querySettled ? 'Đang tải…' : 'Chi tiết học viên');
   const notFound =
-    Boolean(id) &&
-    !getQ.isLoading &&
-    !getQ.isFetching &&
-    student == null &&
-    (getQ.isError || getQ.isSuccess);
+    Boolean(id) && querySettled && student == null && (getQ.isError || getQ.isSuccess);
 
   function handleApply() {
     if (!id || !pendingLifecycle) return;
@@ -272,7 +272,7 @@ export default function StudentDetailPage() {
             meta={
               student ? (
                 <span>Lifecycle · {student.lifecycle}</span>
-              ) : getQ.isLoading ? (
+              ) : !querySettled ? (
                 <span>Đang tải hồ sơ học viên…</span>
               ) : (
                 <span>Chưa có dữ liệu học viên</span>

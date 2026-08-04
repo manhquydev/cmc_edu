@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { Badge, Banner, Button, Grid, HStack, LineIcon, ListPage, PageHeader, Selector, Skeleton, Stack, Text } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
@@ -135,6 +136,10 @@ function StudentRow({
 // ---------------------------------------------------------------------------
 
 export default function AttendancePage() {
+  const [searchParams] = useSearchParams();
+  // Deep-link with session → Session Detail hub (RCWS). Picker page remains for bare /attendance.
+  const deepSession = searchParams.get('session');
+
   const [classBatchId, setClassBatchId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
@@ -260,6 +265,11 @@ export default function AttendancePage() {
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
+
+  // After hooks: deep-link with session id opens the Session Detail hub.
+  if (deepSession) {
+    return <Navigate to={`/teaching/sessions/${deepSession}?tab=attendance`} replace />;
+  }
 
   return (
     <ListPage

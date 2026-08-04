@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Badge,
   Banner,
@@ -195,6 +195,7 @@ function SessionUnitPicker({
 }
 
 function SessionsTab({ classBatchId, program }: { classBatchId: string; program?: string }) {
+  const navigate = useNavigate();
   const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.classSession.list.useQuery({ classBatchId });
   const { data: unitsData, isLoading: unitsLoading } = trpc.curriculumUnit.list.useQuery();
@@ -313,6 +314,14 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
       width: 160,
       render: (_v, row) => (
         <HStack gap={0.5}>
+          <Button
+            label="Mở buổi"
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              void navigate(`/teaching/sessions/${row.id}?tab=attendance`);
+            }}
+          />
           {row.status === 'planned' && (
             <Button
               label="Xác nhận"

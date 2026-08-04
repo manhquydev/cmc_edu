@@ -23,6 +23,8 @@ import { seedClassBatch, runReconcileFinanceFlagsOnce } from '../../src/db.js';
 import { randomVnPhone } from '../../src/random-vn-phone.js';
 import { provisionStudentViaReceipt } from '../../src/journey/provision-student-via-receipt.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
+import { createE2eStaffClient } from '../../src/trpc-client.js';
+import { assertBusinessInvariant } from '../../src/journey/assert-business.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -100,6 +102,38 @@ test.describe('P1-09 journey — giám sát bất thường tài chính (phiếu
       .filter({ has: flagLink })
       .filter({ hasText: 'Vượt ngưỡng phê duyệt' });
     await expect(flagCard.last()).toBeVisible();
+
+    // ── business invariant ──
+    // The card being visible proves SOME exceeds-threshold flag for this receipt
+    // exists; it says nothing about whether the worker copied the RIGHT number
+    // into it. `reconcile-finance-flags.ts` writes `detail.netAmount =
+    // receipt.netAmount` — an authorized reviewer (reconciliation.review:
+    // giam_doc_kinh_doanh, same role driving the UI above) reads the flag back
+    // and asserts the flagged amount equals the over-threshold fee this run's
+    // receipt was created with. This is the money invariant that turns P1-09
+    // from reachable-only into verified-correct: recon flagged the right receipt
+    // (matched by receiptId) with the right amount, not merely that a flag exists.
+    const reconClient = createE2eStaffClient(process.env.E2E_BASE_URL!, {
+      userId: `e2e-p109-recon-read-${runId}`,
+      roles: ['giam_doc_kinh_doanh'],
+      facilityId,
+    });
+    // Narrow to the two fields this assertion needs at the read site:
+    // listFlags returns the raw ReconciliationFlag whose `detail: JsonValue` is a
+    // deeply recursive type that trips TS2589 ("excessively deep") when a
+    // predicate is instantiated over it (the pilot's receiptList avoids this by
+    // returning a hand-written DTO).
+    const flags = (await reconClient.reconciliation.listFlags.query({
+      kind: 'exceeds_threshold',
+    })) as unknown as ReadonlyArray<{ receiptId: string | null; detail: { netAmount: number } }>;
+    const flag = flags.find((f) => f.receiptId === receiptId);
+    expect(flag, `phải có cờ đối soát exceeds_threshold cho phiếu ${receiptId}`).toBeTruthy();
+    const flaggedAmount = flag!.detail.netAmount;
+    assertBusinessInvariant(
+      'cờ đối soát ghi đúng số tiền phiếu vượt ngưỡng (VND)',
+      flaggedAmount,
+      Number(OVER_THRESHOLD_FEE),
+    );
 
     await reviewerContext.close();
   });

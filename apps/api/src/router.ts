@@ -25,6 +25,7 @@ import { curriculumUnitRouter, exerciseRouter } from './exercise/router.js';
 import { exerciseOpenTierRouter } from './exercise/open-tier.js';
 import { facilityRouter } from './facility/router.js';
 import { facilityNetworkRouter } from './facility/network-router.js';
+import { facilityGeofenceRouter } from './facility/geofence-router.js';
 import { financeRouter } from './finance/router.js';
 import { guardianRouter } from './guardian/router.js';
 import { lmsAuthRouter } from './lms-auth/router.js';
@@ -67,6 +68,8 @@ export const appRouter = router({
   facility: facilityRouter,
   // Phase-03 super-admin-completion: IP range management + self-detect.
   facilityNetwork: facilityNetworkRouter,
+  // Geofence GPS punch verification: circular zones + position test.
+  facilityGeofence: facilityGeofenceRouter,
   course: courseRouter,
   room: roomRouter,
   classBatch: classBatchRouter,

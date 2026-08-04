@@ -412,6 +412,7 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
   await privileged.timePunch.deleteMany({ where: { facilityId } });
   await privileged.appUser.deleteMany({ where: { facilityId } });
   await privileged.facilityNetwork.deleteMany({ where: { facilityId } });
+  await privileged.facilityGeofence.deleteMany({ where: { facilityId } });
 
   await db.receiptCodeCounter.deleteMany({ where: { facilityId } });
   await db.facility.deleteMany({ where: { id: facilityId } });
@@ -446,6 +447,7 @@ async function assertNoFacilityResidue(facilityId: string): Promise<void> {
     ['ClassSession', privileged.classSession.count(where)],
     ['ClassBatch', privileged.classBatch.count(where)],
     ['AppUser', privileged.appUser.count(where)],
+    ['FacilityGeofence', privileged.facilityGeofence.count(where)],
     ['Facility', privileged.facility.count({ where: { id: facilityId } })],
   ].map(async ([table, pending]) => [table as string, await (pending as Promise<number>)] as const));
 
@@ -687,6 +689,54 @@ export async function seedFacilityNetwork(opts: {
       }),
     { bypass: true },
   );
+}
+
+/** Seeds a FacilityGeofence (FORCE RLS → must use withFacility bypass). */
+export async function seedFacilityGeofence(opts: {
+  facilityId: string;
+  lat: number;
+  lng: number;
+  radiusM?: number;
+  accuracyMaxM?: number;
+  label?: string;
+  isActive?: boolean;
+}): Promise<{ id: string }> {
+  return withFacility(
+    getDb(),
+    null,
+    (tx) =>
+      tx.facilityGeofence.create({
+        data: {
+          facilityId: opts.facilityId,
+          lat: opts.lat,
+          lng: opts.lng,
+          radiusM: opts.radiusM ?? 200,
+          accuracyMaxM: opts.accuracyMaxM ?? 200,
+          label: opts.label ?? 'E2E geofence',
+          isActive: opts.isActive ?? false,
+        },
+        select: { id: true },
+      }),
+    { bypass: true },
+  );
+}
+
+/** Deletes geofences by label prefix via privileged connection. */
+export async function deleteFacilityGeofencesByLabel(
+  facilityId: string,
+  labelPrefix: string,
+): Promise<void> {
+  await getPrivilegedDb().facilityGeofence.deleteMany({
+    where: { facilityId, label: { startsWith: labelPrefix } },
+  });
+}
+
+/** Deletes TimePunch + ManualAttendanceTicket for given AppUser ids (privileged). */
+export async function deletePunchesAndTicketsForAppUsers(...appUserIds: string[]): Promise<void> {
+  if (appUserIds.length === 0) return;
+  const db = getPrivilegedDb();
+  await db.manualAttendanceTicket.deleteMany({ where: { appUserId: { in: appUserIds } } });
+  await db.timePunch.deleteMany({ where: { appUserId: { in: appUserIds } } });
 }
 
 // ---------------------------------------------------------------------------

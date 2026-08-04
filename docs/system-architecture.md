@@ -204,7 +204,14 @@ CREATE POLICY "facility_isolation" ON table_name
   FOR SELECT USING (facilityId = current_setting('app.facility_id')::uuid)
 ```
 
-Policies applied to 37 tables across P1–P4: AfterSaleCase, AppUser, Attendance, ClassBatch, ClassBatchCodeCounter, ClassSession, CompensationPolicy, Contact, Course, Enrollment, FacilityNetwork, FinalGrade, Gift, KpiScore, ManualAttendanceTicket, Opportunity, Payslip, QualitativeAssessment, Receipt, ReconciliationFlag, RefundRecord, Reward, Room, SalaryRate, SalaryTier, ScheduleSlot, SessionEvidence, SessionEvidencePhoto, ShiftGroup, ShiftRegistration, ShiftRegistrationEntry, ShiftTemplate, StarTransaction, Student, Submission, TestAppointment, TimePunch.
+Policies applied across P1–P4 (+ geofence 2026-08): AfterSaleCase, AppUser, Attendance, ClassBatch, ClassBatchCodeCounter, ClassSession, CompensationPolicy, Contact, Course, Enrollment, FacilityGeofence, FacilityNetwork, FinalGrade, Gift, KpiScore, ManualAttendanceTicket, Opportunity, Payslip, QualitativeAssessment, Receipt, ReconciliationFlag, RefundRecord, Reward, Room, SalaryRate, SalaryTier, ScheduleSlot, SessionEvidence, SessionEvidencePhoto, ShiftGroup, ShiftRegistration, ShiftRegistrationEntry, ShiftTemplate, StarTransaction, Student, Submission, TestAppointment, TimePunch.
+
+**HR punch location (ADR 0043 + 0044):** `checkInOut.punch` admits a punch when
+open-mode (0 active network and 0 active geofence), or IP matches an active
+`FacilityNetwork` CIDR, or GPS is inside an active `FacilityGeofence` (distance
++ accuracy). Labels: `verification` ∈ {network, geo, open, none}. Prod
+`TRUSTED_PROXY_CIDRS` must pin nginx static IP (see `docker-compose.prod.yml`);
+`ipMatchesCidr` is IPv4-only.
 
 ---
 

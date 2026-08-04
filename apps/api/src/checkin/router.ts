@@ -51,13 +51,24 @@ import { addDaysToDateOnly, ictDateOnlyOf, ictToUtc } from '@cmc/domain-time';
 import { resolveTargetRole, trackDirectorRole } from '../attendance/resolve-target-role.js';
 import { AppCodeError, badRequest, forbidden, notFound } from '../errors.js';
 import { protectedProcedure, requirePermission, router, scoped } from '../trpc.js';
+import { haversineDistanceM } from './geo-distance.js';
 
 const PUNCH_COOLDOWN_MS = 10 * 1000; // ADR 0043: 10 seconds (was 5 minutes)
+
+const geoInput = z
+  .object({
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    accuracyM: z.number().min(0).max(100_000),
+  })
+  .optional();
 
 const punchInput = z
   .object({
     /** Required only for the first offsite punch of a day that has no ticket yet. */
     reason: z.string().max(2000).optional(),
+    /** Optional GPS capture — never required; denied/timeout omit this field. */
+    geo: geoInput,
   })
   .default({});
 
@@ -137,6 +148,23 @@ const listInput = z.object({
 });
 
 /**
+ * Boolean form of the ticket review gate (no throw). Used by dayPunches so a
+ * denied read keeps a FORBIDDEN message about read access, not approve/reject.
+ */
+function canReviewTicket(params: {
+  reviewerId: string | undefined;
+  reviewerRoles: readonly string[];
+  ownerId: string;
+  ownerRoles: readonly string[];
+}): boolean {
+  const { reviewerId, reviewerRoles, ownerId, ownerRoles } = params;
+  if (reviewerId === ownerId) return false;
+  if (reviewerRoles.includes('super_admin')) return true;
+  const requiredDirectorRole = trackDirectorRole(resolveTargetRole(ownerRoles));
+  return requiredDirectorRole !== null && reviewerRoles.includes(requiredDirectorRole);
+}
+
+/**
  * ADR 0043 phase 4 — anti-self + GĐ-track authorization for reviewing a
  * ManualAttendanceTicket. Replaces the pre-0043 `managerId`-based gate.
  * `super_admin` bypasses; a track-less owner (director/super_admin, no
@@ -195,13 +223,59 @@ export const checkInOutRouter = router({
           });
         }
 
-        // ADR 0043: offsite is no longer rejected — compute the flag instead.
-        // No active FacilityNetwork rows → open/dev mode (always within-network).
+        // Gate OR per configured branch (geofence GPS plan):
+        // openMode = 0 network active AND 0 geofence active → within (legacy open).
+        // Network branch only when ≥1 active network; geo only when ≥1 active geofence.
         const networks = await tx.facilityNetwork.findMany({
           where: { facilityId, isActive: true },
         });
+        const geofences = await tx.facilityGeofence.findMany({
+          where: { facilityId, isActive: true },
+          orderBy: { createdAt: 'asc' },
+        });
+        const openMode = networks.length === 0 && geofences.length === 0;
         const callerIp = ctx.ip ?? '';
-        const withinNetwork = networks.length === 0 || networks.some((n) => ipMatchesCidr(callerIp, n.cidr));
+        const ipMatch =
+          networks.length > 0 && networks.some((n) => ipMatchesCidr(callerIp, n.cidr));
+
+        type Snapshot = {
+          matchedGeofenceId: string | null;
+          geofenceDistanceM: number | null;
+          matchedRadiusM: number | null;
+          matchedAccuracyMaxM: number | null;
+        };
+        let snapshot: Snapshot = {
+          matchedGeofenceId: null,
+          geofenceDistanceM: null,
+          matchedRadiusM: null,
+          matchedAccuracyMaxM: null,
+        };
+        if (input.geo && geofences.length > 0) {
+          const withDist = geofences.map((g) => ({
+            g,
+            d: haversineDistanceM(input.geo!, { lat: g.lat, lng: g.lng }),
+          }));
+          const matched = withDist.find(
+            ({ g, d }) => d <= g.radiusM && input.geo!.accuracyM <= g.accuracyMaxM,
+          );
+          const chosen = matched ?? withDist.reduce((a, b) => (a.d <= b.d ? a : b));
+          snapshot = {
+            matchedGeofenceId: matched ? matched.g.id : null,
+            geofenceDistanceM: chosen.d,
+            matchedRadiusM: chosen.g.radiusM,
+            matchedAccuracyMaxM: chosen.g.accuracyMaxM,
+          };
+        }
+        const geoMatch = snapshot.matchedGeofenceId !== null;
+        const withinNetwork = openMode || ipMatch || geoMatch;
+        // Network wins over geo when both match; open ≠ network (no claim of proof).
+        const verification = ipMatch
+          ? 'network'
+          : geoMatch
+            ? 'geo'
+            : openMode
+              ? 'open'
+              : 'none';
 
         const now = new Date();
         const dateKey = ictDateOnlyOf(now);
@@ -224,15 +298,21 @@ export const checkInOutRouter = router({
         // (a) has a registered shift and (b) has no ticket yet requires a
         // reason. Checked BEFORE creating the punch so a missing reason never
         // leaves an orphaned TimePunch behind.
+        // appData.geoThresholdM only — never distance/coords (anti-oracle).
         if (!withinNetwork && !input.reason && hasShift) {
           const existingTicket = await tx.manualAttendanceTicket.findUnique({
             where: { appUserId_ticketDate: { appUserId: appUser.id, ticketDate: dayStart } },
           });
           if (!existingTicket) {
+            const geoThresholdM =
+              geofences.length > 0
+                ? Math.max(...geofences.map((g) => g.accuracyMaxM))
+                : undefined;
             throw new AppCodeError({
               code: 'BAD_REQUEST',
               appCode: 'OFFSITE_REASON_REQUIRED',
               message: 'Ngoài mạng cơ sở — cần nhập lý do cho lần chấm công đầu tiên trong ngày.',
+              ...(geoThresholdM !== undefined ? { appData: { geoThresholdM } } : {}),
             });
           }
         }
@@ -241,15 +321,86 @@ export const checkInOutRouter = router({
           data: {
             facilityId,
             appUserId: appUser.id,
-            method: 'ip',
+            // Capture channel is secondary; admission path is `verification`.
+            method: ipMatch ? 'ip' : geoMatch ? 'geo' : 'ip',
             ip: ctx.ip ?? null,
             withinNetwork,
+            verification,
+            lat: input.geo?.lat ?? null,
+            lng: input.geo?.lng ?? null,
+            accuracyM: input.geo?.accuracyM ?? null,
+            matchedGeofenceId: snapshot.matchedGeofenceId,
+            geofenceDistanceM: snapshot.geofenceDistanceM,
+            matchedRadiusM: snapshot.matchedRadiusM,
+            matchedAccuracyMaxM: snapshot.matchedAccuracyMaxM,
           },
         });
 
         await ensureDayTicket(tx, { facilityId, appUserId: appUser.id, dateKey, hasShift, reason: input.reason });
 
-        return { id: punch.id, punchAt: punch.punchAt, method: punch.method };
+        return {
+          id: punch.id,
+          punchAt: punch.punchAt,
+          method: punch.method,
+          verification: punch.verification,
+          withinNetwork: punch.withinNetwork,
+        };
+      });
+    }),
+
+  /**
+   * Count geo-labeled punches per staff over N days — surface for all-geo days
+   * that never produce a ticket (reviewers with manualPunch.approve).
+   * No role filter on staff; excludes the caller's own AppUser row when present.
+   */
+  geoPunchSummary: requirePermission('manualPunch', 'approve')
+    .input(z.object({ days: z.number().int().min(7).max(90).default(30) }))
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const cutoff = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
+        const caller = await tx.appUser.findFirst({
+          where: { userId: ctx.subject!.userId, facilityId },
+          select: { id: true },
+        });
+
+        const punches = await tx.timePunch.findMany({
+          where: {
+            facilityId,
+            verification: 'geo',
+            punchAt: { gte: cutoff },
+            ...(caller ? { appUserId: { not: caller.id } } : {}),
+          },
+          select: { appUserId: true, punchAt: true },
+          orderBy: { punchAt: 'desc' },
+        });
+
+        const byUser = new Map<string, { geoPunchCount: number; lastGeoPunchAt: Date }>();
+        for (const p of punches) {
+          const existing = byUser.get(p.appUserId);
+          if (!existing) {
+            byUser.set(p.appUserId, { geoPunchCount: 1, lastGeoPunchAt: p.punchAt });
+          } else {
+            existing.geoPunchCount += 1;
+          }
+        }
+
+        if (byUser.size === 0) return [];
+
+        const users = await tx.appUser.findMany({
+          where: { id: { in: [...byUser.keys()] }, facilityId },
+          select: { id: true, fullName: true },
+        });
+        const nameById = new Map(users.map((u) => [u.id, u.fullName]));
+
+        return [...byUser.entries()]
+          .map(([appUserId, stats]) => ({
+            appUserId,
+            fullName: nameById.get(appUserId) ?? '',
+            geoPunchCount: stats.geoPunchCount,
+            lastGeoPunchAt: stats.lastGeoPunchAt,
+          }))
+          .sort((a, b) => b.geoPunchCount - a.geoPunchCount);
       });
     }),
 });
@@ -437,6 +588,61 @@ export const manualPunchRouter = router({
           include: { appUser: { select: { fullName: true } } },
           orderBy: { createdAt: 'desc' },
         });
+      });
+    }),
+
+  /**
+   * Reviewer surface: minimized day punches for a ticket (no raw lat/lng/ip).
+   * Scoped to the ticket owner + ICT day — never facility-wide.
+   */
+  dayPunches: requirePermission('manualPunch', 'approve')
+    .input(z.object({ ticketId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const ticket = await tx.manualAttendanceTicket.findFirst({
+          where: { id: input.ticketId, facilityId },
+        });
+        if (!ticket) throw notFound('Ticket not found.');
+
+        const reviewer = await tx.appUser.findFirst({
+          where: { userId: ctx.subject!.userId, facilityId },
+        });
+        const owner = await tx.appUser.findFirst({ where: { id: ticket.appUserId, facilityId } });
+        if (!owner) throw notFound('Ticket owner not found.');
+
+        if (
+          !canReviewTicket({
+            reviewerId: reviewer?.id,
+            reviewerRoles: ctx.subject!.roles,
+            ownerId: owner.id,
+            ownerRoles: owner.roles,
+          })
+        ) {
+          throw forbidden('Cannot read punches for a ticket outside your review scope.');
+        }
+
+        const dateKey = ictDateOnlyOf(ticket.ticketDate);
+        const dayStart = ictToUtc(dateKey, '00:00');
+        const dayEnd = ictToUtc(addDaysToDateOnly(dateKey, 1), '00:00');
+
+        const punches = await tx.timePunch.findMany({
+          where: {
+            facilityId,
+            appUserId: ticket.appUserId,
+            punchAt: { gte: dayStart, lt: dayEnd },
+          },
+          orderBy: { punchAt: 'asc' },
+          select: {
+            punchAt: true,
+            verification: true,
+            accuracyM: true,
+            geofenceDistanceM: true,
+            matchedRadiusM: true,
+          },
+        });
+
+        return punches;
       });
     }),
 });

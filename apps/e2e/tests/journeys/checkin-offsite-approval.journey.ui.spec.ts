@@ -222,10 +222,12 @@ test.describe('P3-02 journey — duyệt phiếu chấm công offsite theo track
     await menuNav(gdkdPage, 'Nhân sự', 'Chấm công', { role: 'giam_doc_kinh_doanh' });
     await gdkdPage.getByRole('button', { name: 'Duyệt chấm công' }).click();
     const ticketRow = await findInList(gdkdPage, (text) => text.includes(saleFullName));
+    // Approve UX is a detail Dialog (not ConfirmDialog/alertdialog) with day
+    // punch table + footer Duyệt — geofence plan phase 3 redesign.
     await ticketRow.getByRole('button', { name: 'Duyệt' }).click();
-    const confirmDialog = gdkdPage.getByRole('alertdialog');
-    await expect(confirmDialog).toBeVisible();
-    await confirmDialog.getByRole('button', { name: 'Duyệt' }).click();
+    const detailDialog = gdkdPage.getByRole('dialog');
+    await expect(detailDialog).toBeVisible();
+    await detailDialog.getByRole('button', { name: 'Duyệt' }).click();
     await expect(gdkdPage.getByText('Đã duyệt yêu cầu chấm công.')).toBeVisible();
 
     // ── business invariant ──

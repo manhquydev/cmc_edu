@@ -6,8 +6,11 @@
 // Chạy: npx eslint --config eslint.copy-audit.config.js apps/admin apps/lms -f json
 import tseslint from 'typescript-eslint';
 
+// "auth identity" removed from the pattern (Phase 4, OQ1 default): the only
+// match was users.tsx:346's form label, and the plan's non-goal to leave
+// form labels untouched applies here — see MASTER.md §"Giới hạn lint".
 const INTERNAL_IDENTIFIER_PATTERN =
-  'SettingsShell|FullCalendar|ConsoleEmailTransport|auth identity|super_admin' +
+  'SettingsShell|FullCalendar|ConsoleEmailTransport|super_admin' +
   '|AI agent|ai:recon|\\bCRUD\\b|testAppointment\\.|finance\\.refundCreate' +
   '|\\bEntity\\b|API .{0,40}chưa khả dụng';
 

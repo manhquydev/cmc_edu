@@ -214,6 +214,11 @@ Rule ESLint `no-restricted-syntax` (chuẩn hoá tại Phase 5 của
    ngoài danh sách (vd `Net`, `SoD`, `server-side`, `O1–O5`) **không được
    guard**, kể cả khi xuất hiện đúng vị trí `JSXAttribute > Literal`. Thêm
    token mới khi phát hiện lớp rò rỉ mới — đừng coi danh sách hiện tại là đủ.
+   Token `auth identity` bị **gỡ khỏi pattern có chủ đích** (Phase 4 của
+   `plans/260805-1153-chuan-hoa-tu-ngu-ui-frontend/`, Open question 1 hết hạn
+   không có trả lời ⇒ áp default): chỗ khớp duy nhất là nhãn form
+   `admin/users.tsx:346` (`"User ID (auth identity)"`), và non-goal "không đụng
+   nhãn form" của plan đó áp dụng ở đây — nhãn giữ nguyên, không sửa.
 
 ⇒ **Lint là guard chống tái phát trong phạm vi trên, KHÔNG phải thước đo hoàn
 thành.** Đo hoàn thành bằng checklist theo từng chuỗi cụ thể (xem plan liên

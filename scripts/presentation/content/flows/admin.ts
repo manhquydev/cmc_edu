@@ -1,0 +1,81 @@
+import type { FlowCopy } from '../../types.js';
+
+export const adminFlows: FlowCopy[] = [
+  {
+    id: 'ADM-01',
+    title: 'Quản trị cơ sở',
+    diagram: 'swimlane',
+    whoStarts: 'Quản trị hệ thống',
+    whoApproves: 'Không — thao tác quản trị',
+    systemDoes: 'Phạm vi dữ liệu theo cơ sở cho mọi vai trò phía dưới',
+    resultScreen: 'Màn quản trị cơ sở',
+    steps: [
+      { actor: 'super_admin', action: 'Thêm / sửa cơ sở' },
+      { actor: 'he_thong', action: 'Áp phạm vi dữ liệu', system: true },
+    ],
+    rules: ['Mỗi cơ sở chỉ thấy dữ liệu của cơ sở mình'],
+    sourceRef: 'super-admin completion plan · ADM-01',
+  },
+  {
+    id: 'ADM-02',
+    title: 'Quản trị tài khoản nhân sự',
+    diagram: 'swimlane',
+    whoStarts: 'Quản trị hệ thống',
+    whoApproves: 'Không — cấp/khoá tài khoản là thao tác quản trị',
+    systemDoes: 'Gán vai trò và cơ sở; chặn đăng nhập khi khoá',
+    resultScreen: 'Màn tài khoản nhân sự',
+    steps: [
+      { actor: 'super_admin', action: 'Tạo / khoá tài khoản' },
+      { actor: 'super_admin', action: 'Gán vai trò và cơ sở' },
+    ],
+    rules: ['Bốn vai trò đang gác (kế toán, CSKH, CTV marketing, HR) = 0 quyền, không hứa "sắp có"'],
+    sourceRef: 'ADM-02',
+  },
+  {
+    id: 'ADM-03',
+    title: 'Cấu hình mạng chấm công',
+    diagram: 'before-after',
+    whoStarts: 'Quản trị hệ thống',
+    whoApproves: 'Không',
+    systemDoes: 'Chỉ nhận chấm công trong dải mạng đã khai',
+    resultScreen: 'Màn cấu hình mạng chấm công',
+    before: {
+      title: 'Chưa cấu hình',
+      items: ['Không phân biệt trong/ngoài cơ sở'],
+    },
+    after: {
+      title: 'Đã cấu hình',
+      items: ['Trong mạng = hợp lệ', 'Ngoài mạng = chờ duyệt'],
+    },
+    sourceRef: 'ADM-03',
+  },
+  {
+    id: 'ADM-04',
+    title: 'Nhật ký hệ thống',
+    diagram: 'journey',
+    whoStarts: 'Quản trị hệ thống',
+    whoApproves: 'Không — chỉ xem',
+    systemDoes: 'Ghi sự kiện quan trọng để truy vết',
+    resultScreen: 'Màn nhật ký',
+    milestones: [
+      { title: 'Mở nhật ký' },
+      { title: 'Lọc theo thời gian / loại' },
+      { title: 'Đối chiếu sự cố' },
+    ],
+    sourceRef: 'ADM-04',
+  },
+  {
+    id: 'ADM-05',
+    title: 'Cấu hình khung ca làm',
+    diagram: 'swimlane',
+    whoStarts: 'Quản trị hệ thống',
+    whoApproves: 'Không',
+    systemDoes: 'Cung cấp khung ca cho đăng ký và duyệt',
+    resultScreen: 'Màn cấu hình ca',
+    steps: [
+      { actor: 'super_admin', action: 'Định nghĩa khung ca' },
+      { actor: 'he_thong', action: 'Hiển thị khi đăng ký ca', system: true },
+    ],
+    sourceRef: 'ADM-05',
+  },
+];

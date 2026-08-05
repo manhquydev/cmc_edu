@@ -1,0 +1,77 @@
+import type { FlowCopy } from '../../types.js';
+
+export const p4Flows: FlowCopy[] = [
+  {
+    id: 'P4-01',
+    title: 'Học viên đổi quà bằng sao',
+    diagram: 'control-gate',
+    whoStarts: 'Học viên chọn quà',
+    whoApproves: 'Nhân sự/giám đốc xác nhận giao quà khi cần',
+    systemDoes: 'Trừ sao, ghi lịch sử đổi; chặn khi không đủ số dư',
+    resultScreen: 'Kho quà / lịch sử đổi sao',
+    gateOptions: [
+      { kind: 'approve', label: 'Đổi thành công', note: 'Đủ sao' },
+      { kind: 'reject', label: 'Không đủ sao' },
+    ],
+    sourceRef: 'docs/28 · P4-01',
+  },
+  {
+    id: 'P4-02',
+    title: 'Cấu hình quà đổi sao',
+    diagram: 'swimlane',
+    whoStarts: 'Giám đốc có thẩm quyền',
+    whoApproves: 'Thao tác cấu hình là chốt danh mục',
+    systemDoes: 'Áp giá sao và trạng thái quà cho học viên thấy',
+    resultScreen: 'Màn cấu hình quà',
+    steps: [
+      { actor: 'giam_doc_kinh_doanh', action: 'Thêm / sửa quà và giá sao' },
+      { actor: 'he_thong', action: 'Hiển thị trong kho quà', system: true },
+    ],
+    sourceRef: 'docs/28 · P4-02',
+  },
+  {
+    id: 'P4-03',
+    title: 'Lên lịch và nhắc họp phụ huynh',
+    diagram: 'journey',
+    whoStarts: 'Sale hoặc giám đốc',
+    whoApproves: 'Không cổng duyệt riêng',
+    systemDoes: 'Nhắc lịch họp theo cấu hình',
+    resultScreen: 'Màn lịch họp phụ huynh',
+    milestones: [
+      { title: 'Tạo lịch họp' },
+      { title: 'Gắn lớp / phụ huynh' },
+      { title: 'Hệ thống nhắc' },
+    ],
+    sourceRef: 'docs/28 · P4-03',
+  },
+  {
+    id: 'P4-04',
+    title: 'Đặt lịch test đầu vào hoặc định kỳ',
+    diagram: 'journey',
+    whoStarts: 'Sale',
+    whoApproves: 'Không — lịch hẹn với gia đình',
+    systemDoes: 'Ghi lịch test gắn với cơ hội/học viên',
+    resultScreen: 'CRM / lịch test',
+    milestones: [
+      { title: 'Chọn loại test' },
+      { title: 'Chọn khung giờ' },
+      { title: 'Xác nhận với phụ huynh' },
+    ],
+    sourceRef: 'docs/28 · P4-04',
+  },
+  {
+    id: 'P4-05',
+    title: 'Chăm sóc sau bán',
+    diagram: 'swimlane',
+    whoStarts: 'Sale',
+    whoApproves: 'Giám đốc xem báo cáo khi cần',
+    systemDoes: 'Giữ pipeline sau ghi danh — không để mất dấu',
+    resultScreen: 'CRM cơ hội / chăm sóc',
+    steps: [
+      { actor: 'sale', action: 'Ghi hoạt động chăm sóc' },
+      { actor: 'sale', action: 'Hẹn bước tiếp' },
+      { actor: 'he_thong', action: 'Nhắc việc đến hạn', system: true },
+    ],
+    sourceRef: 'docs/28 · P4-05',
+  },
+];

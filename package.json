@@ -15,6 +15,9 @@
     "lint": "eslint apps/admin apps/lms scripts",
     "acceptance:report": "tsx scripts/acceptance-report/verify.ts",
     "business:verify": "tsx scripts/business-verify/verify.ts",
+    "deck:build": "tsx scripts/presentation/build.ts",
+    "deck:check": "tsx scripts/presentation/check-copy.ts",
+    "test:deck": "vitest run --config scripts/presentation/vitest.config.ts",
     "verify:portability": "node scripts/verify-repository-portability.mjs",
     "check:ui-frames": "node scripts/check-ui-frames.mjs --strict",
     "test:ui-frames": "node --test scripts/check-ui-frames.test.mjs",
@@ -28,11 +31,13 @@
     "eslint-formatter-compact": "^9.0.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
+    "reveal.js": "5.2.1",
     "ts-morph": "^24.0.0",
     "tsx": "^4.23.1",
     "turbo": "^2.10.7",
     "typescript": "^5.7.0",
-    "typescript-eslint": "^8.65.0"
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

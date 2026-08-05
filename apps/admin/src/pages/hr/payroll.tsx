@@ -455,7 +455,6 @@ export default function PayrollPage() {
         header={
           <PageHeader
             title="Bảng lương"
-            subtitle="Chi tiết phiếu lương nhân viên"
             breadcrumbs={[
               { label: 'Nhân sự' },
               { label: 'Bảng lương' },
@@ -478,7 +477,6 @@ export default function PayrollPage() {
         header={
           <PageHeader
             title="Bảng lương"
-            subtitle="Chi tiết phiếu lương nhân viên"
             breadcrumbs={[
               { label: 'Nhân sự' },
               { label: 'Bảng lương' },
@@ -516,7 +514,6 @@ export default function PayrollPage() {
       header={
         <PageHeader
           title="Bảng lương"
-          subtitle="Chọn nhân viên để xem / chốt lương theo tháng"
           breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Bảng lương' }]}
           actions={
             <div style={{ width: 140 }}>

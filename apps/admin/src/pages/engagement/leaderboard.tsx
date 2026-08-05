@@ -10,7 +10,6 @@ export default function LeaderboardPage() {
       header={
         <PageHeader
           title="Bảng xếp hạng"
-          subtitle="Thứ hạng học viên theo điểm sao tích luỹ"
           breadcrumbs={[
             { label: 'Quản trị' },
             { label: 'Engagement' },

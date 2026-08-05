@@ -376,7 +376,6 @@ export default function GradingPage() {
       header={
         <PageHeader
           title="Chấm bài"
-          subtitle="Danh sách bài nộp cần chấm điểm"
           breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Chấm bài' }]}
           actions={submissionId ? <CopyLinkButton mode="current" /> : undefined}
         />

@@ -298,7 +298,6 @@ export default function CrmPipelinePage() {
         header={
           <PageHeader
             title="Pipeline CRM"
-            subtitle="Theo dõi cơ hội từ Tiếp cận đến Ghi danh"
             breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Pipeline CRM' }]}
             actions={
               <HStack gap={2} align="center">

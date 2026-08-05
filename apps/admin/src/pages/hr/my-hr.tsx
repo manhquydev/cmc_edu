@@ -301,7 +301,6 @@ export default function MyHrPage() {
       header={
         <PageHeader
           title="Của tôi"
-          subtitle="KPI và bảng lương cá nhân theo kỳ"
           breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Của tôi' }]}
           actions={
             <div style={{ width: 130 }}>

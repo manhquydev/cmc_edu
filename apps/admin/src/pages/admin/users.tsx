@@ -269,7 +269,6 @@ function UsersContent() {
         header={
           <PageHeader
             title="Nhân viên"
-            subtitle="Danh sách tài khoản nhân viên tại cơ sở"
             breadcrumbs={[{ label: 'Quản trị' }, { label: 'Nhân viên' }]}
             actions={
               <Button label="Thêm nhân viên" size="sm" variant="primary" onClick={() => setModalOpen(true)} />

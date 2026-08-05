@@ -182,7 +182,6 @@ export default function RevenueReportPage() {
   return (
     <DashboardPage
       title="Doanh thu"
-      subtitle="Tổng hợp phiếu thu đã duyệt theo lớp"
       metrics={
         <Grid columns={{ minWidth: 220, max: 3 }} gap={4}>
           <StatCard

@@ -397,7 +397,6 @@ export default function SalaryTiersPage() {
       header={
         <PageHeader
           title="Bậc lương & gán bậc"
-          subtitle="Quản lý bậc lương và gán bậc cho nhân viên sale/giáo viên"
           breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Bậc lương' }]}
         />
       }

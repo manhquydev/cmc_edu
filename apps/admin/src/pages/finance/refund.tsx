@@ -18,7 +18,6 @@ export default function RefundPage() {
       header={
         <PageHeader
           title="Hoàn tiền"
-          subtitle="Xử lý yêu cầu hoàn tiền cho phiếu thu đã duyệt"
           breadcrumbs={[{ label: 'Tài chính' }, { label: 'Hoàn tiền' }]}
         />
       }

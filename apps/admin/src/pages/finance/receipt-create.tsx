@@ -224,7 +224,7 @@ export default function ReceiptCreatePage() {
         header={
           <PageHeader
             title={opportunityId ? 'Tạo phiếu từ cơ hội' : 'Tạo phiếu thu mới'}
-            subtitle="Ghi danh học viên mới — tài khoản LMS sẽ tự động tạo sau khi duyệt"
+            subtitle="Tài khoản LMS sẽ tự động tạo sau khi duyệt"
             breadcrumbs={[
               { label: 'Kinh doanh' },
               { label: 'Phiếu thu', href: '/finance' },

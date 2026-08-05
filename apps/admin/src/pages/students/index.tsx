@@ -76,7 +76,7 @@ export default function StudentListPage() {
       header={
         <PageHeader
           title="Học viên"
-          subtitle="Tra cứu học viên theo tên hoặc SĐT phụ huynh (tối đa 20 kết quả)"
+          subtitle="Tối đa 20 kết quả mỗi lần tra cứu"
           breadcrumbs={[{ label: 'Quản trị' }, { label: 'Học viên' }]}
         />
       }

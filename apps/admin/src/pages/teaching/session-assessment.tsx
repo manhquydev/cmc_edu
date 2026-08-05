@@ -146,7 +146,7 @@ export default function SessionAssessmentPage() {
       header={
         <PageHeader
           title="Nhận xét buổi học"
-          subtitle="Nhận xét cho học sinh có mặt trong buổi — điều kiện để buổi tự chuyển 'done'"
+          subtitle="Điều kiện để buổi học tự chuyển trạng thái 'done'"
           breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Nhận xét buổi học' }]}
         />
       }

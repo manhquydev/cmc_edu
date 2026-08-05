@@ -225,7 +225,6 @@ export default function ReconciliationPage() {
         header={
           <PageHeader
             title="Đối soát tài chính"
-            subtitle="Cảnh báo từ agent phân tích tự động"
             breadcrumbs={[{ label: 'Ops' }, { label: 'Đối soát' }]}
           />
         }

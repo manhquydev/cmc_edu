@@ -295,7 +295,6 @@ export default function SchedulePage() {
       header={
         <PageHeader
           title="Lịch dạy"
-          subtitle="FullCalendar · buổi học timed · list/kanban Soft Ops"
           breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Lịch dạy' }]}
           actions={
             <div className="ck-view-toggle" role="toolbar" aria-label="Chế độ xem lịch">

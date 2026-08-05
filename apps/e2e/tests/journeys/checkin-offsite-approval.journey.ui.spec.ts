@@ -97,11 +97,19 @@ test.describe('P3-02 journey — duyệt phiếu chấm công offsite theo track
     await adminPage.getByRole('button', { name: 'Thêm nhóm ca' }).click();
     await expect(adminPage.getByText(groupName)).toBeVisible();
 
-    await adminPage.getByLabel('Tên mẫu ca').fill(templateName);
-    await adminPage.getByLabel('Bắt đầu (HH:mm)').fill('08:00');
-    await adminPage.getByLabel('Kết thúc (HH:mm)').fill('17:00');
-    await adminPage.getByRole('button', { name: '+ Thêm mẫu ca' }).click();
-    await expect(adminPage.getByText(templateName)).toBeVisible();
+    // Scope to the new group card — every group mounts its own "Tên mẫu ca"
+    // form (strict-mode fails with getByLabel unscoped on shared facility).
+    const groupCard = adminPage
+      .locator('div')
+      .filter({ hasText: groupName })
+      .filter({ has: adminPage.getByLabel('Tên mẫu ca') })
+      .last();
+    await expect(groupCard).toBeVisible();
+    await groupCard.getByLabel('Tên mẫu ca').fill(templateName);
+    await groupCard.getByLabel('Bắt đầu (HH:mm)').fill('08:00');
+    await groupCard.getByLabel('Kết thúc (HH:mm)').fill('17:00');
+    await groupCard.getByRole('button', { name: '+ Thêm mẫu ca' }).click();
+    await expect(groupCard.getByText(templateName)).toBeVisible();
 
     await menuNav(adminPage, 'Quản trị', 'IP mạng', { role: 'super_admin' });
     await expect(adminPage).toHaveURL(/\/admin\/network-ip/);
@@ -222,10 +230,12 @@ test.describe('P3-02 journey — duyệt phiếu chấm công offsite theo track
     await menuNav(gdkdPage, 'Nhân sự', 'Chấm công', { role: 'giam_doc_kinh_doanh' });
     await gdkdPage.getByRole('button', { name: 'Duyệt chấm công' }).click();
     const ticketRow = await findInList(gdkdPage, (text) => text.includes(saleFullName));
+    // Approve UX is a detail Dialog (not ConfirmDialog/alertdialog) with day
+    // punch table + footer Duyệt — geofence plan phase 3 redesign.
     await ticketRow.getByRole('button', { name: 'Duyệt' }).click();
-    const confirmDialog = gdkdPage.getByRole('alertdialog');
-    await expect(confirmDialog).toBeVisible();
-    await confirmDialog.getByRole('button', { name: 'Duyệt' }).click();
+    const detailDialog = gdkdPage.getByRole('dialog');
+    await expect(detailDialog).toBeVisible();
+    await detailDialog.getByRole('button', { name: 'Duyệt' }).click();
     await expect(gdkdPage.getByText('Đã duyệt yêu cầu chấm công.')).toBeVisible();
 
     // ── business invariant ──

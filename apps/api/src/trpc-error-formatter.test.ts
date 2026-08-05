@@ -51,6 +51,27 @@ describe('trpc.ts errorFormatter — client-visible shape', () => {
     expect(shape.message).toBe('blocked');
   });
 
+  it('AppCodeError with appData → shape.data.appData copied (allowlist only)', () => {
+    const error = new AppCodeError({
+      code: 'BAD_REQUEST',
+      appCode: 'OFFSITE_REASON_REQUIRED',
+      message: 'blocked',
+      appData: { geoThresholdM: 500 },
+    });
+    const shape = clientShapeFor(error, 'checkInOut.punch');
+    expect((shape.data as { appData?: { geoThresholdM?: number } })?.appData?.geoThresholdM).toBe(500);
+  });
+
+  it('AppCodeError without appData → shape.data.appData absent', () => {
+    const error = new AppCodeError({
+      code: 'BAD_REQUEST',
+      appCode: 'COOLDOWN',
+      message: 'wait',
+    });
+    const shape = clientShapeFor(error, 'checkInOut.punch');
+    expect((shape.data as { appData?: unknown })?.appData).toBeUndefined();
+  });
+
   it('plain TRPCError (no AppCodeError) → shape.data.appCode is undefined', () => {
     const error = new TRPCError({ code: 'BAD_REQUEST', message: 'ordinary business error' });
     const shape = clientShapeFor(error, 'shift.submit');

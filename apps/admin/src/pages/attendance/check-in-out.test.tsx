@@ -1,22 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { screen, fireEvent, act } from '@testing-library/react';
+import { screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
-// ADR 0043 phase 7 — locks the daily in/out punch UI:
-//   - "Chấm công" click → checkInOut.punch.mutate({}) (offsite reason optional).
-//   - Success → button shows "Đã ghi nhận" for 5s, then auto-reverts to
-//     clickable "Chấm công" (fake timers).
-//   - appCode OFFSITE_REASON_REQUIRED → opens a reason modal; confirming
-//     re-mutates punch({reason}).
-//   - appCode COOLDOWN → cooldown banner, no modal.
-//   - No manual-punch-by-arbitrary-date form anymore (ManualPunchForm removed
-//     — ADR 0043 §10, "chấm bù ngày quên" bỏ hẳn).
-//   - "Phiếu của tôi" shows Giờ vào/Giờ ra columns; a `rejected` row offers
-//     "Gửi lại" → manualPunch.resubmit.mutate({ticketId, reason}).
-//   - "Duyệt chấm công" tab only renders for canDo('manualPunch','approve').
+// ADR 0043 phase 7 + geofence GPS:
+//   - "Chấm công" click → capture geo (optional) then punch.mutate.
+//   - Success → button shows "Đã ghi nhận" for 5s, then auto-reverts.
+//   - appCode OFFSITE_REASON_REQUIRED → opens reason modal; confirming
+//     re-mutates punch with same captured geo.
+//   - Approve opens detail Dialog with day punches (not plain ConfirmDialog).
 let punchOnSuccess: ((data: unknown) => void) | undefined;
-let punchOnError: ((err: { message: string; data?: { appCode?: string } | null }) => void) | undefined;
+let punchOnError: ((err: { message: string; data?: { appCode?: string; appData?: { geoThresholdM?: number } } | null }) => void) | undefined;
 let resubmitOnError: ((err: { message: string }) => void) | undefined;
 const punchMutate = vi.fn();
 const resubmitMutate = vi.fn();
@@ -25,11 +19,21 @@ const rejectMutate = vi.fn();
 
 const myTicketsSpy = vi.fn();
 const inboxSpy = vi.fn();
+const dayPunchesSpy = vi.fn();
+const geoSummarySpy = vi.fn();
 let myTickets: Array<Record<string, unknown>> = [];
+let dayPunches: Array<Record<string, unknown>> = [];
+let geoSummary: Array<Record<string, unknown>> = [];
 // Real SessionProvider + real @cmc/auth `can()` (render-with-providers.tsx
 // pattern, matches shifts.test.tsx) — vary the mocked session's roles rather
 // than mocking session-context.js directly.
 let sessionRoles: string[] = ['sale'];
+
+const captureGeoMock = vi.fn<() => Promise<{ lat: number; lng: number; accuracyM: number } | null>>();
+
+vi.mock('../../lib/capture-geolocation.js', () => ({
+  captureGeolocation: () => captureGeoMock(),
+}));
 
 vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
@@ -44,11 +48,18 @@ vi.mock('../../lib/trpc.js', async () => {
         }),
       'checkInOut.punch.useMutation': (options: {
         onSuccess?: (data: unknown) => void;
-        onError?: (err: { message: string; data?: { appCode?: string } | null }) => void;
+        onError?: (err: {
+          message: string;
+          data?: { appCode?: string; appData?: { geoThresholdM?: number } } | null;
+        }) => void;
       }) => {
         punchOnSuccess = options?.onSuccess;
         punchOnError = options?.onError;
         return mutationResult({ mutate: punchMutate });
+      },
+      'checkInOut.geoPunchSummary.useQuery': (input: unknown) => {
+        geoSummarySpy(input);
+        return queryResult(geoSummary);
       },
       'manualPunch.list.useQuery': (input: unknown) => {
         const scope = (input as { scope?: string })?.scope;
@@ -58,6 +69,11 @@ vi.mock('../../lib/trpc.js', async () => {
         }
         myTicketsSpy(input);
         return queryResult(myTickets);
+      },
+      'manualPunch.dayPunches.useQuery': (input: unknown, opts?: { enabled?: boolean }) => {
+        dayPunchesSpy(input);
+        if (opts?.enabled === false) return queryResult([]);
+        return queryResult(dayPunches);
       },
       'manualPunch.resubmit.useMutation': (options: { onError?: (err: { message: string }) => void }) => {
         resubmitOnError = options?.onError;
@@ -72,7 +88,7 @@ vi.mock('../../lib/trpc.js', async () => {
   };
 });
 
-import CheckInOutPage from './check-in-out.js';
+import CheckInOutPage, { offsiteGeoHint } from './check-in-out.js';
 
 describe('CheckInOutPage', () => {
   beforeEach(() => {
@@ -82,25 +98,41 @@ describe('CheckInOutPage', () => {
     rejectMutate.mockClear();
     myTicketsSpy.mockClear();
     inboxSpy.mockClear();
+    dayPunchesSpy.mockClear();
+    geoSummarySpy.mockClear();
     myTickets = [];
+    dayPunches = [];
+    geoSummary = [];
     sessionRoles = ['sale'];
+    captureGeoMock.mockReset();
+    captureGeoMock.mockResolvedValue(null);
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('calls checkInOut.punch.mutate({}) when "Chấm công" is clicked', () => {
+  it('calls checkInOut.punch.mutate({}) when geo denied/null', async () => {
+    captureGeoMock.mockResolvedValue(null);
     renderWithProviders(<CheckInOutPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Chấm công' }));
-    expect(punchMutate).toHaveBeenCalledWith({});
+    await waitFor(() => expect(punchMutate).toHaveBeenCalledWith({}));
   });
 
-  it('renders an always-visible success banner + button shows "Đã ghi nhận" then auto-reverts after 5s', () => {
-    vi.useFakeTimers();
+  it('sends geo when capture succeeds', async () => {
+    captureGeoMock.mockResolvedValue({ lat: 21.0, lng: 105.8, accuracyM: 30 });
     renderWithProviders(<CheckInOutPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Chấm công' }));
-    expect(punchOnSuccess).toBeDefined();
+    await waitFor(() =>
+      expect(punchMutate).toHaveBeenCalledWith({ geo: { lat: 21.0, lng: 105.8, accuracyM: 30 } }),
+    );
+  });
+
+  it('renders an always-visible success banner + button shows "Đã ghi nhận" then auto-reverts after 5s', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderWithProviders(<CheckInOutPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Chấm công' }));
+    await waitFor(() => expect(punchOnSuccess).toBeDefined());
     act(() => punchOnSuccess?.({ punchAt: '2026-07-08T02:00:00.000Z' }));
 
     expect(screen.getByText('Đã ghi nhận')).toBeInTheDocument();
@@ -111,10 +143,10 @@ describe('CheckInOutPage', () => {
     expect(screen.getByRole('button', { name: 'Chấm công' })).toBeInTheDocument();
   });
 
-  it('appCode=OFFSITE_REASON_REQUIRED opens the reason modal (no ManualPunchForm)', () => {
+  it('appCode=OFFSITE_REASON_REQUIRED opens the reason modal (no ManualPunchForm)', async () => {
     renderWithProviders(<CheckInOutPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Chấm công' }));
-    expect(punchOnError).toBeDefined();
+    await waitFor(() => expect(punchOnError).toBeDefined());
     act(() =>
       punchOnError?.({
         message: 'Ngoài mạng cơ sở — cần nhập lý do.',
@@ -126,30 +158,43 @@ describe('CheckInOutPage', () => {
     expect(screen.queryByLabelText(/^Ngày cần chấm/)).toBeNull();
   });
 
-  it('confirming the offsite reason modal re-mutates punch({reason})', () => {
+  it('confirming the offsite reason modal re-mutates punch with same geo', async () => {
+    captureGeoMock.mockResolvedValue({ lat: 21.1, lng: 105.9, accuracyM: 40 });
     renderWithProviders(<CheckInOutPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Chấm công' }));
+    await waitFor(() => expect(punchMutate).toHaveBeenCalled());
     act(() => punchOnError?.({ message: 'x', data: { appCode: 'OFFSITE_REASON_REQUIRED' } }));
 
     fireEvent.change(screen.getByLabelText('Lý do'), { target: { value: 'Đi công tác' } });
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
-    expect(punchMutate).toHaveBeenLastCalledWith({ reason: 'Đi công tác' });
+    expect(punchMutate).toHaveBeenLastCalledWith({
+      reason: 'Đi công tác',
+      geo: { lat: 21.1, lng: 105.9, accuracyM: 40 },
+    });
   });
 
-  it('shows the cooldown banner on appCode=COOLDOWN, not the offsite-reason banner', () => {
+  it('shows the cooldown banner on appCode=COOLDOWN, not the offsite-reason banner', async () => {
     renderWithProviders(<CheckInOutPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Chấm công' }));
+    await waitFor(() => expect(punchOnError).toBeDefined());
     act(() => punchOnError?.({ message: 'Cooldown: last punch was less than 10 seconds ago.', data: { appCode: 'COOLDOWN' } }));
     expect(screen.getByText('Chờ cooldown')).toBeInTheDocument();
     expect(screen.queryByText('Ngoài mạng cơ sở — cần nhập lý do')).toBeNull();
   });
 
-  it('does NOT branch on message text alone when appCode is absent (falls through to generic error)', () => {
+  it('does NOT branch on message text alone when appCode is absent (falls through to generic error)', async () => {
     renderWithProviders(<CheckInOutPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Chấm công' }));
+    await waitFor(() => expect(punchOnError).toBeDefined());
     act(() => punchOnError?.({ message: 'Ngoài mạng cơ sở', data: null }));
     expect(screen.queryByText('Ngoài mạng cơ sở — cần nhập lý do')).toBeNull();
     expect(screen.getByText('Lỗi chấm công')).toBeInTheDocument();
+  });
+
+  it('offsiteGeoHint covers denied / accuracy / outside cases', () => {
+    expect(offsiteGeoHint(null, 200)).toMatch(/Không lấy được vị trí/);
+    expect(offsiteGeoHint({ lat: 1, lng: 2, accuracyM: 350 }, 200)).toMatch(/vượt ngưỡng 200m/);
+    expect(offsiteGeoHint({ lat: 1, lng: 2, accuracyM: 30 }, 200)).toMatch(/ngoài vùng/);
   });
 
   it('always renders the punch-without-shift invariant note', () => {
@@ -227,5 +272,53 @@ describe('CheckInOutPage', () => {
     renderWithProviders(<CheckInOutPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Duyệt chấm công' }));
     expect(inboxSpy).toHaveBeenCalledWith({ scope: 'inbox' });
+    expect(geoSummarySpy).toHaveBeenCalledWith({ days: 30 });
+  });
+
+  it('approve detail dialog shows verification badges and distance snapshot, not coords', () => {
+    sessionRoles = ['giam_doc_kinh_doanh'];
+    myTickets = [
+      {
+        id: 't-appr',
+        ticketDate: '2026-07-01T00:00:00.000Z',
+        status: 'pending',
+        note: 'đi họp',
+        checkInAt: '2026-07-01T02:00:00.000Z',
+        checkOutAt: null,
+        appUser: { fullName: 'Nguyen A' },
+      },
+    ];
+    dayPunches = [
+      {
+        punchAt: '2026-07-01T02:00:00.000Z',
+        verification: 'geo',
+        accuracyM: 25,
+        geofenceDistanceM: 180,
+        matchedRadiusM: 200,
+      },
+      {
+        punchAt: '2026-07-01T02:30:00.000Z',
+        verification: 'none',
+        accuracyM: null,
+        geofenceDistanceM: null,
+        matchedRadiusM: null,
+      },
+    ];
+    renderWithProviders(<CheckInOutPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Duyệt chấm công' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Duyệt' }));
+    expect(screen.getByText('GPS')).toBeInTheDocument();
+    expect(screen.getByText('Offsite')).toBeInTheDocument();
+    expect(screen.getByText(/cách tâm 180m \(bán kính 200m\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/21\./)).toBeNull();
+    expect(screen.getByText('Chấm công GPS gần đây')).toBeInTheDocument();
+  });
+
+  it('geoPunchSummary empty state', () => {
+    sessionRoles = ['giam_doc_kinh_doanh'];
+    geoSummary = [];
+    renderWithProviders(<CheckInOutPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Duyệt chấm công' }));
+    expect(screen.getByText('Không có punch GPS 30 ngày qua.')).toBeInTheDocument();
   });
 });

@@ -63,7 +63,15 @@ export interface Context {
 const t = initTRPC.context<Context>().create({
   errorFormatter({ shape, error }) {
     if (error instanceof AppCodeError) {
-      return { ...shape, data: { ...shape.data, appCode: error.appCode } };
+      // Allowlist only: appCode + optional typed appData (never free-form spread).
+      return {
+        ...shape,
+        data: {
+          ...shape.data,
+          appCode: error.appCode,
+          ...(error.appData !== undefined ? { appData: error.appData } : {}),
+        },
+      };
     }
     return shape;
   },

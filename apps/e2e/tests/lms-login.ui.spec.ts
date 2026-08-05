@@ -97,14 +97,16 @@ test.describe('lms login (UI safety net)', () => {
   // therefore select the tabs by button role, matching what Astryx actually
   // renders (tabs still function + are keyboard-focusable, just not announced as
   // a tablist).
-  test('two tabs switch, student is default, parent tab shows blocked-on-comms notice', async ({ page }) => {
+  test('two tabs switch, student is default, parent tab shows its own fields', async ({ page }) => {
     await page.goto('/login');
 
     // Student tab is the default (TabList value="student" in login.tsx).
     await expect(page.getByLabel('Số điện thoại phụ huynh')).toBeVisible();
 
     await page.getByRole('button', { name: /phụ huynh/i }).click();
-    await expect(page.getByText('[DEV ONLY — blocked-on-comms]')).toBeVisible();
+    // The [DEV ONLY] blocked-on-comms banner is gated behind import.meta.env.DEV
+    // (ui-copy-standard Phase 3 — same pattern as DevHeaderWriter) and this
+    // build runs production mode, so it correctly does not render here.
     await expect(page.getByLabel('Email phụ huynh')).toBeVisible();
 
     await page.getByRole('button', { name: /học sinh/i }).click();

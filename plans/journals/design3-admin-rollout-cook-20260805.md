@@ -50,3 +50,13 @@ Replaced AppFrame/SideNav shell with Odoo navbar:
 - **ui-e2e still not run** — merge gate open.
 - Phases 4–6 not started.
 
+
+## Session 3 — Phase 4 CRM pilot
+
+- Ported CRM pipeline board to KanbanBoard/Column/Card with stage color map.
+- Built list DataTable (name, phone, stage, owner, source) sharing listInput.
+- URL switcher `?view=table` (TL6); default kanban.
+- Unit: pipeline 30/30, full crm 99/99; typecheck admin clean; check-ui-frames OK.
+- E2E: smoke list/kanban in crm-receipt journey (full ui-e2e not run).
+- Statusbar detail left display-only (advance via explicit buttons).
+

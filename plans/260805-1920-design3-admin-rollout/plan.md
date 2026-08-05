@@ -82,7 +82,7 @@ Từ phiên validate session 1 (2026-08-05):
 | 1 | [Phase 1: Odoo UI Layer in @cmc/ui](./phase-01-odoo-ui-layer.md) | Completed |
 | 2 | [Phase 2: Admin Shell Swap](./phase-02-admin-shell-swap.md) | Completed (unit); ui-e2e merge gate open |
 | 3 | [Phase 3: Central View Template Reskin](./phase-03-central-view-template-reskin.md) | Completed (unit); visual/e2e checkpoint open |
-| 4 | [Phase 4: Pilot CRM Migration](./phase-04-pilot-crm-migration.md) | Pending |
+| 4 | [Phase 4: Pilot CRM Migration](./phase-04-pilot-crm-migration.md) | Completed (unit); ui-e2e merge gate open |
 | 5 | [Phase 5: Module Sweeps](./phase-05-module-sweeps.md) | Pending |
 | 6 | [Phase 6: Cleanup, Premium Retirement, Docs](./phase-06-cleanup-premium-retirement-docs.md) | Pending |
 

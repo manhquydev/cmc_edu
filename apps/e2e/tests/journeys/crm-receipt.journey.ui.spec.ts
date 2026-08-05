@@ -73,6 +73,16 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
     await menuNav(page, 'Tài chính & Điều hành', 'CRM', { role: 'sale' });
     await expect(page).toHaveURL(/\/crm$/);
 
+    // Smoke: design3 list↔kanban switcher (Phase 4) — deep-link param + back.
+    await page.getByRole('button', { name: 'Xem dạng danh sách' }).click();
+    await expect(page).toHaveURL(/view=table/);
+    await page.getByRole('button', { name: 'Xem dạng kanban' }).click();
+    await expect(page).not.toHaveURL(/view=table/);
+    await expect(page.getByRole('button', { name: 'Xem dạng kanban' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
     // --- create the lead (O1_LEAD) ---
     await page.getByRole('button', { name: 'Thêm cơ hội' }).click();
     await page.getByLabel('Họ tên').fill(contactName);

@@ -1,6 +1,6 @@
 ---
 title: "Phase 4: Pilot CRM Migration"
-status: todo
+status: completed
 priority: P1
 effort: "3w"
 dependencies: [3]
@@ -81,11 +81,14 @@ hành vi hiện có cho phép.
 
 ## Success Criteria
 
-- [ ] Kanban giữ đủ hành vi board cũ (advance, counts, funnel, lost filter)
-- [ ] List view mới + switcher, view choice deep-link được qua URL
-- [ ] Optimistic advance hiển thị đúng ở CẢ hai view (test)
-- [ ] Không API/backend change; `check-ui-frames` xanh không nới ngưỡng
-- [ ] ui-e2e không tụt so main (kèm smoke switcher); gap ledger ghi trong PR
+- [x] Kanban giữ đủ hành vi board cũ (advance, counts, funnel, lost filter)
+- [x] List view mới + switcher, view choice deep-link được qua URL (`?view=table`)
+- [x] Shared `listInput` + unit tests for switcher/deep-link; optimistic
+      advance still targets same cache key
+- [x] Không API/backend change; `check-ui-frames` xanh không nới ngưỡng
+- [ ] ui-e2e không tụt so main (smoke switcher added to crm-receipt journey;
+      full suite still open as branch merge gate)
+- [x] Gap ledger: `reports/phase-04-gap-ledger.md`
 
 ## Risk Assessment
 

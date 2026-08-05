@@ -97,11 +97,19 @@ test.describe('P3-02 journey — duyệt phiếu chấm công offsite theo track
     await adminPage.getByRole('button', { name: 'Thêm nhóm ca' }).click();
     await expect(adminPage.getByText(groupName)).toBeVisible();
 
-    await adminPage.getByLabel('Tên mẫu ca').fill(templateName);
-    await adminPage.getByLabel('Bắt đầu (HH:mm)').fill('08:00');
-    await adminPage.getByLabel('Kết thúc (HH:mm)').fill('17:00');
-    await adminPage.getByRole('button', { name: '+ Thêm mẫu ca' }).click();
-    await expect(adminPage.getByText(templateName)).toBeVisible();
+    // Scope to the new group card — every group mounts its own "Tên mẫu ca"
+    // form (strict-mode fails with getByLabel unscoped on shared facility).
+    const groupCard = adminPage
+      .locator('div')
+      .filter({ hasText: groupName })
+      .filter({ has: adminPage.getByLabel('Tên mẫu ca') })
+      .last();
+    await expect(groupCard).toBeVisible();
+    await groupCard.getByLabel('Tên mẫu ca').fill(templateName);
+    await groupCard.getByLabel('Bắt đầu (HH:mm)').fill('08:00');
+    await groupCard.getByLabel('Kết thúc (HH:mm)').fill('17:00');
+    await groupCard.getByRole('button', { name: '+ Thêm mẫu ca' }).click();
+    await expect(groupCard.getByText(templateName)).toBeVisible();
 
     await menuNav(adminPage, 'Quản trị', 'IP mạng', { role: 'super_admin' });
     await expect(adminPage).toHaveURL(/\/admin\/network-ip/);

@@ -56,14 +56,22 @@ async function ensureTodayShift(
   await adminPage.goto('/cockpit');
   await menuNav(adminPage, 'Nhân sự', 'Ca làm việc', { role: 'super_admin' });
   await expect(adminPage).toHaveURL(/\/admin\/shift-config/);
+  // Each group card mounts its own "Tên mẫu ca" form — must scope to the card
+  // (shift-config-admin / shift-register-approve-reject pattern).
   await adminPage.getByLabel('Tên nhóm ca').fill(opts.groupName);
   await adminPage.getByRole('button', { name: 'Thêm nhóm ca' }).click();
   await expect(adminPage.getByText(opts.groupName)).toBeVisible();
-  await adminPage.getByLabel('Tên mẫu ca').fill(opts.templateName);
-  await adminPage.getByLabel('Bắt đầu (HH:mm)').fill('08:00');
-  await adminPage.getByLabel('Kết thúc (HH:mm)').fill('17:00');
-  await adminPage.getByRole('button', { name: '+ Thêm mẫu ca' }).click();
-  await expect(adminPage.getByText(opts.templateName)).toBeVisible();
+  const groupCard = adminPage
+    .locator('div')
+    .filter({ hasText: opts.groupName })
+    .filter({ has: adminPage.getByLabel('Tên mẫu ca') })
+    .last();
+  await expect(groupCard).toBeVisible();
+  await groupCard.getByLabel('Tên mẫu ca').fill(opts.templateName);
+  await groupCard.getByLabel('Bắt đầu (HH:mm)').fill('08:00');
+  await groupCard.getByLabel('Kết thúc (HH:mm)').fill('17:00');
+  await groupCard.getByRole('button', { name: '+ Thêm mẫu ca' }).click();
+  await expect(groupCard.getByText(opts.templateName)).toBeVisible();
   await adminContext.close();
 
   await createStaffViaAdminUi(browser, {
@@ -144,22 +152,21 @@ test.describe('P3-01b journey — geofence GPS punch', () => {
     await menuNav(adminPage, 'Quản trị', 'IP mạng', { role: 'super_admin' });
     await expect(adminPage).toHaveURL(/\/admin\/network-ip/);
 
-    // SettingsShell: open Vùng GPS tab if present
-    const geoTab = adminPage.getByText('Vùng GPS').first();
-    if (await geoTab.isVisible().catch(() => false)) {
-      await geoTab.click();
-    }
-
+    // SettingsShell: switch to Vùng GPS (nav item text from network-ip.tsx)
+    await adminPage.getByText('Vùng GPS', { exact: true }).click();
     await adminPage.getByRole('button', { name: /Thêm vùng GPS/i }).click();
-    const createDialog = adminPage.locator('dialog').filter({ hasText: /vùng|GPS/i }).first();
+    const createDialog = adminPage.locator('dialog').filter({ hasText: /Thêm vùng/i });
+    await expect(createDialog).toBeVisible({ timeout: 10_000 });
     await createDialog.getByLabel(/Vĩ độ|lat/i).fill(String(GEO_IN.latitude));
     await createDialog.getByLabel(/Kinh độ|lng/i).fill(String(GEO_IN.longitude));
     await createDialog.getByLabel(/Bán kính/i).fill('500');
-    await createDialog.getByLabel(/Nhãn/i).fill(label);
-    await createDialog.getByRole('button', { name: /^Tạo$/ }).click();
+    await createDialog.getByLabel(/^Nhãn$/i).fill(label);
+    await createDialog.getByRole('button', { name: 'Tạo', exact: true }).click();
     await expect(adminPage.getByText(label)).toBeVisible({ timeout: 15_000 });
 
-    const batBtn = adminPage.getByRole('button', { name: /^Bật$/ }).first();
+    // Toggle Bật on the row that contains this label (not network table)
+    const geoRow = adminPage.locator('tr, [role="row"], div').filter({ hasText: label }).first();
+    const batBtn = geoRow.getByRole('button', { name: /^Bật$/ });
     if (await batBtn.isVisible().catch(() => false)) {
       await batBtn.click();
       const confirm = adminPage.getByRole('button', { name: /Bật vùng|Xác nhận/i });

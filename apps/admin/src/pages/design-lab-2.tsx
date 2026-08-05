@@ -1,7 +1,7 @@
 /**
- * Design Lab 2 — Modern SaaS Design System Catalog (CMC EDU 2.0).
+ * Design Lab 2 — Modern SaaS Design System Catalog & Odoo ERP Minimalist Cockpit (CMC EDU 2.0).
  * Route: /design2 (unauthenticated).
- * Bright, vibrant, structured SaaS UI system showcasing live @cmc/ui components.
+ * Bright, vibrant, structured SaaS UI system showcasing live @cmc/ui components & Odoo monochrome ERP architecture.
  */
 import { useState } from 'react';
 import {
@@ -70,6 +70,7 @@ const STUDENT_COLS: TableColumn<DemoStudent>[] = [
 ];
 
 const NAV_ITEMS = [
+  { id: 'odoo-cockpit', label: '🏛️ Odoo ERP Cockpit', icon: 'building' },
   { id: 'overview', label: '🚀 General Overview', icon: 'grid' },
   { id: 'colors', label: '🎨 Color Palette Tokens', icon: 'layers' },
   { id: 'buttons', label: '🔘 Buttons & CTAs', icon: 'check-circle' },
@@ -81,10 +82,21 @@ const NAV_ITEMS = [
   { id: 'icons', label: '★ LineIcon System', icon: 'star' },
 ];
 
+const ODOO_APPS = [
+  { id: 'crm', title: 'Tư vấn CRM', icon: 'users' as IconName },
+  { id: 'sales', title: 'Ghi danh & Thu phí', icon: 'receipt' as IconName },
+  { id: 'lms', title: 'Quản lý Đào tạo', icon: 'book' as IconName },
+  { id: 'finance', title: 'Kế toán & Sổ quỹ', icon: 'dollar' as IconName },
+  { id: 'hrm', title: 'Nhân sự & Lương', icon: 'user' as IconName },
+  { id: 'settings', title: 'Cấu hình Hệ thống', icon: 'layers' as IconName },
+];
+
 export default function DesignLab2Page() {
   const { success, error, info } = useToast();
-  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [activeTab, setActiveTab] = useState<string>('odoo-cockpit');
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
+  const [odooStatusStep, setOdooStatusStep] = useState<string>('progress');
+  const [odooViewMode, setOdooViewMode] = useState<'kanban' | 'list'>('kanban');
   const [formName, setFormName] = useState<string>('Nguyễn Hoàng Nam');
   const [formEmail, setFormEmail] = useState<string>('hoangnam@cmcedu.vn');
   const [formPass, setFormPass] = useState<string>('SecuredPass2026');
@@ -112,15 +124,15 @@ export default function DesignLab2Page() {
             <div className="saas-brand-logo-icon">
               <LineIcon name="layers" size={18} />
             </div>
-            CMC EDU Design System
+            CMC EDU SaaS & Odoo ERP System
           </a>
-          <span className="saas-badge-version">v2.4.0 SaaS Bright</span>
+          <span className="saas-badge-version">v2.5.0 Odoo Monochrome</span>
         </div>
 
         <div className="saas-header-right">
-          <div className="saas-search-fake" onClick={() => info('⌘K Command Palette is active!')}>
+          <div className="saas-search-fake" onClick={() => info('⌘K Command Palette (Odoo Action Finder)')}>
             <LineIcon name="search" size={14} />
-            <span>Tìm kiếm component...</span>
+            <span>Tìm kiếm Action hoặc Module Odoo...</span>
             <span className="saas-search-kbd">⌘K</span>
           </div>
 
@@ -128,7 +140,7 @@ export default function DesignLab2Page() {
             label="Bật Thông báo Test"
             variant="secondary"
             size="sm"
-            onClick={() => success('Hệ thống SaaS Design System đang hoạt động mượt mà!')}
+            onClick={() => success('Hệ thống Odoo ERP Minimalist đang hoạt động mượt mà!')}
           />
         </div>
       </header>
@@ -155,20 +167,215 @@ export default function DesignLab2Page() {
           {/* SaaS Hero Card */}
           <div className="saas-hero-card">
             <div className="saas-hero-content">
-              <h1>CMC EDU SaaS UI System 2.0</h1>
+              <h1>CMC EDU SaaS & Odoo ERP 2.0</h1>
               <p>
-                Hệ thống giao diện Sáng tươi mới (Bright SaaS Aesthetic) được xây dựng theo chuẩn mực thiết kế SaaS cao cấp. Tối ưu trải nghiệm trực quan, nhịp tương tác nhanh và sử dụng bộ linh kiện chuẩn từ <code>@cmc/ui</code>.
+                Giao diện ERP phong cách Odoo chuẩn mực nhưng được tối giản hóa toàn bộ icon đa sắc ("màu mè") chuyển thành **Monochrome LineIcon 1 màu**. Tăng cường trải nghiệm chuyên nghiệp cho quản trị trung tâm đào tạo.
               </p>
             </div>
             <div className="saas-flex-row">
               <Button
-                label="Xem live Toast"
+                label="Xem Odoo Action Switcher"
                 variant="primary"
                 size="md"
-                onClick={() => success('Chào mừng đến với hệ thống CMC EDU SaaS Design System!')}
+                onClick={() => success('Đã chọn Odoo App Switcher Minimalist')}
               />
             </div>
           </div>
+
+          {/* Section 0: Odoo Minimalist ERP Cockpit — an early approximation
+              (indigo accent, dot statusbar, generic kanban cards). /design3
+              recreates the same surfaces from Odoo's actual source (real
+              purple navbar, chevron statusbar, color-bar kanban cards). */}
+          <section className="saas-section" id="odoo-cockpit">
+            <div className="saas-section-header">
+              <div>
+                <h2 className="saas-section-title">🏛️ Odoo Minimalist ERP View Architecture</h2>
+                <p className="saas-section-desc">Mô hình ControlPanel, Statusbar Tiến trình & Pipeline Kanban tối giản icon.</p>
+              </div>
+            </div>
+
+            {/* Odoo App Switcher Bar (Monochrome 1-color tiles) */}
+            <div style={{ marginBottom: 24 }}>
+              <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--saas-text-muted)', marginBottom: 12 }}>
+                1. Odoo Minimalist App Switcher (Icon Đơn Sắc)
+              </h4>
+              <div className="odoo-app-grid">
+                {ODOO_APPS.map((app) => (
+                  <div key={app.id} className="odoo-app-tile" onClick={() => info(`Đã chuyển tới Module ${app.title}`)}>
+                    <div className="odoo-app-icon">
+                      <LineIcon name={app.icon} size={22} strokeWidth={2} />
+                    </div>
+                    <span className="odoo-app-title">{app.title}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Odoo ControlPanel Bar */}
+            <div style={{ marginBottom: 24 }}>
+              <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--saas-text-muted)', marginBottom: 12 }}>
+                2. Odoo ControlPanel & Breadcrumb Bar
+              </h4>
+              <div className="odoo-control-panel">
+                <div className="odoo-breadcrumbs">
+                  <LineIcon name="building" size={16} />
+                  <span>Tài chính & Thu phí</span>
+                  <span>/</span>
+                  <span className="active">Phiếu Thu PT-2026-0891</span>
+                </div>
+
+                <div className="saas-flex-row">
+                  <Button label="+ Tạo mới Phiếu" variant="primary" size="sm" onClick={() => success('Khởi tạo phiếu thu Odoo mới')} />
+                  <Button label="In chứng từ" variant="secondary" size="sm" onClick={() => info('Đang kết nối máy in...')} />
+
+                  <div style={{ display: 'flex', border: '1px solid var(--saas-border)', borderRadius: 8, overflow: 'hidden' }}>
+                    <button
+                      style={{
+                        padding: '6px 12px',
+                        border: 'none',
+                        background: odooViewMode === 'kanban' ? 'var(--saas-brand-light)' : '#fff',
+                        color: odooViewMode === 'kanban' ? 'var(--saas-brand-primary)' : 'var(--saas-text-secondary)',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontSize: 12,
+                      }}
+                      onClick={() => setOdooViewMode('kanban')}
+                    >
+                      <LineIcon name="grid" size={14} /> Kanban
+                    </button>
+                    <button
+                      style={{
+                        padding: '6px 12px',
+                        border: 'none',
+                        borderLeft: '1px solid var(--saas-border)',
+                        background: odooViewMode === 'list' ? 'var(--saas-brand-light)' : '#fff',
+                        color: odooViewMode === 'list' ? 'var(--saas-brand-primary)' : 'var(--saas-text-secondary)',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontSize: 12,
+                      }}
+                      onClick={() => setOdooViewMode('list')}
+                    >
+                      <LineIcon name="clipboard" size={14} /> Danh sách
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Odoo Statusbar Stepper Header */}
+            <div style={{ marginBottom: 24 }}>
+              <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--saas-text-muted)', marginBottom: 12 }}>
+                3. Odoo Form View Header & Statusbar Stepper
+              </h4>
+              <div className="saas-preview-box">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <div>
+                    <h3 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px 0' }}>Phiếu thu Học phí: PT-2026-0891</h3>
+                    <p style={{ margin: 0, fontSize: 13, color: 'var(--saas-text-secondary)' }}>Học viên: Nguyễn Hoàng Nam — Khóa English Kids A2</p>
+                  </div>
+
+                  <div className="odoo-statusbar">
+                    <div
+                      className={`odoo-status-step ${odooStatusStep === 'draft' ? 'active' : 'completed'}`}
+                      onClick={() => setOdooStatusStep('draft')}
+                    >
+                      ● Dự thảo
+                    </div>
+                    <div
+                      className={`odoo-status-step ${odooStatusStep === 'progress' ? 'active' : ''}`}
+                      onClick={() => setOdooStatusStep('progress')}
+                    >
+                      ● Đang xử lý
+                    </div>
+                    <div
+                      className={`odoo-status-step ${odooStatusStep === 'done' ? 'active' : ''}`}
+                      onClick={() => setOdooStatusStep('done')}
+                    >
+                      ✓ Đã xác nhận
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Odoo Kanban View Board */}
+            {odooViewMode === 'kanban' ? (
+              <div>
+                <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--saas-text-muted)', marginBottom: 12 }}>
+                  4. Odoo Kanban Pipeline (Minimalist Cards)
+                </h4>
+                <div className="odoo-kanban-board">
+                  <div className="odoo-kanban-col">
+                    <div className="odoo-kanban-header">
+                      <span>Mới tiếp nhận (2)</span>
+                      <span>11.3M đ</span>
+                    </div>
+                    <div className="odoo-kanban-card">
+                      <div className="odoo-kanban-title">Lê Quốc Bảo</div>
+                      <div className="odoo-kanban-sub">IELTS Master 7.5</div>
+                      <div className="odoo-kanban-footer">
+                        <StatusBadge status="draft" />
+                        <span>12.000.000 đ</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="odoo-kanban-col">
+                    <div className="odoo-kanban-header">
+                      <span>Đang tư vấn (1)</span>
+                      <span>6.5M đ</span>
+                    </div>
+                    <div className="odoo-kanban-card">
+                      <div className="odoo-kanban-title">Trần Minh Anh</div>
+                      <div className="odoo-kanban-sub">Coding Robotics B1</div>
+                      <div className="odoo-kanban-footer">
+                        <StatusBadge status="pending" />
+                        <span>6.500.000 đ</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="odoo-kanban-col">
+                    <div className="odoo-kanban-header">
+                      <span>Đã đóng phí (1)</span>
+                      <span>4.8M đ</span>
+                    </div>
+                    <div className="odoo-kanban-card">
+                      <div className="odoo-kanban-title">Nguyễn Hoàng Nam</div>
+                      <div className="odoo-kanban-sub">English Kids A2</div>
+                      <div className="odoo-kanban-footer">
+                        <StatusBadge status="approved" />
+                        <span>4.800.000 đ</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="odoo-kanban-col">
+                    <div className="odoo-kanban-header">
+                      <span>Đã hủy (1)</span>
+                      <span>3.2M đ</span>
+                    </div>
+                    <div className="odoo-kanban-card">
+                      <div className="odoo-kanban-title">Phạm Thu Thảo</div>
+                      <div className="odoo-kanban-sub">Math Logic A1</div>
+                      <div className="odoo-kanban-footer">
+                        <StatusBadge status="rejected" />
+                        <span>3.200.000 đ</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="saas-preview-box">
+                <DataTable<DemoStudent>
+                  columns={STUDENT_COLS}
+                  data={DEMO_STUDENTS}
+                />
+              </div>
+            )}
+          </section>
 
           {/* Section 1: Overview & Metrics */}
           <section className="saas-section" id="overview">
@@ -377,7 +584,7 @@ export default function DesignLab2Page() {
               <div className="saas-flex-stack">
                 <Banner
                   status="info"
-                  title="Cập nhật Hệ thống SaaS v2.4.0"
+                  title="Cập nhật Hệ thống SaaS v2.5.0"
                   description="Tất cả các tính năng quản lý học viên và thu phí đã được tối ưu tốc độ xử lý."
                 />
 

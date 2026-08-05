@@ -73,6 +73,13 @@ export function Shell() {
         href: '/design2',
         keywords: 'nextgen aetheria design2 visual mockup',
       });
+      items.push({
+        id: 'design-lab-3',
+        label: 'Design Lab 3 (Odoo)',
+        group: 'Dev',
+        href: '/design3',
+        keywords: 'odoo erp design3 navbar kanban statusbar',
+      });
     }
     if (canCreateReceipt) {
       items.push({
@@ -154,6 +161,14 @@ export function Shell() {
                   title="Design Lab 2 — Next-Gen Aetheria Design System"
                 >
                   Design 2
+                </button>
+                <button
+                  type="button"
+                  className="sh-cta sh-cta--ghost"
+                  onClick={() => navigate('/design3')}
+                  title="Design Lab 3 — Odoo UI recreation"
+                >
+                  Design 3
                 </button>
               </>
             )}

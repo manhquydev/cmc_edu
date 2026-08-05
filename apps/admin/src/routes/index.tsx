@@ -22,6 +22,7 @@ const CockpitPage = lazy(() => import('../pages/cockpit.js'));
 // Living design inventory — not a product module; visual review of tokens + composites.
 const DesignLabPage = lazy(() => import('../pages/design-lab.js'));
 const DesignLab2Page = lazy(() => import('../pages/design-lab-2.js'));
+const DesignLab3Page = lazy(() => import('../pages/design-lab-3.js'));
 // Auth-level page (sibling of /login, not a module route): rendered OUTSIDE
 // the Shell because a forced password rotation must complete before the user
 // enters the app proper.
@@ -50,6 +51,17 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  // Design Lab 3 recreates Odoo's own full-page chrome (navbar, control panel),
+  // so it must render outside RequireAuth/Shell — a sibling of /login, never a
+  // child of '/' — otherwise it would nest inside the production sidebar/topbar.
+  {
+    path: '/design3',
+    element: (
+      <Suspense fallback={<Skeleton height={200} radius={0} />}>
+        <DesignLab3Page />
+      </Suspense>
+    ),
+  },
   {
     path: '/change-password',
     element: (

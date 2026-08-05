@@ -1,0 +1,488 @@
+/*
+ * Design Lab 3 — source-grounded Odoo backend UI recreation.
+ * Route: /design3 (top-level, outside RequireAuth/Shell — see routes/index.tsx).
+ * Tokens below are ported from Odoo's addons/web static source (LGPL-3,
+ * https://github.com/odoo/odoo), branch 19.0, commit 5568f6e472e2e53bc2931e744421015b0f0f3550.
+ * Values are read directly from source, not literal SCSS/JS — reimplemented as
+ * plain CSS custom properties scoped under .odoo-lab-root.
+ */
+
+.odoo-lab-root {
+  /* Brand (decorative only — interactive accent stays CMC blue #0071E3) */
+  --odoo-brand-purple: #71639e;
+  --odoo-brand-purple-dark: #5a4f7e;
+  --odoo-enterprise-purple: #714b67;
+
+  /* Status colors (muted/Bootstrap-derived, keep as-is — do not brighten) */
+  --odoo-success: #28a745;
+  --odoo-info: #17a2b8;
+  --odoo-warning: #ffac00;
+  --odoo-danger: #dc3545;
+
+  /* Kanban record accent colors — status-N mapping: draft=1, rejected=2,
+     pending=3, confirmed=4, approved=5, done=6 */
+  --odoo-kanban-color-1: #6c757d;
+  --odoo-kanban-color-2: #dc3545;
+  --odoo-kanban-color-3: #ffac00;
+  --odoo-kanban-color-4: #17a2b8;
+  --odoo-kanban-color-5: #28a745;
+  --odoo-kanban-color-6: #71639e;
+
+  /* Grays (Bootstrap defaults) */
+  --odoo-gray-100: #f8f9fa;
+  --odoo-gray-200: #e9ecef;
+  --odoo-gray-300: #dee2e6;
+  --odoo-gray-600: #6c757d;
+  --odoo-gray-900: #212529;
+
+  /* Typography — keep CMC's Inter family, adopt Odoo's size steps + density */
+  --odoo-font-size-base: 14px;
+  --odoo-font-size-sm: 13px;
+  --odoo-font-size-xs: 12px;
+
+  /* Radius — small & consistent, NOT pill-shaped */
+  --odoo-radius: 4px;
+  --odoo-radius-sm: 3px;
+  --odoo-radius-lg: 6px;
+
+  /* Spacing */
+  --odoo-spacer: 16px;
+
+  /* Navbar */
+  --odoo-navbar-height: 46px;
+  --odoo-navbar-entry-hover-bg: rgba(0, 0, 0, 0.08);
+
+  /* Control panel / breadcrumb */
+  --odoo-breadcrumb-padding-x: 0.5rem;
+
+  /* List view */
+  --odoo-list-cell-padding-x: 0.3rem;
+  --odoo-list-cell-padding-y: 0.5rem;
+
+  /* Kanban */
+  --odoo-kanban-bg: var(--odoo-gray-100);
+  --odoo-kanban-card-width: 320px;
+  --odoo-kanban-card-width-sm: 300px;
+  --odoo-kanban-color-bar-width: 3px;
+  --odoo-kanban-gutter: 8px;
+
+  /* Form / statusbar */
+  --odoo-sheet-max-width: 1400px;
+  --odoo-statusbar-height: 33px;
+  --odoo-statusbar-arrow-width: 1em;
+}
+
+.odoo-lab-root {
+  box-sizing: border-box;
+  min-height: 100vh;
+  background: var(--odoo-gray-100);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: var(--odoo-font-size-base);
+  color: var(--odoo-gray-900);
+  display: flex;
+  flex-flow: column nowrap;
+}
+
+.odoo-lab-root *,
+.odoo-lab-root *::before,
+.odoo-lab-root *::after {
+  box-sizing: border-box;
+}
+
+/* ------------------------------------------------------------------ */
+/* Navbar (.o_main_navbar analogue) */
+/* ------------------------------------------------------------------ */
+
+.odoo-lab-navbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--odoo-navbar-height);
+  flex: 0 0 auto;
+  background: var(--odoo-brand-purple);
+  border-bottom: 1px solid var(--odoo-brand-purple-dark);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 0 8px;
+  gap: 4px;
+}
+
+.odoo-lab-app-switcher-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--odoo-navbar-height);
+  height: var(--odoo-navbar-height);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.odoo-lab-app-switcher-toggle:hover {
+  background: var(--odoo-navbar-entry-hover-bg);
+}
+
+.odoo-lab-brand {
+  font-size: 1.2em;
+  font-weight: 600;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.odoo-lab-menu-sections {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 2px;
+  flex: 1 1 auto;
+}
+
+.odoo-lab-menu-item {
+  padding: 0 10px;
+  height: var(--odoo-navbar-height);
+  display: flex;
+  align-items: center;
+  font-size: 1em;
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.odoo-lab-menu-item:hover {
+  background: var(--odoo-navbar-entry-hover-bg);
+}
+
+.odoo-lab-systray {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.odoo-lab-systray-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.odoo-lab-systray-badge:hover {
+  background: var(--odoo-navbar-entry-hover-bg);
+}
+
+.odoo-lab-badge-count {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--odoo-success);
+  color: #fff;
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+}
+
+.odoo-lab-app-switcher-menu {
+  position: absolute;
+  top: var(--odoo-navbar-height);
+  left: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(3, 84px);
+  gap: 4px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid var(--odoo-gray-300);
+  border-radius: 0 0 var(--odoo-radius) var(--odoo-radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.odoo-lab-app-switcher-tile {
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 4px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--odoo-radius-sm);
+  color: var(--odoo-gray-900);
+  cursor: pointer;
+  font-size: var(--odoo-font-size-xs);
+  text-align: center;
+}
+
+.odoo-lab-app-switcher-tile:hover {
+  background: var(--odoo-gray-100);
+}
+
+/* ------------------------------------------------------------------ */
+/* Control panel (.o_control_panel analogue) */
+/* ------------------------------------------------------------------ */
+
+.odoo-lab-control-panel {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 16px;
+  padding: 8px var(--odoo-spacer);
+  background: #fff;
+  border-bottom: 1px solid var(--odoo-gray-300);
+}
+
+.odoo-lab-breadcrumbs {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--odoo-breadcrumb-padding-x);
+  font-size: var(--odoo-font-size-base);
+  white-space: nowrap;
+}
+
+.odoo-lab-breadcrumb-sep {
+  margin: 0 6px;
+  color: var(--odoo-gray-600);
+}
+
+.odoo-lab-breadcrumb-current {
+  font-weight: 600;
+}
+
+.odoo-lab-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  max-width: 360px;
+  padding: 4px 10px;
+  background: var(--odoo-gray-100);
+  border: 1px solid var(--odoo-gray-300);
+  border-radius: var(--odoo-radius-sm);
+  color: var(--odoo-gray-600);
+  cursor: pointer;
+  font-size: var(--odoo-font-size-sm);
+}
+
+.odoo-lab-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.odoo-lab-view-switcher {
+  display: flex;
+  border: 1px solid var(--odoo-gray-300);
+  border-radius: var(--odoo-radius-sm);
+  overflow: hidden;
+}
+
+.odoo-lab-view-switcher button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: #fff;
+  border: 0;
+  color: var(--odoo-gray-600);
+  cursor: pointer;
+}
+
+.odoo-lab-view-switcher button + button {
+  border-left: 1px solid var(--odoo-gray-300);
+}
+
+.odoo-lab-view-switcher button.is-active {
+  background: var(--odoo-gray-100);
+  color: var(--odoo-brand-purple);
+}
+
+/* ------------------------------------------------------------------ */
+/* Content area */
+/* ------------------------------------------------------------------ */
+
+.odoo-lab-content {
+  flex: 1 1 auto;
+  padding: var(--odoo-spacer);
+  overflow-y: auto;
+}
+
+/* ------------------------------------------------------------------ */
+/* Statusbar — interlocking chevron/arrow buttons (clip-path polygon) */
+/* ------------------------------------------------------------------ */
+
+.odoo-lab-statusbar {
+  display: flex;
+  height: var(--odoo-statusbar-height);
+  margin-bottom: var(--odoo-spacer);
+}
+
+.odoo-lab-statusbar-step {
+  position: relative;
+  padding: 0 calc(var(--odoo-statusbar-arrow-width) * 1.25) 0 calc(var(--odoo-statusbar-arrow-width) * 2);
+  margin-left: calc(var(--odoo-statusbar-arrow-width) * -1);
+  background: var(--odoo-gray-200);
+  border: 0;
+  color: var(--odoo-gray-900);
+  font-size: var(--odoo-font-size-sm);
+  cursor: pointer;
+  clip-path: polygon(
+    0 0, calc(100% - var(--odoo-statusbar-arrow-width)) 0,
+    100% 50%, calc(100% - var(--odoo-statusbar-arrow-width)) 100%,
+    0 100%, var(--odoo-statusbar-arrow-width) 50%
+  );
+}
+
+.odoo-lab-statusbar-step:first-child {
+  margin-left: 0;
+  clip-path: polygon(
+    0 0, calc(100% - var(--odoo-statusbar-arrow-width)) 0,
+    100% 50%, calc(100% - var(--odoo-statusbar-arrow-width)) 100%, 0 100%
+  );
+}
+
+/* Flatten the trailing edge — without this the last step keeps a
+   right-pointing tip with nothing to interlock with. */
+.odoo-lab-statusbar-step:last-child {
+  padding-right: var(--odoo-statusbar-arrow-width);
+  clip-path: polygon(
+    0 0, 100% 0, 100% 100%, 0 100%, var(--odoo-statusbar-arrow-width) 50%
+  );
+}
+
+.odoo-lab-statusbar-step:first-child:last-child {
+  clip-path: none;
+}
+
+.odoo-lab-statusbar-step.is-active {
+  background: var(--odoo-gray-900);
+  color: #fff;
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------------ */
+/* List view (.o_list_renderer analogue) */
+/* ------------------------------------------------------------------ */
+
+.odoo-lab-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.odoo-lab-list-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--odoo-gray-100);
+  text-align: left;
+  padding: var(--odoo-list-cell-padding-y) var(--odoo-list-cell-padding-x);
+  font-size: var(--odoo-font-size-xs);
+  text-transform: uppercase;
+  color: var(--odoo-gray-600);
+  border-bottom: 1px solid var(--odoo-gray-300);
+}
+
+.odoo-lab-list-table td {
+  padding: var(--odoo-list-cell-padding-y) var(--odoo-list-cell-padding-x);
+  border-bottom: 1px solid var(--odoo-gray-200);
+  font-size: var(--odoo-font-size-sm);
+}
+
+.odoo-lab-list-row:hover td {
+  background: var(--odoo-gray-100);
+}
+
+.odoo-lab-list-checkbox-col {
+  width: 40px;
+}
+
+.odoo-lab-list-number-col {
+  text-align: right;
+}
+
+/* ------------------------------------------------------------------ */
+/* Kanban board (.o_kanban_record analogue) */
+/* ------------------------------------------------------------------ */
+
+.odoo-lab-kanban-board {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--odoo-kanban-gutter);
+  overflow-x: auto;
+}
+
+.odoo-lab-kanban-col {
+  flex: 0 0 var(--odoo-kanban-card-width);
+  background: var(--odoo-kanban-bg);
+  border-radius: var(--odoo-radius);
+  padding: var(--odoo-kanban-gutter);
+}
+
+.odoo-lab-kanban-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 8px;
+  font-size: var(--odoo-font-size-sm);
+  font-weight: 600;
+  color: var(--odoo-gray-600);
+  text-transform: uppercase;
+}
+
+.odoo-lab-kanban-col-count {
+  min-width: 18px;
+  padding: 0 4px;
+  background: var(--odoo-gray-300);
+  border-radius: 999px;
+  font-size: var(--odoo-font-size-xs);
+  text-align: center;
+}
+
+.odoo-lab-kanban-card {
+  position: relative;
+  margin-bottom: var(--odoo-kanban-gutter);
+  padding: 10px 10px 10px calc(10px + var(--odoo-kanban-color-bar-width));
+  background: #fff;
+  border: 1px solid var(--odoo-gray-300);
+  border-radius: var(--odoo-radius-sm);
+}
+
+.odoo-lab-kanban-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--odoo-kanban-color-bar-width);
+  background: var(--odoo-kanban-card-color, var(--odoo-gray-600));
+}
+
+.odoo-lab-kanban-card-title {
+  font-weight: 600;
+  font-size: var(--odoo-font-size-sm);
+}
+
+.odoo-lab-kanban-card-sub {
+  font-size: var(--odoo-font-size-xs);
+  color: var(--odoo-gray-600);
+  margin-top: 2px;
+}
+
+.odoo-lab-kanban-card-footer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--odoo-gray-200);
+  font-size: var(--odoo-font-size-xs);
+  font-weight: 600;
+}

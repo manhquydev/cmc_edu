@@ -494,6 +494,21 @@
   text-align: center;
 }
 
+/* Placeholder for a stage with no records — keeps empty columns visible. */
+.o-kanban-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--odoo-kanban-card-width);
+  min-height: 88px;
+  padding: 28px 8px;
+  border: 1px dashed var(--odoo-gray-300);
+  border-radius: var(--odoo-radius);
+  color: var(--odoo-gray-600);
+  font-size: var(--odoo-font-size-xs);
+  text-align: center;
+}
+
 .o-kanban-card {
   position: relative;
   width: var(--odoo-kanban-card-width);

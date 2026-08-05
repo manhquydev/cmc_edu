@@ -5,6 +5,8 @@ import {
   Callout,
   DataTable,
   FilterBar,
+  KanbanBoard,
+  KanbanColumn,
   LineIcon,
   ListPage,
   PageHeader,
@@ -232,30 +234,20 @@ function KanbanView({ rows, loading }: { rows: ClassBatchRow[]; loading: boolean
   }
 
   return (
-    <div className="ck-kanban">
+    <KanbanBoard>
       {KANBAN_COLS.map((col) => {
         const items = byStatus.get(col.key) ?? [];
         return (
-          <div key={col.key} className="ck-kanban-col">
-            <div className="ck-kanban-head">
-              <span className="ck-kanban-title">{col.label}</span>
-              <StatusBadge
-                status={col.key === 'completed' ? 'approved' : col.key}
-                label={String(items.length)}
-                size="sm"
-              />
-            </div>
-            <div className="ck-kanban-body">
-              {items.length === 0 ? (
-                <div className="ck-kanban-empty">Không có lớp</div>
-              ) : (
-                items.map((item) => <SessionCard key={item.id} {...toSessionCard(item, 'default')} />)
-              )}
-            </div>
-          </div>
+          <KanbanColumn key={col.key} title={col.label} count={items.length}>
+            {items.length === 0 ? (
+              <div className="o-kanban-empty">Không có lớp</div>
+            ) : (
+              items.map((item) => <SessionCard key={item.id} {...toSessionCard(item, 'default')} />)
+            )}
+          </KanbanColumn>
         );
       })}
-    </div>
+    </KanbanBoard>
   );
 }
 
@@ -297,14 +289,12 @@ export default function SchedulePage() {
           title="Lịch dạy"
           breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Lịch dạy' }]}
           actions={
-            <div className="ck-view-toggle" role="toolbar" aria-label="Chế độ xem lịch">
+            <div className="o-view-switcher" role="toolbar" aria-label="Chế độ xem lịch">
               {VIEWS.map((v) => (
                 <button
                   key={v}
                   type="button"
-                  className={['ck-view-toggle-btn', view === v ? 'is-active' : '']
-                    .filter(Boolean)
-                    .join(' ')}
+                  className={view === v ? 'is-active' : ''}
                   aria-label={VIEW_LABELS[v]}
                   aria-pressed={view === v}
                   title={VIEW_LABELS[v]}
@@ -324,7 +314,7 @@ export default function SchedulePage() {
         <Banner status="error" title="Không tải được lịch dạy" description={error.message} />
       ) : null}
       {view === 'list' && !error?.message && (
-        <div className="ck-table-shell">
+        <div className="o-list">
           <DataTable<ClassBatchRow>
             columns={LIST_COLUMNS}
             data={rows}

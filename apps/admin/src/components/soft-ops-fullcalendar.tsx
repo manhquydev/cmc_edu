@@ -77,10 +77,10 @@ function renderEventContent(arg: EventContentArg) {
   // docs: content-injection / eventContent — React nodes allowed
   const status = String((arg.event.extendedProps as { status?: string })?.status ?? '');
   return (
-    <div className="ck-fc-ev-inner" title={arg.event.title}>
-      {arg.timeText ? <span className="ck-fc-ev-time">{arg.timeText}</span> : null}
-      <span className="ck-fc-ev-title">{arg.event.title}</span>
-      {status ? <span className="ck-fc-ev-status">{status}</span> : null}
+    <div className="o-fc-ev-inner" title={arg.event.title}>
+      {arg.timeText ? <span className="o-fc-ev-time">{arg.timeText}</span> : null}
+      <span className="o-fc-ev-title">{arg.event.title}</span>
+      {status ? <span className="o-fc-ev-status">{status}</span> : null}
     </div>
   );
 }
@@ -158,7 +158,7 @@ export function SoftOpsFullCalendar({
   if (blockingLoad) {
     return (
       <div
-        className={['ck-fc', 'ck-fc-loading', className].filter(Boolean).join(' ')}
+        className={['o-fc', 'o-fc-loading', className].filter(Boolean).join(' ')}
         role="status"
         data-testid="soft-ops-fullcalendar"
         data-fc-loading="1"
@@ -170,7 +170,7 @@ export function SoftOpsFullCalendar({
 
   return (
     <div
-      className={['ck-fc', fetching ? 'ck-fc-fetching' : '', className].filter(Boolean).join(' ')}
+      className={['o-fc', fetching ? 'o-fc-fetching' : '', className].filter(Boolean).join(' ')}
       data-testid="soft-ops-fullcalendar"
       data-fc-view={initialView}
       data-fc-loading="0"
@@ -179,7 +179,7 @@ export function SoftOpsFullCalendar({
       aria-busy={fetching ? true : undefined}
     >
       {fetching ? (
-        <div className="ck-fc-fetching-bar" role="status">
+        <div className="o-fc-fetching-bar" role="status">
           Đang cập nhật lịch…
         </div>
       ) : null}

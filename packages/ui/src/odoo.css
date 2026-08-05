@@ -650,3 +650,806 @@ button.o-kanban-card {
   gap: 4px;
   margin-left: auto;
 }
+
+/* Phase 3: shared template/archetype port */
+.o-wrap { background: var(--cmc-canvas); min-height: 100%; padding: 24px 28px;
+  display: flex; flex-direction: column; gap: var(--cmc-gap-section); }
+.o-wrap--ops { padding: 18px 22px; gap: 16px; }
+.o-list-body, .o-detail-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+/* List ControlBar — sticky ops chrome (Odoo ControlPanel analogue) */
+.o-control-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cmc-gap-cluster);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  min-width: 0;
+  /* Quiet surface so scrolled table rows do not bleed through */
+  margin-inline: calc(-1 * var(--cmc-space-3, 16px));
+  padding: 10px var(--cmc-space-3, 16px) 12px;
+  background: color-mix(in srgb, var(--cmc-canvas) 92%, var(--cmc-surface-raised));
+  border-bottom: 1px solid var(--cmc-border-subtle);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: var(--cmc-shadow-xs);
+}
+.o-wrap--ops .o-control-bar {
+  margin-inline: calc(-1 * 12px);
+  padding-inline: 12px;
+}
+.o-control-bar-header,
+.o-control-bar-filters,
+.o-control-bar-footer {
+  min-width: 0;
+}
+.o-control-bar-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+
+/* Metric card — soft raised surface */
+.o-mc {
+  display: block; text-decoration: none; color: inherit;
+  background: var(--cmc-raised-bg); border-radius: var(--cmc-raised-radius);
+  border: var(--cmc-raised-border);
+  box-shadow: var(--cmc-raised-shadow);
+  padding: var(--cmc-pad-card) var(--cmc-keyline-x);
+  min-height: 128px;
+  box-sizing: border-box;
+  transition: box-shadow var(--cmc-transition), border-color var(--cmc-transition),
+    transform var(--cmc-transition);
+}
+.o-mc:hover { box-shadow: var(--cmc-shadow-md); border-color: var(--cmc-accent-soft); }
+.o-mc:active { transform: scale(0.995); }
+.o-mc-top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; min-height: var(--cmc-line-label); margin-bottom: var(--cmc-space-3);
+}
+.o-mc-label {
+  display: flex; align-items: center; gap: 7px; min-width: 0;
+  font-size: var(--cmc-fs-label); font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--cmc-text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.o-mc-icon { color: var(--cmc-text-faint); flex-shrink: 0; }
+.o-mc-value {
+  font-size: var(--cmc-fs-metric); font-weight: 600; line-height: 1;
+  letter-spacing: -0.03em; color: var(--cmc-text); font-variant-numeric: tabular-nums;
+  min-height: 1em;
+}
+.o-mc-ctx {
+  margin-top: 10px; display: flex; align-items: center; gap: 3px;
+  min-height: var(--cmc-line-meta);
+  font-size: var(--cmc-fs-meta); color: var(--cmc-text-muted);
+  transition: color var(--cmc-transition);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.o-mc:hover .o-mc-ctx { color: var(--cmc-brand); }
+.o-attn {
+  width: var(--cmc-dot-size); height: var(--cmc-dot-size);
+  border-radius: 999px; flex-shrink: 0;
+}
+
+/* Panel — soft card (same raised family as Metric) */
+.ck-pnl {
+  background: var(--cmc-raised-bg); border-radius: var(--cmc-raised-radius);
+  overflow: hidden;
+  border: var(--cmc-raised-border);
+  box-shadow: var(--cmc-raised-shadow);
+}
+.ck-pnl-head {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: var(--cmc-head-h);
+  padding: 12px var(--cmc-keyline-x); gap: 12px;
+  border-bottom: 1px solid var(--cmc-border-subtle);
+  box-sizing: border-box;
+}
+.ck-pnl-title {
+  font-size: var(--cmc-fs-body); font-weight: 600; color: var(--cmc-text);
+  letter-spacing: -0.01em;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ck-pnl-icon { color: var(--cmc-text-faint); flex-shrink: 0; }
+.ck-pnl-action-slot { flex-shrink: 0; }
+.ck-pnl-action {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: var(--cmc-fs-meta); font-weight: 500; color: var(--cmc-brand);
+  text-decoration: none; font-family: inherit;
+  white-space: nowrap;
+}
+.ck-pnl-action:hover { text-decoration: underline; }
+
+/* Rows — soft sunken hover (never cast shadow on rows) */
+.ck-row {
+  display: flex; align-items: center; gap: 12px;
+  min-height: var(--cmc-row-h);
+  padding: 10px var(--cmc-keyline-x);
+  box-sizing: border-box;
+  text-decoration: none; color: inherit;
+  transition: background var(--cmc-transition);
+}
+.ck-row + .ck-row { border-top: 1px solid var(--cmc-border-subtle); }
+.ck-row:hover { background: var(--cmc-surface-sunken); }
+.ck-dot {
+  width: var(--cmc-dot-size); height: var(--cmc-dot-size);
+  border-radius: 999px; flex-shrink: 0;
+}
+.ck-row-main {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;
+}
+.ck-row-title {
+  display: block;
+  font-size: var(--cmc-fs-body); font-weight: 500; color: var(--cmc-text);
+  line-height: var(--cmc-line-title);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ck-row-meta {
+  display: block;
+  font-size: var(--cmc-fs-meta); color: var(--cmc-text-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--cmc-line-meta);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ck-row-tag {
+  flex-shrink: 0; font-size: var(--cmc-fs-label); font-weight: 600;
+  height: var(--cmc-chip-h-sm); padding: 0 9px;
+  display: inline-flex; align-items: center;
+  border-radius: var(--cmc-radius-pill);
+  background: var(--cmc-brand-muted); color: var(--cmc-brand);
+  white-space: nowrap;
+}
+.ck-chev { color: var(--cmc-text-faint); flex-shrink: 0; }
+
+
+/* Page header — soft card (quieter elevation than metric grid) */
+.o-page-header {
+  background: var(--cmc-raised-bg);
+  border: var(--cmc-raised-border);
+  border-radius: var(--cmc-raised-radius);
+  box-shadow: var(--cmc-shadow-xs);
+  padding: 12px var(--cmc-keyline-x);
+  min-height: var(--cmc-head-h);
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+
+/* Breadcrumbs — parent crumbs are SPA links (gắn kết module → page) */
+.o-bc {
+  min-width: 0;
+}
+.o-bc-link {
+  color: var(--cmc-text-muted);
+  text-decoration: none;
+  font-size: var(--cmc-fs-meta);
+  font-weight: 500;
+  border-radius: 4px;
+  transition: color var(--cmc-transition), background var(--cmc-transition);
+}
+.o-bc-link:hover {
+  color: var(--cmc-brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.o-bc-link:focus-visible {
+  outline: 2px solid var(--cmc-brand);
+  outline-offset: 2px;
+}
+.o-bc-current {
+  color: var(--cmc-text-2);
+  font-size: var(--cmc-fs-meta);
+  font-weight: 600;
+}
+.o-bc-plain {
+  color: var(--cmc-text-muted);
+  font-size: var(--cmc-fs-meta);
+  font-weight: 500;
+}
+
+
+/* Filter bar — slot chrome on warm surface-2 (not a third competing card) */
+.o-filter-bar {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;
+  min-height: var(--cmc-head-h);
+  padding: 10px var(--cmc-keyline-x);
+  background: var(--cmc-surface-2);
+  border: var(--cmc-raised-border);
+  border-radius: var(--cmc-raised-radius);
+  box-sizing: border-box;
+}
+
+
+/* WorkflowStatusbar wraps ProgressSteps with record-page spacing */
+.o-workflow-statusbar {
+  min-width: 0;
+  padding: 4px 0;
+}
+
+
+/* ---- Detail page frame (entity · summary · tabs · body) — system-wide ---- */
+.o-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cmc-gap-section);
+}
+.o-detail-entity {
+  min-width: 0;
+}
+.o-detail-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cmc-gap-cluster);
+  min-width: 0;
+}
+.o-detail-tabs {
+  min-width: 0;
+  /* tabs sit in raised shell when page provides CmcTabs bare */
+}
+.o-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cmc-gap-cluster);
+  min-width: 0;
+  flex: 1;
+}
+/* Vertical stack of SectionBlocks */
+.o-detail-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cmc-gap-cluster);
+  min-width: 0;
+}
+/* 2-col desktop: primary content | secondary rail */
+.o-detail-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--cmc-gap-cluster);
+  align-items: start;
+  min-width: 0;
+}
+@media (min-width: 1040px) {
+  .o-detail-split {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+}
+/* Tab panel inset — consistent with keyline */
+.o-detail-panel {
+  padding: var(--cmc-space-3) 0 0;
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  .o-detail {
+    gap: var(--cmc-gap-cluster);
+  }
+}
+.o-form-body { display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
+.o-actions { position: sticky; bottom: 0; display: flex; justify-content: flex-end;
+  align-items: center; gap: 12px; padding: 14px var(--cmc-pad-card-x); background: var(--cmc-surface-raised);
+  border: 1px solid var(--cmc-border-subtle);
+  border-radius: var(--cmc-radius-md); box-shadow: var(--cmc-shadow-md); }
+
+/* Dashboard / cockpit — role-agnostic frame (content slots only change) */
+.o-dash { gap: var(--cmc-gap-section); }
+.o-dash-title {
+  font-size: var(--cmc-fs-page); font-weight: 600; letter-spacing: -0.03em;
+  color: var(--cmc-text); margin: 0; line-height: 1.15;
+}
+.o-dash-sub {
+  font-size: var(--cmc-fs-body); color: var(--cmc-text-muted); margin: 6px 0 0; line-height: 1.4;
+}
+.o-dash-shortcuts { display: flex; flex-wrap: wrap; gap: 10px; }
+.o-dash-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 14px;
+  border-radius: var(--cmc-radius-pill);
+  background: var(--cmc-surface-raised);
+  color: var(--cmc-text-2);
+  font-size: 13px; font-weight: 500; font-family: inherit;
+  text-decoration: none;
+  border: 1px solid var(--cmc-border-subtle);
+  box-shadow: var(--cmc-shadow-xs);
+  transition: background var(--cmc-transition), border-color var(--cmc-transition),
+    color var(--cmc-transition), box-shadow var(--cmc-transition);
+}
+.o-dash-chip:hover {
+  background: var(--cmc-brand-muted);
+  border-color: transparent;
+  color: var(--cmc-brand);
+  box-shadow: var(--cmc-shadow-sm);
+}
+.o-dash-chip:active { transform: scale(0.98); }
+.o-dash-chip-icon { color: var(--cmc-text-faint); display: flex; }
+.o-dash-chip:hover .o-dash-chip-icon { color: var(--cmc-brand); }
+.o-dash-chip-badge {
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--cmc-brand-muted);
+  color: var(--cmc-brand); font-size: 11px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.o-dash-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--cmc-gap-cluster);
+}
+.o-dash-metrics > .o-mc { max-width: none; }
+@media (min-width: 1200px) {
+  .o-dash-metrics { grid-template-columns: repeat(4, 1fr); }
+}
+.o-dash-body {
+  display: grid; gap: var(--cmc-gap-cluster); align-items: start;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 1040px) {
+  .o-dash-body { grid-template-columns: 1.4fr 1fr; }
+}
+.o-dash-primary, .o-dash-secondary {
+  display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); min-width: 0;
+}
+
+
+/* Dashboard / cockpit — role-agnostic frame (content slots only change) */
+.o-dash { gap: var(--cmc-gap-section); }
+.o-dash-title {
+  font-size: var(--cmc-fs-page); font-weight: 600; letter-spacing: -0.03em;
+  color: var(--cmc-text); margin: 0; line-height: 1.15;
+}
+.o-dash-sub {
+  font-size: var(--cmc-fs-body); color: var(--cmc-text-muted); margin: 6px 0 0; line-height: 1.4;
+}
+.o-dash-shortcuts { display: flex; flex-wrap: wrap; gap: 10px; }
+.o-dash-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 14px;
+  border-radius: var(--cmc-radius-pill);
+  background: var(--cmc-surface-raised);
+  color: var(--cmc-text-2);
+  font-size: 13px; font-weight: 500; font-family: inherit;
+  text-decoration: none;
+  border: 1px solid var(--cmc-border-subtle);
+  box-shadow: var(--cmc-shadow-xs);
+  transition: background var(--cmc-transition), border-color var(--cmc-transition),
+    color var(--cmc-transition), box-shadow var(--cmc-transition);
+}
+.o-dash-chip:hover {
+  background: var(--cmc-brand-muted);
+  border-color: transparent;
+  color: var(--cmc-brand);
+  box-shadow: var(--cmc-shadow-sm);
+}
+.o-dash-chip:active { transform: scale(0.98); }
+.o-dash-chip-icon { color: var(--cmc-text-faint); display: flex; }
+.o-dash-chip:hover .o-dash-chip-icon { color: var(--cmc-brand); }
+.o-dash-chip-badge {
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--cmc-brand-muted);
+  color: var(--cmc-brand); font-size: 11px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.o-dash-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--cmc-gap-cluster);
+}
+.o-dash-metrics > .o-mc { max-width: none; }
+@media (min-width: 1200px) {
+  .o-dash-metrics { grid-template-columns: repeat(4, 1fr); }
+}
+.o-dash-body {
+  display: grid; gap: var(--cmc-gap-cluster); align-items: start;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 1040px) {
+  .o-dash-body { grid-template-columns: 1.4fr 1fr; }
+}
+.o-dash-primary, .o-dash-secondary {
+  display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); min-width: 0;
+}
+
+
+/* Progress steps */
+.o-steps {
+  list-style: none; margin: 0; padding: 4px 0 8px;
+  display: flex; align-items: stretch; gap: 0; overflow-x: auto;
+}
+.o-steps-item {
+  position: relative; display: flex; align-items: center; flex: 1 1 0; min-width: 0;
+}
+.o-steps-bridge {
+  position: absolute; left: -12%; top: 18px; width: 24%; height: 2px;
+  background: var(--cmc-border); border-radius: 1px; z-index: 0;
+}
+.o-steps-item.is-done .o-steps-bridge,
+.o-steps-item.is-current .o-steps-bridge {
+  background: color-mix(in srgb, var(--cmc-brand) 45%, var(--cmc-border));
+}
+.o-steps-btn {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  width: 100%; padding: 4px 6px; border: none; background: transparent;
+  cursor: default; font-family: inherit; color: var(--cmc-text-muted);
+}
+.o-steps-btn:not(:disabled) { cursor: pointer; }
+.o-steps-btn:not(:disabled):hover .o-steps-label { color: var(--cmc-brand); }
+.o-steps-num {
+  width: 28px; height: 28px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  background: var(--cmc-surface-sunken); color: var(--cmc-text-muted);
+  border: 1.5px solid transparent;
+  transition: background var(--cmc-transition), color var(--cmc-transition), border-color var(--cmc-transition);
+}
+.o-steps-item.is-current .o-steps-num {
+  background: var(--cmc-brand); color: #fff; box-shadow: 0 0 0 3px var(--cmc-brand-muted);
+}
+.o-steps-item.is-done .o-steps-num {
+  background: var(--cmc-success-soft); color: var(--cmc-success-ink);
+}
+.o-steps-label {
+  font-size: 11.5px; font-weight: 500; text-align: center; line-height: 1.25;
+  max-width: 9em;
+}
+.o-steps-item.is-current .o-steps-label {
+  color: var(--cmc-brand-ink); font-weight: 600;
+}
+.o-steps-item.is-done .o-steps-label { color: var(--cmc-text-2); }
+
+
+/* SettingsShell — left rail + main (Polaris / Odoo settings) */
+.o-settings-shell {
+  display: grid;
+  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
+  gap: var(--cmc-gap-cluster);
+  align-items: start;
+  min-width: 0;
+}
+@media (max-width: 860px) {
+  .o-settings-shell { grid-template-columns: 1fr; }
+}
+.o-settings-rail {
+  background: var(--cmc-surface-raised);
+  border: 1px solid var(--cmc-border-subtle);
+  border-radius: var(--cmc-radius-md);
+  box-shadow: var(--cmc-shadow-xs);
+  padding: 12px 10px;
+  position: sticky;
+  top: 8px;
+  min-width: 0;
+}
+.o-settings-rail-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cmc-text-muted);
+  padding: 4px 10px 10px;
+}
+.o-settings-nav { display: flex; flex-direction: column; gap: 2px; }
+.o-settings-nav-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  width: 100%; text-align: left;
+  padding: 10px 12px;
+  border: none; border-radius: var(--cmc-radius-control);
+  background: transparent; color: var(--cmc-text);
+  font: inherit; cursor: pointer;
+  transition: background var(--cmc-transition);
+}
+.o-settings-nav-item:hover { background: var(--cmc-surface-2); }
+.o-settings-nav-item.is-active {
+  background: var(--cmc-brand-muted);
+  color: var(--cmc-brand-ink);
+}
+.o-settings-nav-label { display: block; font-size: 13.5px; font-weight: 600; }
+.o-settings-nav-desc { display: block; margin-top: 2px; font-size: 12px; color: var(--cmc-text-muted); line-height: 1.35; }
+.o-settings-nav-item.is-active .o-settings-nav-desc { color: var(--cmc-brand-ink); opacity: 0.85; }
+.o-settings-main { min-width: 0; display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
+
+
+/* Entity header */
+.o-eh {
+  background: var(--cmc-surface-raised);
+  border: 1px solid var(--cmc-border-subtle);
+  border-radius: var(--cmc-radius-md);
+  box-shadow: var(--cmc-shadow-sm);
+  padding: 16px var(--cmc-pad-card-x) 18px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.o-eh-back {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: 12.5px; font-weight: 500; color: var(--cmc-text-muted);
+  text-decoration: none; width: fit-content;
+}
+.o-eh-back svg { transform: rotate(180deg); }
+.o-eh-back:hover { color: var(--cmc-brand); }
+.o-eh-main {
+  display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap;
+}
+.o-eh-avatar {
+  width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
+  background: linear-gradient(145deg, var(--cmc-brand-muted), color-mix(in srgb, var(--cmc-brand) 18%, #fff));
+  color: var(--cmc-brand-ink);
+  font-size: 18px; font-weight: 700; letter-spacing: -0.02em;
+  display: flex; align-items: center; justify-content: center;
+}
+.o-eh-id { flex: 1; min-width: 160px; }
+.o-eh-title-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
+}
+.o-eh-title {
+  margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -0.03em;
+  color: var(--cmc-text); line-height: 1.2;
+}
+.o-eh-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.o-eh-sub {
+  margin: 4px 0 0; font-size: 13.5px; color: var(--cmc-text-muted); line-height: 1.4;
+}
+.o-eh-meta {
+  margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px 14px;
+  font-size: 12px; color: var(--cmc-text-faint); font-variant-numeric: tabular-nums;
+}
+.o-eh-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto;
+}
+
+/* Inventory matrix (Design Lab helper) */
+.ck-inv {
+  width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.4;
+}
+.ck-inv th {
+  text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase; color: var(--cmc-text-muted);
+  border-bottom: 1px solid var(--cmc-border-subtle);
+}
+.ck-inv td {
+  padding: 10px; border-bottom: 1px solid var(--cmc-border-subtle); vertical-align: top;
+}
+.ck-inv-ok { color: var(--cmc-success-ink); font-weight: 600; font-size: 12px; }
+.ck-inv-partial { color: var(--cmc-warning-ink); font-weight: 600; font-size: 12px; }
+.ck-inv-miss { color: var(--cmc-danger-ink); font-weight: 600; font-size: 12px; }
+.ck-inv-tag {
+  display: inline-block; padding: 2px 7px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 600; background: var(--cmc-surface-sunken); color: var(--cmc-text-muted);
+}
+
+/* -------------------------------------------------------------------------
+ * Xia port pack — Shopify callout · Primer meta/count · Cal/Airbnb avatar · timeline
+ * ---------------------------------------------------------------------- */
+
+/* Callout (softer than Banner) */
+.ck-callout {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--cmc-radius-md);
+  border: 1px solid var(--cmc-border-subtle);
+  background: var(--cmc-surface-2);
+}
+.ck-callout--info {
+  background: var(--cmc-info-soft);
+  border-color: color-mix(in srgb, var(--cmc-brand) 18%, var(--cmc-border-subtle));
+}
+.ck-callout--success {
+  background: var(--cmc-success-soft);
+  border-color: color-mix(in srgb, var(--cmc-success) 20%, var(--cmc-border-subtle));
+}
+.ck-callout--warning {
+  background: var(--cmc-warning-soft);
+  border-color: color-mix(in srgb, var(--cmc-warning) 22%, var(--cmc-border-subtle));
+}
+.ck-callout--danger {
+  background: var(--cmc-danger-soft);
+  border-color: color-mix(in srgb, var(--cmc-danger) 20%, var(--cmc-border-subtle));
+}
+.ck-callout--neutral {
+  background: var(--cmc-neutral-soft);
+}
+.ck-callout-icon {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--cmc-surface-raised); color: var(--cmc-text-muted);
+  box-shadow: var(--cmc-shadow-xs);
+}
+.ck-callout--info .ck-callout-icon { color: var(--cmc-brand); }
+.ck-callout--success .ck-callout-icon { color: var(--cmc-success); }
+.ck-callout--warning .ck-callout-icon { color: var(--cmc-warning); }
+.ck-callout--danger .ck-callout-icon { color: var(--cmc-danger); }
+.ck-callout-body { flex: 1; min-width: 0; }
+.ck-callout-title {
+  font-size: 13.5px; font-weight: 600; color: var(--cmc-text);
+  letter-spacing: -0.01em; margin-bottom: 2px;
+}
+.ck-callout-text {
+  font-size: 13px; color: var(--cmc-text-2); line-height: 1.5;
+}
+.ck-callout-action { flex-shrink: 0; align-self: center; }
+
+/* Avatar */
+.ck-av {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; overflow: hidden; flex-shrink: 0;
+  background: linear-gradient(145deg, var(--cmc-brand-muted), color-mix(in srgb, var(--cmc-brand) 16%, #fff));
+  color: var(--cmc-brand-ink); font-weight: 700; letter-spacing: -0.02em;
+  vertical-align: middle;
+}
+.ck-av--sm { width: 28px; height: 28px; font-size: 11px; }
+.ck-av--md { width: 36px; height: 36px; font-size: 13px; }
+.ck-av--lg { width: 48px; height: 48px; font-size: 16px; border-radius: 14px; }
+.ck-av.is-ring {
+  box-shadow: 0 0 0 2px var(--cmc-surface-raised), 0 0 0 3.5px var(--cmc-accent-soft);
+}
+.ck-av-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ck-av-initials { line-height: 1; }
+
+/* Meta row (GitHub dense) */
+.ck-meta-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
+  font-size: 12.5px; color: var(--cmc-text-muted);
+}
+.ck-meta-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.ck-meta-dot {
+  width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0;
+}
+.ck-meta-text { line-height: 1.3; }
+
+/* Count badge (tab/nav) */
+.ck-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px; font-weight: 650;
+  background: var(--cmc-surface-sunken); color: var(--cmc-text-muted);
+  font-variant-numeric: tabular-nums; vertical-align: middle;
+}
+.ck-count.is-emphasize {
+  background: var(--cmc-brand-muted); color: var(--cmc-brand);
+}
+
+
+
+/* ------------------------------------------------------------------ */
+/* Phase 3: shared template/archetype port (o-* from premium tpl-/ck-) */
+/* DataTable wrapper — sticky header affordance lives here            */
+/* ------------------------------------------------------------------ */
+
+.o-list {
+  background: #fff;
+  border: 1px solid var(--odoo-gray-300, #dee2e6);
+  border-radius: var(--odoo-radius, 4px);
+  overflow: auto;
+  min-width: 0;
+}
+
+/* Odoo-density control panel: flat white band (overrides sticky blur if desired) */
+.o_web_client .o-control-bar {
+  background: #fff;
+  border-bottom: 1px solid var(--odoo-gray-300, #dee2e6);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  margin-inline: 0;
+  padding: 8px 16px;
+  gap: 12px;
+}
+
+/* Chevron ProgressSteps (Odoo statusbar analogue) — horizontal arrow buttons */
+.o_web_client .o-steps {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  height: var(--odoo-statusbar-height, 33px);
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+}
+.o_web_client .o-steps-item {
+  position: relative;
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: calc(var(--odoo-statusbar-arrow-width, 1em) * -1);
+}
+.o_web_client .o-steps-item:first-child { margin-left: 0; }
+.o_web_client .o-steps-bridge { display: none; }
+.o_web_client .o-steps-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 calc(var(--odoo-statusbar-arrow-width, 1em) * 1.25) 0 calc(var(--odoo-statusbar-arrow-width, 1em) * 2);
+  border: 0;
+  background: var(--odoo-gray-200, #e9ecef);
+  color: var(--odoo-gray-900, #212529);
+  font-size: var(--odoo-font-size-sm, 13px);
+  font-family: inherit;
+  cursor: default;
+  clip-path: polygon(
+    0 0, calc(100% - var(--odoo-statusbar-arrow-width, 1em)) 0,
+    100% 50%, calc(100% - var(--odoo-statusbar-arrow-width, 1em)) 100%,
+    0 100%, var(--odoo-statusbar-arrow-width, 1em) 50%
+  );
+}
+.o_web_client .o-steps-item:first-child .o-steps-btn {
+  clip-path: polygon(
+    0 0, calc(100% - var(--odoo-statusbar-arrow-width, 1em)) 0,
+    100% 50%, calc(100% - var(--odoo-statusbar-arrow-width, 1em)) 100%, 0 100%
+  );
+}
+.o_web_client .o-steps-item:last-child .o-steps-btn {
+  padding-right: var(--odoo-statusbar-arrow-width, 1em);
+  clip-path: polygon(
+    0 0, 100% 0, 100% 100%, 0 100%, var(--odoo-statusbar-arrow-width, 1em) 50%
+  );
+}
+.o_web_client .o-steps-btn:not(:disabled) { cursor: pointer; }
+.o_web_client .o-steps-item.is-current .o-steps-btn {
+  background: var(--odoo-gray-900, #212529);
+  color: #fff;
+  z-index: 1;
+}
+.o_web_client .o-steps-item.is-done .o-steps-btn {
+  background: var(--odoo-gray-300, #dee2e6);
+}
+.o_web_client .o-steps-num {
+  width: auto; height: auto; border: 0; background: transparent;
+  font-size: 12px; font-weight: 700; color: inherit;
+  box-shadow: none;
+}
+.o_web_client .o-steps-label {
+  font-size: inherit; font-weight: 500; max-width: none; color: inherit;
+  text-align: left;
+}
+.o_web_client .o-workflow-statusbar { padding: 0; min-width: 0; }
+
+/* Dense wrap under Odoo shell */
+.o_web_client .o-wrap {
+  background: var(--odoo-gray-100, #f8f9fa);
+  padding: 16px;
+  gap: 16px;
+}
+.o_web_client .o-wrap--ops { padding: 12px 14px; gap: 12px; }
+.o_web_client .o-page-header {
+  background: #fff;
+  border: 1px solid var(--odoo-gray-300, #dee2e6);
+  border-radius: var(--odoo-radius, 4px);
+  box-shadow: none;
+  position: static;
+}
+.o_web_client .o-filter-bar {
+  background: var(--odoo-gray-100, #f8f9fa);
+  border: 1px solid var(--odoo-gray-300, #dee2e6);
+  border-radius: var(--odoo-radius-sm, 3px);
+}
+.o_web_client .o-mc {
+  border-radius: var(--odoo-radius, 4px);
+  border: 1px solid var(--odoo-gray-300, #dee2e6);
+  box-shadow: none;
+  min-height: 112px;
+}
+.o_web_client .o-eh {
+  border-radius: var(--odoo-radius-lg, 6px);
+  border: 1px solid var(--odoo-gray-300, #dee2e6);
+  box-shadow: none;
+}
+.o_web_client .o-dash-metrics > .o-mc { max-width: none; }
+
+
+.o-label-upper {
+  font-size: var(--odoo-font-size-xs, 12px);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--odoo-gray-600, #6c757d);
+  line-height: 1.25;
+}

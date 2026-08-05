@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Admin Shell Swap"
-status: in-progress
+status: completed
 priority: P1
 effort: "2w"
 dependencies: [1]
@@ -120,10 +120,10 @@ ngoài (`:77`), và allow-list `/design`,`/design2` TRƯỚC check `!me` (`:35-3
       (repo-wide design-lab prose deferred to Phase 6)
 - [ ] ui-e2e: không journey tụt so main; canary `gift-config-nav` chứng minh đỏ
       được rồi xanh lại  **← merge gate still open**
-- [ ] CommandPalette permission-filtered jsdom test (code yes; dedicated test TBD)
+- [x] CommandPalette permission-filtered jsdom test
 - [x] Login bit-identical; `change-password` trong shell ẩn-chrome theo path
       (jsdom); e2e smoke forced-rotation still open; anonymous `/design` me=null ok
-- [ ] RoleSwitcher PROD-guard unit test (code yes; dedicated test TBD); matrix
+- [x] RoleSwitcher PROD-guard source contract + DEV render test; matrix
       regen N/A (nav-registry shape unchanged)
 
 ## Risk Assessment

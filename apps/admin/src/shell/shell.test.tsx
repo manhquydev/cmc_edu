@@ -153,4 +153,22 @@ describe('Shell (Odoo chrome)', () => {
     expect(container.querySelector('.sh-nav')).not.toBeInTheDocument();
     expect(container.querySelector('.sh-sb')).not.toBeInTheDocument();
   });
+
+  it('builds CommandPalette items only from permission-visible nav children', async () => {
+    sessionState.canDo = (module, action) =>
+      !(module === 'reconciliation' && action === 'review');
+    const { fireEvent } = await import('@testing-library/react');
+    const { container } = renderShell('/finance');
+    // Open palette via hotkey affordance button
+    fireEvent.click(screen.getByLabelText('Tìm (⌘K)'));
+    const palette = container.querySelector('.ck-cmd') ?? container.querySelector('[role="dialog"]');
+    expect(palette).toBeTruthy();
+    // Scope to palette list — section menu also shows "Phiếu thu".
+    const paletteText = palette!.textContent ?? '';
+    expect(paletteText).toContain('Tài chính & Điều hành');
+    expect(paletteText).toContain('Phiếu thu');
+    expect(paletteText).not.toContain('Đối soát');
+  });
 });
+
+

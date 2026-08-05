@@ -38,3 +38,15 @@ Replaced AppFrame/SideNav shell with Odoo navbar:
 1. Run ui-e2e + gift canary against shell
 2. Open PR for Phase 1+2 (or split ui then admin)
 3. Phase 3: central template reskin under odoo density
+
+## Session 2 — Phase 2 residual + Phase 3
+
+- Closed Phase 2 unit gaps: CommandPalette permission test, RoleSwitcher PROD source gate.
+- Phase 3: ported shared templates/archetypes from tpl-/ck- → o-* emission + odoo.css styles.
+- FilterBar name retained for check-ui-frames.
+- DataTable wrapped in `.o-list` (all states).
+- ProgressSteps chevron under `.o_web_client`.
+- Unit: @cmc/ui 113, admin 538, check-ui-frames exit 0.
+- **ui-e2e still not run** — merge gate open.
+- Phases 4–6 not started.
+

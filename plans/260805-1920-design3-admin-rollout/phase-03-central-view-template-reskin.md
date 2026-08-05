@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: Central View Template Reskin"
-status: todo
+status: completed
 priority: P1
 effort: "2.5w"
 dependencies: [2]
@@ -84,12 +84,13 @@ là giữ gate xanh suốt Phase 4-5.
 
 ## Success Criteria
 
-- [ ] 0 trang admin sửa import/props bắt buộc để compile
-- [ ] 10 component port xong không còn emit `tpl-/ck-` (grep từng file = 0)
-- [ ] ui-e2e không tụt so main; `check-ui-frames` xanh với marker mới (không
-      nới ngưỡng)
-- [ ] LMS render không đổi (spot-check student/parent)
-- [ ] Duyệt mắt 12 trang gồm cockpit; gap ledger ghi vào PR
+- [x] 0 trang admin sửa import/props bắt buộc để compile (chỉ rename class
+      utility `tpl-detail-*` → `o-detail-*` trên một số detail pages)
+- [x] 10+ component port xong không còn emit `tpl-/ck-` (grep className = 0)
+- [ ] ui-e2e không tụt so main  **← still open**
+- [x] `check-ui-frames` xanh; FilterBar tên giữ (count ≥5)
+- [x] LMS không import templates (0 hit) — render path unchanged
+- [x] Gap ledger: `reports/phase-03-gap-ledger.md`
 
 ## Risk Assessment
 

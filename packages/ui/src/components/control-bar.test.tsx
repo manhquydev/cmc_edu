@@ -8,7 +8,7 @@ describe('ControlBar', () => {
       <ControlBar header={<div>HDR</div>} />,
     );
     expect(getByText('HDR')).toBeInTheDocument();
-    expect(container.querySelector('.tpl-control-bar')).toBeTruthy();
+    expect(container.querySelector('.o-control-bar')).toBeTruthy();
   });
 
   it('renders filters and footer slots when provided', () => {
@@ -21,13 +21,13 @@ describe('ControlBar', () => {
     );
     expect(getByText('FILTERS')).toBeInTheDocument();
     expect(getByText('PAGER')).toBeInTheDocument();
-    expect(container.querySelector('.tpl-control-bar-filters')).toBeTruthy();
-    expect(container.querySelector('.tpl-control-bar-footer')).toBeTruthy();
+    expect(container.querySelector('.o-control-bar-filters')).toBeTruthy();
+    expect(container.querySelector('.o-control-bar-footer')).toBeTruthy();
   });
 
   it('omits filter/footer wrappers when absent', () => {
     const { container } = render(<ControlBar header={<div>HDR</div>} />);
-    expect(container.querySelector('.tpl-control-bar-filters')).toBeNull();
-    expect(container.querySelector('.tpl-control-bar-footer')).toBeNull();
+    expect(container.querySelector('.o-control-bar-filters')).toBeNull();
+    expect(container.querySelector('.o-control-bar-footer')).toBeNull();
   });
 });

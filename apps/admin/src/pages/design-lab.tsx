@@ -1606,8 +1606,8 @@ export default function DesignLabPage() {
                       id: 'info',
                       label: 'Tổng quan',
                       content: (
-                        <div className="tpl-detail-panel">
-                          <div className="tpl-detail-stack">
+                        <div className="o-detail-panel">
+                          <div className="o-detail-stack">
                             <SectionBlock
                               title="Thông tin liên hệ"
                               description="Key-value grid — không dump bảng thô."
@@ -1635,7 +1635,7 @@ export default function DesignLabPage() {
                       id: 'pay',
                       label: 'Thanh toán',
                       content: (
-                        <div className="tpl-detail-panel">
+                        <div className="o-detail-panel">
                           <Text type="body" size="sm">
                             Phiếu thu liên quan — cùng SectionBlock / KeyValueList.
                           </Text>

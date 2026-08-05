@@ -13,7 +13,7 @@ describe('FormPage', () => {
     expect(getByText('HEADER')).toBeInTheDocument();
     expect(getByText('FIELDS')).toBeInTheDocument();
 
-    const actionBar = container.querySelector('.tpl-actions');
+    const actionBar = container.querySelector('.o-actions');
     expect(actionBar).not.toBeNull();
     expect(actionBar!.querySelectorAll('button, a').length).toBe(1);
     expect(actionBar).toHaveTextContent('Lưu');

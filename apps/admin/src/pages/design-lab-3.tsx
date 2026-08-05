@@ -109,9 +109,23 @@ export default function DesignLab3Page() {
 
       <div className="odoo-lab-control-panel">
         <div className="odoo-lab-breadcrumbs">
-          <span>Học viên</span>
+          <button
+            type="button"
+            className="odoo-lab-breadcrumb-link"
+            onClick={() => info('Điều hướng tới Học viên (demo)')}
+          >
+            Học viên
+          </button>
           <span className="odoo-lab-breadcrumb-sep">/</span>
           <span className="odoo-lab-breadcrumb-current">Ghi danh</span>
+        </div>
+        <div className="odoo-lab-panel-buttons">
+          <Button
+            label="+ New"
+            variant="primary"
+            size="sm"
+            onClick={() => success('Khởi tạo phiếu ghi danh mới (demo)')}
+          />
         </div>
         <button
           type="button"
@@ -142,12 +156,6 @@ export default function DesignLab3Page() {
               <LineIcon name="kanban" size={15} strokeWidth={2.25} />
             </button>
           </div>
-          <Button
-            label="+ New"
-            variant="primary"
-            size="sm"
-            onClick={() => success('Khởi tạo phiếu ghi danh mới (demo)')}
-          />
         </div>
       </div>
 

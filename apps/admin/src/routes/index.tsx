@@ -23,9 +23,8 @@ const CockpitPage = lazy(() => import('../pages/cockpit.js'));
 const DesignLabPage = lazy(() => import('../pages/design-lab.js'));
 const DesignLab2Page = lazy(() => import('../pages/design-lab-2.js'));
 const DesignLab3Page = lazy(() => import('../pages/design-lab-3.js'));
-// Auth-level page (sibling of /login, not a module route): rendered OUTSIDE
-// the Shell because a forced password rotation must complete before the user
-// enters the app proper.
+// Forced password rotation: rendered INSIDE Shell in chrome-suppressed mode
+// (no navbar/app-switcher/⌘K) so the user cannot navigate away mid-rotation.
 const ChangePasswordPage = lazy(() => import('../pages/change-password.js'));
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -54,22 +53,15 @@ export const router = createBrowserRouter([
   // Design Lab 3 recreates Odoo's own full-page chrome (navbar, control panel),
   // so it must render outside RequireAuth/Shell — a sibling of /login, never a
   // child of '/' — otherwise it would nest inside the production sidebar/topbar.
+  // DEV-only: production builds redirect away (no public unauthenticated chrome).
   {
     path: '/design3',
-    element: (
+    element: import.meta.env.DEV ? (
       <Suspense fallback={<Skeleton height={200} radius={0} />}>
         <DesignLab3Page />
       </Suspense>
-    ),
-  },
-  {
-    path: '/change-password',
-    element: (
-      <RequireAuth>
-        <Suspense fallback={<Skeleton height="100vh" radius={0} />}>
-          <ChangePasswordPage />
-        </Suspense>
-      </RequireAuth>
+    ) : (
+      <Navigate to="/login" replace />
     ),
   },
   {
@@ -82,6 +74,16 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Skeleton height={200} radius={0} />}>
             <CockpitPage />
+          </Suspense>
+        ),
+      },
+      // Forced password rotation lives INSIDE Shell in chrome-suppressed mode
+      // (decision 10/10b) — no navbar/app-switcher/⌘K while rotating.
+      {
+        path: 'change-password',
+        element: (
+          <Suspense fallback={<Skeleton height="100vh" radius={0} />}>
+            <ChangePasswordPage />
           </Suspense>
         ),
       },

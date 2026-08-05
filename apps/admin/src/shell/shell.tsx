@@ -1,9 +1,8 @@
 import {
-  AppFrame,
   Badge,
   CommandPalette,
   LineIcon,
-  SideNav,
+  OdooNavbar,
   activeModuleId,
   useCommandPaletteHotkey,
   type CommandItem,
@@ -19,11 +18,15 @@ import { useCallback, useMemo, useState } from 'react';
 // Same convention as lib/trpc.ts: empty = same-origin (Vite /auth proxy · nginx).
 const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').trim();
 
-// App-specific shell wiring (design pilot, 2026-07-10; promoted to @cmc/ui in
-// P3 — AppFrame/SideNav ship the layout + tree nav). This file keeps only
-// session, permission-gated data (NAV_MODULES/visibleModulesFor), and the
-// app-specific CTA/RoleSwitcher — no direct @astryxdesign import (one-door
-// lint safe; primitives come through @cmc/ui).
+/**
+ * Admin application shell — Odoo navbar + app-switcher (design3).
+ * Session, permission-gated nav (visibleModulesFor), CommandPalette, and
+ * systray live here. Page content renders in <main class="o-main">.
+ *
+ * Chrome-suppressed mode: on /change-password (forced password rotation) the
+ * navbar, app-switcher, ⌘K, and systray are hidden so the user cannot navigate
+ * away before rotating. Server still does not enforce staff mCP today.
+ */
 export function Shell() {
   const { me, canDo } = useSession();
   const location = useLocation();
@@ -31,13 +34,21 @@ export function Shell() {
   const [enrollPickerOpen, setEnrollPickerOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
 
+  // Load-bearing anonymous branch: design labs allow-list can render Shell
+  // without me (RequireAuth in routes/index.tsx). Keep empty modules.
   const modules = me ? visibleModulesFor(me.roles, canDo) : [];
   const canCreateReceipt = canDo('finance', 'receiptCreate');
   const activeId = activeModuleId(location.pathname, modules);
-  const activeModule = modules.find((m) => m.id === activeId);
-  const topTitle = activeModule?.label ?? 'CMC EDU';
+
+  // Path-only chrome suppress: session.me does not yet return mustChangePassword
+  // for staff (client login hint only). Forced rotation always lands on this
+  // route from login.tsx; deep-link escape remains a known server non-enforce.
+  const suppressChrome =
+    location.pathname === '/change-password' ||
+    location.pathname.startsWith('/change-password/');
 
   const commandItems: CommandItem[] = useMemo(() => {
+    if (suppressChrome) return [];
     const items: CommandItem[] = [];
     for (const mod of modules) {
       items.push({
@@ -91,115 +102,108 @@ export function Shell() {
       });
     }
     return items;
-  }, [modules, canDo, canCreateReceipt]);
+  }, [modules, canDo, canCreateReceipt, suppressChrome]);
 
-  const openCmd = useCallback(() => setCmdOpen(true), []);
-  useCommandPaletteHotkey(openCmd, Boolean(me));
+  const openCmd = useCallback(() => {
+    if (!suppressChrome) setCmdOpen(true);
+  }, [suppressChrome]);
+  useCommandPaletteHotkey(openCmd, Boolean(me) && !suppressChrome);
+
+  const systray = suppressChrome ? null : (
+    <>
+      <button
+        type="button"
+        className="o-systray-badge"
+        onClick={() => setCmdOpen(true)}
+        title="Điều hướng nhanh (⌘K / Ctrl+K)"
+        aria-label="Tìm (⌘K)"
+      >
+        <LineIcon name="search" size={15} strokeWidth={2.25} />
+      </button>
+      {import.meta.env.DEV && (
+        <>
+          <button
+            type="button"
+            className="o-systray-badge"
+            onClick={() => navigate('/design')}
+            title="Design Lab — inventory token & component"
+            aria-label="Design Lab"
+          >
+            D
+          </button>
+          <button
+            type="button"
+            className="o-systray-badge"
+            onClick={() => navigate('/design2')}
+            title="Design Lab 2"
+            aria-label="Design Lab 2"
+          >
+            D2
+          </button>
+          <button
+            type="button"
+            className="o-systray-badge"
+            onClick={() => navigate('/design3')}
+            title="Design Lab 3 — Odoo UI recreation"
+            aria-label="Design Lab 3"
+          >
+            D3
+          </button>
+        </>
+      )}
+      {canCreateReceipt && (
+        <button
+          type="button"
+          className="o-systray-badge"
+          onClick={() => setEnrollPickerOpen(true)}
+          title="Ghi danh (tạo phiếu)"
+          aria-label="Ghi danh"
+        >
+          <LineIcon name="plus" size={15} strokeWidth={2.25} />
+        </button>
+      )}
+      {me && me.roles[0] && <Badge label={formatRole(me.roles[0])} variant="neutral" />}
+      <RoleSwitcher />
+      {me && (
+        <button
+          type="button"
+          className="o-systray-badge"
+          onClick={() => window.location.assign(`${API_URL}/auth/logout`)}
+          aria-label="Đăng xuất"
+          title="Đăng xuất"
+        >
+          <LineIcon name="logout" size={15} strokeWidth={2.25} />
+        </button>
+      )}
+    </>
+  );
 
   return (
-    <>
-      <AppFrame
-        nav={
-          <SideNav
-            modules={modules}
-            activeId={activeId}
-            activePath={location.pathname}
-            onNavigate={navigate}
-            isChildVisible={(c) => isNavChildVisible(c, canDo)}
-            brand={
-              <>
-                <span className="sh-logo">C</span>
-                <span>
-                  <span className="sh-brand-name" style={{ display: 'block' }}>
-                    CMC EDU
-                  </span>
-                  <span className="sh-brand-sub" style={{ display: 'block' }}>
-                    Admin
-                  </span>
-                </span>
-              </>
-            }
-          />
-        }
-        topbarTitle={topTitle}
-        topbarActions={
-          <>
-            <button
-              type="button"
-              className="sh-cta sh-cta--ghost"
-              onClick={() => setCmdOpen(true)}
-              title="Điều hướng nhanh (⌘K / Ctrl+K)"
-            >
-              <LineIcon name="search" size={15} strokeWidth={2.25} /> Tìm
-              <kbd
-                style={{
-                  marginLeft: 6,
-                  fontSize: 10,
-                  opacity: 0.7,
-                  border: '1px solid var(--cmc-border)',
-                  borderRadius: 4,
-                  padding: '0 4px',
-                }}
-              >
-                ⌘K
-              </kbd>
-            </button>
-            {import.meta.env.DEV && (
-              <>
-                <button
-                  type="button"
-                  className="sh-cta sh-cta--ghost"
-                  onClick={() => navigate('/design')}
-                  title="Design Lab — inventory token & component"
-                >
-                  Design
-                </button>
-                <button
-                  type="button"
-                  className="sh-cta sh-cta--ghost"
-                  onClick={() => navigate('/design2')}
-                  title="Design Lab 2 — Next-Gen Aetheria Design System"
-                >
-                  Design 2
-                </button>
-                <button
-                  type="button"
-                  className="sh-cta sh-cta--ghost"
-                  onClick={() => navigate('/design3')}
-                  title="Design Lab 3 — Odoo UI recreation"
-                >
-                  Design 3
-                </button>
-              </>
-            )}
-            {canCreateReceipt && (
-              <button className="sh-cta" onClick={() => setEnrollPickerOpen(true)}>
-                <LineIcon name="plus" size={15} strokeWidth={2.25} /> Ghi danh
-              </button>
-            )}
-            {me && me.roles[0] && <Badge label={formatRole(me.roles[0])} variant="neutral" />}
-            <RoleSwitcher />
-            {me && (
-              <button
-                type="button"
-                className="sh-cta sh-cta--ghost"
-                onClick={() => window.location.assign(`${API_URL}/auth/logout`)}
-              >
-                <LineIcon name="logout" size={15} strokeWidth={2.25} /> Đăng xuất
-              </button>
-            )}
-          </>
-        }
-      >
+    <div className="o_web_client">
+      {!suppressChrome && (
+        <OdooNavbar
+          apps={modules}
+          activeAppId={activeId}
+          isChildVisible={(c) => isNavChildVisible(c, canDo)}
+          onNavigate={navigate}
+          brand="CMC EDU"
+          systray={systray}
+        />
+      )}
+      <main className="o-main" role="main">
         <Outlet />
-      </AppFrame>
-      <EnrollPicker opened={enrollPickerOpen} onClose={() => setEnrollPickerOpen(false)} />
-      <CommandPalette
-        open={cmdOpen}
-        onOpenChange={setCmdOpen}
-        items={commandItems}
-        onNavigate={(href) => void navigate(href)}
-      />
-    </>
+      </main>
+      {!suppressChrome && (
+        <>
+          <EnrollPicker opened={enrollPickerOpen} onClose={() => setEnrollPickerOpen(false)} />
+          <CommandPalette
+            open={cmdOpen}
+            onOpenChange={setCmdOpen}
+            items={commandItems}
+            onNavigate={(href) => void navigate(href)}
+          />
+        </>
+      )}
+    </div>
   );
 }

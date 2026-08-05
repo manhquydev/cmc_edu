@@ -5,6 +5,14 @@
 > trạng thái component, pattern trang, semantics màu, accessibility.
 > Áp cùng nguyên tắc UX (TL2) và routing (TL6).
 
+> **Superseded for `apps/admin` (rollout in progress, 2026-08-05).** Admin is
+> moving to the Odoo backend UI language — see
+> [docs/design-system-odoo.md](./design-system-odoo.md). This TL12 document
+> remains authoritative for **LMS** (student/parent) and for shared base tokens
+> (`--cmc-*`, Inter, accent `#0071E3`, light-only). Do not apply TL12 premium
+> shell/page chrome (`AppFrame`/`SideNav`/`premium.css` templates) to new admin
+> work once the Odoo shell lands.
+
 ---
 
 ## 1. Triết lý & Tầng Premium Design-Language (v2)

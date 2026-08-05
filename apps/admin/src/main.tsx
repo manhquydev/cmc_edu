@@ -18,6 +18,9 @@ import '@cmc/ui/astryx-theme-cmc.css';
 // Premium composite styles (MetricCard/Panel/TaskRow/FunnelBar) — after tokens
 // so the .ck-* classes can reference --cmc-* custom properties.
 import '@cmc/ui/premium.css';
+// Odoo admin UI layer (design3) — after premium so .o_web_client can override
+// premium density/chrome inside the Odoo shell scope (Phase 1+).
+import '@cmc/ui/odoo.css';
 import './app.css';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { trpc, makeTrpcClient, makeQueryClient } from './lib/trpc.js';

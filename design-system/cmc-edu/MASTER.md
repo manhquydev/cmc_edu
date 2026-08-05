@@ -184,6 +184,41 @@ AppFrame
 | `Email · Required` | Email (bắt buộc) |
 | Silent save | Toast “Đã lưu điểm danh” |
 
+### Chuẩn: không lộ định danh nội bộ ra chuỗi hiển thị người dùng
+
+Chuỗi hiển thị (`title`, `subtitle`, `description`, `label`, `message`, `hint`)
+**không** được chứa: tên component/thư viện nội bộ (`SettingsShell`,
+`FullCalendar`), tên transport/nhà cung cấp hạ tầng (`ConsoleEmailTransport`),
+mã enum/permission kỹ thuật (`super_admin`, `\bCRUD\b`), tên hàm/API nội bộ
+(`testAppointment.`, `finance.refundCreate`), hoặc thuật ngữ kỹ thuật rò rỉ
+(`\bEntity\b`, `API … chưa khả dụng`). Diễn đạt lại bằng ngôn ngữ nghiệp vụ
+tiếng Việt mà người dùng cuối hiểu được.
+
+**Ngoại lệ có chủ đích:** mã quyền hiển thị trong màn 403 chẩn đoán (permission
+code không bí mật — xem `permission-gate.tsx` comment) và nhãn form đã đúng
+chuẩn ngành (vd `auth identity` nếu vẫn giữ sau quyết định — xem dưới).
+
+### Giới hạn lint (đọc trước khi coi lint là thước đo hoàn thành)
+
+Rule ESLint `no-restricted-syntax` (chuẩn hoá tại Phase 5 của
+`plans/260805-1153-chuan-hoa-tu-ngu-ui-frontend/`) guard chuẩn trên, nhưng
+**có 2 giới hạn** — đọc cả hai trước khi diễn giải "lint xanh" là "không còn rò rỉ":
+
+1. **Giới hạn dạng AST** — rule chỉ phủ `Literal` bên trong `JSXAttribute`
+   (`title`/`subtitle`/`description`/`label`/`message`/`hint`). Rule **không**
+   phủ `JSXText` (text con giữa thẻ), template literal, hay object literal
+   (vd giá trị enum, cấu hình dạng `{ label: 'X' }` không nằm trực tiếp trong
+   JSXAttribute).
+2. **Giới hạn danh sách token (đóng)** — pattern chỉ khớp một danh sách token
+   cụ thể, không phải regex tổng quát bắt mọi định danh nội bộ. Thuật ngữ
+   ngoài danh sách (vd `Net`, `SoD`, `server-side`, `O1–O5`) **không được
+   guard**, kể cả khi xuất hiện đúng vị trí `JSXAttribute > Literal`. Thêm
+   token mới khi phát hiện lớp rò rỉ mới — đừng coi danh sách hiện tại là đủ.
+
+⇒ **Lint là guard chống tái phát trong phạm vi trên, KHÔNG phải thước đo hoàn
+thành.** Đo hoàn thành bằng checklist theo từng chuỗi cụ thể (xem plan liên
+quan), không bằng exit code của `pnpm lint`.
+
 ---
 
 ## Accessibility

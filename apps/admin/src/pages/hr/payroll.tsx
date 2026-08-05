@@ -179,7 +179,7 @@ function PayslipDetail({
       {canDo('payslip', 'assemble') && (
         <HStack gap={1}>
           <Button
-            label="Tính lương (assemble)"
+            label="Tính lương"
             size="sm"
             variant="secondary"
             isLoading={anyMutating}
@@ -198,7 +198,7 @@ function PayslipDetail({
           )}
           {data && data.status === 'finalized' && canDo('payslip', 'reopen') && (
             <Button
-              label="Mở lại (reopen)"
+              label="Mở lại"
               size="sm"
               variant="secondary"
               isLoading={anyMutating}

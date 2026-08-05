@@ -95,7 +95,7 @@ test.describe('P3-05 journey — bảng lương: tạo bậc → gán bậc → 
     await page.getByRole('row', { name: new RegExp(saleName) }).click();
     // Before assembling there is no payslip for this period.
     await expect(page.getByText('Chưa có bảng lương', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Tính lương (assemble)' }).click();
+    await page.getByRole('button', { name: 'Tính lương' }).click();
     // The draft breakdown renders with the tier's base salary; status is "Nháp".
     await expect(page.getByText('Phiếu lương', { exact: false })).toBeVisible();
     await expect(page.getByText('Nháp', { exact: true })).toBeVisible();
@@ -104,9 +104,9 @@ test.describe('P3-05 journey — bảng lương: tạo bậc → gán bậc → 
     // --- finalize the payslip ---
     await page.getByRole('button', { name: 'Chốt bảng lương' }).click();
     // Status flips to finalized: the badge reads "Đã chốt" and the finalize
-    // button is replaced by "Mở lại (reopen)".
+    // button is replaced by "Mở lại".
     await expect(page.getByText('Đã chốt', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Mở lại (reopen)' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mở lại' })).toBeVisible();
 
     // ── business invariant ──
     // The "Đã chốt" badge proves the slip was finalized; it says nothing about

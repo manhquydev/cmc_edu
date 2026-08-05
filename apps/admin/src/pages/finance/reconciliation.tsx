@@ -250,7 +250,7 @@ export default function ReconciliationPage() {
           ---------------------------------------------------------------- */}
           <Banner
             status="warning"
-            title="Kết quả phân tích tự động từ AI agent — chỉ đọc"
+            title="Kết quả phân tích tự động — chỉ đọc"
             description={
               <>
                 Các cảnh báo bên dưới được tạo tự động bởi{' '}

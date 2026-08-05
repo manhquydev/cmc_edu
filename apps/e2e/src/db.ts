@@ -739,6 +739,29 @@ export async function deletePunchesAndTicketsForAppUsers(...appUserIds: string[]
   await db.timePunch.deleteMany({ where: { appUserId: { in: appUserIds } } });
 }
 
+/**
+ * Full HR cascade for e2e staff created mid-suite: tickets, punches, shift
+ * registrations/entries, then AppUser. Prevents the shared-facility users table
+ * from filling past the first page (20 rows) and breaking later findInList specs.
+ */
+export async function deleteStaffHrCascadeForAppUsers(...appUserIds: string[]): Promise<void> {
+  if (appUserIds.length === 0) return;
+  const db = getPrivilegedDb();
+  await db.manualAttendanceTicket.deleteMany({ where: { appUserId: { in: appUserIds } } });
+  await db.timePunch.deleteMany({ where: { appUserId: { in: appUserIds } } });
+  const regs = await db.shiftRegistration.findMany({
+    where: { appUserId: { in: appUserIds } },
+    select: { id: true },
+  });
+  if (regs.length > 0) {
+    await db.shiftRegistrationEntry.deleteMany({
+      where: { shiftRegistrationId: { in: regs.map((r) => r.id) } },
+    });
+    await db.shiftRegistration.deleteMany({ where: { id: { in: regs.map((r) => r.id) } } });
+  }
+  await db.appUser.deleteMany({ where: { id: { in: appUserIds } } });
+}
+
 // ---------------------------------------------------------------------------
 // Phase-08: exercise + submission seeding helpers
 // ---------------------------------------------------------------------------

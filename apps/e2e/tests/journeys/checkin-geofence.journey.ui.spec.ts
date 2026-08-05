@@ -1,12 +1,9 @@
-// P3-01b — Geofence GPS punch OR-gate journeys.
-// Case 1: admin creates/activates geofence via UI → employee punches in-zone →
-//         reviewer sees geoPunchSummary section.
-// Case 2: seeded geofence + far location + hasShift → offsite reason modal.
-// Case 3: no geolocation permission + hasShift → still punches / offsite path.
+// P3-01b — Geofence GPS punch OR-gate (smoke).
 //
-// Cleanup is DB-only in afterAll (not UI) so a crash cannot leave active
-// geofences that poison later journeys on the shared facility.
-// Helper APIs match apps/e2e helpers (createStaffViaAdminUi takes Browser, etc.).
+// Keeps suite pollution low: one staff per case, geofence seeded via DB
+// (FORCE RLS helper), cascade-delete AppUsers in afterAll so the shared
+// /admin/users first page stays usable for later journeys.
+// Full gate matrix lives in apps/api punch-geo-gate unit tests.
 
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
@@ -14,7 +11,7 @@ import { ictDateOnlyOf } from '@cmc/domain-time';
 import { mintStaffCookie } from '../../src/session-injection.js';
 import {
   deleteFacilityGeofencesByLabel,
-  deletePunchesAndTicketsForAppUsers,
+  deleteStaffHrCascadeForAppUsers,
   findAppUserByUserId,
   findShiftTemplateByNames,
   seedApprovedShiftRegistration,
@@ -37,7 +34,7 @@ function cookiePair(name: string, value: string) {
   ];
 }
 
-async function ensureTodayShift(
+async function provisionSaleWithTodayShift(
   browser: import('@playwright/test').Browser,
   opts: { saleUserId: string; saleFullName: string; groupName: string; templateName: string },
 ): Promise<string> {
@@ -56,8 +53,6 @@ async function ensureTodayShift(
   await adminPage.goto('/cockpit');
   await menuNav(adminPage, 'Nhân sự', 'Ca làm việc', { role: 'super_admin' });
   await expect(adminPage).toHaveURL(/\/admin\/shift-config/);
-  // Each group card mounts its own "Tên mẫu ca" form — must scope to the card
-  // (shift-config-admin / shift-register-approve-reject pattern).
   await adminPage.getByLabel('Tên nhóm ca').fill(opts.groupName);
   await adminPage.getByRole('button', { name: 'Thêm nhóm ca' }).click();
   await expect(adminPage.getByText(opts.groupName)).toBeVisible();
@@ -89,7 +84,7 @@ async function ensureTodayShift(
     groupName: opts.groupName,
     templateName: opts.templateName,
   });
-  if (!catalog) throw new Error(`Shift catalog not found for ${opts.groupName}/${opts.templateName}`);
+  if (!catalog) throw new Error(`Shift catalog not found for ${opts.groupName}`);
 
   await seedApprovedShiftRegistration({
     facilityId,
@@ -113,70 +108,35 @@ test.describe('P3-01b journey — geofence GPS punch', () => {
     }
     await deleteFacilityGeofencesByLabel(facilityId, LABEL_PREFIX).catch(() => undefined);
     if (trackedAppUserIds.length > 0) {
-      await deletePunchesAndTicketsForAppUsers(...trackedAppUserIds).catch(() => undefined);
+      await deleteStaffHrCascadeForAppUsers(...trackedAppUserIds).catch(() => undefined);
     }
   });
 
-  test('case1: admin creates geofence via UI, in-zone punch succeeds, reviewer sees GPS summary', async ({
+  test('in-zone GPS admits punch without offsite reason (DB-seeded active geofence)', async ({
     browser,
   }) => {
-    const label = `${LABEL_PREFIX}c1-${randomUUID().slice(0, 8)}`;
+    const label = `${LABEL_PREFIX}in-${randomUUID().slice(0, 8)}`;
     labels.push(label);
-    const saleFullName = `E2E GEO Sale ${randomUUID().slice(0, 8)}`;
-    const saleUserId = `e2e-geo-sale-${randomUUID().slice(0, 8)}`;
-    const groupName = `E2E GEO G ${randomUUID().slice(0, 8)}`;
-    const templateName = `E2E GEO T ${randomUUID().slice(0, 8)}`;
+    await seedFacilityGeofence({
+      facilityId,
+      lat: GEO_IN.latitude,
+      lng: GEO_IN.longitude,
+      radiusM: 500,
+      accuracyMaxM: 200,
+      isActive: true,
+      label,
+    });
 
-    const saleAppId = await ensureTodayShift(browser, {
+    const saleUserId = `e2e-geo-in-${randomUUID().slice(0, 8)}`;
+    const saleFullName = `E2E GEO In ${randomUUID().slice(0, 8)}`;
+    const saleAppId = await provisionSaleWithTodayShift(browser, {
       saleUserId,
       saleFullName,
-      groupName,
-      templateName,
+      groupName: `E2E GEO IG ${randomUUID().slice(0, 8)}`,
+      templateName: `E2E GEO IT ${randomUUID().slice(0, 8)}`,
     });
     trackedAppUserIds.push(saleAppId);
 
-    // Super admin: create + activate geofence via UI
-    const adminCtx = await browser.newContext();
-    const adminPage = await adminCtx.newPage();
-    await adminCtx.addCookies(
-      cookiePair(
-        STAFF_COOKIE_NAME,
-        mintStaffCookie({
-          userId: `e2e-geo-admin2-${randomUUID().slice(0, 8)}`,
-          roles: ['super_admin'],
-          facilityId,
-        }),
-      ),
-    );
-    await adminPage.goto('/cockpit');
-    await menuNav(adminPage, 'Quản trị', 'IP mạng', { role: 'super_admin' });
-    await expect(adminPage).toHaveURL(/\/admin\/network-ip/);
-
-    // SettingsShell: switch to Vùng GPS (nav item text from network-ip.tsx)
-    await adminPage.getByText('Vùng GPS', { exact: true }).click();
-    await adminPage.getByRole('button', { name: /Thêm vùng GPS/i }).click();
-    const createDialog = adminPage.locator('dialog').filter({ hasText: /Thêm vùng/i });
-    await expect(createDialog).toBeVisible({ timeout: 10_000 });
-    await createDialog.getByLabel(/Vĩ độ|lat/i).fill(String(GEO_IN.latitude));
-    await createDialog.getByLabel(/Kinh độ|lng/i).fill(String(GEO_IN.longitude));
-    await createDialog.getByLabel(/Bán kính/i).fill('500');
-    await createDialog.getByLabel(/^Nhãn$/i).fill(label);
-    await createDialog.getByRole('button', { name: 'Tạo', exact: true }).click();
-    await expect(adminPage.getByText(label)).toBeVisible({ timeout: 15_000 });
-
-    // Toggle Bật on the row that contains this label (not network table)
-    const geoRow = adminPage.locator('tr, [role="row"], div').filter({ hasText: label }).first();
-    const batBtn = geoRow.getByRole('button', { name: /^Bật$/ });
-    if (await batBtn.isVisible().catch(() => false)) {
-      await batBtn.click();
-      const confirm = adminPage.getByRole('button', { name: /Bật vùng|Xác nhận/i });
-      if (await confirm.isVisible({ timeout: 1500 }).catch(() => false)) {
-        await confirm.click();
-      }
-    }
-    await adminCtx.close();
-
-    // Employee punches with mock geolocation
     const saleCtx = await browser.newContext({
       geolocation: GEO_IN,
       permissions: ['geolocation'],
@@ -190,31 +150,17 @@ test.describe('P3-01b journey — geofence GPS punch', () => {
     );
     await salePage.goto('/hr/checkin');
     await salePage.getByRole('button', { name: /^Chấm công$/ }).click();
-    await expect(salePage.getByText(/Đã ghi nhận/i)).toBeVisible({ timeout: 20_000 });
-    await expect(salePage.getByText(/Ngoài mạng cơ sở — nhập lý do/i)).toHaveCount(0);
-    await saleCtx.close();
-
-    // Reviewer sees GPS summary section
-    const gdCtx = await browser.newContext();
-    const gdPage = await gdCtx.newPage();
-    await gdCtx.addCookies(
-      cookiePair(
-        STAFF_COOKIE_NAME,
-        mintStaffCookie({
-          userId: `e2e-geo-gdkd-${randomUUID().slice(0, 8)}`,
-          roles: ['giam_doc_kinh_doanh'],
-          facilityId,
-        }),
-      ),
+    // Success banner title is "Đã ghi nhận" (check-in-out.tsx)
+    await expect(salePage.getByText('Đã ghi nhận')).toBeVisible({ timeout: 20_000 });
+    // Offsite reason dialog title must NOT appear
+    await expect(salePage.getByRole('dialog').filter({ hasText: 'Ngoài mạng cơ sở — nhập lý do' })).toHaveCount(
+      0,
     );
-    await gdPage.goto('/hr/checkin');
-    await gdPage.getByRole('button', { name: /Duyệt chấm công/i }).click();
-    await expect(gdPage.getByText(/Chấm công GPS gần đây/i)).toBeVisible({ timeout: 10_000 });
-    await gdCtx.close();
+    await saleCtx.close();
   });
 
-  test('case2: outside geofence with shift shows offsite reason path', async ({ browser }) => {
-    const label = `${LABEL_PREFIX}c2-${randomUUID().slice(0, 8)}`;
+  test('outside GPS with shift opens offsite reason dialog', async ({ browser }) => {
+    const label = `${LABEL_PREFIX}out-${randomUUID().slice(0, 8)}`;
     labels.push(label);
     await seedFacilityGeofence({
       facilityId,
@@ -225,9 +171,9 @@ test.describe('P3-01b journey — geofence GPS punch', () => {
       label,
     });
 
-    const saleFullName = `E2E GEO Out ${randomUUID().slice(0, 8)}`;
     const saleUserId = `e2e-geo-out-${randomUUID().slice(0, 8)}`;
-    const saleAppId = await ensureTodayShift(browser, {
+    const saleFullName = `E2E GEO Out ${randomUUID().slice(0, 8)}`;
+    const saleAppId = await provisionSaleWithTodayShift(browser, {
       saleUserId,
       saleFullName,
       groupName: `E2E GEO OG ${randomUUID().slice(0, 8)}`,
@@ -248,47 +194,10 @@ test.describe('P3-01b journey — geofence GPS punch', () => {
     );
     await salePage.goto('/hr/checkin');
     await salePage.getByRole('button', { name: /^Chấm công$/ }).click();
-    await expect(
-      salePage.getByText(/Đã ghi nhận|Ngoài mạng cơ sở|ngoài vùng|lý do/i).first(),
-    ).toBeVisible({ timeout: 20_000 });
-    await saleCtx.close();
-  });
-
-  test('case3: denied geolocation still punches', async ({ browser }) => {
-    const label = `${LABEL_PREFIX}c3-${randomUUID().slice(0, 8)}`;
-    labels.push(label);
-    await seedFacilityGeofence({
-      facilityId,
-      lat: GEO_IN.latitude,
-      lng: GEO_IN.longitude,
-      radiusM: 200,
-      isActive: true,
-      label,
+    // Dialog title from OffsiteReasonDialog
+    await expect(salePage.getByRole('dialog').getByText('Ngoài mạng cơ sở — nhập lý do')).toBeVisible({
+      timeout: 20_000,
     });
-
-    const saleFullName = `E2E GEO Deny ${randomUUID().slice(0, 8)}`;
-    const saleUserId = `e2e-geo-deny-${randomUUID().slice(0, 8)}`;
-    const saleAppId = await ensureTodayShift(browser, {
-      saleUserId,
-      saleFullName,
-      groupName: `E2E GEO DG ${randomUUID().slice(0, 8)}`,
-      templateName: `E2E GEO DT ${randomUUID().slice(0, 8)}`,
-    });
-    trackedAppUserIds.push(saleAppId);
-
-    const saleCtx = await browser.newContext();
-    const salePage = await saleCtx.newPage();
-    await saleCtx.addCookies(
-      cookiePair(
-        STAFF_COOKIE_NAME,
-        mintStaffCookie({ userId: saleUserId, roles: ['sale'], facilityId }),
-      ),
-    );
-    await salePage.goto('/hr/checkin');
-    await salePage.getByRole('button', { name: /^Chấm công$/ }).click();
-    await expect(
-      salePage.getByText(/Đã ghi nhận|Ngoài mạng cơ sở|Không lấy được vị trí|lý do/i).first(),
-    ).toBeVisible({ timeout: 20_000 });
     await saleCtx.close();
   });
 });

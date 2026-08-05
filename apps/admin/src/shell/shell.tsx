@@ -66,6 +66,13 @@ export function Shell() {
         href: '/design',
         keywords: 'tokens components inventory',
       });
+      items.push({
+        id: 'design-lab-2',
+        label: 'Design Lab 2 (Next-Gen)',
+        group: 'Dev',
+        href: '/design2',
+        keywords: 'nextgen aetheria design2 visual mockup',
+      });
     }
     if (canCreateReceipt) {
       items.push({
@@ -131,14 +138,24 @@ export function Shell() {
               </kbd>
             </button>
             {import.meta.env.DEV && (
-              <button
-                type="button"
-                className="sh-cta sh-cta--ghost"
-                onClick={() => navigate('/design')}
-                title="Design Lab — inventory token & component"
-              >
-                Design
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="sh-cta sh-cta--ghost"
+                  onClick={() => navigate('/design')}
+                  title="Design Lab — inventory token & component"
+                >
+                  Design
+                </button>
+                <button
+                  type="button"
+                  className="sh-cta sh-cta--ghost"
+                  onClick={() => navigate('/design2')}
+                  title="Design Lab 2 — Next-Gen Aetheria Design System"
+                >
+                  Design 2
+                </button>
+              </>
             )}
             {canCreateReceipt && (
               <button className="sh-cta" onClick={() => setEnrollPickerOpen(true)}>

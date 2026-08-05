@@ -21,6 +21,7 @@ import { shouldCaptureReturnTo } from '../lib/safe-return-to.js';
 const CockpitPage = lazy(() => import('../pages/cockpit.js'));
 // Living design inventory — not a product module; visual review of tokens + composites.
 const DesignLabPage = lazy(() => import('../pages/design-lab.js'));
+const DesignLab2Page = lazy(() => import('../pages/design-lab-2.js'));
 // Auth-level page (sibling of /login, not a module route): rendered OUTSIDE
 // the Shell because a forced password rotation must complete before the user
 // enters the app proper.
@@ -30,6 +31,10 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const { me, isLoading } = useSession();
   const location = useLocation();
   if (isLoading) return <Skeleton height="100vh" radius={0} />;
+  // Allow direct access to design labs (/design and /design2) without login
+  if (location.pathname === '/design' || location.pathname === '/design2') {
+    return <>{children}</>;
+  }
   if (!me) {
     // Preserve the deep-link destination across login (and change-password)
     // via ?returnTo=. Policy lives in safe-return-to.ts — do not re-list
@@ -73,6 +78,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Skeleton height={200} radius={0} />}>
             <DesignLabPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'design2',
+        element: (
+          <Suspense fallback={<Skeleton height={200} radius={0} />}>
+            <DesignLab2Page />
           </Suspense>
         ),
       },

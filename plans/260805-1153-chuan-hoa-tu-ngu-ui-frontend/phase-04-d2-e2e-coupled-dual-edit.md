@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "D2 ràng buộc — dual-edit"
-status: pending
+status: completed
 priority: P2
 effort: "0.5d"
 dependencies: [1]
@@ -108,14 +108,21 @@ bỏ chuỗi 4, ghi lý do.
 
 ## Success Criteria
 
-- [ ] OQ1 đã có trả lời **hoặc** đã áp default (xem Thoát hiểm dưới)
-- [ ] Nếu bỏ chuỗi 4: token `auth identity` đã gỡ khỏi pattern **cùng commit**
-- [ ] `grep -rF` toàn repo xác nhận không sót nơi tham chiếu
-- [ ] Commit theo chuỗi (1+2 gộp, 3 riêng, 4 riêng) — kiểm `git log --stat`
-- [ ] `pnpm test` xanh trước khi push
-- [ ] `pnpm check:ui-frames && pnpm test:ui-frames` xanh
-- [ ] `ui-e2e` + `business:verify --strict` xanh trên CI
-- [ ] Comment dòng 107 đồng bộ với assertion 109
+- [x] OQ1 hết hạn không có trả lời ⇒ **áp default** (Thoát hiểm): giữ non-goal,
+      bỏ chuỗi 4
+- [x] Token `auth identity` đã gỡ khỏi pattern, **commit riêng** cùng lý do ghi ở
+      `MASTER.md` §Giới hạn lint (tách khỏi commit chuỗi 1+2/3 vì đây không phải
+      dual-edit source+test, mà là quyết định phạm vi)
+- [x] `grep -rF` toàn repo (`apps/ packages/`) xác nhận đủ file cho cả 3 chuỗi
+      thực thi — không sót nơi tham chiếu (dist/ build output loại trừ, không phải source)
+- [x] Commit theo chuỗi: 1+2 gộp (chung file/spec), 3 riêng, quyết định OQ1 riêng —
+      kiểm `git log --stat` trên `feat/ui-copy-standard`
+- [x] `pnpm test` (527/527) xanh trước khi push
+- [x] `pnpm check:ui-frames && pnpm test:ui-frames` xanh
+- [x] `ui-e2e` + `business:verify --strict` xanh trên CI (sau 1 vòng đỏ: coupling
+      `finance/refund.test.tsx` bị artifact bỏ sót, phát hiện qua CI, sửa ở Phase 3
+      trước khi Phase 4 push)
+- [x] Comment dòng payroll journey đồng bộ với assertion "Mở lại" (đổi tên đồng bộ)
 
 ## Thoát hiểm khi OQ1 không được trả lời (vá R2)
 

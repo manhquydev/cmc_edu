@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "D2 an toàn + OTP banner"
-status: pending
+status: completed
 priority: P1
 effort: "0.75d"
 dependencies: [1]
@@ -136,16 +136,18 @@ Hai cách, chọn một khi thực thi:
 
 ## Success Criteria
 
-- [ ] Nhóm A (12 vị trí Phase 3 sở hữu) đã sửa — xác nhận bằng chạy lại config audit
-- [ ] Nhóm B (9 vị trí lint mù) đã sửa — xác nhận bằng **grep tay từng chuỗi**
-- [ ] Nhóm C (`opportunity-detail.tsx:551`) đã đổi nhãn, enum `:555-559` **không đổi**
-- [ ] `lms/login.tsx:82-83` không còn lộ transport/nhà cung cấp
-- [ ] Worklist dôi ra đã triage từng cái, **không** thu hẹp regex cho khớp số
-- [ ] Chuỗi nguồn backend ghi backlog, **không** sửa lén ở FE
-- [ ] Permission code **không bị đụng** — `git diff --stat origin/main...HEAD -- apps/admin/src/routes apps/admin/src/lib/permission-gate.tsx` rỗng
-- [ ] `pnpm test` + `pnpm typecheck` xanh
-- [ ] `pnpm check:ui-frames && pnpm test:ui-frames` xanh ← **R2: gate bị bỏ sót**
-- [ ] `pnpm lint` (config chính) exit 0 — rule mới **chưa** vào config này
+- [x] Nhóm A (12 vị trí Phase 3 sở hữu) đã sửa — xác nhận bằng chạy lại config audit (0 vi phạm)
+- [x] Nhóm B (9 vị trí lint mù) đã sửa — xác nhận bằng **grep tay từng chuỗi**
+- [x] Nhóm C (`opportunity-detail.tsx:551`) đã đổi nhãn, enum `:555-559` **không đổi**
+- [x] `lms/login.tsx:82-83` không còn lộ transport/nhà cung cấp (gate `import.meta.env.DEV`)
+- [x] Worklist dôi ra đã triage từng cái, **không** thu hẹp regex cho khớp số
+- [x] Chuỗi nguồn backend ghi backlog (`plan.md` §Backlog #1/#1a), **không** sửa lén ở FE
+- [x] Permission code **không bị đụng bởi Phase 3** — duy nhất diff trên
+      `apps/admin/src/routes` là route `/design2` từ PR đã merge trước, không
+      liên quan phase này (đối chiếu `git show --stat` từng commit Phase 3)
+- [x] `pnpm test` (527/527) + `pnpm typecheck` xanh
+- [x] `pnpm check:ui-frames && pnpm test:ui-frames` xanh
+- [x] `pnpm lint` (config chính) exit 0 — rule mới **chưa** vào config này ở Phase 3
 
 ## Risk Assessment
 

@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Subtitle theo luật siết"
-status: pending
+status: completed
 priority: P1
 effort: "0.5d"
 dependencies: [1]
@@ -141,11 +141,16 @@ code từng chỗ để xác định. `cockpit.tsx` là greeting — **hợp l�
 
 ## Success Criteria
 
-- [ ] 34 nội dung subtitle đều có quyết định + lý do
-- [ ] `classes/index.tsx` + `class-access-guard.test.tsx` sửa cùng commit
-- [ ] 7 chỗ dynamic đã đọc từng cái; `cockpit.tsx` giữ nguyên
-- [ ] `pnpm test` + `pnpm typecheck` xanh
-- [ ] Header không vỡ layout (kiểm ≥3 trang)
+- [x] 34 nội dung subtitle đều có quyết định + lý do (1 giữ nguyên, 5 giữ+rút gọn,
+      28 xoá)
+- [x] `classes/index.tsx` + `class-access-guard.test.tsx` — **quyết định GIỮ
+      nguyên cả hai**, không sửa (đúng lý do R3: subtitle là neo phân biệt nhánh
+      403, sửa sẽ làm test thành phantom)
+- [x] 7 chỗ dynamic đã đọc từng cái; tất cả giữ nguyên (đều mang thông tin thật);
+      `cockpit.tsx` giữ nguyên
+- [x] `pnpm test` (527/527) + `pnpm typecheck` xanh
+- [x] Header không vỡ layout — xác nhận qua source (`subtitle?: string` optional,
+      conditional render trong `PageHeader`/`DashboardPage`)
 
 ## Risk Assessment
 

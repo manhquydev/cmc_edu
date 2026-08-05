@@ -1,7 +1,7 @@
 ---
 phase: 1
 title: "Chuẩn copy + config audit sinh worklist (TDD)"
-status: pending
+status: completed
 priority: P1
 effort: "0.5d"
 dependencies: []
@@ -160,15 +160,16 @@ Không để nhánh này treo.
 
 ## Success Criteria
 
-- [ ] Đã đọc `PAGE-FRAMES.md` + `pages/*.md` trước khi ghi luật
-- [ ] `PAGE-FRAMES.md` có luật siết subtitle; slot **vẫn còn**; cockpit vẫn hợp lệ
-- [ ] `MASTER.md` §Copy mở rộng + mục "Giới hạn lint" (3 dạng AST)
-- [ ] `eslint.copy-audit.config.js` tồn tại, có `plugins` đăng ký
-- [ ] **`eslint.config.js` KHÔNG bị sửa** (kiểm `git diff --stat origin/main...HEAD -- eslint.config.js` rỗng)
-- [ ] `pnpm lint` exit 0 và commit không bị chặn
-- [ ] Fixture dùng attribute trong selector (không phải `placeholder`)
-- [ ] Worklist khớp artifact 16 vị trí
-- [ ] Branch tách sạch, fix bảo mật đã merge trước
+- [x] Đã đọc `PAGE-FRAMES.md` + `pages/*.md` trước khi ghi luật
+- [x] `PAGE-FRAMES.md` có luật siết subtitle; slot **vẫn còn**; cockpit vẫn hợp lệ
+- [x] `MASTER.md` §Copy mở rộng + mục "Giới hạn lint" (3 dạng AST)
+- [x] `eslint.copy-audit.config.js` tồn tại, có `plugins` đăng ký (đã xoá ở Phase 5
+      sau khi rule vào config chính)
+- [x] **`eslint.config.js` KHÔNG bị sửa ở Phase 1** (sửa ở Phase 5, đúng kế hoạch)
+- [x] `pnpm lint` exit 0 và commit không bị chặn
+- [x] Fixture dùng attribute trong selector (không phải `placeholder`)
+- [x] Worklist khớp artifact 16 vị trí
+- [x] Branch tách sạch, fix bảo mật đã merge trước (PR #66)
 
 ## Risk Assessment
 

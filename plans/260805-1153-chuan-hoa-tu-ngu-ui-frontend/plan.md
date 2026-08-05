@@ -1,7 +1,7 @@
 ---
 title: "Chuẩn hoá từ ngữ UI (frontend-only)"
 description: "Siết luật subtitle trong frame spec, xoá định danh nội bộ khỏi chuỗi hiển thị, enforce bằng lint. Đã qua red-team R1+R2+R3 (hội tụ)."
-status: pending
+status: completed
 priority: P2
 effort: "1 sprint ngắn"
 tags: [ui, copy, design-system, lint]
@@ -185,11 +185,11 @@ riêng **phải đăng ký plugin tương tự**, nếu không sẽ nổ hàng l
 
 | # | Phase | Status | Depends |
 |---|-------|--------|---------|
-| 1 | [Chuẩn copy + config audit sinh worklist (TDD)](./phase-01-start.md) | Pending | — |
-| 2 | [Subtitle theo luật siết](./phase-02-purge-subtitle-drift.md) | Pending | 1 |
-| 3 | [D2 an toàn + OTP banner](./phase-03-d2-safe-remediation.md) | Pending | 1 |
-| 4 | [D2 ràng buộc — dual-edit](./phase-04-d2-e2e-coupled-dual-edit.md) | Pending | 1 |
-| 5 | [Verify + nâng lint error + docs](./phase-05-verify-and-docs-sync.md) | Pending | 2,3,4 |
+| 1 | [Chuẩn copy + config audit sinh worklist (TDD)](./phase-01-start.md) | Completed | — |
+| 2 | [Subtitle theo luật siết](./phase-02-purge-subtitle-drift.md) | Completed | 1 |
+| 3 | [D2 an toàn + OTP banner](./phase-03-d2-safe-remediation.md) | Completed | 1 |
+| 4 | [D2 ràng buộc — dual-edit](./phase-04-d2-e2e-coupled-dual-edit.md) | Completed | 1 |
+| 5 | [Verify + nâng lint error + docs](./phase-05-verify-and-docs-sync.md) | Completed | 2,3,4 |
 
 **Chống trùng Phase 2/3 (lỗi bản đầu):** worklist khoá bằng **nội dung chuỗi**,
 không bằng số dòng — số dòng trôi sau mỗi lần xoá. Mỗi chuỗi có **đúng một phase
@@ -226,17 +226,22 @@ hoặc buộc đặt mật khẩu lúc kích hoạt. Đồng thời đưa fix UI
 
 ## Success Criteria
 
-- [ ] `PAGE-FRAMES.md` có luật siết cho slot subtitle (giữ slot, thêm ràng buộc)
-- [ ] `MASTER.md` §Copy mở rộng thành chuẩn kiểm được + nêu rõ giới hạn lint
-- [ ] Lint rule ở `warn` từ Phase 1, `error` từ Phase 5, **không FP trên email placeholder**
-- [ ] 34 subtitle có quyết định giữ/xoá kèm lý do
-- [ ] 22 chuỗi Phase 3: 12 nhóm A (lint xác nhận) + 9 nhóm B (grep tay) + 1 nhóm C
-- [ ] 4 chuỗi D2 coupled (hoặc 3 nếu áp default OQ1): source + unit test + e2e **cùng commit**
-- [ ] `lms/login.tsx:83` không còn lộ tên transport/nhà cung cấp
-- [ ] `pnpm lint` + `pnpm typecheck` + `pnpm test` xanh **trên CI**
-- [ ] `ui-e2e` (gồm `business:verify --strict`) xanh **trên CI**
-- [ ] Hoàn thành đo bằng **checklist inventory theo chuỗi**, không bằng exit code lint
-- [ ] `docs/12` §8 có con trỏ tới SoT (không viết lại nội dung)
+- [x] `PAGE-FRAMES.md` có luật siết cho slot subtitle (giữ slot, thêm ràng buộc)
+- [x] `MASTER.md` §Copy mở rộng thành chuẩn kiểm được + nêu rõ giới hạn lint
+- [x] Lint rule ở `warn` từ Phase 1, `error` từ Phase 5, **không FP trên email placeholder**
+- [x] 34 subtitle có quyết định giữ/xoá kèm lý do
+- [x] 22 chuỗi Phase 3: 12 nhóm A (lint xác nhận) + 9 nhóm B (grep tay) + 1 nhóm C
+- [x] 3 chuỗi D2 coupled dual-edit (OQ1 hết hạn không trả lời ⇒ áp default: chuỗi 4
+      `users.tsx:346` bỏ, token `auth identity` gỡ khỏi pattern, xem `MASTER.md`
+      §Giới hạn lint) — source + unit test + e2e **cùng commit** cho 3 chuỗi còn lại
+- [x] `lms/login.tsx:82-83` không còn lộ tên transport/nhà cung cấp (gate
+      `import.meta.env.DEV`, production không hiện gì)
+- [x] `pnpm lint` + `pnpm typecheck` + `pnpm test` xanh **trên CI**
+- [x] `ui-e2e` (gồm `business:verify --strict`) xanh **trên CI** — 2 coupling bị
+      artifact bỏ sót phát hiện qua CI đỏ, đã sửa: `finance/refund.test.tsx` (Phase 3)
+      và `apps/e2e/tests/lms-login.ui.spec.ts:107` (banner OTP, Phase 5)
+- [x] Hoàn thành đo bằng **checklist inventory theo chuỗi**, không bằng exit code lint
+- [x] `docs/12` §8 có con trỏ tới SoT (không viết lại nội dung)
 
 ## Risk Assessment
 
@@ -265,15 +270,21 @@ hoặc buộc đặt mật khẩu lúc kích hoạt. Đồng thời đưa fix UI
 
 ## Open questions
 
-1. **`admin/users.tsx:346` `label="User ID (auth identity)"`** — nhãn form, lộ
-   "auth identity". Giao kèo có non-goal "không đụng nhãn form" nhưng lý do đó
-   (nhãn form vốn đúng chuẩn) không đúng ở đây. Sửa (dual-edit 2 file e2e) hay giữ?
-   *Chưa quyết — Phase 4 chặn ở chuỗi này cho tới khi có trả lời.*
-2. `crm/opportunity-detail.tsx:551` `O1–O5`: nhãn hiển thị hay giá trị enum từ
-   backend? Phase 4 phải trace trước khi đổi.
-3. 7 subtitle dynamic (`subtitle={…}`) **không đo được bằng grep chuỗi** — phải
-   xác định ràng buộc bằng cách đọc code/render, không phải grep.
-4. LMS: 9 chỗ đổ raw `error.message` cho phụ huynh — đưa vào đợt sau hay để lâu hơn?
+1. ~~**`admin/users.tsx:346` `label="User ID (auth identity)"`**~~ — **ĐÃ ĐÓNG
+   bằng default hết hạn (Phase 4, 2026-08-05).** Không có trả lời trước khi Phase 4
+   chạy ⇒ áp default đã ghi trong `phase-04-d2-e2e-coupled-dual-edit.md`
+   §"Thoát hiểm": giữ non-goal (không đụng nhãn form), bỏ chuỗi 4, gỡ token
+   `auth identity` khỏi `eslint.config.js` pattern, lý do ghi ở `MASTER.md`
+   §"Giới hạn lint". Nhãn `admin/users.tsx:346` **không đổi**.
+2. ~~`crm/opportunity-detail.tsx:551` `O1–O5`~~ — **ĐÃ ĐÓNG** (R2, bằng chứng
+   trong artifact mục D): nhãn hiển thị, tách rời enum thật (`:555-559`). Đổi ở
+   Phase 3 nhóm C → "Tiến độ qua các giai đoạn cơ hội."
+3. ~~7 subtitle dynamic~~ — **ĐÃ ĐỌC TỪNG CHỖ** (Phase 2): tất cả mang thông tin
+   định danh/tham chiếu thật (mã học viên, tên PH, program, khoảng thời gian
+   buổi học, tên liên hệ, greeting phiên) không suy ra được từ title ⇒ giữ nguyên
+   cả 7 (kể cả `cockpit.tsx`, locked).
+4. LMS: 9 chỗ đổ raw `error.message` cho phụ huynh — **chuyển thành Backlog #1a**,
+   ưu tiên cao (rủi ro lộ tên bảng DB), chưa xử lý trong plan này.
 
 ## Red Team Review
 

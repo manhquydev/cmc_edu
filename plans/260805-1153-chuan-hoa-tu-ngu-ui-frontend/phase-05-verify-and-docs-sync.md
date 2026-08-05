@@ -1,7 +1,7 @@
 ---
 phase: 5
 title: "Verify + nâng lint error + docs"
-status: pending
+status: completed
 priority: P1
 effort: "0.25d"
 dependencies: [2, 3, 4]
@@ -118,23 +118,26 @@ Flat config **merge** rules khi 2 object cùng match 1 file ⇒
 
 ## Success Criteria
 
-- [ ] `typecheck-and-test` xanh **trên CI** (gồm lint + ui-frames + typecheck + test)
-- [ ] `ui-e2e` (gồm `business:verify --strict`) xanh **trên CI**
-- [ ] Rule đã vào `eslint.config.js` ở **object thứ hai**; `pnpm lint` exit 0
-- [ ] Object 2 có đủ `ignores` (gồm **`main.tsx`**) + `languageOptions` + `linterOptions`
-- [ ] **`pnpm lint` không có dòng `Parsing error`** ← R3 Critical
-- [ ] **`no-restricted-imports` vẫn áp cho `design-lab.tsx`** (kiểm bằng
-      `npx eslint --print-config apps/admin/src/pages/design-lab.tsx`, không dựa
-      vào so số finding — hiện tại đều bằng 0)
-- [ ] `git commit` không bị lint-staged chặn
-- [ ] Nhóm lint mù (9 vị trí) xác nhận bằng checklist grep tay
-- [ ] `eslint.copy-audit.config.js` đã xoá
-- [ ] `docs/12` §8 trỏ tới SoT; nội dung lịch sử không bị viết lại
-- [ ] Whole-plan sweep báo 0 mâu thuẫn; artifact worklist còn khớp
-- [ ] Báo cáo brainstorm đã đính chính sai lầm R1+R2
-- [ ] Backlog đã ghi: 55 chỗ `.message` nguồn backend (**9 chỗ LMS ưu tiên** —
-      Prisma error lộ ra phụ huynh), D1/D3 còn lại, JSDoc packages/ui,
-      `design-lab.tsx`, **và đổi cơ chế mật khẩu mặc định backend**
+- [x] `typecheck-and-test` xanh **trên CI** (gồm lint + ui-frames + typecheck + test)
+- [x] `ui-e2e` (gồm `business:verify --strict`) xanh **trên CI** — sau khi sửa
+      1 coupling e2e mà artifact bỏ sót (`lms-login.ui.spec.ts:107` bám chuỗi
+      banner OTP; banner giờ gate `DEV` nên đúng là không còn render trong build
+      e2e chạy production mode)
+- [x] Rule đã vào `eslint.config.js` ở **object thứ hai**; `pnpm lint` exit 0
+- [x] Object 2 có đủ `ignores` (gồm **`main.tsx`**) + `languageOptions` + `linterOptions`
+- [x] **`pnpm lint` không có dòng `Parsing error`**
+- [x] **`no-restricted-imports` vẫn áp cho `design-lab.tsx`** — xác nhận bằng
+      `npx eslint --print-config` trực tiếp (rule = error, không dựa vào so số finding)
+- [x] `git commit` không bị lint-staged chặn (mọi commit Phase 1-5 đều qua)
+- [x] Nhóm lint mù (9 vị trí) xác nhận bằng checklist grep tay
+- [x] `eslint.copy-audit.config.js` đã xoá
+- [x] `docs/12` §8 trỏ tới SoT; nội dung lịch sử không bị viết lại
+- [x] Whole-plan sweep báo 0 mâu thuẫn; artifact worklist còn khớp (audit re-run = 0
+      vi phạm sau Phase 4)
+- [x] Báo cáo brainstorm đã đính chính sai lầm R1+R2 (đầu file report gốc)
+- [x] Backlog đã ghi trong `plan.md` §Backlog: 55 chỗ `.message` nguồn backend
+      (**9 chỗ LMS ưu tiên**), D1/D3 còn lại, JSDoc packages/ui, `design-lab.tsx`,
+      và đổi cơ chế mật khẩu mặc định backend
 
 ## Risk Assessment
 

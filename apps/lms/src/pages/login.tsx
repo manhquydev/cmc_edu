@@ -206,7 +206,7 @@ function StudentLoginTab() {
         }}
       />
       <Text type="supporting" size="2xs" justify="center" display="block">
-        Mật khẩu mặc định: Cmc2026@ — phải đổi lần đầu đăng nhập.
+        Học sinh mới cần mật khẩu mặc định — vui lòng liên hệ nhân viên tuyển sinh/CSKH để được cấp lại. Bắt buộc đổi mật khẩu ngay lần đăng nhập đầu tiên.
       </Text>
     </Stack>
   );

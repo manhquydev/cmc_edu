@@ -146,6 +146,11 @@ Nút hành động rõ nghĩa ("Duyệt & Kích hoạt"). Sau khi chạy → **R
 - Tiếng Việt, ngôn ngữ người dùng (không thuật ngữ hệ thống ra mặt tiền — TL2 §5).
 - Nút = động từ việc người dùng làm ("Ghi danh", "Duyệt"), không tên kỹ thuật ("approve receipt").
 
+> **SoT chi tiết + enforce được:** `design-system/cmc-edu/MASTER.md` §"Copy / i18n UI"
+> (chuẩn đầy đủ, bảng map role code → tiếng Việt, giới hạn của lint guard) và
+> `design-system/cmc-edu/PAGE-FRAMES.md` (luật điền `subtitle`). Hai dòng trên là
+> nguyên tắc gốc — không viết lại ở đây khi SoT đổi.
+
 ## 9. Pattern màn đăng nhập LMS (2-tier auth)
 
 > **product-decision 2026-07-07**: Màn đăng nhập LMS cần 2 tab song song, không phải một form đơn.

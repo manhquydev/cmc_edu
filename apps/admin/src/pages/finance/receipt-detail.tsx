@@ -227,8 +227,8 @@ export default function ReceiptDetailPage() {
           {isOverThreshold && (
             <Banner
               status="warning"
-              title="Phiếu vượt ngưỡng — cần GĐĐT/super_admin duyệt"
-              description={`Phiếu có giá trị vượt ngưỡng ${fmt(threshold!)} — chỉ Giám đốc Đào tạo (GĐĐT) hoặc super_admin mới được phê duyệt. Không phải "2 chữ ký" — một người đủ quyền duyệt một mình.`}
+              title="Phiếu vượt ngưỡng — cần GĐĐT/Quản trị hệ thống duyệt"
+              description={`Phiếu có giá trị vượt ngưỡng ${fmt(threshold!)} — chỉ Giám đốc Đào tạo (GĐĐT) hoặc Quản trị hệ thống mới được phê duyệt. Không phải "2 chữ ký" — một người đủ quyền duyệt một mình.`}
             />
           )}
 
@@ -307,7 +307,7 @@ export default function ReceiptDetailPage() {
                   <Text size="sm">• Đưa cơ hội (nếu có) về O5_ENROLLED</Text>
                   <Text size="sm">• Gửi email thông báo cho phụ huynh</Text>
                   <Text type="supporting" size="xsm" style={{ marginTop: 4 }}>
-                    Cổng tiền (SoD): người tạo phiếu ≠ người duyệt.
+                    Kiểm soát tiền: người tạo phiếu không được là người duyệt.
                   </Text>
                 </Stack>
               }

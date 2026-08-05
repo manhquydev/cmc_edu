@@ -497,7 +497,7 @@ export default function OpportunityDetailPage() {
                 />
               </SectionBlock>
 
-              <SectionBlock title="Lịch test đầu vào" description="testAppointment.forOpportunity">
+              <SectionBlock title="Lịch test đầu vào">
                 {!appointments || appointments.length === 0 ? (
                   <div className="ck-empty">Chưa có lịch test</div>
                 ) : (
@@ -548,7 +548,7 @@ export default function OpportunityDetailPage() {
               </SectionBlock>
             </div>
 
-            <SectionBlock title="Timeline" description="Tiến độ giai đoạn O1–O5.">
+            <SectionBlock title="Timeline" description="Tiến độ qua các giai đoạn cơ hội.">
               <Stack gap={0}>
                 {(
                   [

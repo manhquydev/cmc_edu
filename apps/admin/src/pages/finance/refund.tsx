@@ -25,7 +25,7 @@ export default function RefundPage() {
       empty={
         <EmptyState
           title="Tính năng chưa áp dụng"
-          description="finance.refundCreate đã tồn tại nhưng chưa có màn tìm phiếu thu / duyệt hoàn tiền — cần plan UX riêng."
+          description="Hoàn tiền đã hỗ trợ ở backend nhưng chưa có màn tìm phiếu thu / duyệt hoàn tiền trên giao diện — cần plan UX riêng."
           icon={<LineIcon name="card" size={28} />}
         />
       }

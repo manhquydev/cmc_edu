@@ -350,7 +350,7 @@ function NetworkIpContent() {
           activeId={settingsNav}
           onSelect={(id) => setSettingsNav(id as 'list' | 'geo' | 'guide')}
           items={[
-            { id: 'list', label: 'Dải mạng', description: 'CRUD CIDR / bật tắt' },
+            { id: 'list', label: 'Dải mạng', description: 'Thêm, sửa, xoá CIDR / bật tắt' },
             { id: 'geo', label: 'Vùng GPS', description: 'Geofence · kiểm tra vị trí' },
             { id: 'guide', label: 'Hướng dẫn', description: 'CIDR · GPS · ngoài mạng' },
           ]}

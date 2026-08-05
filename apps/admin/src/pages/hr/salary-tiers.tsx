@@ -406,7 +406,7 @@ export default function SalaryTiersPage() {
         activeId={activeNav}
         onSelect={setActiveNav}
         items={[
-          { id: 'tiers', label: 'Bậc lương', description: 'CRUD bậc & đơn giá' },
+          { id: 'tiers', label: 'Bậc lương', description: 'Thêm, sửa, xoá bậc & đơn giá' },
           { id: 'assign', label: 'Gán bậc', description: 'Sale / giáo viên' },
         ]}
       >

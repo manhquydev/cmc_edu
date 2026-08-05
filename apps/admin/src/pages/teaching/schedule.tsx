@@ -209,7 +209,7 @@ function FullCalendarSessionView({
           void navigate(href);
         }}
       />
-      <Callout tone="info" title="FullCalendar · ClassSession timed">
+      <Callout tone="info" title="Ghi chú lịch dạy">
         Sự kiện = <strong>buổi học có giờ</strong> (ClassSession start/end), không phải kỳ lớp
         all-day. Bấm sự kiện → <strong>chi tiết buổi</strong> (điểm danh / nhận xét / nhật ký).
         Toolbar FC: tháng / tuần giờ / ngày / danh sách. Không kéo thả (editable=false). Lịch trống

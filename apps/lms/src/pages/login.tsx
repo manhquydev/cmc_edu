@@ -76,12 +76,14 @@ function ParentEmailOtpTab() {
 
   return (
     <Stack gap={2}>
-      {/* BLOCKED-ON-COMMS notice — always visible, not collapsible */}
-      <Banner
-        status="warning"
-        title="[DEV ONLY — blocked-on-comms]"
-        description="Email OTP đang dùng ConsoleEmailTransport (stub). Mã OTP chỉ xuất hiện trong console của server — không gửi email thật. Luồng này chưa hoạt động end-to-end cho production cho đến khi tích hợp Brevo/Graph credentials."
-      />
+      {/* Dev-only notice — gated to non-production builds, mirrors DevHeaderWriter below */}
+      {import.meta.env.DEV && (
+        <Banner
+          status="warning"
+          title="[DEV ONLY]"
+          description="Luồng xác thực qua email chưa hoạt động end-to-end. Mã xác thực chỉ hiển thị trong log máy chủ khi chạy dev."
+        />
+      )}
 
       {step === 'request' ? (
         <>

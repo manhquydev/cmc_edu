@@ -179,7 +179,7 @@ export default function StudentDetailPage() {
         <div className="tpl-detail-panel">
           <EmptyState
             title="Chưa có dữ liệu"
-            description="API danh sách lớp học theo học viên chưa khả dụng."
+            description="Danh sách lớp học theo học viên đang được phát triển."
             icon={<LineIcon name="layers" size={28} />}
           />
         </div>
@@ -192,7 +192,7 @@ export default function StudentDetailPage() {
         <div className="tpl-detail-panel">
           <EmptyState
             title="Chưa có dữ liệu"
-            description="API điểm danh cá nhân học viên chưa khả dụng."
+            description="Điểm danh cá nhân học viên đang được phát triển."
             icon={<LineIcon name="check-circle" size={28} />}
           />
         </div>
@@ -205,7 +205,7 @@ export default function StudentDetailPage() {
         <div className="tpl-detail-panel">
           <EmptyState
             title="Chưa có dữ liệu"
-            description="API điểm số học viên chưa khả dụng."
+            description="Điểm số học viên đang được phát triển."
             icon={<LineIcon name="clipboard" size={28} />}
           />
         </div>
@@ -218,7 +218,7 @@ export default function StudentDetailPage() {
         <div className="tpl-detail-panel">
           <EmptyState
             title="Chưa có dữ liệu"
-            description="API danh sách phụ huynh liên kết chưa khả dụng."
+            description="Danh sách phụ huynh liên kết đang được phát triển."
             icon={<LineIcon name="users" size={28} />}
           />
         </div>

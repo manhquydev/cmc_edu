@@ -55,7 +55,7 @@ const KIND_DESCRIPTIONS: Record<FlagKind, string> = {
   self_approved:
     'Agent phát hiện phiếu thu được duyệt bởi chính người tạo (vi phạm kiểm soát nội bộ).',
   exceeds_threshold:
-    'Phiếu thu vượt ngưỡng cần second-eye nhưng không có GĐ đào tạo hoặc super_admin phê duyệt.',
+    'Phiếu thu vượt ngưỡng cần second-eye nhưng không có GĐ đào tạo hoặc Quản trị hệ thống phê duyệt.',
   excess_refunds:
     'Tổng hoàn tiền cho phiếu này vượt quá số tiền gốc (netAmount).',
   missing_provisioning:
@@ -253,9 +253,9 @@ export default function ReconciliationPage() {
             title="Kết quả phân tích tự động từ AI agent — chỉ đọc"
             description={
               <>
-                Các cảnh báo bên dưới được tạo tự động bởi agent{' '}
+                Các cảnh báo bên dưới được tạo tự động bởi{' '}
                 <Text weight="bold" size="sm">
-                  ai:recon
+                  hệ thống phân tích tự động
                 </Text>{' '}
                 dựa trên quy tắc nghiệp vụ. Agent{' '}
                 <Text weight="bold" size="sm">

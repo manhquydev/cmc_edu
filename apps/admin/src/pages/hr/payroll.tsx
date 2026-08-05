@@ -383,7 +383,7 @@ function NetRow({ value }: { value: string }) {
       style={{ background: 'var(--cmc-surface-2)', margin: '0 -16px', padding: '12px 16px' }}
     >
       <Text type="body" size="sm" weight="bold">
-        Thực lĩnh (Net)
+        Thực lĩnh
       </Text>
       {/* TODO(astryx-review): brand-color net total has no Text color-enum
           slot — kept as a plain <span style> per the documented fallback. */}

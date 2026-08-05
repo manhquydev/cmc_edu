@@ -2,6 +2,30 @@
 
 Ngày: 2026-08-05 · Branch: `develop` · Trạng thái: giao kèo đã chốt, chờ plan
 
+> ⚠️ **Đính chính sau thực thi (2026-08-05, Phase 5).** Report này bị
+> `plans/260805-1153-chuan-hoa-tu-ngu-ui-frontend/plan.md` red-team qua 3 vòng
+> và bác bỏ 3 luận cứ nền tảng bên dưới — giữ nguyên nội dung gốc làm lịch sử,
+> **không dùng để tra cứu chuẩn hiện hành**:
+>
+> - §"Chẩn đoán" khẳng định `docs/12` §8 "chỉ có 2 gạch đầu dòng — không có luật".
+>   **Sai phạm vi:** SoT thật của copy là `design-system/cmc-edu/MASTER.md`
+>   §"Copy / i18n UI", không phải `docs/12`. Chuẩn **đã tồn tại**, chỉ chưa đủ
+>   chi tiết + chưa kiểm được. Sau Phase 1, `MASTER.md` là SoT; `docs/12` §8 giờ
+>   chỉ trỏ tới đó.
+> - §"Bằng chứng quyết định phạm vi" khẳng định subtitle "0/41... không có slot
+>   này [trong Odoo]" nên xoá an toàn. **Sai:** `design-system/cmc-edu/
+>   PAGE-FRAMES.md:38,55` cấp phép slot subtitle tường minh. Xoá hàng loạt sẽ là
+>   đổi design system, không phải dọn trôi dạt — plan cuối **giữ slot, siết luật
+>   điền** thay vì xoá.
+> - Đếm "0/41 bị e2e tham chiếu" bỏ sót 47 file unit test admin (`pnpm test`
+>   nằm cùng required check với `ui-e2e`). Đo lại: 1/34 nội dung bị ràng buộc
+>   (unit test, không phải e2e) — `classes/index.tsx:302`.
+>
+> Inventory D2 trong report này (viết tay) cũng sai ở nhiều dòng — plan cuối
+> dùng worklist **do máy sinh** thay thế hoàn toàn (xem
+> `plans/reports/from-red-team-r2-to-planner-260805-1153-d2-worklist-machine-generated.md`).
+> Xem `plan.md` §"Sai lầm đã sửa sau red-team R1" để có danh sách đầy đủ.
+
 ## Giao kèo
 
 **Outcome.** Giao diện dùng từ đặc, trọng tâm, theo lối Odoo: title = danh từ đối

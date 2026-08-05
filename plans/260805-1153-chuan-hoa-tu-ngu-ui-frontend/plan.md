@@ -252,6 +252,17 @@ hoặc buộc đặt mật khẩu lúc kích hoạt. Đồng thời đưa fix UI
 | `ui-e2e` chỉ chạy `on: push` | Trung bình | Chấp nhận push-để-verify trên branch; không hứa "chạy trước khi push" |
 | Sửa chuẩn mâu thuẫn `pages/cockpit.md` (locked) | Trung bình | Phase 1 đọc `PAGE-FRAMES.md` + `pages/*.md` trước khi ghi |
 
+## Backlog (ngoài phạm vi plan này, ghi nhận tại Phase 5)
+
+| # | Việc | Vì sao ngoài phạm vi |
+|---|------|----------------------|
+| 1 | 55 chỗ render `.message` từ backend tRPC throw thẳng (admin 46 + LMS 9) | Nguồn backend, sửa văn phong đòi hỏi đụng `apps/api` — non-goal của plan này |
+| 1a | **Ưu tiên trong #1:** 9 chỗ LMS đổ raw Prisma error cho phụ huynh (`apps/api/src/trpc.ts` formatter không mask message) | Rủi ro lộ tên bảng DB cho người dùng cuối — cao hơn các chỗ còn lại |
+| 2 | D1 (giải thích thừa ngoài subtitle) + D3 (title dạng câu văn, nặng nhất ở LMS) | Xác định trong brainstorm mở rộng, chưa vào acceptance criteria gốc |
+| 3 | JSDoc cho 13 component `packages/ui` thiếu hướng dẫn slot copy (`EmptyState`, `ConfirmDialog`, `MetricCard`, `Callout`, `StatusBadge`, `StatCard`, `FocusCard`, `EntityHeader`, `SectionBlock`, `InsightMetric`, `PageHeader.subtitle`, `Panel`, `*.label` dùng chung) | Không bắt buộc trong acceptance criteria gốc; `SessionCard` có mẫu tốt để tham khảo |
+| 4 | `design-lab.tsx` (11 subtitle, bảng trưng bày nội bộ) | Không phải màn nghiệp vụ — ngoài phạm vi sửa nhưng vẫn `ignores` khỏi lint (Phase 1/5) |
+| 5 | Đổi cơ chế mật khẩu mặc định phía backend (`apps/api/src/student/router.ts:94`, `provisioning/provision-from-receipt.ts:306`) | Giá trị mật khẩu mặc định đã công khai trong lịch sử git (`c444200`) trên repo PUBLIC — xoá chuỗi UI (đã làm, PR #66) chỉ giảm mức độ dễ thấy, không khắc phục. Cần quyết định riêng: sinh ngẫu nhiên per-student hoặc buộc đặt mật khẩu lúc kích hoạt. Xem `plan.md` §Git hygiene |
+
 ## Open questions
 
 1. **`admin/users.tsx:346` `label="User ID (auth identity)"`** — nhãn form, lộ

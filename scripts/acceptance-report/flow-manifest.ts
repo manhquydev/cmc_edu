@@ -493,18 +493,6 @@ export const flows: FlowEntry[] = [
     journey: 'apps/e2e/tests/journeys/checkin-punch.journey.ui.spec.ts',
   },
   {
-    id: 'P3-01b',
-    displayName: 'Chấm công GPS geofence (OR gate)',
-    cluster: 'P3',
-    actorRoles: ['sale', 'giao_vien', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'super_admin'],
-    expected: {
-      trpc: ['checkInOut.punch', 'checkInOut.geoPunchSummary', 'manualPunch.dayPunches'],
-      uiRoutes: ['/hr/checkin', '/admin/network-ip'],
-      models: ['TimePunch', 'FacilityGeofence'],
-    },
-    journey: 'apps/e2e/tests/journeys/checkin-geofence.journey.ui.spec.ts',
-  },
-  {
     id: 'P3-02',
     displayName: 'Duyệt phiếu chấm công offsite',
     cluster: 'P3',

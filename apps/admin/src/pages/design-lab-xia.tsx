@@ -31,8 +31,46 @@ export interface XiaSource {
 /** Ranked sources from live research + local extracts (xia recon). */
 export const XIA_SOURCES: XiaSource[] = [
   {
-    id: 'carbon',
+    id: 'odoo',
     rank: 1,
+    name: 'Odoo (Community/Enterprise)',
+    kind: 'enterprise',
+    urls: [
+      { label: 'GitHub (LGPL-3, source of truth)', href: 'https://github.com/odoo/odoo' },
+      { label: 'Developer docs', href: 'https://www.odoo.com/documentation/19.0/' },
+    ],
+    local:
+      'plans/reports/research-260805-1604-odoo-{layout-information-architecture,visual-design-language,design-token-taxonomy}.md + ui-ux-designer-260805-1609-odoo-backend-view-wireframe-dissection-report.md · live port at apps/admin/src/pages/design-lab-3.tsx (/design3)',
+    styleId: 'dense-ops',
+    erpFit: 'high',
+    agentSurface:
+      'No llms.txt — public GitHub monorepo, LGPL-3. Sparse-clone addons/web/static/src (~8MB) and read SCSS/XML/JS directly; no docs-site scraping needed.',
+    steal: [
+      'Single scroll-container-owner rule that flips by breakpoint (avoids double scrollbars in a sticky-header shell)',
+      'Settings-row pattern: fixed toggle rail + left-rule divider + capped-width field in a flex-wrap grid (fits config-heavy admin pages)',
+      'Auto-fullscreen dialog on small viewport regardless of requested size — one universal rule instead of per-dialog logic',
+      'Two-tone semantic color split: bright hue for backgrounds/badges, separately darkened hue for text-on-light, same semantic name',
+      'Compact multiplier-based heading scale off a 14px base + bold-weight remap (700→500) — dense admin text without shouting',
+      'Interlocking chevron/arrow statusbar via CSS clip-path — proven: built and fidelity-verified in /design3',
+      "Pivot's literal row-header indent formula (5 + indent×30px) for nested/tree tables",
+      'Dropdown → bottom-sheet structural switch on small/touch viewports (a real breakpoint change, not just restyling)',
+    ],
+    skip: [
+      'Exact brand purple hexes (#71639e/#714B67) as CMC identity — keep CMC’s locked accent blue',
+      'Full ORM-driven arch compiler (form_compiler.js) — tied to Odoo’s XML view-definition language, not portable',
+      '54-entry flat kanban/tag color arrays — arbitrary designer picks, no generation logic',
+      'Draggable dialog positioning — interaction complexity with little payoff for an ERP/LMS admin',
+      'odoo_ui_icons custom glyph codepoints — tied to a font asset this repo doesn’t have',
+    ],
+    patterns: ['Shell/scroll', 'Settings rows', 'Dialogs', 'Statusbar', 'Kanban', 'List', 'Pivot indent', 'Dropdown→sheet'],
+    summary:
+      'The literal ERP reference, not a generic enterprise DS repurposed for ops. Deepest-researched source in this catalog (4 dedicated dissections + a 6-agent fidelity audit + a working /design3 port). Steal shell/scroll and dense-admin patterns; keep CMC’s brand and locked design language.',
+    credibility:
+      'Official Odoo monorepo · LGPL-3 · read directly via sparse git clone, branch 19.0, commit 5568f6e472e2e53bc2931e744421015b0f0f3550 · cross-verified by 6 independent audit agents against a live implementation',
+  },
+  {
+    id: 'carbon',
+    rank: 2,
     name: 'IBM Carbon',
     kind: 'enterprise',
     urls: [
@@ -58,7 +96,7 @@ export const XIA_SOURCES: XiaSource[] = [
   },
   {
     id: 'ant',
-    rank: 2,
+    rank: 3,
     name: 'Ant Design',
     kind: 'enterprise',
     urls: [
@@ -84,7 +122,7 @@ export const XIA_SOURCES: XiaSource[] = [
   },
   {
     id: 'atlassian',
-    rank: 3,
+    rank: 4,
     name: 'Atlassian Design (ADS)',
     kind: 'enterprise',
     urls: [
@@ -109,7 +147,7 @@ export const XIA_SOURCES: XiaSource[] = [
   },
   {
     id: 'primer',
-    rank: 4,
+    rank: 5,
     name: 'GitHub Primer',
     kind: 'local-extract',
     urls: [
@@ -134,7 +172,7 @@ export const XIA_SOURCES: XiaSource[] = [
   },
   {
     id: 'polaris',
-    rank: 5,
+    rank: 6,
     name: 'Shopify Polaris',
     kind: 'local-extract',
     urls: [{ label: 'Polaris', href: 'https://polaris.shopify.com/' }],
@@ -156,7 +194,7 @@ export const XIA_SOURCES: XiaSource[] = [
   },
   {
     id: 'cal',
-    rank: 6,
+    rank: 7,
     name: 'Cal.com',
     kind: 'local-extract',
     urls: [{ label: 'Cal.com', href: 'https://cal.com/' }],
@@ -176,7 +214,7 @@ export const XIA_SOURCES: XiaSource[] = [
   },
   {
     id: 'airbnb',
-    rank: 7,
+    rank: 8,
     name: 'Airbnb DLS',
     kind: 'local-extract',
     urls: [{ label: 'Airbnb design', href: 'https://airbnb.design/' }],
@@ -196,7 +234,7 @@ export const XIA_SOURCES: XiaSource[] = [
   },
   {
     id: 'shadcn',
-    rank: 8,
+    rank: 9,
     name: 'shadcn/ui',
     kind: 'impl',
     urls: [
@@ -240,7 +278,7 @@ export function XiaSourcesExplorer() {
     <div className="dl-xia">
       <div className="dl-xia-intro">
         <p>
-          <strong>ak-xia recon (live + local):</strong> Carbon · Ant Design · Atlassian · Primer ·
+          <strong>ak-xia recon (live + local):</strong> Odoo · Carbon · Ant Design · Atlassian · Primer ·
           Polaris · Cal · Airbnb · shadcn. Steal <em>patterns</em>, re-token về CMC — không transplant
           package/brand. Gallery mockup bên dưới dùng CSS scoped (không đổi production).
         </p>

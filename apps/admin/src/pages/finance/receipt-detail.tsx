@@ -426,7 +426,6 @@ export default function ReceiptDetailPage() {
                 },
               ]}
             />
-            <WorkflowStatusbar {...workflowFor(receipt.status)} />
             <StatActions
               items={[
                 {
@@ -443,6 +442,7 @@ export default function ReceiptDetailPage() {
             />
           </div>
         }
+        statusbar={<WorkflowStatusbar {...workflowFor(receipt.status)} />}
         tabs={
           <CmcTabs
             activeTab={activeTab}

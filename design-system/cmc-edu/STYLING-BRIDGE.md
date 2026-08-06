@@ -133,17 +133,20 @@ Align copy with AlertDialog skill patterns; prefer `intent` over color string wh
 
 ---
 
-## z-index scale (propose)
+## z-index scale (design3 admin / odoo.css — authoritative)
 
-| Layer | z |
-|-------|---|
-| Content | 0 |
-| Sticky table header / form actions | 10 |
-| Topbar | 20 |
-| SideNav mobile drawer | 30 |
-| Dropdown / popover | 40 |
-| Modal / Confirm | 50 |
-| Toast | 60 |
+| Layer | z | Selector cue |
+|-------|--:|--------------|
+| List thead / light sticky | 1–5 | `.o-list-table thead`, control-bar, statusbar |
+| Page chrome (under shell) | auto/static | `.o_web_client .o-page-header` |
+| App switcher (in navbar) | 10 | `.o-app-switcher-menu` |
+| Navbar shell | **1000** | `.o-navbar` |
+| Toast viewport | **1100** | `.ck-toast-viewport` (Odoo notif ≈1055) |
+| Dialog band (docs) | **1150** | `dialog.ck-dialog` — ConfirmDialog also uses native **top layer** via `showModal()` (above all fixed z) |
+| Command palette | **1200** | `.ck-cmd` |
+| ConfirmDialog top layer | browser | above toast/cmd while open |
+
+Stale proposal (topbar 20 … toast 60) retired — do not use for admin design3.
 
 ---
 

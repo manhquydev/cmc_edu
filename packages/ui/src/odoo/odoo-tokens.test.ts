@@ -46,4 +46,15 @@ describe('odoo.css scope + token surface', () => {
     expect(css.includes('.o_web_client p')).toBe(true);
     expect(css.includes('.o_web_client small')).toBe(true);
   });
+
+  it('wires kanban narrow viewport width to --odoo-kanban-card-width-sm', () => {
+    expect(css.includes('--odoo-kanban-card-width-sm:')).toBe(true);
+    expect(css.includes('@media (max-width: 768px)')).toBe(true);
+    expect(css.includes('min(90vw, var(--odoo-kanban-card-width-sm))')).toBe(true);
+    // Cards fill column only inside the media block (desktop keeps fixed card width).
+    const mediaIdx = css.indexOf('@media (max-width: 768px)');
+    const mediaSlice = css.slice(mediaIdx, mediaIdx + 400);
+    expect(mediaSlice.includes('.o-kanban-card')).toBe(true);
+    expect(mediaSlice.includes('width: 100%')).toBe(true);
+  });
 });

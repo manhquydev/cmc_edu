@@ -131,7 +131,8 @@ export function Shell() {
           activeAppId={activeId}
           isChildVisible={(c) => isNavChildVisible(c, canDo)}
           onNavigate={navigate}
-          brand="CMC EDU"
+          // Unmatched route: product fallback (not apps[0].label). Active module → navbar default.
+          brand={activeId ? undefined : 'CMC EDU'}
           systray={systray}
         />
       )}

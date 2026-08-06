@@ -38,8 +38,8 @@ test.describe('admin shell (UI safety net)', () => {
   test('shell renders Odoo navbar brand and role after login redirect', async ({ page }) => {
     await page.goto('/cockpit');
 
-    // Single brand line on Odoo navbar (no separate "Admin" sub-brand).
-    await expect(page.getByText('CMC EDU', { exact: true })).toBeVisible();
+    // Brand tracks active module (cockpit → Tổng quan); no separate "Admin" sub-brand.
+    await expect(page.locator('.o-brand')).toHaveText('Tổng quan');
 
     // Role badge reflects the injected staff session.
     await expect(page.getByText('Giám đốc kinh doanh', { exact: true })).toBeVisible();

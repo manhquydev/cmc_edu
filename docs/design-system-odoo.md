@@ -214,6 +214,8 @@ is navbar chrome only. No token conflict under separate import paths
 
 - [plans/260805-1421-design-lab-3-odoo-ui-recreation/plan.md](../plans/260805-1421-design-lab-3-odoo-ui-recreation/plan.md) — Lab decisions / red-team (historical)
 - [plans/260805-1920-design3-admin-rollout/plan.md](../plans/260805-1920-design3-admin-rollout/plan.md) — Production rollout plan (phases 1–6)
+- [plans/260806-odoo-ui-component-dissection/plan.md](../plans/260806-odoo-ui-component-dissection/plan.md) — **Ongoing Odoo→CMC dissection process** (pin, wireframes, matrix, gap backlog)
+- [plans/260806-odoo-ui-component-dissection/reports/odoo-19-source-dissection.md](../plans/260806-odoo-ui-component-dissection/reports/odoo-19-source-dissection.md) — Source-grounded wireframes + full component matrix (Odoo 19.0 pin)
 
 ### Implementation source (authoritative)
 
@@ -226,6 +228,7 @@ is navbar chrome only. No token conflict under separate import paths
 
 - [docs/12-design-system-ui.md](./12-design-system-ui.md) (TL12) — **LMS** + shared base tokens; superseded for admin chrome
 - [docs/system-architecture.md](./system-architecture.md) — as-built shell note for admin
+- [design-system/cmc-edu/ODOO-COMPONENT-MAP.md](../design-system/cmc-edu/ODOO-COMPONENT-MAP.md) — maintainer one-pager Odoo↔CMC map
 
 ---
 

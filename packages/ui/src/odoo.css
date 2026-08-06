@@ -95,7 +95,12 @@
 /* ------------------------------------------------------------------ */
 
 .o-navbar {
+  /* Shell stacking layer: app-switcher is position:absolute under this bar.
+     Without a z-index, later flex sibling main.o-main (and its .o-page-header
+     / sticky control chrome) paints over the open menu — live audit 2026-08-06
+     confirmed hits on session-assessment and 6 sibling Form/Detail pages. */
   position: relative;
+  z-index: 1000;
   display: flex;
   align-items: center;
   height: var(--odoo-navbar-height);
@@ -475,6 +480,19 @@
   border-radius: var(--odoo-radius);
   padding: var(--odoo-kanban-gutter);
   max-height: min(70vh, 640px);
+}
+
+/* Narrow viewports only — keep desktop col shrink-wrapped around 320px cards
+   (explicit col width + border-box padding clips cards; see cook review High #1). */
+@media (max-width: 768px) {
+  .o-kanban-col {
+    width: min(90vw, var(--odoo-kanban-card-width-sm));
+  }
+
+  .o-kanban-card,
+  .o-kanban-empty {
+    width: 100%;
+  }
 }
 
 .o-kanban-col-header {
@@ -913,6 +931,28 @@ button.o-kanban-card {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-section);
+}
+/* Odoo form dual-layer: sheet_bg (canvas band) + white sheet */
+.o-form-sheet-bg {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: var(--odoo-sheet-max-width, 1400px);
+  min-width: 0;
+  /* Prefer left align like Odoo sheet_bg (not centered alone) */
+  margin-inline: 0 auto 0 0;
+}
+.o-form-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cmc-gap-cluster);
+  min-width: 0;
+  background: var(--cmc-surface-raised, #fff);
+  border: 1px solid var(--cmc-border-subtle, var(--odoo-gray-300, #dee2e6));
+  border-radius: var(--odoo-radius, 4px);
+  padding: 16px var(--cmc-keyline-x, 16px);
+  box-sizing: border-box;
 }
 .o-detail-entity {
   min-width: 0;
@@ -1364,16 +1404,49 @@ button.o-kanban-card {
   min-width: 0;
 }
 
-/* Odoo-density control panel: flat white band (overrides sticky blur if desired) */
+/* Odoo-density control panel: single flat white band (no nested cards) */
 .o_web_client .o-control-bar {
   background: #fff;
   border-bottom: 1px solid var(--odoo-gray-300, #dee2e6);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: none;
-  margin-inline: 0;
-  padding: 8px 16px;
-  gap: 12px;
+  margin-inline: calc(-1 * 16px);
+  padding: 8px 16px 10px;
+  gap: 8px;
+  border-radius: 0;
+}
+.o_web_client .o-wrap--ops .o-control-bar {
+  margin-inline: calc(-1 * 14px);
+  padding-inline: 14px;
+}
+/* Flatten PageHeader / FilterBar when they live inside the CP band */
+.o_web_client .o-control-bar .o-page-header {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+}
+.o_web_client .o-control-bar .o-filter-bar {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 2px 0 0;
+  min-height: 0;
+  gap: 8px;
+}
+.o_web_client .o-control-bar-footer {
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 6px;
+  margin-top: 2px;
+  border-top: 1px solid var(--odoo-gray-200, #e9ecef);
+}
+/* List body sits tight under CP */
+.o_web_client .o-list-body {
+  gap: 0;
 }
 
 /* Chevron ProgressSteps (Odoo statusbar analogue) — horizontal arrow buttons */
@@ -1450,20 +1523,68 @@ button.o-kanban-card {
 .o_web_client .o-wrap {
   background: var(--odoo-gray-100, #f8f9fa);
   padding: 16px;
-  gap: 16px;
+  gap: 12px;
 }
-.o_web_client .o-wrap--ops { padding: 12px 14px; gap: 12px; }
+.o_web_client .o-wrap--ops { padding: 12px 14px; gap: 10px; }
 .o_web_client .o-page-header {
   background: #fff;
   border: 1px solid var(--odoo-gray-300, #dee2e6);
   border-radius: var(--odoo-radius, 4px);
   box-shadow: none;
+  /* Not sticky under Odoo shell — scroll lives on main.o-main. Clear base
+     sticky + z-index:10 so page chrome never competes with the navbar layer. */
   position: static;
+  z-index: auto;
 }
+/* Standalone filter (rare outside CP) keeps light sunken chrome */
 .o_web_client .o-filter-bar {
   background: var(--odoo-gray-100, #f8f9fa);
   border: 1px solid var(--odoo-gray-300, #dee2e6);
   border-radius: var(--odoo-radius-sm, 3px);
+}
+/* Form sheet grammar under shell */
+.o_web_client .o-form-sheet-bg {
+  max-width: var(--odoo-sheet-max-width, 1400px);
+  gap: 10px;
+}
+.o_web_client .o-form-sheet {
+  background: #fff;
+  border: 1px solid var(--odoo-gray-300, #dee2e6);
+  border-radius: var(--odoo-radius, 4px);
+  box-shadow: none;
+  padding: 14px 16px 16px;
+  gap: 14px;
+}
+/* Summary band = HighlightStrip / metrics above the white sheet — never sticky
+   (tall composite). Thin WorkflowStatusbar lives in `.o-detail-statusbar`. */
+.o_web_client .o-form-sheet-bg > .o-detail-summary {
+  padding: 0 0 4px;
+  background: transparent;
+}
+/* Odoo `.o_form_statusbar` analogue — sticky md+ only (form_controller.scss). */
+.o-detail-statusbar {
+  min-width: 0;
+}
+.o_web_client .o-form-sheet-bg > .o-detail-statusbar {
+  padding: 4px 0;
+  background: var(--odoo-gray-100, #f8f9fa);
+  border-bottom: 1px solid var(--odoo-gray-300, #dee2e6);
+}
+@media (min-width: 768px) {
+  .o_web_client .o-form-sheet-bg > .o-detail-statusbar {
+    position: sticky;
+    top: 0;
+    z-index: 4; /* below .o-control-bar (5) and .o-navbar (1000) */
+  }
+}
+/* Entity inside sheet: drop second card chrome */
+.o_web_client .o-form-sheet .o-eh {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--odoo-gray-200, #e9ecef);
 }
 .o_web_client .o-mc {
   border-radius: var(--odoo-radius, 4px);
@@ -2251,17 +2372,22 @@ button.o-kanban-card {
 .o_web_client .sh-content{ flex: 1; overflow-y: auto; }
 
 /* Toast — float layer (dialog radius + shadow-lg) */
+/* Float band: above .o-navbar (1000), below .ck-cmd (1200). Odoo notifications ≈1055. */
 .ck-toast-viewport{
-  position: fixed; z-index: 60; right: 20px; bottom: 20px;
-  display: flex; flex-direction: column; gap: 10px;
-  max-width: min(380px, calc(100vw - 32px)); pointer-events: none;
+  position: fixed; z-index: 1100; right: 20px; bottom: 20px;
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
 }
 .ck-toast{
-  pointer-events: auto; display: flex; align-items: flex-start; gap: 10px;
-  padding: 12px 14px; border-radius: var(--cmc-radius-lg);
-  background: var(--cmc-surface-raised); box-shadow: var(--cmc-shadow-lg);
-  border: 1px solid var(--cmc-border-subtle); border-left-width: 3px;
-  font-family: var(--cmc-font-sans);
+  pointer-events: auto;
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 12px 12px 14px;
+  background: var(--cmc-surface-raised);
+  border: 1px solid var(--cmc-border-subtle);
+  border-left: 3px solid var(--cmc-border);
+  border-radius: var(--cmc-radius-md);
+  box-shadow: var(--cmc-shadow-lg);
 }
 .ck-toast--success{ border-left-color: var(--cmc-success); }
 .ck-toast--error{ border-left-color: var(--cmc-danger); }
@@ -2271,11 +2397,34 @@ button.o-kanban-card {
 .ck-toast-desc{ margin-top: 3px; font-size: 12.5px; color: var(--cmc-text-muted); line-height: 1.4; }
 .ck-toast-dismiss{
   flex-shrink: 0; width: 28px; height: 28px; border: none; border-radius: var(--cmc-radius-control);
-  background: transparent; color: var(--cmc-text-faint); cursor: pointer;
-  font-size: 18px; line-height: 1; font-family: inherit;
-  transition: background var(--cmc-transition), color var(--cmc-transition);
+  background: transparent; color: var(--cmc-text-muted); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 .ck-toast-dismiss:hover{ background: var(--cmc-surface-sunken); color: var(--cmc-text); }
+
+/*
+ * ConfirmDialog (Astryx AlertDialog → native <dialog>.showModal).
+ * Browser top layer paints ABOVE all fixed z-index (toast 1100, cmd 1200).
+ * Markers + backdrop chrome live here; z-index 1150 documents the intended
+ * band if a future non-modal path is used.
+ */
+.ck-dialog-root{
+  /* Registry hook only — does not create a stacking context for showModal. */
+  display: contents;
+}
+dialog.ck-dialog{
+  z-index: 1150;
+  border: 1px solid var(--cmc-border-subtle);
+  border-radius: var(--cmc-radius-lg);
+  box-shadow: var(--cmc-shadow-lg);
+  background: var(--cmc-surface-raised);
+  color: var(--cmc-text);
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 0;
+}
+dialog.ck-dialog::backdrop{
+  background: rgba(29, 29, 31, 0.45);
+}
 @media (prefers-reduced-motion: reduce) {
   .o_web_client .sh-cta, .o_web_client .ck-mc, .o_web_client .sh-item, .ck-toast, .o_web_client .ck-fn-fill{ transition: none; }
   .o_web_client .sh-cta:active, .o_web_client .ck-mc:active{ transform: none; }

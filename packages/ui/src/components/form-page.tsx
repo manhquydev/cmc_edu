@@ -15,14 +15,18 @@ export interface FormPageProps {
   result?: ReactNode;
 }
 
-// Form-page archetype: canvas wrap + header + field region + sticky action
-// bar + optional result. Props-only (pages own form state). Requires
-// @cmc/ui/odoo.css (.o-wrap, .o-form-body, .o-actions).
+// Form-page archetype: canvas wrap + header + Odoo-like form sheet + sticky
+// action bar + optional result. Props-only (pages own form state). Requires
+// @cmc/ui/odoo.css (.o-wrap, .o-form-sheet*, .o-form-body, .o-actions).
 export function FormPage({ header, children, actions, result }: FormPageProps) {
   return (
     <div className="o-wrap">
       {header}
-      <div className="o-form-body">{children}</div>
+      <div className="o-form-sheet-bg">
+        <div className="o-form-sheet">
+          <div className="o-form-body">{children}</div>
+        </div>
+      </div>
       {result}
       <div className="o-actions">{actions}</div>
     </div>

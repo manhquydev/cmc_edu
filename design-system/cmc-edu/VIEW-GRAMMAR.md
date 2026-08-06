@@ -3,21 +3,25 @@
 > **Authority:** Maps Odoo UX concepts → CMC `@cmc/ui` frames.  
 > **Does not** port OWL, Bootstrap, or XML views.  
 > **Stack:** React + Astryx + CSS tokens.  
-> Related: [PAGE-FRAMES.md](./PAGE-FRAMES.md) · [STRUCTURE.md](./STRUCTURE.md) · [MASTER.md](./MASTER.md)  
-> **Xia source (layout only):** [odoo/odoo@19.0](https://github.com/odoo/odoo)  
-> `addons/web/static/src/webclient/webclient.xml` · `search/control_panel/control_panel.xml` ·  
-> `views/list/list_controller.xml` · `views/form/form_controller.xml`  
-> Full extract: `plans/260804-ui-smart-cohesion-upgrade/reports/xia-odoo-layout-grammar-2026-08-04.md`  
-> Lab wireframes: `/design#wireframes` (`odoo-control-panel` · `odoo-form-sheet` · `chatter-tab`)
+> Related: [PAGE-FRAMES.md](./PAGE-FRAMES.md) · [STRUCTURE.md](./STRUCTURE.md) · [MASTER.md](./MASTER.md) · **[ODOO-COMPONENT-MAP.md](./ODOO-COMPONENT-MAP.md)**  
+> **Source-grounded dissection (2026-08-06):** `plans/260806-odoo-ui-component-dissection/`  
+> **Xia extract (layout, pre-design3 shell notes):**  
+> `plans/260804-ui-smart-cohesion-upgrade/reports/xia-odoo-layout-grammar-2026-08-04.md`  
+> **Upstream:** [odoo/odoo@19.0](https://github.com/odoo/odoo) ·  
+> `addons/web/static/src/webclient/` · `search/control_panel/` · `views/{list,form,kanban}/`
+
+> **Admin shell (design3, 2026-08):** production chrome is **OdooNavbar + `.o_web_client` + `main.o-main`**.  
+> `AppFrame` / `SideNav` remain for **LMS** (TL12 premium) only — do not reintroduce as admin shell.
 
 ---
 
 ## 1. One product OS
 
 ```text
-AppFrame + SideNav
+Admin (design3):  OdooNavbar + main.o-main
+LMS (TL12):       AppFrame + SideNav
   └── exactly one page frame:
-        DashboardPage | ListPage | DetailPage | FormPage
+        DashboardPage | ListPage | DetailPage | FormPage | SettingsShell
 ```
 
 Modules change **data, permissions, tabs** — never invent full-page chrome.
@@ -31,7 +35,7 @@ Modules change **data, permissions, tabs** — never invent full-page chrome.
 | list | **ListPage** + ControlBar | Ops tables, queues |
 | form (read) | **DetailPage** | Entity identity + sections |
 | form (edit/create) | **FormPage** | Sticky actions |
-| kanban | ListPage body **or** custom board | CRM pipeline: FunnelBar in body — no generic KanbanBoard yet |
+| kanban | ListPage body **or** `KanbanBoard` | CRM pipeline: list↔kanban + `?view=`; generic board in `@cmc/ui` |
 | calendar | ListPage + SoftOpsFullCalendar (FullCalendar dayGrid) **or** WeekSchedule | Teaching: week/month = FC Soft Ops B-lite; batch all-day v1; list/kanban Soft Ops |
 | graph/pivot | DashboardPage / report panels | Revenue report etc. |
 | settings | FormPage + SettingsSection | Or ListPage + tabs |
@@ -67,13 +71,14 @@ Do not force EntityHeader on settings or thin ops pages.
 
 ```text
 DetailPage
-  header:   PageHeader — breadcrumbs; title only for settings/thin
-  entity?:  EntityHeader  ← full/standard only · single h1 · 1 primary CTA
-  summary?: HighlightStrip (standard+) · WorkflowStatusbar (full)
-  settings?: SettingsShell (settings tier)
-  stats?:   StatActions
-  tabs?:    CmcTabs
-  body?:    .tpl-detail-stack | .tpl-detail-split + SectionBlock + KeyValueList
+  header:     PageHeader — breadcrumbs; title only for settings/thin
+  entity?:    EntityHeader  ← full/standard only · single h1 · 1 primary CTA
+  summary?:   HighlightStrip / StatActions (scrolls — not sticky)
+  statusbar?: WorkflowStatusbar (thin; sticky md+ under shell)
+  # prove: apps/e2e design3-statusbar.ui.spec + smoke-statusbar.ts (list-click entry)
+  settings?:  SettingsShell (settings tier)
+  tabs?:      CmcTabs
+  body?:      .o-detail-stack | .o-detail-split + SectionBlock + KeyValueList
 ```
 
 **Single identity heading (full/standard):** only `EntityHeader` owns the entity name (`h1`).  

@@ -22,15 +22,14 @@ import {
 import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
+// G1 select grammar: options = real values only; empty + placeholder = all.
+// Do not add value:'all' — that duplicates FilterBar hasClear “Tất cả”.
 const GIFT_FILTERS: FilterDef[] = [
   {
     key: 'active',
     label: 'Trạng thái',
     type: 'select',
-    options: [
-      { value: 'all', label: 'Tất cả' },
-      { value: 'active', label: 'Đang hiện' },
-    ],
+    options: [{ value: 'active', label: 'Đang hiện' }],
     placeholder: 'Tất cả',
   },
 ];
@@ -94,7 +93,8 @@ export default function GiftsPage() {
   const { success: toastSuccess } = useToast();
 
   const utils = trpc.useUtils();
-  const [filterValues, setFilterValues] = useState({ active: 'all' });
+  // '' = all (include inactive); 'active' = only visible gifts.
+  const [filterValues, setFilterValues] = useState({ active: '' });
   const includeInactive = filterValues.active !== 'active';
   const { data, isLoading, error } = trpc.gift.list.useQuery({ includeInactive });
 
@@ -148,7 +148,7 @@ export default function GiftsPage() {
             filters={GIFT_FILTERS}
             value={filterValues}
             onChange={(next) => {
-              setFilterValues({ active: next.active || 'all' });
+              setFilterValues({ active: next.active ?? '' });
               setPage(1);
               setSelectedIds([]);
             }}

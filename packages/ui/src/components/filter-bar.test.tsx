@@ -35,4 +35,42 @@ describe('FilterBar', () => {
       expect.objectContaining({ from: '2026-08-06' }),
     );
   });
+
+  it('exposes role=search landmark', () => {
+    renderBar({ value: { status: '', from: '', q: '' }, onChange: () => {} });
+    expect(screen.getByRole('search', { name: 'Bộ lọc' })).toBeInTheDocument();
+  });
+
+  it('fires onChange when a select option is chosen', () => {
+    const onChange = vi.fn();
+    renderBar({ value: { status: '', from: '', q: '' }, onChange });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Trạng thái' }));
+    fireEvent.click(screen.getByRole('option', { name: 'A' }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ status: 'a' }));
+  });
+
+  it('respects hasClear: false on select filters (default-domain hygiene)', () => {
+    const filters: FilterDef[] = [
+      {
+        key: 'lost',
+        label: 'Hiển thị',
+        type: 'select',
+        options: [
+          { value: 'exclude', label: 'Đang chăm sóc' },
+          { value: 'include', label: 'Tất cả' },
+        ],
+        placeholder: 'Đang chăm sóc',
+        hasClear: false,
+      },
+    ];
+    render(
+      <MemoryRouter>
+        <FilterBar filters={filters} value={{ lost: 'exclude' }} onChange={() => {}} />
+      </MemoryRouter>,
+    );
+    // With hasClear false, no clear control should wipe the domain via empty string.
+    // Astryx Selector still renders combobox; absence of clear is the contract.
+    expect(screen.getByRole('combobox', { name: 'Hiển thị' })).toHaveTextContent('Đang chăm sóc');
+    expect(screen.queryByRole('button', { name: /clear|xóa|×/i })).not.toBeInTheDocument();
+  });
 });

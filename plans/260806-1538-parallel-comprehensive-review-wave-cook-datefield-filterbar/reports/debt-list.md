@@ -19,9 +19,9 @@
 
 | ID | Sev | Item | Notes |
 |----|-----|------|-------|
-| **D1** | MAJOR | Parents FilterBar still **inside tabs**, not `ListPage.filters` | VIEW-GRAMMAR / G1 ControlBar slot |
-| **D2** | MAJOR | Gifts select: explicit **“Tất cả”** + `hasClear` duplicate semantics | Playbook anti-pattern; simplify options |
-| **D3** | MAJOR | Pipeline lost-select clear → snaps to `exclude` (not all); search lost icon/`hasClear` | UX polish |
+| **D1** | FIXED | Parents FilterBar hosted in `ListPage.filters` (ControlBar) | Cook 2026-08-06 |
+| **D2** | FIXED | Gifts: empty + placeholder = all; options only `active` | Cook 2026-08-06 |
+| **D3** | FIXED | Pipeline lost select `hasClear: false` (default domain exclude) | Cook 2026-08-06 + FilterDef.hasClear |
 | **D4** | MAJOR | Audit date range: no **from ≤ to** client validation | Empty results possible |
 | **D5** | MAJOR | `guardian.listPendingLinks` hardcodes `pageSize: 50`, shows total | Pre-existing; truncated queue |
 | **D6** | MAJOR | Test gaps: gifts/parents/kpi filter paths; FilterBar **URL mode** untested | Coverage debt |

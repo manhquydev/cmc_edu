@@ -127,12 +127,13 @@ const BASE_COLUMNS: TableColumn<LinkRow>[] = [
 function LinkRequestsTab({
   canUpdateEmail,
   onOpenEmailModal,
+  filterStatus,
 }: {
   canUpdateEmail: boolean;
   onOpenEmailModal: (row: LinkRow) => void;
+  /** Hosted in ListPage.filters (ControlBar) — not inside the tab body. */
+  filterStatus: FilterStatus;
 }) {
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('pending');
-
   // Approve modal state
   const [approveRow, setApproveRow] = useState<LinkRow | null>(null);
   const [relation, setRelation] = useState<string>('guardian');
@@ -233,13 +234,6 @@ function LinkRequestsTab({
 
   return (
     <>
-      <FilterBar
-        filters={LINK_STATUS_FILTERS}
-        value={{ status: filterStatus }}
-        onChange={(next) =>
-          setFilterStatus((next.status as FilterStatus) || 'pending')
-        }
-      />
       {data && (
         <Text type="supporting" size="sm" style={{ padding: '4px var(--cmc-keyline-x)' }}>
           {data.total} yêu cầu
@@ -343,17 +337,14 @@ function LinkRequestsTab({
  */
 function AllParentsTab({
   onOpenEmailModal,
+  debouncedSearch,
+  emailFilter,
 }: {
   onOpenEmailModal: (row: ParentRow) => void;
+  /** Hosted in ListPage.filters (ControlBar) — not inside the tab body. */
+  debouncedSearch: string;
+  emailFilter: EmailFilter;
 }) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  const [emailFilter, setEmailFilter] = useState<EmailFilter>('missing');
   const [page, setPage] = useState(1);
 
   // Narrowing/widening the result set can strand the user on a now
@@ -411,14 +402,6 @@ function AllParentsTab({
 
   return (
     <Stack gap={2}>
-      <FilterBar
-        filters={PARENT_DIR_FILTERS}
-        value={{ q: searchTerm, email: emailFilter }}
-        onChange={(next) => {
-          setSearchTerm(next.q ?? '');
-          setEmailFilter((next.email as EmailFilter) || 'missing');
-        }}
-      />
       {data && (
         <Text type="supporting" size="sm" style={{ padding: '4px var(--cmc-keyline-x)' }}>
           {total} phụ huynh
@@ -467,6 +450,17 @@ export default function ParentListPage() {
   const canUpdateEmail = canDo('parentAccount', 'updateEmail');
   const [activeTab, setActiveTab] = useState<'requests' | 'all'>('requests');
 
+  // Filter state lives on the page so FilterBar can host in ListPage.filters
+  // (ControlBar) — G1 grammar: never mount FilterBar inside tab/body content.
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('pending');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+  const [emailFilter, setEmailFilter] = useState<EmailFilter>('missing');
+
   const utils = trpc.useUtils();
 
   // Email update modal — shared by both tabs. They surface the exact same
@@ -514,6 +508,24 @@ export default function ParentListPage() {
     updateEmailMut.mutate({ parentAccountId: emailTarget.parentAccountId, email: emailInput });
   }
 
+  const listFilters =
+    activeTab === 'requests' ? (
+      <FilterBar
+        filters={LINK_STATUS_FILTERS}
+        value={{ status: filterStatus }}
+        onChange={(next) => setFilterStatus((next.status as FilterStatus) || 'pending')}
+      />
+    ) : (
+      <FilterBar
+        filters={PARENT_DIR_FILTERS}
+        value={{ q: searchTerm, email: emailFilter }}
+        onChange={(next) => {
+          setSearchTerm(next.q ?? '');
+          setEmailFilter((next.email as EmailFilter) || 'missing');
+        }}
+      />
+    );
+
   return (
     <>
       <ListPage
@@ -524,6 +536,7 @@ export default function ParentListPage() {
             breadcrumbs={[{ label: 'Quản trị' }, { label: 'Phụ huynh' }]}
           />
         }
+        filters={listFilters}
       >
         <CmcTabs
           activeTab={activeTab}
@@ -536,6 +549,7 @@ export default function ParentListPage() {
                 <LinkRequestsTab
                   canUpdateEmail={canUpdateEmail}
                   onOpenEmailModal={openEmailModalFromLink}
+                  filterStatus={filterStatus}
                 />
               ),
             },
@@ -547,7 +561,13 @@ export default function ParentListPage() {
                   {
                     id: 'all',
                     label: 'Tất cả phụ huynh',
-                    content: <AllParentsTab onOpenEmailModal={openEmailModalFromParent} />,
+                    content: (
+                      <AllParentsTab
+                        onOpenEmailModal={openEmailModalFromParent}
+                        debouncedSearch={debouncedSearch}
+                        emailFilter={emailFilter}
+                      />
+                    ),
                   },
                 ]
               : []),

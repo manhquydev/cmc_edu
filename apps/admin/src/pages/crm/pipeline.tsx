@@ -55,7 +55,10 @@ const PIPELINE_FILTERS: FilterDef[] = [
     label: 'Hiển thị',
     type: 'select',
     options: LOST_FILTER_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+    // Default domain is exclude (active care). Clearing would snap back via
+    // `|| 'exclude'` and feel broken — hide clear; pick “Tất cả” (include) explicitly.
     placeholder: 'Đang chăm sóc',
+    hasClear: false,
   },
 ];
 

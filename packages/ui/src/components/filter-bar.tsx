@@ -9,6 +9,12 @@ export interface FilterDef {
   type: 'text' | 'select' | 'date';
   options?: { value: string; label: string }[];
   placeholder?: string;
+  /**
+   * Select only. When false, hides the clear (×) control so empty cannot
+   * fight a page default domain (e.g. pipeline lost=`exclude`). Default true —
+   * empty + placeholder means “all” per G1 Search playbook.
+   */
+  hasClear?: boolean;
 }
 
 export interface FilterBarProps {
@@ -51,6 +57,7 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
       {filters.map((f) => {
         const val = currentValues[f.key] ?? '';
         if (f.type === 'select') {
+          const allowClear = f.hasClear !== false;
           return (
             <div key={f.key} style={{ width: 160 }}>
               <Selector
@@ -60,7 +67,7 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
                 options={f.options ?? []}
                 value={val || null}
                 onChange={(v) => handleChange(f.key, v ?? '')}
-                hasClear
+                hasClear={allowClear}
               />
             </div>
           );

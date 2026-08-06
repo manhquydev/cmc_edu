@@ -1,9 +1,9 @@
 ---
 phase: 1
-title: "P0 stacking ops checklist"
-status: pending
+title: P0 stacking ops checklist
+status: completed
 priority: P0
-effort: "ops / 2-4h when deploy ready"
+effort: ops / 2-4h when deploy ready
 dependencies: []
 ---
 

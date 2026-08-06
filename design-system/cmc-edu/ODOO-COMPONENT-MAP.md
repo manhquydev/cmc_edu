@@ -120,7 +120,7 @@ DetailPage
 
 Refresh statuses via the dissection process in `plans/260806-odoo-ui-component-dissection/plan.md` when Odoo pin or shell changes.
 
-**Last status refresh:** 2026-08-06 cook (`260806-1045-odoo-grammar-gap-cook`) — brand=module **SHIPPED**; kanban responsive width **SHIPPED**; form dual-sheet **SHIPPED**; statusbar sticky **DEFERRED** (thin split); list Astryx sticky **CUT/debt**; stacking live audit still open (Phase 1 ops).
+**Last status refresh:** 2026-08-06 post-rebuild audit — navbar stacking **SHIPPED** (`menuCoveredCount=0`, z-index 1000); brand=module **SHIPPED**; kanban responsive **SHIPPED**; form dual-sheet **SHIPPED**; statusbar sticky **DEFERRED**; list Astryx sticky **CUT/debt**.
 
 ---
 

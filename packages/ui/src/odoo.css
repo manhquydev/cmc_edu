@@ -2232,33 +2232,33 @@ button.o-kanban-card {
 .o_web_client .sh-content{ flex: 1; overflow-y: auto; }
 
 /* Toast — float layer (dialog radius + shadow-lg) */
-.o_web_client .ck-toast-viewport{
+.ck-toast-viewport{
   position: fixed; z-index: 60; right: 20px; bottom: 20px;
   display: flex; flex-direction: column; gap: 10px;
   max-width: min(380px, calc(100vw - 32px)); pointer-events: none;
 }
-.o_web_client .ck-toast{
+.ck-toast{
   pointer-events: auto; display: flex; align-items: flex-start; gap: 10px;
   padding: 12px 14px; border-radius: var(--cmc-radius-lg);
   background: var(--cmc-surface-raised); box-shadow: var(--cmc-shadow-lg);
   border: 1px solid var(--cmc-border-subtle); border-left-width: 3px;
   font-family: var(--cmc-font-sans);
 }
-.o_web_client .ck-toast--success{ border-left-color: var(--cmc-success); }
-.o_web_client .ck-toast--error{ border-left-color: var(--cmc-danger); }
-.o_web_client .ck-toast--info{ border-left-color: var(--cmc-brand); }
-.o_web_client .ck-toast-body{ flex: 1; min-width: 0; }
-.o_web_client .ck-toast-title{ font-size: 13.5px; font-weight: 600; color: var(--cmc-text); line-height: 1.3; }
-.o_web_client .ck-toast-desc{ margin-top: 3px; font-size: 12.5px; color: var(--cmc-text-muted); line-height: 1.4; }
-.o_web_client .ck-toast-dismiss{
+.ck-toast--success{ border-left-color: var(--cmc-success); }
+.ck-toast--error{ border-left-color: var(--cmc-danger); }
+.ck-toast--info{ border-left-color: var(--cmc-brand); }
+.ck-toast-body{ flex: 1; min-width: 0; }
+.ck-toast-title{ font-size: 13.5px; font-weight: 600; color: var(--cmc-text); line-height: 1.3; }
+.ck-toast-desc{ margin-top: 3px; font-size: 12.5px; color: var(--cmc-text-muted); line-height: 1.4; }
+.ck-toast-dismiss{
   flex-shrink: 0; width: 28px; height: 28px; border: none; border-radius: var(--cmc-radius-control);
   background: transparent; color: var(--cmc-text-faint); cursor: pointer;
   font-size: 18px; line-height: 1; font-family: inherit;
   transition: background var(--cmc-transition), color var(--cmc-transition);
 }
-.o_web_client .ck-toast-dismiss:hover{ background: var(--cmc-surface-sunken); color: var(--cmc-text); }
+.ck-toast-dismiss:hover{ background: var(--cmc-surface-sunken); color: var(--cmc-text); }
 @media (prefers-reduced-motion: reduce) {
-  .o_web_client .sh-cta, .o_web_client .ck-mc, .o_web_client .sh-item, .o_web_client .ck-toast, .o_web_client .ck-fn-fill{ transition: none; }
+  .o_web_client .sh-cta, .o_web_client .ck-mc, .o_web_client .sh-item, .ck-toast, .o_web_client .ck-fn-fill{ transition: none; }
   .o_web_client .sh-cta:active, .o_web_client .ck-mc:active{ transform: none; }
 }
 
@@ -2747,16 +2747,16 @@ button.o-kanban-card {
 .o_web_client .ck-settings-main{ min-width: 0; display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
 
 /* Command palette ⌘K */
-.o_web_client .ck-cmd{
+.ck-cmd{
   position: fixed; inset: 0; z-index: 1200;
   display: flex; align-items: flex-start; justify-content: center;
   padding: min(18vh, 120px) 16px 16px;
 }
-.o_web_client .ck-cmd-backdrop{
+.ck-cmd-backdrop{
   position: absolute; inset: 0; border: none; padding: 0;
   background: rgba(29, 29, 31, 0.45); cursor: pointer;
 }
-.o_web_client .ck-cmd-panel{
+.ck-cmd-panel{
   position: relative; z-index: 1;
   width: min(560px, 100%);
   background: var(--cmc-surface-raised);
@@ -2766,49 +2766,49 @@ button.o-kanban-card {
   overflow: hidden;
   display: flex; flex-direction: column; max-height: min(70vh, 520px);
 }
-.o_web_client .ck-cmd-head{
+.ck-cmd-head{
   display: flex; align-items: center; gap: 10px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--cmc-border-subtle);
 }
-.o_web_client .ck-cmd-input{
+.ck-cmd-input{
   flex: 1; min-width: 0; border: none; outline: none;
   font: inherit; font-size: 15px; color: var(--cmc-text);
   background: transparent;
 }
-.o_web_client .ck-cmd-input::placeholder{ color: var(--cmc-text-faint); }
-.o_web_client .ck-cmd-kbd{
+.ck-cmd-input::placeholder{ color: var(--cmc-text-faint); }
+.ck-cmd-kbd{
   font-size: 11px; font-weight: 600; font-family: inherit;
   padding: 2px 6px; border-radius: 6px;
   border: 1px solid var(--cmc-border);
   background: var(--cmc-surface-2); color: var(--cmc-text-muted);
 }
-.o_web_client .ck-cmd-list{ overflow: auto; flex: 1; padding: 8px; }
-.o_web_client .ck-cmd-empty{
+.ck-cmd-list{ overflow: auto; flex: 1; padding: 8px; }
+.ck-cmd-empty{
   padding: 28px 16px; text-align: center;
   font-size: 13px; color: var(--cmc-text-muted);
 }
-.o_web_client .ck-cmd-group{ margin-bottom: 8px; }
-.o_web_client .ck-cmd-group-label{
+.ck-cmd-group{ margin-bottom: 8px; }
+.ck-cmd-group-label{
   font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
   text-transform: uppercase; color: var(--cmc-text-muted);
   padding: 6px 10px 4px;
 }
-.o_web_client .ck-cmd-item{
+.ck-cmd-item{
   display: flex; align-items: center; gap: 10px;
   width: 100%; text-align: left;
   padding: 10px 12px; border: none; border-radius: var(--cmc-radius-control);
   background: transparent; color: var(--cmc-text);
   font: inherit; font-size: 14px; cursor: pointer;
 }
-.o_web_client .ck-cmd-item:hover, .o_web_client .ck-cmd-item.is-active{
+.ck-cmd-item:hover, .ck-cmd-item.is-active{
   background: var(--cmc-brand-muted); color: var(--cmc-brand-ink);
 }
-.o_web_client .ck-cmd-item-label{ flex: 1; min-width: 0; font-weight: 500; }
-.o_web_client .ck-cmd-item-meta{
+.ck-cmd-item-label{ flex: 1; min-width: 0; font-weight: 500; }
+.ck-cmd-item-meta{
   font-size: 12px; color: var(--cmc-text-muted); flex-shrink: 0;
 }
-.o_web_client .ck-cmd-foot{
+.ck-cmd-foot{
   display: flex; flex-wrap: wrap; gap: 12px 16px;
   padding: 8px 14px;
   border-top: 1px solid var(--cmc-border-subtle);

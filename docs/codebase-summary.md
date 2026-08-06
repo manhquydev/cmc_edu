@@ -60,7 +60,7 @@ D:\project\vip\CMC
 │   ├── db/              # Prisma schema, migrations, seed — 48 models
 │   ├── domain-finance/  # Finance domain logic (SO receipt codes, refund cap, phone dedup)
 │   ├── domain-identity/ # Identity domain logic (phone normalization)
-│   └── ui/              # Design system: Astryx barrel + premium design-language layer — LineIcon (Feather + 5 premium icons: globe/clock/trophy/gift/star, data-icon attr), MetricCard, Panel, TaskRow, FunnelBar, AppFrame/SideNav, page templates (ListPage/DetailPage/FormPage); Inter Variable font; 45+ vitest component tests. **21/21 non-blocked admin ERP screens now on premium templates (2026-07-12).** (Mantine fully removed 2026-07-10)
+│   └── ui/              # Design system: Astryx barrel + premium design-language layer — LineIcon (Feather + 5 premium icons: globe/clock/trophy/gift/star, data-icon attr), MetricCard, Panel, TaskRow, FunnelBar, Odoo admin shell (OdooNavbar + odoo.css) for apps/admin; LMS keeps premium.css + AppFrame/SideNav composites; page templates ListPage/DetailPage/FormPage; Inter Variable font; 45+ vitest component tests. **21/21 non-blocked admin ERP screens now on premium templates (2026-07-12).** (Mantine fully removed 2026-07-10)
 ├── docs/                # Design docs (TL00-TL31, frozen design corpus)
 └── plans/               # Session reports (audits, remediation, deep reviews)
 ```

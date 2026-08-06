@@ -73,3 +73,22 @@ Replaced AppFrame/SideNav shell with Odoo navbar:
   (~39 UI components still emit ck-*; admin markup almost clean).
 - ui-e2e still open merge gate.
 
+
+## Session 5 — Phase 6 complete (unit)
+
+### PR A — Premium retirement
+- Mirrored premium.css selectors under `.o_web_client` inside odoo.css.
+- Removed `import '@cmc/ui/premium.css'` from apps/admin main.tsx.
+- Left packages/ui/src/premium.css untouched (LMS still imports it).
+
+### PR B — Design lab deletion
+- Deleted all design-lab* pages/CSS.
+- Removed /design, /design2, /design3 routes and RequireAuth allow-list.
+- Cleaned shell Dev palette/systray entries.
+- check-ui-frames EXEMPT reduced to login/change-password/coming-soon.
+
+### PR C — Docs
+- design-system-odoo.md status → rolled out for admin.
+- TL12 banner final superseded-for-admin.
+- Plan Phase 6 completed; ui-e2e/acceptance still recommended merge gates.
+

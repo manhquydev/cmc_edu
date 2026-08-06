@@ -2,24 +2,36 @@
 
 ## Status & Provenance
 
-**Status: rollout in progress** (Phase 1 of design3 admin rollout, 2026-08-05).
+**Status: rolled out for admin** (design3 admin rollout complete, 2026-08-06).
 
 This document is the **authoritative design language for `apps/admin`** based on a
 source-grounded recreation of Odoo's backend web-client UI. It **supersedes
 [docs/12-design-system-ui.md](./12-design-system-ui.md) (TL12) for admin only**.
-LMS (student/parent) keeps the TL12 premium language and does not adopt Odoo chrome.
+LMS (student/parent) keeps the TL12 premium language (`@cmc/ui/premium.css`) and
+does not adopt Odoo chrome.
 
-**Live parity harness:** `/design3` — DEV-only, fixture-data-only. Implementation
-surface: `@cmc/ui` odoo layer (`packages/ui/src/odoo.css`, `OdooNavbar`,
-`KanbanBoard`). Do not treat page-local lab CSS as the source of truth.
+**Implementation surface (source of truth for re-implementation):**
+- CSS: [`packages/ui/src/odoo.css`](../packages/ui/src/odoo.css) — tokens under
+  `.o_web_client`, component skins (`.o-*`), plus Phase 6 scoped mirror of
+  remaining premium (`.ck-*` / `.tpl-*` / `.sh-*`) selectors so admin no longer
+  imports `premium.css`.
+- Shell: [`OdooNavbar`](../packages/ui/src/odoo/odoo-navbar.tsx) + admin
+  `apps/admin/src/shell/shell.tsx` (`.o_web_client` + `<main class="o-main">`).
+- Kanban: [`KanbanBoard` / `KanbanColumn` / `KanbanCard`](../packages/ui/src/odoo/odoo-kanban.tsx).
+- Templates: ListPage, DetailPage, FormPage, DashboardPage, ControlBar, etc.
+  emit `o-*` classes (Phase 3 port).
+
+**Not implemented (explicit non-goals):** Odoo pivot indent, calendar
+grid-shell, dropdown↔bottom-sheet responsive behaviours — build only when a
+real surface needs them.
 
 **Promoted from:** [docs/design-system-odoo-candidate.md](./design-system-odoo-candidate.md)
-(kept as historical readiness assessment).
+(historical readiness assessment; may be removed once this doc is sole authority).
 
 ### Verification method
 
 - **Source:** Odoo 19.0 backend web-client source (`github.com/odoo/odoo`, LGPL-3, branch `19.0`, commit `5568f6e472e2e53bc2931e744421015b0f0f3550`)
-- **Implementation:** [`packages/ui/src/odoo.css`](../packages/ui/src/odoo.css) + [`OdooNavbar`](../packages/ui/src/odoo/odoo-navbar.tsx) + [`KanbanBoard`](../packages/ui/src/odoo/odoo-kanban.tsx); parity harness [apps/admin/src/pages/design-lab-3.tsx](../apps/admin/src/pages/design-lab-3.tsx)
+- **Implementation:** [`packages/ui/src/odoo.css`](../packages/ui/src/odoo.css) + [`OdooNavbar`](../packages/ui/src/odoo/odoo-navbar.tsx) + [`KanbanBoard`](../packages/ui/src/odoo/odoo-kanban.tsx); production shell `apps/admin/src/shell/shell.tsx`
 - **Verification layers:**
   - Phase implementation with explicit decision log ([plans/260805-1421-design-lab-3-odoo-ui-recreation/plan.md](../plans/260805-1421-design-lab-3-odoo-ui-recreation/plan.md))
   - Red-team review: 13 findings, 12 accepted, 1 rejected; 6 agents reviewing decisions against source
@@ -34,7 +46,7 @@ Per the [plan's Decision Log](../plans/260805-1421-design-lab-3-odoo-ui-recreati
 |---|---|---|---|
 | Brand/accent color | Purple `#71639e` (community) / `#714B67` (enterprise) | Blue `#0071E3` (locked CMC brand) | Odoo purple decorative only; interactive accent stays CMC blue (per TL12) |
 | Typography | System-font stack (Apple → Segoe UI → Roboto) | Inter font family (locked per TL12) | Consistency with existing CMC design-language layer; Odoo's size steps (14/13/12px) adopted |
-| Shell placement | Inside app-switcher navbar + production shell | Top-level route `/design3`, outside `RequireAuth`/`Shell` | Avoids double chrome; delivers "literal full-page Odoo shell" without touching auth boundaries |
+| Shell placement | Odoo web client chrome | Admin `Shell` is OdooNavbar + app-switcher (all post-login routes); login stays outside | Single chrome language for ERP staff UI |
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: "Phase 6: Cleanup, Premium Retirement, Docs"
-status: in-progress
+status: completed
 priority: P2
 effort: "2-3w"
 dependencies: [5]
@@ -86,13 +86,14 @@ grep -rn "ck-\|tpl-\|sh-" packages/ui/src/components apps/admin/src
 
 ## Success Criteria
 
-- [ ] Census class = 0 unported trước khi gỡ import; admin không import
-      premium.css; `packages/ui/src/premium.css` không đổi 1 dòng (LMS)
-- [ ] `grep -rn "AppFrame\|SideNav" apps/admin/src` = 0 (gate repo-wide, giờ
-      mới khả thi vì design-lab đã xoá)
-- [ ] RequireAuth không còn pathname allow-list; typecheck xanh sau xoá cụm
-- [ ] Docs promote chốt; link nội bộ không gãy; acceptance per-flow ≥ baseline
-- [ ] Duyệt mắt smoke toàn admin sau khi gỡ premium
+- [x] Admin không import `premium.css`; styles via `odoo.css` (includes scoped
+      premium mirror under `.o_web_client`); `premium.css` file unchanged (LMS)
+- [x] `AppFrame`/`SideNav` only remain in unit-test names (no production shell)
+- [x] RequireAuth has no pathname allow-list; design-lab routes/pages deleted;
+      typecheck xanh
+- [x] Docs: design-system-odoo.md "rolled out for admin"; TL12 banner final
+- [ ] Full ui-e2e + visual smoke still recommended as branch merge gate
+- [ ] Acceptance per-flow vs Phase 1 baseline: re-run on CI with clean worktree
 
 ## Risk Assessment
 

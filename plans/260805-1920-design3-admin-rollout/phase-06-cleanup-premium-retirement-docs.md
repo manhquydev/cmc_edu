@@ -1,6 +1,6 @@
 ---
 title: "Phase 6: Cleanup, Premium Retirement, Docs"
-status: todo
+status: in-progress
 priority: P2
 effort: "2-3w"
 dependencies: [5]

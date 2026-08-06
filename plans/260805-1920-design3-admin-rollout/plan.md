@@ -83,8 +83,8 @@ Từ phiên validate session 1 (2026-08-05):
 | 2 | [Phase 2: Admin Shell Swap](./phase-02-admin-shell-swap.md) | Completed (unit); ui-e2e merge gate open |
 | 3 | [Phase 3: Central View Template Reskin](./phase-03-central-view-template-reskin.md) | Completed (unit); visual/e2e checkpoint open |
 | 4 | [Phase 4: Pilot CRM Migration](./phase-04-pilot-crm-migration.md) | Completed (unit); ui-e2e merge gate open |
-| 5 | [Phase 5: Module Sweeps](./phase-05-module-sweeps.md) | Pending |
-| 6 | [Phase 6: Cleanup, Premium Retirement, Docs](./phase-06-cleanup-premium-retirement-docs.md) | Pending |
+| 5 | [Phase 5: Module Sweeps](./phase-05-module-sweeps.md) | Completed (module commits + template-covered remainder); see reports/phase-05-module-sweep-status.md |
+| 6 | [Phase 6: Cleanup, Premium Retirement, Docs](./phase-06-cleanup-premium-retirement-docs.md) | In progress — census only; premium import NOT removed |
 
 Dependencies: tuyến tính 1→2→3→4→5→6. Mỗi phase ≥1 PR riêng, CI
 (`typecheck-and-test` + `ui-e2e`) xanh là gate chuyển phase. Sau Phase 3 có

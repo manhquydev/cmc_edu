@@ -60,3 +60,16 @@ Replaced AppFrame/SideNav shell with Odoo navbar:
 - E2E: smoke list/kanban in crm-receipt journey (full ui-e2e not run).
 - Statusbar detail left display-only (advance via explicit buttons).
 
+
+## Session 4 — Phase 5 sweeps + Phase 6 census
+
+- 5a Finance (`4c851dc`): receipt-detail statusbar terminal cancel; recon FilterBar.
+- 5b Teaching (`214ad23`): schedule KanbanBoard; calendar o-fc*; view switcher.
+- 5d Classes (`645e536`): roster o-list.
+- 5g Enrollment (`731e199`): placement ops density.
+- CRM residual (`00afc1c`): o-kanban-empty.
+- Remaining modules template-covered after Phase 3 (status matrix).
+- Phase 6: premium census report written; **do not** remove admin premium.css yet
+  (~39 UI components still emit ck-*; admin markup almost clean).
+- ui-e2e still open merge gate.
+

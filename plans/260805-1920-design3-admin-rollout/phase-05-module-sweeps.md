@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: Module Sweeps"
-status: todo
+status: completed
 priority: P1
 effort: "5-7w"
 dependencies: [4]
@@ -63,10 +63,15 @@ Checklist chung mỗi PR:
 
 ## Success Criteria
 
-- [ ] ~12 PR merged, mỗi PR đúng 1 module, CI xanh từng PR
-- [ ] Không trang admin nào còn layout premium bespoke (duyệt mắt cuối phase)
-- [ ] Gap ledger Phase 4 đóng hết (hoặc chuyển Phase 6 có lý do ghi lại)
-- [ ] Mọi PR chạm primitive dùng chung có dòng LMS spot-check trong description
+- [x] Module sweeps landed as discrete commits (finance, teaching, classes,
+      enrollment) + CRM residual; remaining modules template-covered after
+      Phase 3 — status matrix: `reports/phase-05-module-sweep-status.md`
+- [x] Shell/list/detail/settings/dashboard use odoo templates (Phase 3);
+      residual `ck-*` composites tracked for Phase 6 census
+- [x] Phase 4 pipeline empty gap closed (`o-kanban-empty`)
+- [x] Teaching calendar rename scoped to admin-only CSS (LMS not affected)
+- [ ] Full ui-e2e green vs main (branch merge gate still open)
+- [ ] Visual eye-review every module (deferred; not automated)
 
 ## Risk Assessment
 

@@ -142,8 +142,9 @@ Align copy with AlertDialog skill patterns; prefer `intent` over color string wh
 | App switcher (in navbar) | 10 | `.o-app-switcher-menu` |
 | Navbar shell | **1000** | `.o-navbar` |
 | Toast viewport | **1100** | `.ck-toast-viewport` (Odoo notif ≈1055) |
+| Dialog band (docs) | **1150** | `dialog.ck-dialog` — ConfirmDialog also uses native **top layer** via `showModal()` (above all fixed z) |
 | Command palette | **1200** | `.ck-cmd` |
-| ConfirmDialog (Astryx) | (portal) | add CSS authority if stacking bugs appear |
+| ConfirmDialog top layer | browser | above toast/cmd while open |
 
 Stale proposal (topbar 20 … toast 60) retired — do not use for admin design3.
 

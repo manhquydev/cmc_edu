@@ -2375,15 +2375,19 @@ button.o-kanban-card {
 /* Float band: above .o-navbar (1000), below .ck-cmd (1200). Odoo notifications ≈1055. */
 .ck-toast-viewport{
   position: fixed; z-index: 1100; right: 20px; bottom: 20px;
-  display: flex; flex-direction: column; gap: 10px;
-  max-width: min(380px, calc(100vw - 32px)); pointer-events: none;
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
 }
 .ck-toast{
-  pointer-events: auto; display: flex; align-items: flex-start; gap: 10px;
-  padding: 12px 14px; border-radius: var(--cmc-radius-lg);
-  background: var(--cmc-surface-raised); box-shadow: var(--cmc-shadow-lg);
-  border: 1px solid var(--cmc-border-subtle); border-left-width: 3px;
-  font-family: var(--cmc-font-sans);
+  pointer-events: auto;
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 12px 12px 14px;
+  background: var(--cmc-surface-raised);
+  border: 1px solid var(--cmc-border-subtle);
+  border-left: 3px solid var(--cmc-border);
+  border-radius: var(--cmc-radius-md);
+  box-shadow: var(--cmc-shadow-lg);
 }
 .ck-toast--success{ border-left-color: var(--cmc-success); }
 .ck-toast--error{ border-left-color: var(--cmc-danger); }
@@ -2393,11 +2397,34 @@ button.o-kanban-card {
 .ck-toast-desc{ margin-top: 3px; font-size: 12.5px; color: var(--cmc-text-muted); line-height: 1.4; }
 .ck-toast-dismiss{
   flex-shrink: 0; width: 28px; height: 28px; border: none; border-radius: var(--cmc-radius-control);
-  background: transparent; color: var(--cmc-text-faint); cursor: pointer;
-  font-size: 18px; line-height: 1; font-family: inherit;
-  transition: background var(--cmc-transition), color var(--cmc-transition);
+  background: transparent; color: var(--cmc-text-muted); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 .ck-toast-dismiss:hover{ background: var(--cmc-surface-sunken); color: var(--cmc-text); }
+
+/*
+ * ConfirmDialog (Astryx AlertDialog → native <dialog>.showModal).
+ * Browser top layer paints ABOVE all fixed z-index (toast 1100, cmd 1200).
+ * Markers + backdrop chrome live here; z-index 1150 documents the intended
+ * band if a future non-modal path is used.
+ */
+.ck-dialog-root{
+  /* Registry hook only — does not create a stacking context for showModal. */
+  display: contents;
+}
+dialog.ck-dialog{
+  z-index: 1150;
+  border: 1px solid var(--cmc-border-subtle);
+  border-radius: var(--cmc-radius-lg);
+  box-shadow: var(--cmc-shadow-lg);
+  background: var(--cmc-surface-raised);
+  color: var(--cmc-text);
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 0;
+}
+dialog.ck-dialog::backdrop{
+  background: rgba(29, 29, 31, 0.45);
+}
 @media (prefers-reduced-motion: reduce) {
   .o_web_client .sh-cta, .o_web_client .ck-mc, .o_web_client .sh-item, .ck-toast, .o_web_client .ck-fn-fill{ transition: none; }
   .o_web_client .sh-cta:active, .o_web_client .ck-mc:active{ transform: none; }

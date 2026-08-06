@@ -61,4 +61,17 @@ describe('odoo.css float-layer scope (toast + command palette)', () => {
     expect(toastZ).toBeGreaterThan(navZ);
     expect(cmdZ).toBeGreaterThan(toastZ);
   });
+
+  it('ships unscoped dialog.ck-dialog chrome (ConfirmDialog / top-layer)', () => {
+    const body = ruleBlock('dialog.ck-dialog');
+    expect(body, 'expected dialog.ck-dialog {…} in odoo.css').toBeTruthy();
+    expect(body).toMatch(/z-index\s*:\s*1150/);
+    expect(css).toMatch(/dialog\.ck-dialog::backdrop\s*\{/);
+    expect(css).toMatch(/\.ck-dialog-root\s*\{/);
+    // Fixed ladder still holds; native showModal paints above this ladder.
+    const toastZ = Number(ruleBlock('.ck-toast-viewport')!.match(/z-index\s*:\s*(\d+)/)?.[1]);
+    const cmdZ = Number(ruleBlock('.ck-cmd')!.match(/z-index\s*:\s*(\d+)/)?.[1]);
+    expect(1150).toBeGreaterThan(toastZ);
+    expect(cmdZ).toBeGreaterThan(1150);
+  });
 });

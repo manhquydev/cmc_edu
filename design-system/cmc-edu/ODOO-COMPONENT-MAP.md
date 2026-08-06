@@ -121,12 +121,14 @@ DetailPage
 
 Refresh statuses via the dissection process in `plans/260806-odoo-ui-component-dissection/plan.md` when Odoo pin or shell changes.
 
-**Last status refresh:** 2026-08-06 — thin statusbar sticky **SHIPPED**; navbar stacking **SHIPPED**; brand=module **SHIPPED**; kanban responsive **SHIPPED**; form dual-sheet **SHIPPED**; list Astryx sticky **CUT/debt**; SettingsShell **PARTIAL** (no P1 — see xia settings); float toast z-band **SHIPPED** (1100 under cmd 1200).
+**Last status refresh:** 2026-08-06 — thin statusbar sticky **SHIPPED**; navbar stacking **SHIPPED**; brand=module **SHIPPED**; kanban responsive **SHIPPED**; form dual-sheet **SHIPPED**; list Astryx sticky **CUT/debt**; SettingsShell **PARTIAL** (no P1 — see xia settings); float toast z-band **SHIPPED** (1100); ConfirmDialog **SHIPPED** markers (`ck-dialog` / top-layer note).
 
 ### Float stacking (design3)
 
 ```text
-page chrome (1–10) < .o-navbar (1000) < .ck-toast-viewport (1100) < .ck-cmd (1200)
+page chrome (1–10) < .o-navbar (1000) < .ck-toast-viewport (1100)
+  < dialog.ck-dialog band (1150) < .ck-cmd (1200)
+native <dialog>.showModal() top-layer > all of the above while open
 ```
 
 Proof: `packages/ui/src/odoo/odoo-float-layer.test.ts`. Xia: `plans/reports/xia-compare-260806-odoo-float-layers.md`.

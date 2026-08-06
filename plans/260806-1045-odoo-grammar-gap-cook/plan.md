@@ -4,7 +4,7 @@ description: >-
   Cook grammar gaps after red-team: brand=module, kanban responsive, thin
   statusbar sticky (after split), list Astryx target or cut. P0 audit demoted to
   ops. No OWL/3-col CP.
-status: pending
+status: completed
 priority: P1
 branch: feat/design3-admin-rollout
 tags:
@@ -38,7 +38,7 @@ Close professional-parity gaps from the 2026-08-06 xia compare suite against `od
 | 2 | [Brand module name](./phase-02-brand-module-name.md) | Completed |
 | 3 | [Thin statusbar sticky md+](./phase-03-statusbar-sticky-md.md) | Completed |
 | 4 | [Kanban responsive width](./phase-04-kanban-gutter-responsive.md) | Completed |
-| 5 | [List table grammar (Astryx)](./phase-05-list-ops-pad-sticky-e2e.md) | Pending |
+| 5 | [List table grammar (Astryx)](./phase-05-list-ops-pad-sticky-e2e.md) | Completed |
 | 6 | [Docs delta in PR](./phase-06-docs-matrix-sync.md) | Completed |
 
 ## Locked decisions

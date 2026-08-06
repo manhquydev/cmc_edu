@@ -104,16 +104,16 @@ Skip one-off decorative pixels.
 | # | Phase | Focus | Status |
 |---|-------|-------|--------|
 | 0 | Process + matrix + wireframes | This plan + reports + evergreen map | **Done 2026-08-06**; **refreshed** same day (`reports/delta-260806-refresh.md`) |
-| 1 | Shell stacking / float layers | Navbar z-index, dropdown over main (from frontend audit) | Source fix landed; deploy verify open |
-| 1b | ControlBar densify + form sheet (P1) | [phase-01](./phase-01-controlbar-form-sheet-p1.md) — CP flat band + Detail/Form dual sheet | **Done unit 2026-08-06** (CRM/finance inherit) |
-| 1c | Navbar brand = module name | Product decision 2026-08-06; still fixed “CMC EDU” in code | Backlog cook |
-| 2 | ControlPanel slot fidelity | LEFT/CENTER/RIGHT bands, view switcher density, selection replaces search | Partial (densify landed; L/C/R still open) |
-| 3 | Form sheet grammar | sheet_bg → statusbar sticky → sheet → notebook order | **Sheet dual-layer SHIPPED**; sticky statusbar md+ still Partial |
-| 4 | List density & sticky thead | table cell padding, sticky header z-index under shell | Partial |
+| 1 | Shell stacking / float layers | Navbar z-index, dropdown over main (from frontend audit) | **SHIPPED** (+ toast/dialog float contracts) |
+| 1b | ControlBar densify + form sheet (P1) | [phase-01](./phase-01-controlbar-form-sheet-p1.md) — CP flat band + Detail/Form dual sheet | **Done** |
+| 1c | Navbar brand = module name | Product decision 2026-08-06 | **SHIPPED** |
+| 2 | ControlPanel slot fidelity | LEFT/CENTER/RIGHT bands, view switcher density, selection replaces search | **Accept densify** — L/C/R SKIP |
+| 3 | Form sheet grammar | sheet_bg → statusbar sticky → sheet → notebook order | **SHIPPED** (thin statusbar md+) |
+| 4 | List density & sticky thead | table cell padding, sticky header z-index under shell | Tokens OK; sticky e2e **CUT/debt** |
 | 5 | Search / facets (lite) | Not full Odoo search model — FilterBar + bulk only | Accept partial |
 | 6 | Class purity | Optional `ck-*` → `o-*` rename | Backlog |
-| X | Xia compare (read-only) | `/ak:xia` odoo-src layout grammar `--compare` — brief in brainstorm report | **Next analytical pass** |
-| A | Agent OS (anti-sprawl) | [AGENT-COMMAND-MAP.md](./AGENT-COMMAND-MAP.md) — allowlist paths + ak/ck lanes | **Done 2026-08-06** |
+| X | Xia compare (read-only) | 7 surfaces (shell…float+settings) | **Done 2026-08-06** — synthesis acceptance close |
+| A | Agent OS (anti-sprawl) | [AGENT-COMMAND-MAP.md](./AGENT-COMMAND-MAP.md) | **Done** |
 
 ## Acceptance
 
@@ -122,11 +122,12 @@ Skip one-off decorative pixels.
 - [x] Full Odoo→CMC component matrix with status codes
 - [x] Evergreen map linked from design-system kit
 - [x] 2026-08-06 refresh: form sheet status + backlog aligned to shipped code (`delta-260806-refresh.md`)
-- [ ] Live re-audit after admin image rebuild (`menuCoveredCount=0`)
-- [x] `/ak:xia --compare` layout grammar pass (see brainstorm xia brief)
-  - Reports: `plans/reports/xia-compare-260806-odoo-{shell-navbar,form-sheet,control-panel,list-density,kanban}.md`
+- [x] Live re-audit after admin image rebuild (`menuCoveredCount=0`)
+- [x] `/ak:xia --compare` layout grammar pass (7 surfaces + synthesis acceptance)
+  - Reports: `plans/reports/xia-compare-260806-odoo-*.md`
   - Synthesis: `plans/reports/xia-compare-synthesis-260806-odoo-layout.md`
-- [ ] Phase 1c / 2–4 gaps triaged into cook packages when prioritized
+- [x] Phase 1c / form sticky / float P1 triaged and cooked on `feat/design3-admin-rollout`
+- [ ] Optional P2 (Settings mobile / list sticky debt) — not blocking this wave
 
 ## Dependencies
 

@@ -1,9 +1,9 @@
 ---
 phase: 5
-title: "List table grammar (Astryx)"
-status: cancelled
+title: List table grammar (Astryx)
+status: completed
 priority: P2
-effort: "cut"
+effort: cut
 dependencies: []
 ---
 

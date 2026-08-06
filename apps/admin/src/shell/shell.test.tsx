@@ -79,6 +79,7 @@ function renderShell(route = '/cockpit') {
           { path: 'cockpit', element: <div>cockpit-body</div> },
           { path: 'finance', element: <div>finance-body</div> },
           { path: 'change-password', element: <div>change-password-body</div> },
+          { path: 'unknown', element: <div>unknown-body</div> },
         ],
       },
     ],
@@ -110,9 +111,15 @@ describe('Shell (Odoo chrome)', () => {
     const { container } = renderShell('/cockpit');
     expect(container.querySelector('.o_web_client')).toBeInTheDocument();
     expect(screen.getByLabelText('Mở app switcher')).toBeInTheDocument();
-    expect(screen.getByText('CMC EDU')).toBeInTheDocument();
+    // Brand tracks active module label (cockpit → Tổng quan), not a hardcoded product name.
+    expect(container.querySelector('.o-brand')).toHaveTextContent('Tổng quan');
     expect(screen.getByRole('main')).toBeInTheDocument();
     expect(screen.getByText('cockpit-body')).toBeInTheDocument();
+  });
+
+  it('falls back brand to CMC EDU when pathname matches no module', () => {
+    const { container } = renderShell('/unknown');
+    expect(container.querySelector('.o-brand')).toHaveTextContent('CMC EDU');
   });
 
   it('does not throw and shows zero apps when me is null (anonymous allow-list)', () => {

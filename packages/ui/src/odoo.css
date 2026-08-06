@@ -95,7 +95,12 @@
 /* ------------------------------------------------------------------ */
 
 .o-navbar {
+  /* Shell stacking layer: app-switcher is position:absolute under this bar.
+     Without a z-index, later flex sibling main.o-main (and its .o-page-header
+     / sticky control chrome) paints over the open menu — live audit 2026-08-06
+     confirmed hits on session-assessment and 6 sibling Form/Detail pages. */
   position: relative;
+  z-index: 1000;
   display: flex;
   align-items: center;
   height: var(--odoo-navbar-height);
@@ -475,6 +480,19 @@
   border-radius: var(--odoo-radius);
   padding: var(--odoo-kanban-gutter);
   max-height: min(70vh, 640px);
+}
+
+/* Narrow viewports only — keep desktop col shrink-wrapped around 320px cards
+   (explicit col width + border-box padding clips cards; see cook review High #1). */
+@media (max-width: 768px) {
+  .o-kanban-col {
+    width: min(90vw, var(--odoo-kanban-card-width-sm));
+  }
+
+  .o-kanban-card,
+  .o-kanban-empty {
+    width: 100%;
+  }
 }
 
 .o-kanban-col-header {
@@ -913,6 +931,28 @@ button.o-kanban-card {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-section);
+}
+/* Odoo form dual-layer: sheet_bg (canvas band) + white sheet */
+.o-form-sheet-bg {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: var(--odoo-sheet-max-width, 1400px);
+  min-width: 0;
+  /* Prefer left align like Odoo sheet_bg (not centered alone) */
+  margin-inline: 0 auto 0 0;
+}
+.o-form-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cmc-gap-cluster);
+  min-width: 0;
+  background: var(--cmc-surface-raised, #fff);
+  border: 1px solid var(--cmc-border-subtle, var(--odoo-gray-300, #dee2e6));
+  border-radius: var(--odoo-radius, 4px);
+  padding: 16px var(--cmc-keyline-x, 16px);
+  box-sizing: border-box;
 }
 .o-detail-entity {
   min-width: 0;
@@ -1364,16 +1404,49 @@ button.o-kanban-card {
   min-width: 0;
 }
 
-/* Odoo-density control panel: flat white band (overrides sticky blur if desired) */
+/* Odoo-density control panel: single flat white band (no nested cards) */
 .o_web_client .o-control-bar {
   background: #fff;
   border-bottom: 1px solid var(--odoo-gray-300, #dee2e6);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: none;
-  margin-inline: 0;
-  padding: 8px 16px;
-  gap: 12px;
+  margin-inline: calc(-1 * 16px);
+  padding: 8px 16px 10px;
+  gap: 8px;
+  border-radius: 0;
+}
+.o_web_client .o-wrap--ops .o-control-bar {
+  margin-inline: calc(-1 * 14px);
+  padding-inline: 14px;
+}
+/* Flatten PageHeader / FilterBar when they live inside the CP band */
+.o_web_client .o-control-bar .o-page-header {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+}
+.o_web_client .o-control-bar .o-filter-bar {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 2px 0 0;
+  min-height: 0;
+  gap: 8px;
+}
+.o_web_client .o-control-bar-footer {
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 6px;
+  margin-top: 2px;
+  border-top: 1px solid var(--odoo-gray-200, #e9ecef);
+}
+/* List body sits tight under CP */
+.o_web_client .o-list-body {
+  gap: 0;
 }
 
 /* Chevron ProgressSteps (Odoo statusbar analogue) — horizontal arrow buttons */
@@ -1450,20 +1523,53 @@ button.o-kanban-card {
 .o_web_client .o-wrap {
   background: var(--odoo-gray-100, #f8f9fa);
   padding: 16px;
-  gap: 16px;
+  gap: 12px;
 }
-.o_web_client .o-wrap--ops { padding: 12px 14px; gap: 12px; }
+.o_web_client .o-wrap--ops { padding: 12px 14px; gap: 10px; }
 .o_web_client .o-page-header {
   background: #fff;
   border: 1px solid var(--odoo-gray-300, #dee2e6);
   border-radius: var(--odoo-radius, 4px);
   box-shadow: none;
+  /* Not sticky under Odoo shell — scroll lives on main.o-main. Clear base
+     sticky + z-index:10 so page chrome never competes with the navbar layer. */
   position: static;
+  z-index: auto;
 }
+/* Standalone filter (rare outside CP) keeps light sunken chrome */
 .o_web_client .o-filter-bar {
   background: var(--odoo-gray-100, #f8f9fa);
   border: 1px solid var(--odoo-gray-300, #dee2e6);
   border-radius: var(--odoo-radius-sm, 3px);
+}
+/* Form sheet grammar under shell */
+.o_web_client .o-form-sheet-bg {
+  max-width: var(--odoo-sheet-max-width, 1400px);
+  gap: 10px;
+}
+.o_web_client .o-form-sheet {
+  background: #fff;
+  border: 1px solid var(--odoo-gray-300, #dee2e6);
+  border-radius: var(--odoo-radius, 4px);
+  box-shadow: none;
+  padding: 14px 16px 16px;
+  gap: 14px;
+}
+/* Summary band = statusbar / highlight strip above the white sheet.
+   Not sticky: pilot summaries include tall HighlightStrip + statusbar; sticky
+   only when summary is thin statusbar-only (later split). */
+.o_web_client .o-form-sheet-bg > .o-detail-summary {
+  padding: 0 0 4px;
+  background: transparent;
+}
+/* Entity inside sheet: drop second card chrome */
+.o_web_client .o-form-sheet .o-eh {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--odoo-gray-200, #e9ecef);
 }
 .o_web_client .o-mc {
   border-radius: var(--odoo-radius, 4px);

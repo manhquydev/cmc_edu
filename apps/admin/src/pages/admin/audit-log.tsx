@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   DataTable,
   EmptyState,
@@ -24,6 +24,8 @@ interface AuditRow {
 }
 
 const PAGE_SIZE = 20;
+/** Free-text filters debounce — dates apply immediately (no keystroke spam). */
+const TEXT_DEBOUNCE_MS = 300;
 
 const AUDIT_FILTERS: FilterDef[] = [
   { key: 'actor', label: 'Người thực hiện', type: 'text', placeholder: 'User id…' },
@@ -72,12 +74,39 @@ function toCreatedToIso(dateText: string): string | undefined {
 
 function AuditLogContent() {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [debouncedText, setDebouncedText] = useState({
+    actor: '',
+    action: '',
+    entity: '',
+  });
   const [page, setPage] = useState(1);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedText({
+        actor: filters.actor,
+        action: filters.action,
+        entity: filters.entity,
+      });
+    }, TEXT_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [filters.actor, filters.action, filters.entity]);
+
+  // Restart pagination when the effective query set changes.
+  useEffect(() => {
+    setPage(1);
+  }, [
+    debouncedText.actor,
+    debouncedText.action,
+    debouncedText.entity,
+    filters.createdFrom,
+    filters.createdTo,
+  ]);
+
   const { data, isLoading, error } = trpc.audit.list.useQuery({
-    ...(filters.actor ? { actor: filters.actor } : {}),
-    ...(filters.action ? { action: filters.action } : {}),
-    ...(filters.entity ? { entity: filters.entity } : {}),
+    ...(debouncedText.actor ? { actor: debouncedText.actor } : {}),
+    ...(debouncedText.action ? { action: debouncedText.action } : {}),
+    ...(debouncedText.entity ? { entity: debouncedText.entity } : {}),
     ...(toCreatedFromIso(filters.createdFrom)
       ? { createdFrom: toCreatedFromIso(filters.createdFrom) }
       : {}),
@@ -103,10 +132,7 @@ function AuditLogContent() {
         <FilterBar
           filters={AUDIT_FILTERS}
           value={filters}
-          onChange={(next) => {
-            setFilters({ ...EMPTY_FILTERS, ...next });
-            setPage(1);
-          }}
+          onChange={(next) => setFilters({ ...EMPTY_FILTERS, ...next })}
         />
       }
       controlFooter={

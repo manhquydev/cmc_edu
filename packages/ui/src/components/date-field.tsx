@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 /**
  * Shared date control for design3 admin (Odoo date-field lite).
  * Native `type="date"` with Odoo density tokens — no calendar library.
@@ -8,7 +10,7 @@ export interface DateFieldProps {
   onChange: (value: string) => void;
   /** Hide the visible label (still sets aria-label). */
   isLabelHidden?: boolean;
-  /** Optional `id` for label association. */
+  /** Stable id for label association (prefer filter key). Falls back to useId(). */
   id?: string;
   /** Disable the control. */
   disabled?: boolean;
@@ -27,7 +29,8 @@ export function DateField({
   size = 'sm',
   className,
 }: DateFieldProps) {
-  const inputId = id ?? `date-field-${label.replace(/\s+/g, '-').toLowerCase()}`;
+  const reactId = useId();
+  const inputId = id ?? reactId;
   return (
     <label
       className={['o-date-field', size === 'sm' ? 'o-date-field--sm' : '', className]

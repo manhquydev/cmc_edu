@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // Phase-04 super-admin-completion: audit-log viewer — bảng ai-làm-gì-khi-nào
@@ -58,6 +58,11 @@ describe('AuditLogPage', () => {
     sessionRoles = ['super_admin'];
     auditListState.data = { items: [ROW_A], total: 1, page: 1, pageSize: 20 };
     listQuerySpy.mockClear();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders audit rows bound to audit.list.useQuery', () => {
@@ -67,14 +72,27 @@ describe('AuditLogPage', () => {
     expect(screen.getByText('Facility')).toBeInTheDocument();
   });
 
-  it('applies actor/action/entity filters to the audit.list query live via FilterBar', () => {
+  it('applies actor/action/entity filters to audit.list after text debounce', async () => {
     renderWithProviders(<AuditLogPage />);
     fireEvent.change(screen.getByLabelText('Người thực hiện'), { target: { value: 'staff-2' } });
     fireEvent.change(screen.getByLabelText('Loại việc'), { target: { value: 'user.updateRoles' } });
     fireEvent.change(screen.getByLabelText('Đối tượng'), { target: { value: 'AppUser' } });
 
-    const lastCallArgs = listQuerySpy.mock.calls.at(-1)?.[0];
-    expect(lastCallArgs).toMatchObject({ actor: 'staff-2', action: 'user.updateRoles', entity: 'AppUser', page: 1 });
+    // Immediate keystrokes must not hit the server with partial free-text.
+    const midCall = listQuerySpy.mock.calls.at(-1)?.[0] as { actor?: string } | undefined;
+    expect(midCall?.actor).toBeUndefined();
+
+    await vi.advanceTimersByTimeAsync(350);
+
+    await waitFor(() => {
+      const lastCallArgs = listQuerySpy.mock.calls.at(-1)?.[0];
+      expect(lastCallArgs).toMatchObject({
+        actor: 'staff-2',
+        action: 'user.updateRoles',
+        entity: 'AppUser',
+        page: 1,
+      });
+    });
   });
 
   it('maps date fields to inclusive ICT day bounds for audit.list', () => {

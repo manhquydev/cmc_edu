@@ -510,7 +510,7 @@ const FILTERS: FilterDef[] = [
 | Rewards | `engagement/rewards.tsx` | B select | Uncontrolled URL |
 | Reconciliation | `finance/reconciliation.tsx` | B select | Controlled + URL |
 | Receipt list | `finance/receipt-list.tsx` | C select+text | Controlled + URL |
-| Pipeline | `crm/pipeline.tsx` | Hybrid (non-FilterBar) | Custom |
+| Pipeline | `crm/pipeline.tsx` | FilterBar (`q` + `lost`) post-cook | Controlled |
 
 **No admin list currently defines ≥3 named presets.** That is why SearchChrome cook remains parked.
 

@@ -25,7 +25,7 @@
 | Pages with any standard frame | **40 / 55 = 72.7%** |
 | Routed pages with frame (ex dialogs/panels) | **40 / 44 = 90.9%** |
 | Shell OdooNavbar + `.o_web_client` | **100%** |
-| List surfaces with FilterBar | **7 / 23 = 30.4%** |
+| List surfaces with FilterBar | **7 / 23 = 30.4%** (audit snapshot); **post-cook 12/23 ≈ 52%** — see debt list 260806-1538 |
 
 **Implication:** Migrating more pages onto ListPage/DetailPage is **no longer** the main Odoo-parity lever. The hole is **list search chrome** (G1) and **form field primitives** (G2), not missing frames.
 

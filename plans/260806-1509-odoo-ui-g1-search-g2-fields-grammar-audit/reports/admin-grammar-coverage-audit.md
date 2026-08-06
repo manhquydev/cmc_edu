@@ -20,7 +20,7 @@
 | Primary frame = `SettingsShell` alone | **0 / 55** | **0%** |
 | **Mixed** (two+ frames in one file) | **4 / 55** | **7.3%** |
 | **Bespoke** (none of the five frames) | **15 / 55** | **27.3%** |
-| List-shaped pages with **`FilterBar`** | **7 / 23** | **30.4%** |
+| List-shaped pages with **`FilterBar`** | **7 / 23** (audit snapshot) | **30.4%** → **12/23 post-cook (~52%)** |
 | List-shaped pages with **`filters=` slot** (FilterBar *or* custom) | **8 / 23** | **34.8%** |
 | **Shell** uses `OdooNavbar` + `.o_web_client` | **1 / 1** (`shell.tsx`) | **100%** |
 

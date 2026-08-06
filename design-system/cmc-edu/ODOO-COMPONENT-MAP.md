@@ -127,7 +127,7 @@ Odoo CP center                          CMC ControlBar.filters (target)
 | domain / properties / studio | — | **SKIP** |
 
 **Coverage audit (pages):**  
-[admin-grammar-coverage-audit.md](../../plans/260806-1509-odoo-ui-g1-search-g2-fields-grammar-audit/reports/admin-grammar-coverage-audit.md) — **40/55** files framed (72.7%); **40/44** routed (90.9%); FilterBar **7/23** lists (30.4%).
+[admin-grammar-coverage-audit.md](../../plans/260806-1509-odoo-ui-g1-search-g2-fields-grammar-audit/reports/admin-grammar-coverage-audit.md) — frames **40/55** (72.7%) / routed **40/44** (90.9%) as of 2026-08-06 audit. **FilterBar (post-cook):** **12/23** list surfaces (**~52%**) — pipeline, kpi, parents, audit-log, gifts added; see debt list for remaining.
 
 ---
 
@@ -186,7 +186,7 @@ DetailPage
 
 Refresh statuses via the dissection process in `plans/260806-odoo-ui-component-dissection/plan.md` when Odoo pin or shell changes.
 
-**Last status refresh:** 2026-08-06 — layout shell/form/kanban/float as before; **Search OS playbook** + **form-field inventory** + **admin grammar audit** landed under `plans/260806-1509-odoo-ui-g1-search-g2-fields-grammar-audit/reports/` (frames 40/55; FilterBar 7/23 lists; G2 top gap = date/datetime).
+**Last status refresh:** 2026-08-06 (post P0) — **DateField** SHIPPED (date only); FilterBar on **12/23** lists; SearchChrome/facets still parked. Playbook + field map: `plans/260806-1509-odoo-ui-g1-search-g2-fields-grammar-audit/`. Review debt: `plans/260806-1538-parallel-comprehensive-review-wave-cook-datefield-filterbar/reports/debt-list.md`.
 
 ### Float stacking (design3)
 

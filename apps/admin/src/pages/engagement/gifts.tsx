@@ -150,6 +150,7 @@ export default function GiftsPage() {
             onChange={(next) => {
               setFilterValues({ active: next.active || 'all' });
               setPage(1);
+              setSelectedIds([]);
             }}
           />
         }

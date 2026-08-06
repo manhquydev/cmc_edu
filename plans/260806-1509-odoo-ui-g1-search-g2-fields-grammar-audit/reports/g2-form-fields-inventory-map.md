@@ -281,7 +281,7 @@ Status legend: **SHIPPED** | **PARTIAL** | **MISSING** | **SKIP** | **N/A**
 | **pdf_viewer** | teaching `pdf-annotator` (special) | PARTIAL | Domain-specific, not a form field |
 | **signature** | — | SKIP | No product requirement |
 | **html** | TextArea plain | MISSING | No rich text widget |
-| **datetime / date / daterange** | TextInput + regex / ISO strings | MISSING | Highest “feels not Odoo form” gap |
+| **datetime / date / daterange** | **`DateField`** (date only, FilterBar + forms) / datetime still free text | PARTIAL | Date primitive SHIPPED 2026-08-06; datetime + form adoption still open |
 | **float_time** | TextInput `HH:mm` | PARTIAL | shift-config / makeup session |
 | **remaining_days** | manual date format | MISSING | Nice-to-have on deadlines |
 | **progress_bar** | Astryx `ProgressBar` | PARTIAL | Exists primitive; not form-field bound |
@@ -305,7 +305,7 @@ Ranked for **staff ERP feel** on create/edit sheets and dense detail forms — n
 
 | # | Gap | Why it hurts | Suggested direction (no implement) |
 |---|-----|--------------|-------------------------------------|
-| 1 | **No date/datetime field** | Makeup sessions, appointments, shifts, reports all use free text or raw ISO — high error rate, zero calendar UX | Small DateField / DateTimeField on Astryx TextInput or native `input type=date` with vi-VN display helper |
+| 1 | **Datetime + form-wide DateField adoption** | `DateField` exists for filters; many forms still free text / raw ISO | Migrate makeup/appointment dialogs; optional DateTimeField |
 | 2 | **many2one = static Selector only** | Owner, teacher, class, unit pickers feel like filters, not “open related record / type to search / create” | Relational combobox pattern: async search + optional “Mở” link; still no OWL |
 | 3 | **x2many not inline** | Class students/sessions, receipt lines, payroll lines are separate tables/dialogs — Odoo power is editable embedded list | Line editor: DataTable + inline cells + add row for 1–2 high-traffic models |
 | 4 | **monetary half-baked** | Receipt amount is the money moment of the product; missing separators/currency chrome | MonetaryInput (VND-first): format on blur, integer minor units |

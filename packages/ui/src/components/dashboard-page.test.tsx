@@ -27,7 +27,7 @@ describe('DashboardPage', () => {
       <DashboardPage title="Tổng quan" primary={<div>P</div>} loading />,
     );
     expect(queryByRole('heading', { name: 'Tổng quan' })).toBeNull();
-    expect(container.querySelector('.tpl-dash')).toBeTruthy();
+    expect(container.querySelector('.o-dash')).toBeTruthy();
   });
 
   it('omits optional slots when not provided', () => {

@@ -110,8 +110,8 @@ function StudentsTab({ classBatchId }: { classBatchId: string }) {
   ];
 
   return (
-    <div className="tpl-detail-panel">
-      <div className="ck-table-shell">
+    <div className="o-detail-panel">
+      <div className="o-list">
         <DataTable<StudentTabRow>
           columns={columns}
           data={(data as StudentTabRow[] | undefined) ?? []}
@@ -511,22 +511,22 @@ function ClassDetailContent() {
   const overviewContent = (() => {
     if (isLoading) {
       return (
-        <div className="tpl-detail-panel">
+        <div className="o-detail-panel">
           <Skeleton height={120} radius={1} />
         </div>
       );
     }
     if (error) {
       return (
-        <div className="tpl-detail-panel">
+        <div className="o-detail-panel">
           <Banner status="error" title="Lỗi tải dữ liệu" description={error.message} />
         </div>
       );
     }
     if (!cls) return null;
     return (
-      <div className="tpl-detail-panel">
-        <div className="tpl-detail-stack">
+      <div className="o-detail-panel">
+        <div className="o-detail-stack">
           <SectionBlock title="Thông tin lớp" description="Tổng quan kỳ học — cùng recipe KeyValue với màn chi tiết khác.">
             <KeyValueList
               items={[

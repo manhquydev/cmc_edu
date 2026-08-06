@@ -5,6 +5,8 @@ import {
   Callout,
   DataTable,
   FilterBar,
+  KanbanBoard,
+  KanbanColumn,
   LineIcon,
   ListPage,
   PageHeader,
@@ -209,7 +211,7 @@ function FullCalendarSessionView({
           void navigate(href);
         }}
       />
-      <Callout tone="info" title="FullCalendar · ClassSession timed">
+      <Callout tone="info" title="Ghi chú lịch dạy">
         Sự kiện = <strong>buổi học có giờ</strong> (ClassSession start/end), không phải kỳ lớp
         all-day. Bấm sự kiện → <strong>chi tiết buổi</strong> (điểm danh / nhận xét / nhật ký).
         Toolbar FC: tháng / tuần giờ / ngày / danh sách. Không kéo thả (editable=false). Lịch trống
@@ -232,30 +234,20 @@ function KanbanView({ rows, loading }: { rows: ClassBatchRow[]; loading: boolean
   }
 
   return (
-    <div className="ck-kanban">
+    <KanbanBoard>
       {KANBAN_COLS.map((col) => {
         const items = byStatus.get(col.key) ?? [];
         return (
-          <div key={col.key} className="ck-kanban-col">
-            <div className="ck-kanban-head">
-              <span className="ck-kanban-title">{col.label}</span>
-              <StatusBadge
-                status={col.key === 'completed' ? 'approved' : col.key}
-                label={String(items.length)}
-                size="sm"
-              />
-            </div>
-            <div className="ck-kanban-body">
-              {items.length === 0 ? (
-                <div className="ck-kanban-empty">Không có lớp</div>
-              ) : (
-                items.map((item) => <SessionCard key={item.id} {...toSessionCard(item, 'default')} />)
-              )}
-            </div>
-          </div>
+          <KanbanColumn key={col.key} title={col.label} count={items.length}>
+            {items.length === 0 ? (
+              <div className="o-kanban-empty">Không có lớp</div>
+            ) : (
+              items.map((item) => <SessionCard key={item.id} {...toSessionCard(item, 'default')} />)
+            )}
+          </KanbanColumn>
         );
       })}
-    </div>
+    </KanbanBoard>
   );
 }
 
@@ -295,17 +287,14 @@ export default function SchedulePage() {
       header={
         <PageHeader
           title="Lịch dạy"
-          subtitle="FullCalendar · buổi học timed · list/kanban Soft Ops"
           breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Lịch dạy' }]}
           actions={
-            <div className="ck-view-toggle" role="toolbar" aria-label="Chế độ xem lịch">
+            <div className="o-view-switcher" role="toolbar" aria-label="Chế độ xem lịch">
               {VIEWS.map((v) => (
                 <button
                   key={v}
                   type="button"
-                  className={['ck-view-toggle-btn', view === v ? 'is-active' : '']
-                    .filter(Boolean)
-                    .join(' ')}
+                  className={view === v ? 'is-active' : ''}
                   aria-label={VIEW_LABELS[v]}
                   aria-pressed={view === v}
                   title={VIEW_LABELS[v]}
@@ -325,14 +314,12 @@ export default function SchedulePage() {
         <Banner status="error" title="Không tải được lịch dạy" description={error.message} />
       ) : null}
       {view === 'list' && !error?.message && (
-        <div className="ck-table-shell">
-          <DataTable<ClassBatchRow>
-            columns={LIST_COLUMNS}
-            data={rows}
-            loading={isLoading}
-            empty="Chưa có lớp học nào"
-          />
-        </div>
+        <DataTable<ClassBatchRow>
+          columns={LIST_COLUMNS}
+          data={rows}
+          loading={isLoading}
+          empty="Chưa có lớp học nào"
+        />
       )}
       {view === 'week' && (
         <FullCalendarSessionView

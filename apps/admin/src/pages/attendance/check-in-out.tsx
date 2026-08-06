@@ -777,7 +777,6 @@ export default function CheckInOutPage() {
     <>
       <PageHeader
         title="Chấm công"
-        subtitle="Điểm danh ca làm việc"
         breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Chấm công' }]}
       />
       <CmcTabs activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />

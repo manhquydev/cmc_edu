@@ -87,7 +87,6 @@ function AuditLogContent() {
       header={
         <PageHeader
           title="Nhật ký hệ thống"
-          subtitle="Ai làm gì, khi nào — mọi thao tác thêm/sửa/xoá thành công (Super Admin)"
           breadcrumbs={[{ label: 'Quản trị' }, { label: 'Nhật ký hệ thống' }]}
         />
       }

@@ -45,10 +45,14 @@ ARG VITE_SSO_ENABLED=false
 ENV VITE_SSO_ENABLED=${VITE_SSO_ENABLED}
 ARG VITE_API_URL=
 ENV VITE_API_URL=${VITE_API_URL}
+# Public URL prefix under edge nginx (location /admin/). Required so index.html
+# references /admin/assets/* instead of /assets/* (which falls through to LMS).
+ARG VITE_BASE=/admin/
+ENV VITE_BASE=${VITE_BASE}
 # `@cmc/admin...` builds workspace dependencies (ui/auth/api chain) first.
 RUN pnpm --filter @cmc/admin... run build
 
 FROM nginx:1.27-alpine AS runtime
 COPY --from=build /app/apps/admin/dist /usr/share/nginx/html/admin
-COPY infra/nginx/spa-fallback.conf /etc/nginx/conf.d/default.conf
+COPY infra/nginx/spa-fallback-admin.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

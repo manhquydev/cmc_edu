@@ -320,7 +320,6 @@ export default function ShiftConfigPage() {
       header={
         <PageHeader
           title="Cấu hình ca làm việc"
-          subtitle="Nhóm ca, mẫu ca và chính sách phạt muộn/sớm — SettingsShell"
           breadcrumbs={[{ label: 'Quản trị' }, { label: 'Ca làm việc' }]}
         />
       }

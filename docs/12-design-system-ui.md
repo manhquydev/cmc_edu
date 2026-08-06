@@ -5,6 +5,13 @@
 > trạng thái component, pattern trang, semantics màu, accessibility.
 > Áp cùng nguyên tắc UX (TL2) và routing (TL6).
 
+> **Superseded for `apps/admin` (rolled out, 2026-08-06).** Admin uses the Odoo
+> backend UI language — see [docs/design-system-odoo.md](./design-system-odoo.md).
+> This TL12 document remains authoritative for **LMS** (student/parent) and for
+> shared base tokens (`--cmc-*`, Inter, accent `#0071E3`, light-only). Do not
+> apply TL12 premium shell/page chrome (`AppFrame`/`SideNav`/`premium.css`) to
+> admin work.
+
 ---
 
 ## 1. Triết lý & Tầng Premium Design-Language (v2)
@@ -145,6 +152,11 @@ Nút hành động rõ nghĩa ("Duyệt & Kích hoạt"). Sau khi chạy → **R
 
 - Tiếng Việt, ngôn ngữ người dùng (không thuật ngữ hệ thống ra mặt tiền — TL2 §5).
 - Nút = động từ việc người dùng làm ("Ghi danh", "Duyệt"), không tên kỹ thuật ("approve receipt").
+
+> **SoT chi tiết + enforce được:** `design-system/cmc-edu/MASTER.md` §"Copy / i18n UI"
+> (chuẩn đầy đủ, bảng map role code → tiếng Việt, giới hạn của lint guard) và
+> `design-system/cmc-edu/PAGE-FRAMES.md` (luật điền `subtitle`). Hai dòng trên là
+> nguyên tắc gốc — không viết lại ở đây khi SoT đổi.
 
 ## 9. Pattern màn đăng nhập LMS (2-tier auth)
 

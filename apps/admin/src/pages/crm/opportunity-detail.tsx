@@ -334,7 +334,7 @@ export default function OpportunityDetailPage() {
           />
         }
         summary={
-          <div className="tpl-detail-stack">
+          <div className="o-detail-stack">
             <HighlightStrip
               items={[
                 { key: 'phone', label: 'SĐT', value: formatContactPhone(opp.contact.phone) },
@@ -395,7 +395,7 @@ export default function OpportunityDetailPage() {
           </div>
         }
       >
-        <div className="tpl-detail-stack">
+        <div className="o-detail-stack">
           {actionError && (
             <Banner status="error" title="Thao tác thất bại" description={actionError} />
           )}
@@ -412,8 +412,8 @@ export default function OpportunityDetailPage() {
             />
           )}
 
-          <div className="tpl-detail-split">
-            <div className="tpl-detail-stack">
+          <div className="o-detail-split">
+            <div className="o-detail-stack">
               <SectionBlock title="Phụ trách & nguồn" description="Giao việc và kênh lead.">
                 <KeyValueList
                   items={[
@@ -497,7 +497,7 @@ export default function OpportunityDetailPage() {
                 />
               </SectionBlock>
 
-              <SectionBlock title="Lịch test đầu vào" description="testAppointment.forOpportunity">
+              <SectionBlock title="Lịch test đầu vào">
                 {!appointments || appointments.length === 0 ? (
                   <div className="ck-empty">Chưa có lịch test</div>
                 ) : (
@@ -548,7 +548,7 @@ export default function OpportunityDetailPage() {
               </SectionBlock>
             </div>
 
-            <SectionBlock title="Timeline" description="Tiến độ giai đoạn O1–O5.">
+            <SectionBlock title="Timeline" description="Tiến độ qua các giai đoạn cơ hội.">
               <Stack gap={0}>
                 {(
                   [

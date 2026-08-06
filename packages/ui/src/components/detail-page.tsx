@@ -19,7 +19,7 @@ export interface DetailPageProps {
   tabs?: ReactNode;
   /**
    * Main body when not using tabs-only content, or extra sections below tabs.
-   * Use `.tpl-detail-stack` / `.tpl-detail-split` inside for layout.
+   * Use `.o-detail-stack` / `.o-detail-split` inside for layout.
    */
   children?: ReactNode;
   /** Tighter padding for ops-dense detail. */
@@ -37,7 +37,7 @@ export interface DetailPageProps {
  * [ body sections — optional ]
  * ```
  *
- * Props-only; pages own tRPC. Requires `@cmc/ui/premium.css` (`.tpl-detail*`).
+ * Props-only; pages own tRPC. Requires `@cmc/ui/odoo.css` (`.o-detail*`).
  */
 export function DetailPage({
   header,
@@ -47,16 +47,16 @@ export function DetailPage({
   children,
   density = 'default',
 }: DetailPageProps) {
-  const wrap = density === 'ops' ? 'tpl-wrap tpl-wrap--ops tpl-detail' : 'tpl-wrap tpl-detail';
+  const wrap = density === 'ops' ? 'o-wrap o-wrap--ops o-detail' : 'o-wrap o-detail';
   const hasBody = children != null && children !== false && children !== true;
 
   return (
     <div className={wrap}>
       {header}
-      {entity != null ? <div className="tpl-detail-entity">{entity}</div> : null}
-      {summary != null ? <div className="tpl-detail-summary">{summary}</div> : null}
-      {tabs != null ? <div className="tpl-detail-tabs">{tabs}</div> : null}
-      {hasBody ? <div className="tpl-detail-body">{children}</div> : null}
+      {entity != null ? <div className="o-detail-entity">{entity}</div> : null}
+      {summary != null ? <div className="o-detail-summary">{summary}</div> : null}
+      {tabs != null ? <div className="o-detail-tabs">{tabs}</div> : null}
+      {hasBody ? <div className="o-detail-body">{children}</div> : null}
     </div>
   );
 }

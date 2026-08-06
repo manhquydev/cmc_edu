@@ -16,13 +16,14 @@ import {
   Button,
   Card,
   ConfirmDialog,
+  FilterBar,
   HStack,
   ListPage,
   PageHeader,
-  Selector,
   Stack,
   Text,
   useToast,
+  type FilterDef,
 } from '@cmc/ui';
 import { useSearchParams } from 'react-router-dom';
 import { useSession } from '../../lib/session-context.js';
@@ -51,11 +52,21 @@ const KIND_COLORS: Record<FlagKind, ComponentProps<typeof Badge>['variant']> = {
   missing_provisioning: 'yellow',
 };
 
+const RECON_FILTERS: FilterDef[] = [
+  {
+    key: 'kind',
+    label: 'Loại cảnh báo',
+    type: 'select',
+    options: Object.entries(KIND_LABELS).map(([value, label]) => ({ value, label })),
+    placeholder: 'Tất cả',
+  },
+];
+
 const KIND_DESCRIPTIONS: Record<FlagKind, string> = {
   self_approved:
     'Agent phát hiện phiếu thu được duyệt bởi chính người tạo (vi phạm kiểm soát nội bộ).',
   exceeds_threshold:
-    'Phiếu thu vượt ngưỡng cần second-eye nhưng không có GĐ đào tạo hoặc super_admin phê duyệt.',
+    'Phiếu thu vượt ngưỡng cần second-eye nhưng không có GĐ đào tạo hoặc Quản trị hệ thống phê duyệt.',
   excess_refunds:
     'Tổng hoàn tiền cho phiếu này vượt quá số tiền gốc (netAmount).',
   missing_provisioning:
@@ -208,10 +219,10 @@ export default function ReconciliationPage() {
     ? (KIND_LABELS[pendingAction.flagKind] ?? pendingAction.flagKind)
     : '';
 
-  function handleKindFilter(value: string | null) {
+  function handleFiltersChange(next: Record<string, string>) {
     const p = new URLSearchParams(searchParams);
-    if (value) {
-      p.set('kind', value);
+    if (next.kind) {
+      p.set('kind', next.kind);
     } else {
       p.delete('kind');
     }
@@ -225,22 +236,15 @@ export default function ReconciliationPage() {
         header={
           <PageHeader
             title="Đối soát tài chính"
-            subtitle="Cảnh báo từ agent phân tích tự động"
             breadcrumbs={[{ label: 'Ops' }, { label: 'Đối soát' }]}
           />
         }
         filters={
-          <div style={{ width: 260, padding: 'var(--cmc-space-3) var(--cmc-keyline-x) 0' }}>
-            <Selector
-              size="sm"
-              label="Lọc theo loại cảnh báo"
-              placeholder="Tất cả"
-              options={Object.entries(KIND_LABELS).map(([value, label]) => ({ value, label }))}
-              value={kindFilter || null}
-              onChange={handleKindFilter}
-              hasClear
-            />
-          </div>
+          <FilterBar
+            filters={RECON_FILTERS}
+            value={{ kind: kindFilter }}
+            onChange={handleFiltersChange}
+          />
         }
       >
         <Stack gap={4} padding={4}>
@@ -251,12 +255,12 @@ export default function ReconciliationPage() {
           ---------------------------------------------------------------- */}
           <Banner
             status="warning"
-            title="Kết quả phân tích tự động từ AI agent — chỉ đọc"
+            title="Kết quả phân tích tự động — chỉ đọc"
             description={
               <>
-                Các cảnh báo bên dưới được tạo tự động bởi agent{' '}
+                Các cảnh báo bên dưới được tạo tự động bởi{' '}
                 <Text weight="bold" size="sm">
-                  ai:recon
+                  hệ thống phân tích tự động
                 </Text>{' '}
                 dựa trên quy tắc nghiệp vụ. Agent{' '}
                 <Text weight="bold" size="sm">

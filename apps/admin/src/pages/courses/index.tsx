@@ -87,7 +87,6 @@ export default function CourseListPage() {
         header={
           <PageHeader
             title="Khoá học"
-            subtitle="Danh mục khoá học tại cơ sở"
             breadcrumbs={[{ label: 'Quản trị' }, { label: 'Khoá học' }]}
             actions={
               <Button

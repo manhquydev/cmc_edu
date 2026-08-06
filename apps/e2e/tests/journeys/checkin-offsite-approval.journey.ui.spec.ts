@@ -185,10 +185,10 @@ test.describe('P3-02 journey — duyệt phiếu chấm công offsite theo track
 
     await menuNav(salePage, 'Nhân sự', 'Chấm công', { role: 'sale' });
     await expect(salePage).toHaveURL(/\/hr\/checkin/);
-    // Scoped to the content area (`.sh-main`) — the side-nav's own "Chấm
+    // Scoped to the content area (`main.o-main`) — the side-nav's own "Chấm
     // công" child entry (just clicked by menuNav above) carries the exact
     // same accessible name as this page's punch action button.
-    const saleContent = salePage.locator('.sh-main');
+    const saleContent = salePage.locator('main.o-main');
     await saleContent.getByRole('button', { name: 'Chấm công', exact: true }).click();
 
     await expect(salePage.getByText('Ngoài mạng cơ sở — cần nhập lý do')).toBeVisible();

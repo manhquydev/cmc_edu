@@ -243,6 +243,30 @@ describe('SchedulePage', () => {
     expect(screen.getByText('ENG-A1')).toBeInTheDocument();
   });
 
+  // Kanban groups batches by their real backend status — one column per
+  // KANBAN_COLS entry, always rendered so an empty stage stays visible.
+  it('kanban view renders one odoo kanban column per status with its count', () => {
+    batchState.items = [
+      BATCH_A,
+      { ...BATCH_A, id: 'batch-2', code: 'ENG-A2' },
+      { ...BATCH_A, id: 'batch-3', code: 'ENG-B1', status: 'planned' },
+    ];
+    const { container } = renderWithProviders(<SchedulePage />, {
+      route: '/teaching/schedule?view=kanban',
+    });
+    const cols = container.querySelectorAll('.o-kanban-col');
+    expect(cols).toHaveLength(4);
+    const counts = [...cols].map((c) => c.querySelector('.o-kanban-col-count')?.textContent);
+    // planned 1, active 2, completed 0, cancelled 0 — KANBAN_COLS order.
+    expect(counts).toEqual(['1', '2', '0', '0']);
+  });
+
+  it('kanban view keeps a batch card per row and drops the premium ck-kanban shell', () => {
+    renderWithProviders(<SchedulePage />, { route: '/teaching/schedule?view=kanban' });
+    expect(screen.getByText('ENG-A1')).toBeInTheDocument();
+    expect(document.querySelector('.ck-kanban')).toBeNull();
+  });
+
   it('renders the FilterBar course filter input', () => {
     renderWithProviders(<SchedulePage />);
     expect(screen.getByPlaceholderText('Lọc theo khóa học')).toBeInTheDocument();

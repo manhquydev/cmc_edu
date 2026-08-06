@@ -1,7 +1,7 @@
 /**
- * Horizontal stepper for multi-step flows (ghi danh, onboarding).
- * Modern: numbered soft chips + connector, not chevron wizard 2015.
- * Requires @cmc/ui/premium.css (.ck-steps*).
+ * Horizontal stepper for multi-step flows / workflow statusbars.
+ * Under `.o_web_client`, odoo.css applies Odoo chevron clip-path skin.
+ * Requires @cmc/ui/odoo.css (.o-steps*).
  */
 export interface ProgressStep {
   id: string;
@@ -18,25 +18,25 @@ export interface ProgressStepsProps {
 
 export function ProgressSteps({ steps, activeIndex, onStepClick }: ProgressStepsProps) {
   return (
-    <ol className="ck-steps" aria-label="Các bước">
+    <ol className="o-steps" aria-label="Các bước">
       {steps.map((step, i) => {
         const state =
           i < activeIndex ? 'done' : i === activeIndex ? 'current' : 'todo';
         const clickable = Boolean(onStepClick && i <= activeIndex);
         return (
-          <li key={step.id} className={`ck-steps-item is-${state}`}>
-            {i > 0 ? <span className="ck-steps-bridge" aria-hidden /> : null}
+          <li key={step.id} className={`o-steps-item is-${state}`}>
+            {i > 0 ? <span className="o-steps-bridge" aria-hidden /> : null}
             <button
               type="button"
-              className="ck-steps-btn"
+              className="o-steps-btn"
               disabled={!clickable}
               onClick={() => onStepClick?.(i)}
               aria-current={state === 'current' ? 'step' : undefined}
             >
-              <span className="ck-steps-num" aria-hidden>
+              <span className="o-steps-num" aria-hidden>
                 {state === 'done' ? '✓' : i + 1}
               </span>
-              <span className="ck-steps-label">{step.label}</span>
+              <span className="o-steps-label">{step.label}</span>
             </button>
           </li>
         );

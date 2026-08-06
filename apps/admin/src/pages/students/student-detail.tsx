@@ -111,8 +111,8 @@ export default function StudentDetailPage() {
       id: 'profile',
       label: 'Hồ sơ',
       content: (
-        <div className="tpl-detail-panel">
-          <div className="tpl-detail-stack">
+        <div className="o-detail-panel">
+          <div className="o-detail-stack">
             <SectionBlock title="Thông tin học viên" description="Trường hiển thị theo recipe detail hệ thống.">
               <KeyValueList
                 items={[
@@ -176,10 +176,10 @@ export default function StudentDetailPage() {
       id: 'enrollments',
       label: 'Lớp học',
       content: (
-        <div className="tpl-detail-panel">
+        <div className="o-detail-panel">
           <EmptyState
             title="Chưa có dữ liệu"
-            description="API danh sách lớp học theo học viên chưa khả dụng."
+            description="Danh sách lớp học theo học viên đang được phát triển."
             icon={<LineIcon name="layers" size={28} />}
           />
         </div>
@@ -189,10 +189,10 @@ export default function StudentDetailPage() {
       id: 'attendance',
       label: 'Điểm danh',
       content: (
-        <div className="tpl-detail-panel">
+        <div className="o-detail-panel">
           <EmptyState
             title="Chưa có dữ liệu"
-            description="API điểm danh cá nhân học viên chưa khả dụng."
+            description="Điểm danh cá nhân học viên đang được phát triển."
             icon={<LineIcon name="check-circle" size={28} />}
           />
         </div>
@@ -202,10 +202,10 @@ export default function StudentDetailPage() {
       id: 'grades',
       label: 'Điểm số',
       content: (
-        <div className="tpl-detail-panel">
+        <div className="o-detail-panel">
           <EmptyState
             title="Chưa có dữ liệu"
-            description="API điểm số học viên chưa khả dụng."
+            description="Điểm số học viên đang được phát triển."
             icon={<LineIcon name="clipboard" size={28} />}
           />
         </div>
@@ -215,10 +215,10 @@ export default function StudentDetailPage() {
       id: 'guardians',
       label: 'Phụ huynh',
       content: (
-        <div className="tpl-detail-panel">
+        <div className="o-detail-panel">
           <EmptyState
             title="Chưa có dữ liệu"
-            description="API danh sách phụ huynh liên kết chưa khả dụng."
+            description="Danh sách phụ huynh liên kết đang được phát triển."
             icon={<LineIcon name="users" size={28} />}
           />
         </div>

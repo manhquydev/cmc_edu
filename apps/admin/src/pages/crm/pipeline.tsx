@@ -1,10 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { links } from '@cmc/links';
-import { Badge, Button, FunnelBar, HStack, LineIcon, ListPage, PageHeader, Panel, Selector, Skeleton, Stack, Text, TextInput } from '@cmc/ui';
+import {
+  Badge,
+  Button,
+  DataTable,
+  FunnelBar,
+  HStack,
+  KanbanBoard,
+  KanbanCard,
+  KanbanColumn,
+  LineIcon,
+  ListPage,
+  PageHeader,
+  Panel,
+  Selector,
+  Skeleton,
+  Stack,
+  Text,
+  TextInput,
+  type TableColumn,
+} from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { formatContactPhone } from '../../lib/format-contact-phone.js';
-import { CreateLeadDialog } from './create-lead-dialog.js';
+import { CreateLeadDialog, SOURCE_LABELS } from './create-lead-dialog.js';
 import { MarkLostDialog } from './mark-lost-dialog.js';
 import { ScheduleTestDialog } from './schedule-test-dialog.js';
 
@@ -15,6 +34,8 @@ import { ScheduleTestDialog } from './schedule-test-dialog.js';
 const PAGE_SIZE = 20;
 
 type LostVisibility = 'exclude' | 'include' | 'only';
+/** TL6: `?view=table|kanban` — default kanban preserves current ops habit. */
+type PipelineView = 'kanban' | 'table';
 
 const LOST_FILTER_OPTIONS: { value: LostVisibility; label: string }[] = [
   { value: 'exclude', label: 'Đang chăm sóc' },
@@ -27,15 +48,19 @@ const LOST_FILTER_OPTIONS: { value: LostVisibility; label: string }[] = [
 // (DRY-light: kept local per phase-03, not lifted into @cmc/ui since only
 // this page needs the `next` transition alongside the label).
 const STAGES = [
-  { key: 'O1_LEAD', label: 'Tiếp cận', next: 'O2_CONTACTED' as const },
-  { key: 'O2_CONTACTED', label: 'Đã liên hệ', next: 'O3_TEST_SCHEDULED' as const },
-  { key: 'O3_TEST_SCHEDULED', label: 'Đặt lịch kiểm tra', next: 'O4_TESTED' as const },
-  { key: 'O4_TESTED', label: 'Đã kiểm tra', next: null },
-  { key: 'O5_ENROLLED', label: 'Đã ghi danh', next: null },
+  { key: 'O1_LEAD', label: 'Tiếp cận', next: 'O2_CONTACTED' as const, color: 1 as const },
+  { key: 'O2_CONTACTED', label: 'Đã liên hệ', next: 'O3_TEST_SCHEDULED' as const, color: 3 as const },
+  { key: 'O3_TEST_SCHEDULED', label: 'Đặt lịch kiểm tra', next: 'O4_TESTED' as const, color: 4 as const },
+  { key: 'O4_TESTED', label: 'Đã kiểm tra', next: null, color: 5 as const },
+  { key: 'O5_ENROLLED', label: 'Đã ghi danh', next: null, color: 6 as const },
 ] as const;
 
 type StageKey = (typeof STAGES)[number]['key'];
 type AdvanceableStage = 'O2_CONTACTED' | 'O3_TEST_SCHEDULED' | 'O4_TESTED';
+
+const STAGE_LABEL: Record<string, string> = Object.fromEntries(
+  STAGES.map((s) => [s.key, s.label]),
+);
 
 interface OpportunityItem {
   id: string;
@@ -57,7 +82,14 @@ function getOwnerInitials(fullName: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function OpportunityCard({
+function isLostOpp(opp: OpportunityItem): boolean {
+  // A won (O5) opportunity also carries a `closedAt` (the enrollment instant)
+  // — only a closedAt WITHOUT O5 is a genuine loss (matches the backend's
+  // `isOpportunityLost`/`LOST_WHERE` fragment in apps/api/src/crm/router.ts).
+  return Boolean(opp.closedAt) && opp.stage !== 'O5_ENROLLED';
+}
+
+function OpportunityKanbanCard({
   opp,
   nextStage,
   onAdvance,
@@ -73,38 +105,41 @@ function OpportunityCard({
   onScheduleTest: (id: string) => void;
 }) {
   const navigate = useNavigate();
-  // A won (O5) opportunity also carries a `closedAt` (the enrollment instant)
-  // — only a closedAt WITHOUT O5 is a genuine loss (matches the backend's
-  // `isOpportunityLost`/`LOST_WHERE` fragment in apps/api/src/crm/router.ts).
-  const isLost = Boolean(opp.closedAt) && opp.stage !== 'O5_ENROLLED';
-  const canMarkLost = !isLost && opp.stage !== 'O5_ENROLLED';
-  // testAppointment.schedule (apps/api/src/appointment/router.ts) only
-  // accepts an opp at O2_CONTACTED or O3_TEST_SCHEDULED, and rejects a
-  // lost opp — mirrored here so the action only appears when it would succeed.
+  const lost = isLostOpp(opp);
+  const canMarkLost = !lost && opp.stage !== 'O5_ENROLLED';
   const canScheduleTest =
-    !isLost && (opp.stage === 'O2_CONTACTED' || opp.stage === 'O3_TEST_SCHEDULED');
+    !lost && (opp.stage === 'O2_CONTACTED' || opp.stage === 'O3_TEST_SCHEDULED');
+  const stageMeta = STAGES.find((s) => s.key === opp.stage);
+  const colorIndex = lost ? 2 : (stageMeta?.color ?? 1);
 
   return (
     <div
-      style={{
-        background: 'var(--cmc-surface)',
-        borderBottom: '1px solid var(--cmc-border-subtle)',
-        padding: '10px var(--cmc-keyline-x)',
-        cursor: 'pointer',
-      }}
+      role="button"
+      tabIndex={0}
       onClick={() => void navigate(links.opportunity(opp.id))}
+      onKeyDown={(e) => {
+        // Only when the card shell itself is focused — descendant buttons
+        // (advance / enroll / lost) must not bubble Enter/Space into navigate.
+        if (e.target !== e.currentTarget) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          void navigate(links.opportunity(opp.id));
+        }
+      }}
+      style={{ cursor: 'pointer' }}
     >
-      <Stack gap={1.5}>
-        <HStack justify="between" align="start">
-          <Text size="sm" weight="semibold" maxLines={1} style={{ color: 'var(--cmc-text)' }}>
-            {opp.contact.name}
-          </Text>
-          {isLost && <Badge label="Lost" variant="error" />}
-        </HStack>
-        <HStack justify="between" align="center">
-          <Text type="supporting" size="xsm">
-            {formatContactPhone(opp.contact.phone)}
-          </Text>
+      <KanbanCard
+        title={
+          <HStack justify="between" align="start" gap={1}>
+            <span>{opp.contact.name}</span>
+            {lost ? <Badge label="Lost" variant="error" /> : null}
+          </HStack>
+        }
+        subtitle={formatContactPhone(opp.contact.phone)}
+        footer={opp.assignedTo ? opp.assignedTo.fullName : 'Chưa giao'}
+        colorIndex={colorIndex}
+      >
+        <Stack gap={1} style={{ marginTop: 8 }}>
           {opp.assignedTo ? (
             <div
               title={opp.assignedTo.fullName}
@@ -119,80 +154,79 @@ function OpportunityCard({
                 justifyContent: 'center',
                 fontSize: 10,
                 fontWeight: 600,
-                flexShrink: 0,
               }}
             >
               {getOwnerInitials(opp.assignedTo.fullName)}
             </div>
-          ) : (
-            <Text type="supporting" size="xsm" style={{ fontStyle: 'italic' }}>
-              Chưa giao
-            </Text>
+          ) : null}
+
+          {nextStage && !lost && (
+            <Button
+              label="Chuyển lên"
+              endContent={<LineIcon name="chevron" size={12} />}
+              size="sm"
+              variant="secondary"
+              isLoading={advancing}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAdvance(opp.id, nextStage);
+              }}
+            />
           )}
-        </HStack>
 
-        {nextStage && !isLost && (
-          <Button
-            label="Chuyển lên"
-            endContent={<LineIcon name="chevron" size={12} />}
-            size="sm"
-            variant="secondary"
-            isLoading={advancing}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAdvance(opp.id, nextStage);
-            }}
-          />
-        )}
+          {opp.stage === 'O4_TESTED' && !lost && (
+            <Button
+              label="Ghi danh"
+              size="sm"
+              variant="primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                void navigate(`/finance/new?opportunityId=${opp.id}`);
+              }}
+            />
+          )}
 
-        {opp.stage === 'O4_TESTED' && !isLost && (
-          <Button
-            label="Ghi danh"
-            size="sm"
-            variant="primary"
-            onClick={(e) => {
-              e.stopPropagation();
-              void navigate(`/finance/new?opportunityId=${opp.id}`);
-            }}
-          />
-        )}
+          {canScheduleTest && (
+            <Button
+              label="Đặt lịch test"
+              size="sm"
+              variant="secondary"
+              onClick={(e) => {
+                e.stopPropagation();
+                onScheduleTest(opp.id);
+              }}
+            />
+          )}
 
-        {canScheduleTest && (
-          <Button
-            label="Đặt lịch test"
-            size="sm"
-            variant="secondary"
-            onClick={(e) => {
-              e.stopPropagation();
-              onScheduleTest(opp.id);
-            }}
-          />
-        )}
-
-        {canMarkLost && (
-          <Button
-            label="Đánh dấu mất"
-            size="sm"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMarkLost(opp.id);
-            }}
-          />
-        )}
-      </Stack>
+          {canMarkLost && (
+            <Button
+              label="Đánh dấu mất"
+              size="sm"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMarkLost(opp.id);
+              }}
+            />
+          )}
+        </Stack>
+      </KanbanCard>
     </div>
   );
 }
 
 export default function CrmPipelinePage() {
   const utils = trpc.useUtils();
-  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const stageFromUrl = searchParams.get('stage');
   const stageFilter =
     stageFromUrl && STAGES.some((s) => s.key === stageFromUrl)
       ? (stageFromUrl as (typeof STAGES)[number]['key'])
       : undefined;
+
+  const rawView = searchParams.get('view');
+  const view: PipelineView = rawView === 'table' ? 'table' : 'kanban';
 
   const [advancingId, setAdvancingId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -217,10 +251,9 @@ export default function CrmPipelinePage() {
     setPage(1);
   }, [debouncedSearch, lostFilter, stageFilter]);
 
-  // Single source of truth for the current query input — reused by the
-  // optimistic-advance mutation's cancel/getData/setData calls below so they
-  // always target the SAME react-query cache key as the active query, even
-  // as `search`/`lost`/`page` change the key.
+  // Single source of truth for the current query input — shared by kanban and
+  // list views (Phase 4: no independent sort/page per view). Optimistic
+  // advance targets this same cache key.
   const listInput = {
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
     ...(stageFilter ? { stage: stageFilter } : {}),
@@ -233,7 +266,6 @@ export default function CrmPipelinePage() {
 
   const advanceMutation = trpc.crm.opportunityAdvance.useMutation({
     onMutate: async ({ opportunityId, toStage }) => {
-      // Optimistic update: move the opportunity to the new stage before the server confirms.
       await utils.crm.opportunityList.cancel(listInput);
       const prev = utils.crm.opportunityList.getData(listInput);
       if (prev) {
@@ -247,7 +279,6 @@ export default function CrmPipelinePage() {
       return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      // Rollback to previous state on error.
       if (ctx?.prev) {
         utils.crm.opportunityList.setData(listInput, ctx.prev);
       }
@@ -265,6 +296,17 @@ export default function CrmPipelinePage() {
     );
   }
 
+  function setView(next: PipelineView) {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'kanban') {
+      // Default — keep URLs short when on the primary ops view.
+      params.delete('view');
+    } else {
+      params.set('view', next);
+    }
+    setSearchParams(params, { replace: true });
+  }
+
   const items = (data?.items ?? []) as OpportunityItem[];
 
   // Group the current page's opportunities by stage — for CARD PLACEMENT
@@ -272,9 +314,7 @@ export default function CrmPipelinePage() {
   // come from the server-aggregated `stageCounts`/`lostCount` below, NOT
   // from these buckets — a page-scoped `.length` silently under/over-counts
   // once results span more than one page (the F7 bug this phase fixes).
-  const byStage = new Map<StageKey, OpportunityItem[]>(
-    STAGES.map((s) => [s.key, []]),
-  );
+  const byStage = new Map<StageKey, OpportunityItem[]>(STAGES.map((s) => [s.key, []]));
   for (const item of items) {
     const bucket = byStage.get(item.stage as StageKey);
     if (bucket) bucket.push(item);
@@ -289,8 +329,43 @@ export default function CrmPipelinePage() {
 
   const ready = !isLoading && !error;
 
+  const listColumns: TableColumn<OpportunityItem & Record<string, unknown>>[] = useMemo(
+    () => [
+      {
+        key: 'name',
+        label: 'Học viên',
+        render: (_v, row) => row.contact.name,
+      },
+      {
+        key: 'phone',
+        label: 'SĐT',
+        render: (_v, row) => formatContactPhone(row.contact.phone),
+      },
+      {
+        key: 'stage',
+        label: 'Giai đoạn',
+        render: (_v, row) => {
+          if (isLostOpp(row)) return 'Lost';
+          return STAGE_LABEL[row.stage] ?? row.stage;
+        },
+      },
+      {
+        key: 'owner',
+        label: 'Phụ trách',
+        render: (_v, row) => row.assignedTo?.fullName ?? 'Chưa giao',
+      },
+      {
+        key: 'source',
+        label: 'Nguồn',
+        render: (_v, row) =>
+          row.source ? (SOURCE_LABELS[row.source] ?? row.source) : '—',
+      },
+    ],
+    [],
+  );
+
   // Stage columns always exist (O1→O5). Never set isEmpty — ListPage would
-  // hide the FunnelBar + kanban board behind a page-level empty state.
+  // hide the FunnelBar + board behind a page-level empty state.
   return (
     <>
       <ListPage
@@ -298,10 +373,33 @@ export default function CrmPipelinePage() {
         header={
           <PageHeader
             title="Pipeline CRM"
-            subtitle="Theo dõi cơ hội từ Tiếp cận đến Ghi danh"
             breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Pipeline CRM' }]}
             actions={
               <HStack gap={2} align="center">
+                <div
+                  className="o-view-switcher"
+                  role="group"
+                  aria-label="Chuyển chế độ xem pipeline"
+                >
+                  <button
+                    type="button"
+                    aria-pressed={view === 'table'}
+                    aria-label="Xem dạng danh sách"
+                    className={view === 'table' ? 'is-active' : ''}
+                    onClick={() => setView('table')}
+                  >
+                    <LineIcon name="list" size={15} strokeWidth={2.25} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={view === 'kanban'}
+                    aria-label="Xem dạng kanban"
+                    className={view === 'kanban' ? 'is-active' : ''}
+                    onClick={() => setView('kanban')}
+                  >
+                    <LineIcon name="kanban" size={15} strokeWidth={2.25} />
+                  </button>
+                </div>
                 <div style={{ width: 220 }}>
                   <TextInput
                     label="Tìm kiếm"
@@ -350,8 +448,7 @@ export default function CrmPipelinePage() {
                 <Skeleton height={120} radius={0} data-testid="crm-pipeline-skeleton" />
               </div>
             ) : error ? (
-              <div className="ck-empty">
-                <span className="ck-empty-icon"><LineIcon name="alert" size={22} /></span>
+              <div className="o-kanban-empty" role="alert">
                 {error.message || 'Lỗi tải pipeline CRM'}
               </div>
             ) : (
@@ -375,39 +472,41 @@ export default function CrmPipelinePage() {
             )}
           </Panel>
 
-          {ready && (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                gap: 16,
-              }}
-            >
+          {ready && view === 'kanban' && (
+            <KanbanBoard>
               {STAGES.map((stage) => {
                 const stageItems = byStage.get(stage.key) ?? [];
+                const count = stageCounts[stage.key] ?? 0;
                 return (
-                  <Panel key={stage.key} title={`${stage.label} · ${stageCounts[stage.key] ?? 0}`}>
+                  <KanbanColumn key={stage.key} title={stage.label} count={count}>
                     {stageItems.length === 0 ? (
-                      <div className="ck-empty">Chưa có</div>
+                      <div className="o-kanban-empty">Chưa có</div>
                     ) : (
-                      <div>
-                        {stageItems.map((opp) => (
-                          <OpportunityCard
-                            key={opp.id}
-                            opp={opp}
-                            nextStage={stage.next as AdvanceableStage | null}
-                            onAdvance={handleAdvance}
-                            advancing={advancingId === opp.id}
-                            onMarkLost={setMarkLostId}
-                            onScheduleTest={setScheduleTestId}
-                          />
-                        ))}
-                      </div>
+                      stageItems.map((opp) => (
+                        <OpportunityKanbanCard
+                          key={opp.id}
+                          opp={opp}
+                          nextStage={stage.next as AdvanceableStage | null}
+                          onAdvance={handleAdvance}
+                          advancing={advancingId === opp.id}
+                          onMarkLost={setMarkLostId}
+                          onScheduleTest={setScheduleTestId}
+                        />
+                      ))
                     )}
-                  </Panel>
+                  </KanbanColumn>
                 );
               })}
-            </div>
+            </KanbanBoard>
+          )}
+
+          {ready && view === 'table' && (
+            <DataTable<OpportunityItem & Record<string, unknown>>
+              columns={listColumns}
+              data={items as (OpportunityItem & Record<string, unknown>)[]}
+              empty="Chưa có cơ hội nào"
+              onRowClick={(row) => void navigate(links.opportunity(row.id))}
+            />
           )}
 
           {ready && (

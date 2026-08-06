@@ -18,13 +18,6 @@ const EXEMPT = new Set([
   'login.tsx',
   'change-password.tsx',
   'coming-soon.tsx',
-  'design-lab.tsx',
-  'design-lab-styles.tsx',
-  'design-lab-wireframes.tsx',
-  'design-lab-xia.tsx',
-  'design-lab-layout-knowledge.tsx',
-  'design-lab-redteam.tsx',
-  'design-lab-upgrade.tsx',
 ]);
 
 function walk(dir, out = []) {

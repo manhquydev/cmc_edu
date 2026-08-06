@@ -8,7 +8,7 @@ import { toneColor, type Tone } from './tone.js';
 // props-only, no data fetching. Locked invariants: value renders near-black
 // (never tinted by status); urgency is a small `attention` DOT, not a
 // recoloured number; icon is a monochrome LineIcon; flat surface at rest.
-// Requires @cmc/ui/premium.css (.ck-mc* classes).
+// Requires @cmc/ui/odoo.css (.o-mc* classes).
 export interface MetricCardProps {
   label: string;
   value: ReactNode;
@@ -22,18 +22,18 @@ export interface MetricCardProps {
 
 export function MetricCard({ label, value, context, icon, href, attention, loading }: MetricCardProps) {
   return (
-    <Link to={href} className="ck-mc">
-      <div className="ck-mc-top">
-        <span className="ck-mc-label">
-          {attention && <span className="ck-attn" style={{ background: toneColor(attention) }} />}
+    <Link to={href} className="o-mc">
+      <div className="o-mc-top">
+        <span className="o-mc-label">
+          {attention && <span className="o-attn" style={{ background: toneColor(attention) }} />}
           {label}
         </span>
-        <span className="ck-mc-icon"><LineIcon name={icon} size={19} /></span>
+        <span className="o-mc-icon"><LineIcon name={icon} size={19} /></span>
       </div>
       {loading
         ? <Skeleton height={32} width="46%" radius={0} />
-        : <div className="ck-mc-value">{value}</div>}
-      <div className="ck-mc-ctx">{context}<LineIcon name="chevron" size={13} /></div>
+        : <div className="o-mc-value">{value}</div>}
+      <div className="o-mc-ctx">{context}<LineIcon name="chevron" size={13} /></div>
     </Link>
   );
 }

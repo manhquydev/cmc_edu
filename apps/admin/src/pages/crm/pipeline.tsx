@@ -118,6 +118,9 @@ function OpportunityKanbanCard({
       tabIndex={0}
       onClick={() => void navigate(links.opportunity(opp.id))}
       onKeyDown={(e) => {
+        // Only when the card shell itself is focused — descendant buttons
+        // (advance / enroll / lost) must not bubble Enter/Space into navigate.
+        if (e.target !== e.currentTarget) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           void navigate(links.opportunity(opp.id));

@@ -15,6 +15,7 @@ describe('KanbanBoard / KanbanColumn / KanbanCard', () => {
       </KanbanBoard>,
     );
     expect(container.querySelector('.o-kanban-board')).toBeInTheDocument();
+    expect(container.querySelectorAll('.o-kanban-col-body')).toHaveLength(2);
     expect(getByText('Draft')).toBeInTheDocument();
     expect(getByText('Nguyễn A')).toBeInTheDocument();
     expect(getByText('English A2')).toBeInTheDocument();

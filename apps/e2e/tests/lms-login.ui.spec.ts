@@ -104,9 +104,9 @@ test.describe('lms login (UI safety net)', () => {
     await expect(page.getByLabel('Số điện thoại phụ huynh')).toBeVisible();
 
     await page.getByRole('button', { name: /phụ huynh/i }).click();
-    // The [DEV ONLY] blocked-on-comms banner is gated behind import.meta.env.DEV
-    // (ui-copy-standard Phase 3 — same pattern as DevHeaderWriter) and this
-    // build runs production mode, so it correctly does not render here.
+    // Banner is intentionally always-on in ParentEmailOtpTab (comms not ready);
+    // only DevHeaderWriter is DEV-gated. Preview builds still show this copy.
+    await expect(page.getByText(/blocked-on-comms/i)).toBeVisible();
     await expect(page.getByLabel('Email phụ huynh')).toBeVisible();
 
     await page.getByRole('button', { name: /học sinh/i }).click();

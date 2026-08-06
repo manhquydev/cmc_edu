@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { LineIcon } from '../components/line-icon.js';
 import type { NavEntry, NavModule } from '../components/nav-types.js';
 
@@ -31,6 +31,9 @@ export function OdooNavbar({
   className,
 }: OdooNavbarProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const rootRef = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
   const activeApp = apps.find((a) => a.id === activeAppId) ?? null;
   const menuChildren = (activeApp?.children ?? []).filter(isChildVisible);
   const brandContent =
@@ -38,13 +41,42 @@ export function OdooNavbar({
 
   const rootClass = className ? `o-navbar ${className}` : 'o-navbar';
 
+  useEffect(() => {
+    if (!switcherOpen) return;
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSwitcherOpen(false);
+        toggleRef.current?.focus();
+      }
+    }
+
+    function onPointerDown(e: MouseEvent | PointerEvent) {
+      const root = rootRef.current;
+      if (!root) return;
+      if (e.target instanceof Node && !root.contains(e.target)) {
+        setSwitcherOpen(false);
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [switcherOpen]);
+
   return (
-    <nav className={rootClass} aria-label="Ứng dụng">
+    <nav ref={rootRef} className={rootClass} aria-label="Ứng dụng">
       <button
+        ref={toggleRef}
         type="button"
         className="o-app-switcher-toggle"
         onClick={() => setSwitcherOpen((open) => !open)}
         aria-expanded={switcherOpen}
+        aria-controls={switcherOpen ? menuId : undefined}
         aria-label="Mở app switcher"
       >
         <LineIcon name="grid" size={18} strokeWidth={2.25} />
@@ -58,7 +90,10 @@ export function OdooNavbar({
             <button
               type="button"
               className="o-menu-item"
-              onClick={() => onNavigate(child.path)}
+              onClick={() => {
+                setSwitcherOpen(false);
+                onNavigate(child.path);
+              }}
             >
               {child.label}
             </button>
@@ -69,7 +104,12 @@ export function OdooNavbar({
       {systray ? <div className="o-systray">{systray}</div> : null}
 
       {switcherOpen && (
-        <div className="o-app-switcher-menu" role="menu" aria-label="App switcher">
+        <div
+          id={menuId}
+          className="o-app-switcher-menu"
+          role="menu"
+          aria-label="App switcher"
+        >
           {apps.map((mod) => (
             <button
               key={mod.id}

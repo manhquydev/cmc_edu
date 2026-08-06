@@ -34,7 +34,7 @@ export function KanbanColumn({ title, count, children, className }: KanbanColumn
         <span>{title}</span>
         <span className="o-kanban-col-count">{displayCount}</span>
       </div>
-      {children}
+      <div className="o-kanban-col-body">{children}</div>
     </div>
   );
 }

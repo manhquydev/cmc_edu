@@ -314,14 +314,12 @@ export default function SchedulePage() {
         <Banner status="error" title="Không tải được lịch dạy" description={error.message} />
       ) : null}
       {view === 'list' && !error?.message && (
-        <div className="o-list">
-          <DataTable<ClassBatchRow>
-            columns={LIST_COLUMNS}
-            data={rows}
-            loading={isLoading}
-            empty="Chưa có lớp học nào"
-          />
-        </div>
+        <DataTable<ClassBatchRow>
+          columns={LIST_COLUMNS}
+          data={rows}
+          loading={isLoading}
+          empty="Chưa có lớp học nào"
+        />
       )}
       {view === 'week' && (
         <FullCalendarSessionView

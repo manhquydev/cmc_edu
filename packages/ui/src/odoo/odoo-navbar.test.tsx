@@ -65,7 +65,7 @@ describe('OdooNavbar', () => {
 
   it('lists apps in the switcher and navigates on tile click', () => {
     const onNavigate = vi.fn();
-    const { getByLabelText, getByRole } = render(
+    const { getByLabelText, getByRole, queryByRole } = render(
       <OdooNavbar
         apps={apps}
         activeAppId="cockpit"
@@ -76,6 +76,42 @@ describe('OdooNavbar', () => {
     fireEvent.click(getByLabelText('Mở app switcher'));
     fireEvent.click(getByRole('menuitem', { name: /Tài chính/ }));
     expect(onNavigate).toHaveBeenCalledWith('/finance');
+    expect(queryByRole('menu', { name: 'App switcher' })).not.toBeInTheDocument();
+  });
+
+  it('closes the app switcher on Escape and returns focus to the toggle', () => {
+    const { getByLabelText, getByRole, queryByRole } = render(
+      <OdooNavbar
+        apps={apps}
+        activeAppId="cockpit"
+        isChildVisible={() => true}
+        onNavigate={vi.fn()}
+      />,
+    );
+    const toggle = getByLabelText('Mở app switcher');
+    fireEvent.click(toggle);
+    expect(getByRole('menu', { name: 'App switcher' })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(queryByRole('menu', { name: 'App switcher' })).not.toBeInTheDocument();
+    expect(toggle).toHaveFocus();
+  });
+
+  it('closes the app switcher on outside pointerdown', () => {
+    const { getByLabelText, getByRole, queryByRole } = render(
+      <div>
+        <button type="button">Outside</button>
+        <OdooNavbar
+          apps={apps}
+          activeAppId="cockpit"
+          isChildVisible={() => true}
+          onNavigate={vi.fn()}
+        />
+      </div>,
+    );
+    fireEvent.click(getByLabelText('Mở app switcher'));
+    expect(getByRole('menu', { name: 'App switcher' })).toBeInTheDocument();
+    fireEvent.pointerDown(document.body);
+    expect(queryByRole('menu', { name: 'App switcher' })).not.toBeInTheDocument();
   });
 
   it('navigates when a visible section menu item is clicked', () => {

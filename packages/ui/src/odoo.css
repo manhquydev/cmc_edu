@@ -469,9 +469,12 @@
 
 .o-kanban-col {
   flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
   background: var(--odoo-kanban-bg);
   border-radius: var(--odoo-radius);
   padding: var(--odoo-kanban-gutter);
+  max-height: min(70vh, 640px);
 }
 
 .o-kanban-col-header {
@@ -483,6 +486,22 @@
   font-weight: 600;
   color: var(--odoo-gray-600);
   text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+/* Scrollable card stack — gap replaces per-card margin-bottom. */
+.o-kanban-col-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--odoo-kanban-gutter);
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.o-kanban-col-body > .o-kanban-card,
+.o-kanban-col-body > * > .o-kanban-card {
+  margin-bottom: 0;
 }
 
 .o-kanban-col-count {

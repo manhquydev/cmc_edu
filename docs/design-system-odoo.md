@@ -2,7 +2,9 @@
 
 ## Status & Provenance
 
-**Status: rolled out for admin** (design3 admin rollout complete, 2026-08-06).
+**Status: shipped for admin (unit/static)** — design3 shell + odoo layer + premium
+import retirement on admin (2026-08-06). **Merge/validation still open:** full
+`ui-e2e` + `acceptance:report` re-measure (see rollout plan).
 
 This document is the **authoritative design language for `apps/admin`** based on a
 source-grounded recreation of Odoo's backend web-client UI. It **supersedes
@@ -25,8 +27,9 @@ does not adopt Odoo chrome.
 grid-shell, dropdown↔bottom-sheet responsive behaviours — build only when a
 real surface needs them.
 
-**Promoted from:** [docs/design-system-odoo-candidate.md](./design-system-odoo-candidate.md)
-(historical readiness assessment; may be removed once this doc is sole authority).
+**Historical:** Lab-era readiness notes lived in
+`docs/design-system-odoo-candidate.md` (deleted after promote). Recover from
+git history if needed. This file is the sole evergreen authority.
 
 ### Verification method
 
@@ -67,7 +70,7 @@ Per the [plan's Decision Log](../plans/260805-1421-design-lab-3-odoo-ui-recreati
 | | `--odoo-danger` | `#dc3545` | Danger, rejected (red) |
 | **Kanban card accent colors** | `--odoo-kanban-color-1..6` | gray, red, amber, teal, green, purple | Status-to-color mapping: draft→gray, rejected→red, pending→amber, confirmed→teal, approved→green, done→purple |
 | **Grays (Bootstrap 5 defaults)** | `--odoo-gray-100` through `--odoo-gray-900` | `#f8f9fa` to `#212529` | Full 9-step neutral ramp |
-| **Interactive accents (CMC, not Odoo)** | Not in this token set | — | TL12 defines `#0071E3` globally; `/design3` does not override |
+| **Interactive accents (CMC, not Odoo)** | Not in this token set | — | TL12 defines `#0071E3` globally; admin keeps CMC blue for interactive chrome |
 
 ### Typography
 
@@ -77,7 +80,7 @@ Per the [plan's Decision Log](../plans/260805-1421-design-lab-3-odoo-ui-recreati
 | `--odoo-font-size-sm` | `13px` | Secondary, labels, kanban headers |
 | `--odoo-font-size-xs` | `12px` | Badges, hints, small form text |
 | Font family | `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif` | **CMC deviation:** Odoo uses bare system stack; we keep Inter (TL12 locked) |
-| Font weight | `400` (normal), `500` (medium), `700` (bold) | Only 3 steps; `/design3` applies sparingly (headers/labels use 500–600, not 700) |
+| Font weight | `400` (normal), `500` (medium), `700` (bold) | Only 3 steps; headers/labels typically 500–600, not 700 |
 | Line-height | Base `1.5`, small `1.25` | Odoo defaults; list/kanban use tight leading |
 
 ### Spacing & Sizing
@@ -121,147 +124,113 @@ Form statusbar only sticks to content top at `md+`; below `md` it's inline/stati
 
 ## Component & Pattern Inventory
 
-### Built & verified in /design3
+### Shipped in production admin (design3 rollout)
 
-**Navbar + App-switcher**
+**Shell — OdooNavbar + app-switcher**
+- Root: `.o_web_client` + `<main class="o-main">` in `apps/admin/src/shell/shell.tsx`
 - 46px navbar, brand-purple background, white 90%-opacity text
-- App-switcher: toggle via hamburger icon; dropdown renders as vertical text-list (not icon grid — this was a verified-correct Odoo pattern)
-- Systray: badge counter (green pill, hardcoded "3") and alert icon (non-interactive demo)
+- App-switcher: hamburger toggle; dropdown is a vertical text-list (Odoo-correct pattern)
+- Permission gate: `isChildVisible` required on navbar children (fail-closed)
+- Chrome-suppressed mode on `/change-password` (no navbar / ⌘K / role switcher)
+- Login remains **outside** the Odoo shell
 
-**Control panel + Breadcrumb**
-- Left: breadcrumb with `/` separators, current page bold
-- Center: search box (non-interactive placeholder)
-- Right: view-switcher (list ↔ kanban buttons) + create button
-- All fixed-height, white background, border-bottom only
+**Control panel + templates**
+- Shared templates (`ListPage`, `DetailPage`, `FormPage`, `DashboardPage`, `ControlBar`,
+  `FilterBar`, `PageHeader`, `EntityHeader`, …) emit `o-*` classes
+- Dense ops control bar; view switcher where modules need list ↔ kanban
 
 **List view**
-- Dense table: `14px` base, `0.3rem` × `0.5rem` cell padding, `40px` checkbox column
-- Sticky header with depth cue (inset shadow under first data row)
-- Zebra striping (`nth-child(odd)` background)
-- Right-aligned numbers, left-aligned text
-- Hover state: darker gray background
+- Dense table via `DataTable` + `o-list` framing: `14px` base, tight cell padding
+- Sticky header cues, zebra striping, hover row background
 
 **Kanban board**
-- Horizontal scrolling flex layout, 320px cards, 8px gutters
-- Card: white bg, 1px border, colored left-bar accent (3px, via `::after` two-border technique)
-- Column header: uppercase small text, count badge (gray pill)
-- Card footer: separated by top border, smaller font (secondary info)
+- `KanbanBoard` / `KanbanColumn` / `KanbanCard` in `@cmc/ui`
+- Horizontal flex board, card left-bar accent via `--odoo-kanban-color-*`
+- CRM pipeline pilot: list ↔ kanban + `?view=` deep-link
 
 **Statusbar (chevron shape)**
-- Interlocking arrow/chevron buttons via `clip-path: polygon()`
-- First step: left edge flat, right edge →pointing
-- Middle steps: ←← left pointing, →→ right pointing (overlap/interlock)
-- Last step: right edge flat, left edge ←pointing
-- Active step: dark background + 1px inset border-ring (two-layer emphasis)
-- Chevron arithmetic: padding + negative margins + clip-path create seamless interlock
+- `WorkflowStatusbar` / `ProgressSteps` restyled with interlocking chevrons
+  (`clip-path`); used on CRM opportunity + finance receipt (incl. terminal cancelled)
 
-### Researched but NOT yet built
+**Float layers (after premium.css retirement on admin)**
+- Toast and command palette CSS (`.ck-toast*`, `.ck-cmd*`) ship **unscoped** in
+  `odoo.css` because `ToastViewport` mounts as a sibling of the router tree
+  (not under `.o_web_client`). Guarded by `packages/ui/src/odoo/odoo-float-layer.test.ts`.
 
-**Pivot view indent formula** (`5 + indent×30px` per nesting level)
-- Distinctive drill-down affordance for tree tables
-- Port cost: numeric precision required; CSS custom properties can carry the formula
+### Explicit non-goals (not built)
 
-**Calendar grid-shell** (`grid-template-rows: auto auto 1fr auto`)
-- Toolbar fixed at top, content flexible, sidebar fixed-width (not proportional)
-- Mobile: sidebar collapses into overlay panel
-- Port cost: moderate; CSS Grid + JS overlay logic
+**Pivot view indent formula** (`5 + indent×30px` per nesting level)  
+**Calendar grid-shell** (FullCalendar uses admin-local `o-fc*` skins, not Odoo grid-shell)  
+**Dropdown ↔ bottom-sheet responsive switch**  
+Build only when a real surface needs them.
 
-**Dropdown ↔ bottom-sheet responsive switch**
-- Desktop: anchored floating menu (`position: absolute`, `bottom-start`)
-- Mobile: full-height bottom drawer (`inset: auto 0 0 0`)
-- Structural change (position strategy), not just resizing
-- Port cost: high; requires condition-driven DOM structure
+### Residual debt (honest)
+
+- Many composites still emit premium class prefixes (`ck-*` / `tpl-*` / `sh-*`);
+  admin paints them via a Phase 6 **selector mirror** under `.o_web_client` plus
+  unscoped float layers — not a full class rename.
+- LMS still owns `@cmc/ui/premium.css` + `AppFrame`/`SideNav` for student/parent.
+- Dual CSS drift risk if premium and odoo mirror diverge without dual-edit discipline.
 
 ---
 
-## Readiness Assessment for Project-Wide Rollout
+## Rollout status (as-built)
 
-### What is ready
+### Done (unit / static)
 
-✓ **Design language layer:** Tokens, colors, typography, spacing fully portable; `/design3` proves viability
-✓ **Standalone views:** List, kanban, and statusbar can be extracted to production surfaces as dumb components (props-in, CSS-out)
-✓ **Verification chain:** Red-team + fidelity audit leaves high confidence in accuracy vs. Odoo source
+✓ **Design language in `@cmc/ui`:** tokens under `.o_web_client`, `OdooNavbar`, `KanbanBoard`, template `o-*` reskin  
+✓ **Admin shell swap:** SideNav/`AppFrame` production shell replaced; design-lab routes deleted  
+✓ **Module coverage:** central templates cover most pages; CRM/finance/teaching/classes/enrollment residual sweeps landed  
+✓ **premium.css retired on admin:** import removed; LMS unchanged  
+✓ **Static gates:** `scripts/check-ui-frames.mjs` (FilterBar name preserved), unit suites for shell/odoo layer  
 
-### What is NOT ready
+### Still open merge / validation gates
 
-✗ **Integration with production AppFrame/SideNav:** `/design3` deliberately lives outside the shell. Production surface would need to:
-  - Audit whether `/design3` navbar should become part of `AppFrame`, or replace it
-  - Decide on dual-chrome risk (Odoo navbar inside CMC's outer shell vs. replacing it entirely)
-  - This decision was explicitly out of scope for `/design3` — no brainstorm or plan exists yet
+✗ **Full `ui-e2e` green on the design3 branch** (menu-nav + admin-shell + journey binders rewritten; CI proof required)  
+✗ **`pnpm acceptance:report` re-run** vs Phase 1 per-flow baseline (38 flow ids)  
+✗ **Human visual smoke** after premium drop (toast, ⌘K, CRM list/kanban, cancelled receipt, teaching calendar)  
+✗ **True class-language retirement** (`ck-*` → `o-*` rename) — optional backlog, not required for shell language  
 
-✗ **Component library changes:** `/design3` uses page-scoped CSS (`.odoo-lab-*` classes). Rollout would require:
-  - Extracting components to `@cmc/ui/odoo-*` or similar (with design-token layering)
-  - Migrating from `DataTable` (premium design language) to Odoo-style dense lists
-  - Potentially two parallel component systems during transition (risk)
+### Token coexistence with TL12
 
-✗ **Responsive behavior audit:** `/design3` is static desktop demo. Real rollout requires:
-  - Scroll-container-owner-flip logic implementation + testing on mobile
-  - Dialog auto-fullscreen gating JS
-  - Dropdown ↔ bottom-sheet conditional rendering
-  - Testing against all documented responsive rules
-
-✗ **Migration path strategy:** No plan exists for:
-  - Which surfaces migrate first (CRM? Finance? Teaching?)
-  - Phased rollout (one module at a time, or all-or-nothing)
-  - Parallel old/new design-system coexistence strategy
-  - Training/comms for users expecting existing UI
-
-### Token conflicts with TL12 (low risk)
-
-`docs/12-design-system-ui.md` (TL12) is locked:
-- One brand accent: blue `#0071E3` (interactive)
-- Light mode only
-- Inter typography (which `/design3` also uses)
-
-Odoo candidate uses:
-- Purple for navbar **only** (never interactive accent) — no conflict with TL12's brand
-- All same typography + grays — compatible
-
-**Verdict:** Token set is additive, not conflicting. Can coexist under different CSS class scopes (`.odoo-lab-*` for experiment, `--cmc-*` for production).
-
-### Cost estimate for rollout (order-of-magnitude)
-
-1. **Component extraction:** 2–3 weeks (list, kanban, statusbar → library components + design tokens)
-2. **Shell integration:** 1–2 weeks (navbar/control-panel routing, app-switcher wiring to real modules)
-3. **Responsive logic:** 1–2 weeks (scroll flip, dialog gating, dropdown variants)
-4. **First-surface migration:** 2–4 weeks (choice: CRM or Finance module, then test)
-5. **Design review + QA:** 2–3 weeks (visual regression, a11y, e2e smoke)
-
-**Total:** ~9–16 weeks for one production module + library, assuming sequential.
+TL12 remains authoritative for **LMS** and shared base tokens (`--cmc-*`, Inter,
+accent `#0071E3`, light-only). Admin interactive accent stays CMC blue; Odoo purple
+is navbar chrome only. No token conflict under separate import paths
+(`odoo.css` admin / `premium.css` LMS).
 
 ---
 
 ## References
 
-### Research reports (evidence base)
+### Research reports (lab-era evidence base)
 
-- [research-260805-1604-odoo-layout-information-architecture.md](../plans/reports/research-260805-1604-odoo-layout-information-architecture.md) — Shell scroll behavior, form structure, settings pattern, responsive breakpoint rules
-- [research-260805-1604-odoo-visual-design-language.md](../plans/reports/research-260805-1604-odoo-visual-design-language.md) — Color system, typography, shadow/elevation, motion, icon approach
-- [ui-ux-designer-260805-1609-odoo-backend-view-wireframe-dissection-report.md](../plans/reports/ui-ux-designer-260805-1609-odoo-backend-view-wireframe-dissection-report.md) — List/kanban/calendar/pivot/graph wireframe structure + highest-value port candidates
-- [research-260805-1604-odoo-design-token-taxonomy.md](../plans/reports/research-260805-1604-odoo-design-token-taxonomy.md) — Full token catalog with file:line evidence from Odoo source
-- [fidelity-audit-260805-1544-design3-vs-real-odoo.md](../plans/reports/fidelity-audit-260805-1544-design3-vs-real-odoo.md) — 6-agent verification, 9 findings + corrections, structural accuracy scorecard
+- [research-260805-1604-odoo-layout-information-architecture.md](../plans/reports/research-260805-1604-odoo-layout-information-architecture.md)
+- [research-260805-1604-odoo-visual-design-language.md](../plans/reports/research-260805-1604-odoo-visual-design-language.md)
+- [ui-ux-designer-260805-1609-odoo-backend-view-wireframe-dissection-report.md](../plans/reports/ui-ux-designer-260805-1609-odoo-backend-view-wireframe-dissection-report.md)
+- [research-260805-1604-odoo-design-token-taxonomy.md](../plans/reports/research-260805-1604-odoo-design-token-taxonomy.md)
+- [fidelity-audit-260805-1544-design3-vs-real-odoo.md](../plans/reports/fidelity-audit-260805-1544-design3-vs-real-odoo.md)
 
 ### Implementation + decision log
 
-- [plans/260805-1421-design-lab-3-odoo-ui-recreation/plan.md](../plans/260805-1421-design-lab-3-odoo-ui-recreation/plan.md) — Approved decisions, scope (what's built vs. researched), red-team findings, validation Q&A
+- [plans/260805-1421-design-lab-3-odoo-ui-recreation/plan.md](../plans/260805-1421-design-lab-3-odoo-ui-recreation/plan.md) — Lab decisions / red-team (historical)
+- [plans/260805-1920-design3-admin-rollout/plan.md](../plans/260805-1920-design3-admin-rollout/plan.md) — Production rollout plan (phases 1–6)
 
-### Implementation source
+### Implementation source (authoritative)
 
-- [apps/admin/src/pages/design-lab-3.tsx](../apps/admin/src/pages/design-lab-3.tsx) — Live React component (route `/design3`)
-- [packages/ui/src/odoo.css](../packages/ui/src/odoo.css) — All tokens, layout, component styles (LGPL-3 Odoo attribution header included)
+- [`packages/ui/src/odoo.css`](../packages/ui/src/odoo.css) — tokens, skins, premium mirror, float layers (LGPL-3 attribution)
+- [`packages/ui/src/odoo/odoo-navbar.tsx`](../packages/ui/src/odoo/odoo-navbar.tsx)
+- [`packages/ui/src/odoo/odoo-kanban.tsx`](../packages/ui/src/odoo/odoo-kanban.tsx)
+- [`apps/admin/src/shell/shell.tsx`](../apps/admin/src/shell/shell.tsx)
 
-### Related production design doc
+### Related design docs
 
-- [docs/12-design-system-ui.md](./12-design-system-ui.md) (TL12) — Current locked production design language (does NOT include this Odoo candidate)
+- [docs/12-design-system-ui.md](./12-design-system-ui.md) (TL12) — **LMS** + shared base tokens; superseded for admin chrome
+- [docs/system-architecture.md](./system-architecture.md) — as-built shell note for admin
 
 ---
 
-## Next steps
+## Maintainer notes
 
-**During rollout:** Use the active plan `plans/260805-1920-design3-admin-rollout/` and clarify only open product questions:
-- Which production surface(s) to migrate first?
-- Shell integration strategy (replace navbar, or nest inside existing AppFrame)?
-- Component library approach (new `@cmc/ui/odoo-*` namespace, or mixed)?
-- Timeline and team capacity?
-
-**Current status:** Design Lab 3 is complete as an exploration. Follow-up: design3 admin rollout is in progress (shell swap → template reskin → module sweeps).
+- Do **not** reintroduce `/design3` or design-lab pages; re-implement from this doc + `packages/ui/src/odoo*`.
+- Keep `FilterBar` symbol name until `check-ui-frames` is intentionally rewritten.
+- When adding portal/provider siblings that emit `ck-*`, either mount under `.o_web_client` or add unscoped float rules + extend `odoo-float-layer.test.ts`.

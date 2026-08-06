@@ -9,6 +9,8 @@
 > **Updated 2026-07-24 (UAT prep — journey e2e):** Phase 4–5 journey infrastructure added 13 new spec files (3 regression + 10 core flows). ~~Current e2e count: ~21+ spec files.~~ — **superseded, xem banner 2026-07-26.**
 >
 > **Updated 2026-07-26 (nghiệm thu journey + CI khôi phục):** e2e hiện **43 spec file** (31 journey UI), chạy trong project `ui-chromium` trên CI. Sổ nghiệm thu: **31/38 luồng đã chứng minh chạy** tại commit `324bd12`, sinh từ artifact CI (`gitDirty:false`) — **đã chạm trần journey**; 7 luồng còn lại `no-ui-path` ⇒ 38/38 đều có trạng thái máy-chứng. Journey ở mức smoke — chứng minh luồng chạy thông, không chứng minh đúng số học nghiệp vụ; UAT người thật chưa chạy. Chi tiết: `docs/codebase-summary.md`.
+>
+> **Updated 2026-08-06 (design3 admin shell):** `apps/admin` production chrome is the **Odoo backend UI language** — root `.o_web_client`, top **OdooNavbar** + app-switcher, content in `main.o-main`. Premium side-nav shell (`AppFrame`/`SideNav` + `premium.css`) is **not** used on admin; LMS keeps TL12 premium (`@cmc/ui/premium.css`). Design authority: `docs/design-system-odoo.md`. Lab route `/design3` was deleted after promote. Merge gates still require green `ui-e2e` + acceptance re-measure on the rollout branch.
 
 ---
 
@@ -66,6 +68,7 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 
 **apps/admin/** — ERP SPA, ~30 routes
 - 100% Astryx (@astryxdesign/core@0.1.4) via `@cmc/ui/primitives` single-door barrel (Phase 3 complete)
+- **Shell (2026-08-06):** `apps/admin/src/shell/shell.tsx` renders `.o_web_client` + `OdooNavbar` (app-switcher, permission-gated section menus, systray) + `main.o-main` outlet. `/login` is outside the shell; `/change-password` is inside with **chrome suppressed** (no navbar/⌘K). CSS: `@cmc/ui/odoo.css` only (no `premium.css` on admin). See `docs/design-system-odoo.md`.
 - tRPC client gated with `x-dev-user` header (dev auth until Entra SSO)
 - Route groups: sales, teaching, hr, finance, admin + generic table coverage
 - `can()` RBAC guards per route; `session.me` for over-threshold role check

@@ -48,6 +48,7 @@ describe('DetailPage', () => {
         header={<div>HEADER</div>}
         entity={<div>ENTITY</div>}
         summary={<div>SUMMARY</div>}
+        statusbar={<div>STATUSBAR</div>}
         tabs={<div>TABS</div>}
       >
         <div>CONTENT</div>
@@ -58,14 +59,26 @@ describe('DetailPage', () => {
     expect(bg).toBeTruthy();
     expect(sheet).toBeTruthy();
     expect(bg!.contains(sheet!)).toBe(true);
-    // summary is statusbar band — sibling of sheet, not inside it
+    // summary + thin statusbar are siblings of sheet, not inside it
     expect(sheet!.contains(getByText('SUMMARY'))).toBe(false);
+    expect(sheet!.contains(getByText('STATUSBAR'))).toBe(false);
     expect(bg!.contains(getByText('SUMMARY'))).toBe(true);
+    expect(container.querySelector('.o-detail-statusbar')).toContainElement(getByText('STATUSBAR'));
     expect(sheet!.contains(getByText('ENTITY'))).toBe(true);
     expect(sheet!.contains(getByText('TABS'))).toBe(true);
     expect(sheet!.contains(getByText('CONTENT'))).toBe(true);
     // header stays outside sheet_bg
     expect(bg!.contains(getByText('HEADER'))).toBe(false);
+  });
+
+  it('omits statusbar slot when not provided', () => {
+    const { container } = render(
+      <DetailPage header={<div>HEADER</div>} summary={<div>SUMMARY</div>}>
+        <div>CONTENT</div>
+      </DetailPage>,
+    );
+    expect(container.querySelector('.o-detail-statusbar')).toBeNull();
+    expect(container.querySelector('.o-detail-summary')).toBeTruthy();
   });
 
   it('omits body when children are absent', () => {

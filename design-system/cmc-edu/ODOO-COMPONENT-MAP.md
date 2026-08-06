@@ -71,7 +71,7 @@ ListPage
 
 | Odoo | CMC |
 |------|-----|
-| `.o_form_statusbar` | WorkflowStatusbar / ProgressSteps (in DetailPage `summary`) |
+| `.o_form_statusbar` | DetailPage `statusbar` → `.o-detail-statusbar` + WorkflowStatusbar (**sticky md+**) |
 | `.o_form_sheet_bg` + `.o_form_sheet` | **DetailPage / FormPage** emit `.o-form-sheet-bg` + `.o-form-sheet` (**SHIPPED** P1) |
 | button_box | StatActions / EntityHeader actions |
 | notebook | CmcTabs |
@@ -82,7 +82,8 @@ ListPage
 DetailPage
   PageHeader
   .o-form-sheet-bg
-    .o-detail-summary     ← statusbar / HighlightStrip band
+    .o-detail-summary     ← HighlightStrip / StatActions (scrolls)
+    .o-detail-statusbar   ← WorkflowStatusbar (sticky md+)
     .o-form-sheet
       EntityHeader
       tabs?
@@ -120,7 +121,7 @@ DetailPage
 
 Refresh statuses via the dissection process in `plans/260806-odoo-ui-component-dissection/plan.md` when Odoo pin or shell changes.
 
-**Last status refresh:** 2026-08-06 post-rebuild audit — navbar stacking **SHIPPED** (`menuCoveredCount=0`, z-index 1000); brand=module **SHIPPED**; kanban responsive **SHIPPED**; form dual-sheet **SHIPPED**; statusbar sticky **DEFERRED**; list Astryx sticky **CUT/debt**.
+**Last status refresh:** 2026-08-06 — thin statusbar sticky **SHIPPED** (DetailPage `statusbar` + `.o-detail-statusbar` md+); navbar stacking **SHIPPED**; brand=module **SHIPPED**; kanban responsive **SHIPPED**; form dual-sheet **SHIPPED**; list Astryx sticky **CUT/debt**.
 
 ---
 

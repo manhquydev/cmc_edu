@@ -71,13 +71,13 @@ Do not force EntityHeader on settings or thin ops pages.
 
 ```text
 DetailPage
-  header:   PageHeader — breadcrumbs; title only for settings/thin
-  entity?:  EntityHeader  ← full/standard only · single h1 · 1 primary CTA
-  summary?: HighlightStrip (standard+) · WorkflowStatusbar (full)
-  settings?: SettingsShell (settings tier)
-  stats?:   StatActions
-  tabs?:    CmcTabs
-  body?:    .tpl-detail-stack | .tpl-detail-split + SectionBlock + KeyValueList
+  header:     PageHeader — breadcrumbs; title only for settings/thin
+  entity?:    EntityHeader  ← full/standard only · single h1 · 1 primary CTA
+  summary?:   HighlightStrip / StatActions (scrolls — not sticky)
+  statusbar?: WorkflowStatusbar (thin; sticky md+ under shell)
+  settings?:  SettingsShell (settings tier)
+  tabs?:      CmcTabs
+  body?:      .o-detail-stack | .o-detail-split + SectionBlock + KeyValueList
 ```
 
 **Single identity heading (full/standard):** only `EntityHeader` owns the entity name (`h1`).  

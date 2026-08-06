@@ -55,4 +55,19 @@ describe('odoo.css ControlBar densify + form sheet', () => {
     expect(body).toMatch(/box-shadow\s*:\s*none/);
     expect(body).toMatch(/background\s*:\s*transparent/);
   });
+
+  it('sticks thin .o-detail-statusbar on md+ only (not .o-detail-summary)', () => {
+    const summary = ruleBlock('.o_web_client .o-form-sheet-bg > .o-detail-summary');
+    expect(summary).toBeTruthy();
+    expect(summary).not.toMatch(/position\s*:\s*sticky/);
+
+    expect(css.includes('.o_web_client .o-form-sheet-bg > .o-detail-statusbar')).toBe(true);
+    const mediaIdx = css.indexOf('@media (min-width: 768px)');
+    expect(mediaIdx).toBeGreaterThan(-1);
+    // Find the media block that targets detail-statusbar sticky
+    const stickySlice = css.slice(mediaIdx, mediaIdx + 350);
+    expect(stickySlice.includes('.o-detail-statusbar')).toBe(true);
+    expect(stickySlice).toMatch(/position\s*:\s*sticky/);
+    expect(stickySlice).toMatch(/top\s*:\s*0/);
+  });
 });

@@ -1555,12 +1555,27 @@ button.o-kanban-card {
   padding: 14px 16px 16px;
   gap: 14px;
 }
-/* Summary band = statusbar / highlight strip above the white sheet.
-   Not sticky: pilot summaries include tall HighlightStrip + statusbar; sticky
-   only when summary is thin statusbar-only (later split). */
+/* Summary band = HighlightStrip / metrics above the white sheet — never sticky
+   (tall composite). Thin WorkflowStatusbar lives in `.o-detail-statusbar`. */
 .o_web_client .o-form-sheet-bg > .o-detail-summary {
   padding: 0 0 4px;
   background: transparent;
+}
+/* Odoo `.o_form_statusbar` analogue — sticky md+ only (form_controller.scss). */
+.o-detail-statusbar {
+  min-width: 0;
+}
+.o_web_client .o-form-sheet-bg > .o-detail-statusbar {
+  padding: 4px 0;
+  background: var(--odoo-gray-100, #f8f9fa);
+  border-bottom: 1px solid var(--odoo-gray-300, #dee2e6);
+}
+@media (min-width: 768px) {
+  .o_web_client .o-form-sheet-bg > .o-detail-statusbar {
+    position: sticky;
+    top: 0;
+    z-index: 4; /* below .o-control-bar (5) and .o-navbar (1000) */
+  }
 }
 /* Entity inside sheet: drop second card chrome */
 .o_web_client .o-form-sheet .o-eh {

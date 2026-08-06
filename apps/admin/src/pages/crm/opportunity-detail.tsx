@@ -355,29 +355,6 @@ export default function OpportunityDetailPage() {
                 },
               ]}
             />
-            <WorkflowStatusbar
-              steps={(
-                [
-                  'O1_LEAD',
-                  'O2_CONTACTED',
-                  'O3_TEST_SCHEDULED',
-                  'O4_TESTED',
-                  'O5_ENROLLED',
-                ] as const
-              ).map((s) => ({ id: s, label: STAGE_LABELS[s] ?? s }))}
-              activeIndex={Math.max(
-                0,
-                (
-                  [
-                    'O1_LEAD',
-                    'O2_CONTACTED',
-                    'O3_TEST_SCHEDULED',
-                    'O4_TESTED',
-                    'O5_ENROLLED',
-                  ] as const
-                ).indexOf(opp.stage as 'O1_LEAD'),
-              )}
-            />
             <StatActions
               items={[
                 { key: 'pipeline', label: 'Pipeline', href: '/crm' },
@@ -393,6 +370,31 @@ export default function OpportunityDetailPage() {
               ]}
             />
           </div>
+        }
+        statusbar={
+          <WorkflowStatusbar
+            steps={(
+              [
+                'O1_LEAD',
+                'O2_CONTACTED',
+                'O3_TEST_SCHEDULED',
+                'O4_TESTED',
+                'O5_ENROLLED',
+              ] as const
+            ).map((s) => ({ id: s, label: STAGE_LABELS[s] ?? s }))}
+            activeIndex={Math.max(
+              0,
+              (
+                [
+                  'O1_LEAD',
+                  'O2_CONTACTED',
+                  'O3_TEST_SCHEDULED',
+                  'O4_TESTED',
+                  'O5_ENROLLED',
+                ] as const
+              ).indexOf(opp.stage as 'O1_LEAD'),
+            )}
+          />
         }
       >
         <div className="o-detail-stack">

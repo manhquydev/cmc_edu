@@ -12,9 +12,15 @@ export interface DetailPageProps {
    */
   entity?: ReactNode;
   /**
-   * Optional overview band: KeyValueList / Metric strip / Callout — above tabs.
+   * Optional overview band: HighlightStrip / Metric / Callout — **not sticky**.
+   * Prefer thin workflow chrome in `statusbar` instead of packing it here.
    */
   summary?: ReactNode;
+  /**
+   * Thin Odoo-like statusband (usually `<WorkflowStatusbar>` / ProgressSteps).
+   * Sticky on md+ under `.o_web_client`; keep tall strips out of this slot.
+   */
+  statusbar?: ReactNode;
   /** Tab strip + tab panels (e.g. `<CmcTabs>`). */
   tabs?: ReactNode;
   /**
@@ -33,7 +39,8 @@ export interface DetailPageProps {
  * ```
  * [ PageHeader — CP-like crumbs ]
  * [ .o-form-sheet-bg ]
- *   [ summary — statusbar / highlight band ]
+ *   [ summary — HighlightStrip / metrics (scrolls) ]
+ *   [ statusbar — thin WorkflowStatusbar (sticky md+) ]
  *   [ .o-form-sheet ]
  *     [ EntityHeader ]
  *     [ CmcTabs? ]
@@ -46,6 +53,7 @@ export function DetailPage({
   header,
   entity,
   summary,
+  statusbar,
   tabs,
   children,
   density = 'default',
@@ -59,6 +67,9 @@ export function DetailPage({
       {header}
       <div className="o-form-sheet-bg">
         {summary != null ? <div className="o-detail-summary">{summary}</div> : null}
+        {statusbar != null ? (
+          <div className="o-detail-statusbar">{statusbar}</div>
+        ) : null}
         {hasSheet ? (
           <div className="o-form-sheet">
             {entity != null ? <div className="o-detail-entity">{entity}</div> : null}

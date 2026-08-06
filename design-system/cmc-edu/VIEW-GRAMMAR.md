@@ -49,7 +49,7 @@ Sticky ops band on every ListPage:
 ```text
 ┌─ ControlBar (.tpl-control-bar) ─────────────────────────┐
 │ header   → PageHeader (title · breadcrumbs · actions)     │
-│ filters? → FilterBar                                      │
+│ filters? → FilterBar / SearchChrome (system search OS)  │
 │ footer?  → ListPagination · bulk · secondary tools        │
 └───────────────────────────────────────────────────────────┘
 │ list body → DataTable | custom board | EmptyState         │
@@ -61,6 +61,23 @@ Sticky ops band on every ListPage:
 - Pager always bottom of ControlBar footer or list foot — not random.
 - Do not put FilterBar outside ListPage when using ListPage.
 - **Row selection:** `DataTable` `selectedIds` + `onSelectionChange` → checkbox column; pair with `BulkActionBar` in `controlFooter` (pilot: gifts).
+
+### 3.1 Search OS (Odoo Filters · Group By · Favorites)
+
+Odoo applies **one** search chrome system-wide (`SearchBar` + facet chips + menu columns Filters / Group By / Favorites). CMC hosts the same *slot* via FilterBar; grammar is still lite.
+
+**Rules (parity target)**
+
+1. **One search chrome per ListPage** — no page-local filter cards outside ControlBar.
+2. **Active conditions should be visible as removable chips/tokens** when more than a single field is active (Odoo facets). Silent URL-only filters are weaker.
+3. **Named presets (≥3)** belong in a **menu**, not an ever-growing row of unlabeled selects.
+4. **Group By** is optional per page; when present, use the same menu + chip grammar (do not invent a second toolbar).
+5. **Favorites / saved snapshots** replace the full filter set (exclusive), matching Odoo favorite activation — only after a storage decision.
+6. **Selection mode** may replace search chrome (Odoo CP center swap); footer `BulkActionBar` is the accepted interim.
+7. **No DomainSelector / raw domain DSL** in staff UI unless explicitly scoped as admin/debug.
+
+Authority dissection: `plans/260806-odoo-ui-component-dissection/reports/odoo-search-system-filters-groupby-favorites.md`.  
+**Apply playbook (agents / new ListPages):** `plans/260806-1509-odoo-ui-g1-search-g2-fields-grammar-audit/reports/g1-search-application-playbook.md`.
 
 ---
 

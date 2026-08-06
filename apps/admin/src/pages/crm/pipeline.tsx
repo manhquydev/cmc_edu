@@ -445,10 +445,7 @@ export default function CrmPipelinePage() {
                 <Skeleton height={120} radius={0} data-testid="crm-pipeline-skeleton" />
               </div>
             ) : error ? (
-              <div className="ck-empty">
-                <span className="ck-empty-icon">
-                  <LineIcon name="alert" size={22} />
-                </span>
+              <div className="o-kanban-empty" role="alert">
                 {error.message || 'Lỗi tải pipeline CRM'}
               </div>
             ) : (
@@ -480,9 +477,7 @@ export default function CrmPipelinePage() {
                 return (
                   <KanbanColumn key={stage.key} title={stage.label} count={count}>
                     {stageItems.length === 0 ? (
-                      <div className="ck-empty" style={{ padding: 8 }}>
-                        Chưa có
-                      </div>
+                      <div className="o-kanban-empty">Chưa có</div>
                     ) : (
                       stageItems.map((opp) => (
                         <OpportunityKanbanCard

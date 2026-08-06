@@ -3,40 +3,26 @@
 **Plan:** `plans/260806-1045-odoo-grammar-gap-cook/` Phase 1  
 **Runner:** `apps/e2e/design3-frontend-audit.mjs`  
 **Target:** Docker `cmcv2-prod` · `https://localhost/admin`  
-**Artifact:** `outputs/design3-frontend-audit/results.json` (+ REPORT.md, screenshots)
+**Artifact:** `outputs/design3-frontend-audit/results.json`
 
-## Result
+## Pass (post-rebuild)
 
-| Metric | Value |
-|--------|-------|
-| Shell OK | 34/34 (100%) |
-| `menuCoveredCount` | **7** (unchanged vs morning audit) |
-| Covered paths | session-evidence, session-assessment, hr/my, salary-tiers, shift-config, network-ip, finance/new |
+| Metric | Before rebuild | After rebuild |
+|--------|----------------|---------------|
+| Shell OK | 34/34 | 34/34 |
+| `menuCoveredCount` | **7** | **0** |
+| Navbar computed z-index | `auto` | **`1000`** |
+| PageHeader under shell | z≈10 competing | `static` / `auto` |
 
-## Diagnosis
-
-Live compute on covered route (session-assessment):
-
-- `.o-navbar` **z-index = auto** (deployed CSS)
-- `.o-page-header` wins `elementsFromPoint` over open app-switcher
-
-**Source repo (branch commits `8e3860e` / `732ca32`) already has:**
-
-- `.o-navbar { z-index: 1000 }` — `packages/ui/src/odoo.css`
-- `.o_web_client .o-page-header { position: static; z-index: auto }`
-- Unit: `packages/ui/src/odoo/odoo-shell-stacking.test.ts` green
-
-⇒ Residual is **deploy lag**, not missing source fix. Admin container image does not embed current `@cmc/ui` CSS.
+Spotlight `/teaching/session-assessment`: `menuCovered=false`, `menuAboveContent=true`.
 
 ## Disposition
 
-- [x] Live audit re-run completed (artifact refreshed)
-- [ ] `menuCoveredCount=0` — **blocked on admin image rebuild** from current branch
-- [ ] Evergreen map must **not** claim stacking SHIPPED until re-audit after rebuild
+- [x] Live audit re-run completed
+- [x] `menuCoveredCount=0`
+- [x] Evergreen map may claim stacking SHIPPED
+- [x] Rebuild via `scripts/rebuild-cmcv2-admin.sh` (after branch push)
 
-## Next ops steps
+## Note
 
-1. Push `feat/design3-admin-rollout` (ahead 2) if not pushed.
-2. Rebuild/redeploy `cmcv2-prod-admin` with workspace `@cmc/ui` that includes navbar z-index 1000.
-3. Re-run `node apps/e2e/design3-frontend-audit.mjs`.
-4. Expect `menuCoveredCount=0`; then `ck plan check 1` and update ODOO-COMPONENT-MAP.
+Audit REPORT prose still embeds a generic “navbar without z-index” blurb when generating markdown; ignore when summary `menuCoveredCount=0` and spotlight shows navbar z-index 1000.

@@ -29,15 +29,18 @@ export interface DetailPageProps {
 /**
  * Canonical detail-page frame for the whole admin product.
  *
+ * Odoo form analogue (design3):
  * ```
- * [ PageHeader breadcrumbs ]
- * [ EntityHeader identity ]
- * [ summary — optional ]
- * [ CmcTabs — optional ]
- * [ body sections — optional ]
+ * [ PageHeader — CP-like crumbs ]
+ * [ .o-form-sheet-bg ]
+ *   [ summary — statusbar / highlight band ]
+ *   [ .o-form-sheet ]
+ *     [ EntityHeader ]
+ *     [ CmcTabs? ]
+ *     [ body ]
  * ```
  *
- * Props-only; pages own tRPC. Requires `@cmc/ui/odoo.css` (`.o-detail*`).
+ * Props-only; pages own tRPC. Requires `@cmc/ui/odoo.css` (`.o-detail*`, `.o-form-sheet*`).
  */
 export function DetailPage({
   header,
@@ -49,14 +52,21 @@ export function DetailPage({
 }: DetailPageProps) {
   const wrap = density === 'ops' ? 'o-wrap o-wrap--ops o-detail' : 'o-wrap o-detail';
   const hasBody = children != null && children !== false && children !== true;
+  const hasSheet = entity != null || tabs != null || hasBody;
 
   return (
     <div className={wrap}>
       {header}
-      {entity != null ? <div className="o-detail-entity">{entity}</div> : null}
-      {summary != null ? <div className="o-detail-summary">{summary}</div> : null}
-      {tabs != null ? <div className="o-detail-tabs">{tabs}</div> : null}
-      {hasBody ? <div className="o-detail-body">{children}</div> : null}
+      <div className="o-form-sheet-bg">
+        {summary != null ? <div className="o-detail-summary">{summary}</div> : null}
+        {hasSheet ? (
+          <div className="o-form-sheet">
+            {entity != null ? <div className="o-detail-entity">{entity}</div> : null}
+            {tabs != null ? <div className="o-detail-tabs">{tabs}</div> : null}
+            {hasBody ? <div className="o-detail-body">{children}</div> : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -150,7 +150,6 @@ export default function PostSaleMeetingPage() {
         header={
           <PageHeader
             title="Họp phụ huynh sau bán"
-            subtitle="Lên lịch và theo dõi họp phụ huynh sau khi ký hợp đồng"
             breadcrumbs={[{ label: 'CRM' }, { label: 'Họp sau bán' }]}
             actions={
               <Button

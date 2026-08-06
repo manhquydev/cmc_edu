@@ -108,10 +108,11 @@ export default function ClassPlacementPage() {
   return (
     <>
       <ListPage
+        density="ops"
         header={
           <PageHeader
             title="Xếp lớp học viên"
-            subtitle="Đặt chỗ (reserved) cho học viên đã có trong hệ thống vào lớp học"
+            subtitle="Trạng thái đặt chỗ (reserved) — học viên đã có trong hệ thống, chưa chính thức vào lớp"
             breadcrumbs={[
               { label: 'Kinh doanh' },
               { label: 'Phiếu thu', href: '/finance' },

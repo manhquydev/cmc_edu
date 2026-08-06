@@ -48,21 +48,31 @@ export function DataTable<T extends Record<string, unknown>>({
     ((row: T) => (row['id'] as string | undefined) ?? JSON.stringify(row));
 
   if (error) {
-    return <Banner status="error" title="Lỗi tải dữ liệu" description={error} />;
+    return (
+      <div className="o-list">
+        <Banner status="error" title="Lỗi tải dữ liệu" description={error} />
+      </div>
+    );
   }
 
   if (loading) {
     return (
-      <Stack gap={0.5} paddingBlock={2}>
-        {Array.from({ length: SKELETON_ROWS }, (_, i) => (
-          <Skeleton key={i} height={32} radius={0} />
-        ))}
-      </Stack>
+      <div className="o-list">
+        <Stack gap={0.5} paddingBlock={2}>
+          {Array.from({ length: SKELETON_ROWS }, (_, i) => (
+            <Skeleton key={i} height={32} radius={0} />
+          ))}
+        </Stack>
+      </div>
     );
   }
 
   if (data.length === 0) {
-    return <EmptyState title={empty} />;
+    return (
+      <div className="o-list">
+        <EmptyState title={empty} />
+      </div>
+    );
   }
 
   const selectionEnabled = selectedIds != null && onSelectionChange != null;
@@ -141,13 +151,16 @@ export function DataTable<T extends Record<string, unknown>>({
   ];
 
   return (
-    <Table<T>
-      data={data}
-      idKey={(row) => resolveId(row)}
-      density="compact"
-      dividers="rows"
-      hasHover={!!onRowClick}
-      columns={mappedColumns}
-    />
+    <div className="o-list">
+      <Table<T>
+        data={data}
+        idKey={(row) => resolveId(row)}
+        density="compact"
+        dividers="rows"
+        isStriped
+        hasHover={!!onRowClick}
+        columns={mappedColumns}
+      />
+    </div>
   );
 }

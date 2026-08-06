@@ -18,10 +18,10 @@ describe('PageHeader breadcrumbs', () => {
     );
     const parent = screen.getByRole('link', { name: 'Giảng dạy' });
     expect(parent.getAttribute('href')).toBe('/teaching');
-    expect(parent.className).toMatch(/ck-bc-link/);
+    expect(parent.className).toMatch(/o-bc-link/);
     // Current page is not a link
     expect(screen.queryByRole('link', { name: 'Lịch dạy' })).toBeNull();
-    expect(container.querySelector('.ck-bc-current')?.textContent).toBe('Lịch dạy');
+    expect(container.querySelector('.o-bc-current')?.textContent).toBe('Lịch dạy');
   });
 
   it('supports breadcrumbs-only chrome without a title heading (Detail + EntityHeader)', () => {

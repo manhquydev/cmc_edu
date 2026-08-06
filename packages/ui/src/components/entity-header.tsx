@@ -5,7 +5,7 @@ import { LineIcon } from './line-icon.js';
 /**
  * Detail-page entity chrome — identity + status + primary actions.
  * Complements PageHeader when you need avatar/initials + meta chips.
- * Requires @cmc/ui/premium.css (.ck-eh*).
+ * Requires @cmc/ui/odoo.css (.o-eh*).
  */
 export interface EntityHeaderProps {
   title: string;
@@ -34,26 +34,26 @@ export function EntityHeader({
 }: EntityHeaderProps) {
   const mark = initials ?? title.trim().slice(0, 1).toUpperCase();
   return (
-    <header className="ck-eh">
+    <header className="o-eh">
       {backHref ? (
-        <Link to={backHref} className="ck-eh-back">
+        <Link to={backHref} className="o-eh-back">
           <LineIcon name="chevron" size={14} />
           {backLabel}
         </Link>
       ) : null}
-      <div className="ck-eh-main">
-        <div className="ck-eh-avatar" aria-hidden>
+      <div className="o-eh-main">
+        <div className="o-eh-avatar" aria-hidden>
           {mark}
         </div>
-        <div className="ck-eh-id">
-          <div className="ck-eh-title-row">
-            <h1 className="ck-eh-title">{title}</h1>
-            {badges ? <div className="ck-eh-badges">{badges}</div> : null}
+        <div className="o-eh-id">
+          <div className="o-eh-title-row">
+            <h1 className="o-eh-title">{title}</h1>
+            {badges ? <div className="o-eh-badges">{badges}</div> : null}
           </div>
-          {subtitle ? <p className="ck-eh-sub">{subtitle}</p> : null}
-          {meta ? <div className="ck-eh-meta">{meta}</div> : null}
+          {subtitle ? <p className="o-eh-sub">{subtitle}</p> : null}
+          {meta ? <div className="o-eh-meta">{meta}</div> : null}
         </div>
-        {actions ? <div className="ck-eh-actions">{actions}</div> : null}
+        {actions ? <div className="o-eh-actions">{actions}</div> : null}
       </div>
     </header>
   );

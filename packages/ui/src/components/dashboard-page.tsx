@@ -4,7 +4,7 @@ import { Skeleton } from '@astryxdesign/core/Skeleton';
 /**
  * Shared operational dashboard layout for role cockpits.
  * Same chrome for every role — only slot content differs (metrics / tasks / side).
- * Requires `@cmc/ui/premium.css` (`.tpl-wrap`, `.tpl-dash-*`).
+ * Requires `@cmc/ui/odoo.css` (`.o-wrap`, `.o-dash-*`).
  */
 export interface DashboardPageProps {
   /** Page title — typically "Tổng quan". */
@@ -34,8 +34,8 @@ export function DashboardPage({
 }: DashboardPageProps) {
   if (loading) {
     return (
-      <div className="tpl-wrap tpl-dash">
-        <div className="tpl-dash-metrics">
+      <div className="o-wrap o-dash">
+        <div className="o-dash-metrics">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} height={116} radius={1} />
           ))}
@@ -46,19 +46,19 @@ export function DashboardPage({
   }
 
   return (
-    <div className="tpl-wrap tpl-dash">
-      <header className="tpl-dash-head">
-        <h1 className="tpl-dash-title">{title}</h1>
-        {subtitle ? <p className="tpl-dash-sub">{subtitle}</p> : null}
+    <div className="o-wrap o-dash">
+      <header className="o-dash-head">
+        <h1 className="o-dash-title">{title}</h1>
+        {subtitle ? <p className="o-dash-sub">{subtitle}</p> : null}
       </header>
 
-      {shortcuts ? <div className="tpl-dash-shortcuts">{shortcuts}</div> : null}
+      {shortcuts ? <div className="o-dash-shortcuts">{shortcuts}</div> : null}
 
-      {metrics ? <div className="tpl-dash-metrics">{metrics}</div> : null}
+      {metrics ? <div className="o-dash-metrics">{metrics}</div> : null}
 
-      <div className="tpl-dash-body">
-        <div className="tpl-dash-primary">{primary}</div>
-        {secondary ? <div className="tpl-dash-secondary">{secondary}</div> : null}
+      <div className="o-dash-body">
+        <div className="o-dash-primary">{primary}</div>
+        {secondary ? <div className="o-dash-secondary">{secondary}</div> : null}
       </div>
     </div>
   );

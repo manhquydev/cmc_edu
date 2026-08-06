@@ -3,10 +3,10 @@
  * Intentionally uses FC default CSS variables so bo góc + toolbar match
  * https://github.com/fullcalendar/fullcalendar standard theme — not Soft Ops card chrome.
  *
- * Scope: only under .ck-fc so page ListPage Soft Ops is untouched.
+ * Scope: only under .o-fc so page ListPage Soft Ops is untouched.
  */
 
-.ck-fc {
+.o-fc {
   /* —— FC standard palette (from @fullcalendar/core injected :root defaults) —— */
   --fc-small-font-size: 0.85em;
   --fc-page-bg-color: #fff;
@@ -43,18 +43,18 @@
 }
 
 /* Title size matches FC default toolbar */
-.ck-fc .fc .fc-toolbar.fc-header-toolbar {
+.o-fc .fc .fc-toolbar.fc-header-toolbar {
   margin-bottom: 1.5em;
 }
 
-.ck-fc .fc .fc-toolbar-title {
+.o-fc .fc .fc-toolbar-title {
   font-size: 1.75em;
   font-weight: 400;
   margin: 0;
 }
 
 /* Button geometry: FC standard 0.25em radius (not Soft Ops 12px) */
-.ck-fc .fc .fc-button {
+.o-fc .fc .fc-button {
   border-radius: 0.25em;
   font-weight: 400;
   line-height: 1.5;
@@ -64,19 +64,19 @@
 }
 
 /* Button groups: shared edges like FC (left/right flush) */
-.ck-fc .fc-direction-ltr .fc-button-group > .fc-button:not(:first-child) {
+.o-fc .fc-direction-ltr .fc-button-group > .fc-button:not(:first-child) {
   border-bottom-left-radius: 0;
   border-top-left-radius: 0;
   margin-left: -1px;
 }
 
-.ck-fc .fc-direction-ltr .fc-button-group > .fc-button:not(:last-child) {
+.o-fc .fc-direction-ltr .fc-button-group > .fc-button:not(:last-child) {
   border-bottom-right-radius: 0;
   border-top-right-radius: 0;
 }
 
 /* Events: square-ish FC chips (default ~0 radius feel; slight 0 for classic) */
-.ck-fc .fc .fc-event {
+.o-fc .fc .fc-event {
   border-radius: 0;
   border-width: 1px;
   font-size: 0.85em;
@@ -85,46 +85,46 @@
   padding: 0 1px;
 }
 
-.ck-fc .fc .fc-daygrid-event {
+.o-fc .fc .fc-daygrid-event {
   border-radius: 0;
 }
 
 /* Status classes still tint via border/background but keep FC event shape */
-.ck-fc .fc .fc-event.ck-fc-ev--active {
+.o-fc .fc .fc-event.o-fc-ev--active {
   background: var(--fc-event-bg-color);
   border-color: var(--fc-event-border-color);
   color: var(--fc-event-text-color);
 }
 
-.ck-fc .fc .fc-event.ck-fc-ev--planned {
+.o-fc .fc .fc-event.o-fc-ev--planned {
   background: #6c757d;
   border-color: #6c757d;
   color: #fff;
 }
 
-.ck-fc .fc .fc-event.ck-fc-ev--done {
+.o-fc .fc .fc-event.o-fc-ev--done {
   background: #28a745;
   border-color: #28a745;
   color: #fff;
 }
 
-.ck-fc .fc .fc-event.ck-fc-ev--cancelled {
+.o-fc .fc .fc-event.o-fc-ev--cancelled {
   opacity: 0.55;
   text-decoration: line-through;
 }
 
-.ck-fc .fc .fc-col-header-cell-cushion,
-.ck-fc .fc .fc-daygrid-day-number {
+.o-fc .fc .fc-col-header-cell-cushion,
+.o-fc .fc .fc-daygrid-day-number {
   text-decoration: none;
   color: inherit;
 }
 
-.ck-fc .fc a[data-navlink]:hover {
+.o-fc .fc a[data-navlink]:hover {
   text-decoration: underline;
 }
 
 /* docs: eventContent injection layout */
-.ck-fc .ck-fc-ev-inner {
+.o-fc .o-fc-ev-inner {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -134,12 +134,12 @@
   padding: 1px 2px;
 }
 
-.ck-fc .ck-fc-ev-time {
+.o-fc .o-fc-ev-time {
   font-weight: 700;
   font-size: 0.85em;
 }
 
-.ck-fc .ck-fc-ev-title {
+.o-fc .o-fc-ev-title {
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -147,19 +147,19 @@
   max-width: 100%;
 }
 
-.ck-fc .ck-fc-ev-status {
+.o-fc .o-fc-ev-status {
   font-size: 0.75em;
   opacity: 0.9;
   text-transform: uppercase;
 }
 
 /* Week number column (docs: week-numbers) */
-.ck-fc .fc .fc-daygrid-week-number {
+.o-fc .fc .fc-daygrid-week-number {
   font-size: 0.85em;
   color: grey;
 }
 
-.ck-fc-loading {
+.o-fc-loading {
   min-height: 320px;
   display: flex;
   align-items: center;
@@ -169,13 +169,13 @@
 }
 
 /* Soft range refetch: keep FC mounted, dim slightly, status bar above grid */
-.ck-fc.ck-fc-fetching .fc {
+.o-fc.o-fc-fetching .fc {
   opacity: 0.72;
   transition: opacity 0.15s ease;
   pointer-events: none;
 }
 
-.ck-fc-fetching-bar {
+.o-fc-fetching-bar {
   font-size: 0.85rem;
   color: grey;
   padding: 0.35rem 0.5rem;

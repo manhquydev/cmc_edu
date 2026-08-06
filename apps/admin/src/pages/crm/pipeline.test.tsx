@@ -151,10 +151,18 @@ describe('CrmPipelinePage', () => {
   });
 
   it('renders per-stage column headers using stageCounts (not the current page item count)', () => {
-    renderWithProviders(<CrmPipelinePage />);
-    // O1_LEAD stageCounts=5 while only 1 item is on the current page.
-    expect(screen.getByText('Tiếp cận · 5')).toBeInTheDocument();
-    expect(screen.getByText('Đã liên hệ · 1')).toBeInTheDocument();
+    const { container } = renderWithProviders(<CrmPipelinePage />);
+    // O1_LEAD stageCounts=5 while only 1 item is on the current page —
+    // KanbanColumn title + count badge (not a page-scoped card count).
+    // Scope to columns: funnel bars also render the same stage labels.
+    const colTitles = Array.from(
+      container.querySelectorAll('.o-kanban-col-header > span:first-child'),
+    ).map((el) => el.textContent);
+    expect(colTitles).toEqual(STAGE_LABEL_ORDER);
+    const counts = Array.from(container.querySelectorAll('.o-kanban-col-count')).map(
+      (el) => el.textContent,
+    );
+    expect(counts).toEqual(['5', '1', '2', '0', '3']);
   });
 
   it('renders the lostCount from the server response', () => {
@@ -331,6 +339,49 @@ describe('CrmPipelinePage', () => {
       listQuerySpy.mockClear();
       fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
       expect(listQuerySpy).toHaveBeenCalledWith({ lost: 'exclude', page: 2, pageSize: 20 });
+    });
+  });
+
+  describe('list ↔ kanban view switcher (Phase 4 design3)', () => {
+    it('defaults to kanban board (KanbanBoard) when view query is absent', () => {
+      const { container } = renderWithProviders(<CrmPipelinePage />);
+      expect(container.querySelector('.o-kanban-board')).toBeInTheDocument();
+      expect(screen.getByLabelText('Xem dạng kanban')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByLabelText('Xem dạng danh sách')).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('switches to table list view via the view switcher and shares opportunityList input', () => {
+      renderWithProviders(<CrmPipelinePage />);
+      listQuerySpy.mockClear();
+      fireEvent.click(screen.getByLabelText('Xem dạng danh sách'));
+      // Re-renders may re-subscribe, but listInput stays the same (no view key).
+      for (const call of listQuerySpy.mock.calls) {
+        expect(call[0]).toEqual({ lost: 'exclude', page: 1, pageSize: 20 });
+        expect(call[0]).not.toHaveProperty('view');
+      }
+      // DataTable headers (list columns mirror card data).
+      expect(screen.getByText('Học viên')).toBeInTheDocument();
+      expect(screen.getByText('SĐT')).toBeInTheDocument();
+      expect(screen.getByText('Giai đoạn')).toBeInTheDocument();
+      expect(screen.getByText('Phụ trách')).toBeInTheDocument();
+      // Contact names still present from shared items.
+      expect(screen.getByText('Nguyễn Văn A')).toBeInTheDocument();
+    });
+
+    it('deep-links table view from ?view=table', () => {
+      const { container } = renderWithProviders(<CrmPipelinePage />, {
+        route: '/crm?view=table',
+      });
+      expect(container.querySelector('.o-kanban-board')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Xem dạng danh sách')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByText('Học viên')).toBeInTheDocument();
+    });
+
+    it('keeps advance action available in kanban after switching back from table', () => {
+      renderWithProviders(<CrmPipelinePage />);
+      fireEvent.click(screen.getByLabelText('Xem dạng danh sách'));
+      fireEvent.click(screen.getByLabelText('Xem dạng kanban'));
+      expect(screen.getAllByRole('button', { name: 'Chuyển lên' }).length).toBeGreaterThan(0);
     });
   });
 

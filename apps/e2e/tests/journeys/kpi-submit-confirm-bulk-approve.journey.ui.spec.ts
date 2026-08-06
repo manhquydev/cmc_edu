@@ -171,7 +171,7 @@ test.describe('P3-06/P3-08 journey — phiếu KPI: nộp → xác nhận → t�
     await menuNav(gdPage, 'Nhân sự', 'Chốt lương', { role: 'giam_doc_kinh_doanh' });
     await gdPage.getByLabel('Kỳ lương (YYYY-MM)').fill(PERIOD);
     await gdPage.getByRole('row', { name: new RegExp(saleName) }).click();
-    await gdPage.getByRole('button', { name: 'Tính lương (assemble)' }).click();
+    await gdPage.getByRole('button', { name: 'Tính lương' }).click();
     await expect(gdPage.getByText('Nháp', { exact: true })).toBeVisible();
     await gdPage.getByRole('button', { name: 'Chốt bảng lương' }).click();
     await expect(gdPage.getByText('Đã chốt', { exact: true })).toBeVisible();

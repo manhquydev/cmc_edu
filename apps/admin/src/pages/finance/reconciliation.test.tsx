@@ -95,7 +95,7 @@ describe('ReconciliationPage', () => {
 
   it('renders the HOTL read-only banner', () => {
     renderWithProviders(<ReconciliationPage />);
-    expect(screen.getByText('Kết quả phân tích tự động từ AI agent — chỉ đọc')).toBeInTheDocument();
+    expect(screen.getByText('Kết quả phân tích tự động — chỉ đọc')).toBeInTheDocument();
   });
 
   it('dismiss action calls reconciliation.dismiss.mutate({flagId}) after confirm and invalidates listFlags', () => {

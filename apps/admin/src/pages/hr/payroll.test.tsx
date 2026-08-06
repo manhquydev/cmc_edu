@@ -198,20 +198,20 @@ describe('PayrollPage', () => {
   it('shows the assemble button when canDo(payslip,assemble)', () => {
     renderWithProviders(<PayrollPage />);
     selectStaff();
-    expect(screen.getByRole('button', { name: 'Tính lương (assemble)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tính lương' })).toBeInTheDocument();
   });
 
   it('hides the action bar for a role without payslip.assemble permission', () => {
     sessionRoles = ['sale'];
     renderWithProviders(<PayrollPage />);
     selectStaff();
-    expect(screen.queryByRole('button', { name: 'Tính lương (assemble)' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tính lương' })).toBeNull();
   });
 
   it('calls payslip.assemble.mutate({appUserId, period}) with a byte-identical payload directly on click', () => {
     renderWithProviders(<PayrollPage />);
     selectStaff();
-    fireEvent.click(screen.getByRole('button', { name: 'Tính lương (assemble)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tính lương' }));
     expect(assembleMutate).toHaveBeenCalledTimes(1);
     const [payload] = assembleMutate.mock.calls[0] as [{ appUserId: string; period: string }];
     expect(payload.appUserId).toBe(STAFF.id);
@@ -221,7 +221,7 @@ describe('PayrollPage', () => {
   it('refetches payslip.getForUser after a successful assemble', () => {
     renderWithProviders(<PayrollPage />);
     selectStaff();
-    fireEvent.click(screen.getByRole('button', { name: 'Tính lương (assemble)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tính lương' }));
     expect(assembleOnSuccess).toBeDefined();
     assembleOnSuccess?.();
     expect(getForUserRefetch).toHaveBeenCalled();
@@ -260,20 +260,20 @@ describe('PayrollPage', () => {
     payslipData = { ...payslipData, status: 'finalized' };
     renderWithProviders(<PayrollPage />);
     selectStaff();
-    expect(screen.getByRole('button', { name: 'Mở lại (reopen)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mở lại' })).toBeInTheDocument();
   });
 
   it('hides the reopen button when status is not finalized', () => {
     renderWithProviders(<PayrollPage />);
     selectStaff();
-    expect(screen.queryByRole('button', { name: 'Mở lại (reopen)' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở lại' })).toBeNull();
   });
 
   it('calls payslip.reopen.mutate({payslipId}) with a byte-identical payload directly on click', () => {
     payslipData = { ...payslipData, status: 'finalized' };
     renderWithProviders(<PayrollPage />);
     selectStaff();
-    fireEvent.click(screen.getByRole('button', { name: 'Mở lại (reopen)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mở lại' }));
     expect(reopenMutate).toHaveBeenCalledWith({ payslipId: 'ps-1' });
   });
 
@@ -281,7 +281,7 @@ describe('PayrollPage', () => {
     payslipData = { ...payslipData, status: 'finalized' };
     renderWithProviders(<PayrollPage />);
     selectStaff();
-    fireEvent.click(screen.getByRole('button', { name: 'Mở lại (reopen)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mở lại' }));
     expect(reopenOnSuccess).toBeDefined();
     reopenOnSuccess?.();
     expect(getForUserRefetch).toHaveBeenCalled();

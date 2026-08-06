@@ -193,7 +193,6 @@ export default function ExercisesPage() {
       header={
         <PageHeader
           title="Quản lý bài tập"
-          subtitle="Tạo và quản lý bài tập học viên"
           breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Bài tập' }]}
           actions={
             <Button label="+ Tạo bài tập" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />

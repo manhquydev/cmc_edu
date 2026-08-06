@@ -165,7 +165,6 @@ export default function AfterSalePage() {
         header={
           <PageHeader
             title="Chăm sóc sau bán"
-            subtitle="Theo dõi các case chăm sóc khách hàng sau bán"
             breadcrumbs={[{ label: 'CRM' }, { label: 'Sau bán' }]}
             actions={
               <Button

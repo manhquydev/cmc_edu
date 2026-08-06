@@ -244,7 +244,6 @@ export default function KpiPage() {
         header={
           <PageHeader
             title="Duyệt KPI"
-            subtitle="Xác nhận, ghi đè và tất toán điểm KPI theo kỳ"
             breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Duyệt KPI' }]}
             actions={
               <HStack gap={1} align="end">

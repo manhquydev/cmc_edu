@@ -161,7 +161,6 @@ export default function RewardsQueuePage() {
       header={
         <PageHeader
           title="Yêu cầu đổi quà"
-          subtitle="Danh sách học viên đang chờ nhận phần thưởng"
           breadcrumbs={[
             { label: 'Quản trị' },
             { label: 'Engagement' },

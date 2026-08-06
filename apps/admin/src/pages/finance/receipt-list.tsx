@@ -164,7 +164,6 @@ export default function ReceiptListPage() {
         header={
           <PageHeader
             title="Phiếu thu học phí"
-            subtitle="Danh sách phiếu thu — tìm kiếm và duyệt học phí"
             breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Phiếu thu' }]}
             actions={
               <HStack gap={2}>

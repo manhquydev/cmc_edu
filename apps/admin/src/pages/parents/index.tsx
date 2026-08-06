@@ -523,7 +523,6 @@ export default function ParentListPage() {
         header={
           <PageHeader
             title="Phụ huynh"
-            subtitle="Duyệt yêu cầu liên kết và quản lý tài khoản phụ huynh"
             breadcrumbs={[{ label: 'Quản trị' }, { label: 'Phụ huynh' }]}
           />
         }

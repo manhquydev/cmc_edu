@@ -11,7 +11,7 @@ describe('DetailPage', () => {
     );
     expect(getByText('HEADER')).toBeInTheDocument();
     expect(getByText('CONTENT')).toBeInTheDocument();
-    expect(container.querySelector('.tpl-detail')).toBeTruthy();
+    expect(container.querySelector('.o-detail')).toBeTruthy();
   });
 
   it('omits the tabs slot when not provided', () => {
@@ -37,15 +37,15 @@ describe('DetailPage', () => {
     expect(getByText('ENTITY')).toBeInTheDocument();
     expect(getByText('SUMMARY')).toBeInTheDocument();
     expect(getByText('TABS')).toBeInTheDocument();
-    expect(container.querySelector('.tpl-detail-entity')).toBeTruthy();
-    expect(container.querySelector('.tpl-detail-summary')).toBeTruthy();
-    expect(container.querySelector('.tpl-detail-tabs')).toBeTruthy();
+    expect(container.querySelector('.o-detail-entity')).toBeTruthy();
+    expect(container.querySelector('.o-detail-summary')).toBeTruthy();
+    expect(container.querySelector('.o-detail-tabs')).toBeTruthy();
   });
 
   it('omits body when children are absent', () => {
     const { container } = render(
       <DetailPage header={<div>HEADER</div>} tabs={<div>TABS</div>} />,
     );
-    expect(container.querySelector('.tpl-detail-body')).toBeNull();
+    expect(container.querySelector('.o-detail-body')).toBeNull();
   });
 });

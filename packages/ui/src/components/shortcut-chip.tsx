@@ -13,14 +13,14 @@ export interface ShortcutChipProps {
 
 export function ShortcutChip({ label, href, icon, badge }: ShortcutChipProps) {
   return (
-    <Link to={href} className="tpl-dash-chip">
+    <Link to={href} className="o-dash-chip">
       {icon ? (
-        <span className="tpl-dash-chip-icon">
+        <span className="o-dash-chip-icon">
           <LineIcon name={icon} size={16} />
         </span>
       ) : null}
-      <span className="tpl-dash-chip-label">{label}</span>
-      {badge != null && badge !== '' ? <span className="tpl-dash-chip-badge">{badge}</span> : null}
+      <span className="o-dash-chip-label">{label}</span>
+      {badge != null && badge !== '' ? <span className="o-dash-chip-badge">{badge}</span> : null}
     </Link>
   );
 }

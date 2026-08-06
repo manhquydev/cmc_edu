@@ -97,7 +97,6 @@ function FacilitiesContent() {
         header={
           <PageHeader
             title="Cơ sở"
-            subtitle="Danh sách cơ sở trong hệ thống (Super Admin)"
             breadcrumbs={[{ label: 'Quản trị' }, { label: 'Cơ sở' }]}
             actions={
               <Button label="Thêm cơ sở" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />

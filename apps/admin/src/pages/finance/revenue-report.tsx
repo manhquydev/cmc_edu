@@ -182,7 +182,6 @@ export default function RevenueReportPage() {
   return (
     <DashboardPage
       title="Doanh thu"
-      subtitle="Tổng hợp phiếu thu đã duyệt theo lớp"
       metrics={
         <Grid columns={{ minWidth: 220, max: 3 }} gap={4}>
           <StatCard
@@ -212,7 +211,7 @@ export default function RevenueReportPage() {
             <Banner
               status="warning"
               title="Dữ liệu bị cắt bớt"
-              description={`Chỉ hiển thị ${items.length} / ${data.total} phiếu thu. Biểu đồ chưa phản ánh toàn bộ doanh thu — phân trang server-side chưa được triển khai.`}
+              description={`Chỉ hiển thị ${items.length} / ${data.total} phiếu thu. Biểu đồ chưa phản ánh toàn bộ doanh thu — phân trang chưa được triển khai.`}
             />
           )}
 

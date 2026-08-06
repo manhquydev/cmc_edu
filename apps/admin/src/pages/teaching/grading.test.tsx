@@ -83,9 +83,9 @@ describe('GradingPage', () => {
     gradeMutate.mockClear();
   });
 
-  it('queries submission.listForGrading with no class filter (the old ?class= filter was fake and never wired up)', () => {
+  it('queries submission.listForGrading with default status submitted (no class filter)', () => {
     renderWithProviders(<GradingPage />);
-    expect(listQuerySpy).toHaveBeenCalledWith({});
+    expect(listQuerySpy).toHaveBeenCalledWith({ status: 'submitted' });
   });
 
   it('does not render a "Lớp:" filter label anywhere (removed fake filter)', () => {

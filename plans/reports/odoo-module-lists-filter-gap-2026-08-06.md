@@ -39,4 +39,13 @@
 
 - Inverted audit dates → Banner warning  
 - `audit.list` not called with both bounds inverted (`enabled: !dateRangeInvalid`)  
-- Unit test green  
+- Unit test green
+
+## Payroll / teaching ops (2026-08-07)
+
+| Surface | API | Status |
+|---------|-----|--------|
+| `hr/payroll` staff list | `user.pickList` + `search` | **SHIPPED** |
+| `teaching/exercises` | `exercise.list` + status/type | **SHIPPED** |
+| `teaching/attendance` class pick | `classBatch.list` + `search` | **SHIPPED** |
+| `teaching/grading` queue | `submission.listForGrading` + status/search | **SHIPPED** |

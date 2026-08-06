@@ -1,11 +1,47 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ComponentProps } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Badge, Banner, Button, HStack, ListPage, MasterDetail, NumberInput, PageHeader, Skeleton, Stack, Text, useToast } from '@cmc/ui';
+import {
+  Badge,
+  Banner,
+  Button,
+  FilterBar,
+  HStack,
+  ListPage,
+  MasterDetail,
+  NumberInput,
+  PageHeader,
+  Skeleton,
+  Stack,
+  Text,
+  useToast,
+} from '@cmc/ui';
+import type { FilterDef } from '@cmc/ui';
 import { UUID_RE, readUuidParam } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { PdfAnnotator } from './pdf-annotator.js';
+
+const GRADING_FILTERS: FilterDef[] = [
+  {
+    key: 'q',
+    label: 'Tìm học sinh',
+    type: 'text',
+    placeholder: 'Tên học sinh…',
+  },
+  {
+    key: 'status',
+    label: 'Trạng thái',
+    type: 'select',
+    options: [
+      { value: 'submitted', label: 'Chờ chấm' },
+      { value: 'graded', label: 'Đã chấm' },
+      { value: 'draft', label: 'Nháp' },
+    ],
+    placeholder: 'Chờ chấm',
+    hasClear: false,
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -260,15 +296,25 @@ export default function GradingPage() {
   // Selected submission id lives in the URL so a teacher can share "this essay".
   const submissionId = readUuidParam(searchParams, 'submissionId');
 
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'draft' | 'submitted' | 'graded'>('submitted');
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
   const {
     data,
     isLoading,
     error,
     refetch,
   } = trpc.submission.listForGrading.useQuery(
-    // Default status is 'submitted' (ungraded queue); no class filter on this
-    // endpoint — submissions are scoped to the facility via server-side RLS.
-    {},
+    {
+      status: statusFilter,
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    },
     { refetchOnWindowFocus: false },
   );
 
@@ -378,6 +424,19 @@ export default function GradingPage() {
           title="Chấm bài"
           breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Chấm bài' }]}
           actions={submissionId ? <CopyLinkButton mode="current" /> : undefined}
+        />
+      }
+      filters={
+        <FilterBar
+          filters={GRADING_FILTERS}
+          value={{ q: searchInput, status: statusFilter }}
+          onChange={(next) => {
+            setSearchInput(next.q ?? '');
+            const s = next.status;
+            if (s === 'draft' || s === 'submitted' || s === 'graded') {
+              setStatusFilter(s);
+            }
+          }}
         />
       }
     >

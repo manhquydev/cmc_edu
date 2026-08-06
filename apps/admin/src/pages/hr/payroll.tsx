@@ -22,6 +22,7 @@
 // Note: no payslip.list endpoint exists. The list is built from user.pickList +
 // per-user payslip queries opened on demand.
 
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { UUID_RE, readUuidParam } from '@cmc/links';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
@@ -31,6 +32,7 @@ import {
   Card,
   DataTable,
   DetailPage,
+  FilterBar,
   HStack,
   LineIcon,
   ListPage,
@@ -41,9 +43,18 @@ import {
   Text,
   TextInput,
 } from '@cmc/ui';
-import type { TableColumn } from '@cmc/ui';
+import type { FilterDef, TableColumn } from '@cmc/ui';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
+
+const PAYROLL_STAFF_FILTERS: FilterDef[] = [
+  {
+    key: 'q',
+    label: 'Tìm nhân viên',
+    type: 'text',
+    placeholder: 'Tên, mã NV, chức vụ…',
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -414,7 +425,16 @@ export default function PayrollPage() {
   // AppUser.id in the URL — hydrate name from pickList (never breadcrumb `undefined`).
   const userIdParam = readUuidParam(searchParams, 'userId');
 
-  const { data, isLoading, error } = trpc.user.pickList.useQuery({});
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const { data, isLoading, error } = trpc.user.pickList.useQuery({
+    ...(debouncedSearch ? { search: debouncedSearch } : {}),
+  });
 
   const staffRows: StaffRow[] = (data?.items ?? []).map((u) => ({
     id: u.id,
@@ -526,6 +546,13 @@ export default function PayrollPage() {
               />
             </div>
           }
+        />
+      }
+      filters={
+        <FilterBar
+          filters={PAYROLL_STAFF_FILTERS}
+          value={{ q: searchInput }}
+          onChange={(next) => setSearchInput(next.q ?? '')}
         />
       }
     >

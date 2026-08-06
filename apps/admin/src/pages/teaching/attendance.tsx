@@ -1,9 +1,33 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Badge, Banner, Button, Grid, HStack, LineIcon, ListPage, PageHeader, Selector, Skeleton, Stack, Text } from '@cmc/ui';
+import {
+  Badge,
+  Banner,
+  Button,
+  FilterBar,
+  Grid,
+  HStack,
+  LineIcon,
+  ListPage,
+  PageHeader,
+  Selector,
+  Skeleton,
+  Stack,
+  Text,
+} from '@cmc/ui';
+import type { FilterDef } from '@cmc/ui';
 import { UUID_RE, readUuidParam } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+
+const CLASS_SEARCH_FILTERS: FilterDef[] = [
+  {
+    key: 'q',
+    label: 'Tìm lớp',
+    type: 'text',
+    placeholder: 'Mã lớp, chương trình…',
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -151,10 +175,18 @@ export default function AttendancePage() {
   >({});
   const [saved, setSaved] = useState(false);
   const [saveValidationError, setSaveValidationError] = useState<string | null>(null);
+  const [classSearchInput, setClassSearchInput] = useState('');
+  const [debouncedClassSearch, setDebouncedClassSearch] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedClassSearch(classSearchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [classSearchInput]);
 
   const { data: classData, isLoading: classLoading } = trpc.classBatch.list.useQuery({
     page: 1,
     pageSize: 100,
+    ...(debouncedClassSearch ? { search: debouncedClassSearch } : {}),
   });
   const { data: sessions, isLoading: sessionsLoading } = trpc.classSession.list.useQuery(
     { classBatchId: classBatchId! },
@@ -310,6 +342,13 @@ export default function AttendancePage() {
               ) : null}
             </>
           }
+        />
+      }
+      filters={
+        <FilterBar
+          filters={CLASS_SEARCH_FILTERS}
+          value={{ q: classSearchInput }}
+          onChange={(next) => setClassSearchInput(next.q ?? '')}
         />
       }
     >

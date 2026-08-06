@@ -1,7 +1,7 @@
 // Exercise management — director creates exercises linked to CurriculumUnits.
 // exercise.manage permission = giam_doc_dao_tao only.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ComponentProps } from 'react';
 import {
   Badge,
@@ -12,6 +12,7 @@ import {
   DataTable,
   Dialog,
   DialogHeader,
+  FilterBar,
   HStack,
   ListPage,
   ListPagination,
@@ -22,7 +23,7 @@ import {
   Text,
   useToast,
 } from '@cmc/ui';
-import type { TableColumn } from '@cmc/ui';
+import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').trim();
@@ -39,6 +40,27 @@ const EXERCISE_TYPE_OPTIONS = [
   { value: 'homework', label: 'Bài tập về nhà' },
   { value: 'test_entrance', label: 'Kiểm tra đầu vào' },
   { value: 'test_periodic', label: 'Kiểm tra định kỳ' },
+];
+
+const EXERCISE_FILTERS: FilterDef[] = [
+  {
+    key: 'status',
+    label: 'Trạng thái',
+    type: 'select',
+    options: [
+      { value: 'draft', label: 'Nháp' },
+      { value: 'published', label: 'Đã công bố' },
+      { value: 'closed', label: 'Đã đóng' },
+    ],
+    placeholder: 'Tất cả',
+  },
+  {
+    key: 'type',
+    label: 'Loại',
+    type: 'select',
+    options: EXERCISE_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+    placeholder: 'Tất cả',
+  },
 ];
 
 interface ExerciseRow {
@@ -60,13 +82,27 @@ export default function ExercisesPage() {
   const [pendingCloseId, setPendingCloseId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const pageSize = 20;
   const fileRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
   const { success: toastSuccess } = useToast();
 
+  useEffect(() => {
+    setPage(1);
+    setSelectedIds([]);
+  }, [statusFilter, typeFilter]);
+
   const { data: unitsData, isLoading: unitsLoading } = trpc.curriculumUnit.list.useQuery();
-  const { data, isLoading, error } = trpc.exercise.list.useQuery({});
+  const { data, isLoading, error } = trpc.exercise.list.useQuery({
+    ...(statusFilter
+      ? { status: statusFilter as 'draft' | 'published' | 'closed' }
+      : {}),
+    ...(typeFilter
+      ? { type: typeFilter as 'homework' | 'test_entrance' | 'test_periodic' }
+      : {}),
+  });
 
   const createMut = trpc.exercise.create.useMutation({
     onSuccess: () => {
@@ -197,6 +233,16 @@ export default function ExercisesPage() {
           actions={
             <Button label="+ Tạo bài tập" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />
           }
+        />
+      }
+      filters={
+        <FilterBar
+          filters={EXERCISE_FILTERS}
+          value={{ status: statusFilter, type: typeFilter }}
+          onChange={(next) => {
+            setStatusFilter(next.status ?? '');
+            setTypeFilter(next.type ?? '');
+          }}
         />
       }
       controlFooter={

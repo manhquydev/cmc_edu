@@ -54,6 +54,8 @@ const listForChildInput = z.object({ studentId: z.string().uuid() });
 const listForGradingInput = z.object({
   exerciseId: z.string().uuid().optional(),
   status: z.enum(['draft', 'submitted', 'graded']).optional().default('submitted'),
+  /** Student fullName substring (case-insensitive). */
+  search: z.string().trim().min(1).max(100).optional(),
 });
 
 const saveTeacherAnnotationInput = z.object({
@@ -434,7 +436,18 @@ export const submissionRouter = router({
 
       return withFacility(ctx.db, facilityId, async (tx) => {
         const items = await tx.submission.findMany({
-          where: { facilityId, exerciseId: input.exerciseId, status: input.status },
+          where: {
+            facilityId,
+            exerciseId: input.exerciseId,
+            status: input.status,
+            ...(input.search
+              ? {
+                  student: {
+                    fullName: { contains: input.search, mode: 'insensitive' },
+                  },
+                }
+              : {}),
+          },
           orderBy: { submittedAt: 'asc' },
           take: 100,
           // `student` joined so the grading queue can show a name instead of

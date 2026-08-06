@@ -97,3 +97,9 @@ Census must reach 0 unported reachable classes under admin render path.
 Current admin still references premium tokens (see list). Do **not** drop
 `import @cmc/ui/premium.css` from apps/admin main.tsx yet.
 `packages/ui/src/premium.css` must remain untouched (LMS consumer).
+
+## Follow-up (2026-08-06)
+
+Admin retired `premium.css` via scoped mirror under `.o_web_client`.
+**Exception:** `.ck-toast*` and `.ck-cmd*` are intentionally unscoped in
+`odoo.css` because ToastProvider / CommandPalette mount outside the shell.

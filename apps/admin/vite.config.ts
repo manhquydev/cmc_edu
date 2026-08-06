@@ -54,7 +54,16 @@ export default defineConfig(({ mode }) => {
     '/health': proxyEntry(),
   };
 
+  // Production docker/nginx serves the SPA under /admin/ (see docker-compose.prod.yml
+  // + infra/nginx/nginx.conf). Without base, built index.html points at /assets/*
+  // which hits the LMS root location and returns HTML (broken MIME). Dev stays `/`.
+  const base =
+    env['VITE_BASE'] ||
+    process.env['VITE_BASE'] ||
+    '/';
+
   return {
+    base,
     envDir: monorepoRoot,
     plugins: [react()],
     server: { proxy },

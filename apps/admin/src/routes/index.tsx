@@ -41,7 +41,12 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-export const router = createBrowserRouter([
+// Vite `base` (docker: /admin/) becomes import.meta.env.BASE_URL so the data
+// router matches URLs under the nginx /admin/ prefix.
+const routerBasename = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') || '/';
+
+export const router = createBrowserRouter(
+  [
   { path: '/login', element: <LoginPage /> },
   {
     path: '/',
@@ -80,4 +85,6 @@ export const router = createBrowserRouter([
       { path: '*', element: <ComingSoon /> },
     ],
   },
-]);
+  ],
+  routerBasename === '/' ? undefined : { basename: routerBasename },
+);

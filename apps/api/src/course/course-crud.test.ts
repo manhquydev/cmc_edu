@@ -38,6 +38,19 @@ describe('course.create / course.list (test backfill)', () => {
     expect(items.some((c) => c.id === created.id)).toBe(true);
   });
 
+  it('course.list search and program filter narrow the catalog', async () => {
+    const a = await gddt.course.create({ program: 'UCREA', name: 'Search Alpha Course' });
+    const b = await gddt.course.create({ program: 'BRIGHT_IG', name: 'Search Beta Course' });
+
+    const byName = await gddt.course.list({ search: 'Alpha' });
+    expect(byName.items.some((c) => c.id === a.id)).toBe(true);
+    expect(byName.items.every((c) => c.id !== b.id)).toBe(true);
+
+    const byProgram = await gddt.course.list({ program: 'BRIGHT_IG' });
+    expect(byProgram.items.some((c) => c.id === b.id)).toBe(true);
+    expect(byProgram.items.every((c) => c.program === 'BRIGHT_IG')).toBe(true);
+  });
+
   it('forbids a role without course.manage permission from creating', async () => {
     await expect(sale.course.create({ program: 'UCREA', name: 'No Access' })).rejects.toMatchObject({
       code: 'FORBIDDEN',

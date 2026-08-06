@@ -15,6 +15,10 @@ const courseCreateInput = z.object({
 const courseListInput = z.object({
   page: z.number().int().positive().default(1),
   pageSize: z.number().int().positive().max(100).default(20),
+  /** Matches course name (case-insensitive) — G1 FilterBar on admin courses. */
+  search: z.string().trim().min(1).max(100).optional(),
+  /** Exact program filter when staff pick a catalog value. */
+  program: z.enum(PROGRAM_VALUES).optional(),
 });
 
 export interface CourseDto {
@@ -41,7 +45,13 @@ export const courseRouter = router({
     .query(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
       return withFacility(ctx.db, facilityId, async (tx) => {
-        const where = { facilityId };
+        const where = {
+          facilityId,
+          ...(input.program ? { program: input.program } : {}),
+          ...(input.search
+            ? { name: { contains: input.search, mode: 'insensitive' as const } }
+            : {}),
+        };
         const [items, total] = await Promise.all([
           tx.course.findMany({
             where,

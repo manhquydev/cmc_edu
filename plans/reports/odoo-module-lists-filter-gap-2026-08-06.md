@@ -18,8 +18,8 @@
 |------|-----|--------|
 | `admin/facilities.tsx` | `facility.list` + `search` | **SHIPPED** 2026-08-07 FilterBar |
 | `admin/users.tsx` | `user.list` + `search` | **SHIPPED** 2026-08-07 FilterBar |
-| `courses/index.tsx` | `course.list` page only | **SKIP** until name/program filter API |
-| `classes/index.tsx` | `classBatch.list` page only | **SKIP** until filters |
+| `courses/index.tsx` | `course.list` + `search`/`program` | **SHIPPED** 2026-08-07 FilterBar |
+| `classes/index.tsx` | `classBatch.list` + `search` | **SHIPPED** 2026-08-07 FilterBar |
 | `engagement/leaderboard.tsx` | empty shell | intentional |
 | `finance/refund.tsx` | empty shell | intentional |
 | `enrollment/class-placement.tsx` | form-as-list hybrid | document hybrid |

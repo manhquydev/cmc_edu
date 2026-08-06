@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // Locks the class-management UI gap fix: `classBatch.create` gộp sẵn tạo lớp
@@ -32,6 +32,7 @@ vi.mock('react-router-dom', async () => {
 });
 
 const courseListSpy = vi.fn();
+const classBatchListSpy = vi.fn();
 const pickListSpy = vi.fn();
 const createMutate = vi.fn();
 let createOnSuccess: ((res: unknown) => void) | undefined;
@@ -46,7 +47,10 @@ vi.mock('../../lib/trpc.js', async () => {
         facilityId: 'f1',
         config: { approvalSecondEyeThreshold: 20_000_000 },
       }),
-      'classBatch.list.useQuery': queryResult(CLASSES),
+      'classBatch.list.useQuery': (...args: unknown[]) => {
+        classBatchListSpy(...args);
+        return queryResult(CLASSES);
+      },
       'course.list.useQuery': (input: unknown) => {
         courseListSpy(input);
         return queryResult(COURSES);
@@ -103,10 +107,29 @@ async function fillValidForm() {
 describe('ClassListPage — Tạo lớp', () => {
   beforeEach(() => {
     courseListSpy.mockClear();
+    classBatchListSpy.mockClear();
     pickListSpy.mockClear();
     createMutate.mockClear();
     navigateSpy.mockClear();
     createOnSuccess = undefined;
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('hosts FilterBar and debounces search into classBatch.list({ search })', async () => {
+    renderListPage();
+    expect(screen.getByRole('search', { name: 'Bộ lọc' })).toBeInTheDocument();
+    classBatchListSpy.mockClear();
+    fireEvent.change(screen.getByLabelText('Tìm kiếm'), { target: { value: 'HN-UCREA' } });
+    await vi.advanceTimersByTimeAsync(350);
+    await waitFor(() => {
+      expect(classBatchListSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ search: 'HN-UCREA', page: 1, pageSize: 20 }),
+      );
+    });
   });
 
   it('queries course.list and user.pickList({role: "giao_vien"}) to populate dropdowns instead of accepting a pasted UUID', async () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { links } from '@cmc/links';
 import {
@@ -8,6 +8,7 @@ import {
   Dialog,
   DialogHeader,
   EmptyState,
+  FilterBar,
   HStack,
   LineIcon,
   BulkActionBar,
@@ -21,8 +22,17 @@ import {
   TextInput,
   useToast,
 } from '@cmc/ui';
-import type { TableColumn } from '@cmc/ui';
+import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+
+const CLASS_FILTERS: FilterDef[] = [
+  {
+    key: 'q',
+    label: 'Tìm kiếm',
+    type: 'text',
+    placeholder: 'Mã lớp, khoá học, chương trình…',
+  },
+];
 import { useSession } from '../../lib/session-context.js';
 
 interface ClassRow {
@@ -174,11 +184,25 @@ function ClassListContent() {
 
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const pageSize = 20;
   const { success: toastSuccess } = useToast();
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+    setSelectedIds([]);
+  }, [debouncedSearch]);
+
   const { data, isLoading, error } = trpc.classBatch.list.useQuery({
     page,
     pageSize,
+    ...(debouncedSearch ? { search: debouncedSearch } : {}),
   });
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -192,9 +216,8 @@ function ClassListContent() {
     sessionsCreated: number;
   } | null>(null);
 
-  // Dropdowns instead of pasted UUIDs (spec requirement) — `course.list` and
-  // `user.pickList({role:'giao_vien'})` are both already gated to
-  // giam_doc_dao_tao, the same role that owns `class.create` above.
+  // Dropdowns instead of pasted UUIDs (spec requirement) — full course catalog
+  // for create dialog (unfiltered), same role gate as class.create.
   const { data: courseData, isLoading: courseLoading, error: courseError } =
     trpc.course.list.useQuery({ pageSize: 100 });
   const { data: teacherData, isLoading: teacherLoading, error: teacherError } =
@@ -309,6 +332,13 @@ function ClassListContent() {
                 onClick={() => setCreateOpen(true)}
               />
             }
+          />
+        }
+        filters={
+          <FilterBar
+            filters={CLASS_FILTERS}
+            value={{ q: searchInput }}
+            onChange={(next) => setSearchInput(next.q ?? '')}
           />
         }
         controlFooter={

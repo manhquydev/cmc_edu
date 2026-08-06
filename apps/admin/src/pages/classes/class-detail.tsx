@@ -111,7 +111,7 @@ function StudentsTab({ classBatchId }: { classBatchId: string }) {
 
   return (
     <div className="o-detail-panel">
-      <div className="ck-table-shell">
+      <div className="o-list">
         <DataTable<StudentTabRow>
           columns={columns}
           data={(data as StudentTabRow[] | undefined) ?? []}

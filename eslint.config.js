@@ -29,6 +29,16 @@ const BANNED_UI_IMPORTS = {
   ],
 };
 
+// Tokens naming internal API functions, components/libraries, dev-role codes,
+// or other implementation identifiers that must never leak into user-facing
+// copy (title/subtitle/description/label/message/hint). See
+// design-system/cmc-edu/MASTER.md §"Giới hạn lint" for what this pattern does
+// and does NOT cover (AST form limit + closed token-list limit).
+const INTERNAL_IDENTIFIER_PATTERN =
+  'SettingsShell|FullCalendar|ConsoleEmailTransport|super_admin' +
+  '|AI agent|ai:recon|\\bCRUD\\b|testAppointment\\.|finance\\.refundCreate' +
+  '|\\bEntity\\b|API .{0,40}chưa khả dụng';
+
 export default [
   {
     files: ['apps/admin/**/*.{ts,tsx}', 'apps/lms/**/*.{ts,tsx}'],
@@ -47,6 +57,36 @@ export default [
     linterOptions: { reportUnusedDisableDirectives: 'off' },
     rules: {
       'no-restricted-imports': ['error', BANNED_UI_IMPORTS],
+    },
+  },
+  // Second object (not merged into the one above): the object above already
+  // `ignores` main.tsx, and flat-config `ignores` only scopes its own object
+  // — reusing that array here would silently turn off no-restricted-imports
+  // for every file this rule ignores. Flat config still merges `rules` across
+  // objects that both match a file, so no-restricted-imports above keeps
+  // applying to design-lab.tsx even though this object ignores it.
+  {
+    files: ['apps/admin/**/*.{ts,tsx}', 'apps/lms/**/*.{ts,tsx}'],
+    ignores: [
+      'apps/admin/src/main.tsx',
+      'apps/lms/src/main.tsx',
+      'apps/admin/src/pages/design-lab.tsx',
+      'apps/admin/src/pages/design-lab-wireframes.tsx',
+    ],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { ecmaFeatures: { jsx: true }, sourceType: 'module' },
+    },
+    plugins: { '@typescript-eslint': tseslint.plugin },
+    linterOptions: { reportUnusedDisableDirectives: 'off' },
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: `JSXAttribute[name.name=/^(title|subtitle|description|label|message|hint)$/] > Literal[value=/${INTERNAL_IDENTIFIER_PATTERN}/]`,
+          message: 'internal-identifier-in-user-facing-string',
+        },
+      ],
     },
   },
 ];

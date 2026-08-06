@@ -42,7 +42,7 @@ If a task needs a path outside ALLOWLIST → **stop and ask**. Do not “just br
 | **L5 Design authority** | Evergreen map/grammar | `/ck:docs` or docs-manager (edit only map/VIEW-GRAMMAR) | xia + dissection | `ODOO-COMPONENT-MAP.md` |
 | **L6 Plan cook** | Cookable phases | `/ck:plan` (pass brainstorm + xia paths) | ranked P0–P2 gaps only | `plans/<ts>-…/plan.md` |
 | **L7 Cook** | Implement gap | `/ak:cook` / `/ck:cook` | **one** phase file | code + tests |
-| **L8 Test** | Prove density/stacking | `/ck:test` + unit `odoo-*.test.ts` + `design3-frontend-audit.mjs` | changed surface | green evidence |
+| **L8 Test** | Prove density/stacking + form detail grammar | `/ck:test` + unit `odoo-*.test.ts` + `design3-frontend-audit.mjs` + **detail:** `PLAYWRIGHT_UI=1 … tests/design3-statusbar.ui.spec.ts` + ops `pnpm exec tsx apps/e2e/smoke-statusbar.ts` (shared `openSeededDetail` — **no** `a[href]` scrape; hard-fail if list empty) | changed surface | green evidence |
 | **L9 Review** | Before merge | `/ck:code-review` or bugbot | PR diff | findings |
 | **L10 Design smell** | Visual UX only if stuck | `/ck:ui-ux-pro-max` or `ui-ux-designer` | screenshots / audit | recommendations |
 

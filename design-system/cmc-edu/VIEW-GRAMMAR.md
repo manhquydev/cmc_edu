@@ -75,6 +75,7 @@ DetailPage
   entity?:    EntityHeader  ← full/standard only · single h1 · 1 primary CTA
   summary?:   HighlightStrip / StatActions (scrolls — not sticky)
   statusbar?: WorkflowStatusbar (thin; sticky md+ under shell)
+  # prove: apps/e2e design3-statusbar.ui.spec + smoke-statusbar.ts (list-click entry)
   settings?:  SettingsShell (settings tier)
   tabs?:      CmcTabs
   body?:      .o-detail-stack | .o-detail-split + SectionBlock + KeyValueList

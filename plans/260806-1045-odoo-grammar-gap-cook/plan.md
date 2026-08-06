@@ -36,7 +36,7 @@ Close professional-parity gaps from the 2026-08-06 xia compare suite against `od
 |-------|------|--------|
 | 1 | [P0 stacking ops checklist](./phase-01-p0-stacking-reaudit.md) | Completed |
 | 2 | [Brand module name](./phase-02-brand-module-name.md) | Completed |
-| 3 | [Thin statusbar sticky md+](./phase-03-statusbar-sticky-md.md) | Pending |
+| 3 | [Thin statusbar sticky md+](./phase-03-statusbar-sticky-md.md) | Completed |
 | 4 | [Kanban responsive width](./phase-04-kanban-gutter-responsive.md) | Completed |
 | 5 | [List table grammar (Astryx)](./phase-05-list-ops-pad-sticky-e2e.md) | Pending |
 | 6 | [Docs delta in PR](./phase-06-docs-matrix-sync.md) | Completed |

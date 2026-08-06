@@ -58,16 +58,34 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
         const val = currentValues[f.key] ?? '';
         if (f.type === 'select') {
           const allowClear = f.hasClear !== false;
+          const opts = f.options ?? [];
+          // Astryx: nullable value requires hasClear:true. Default-domain
+          // selects (hasClear:false) keep a non-null selected option.
+          if (allowClear) {
+            return (
+              <div key={f.key} style={{ width: 160 }}>
+                <Selector
+                  size="sm"
+                  label={f.label}
+                  placeholder={f.placeholder ?? 'Tất cả'}
+                  options={opts}
+                  value={val || null}
+                  onChange={(v: string | null) => handleChange(f.key, v ?? '')}
+                  hasClear
+                />
+              </div>
+            );
+          }
+          const nonNullValue = val || opts[0]?.value || '';
           return (
             <div key={f.key} style={{ width: 160 }}>
               <Selector
                 size="sm"
                 label={f.label}
                 placeholder={f.placeholder ?? 'Tất cả'}
-                options={f.options ?? []}
-                value={val || null}
-                onChange={(v) => handleChange(f.key, v ?? '')}
-                hasClear={allowClear}
+                options={opts}
+                value={nonNullValue}
+                onChange={(v: string) => handleChange(f.key, v)}
               />
             </div>
           );

@@ -28,6 +28,8 @@ const facilityCreateInput = z.object({
 const facilityListInput = z.object({
   page: z.number().int().positive().default(1),
   pageSize: z.number().int().positive().max(100).default(20),
+  /** Matches name or code (case-insensitive) — G1 FilterBar on admin facilities. */
+  search: z.string().trim().min(1).max(100).optional(),
 });
 
 const facilityUpdateInput = z.object({
@@ -116,13 +118,24 @@ export const facilityRouter = router({
   list: requirePermission('facility', 'list')
     .input(facilityListInput)
     .query(async ({ ctx, input }) => {
+      const term = input.search;
+      const where = term
+        ? {
+            OR: [
+              { name: { contains: term, mode: 'insensitive' as const } },
+              { code: { contains: term, mode: 'insensitive' as const } },
+            ],
+          }
+        : {};
+
       const [items, total] = await Promise.all([
         ctx.db.facility.findMany({
+          where,
           orderBy: { createdAt: 'desc' },
           skip: (input.page - 1) * input.pageSize,
           take: input.pageSize,
         }),
-        ctx.db.facility.count(),
+        ctx.db.facility.count({ where }),
       ]);
 
       return { items, total, page: input.page, pageSize: input.pageSize };

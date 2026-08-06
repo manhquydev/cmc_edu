@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, within, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { screen, fireEvent, within, act, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // Locks current user.list/user.create/user.updateRoles behavior + the
@@ -33,6 +33,7 @@ const usersListState: { data: { items: UserRow[] }; error: { message: string } |
   error: null,
 };
 let sessionRoles: string[] = ['super_admin'];
+const listQuerySpy = vi.fn();
 const createMutate = vi.fn();
 const updateRolesMutate = vi.fn();
 const resetPasswordMutate = vi.fn();
@@ -51,11 +52,13 @@ vi.mock('../../lib/trpc.js', async () => {
           facilityId: 'f1',
           config: { approvalSecondEyeThreshold: 20_000_000 },
         }),
-      'user.list.useQuery': () =>
-        queryResult(usersListState.data, {
+      'user.list.useQuery': (...args: unknown[]) => {
+        listQuerySpy(...args);
+        return queryResult(usersListState.data, {
           error: usersListState.error,
           isError: usersListState.error !== null,
-        }),
+        });
+      },
       'user.create.useMutation': (options: { onSuccess?: () => void }) => {
         createOnSuccess = options?.onSuccess;
         return mutationResult({ mutate: createMutate });
@@ -84,12 +87,31 @@ describe('UsersPage', () => {
     sessionRoles = ['super_admin'];
     usersListState.data = { items: [ROW_A] };
     usersListState.error = null;
+    listQuerySpy.mockClear();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders user rows bound to user.list.useQuery', () => {
     renderWithProviders(<UsersPage />);
     expect(screen.getByText('Nguyễn Văn A')).toBeInTheDocument();
     expect(screen.getByText('CMC001')).toBeInTheDocument();
+  });
+
+  it('hosts FilterBar and debounces search into user.list({ search })', async () => {
+    renderWithProviders(<UsersPage />);
+    expect(screen.getByRole('search', { name: 'Bộ lọc' })).toBeInTheDocument();
+    listQuerySpy.mockClear();
+    fireEvent.change(screen.getByLabelText('Tìm kiếm'), { target: { value: 'Nguyễn' } });
+    const mid = listQuerySpy.mock.calls.at(-1)?.[0] as { search?: string } | undefined;
+    expect(mid?.search).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(350);
+    await waitFor(() => {
+      expect(listQuerySpy).toHaveBeenCalledWith({ search: 'Nguyễn' });
+    });
   });
 
   it('renders empty state when user.list returns no rows', () => {

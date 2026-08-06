@@ -147,6 +147,29 @@ describe('user — AppUser CRUD (P3-I)', () => {
     expect(result.items.every((u) => u.facilityId === facilityId)).toBe(true);
   });
 
+  it('user.list — search matches fullName / employeeCode case-insensitively', async () => {
+    await seedAppUser({
+      facilityId,
+      userId: 'u-search-alpha',
+      fullName: 'Trần Alpha Search',
+      email: 'alpha-search@cmc.test',
+    });
+    await seedAppUser({
+      facilityId,
+      userId: 'u-search-beta',
+      fullName: 'Lê Beta Other',
+      email: 'beta-other@cmc.test',
+    });
+
+    const byName = await caller(superAdminCtx).user.list({ search: 'alpha search' });
+    expect(byName.items.some((u) => u.userId === 'u-search-alpha')).toBe(true);
+    expect(byName.items.every((u) => !u.userId.includes('beta'))).toBe(true);
+
+    const byEmail = await caller(superAdminCtx).user.list({ search: 'beta-other' });
+    expect(byEmail.items.some((u) => u.userId === 'u-search-beta')).toBe(true);
+    expect(byEmail.items.every((u) => u.userId !== 'u-search-alpha')).toBe(true);
+  });
+
   it('user.create/update/list — forbidden for sale role', async () => {
     await expect(
       caller(saleCtx).user.create({

@@ -16,8 +16,8 @@
 
 | Page | API | Action |
 |------|-----|--------|
-| `admin/facilities.tsx` | `facility.list` page only | **SKIP** until search/code filter API |
-| `admin/users.tsx` | `user.list` page only | **SKIP** until search/role filter API |
+| `admin/facilities.tsx` | `facility.list` + `search` | **SHIPPED** 2026-08-07 FilterBar |
+| `admin/users.tsx` | `user.list` + `search` | **SHIPPED** 2026-08-07 FilterBar |
 | `courses/index.tsx` | `course.list` page only | **SKIP** until name/program filter API |
 | `classes/index.tsx` | `classBatch.list` page only | **SKIP** until filters |
 | `engagement/leaderboard.tsx` | empty shell | intentional |

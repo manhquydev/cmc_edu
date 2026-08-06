@@ -28,6 +28,12 @@ const pickListInput = z.object({
   role: z.enum(ACTIVE_ROLES).optional(),
 });
 
+/** Staff directory search — G1 FilterBar on admin users list. */
+const userListInput = z.object({
+  /** Matches fullName / email (case-insensitive), employeeCode, or userId. */
+  search: z.string().trim().min(1).max(100).optional(),
+});
+
 // Same minimum as the LMS password procedures (lms-auth/router.ts).
 const PASSWORD_MIN_LENGTH = 8;
 
@@ -242,11 +248,26 @@ export const userRouter = router({
     }),
 
   list: requirePermission('user', 'manage')
-    .query(async ({ ctx }) => {
+    .input(userListInput.default({}))
+    .query(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
+      const term = input.search;
       return withFacility(ctx.db, facilityId, async (tx) => {
         const items = await tx.appUser.findMany({
-          where: { facilityId },
+          where: {
+            facilityId,
+            ...(term
+              ? {
+                  OR: [
+                    { fullName: { contains: term, mode: 'insensitive' } },
+                    { email: { contains: term, mode: 'insensitive' } },
+                    { employeeCode: { contains: term, mode: 'insensitive' } },
+                    { userId: { contains: term, mode: 'insensitive' } },
+                    { position: { contains: term, mode: 'insensitive' } },
+                  ],
+                }
+              : {}),
+          },
           orderBy: { createdAt: 'asc' },
           select: APP_USER_SELECT,
         });

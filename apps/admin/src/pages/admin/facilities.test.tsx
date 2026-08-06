@@ -1,19 +1,23 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // Locks current facility.list behavior + the permission gate BEFORE the
 // ListPage refactor (TDD per phase-02). Async factory so the dynamic import
 // resolves after the vi.mock hoist (see mock-trpc.ts usage docs).
 const facilityListState: {
-  data: { items: unknown[] };
+  data: { items: unknown[]; total?: number };
   error: { message: string } | null;
 } = {
-  data: { items: [{ id: 'f1', name: 'Cơ sở Cầu Giấy', code: 'CG', createdAt: '2026-01-01T00:00:00.000Z' }] },
+  data: {
+    items: [{ id: 'f1', name: 'Cơ sở Cầu Giấy', code: 'CG', createdAt: '2026-01-01T00:00:00.000Z' }],
+    total: 1,
+  },
   error: null,
 };
 let sessionRoles: string[] = ['super_admin'];
+const listQuerySpy = vi.fn();
 const createMutate = vi.fn();
 const updateMutate = vi.fn();
 
@@ -28,11 +32,13 @@ vi.mock('../../lib/trpc.js', async () => {
           facilityId: 'f1',
           config: { approvalSecondEyeThreshold: 20_000_000 },
         }),
-      'facility.list.useQuery': () =>
-        queryResult(facilityListState.data, {
+      'facility.list.useQuery': (...args: unknown[]) => {
+        listQuerySpy(...args);
+        return queryResult(facilityListState.data, {
           error: facilityListState.error,
           isError: facilityListState.error !== null,
-        }),
+        });
+      },
       'facility.create.useMutation': (opts: { onSuccess?: () => void }) =>
         mutationResult({ mutate: (...a: unknown[]) => { createMutate(...a); opts?.onSuccess?.(); } }),
       'facility.update.useMutation': (opts: { onSuccess?: () => void }) =>
@@ -51,10 +57,30 @@ describe('FacilitiesPage', () => {
     sessionRoles = ['super_admin'];
     facilityListState.data = {
       items: [{ id: 'f1', name: 'Cơ sở Cầu Giấy', code: 'CG', createdAt: '2026-01-01T00:00:00.000Z' }],
+      total: 1,
     };
     facilityListState.error = null;
     createMutate.mockClear();
     updateMutate.mockClear();
+    listQuerySpy.mockClear();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('hosts FilterBar and debounces search into facility.list({ search })', async () => {
+    renderWithProviders(<FacilitiesPage />);
+    expect(screen.getByRole('search', { name: 'Bộ lọc' })).toBeInTheDocument();
+    listQuerySpy.mockClear();
+    fireEvent.change(screen.getByLabelText('Tìm kiếm'), { target: { value: 'Cầu Giấy' } });
+    await vi.advanceTimersByTimeAsync(350);
+    await waitFor(() => {
+      expect(listQuerySpy).toHaveBeenCalledWith(
+        expect.objectContaining({ search: 'Cầu Giấy', page: 1, pageSize: 20 }),
+      );
+    });
   });
 
   it('creates a facility via facility.create.mutate with name + code', () => {

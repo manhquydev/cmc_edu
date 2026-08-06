@@ -918,6 +918,57 @@ button.o-kanban-card {
   box-sizing: border-box;
 }
 
+/* DateField — Odoo-like dense date control (native type=date) */
+.o-date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.o-date-field--sm {
+  width: 100%;
+}
+.o-date-field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cmc-text-muted, #6b7280);
+  font-family: var(--cmc-font-sans);
+}
+.o-date-field-label.o-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.o-date-field-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--cmc-radius-control, 4px);
+  border: 1px solid var(--cmc-border, #d1d5db);
+  background: var(--cmc-surface-sunken, #fff);
+  color: var(--cmc-text, #111);
+  font-size: 13px;
+  font-family: var(--cmc-font-sans);
+  box-sizing: border-box;
+}
+.o-date-field-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.o-date-field-input:focus {
+  outline: 2px solid var(--cmc-accent, #0071e3);
+  outline-offset: 1px;
+}
+
 
 /* WorkflowStatusbar wraps ProgressSteps with record-page spacing */
 .o-workflow-statusbar {

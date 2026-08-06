@@ -1,6 +1,7 @@
 import { Selector } from '@astryxdesign/core/Selector';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { useSearchParams } from 'react-router-dom';
+import { DateField } from './date-field.js';
 
 export interface FilterDef {
   key: string;
@@ -67,29 +68,12 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
         if (f.type === 'date') {
           return (
             <div key={f.key} style={{ width: 160 }}>
-              <label className="o-filter-date">
-                <span className="o-label-upper" style={{ display: 'block', marginBottom: 4 }}>
-                  {f.label}
-                </span>
-                <input
-                  type="date"
-                  className="o-filter-date-input"
-                  aria-label={f.label}
-                  value={val}
-                  onChange={(e) => handleChange(f.key, e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: 34,
-                    padding: '0 10px',
-                    borderRadius: 'var(--cmc-radius-control)',
-                    border: '1px solid var(--cmc-border)',
-                    background: 'var(--cmc-surface-sunken)',
-                    color: 'var(--cmc-text)',
-                    fontSize: 13,
-                    fontFamily: 'var(--cmc-font-sans)',
-                  }}
-                />
-              </label>
+              <DateField
+                label={f.label}
+                value={val}
+                onChange={(v) => handleChange(f.key, v)}
+                size="sm"
+              />
             </div>
           );
         }

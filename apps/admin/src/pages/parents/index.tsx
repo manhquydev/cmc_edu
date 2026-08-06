@@ -7,8 +7,8 @@ import {
   DataTable,
   Dialog,
   DialogHeader,
+  FilterBar,
   HStack,
-  LineIcon,
   ListPage,
   PageHeader,
   Selector,
@@ -18,7 +18,7 @@ import {
   TextInput,
   useToast,
 } from '@cmc/ui';
-import type { TableColumn } from '@cmc/ui';
+import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -68,9 +68,35 @@ const RELATION_OPTIONS = [
 // Defaults to `missing` — the actionable subset (locked out of LMS login),
 // same reasoning as `guardian.listPendingLinks` defaulting its status filter
 // to `pending`: staff open this tab to fix something, not to browse everyone.
-const EMAIL_FILTER_OPTIONS: { value: EmailFilter; label: string }[] = [
-  { value: 'missing', label: 'Chưa có email (bị khoá LMS)' },
-  { value: 'all', label: 'Tất cả' },
+const LINK_STATUS_FILTERS: FilterDef[] = [
+  {
+    key: 'status',
+    label: 'Trạng thái',
+    type: 'select',
+    options: [
+      { value: 'pending', label: 'Chờ duyệt' },
+      { value: 'approved', label: 'Đã duyệt' },
+      { value: 'rejected', label: 'Từ chối' },
+    ],
+  },
+];
+
+const PARENT_DIR_FILTERS: FilterDef[] = [
+  {
+    key: 'q',
+    label: 'Tìm kiếm',
+    type: 'text',
+    placeholder: 'Tìm theo SĐT hoặc email…',
+  },
+  {
+    key: 'email',
+    label: 'Email LMS',
+    type: 'select',
+    options: [
+      { value: 'missing', label: 'Chưa có email' },
+      { value: 'all', label: 'Tất cả' },
+    ],
+  },
 ];
 
 const ALL_PARENTS_PAGE_SIZE = 20;
@@ -207,30 +233,18 @@ function LinkRequestsTab({
 
   return (
     <>
-      <HStack padding={4} gap={2}>
-        <Text type="supporting" size="sm">
-          Lọc:
+      <FilterBar
+        filters={LINK_STATUS_FILTERS}
+        value={{ status: filterStatus }}
+        onChange={(next) =>
+          setFilterStatus((next.status as FilterStatus) || 'pending')
+        }
+      />
+      {data && (
+        <Text type="supporting" size="sm" style={{ padding: '4px var(--cmc-keyline-x)' }}>
+          {data.total} yêu cầu
         </Text>
-        <div style={{ width: 160 }}>
-          <Selector
-            label="Lọc theo trạng thái"
-            isLabelHidden
-            value={filterStatus}
-            onChange={(v) => setFilterStatus((v as FilterStatus) ?? 'pending')}
-            options={[
-              { value: 'pending', label: 'Chờ duyệt' },
-              { value: 'approved', label: 'Đã duyệt' },
-              { value: 'rejected', label: 'Từ chối' },
-            ]}
-            size="sm"
-          />
-        </div>
-        {data && (
-          <Text type="supporting" size="sm">
-            {data.total} yêu cầu
-          </Text>
-        )}
-      </HStack>
+      )}
 
       <DataTable<LinkRow>
         columns={columns}
@@ -397,35 +411,19 @@ function AllParentsTab({
 
   return (
     <Stack gap={2}>
-      <HStack padding={4} gap={2} align="center">
-        <div style={{ width: 220 }}>
-          <TextInput
-            label="Tìm kiếm"
-            isLabelHidden
-            placeholder="Tìm theo SĐT hoặc email…"
-            value={searchTerm}
-            onChange={setSearchTerm}
-            hasClear
-            size="sm"
-            startIcon={<LineIcon name="search" size={14} />}
-          />
-        </div>
-        <div style={{ width: 220 }}>
-          <Selector
-            label="Lọc theo email"
-            isLabelHidden
-            value={emailFilter}
-            onChange={(v) => setEmailFilter((v as EmailFilter) ?? 'missing')}
-            options={EMAIL_FILTER_OPTIONS}
-            size="sm"
-          />
-        </div>
-        {data && (
-          <Text type="supporting" size="sm">
-            {total} phụ huynh
-          </Text>
-        )}
-      </HStack>
+      <FilterBar
+        filters={PARENT_DIR_FILTERS}
+        value={{ q: searchTerm, email: emailFilter }}
+        onChange={(next) => {
+          setSearchTerm(next.q ?? '');
+          setEmailFilter((next.email as EmailFilter) || 'missing');
+        }}
+      />
+      {data && (
+        <Text type="supporting" size="sm" style={{ padding: '4px var(--cmc-keyline-x)' }}>
+          {total} phụ huynh
+        </Text>
+      )}
 
       <DataTable<ParentRow>
         columns={columns}

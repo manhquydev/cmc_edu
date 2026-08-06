@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   DataTable,
+  FilterBar,
   FunnelBar,
   HStack,
   KanbanBoard,
@@ -14,11 +15,10 @@ import {
   ListPage,
   PageHeader,
   Panel,
-  Selector,
   Skeleton,
   Stack,
   Text,
-  TextInput,
+  type FilterDef,
   type TableColumn,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
@@ -41,6 +41,22 @@ const LOST_FILTER_OPTIONS: { value: LostVisibility; label: string }[] = [
   { value: 'exclude', label: 'Đang chăm sóc' },
   { value: 'include', label: 'Tất cả' },
   { value: 'only', label: 'Đã mất' },
+];
+
+const PIPELINE_FILTERS: FilterDef[] = [
+  {
+    key: 'q',
+    label: 'Tìm kiếm',
+    type: 'text',
+    placeholder: 'Tìm theo tên hoặc SĐT…',
+  },
+  {
+    key: 'lost',
+    label: 'Hiển thị',
+    type: 'select',
+    options: LOST_FILTER_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+    placeholder: 'Đang chăm sóc',
+  },
 ];
 
 // Stage metadata — O5 is reached only via finance.receiptApprove, never via
@@ -233,15 +249,17 @@ export default function CrmPipelinePage() {
   const [markLostId, setMarkLostId] = useState<string | null>(null);
   const [scheduleTestId, setScheduleTestId] = useState<string | null>(null);
 
-  // Debounced (~300ms) server-side search over contact name/phone.
-  const [searchTerm, setSearchTerm] = useState('');
+  // Controlled FilterBar: search + lost visibility (G1 list chrome).
+  const [filterValues, setFilterValues] = useState({ q: '', lost: 'exclude' });
   const [debouncedSearch, setDebouncedSearch] = useState('');
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+    const timer = setTimeout(() => setDebouncedSearch(filterValues.q.trim()), 300);
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [filterValues.q]);
 
-  const [lostFilter, setLostFilter] = useState<LostVisibility>('exclude');
+  const lostFilter = (['exclude', 'include', 'only'].includes(filterValues.lost)
+    ? filterValues.lost
+    : 'exclude') as LostVisibility;
   const [page, setPage] = useState(1);
 
   // Changing the search term or the lost-visibility filter narrows/widens the
@@ -400,18 +418,6 @@ export default function CrmPipelinePage() {
                     <LineIcon name="kanban" size={15} strokeWidth={2.25} />
                   </button>
                 </div>
-                <div style={{ width: 220 }}>
-                  <TextInput
-                    label="Tìm kiếm"
-                    isLabelHidden
-                    placeholder="Tìm theo tên hoặc SĐT…"
-                    value={searchTerm}
-                    onChange={setSearchTerm}
-                    hasClear
-                    size="sm"
-                    startIcon={<LineIcon name="search" size={14} />}
-                  />
-                </div>
                 <Button
                   label="Thêm cơ hội"
                   size="sm"
@@ -424,21 +430,16 @@ export default function CrmPipelinePage() {
           />
         }
         filters={
-          <HStack gap={2} align="center" style={{ padding: '0 var(--cmc-keyline-x)' }}>
-            <Text type="supporting" size="sm">
-              Hiển thị:
-            </Text>
-            <div style={{ width: 180 }}>
-              <Selector
-                label="Hiển thị cơ hội đã mất"
-                isLabelHidden
-                value={lostFilter}
-                onChange={(v) => setLostFilter(v as LostVisibility)}
-                options={LOST_FILTER_OPTIONS}
-                size="sm"
-              />
-            </div>
-          </HStack>
+          <FilterBar
+            filters={PIPELINE_FILTERS}
+            value={filterValues}
+            onChange={(next) =>
+              setFilterValues({
+                q: next.q ?? '',
+                lost: next.lost || 'exclude',
+              })
+            }
+          />
         }
       >
         <Stack gap={5}>

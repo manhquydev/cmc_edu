@@ -119,7 +119,7 @@ Odoo CP center                          CMC ControlBar.filters (target)
 |--------|---------------|--------|
 | Form sheet / statusbar / notebook | DetailPage · FormPage · WorkflowStatusbar · CmcTabs | **SHIPPED** |
 | char / text / int / selection | Astryx TextInput · TextArea · NumberInput · Selector | **SHIPPED** |
-| date / datetime | shared Date control | **MISSING** (top cook) |
+| date / datetime | `DateField` (native `type=date`, design3 density) | **SHIPPED** (date only; datetime later) |
 | many2one async | Selector / custom lookup | **PARTIAL** |
 | x2many / lines | DataTable + page forms | **PARTIAL** |
 | monetary | NumberInput + format | **PARTIAL** |

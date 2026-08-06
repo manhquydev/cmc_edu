@@ -295,13 +295,13 @@ describe('CrmPipelinePage', () => {
   describe('lost-visibility filter', () => {
     it('defaults to "Đang chăm sóc" (lost: exclude)', () => {
       renderWithProviders(<CrmPipelinePage />);
-      expect(screen.getByRole('combobox', { name: 'Hiển thị cơ hội đã mất' })).toHaveTextContent('Đang chăm sóc');
+      expect(screen.getByRole('combobox', { name: 'Hiển thị' })).toHaveTextContent('Đang chăm sóc');
     });
 
     it('switches to lost: "include" when "Tất cả" is selected', () => {
       renderWithProviders(<CrmPipelinePage />);
       listQuerySpy.mockClear();
-      fireEvent.click(screen.getByRole('combobox', { name: 'Hiển thị cơ hội đã mất' }));
+      fireEvent.click(screen.getByRole('combobox', { name: 'Hiển thị' }));
       fireEvent.click(screen.getByRole('option', { name: 'Tất cả' }));
       expect(listQuerySpy).toHaveBeenCalledWith({ lost: 'include', page: 1, pageSize: 20 });
     });
@@ -309,7 +309,7 @@ describe('CrmPipelinePage', () => {
     it('switches to lost: "only" when "Đã mất" is selected', () => {
       renderWithProviders(<CrmPipelinePage />);
       listQuerySpy.mockClear();
-      fireEvent.click(screen.getByRole('combobox', { name: 'Hiển thị cơ hội đã mất' }));
+      fireEvent.click(screen.getByRole('combobox', { name: 'Hiển thị' }));
       fireEvent.click(screen.getByRole('option', { name: 'Đã mất' }));
       expect(listQuerySpy).toHaveBeenCalledWith({ lost: 'only', page: 1, pageSize: 20 });
     });

@@ -67,15 +67,29 @@ describe('AuditLogPage', () => {
     expect(screen.getByText('Facility')).toBeInTheDocument();
   });
 
-  it('applies actor/action/entity filters to the audit.list query on submit', () => {
+  it('applies actor/action/entity filters to the audit.list query live via FilterBar', () => {
     renderWithProviders(<AuditLogPage />);
     fireEvent.change(screen.getByLabelText('Người thực hiện'), { target: { value: 'staff-2' } });
     fireEvent.change(screen.getByLabelText('Loại việc'), { target: { value: 'user.updateRoles' } });
     fireEvent.change(screen.getByLabelText('Đối tượng'), { target: { value: 'AppUser' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lọc' }));
 
     const lastCallArgs = listQuerySpy.mock.calls.at(-1)?.[0];
     expect(lastCallArgs).toMatchObject({ actor: 'staff-2', action: 'user.updateRoles', entity: 'AppUser', page: 1 });
+  });
+
+  it('maps date fields to inclusive ICT day bounds for audit.list', () => {
+    renderWithProviders(<AuditLogPage />);
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-08-06' } });
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2026-08-06' } });
+
+    const lastCallArgs = listQuerySpy.mock.calls.at(-1)?.[0] as {
+      createdFrom?: string;
+      createdTo?: string;
+    };
+    // ICT midnight 2026-08-06 → 2026-08-05T17:00:00.000Z
+    expect(lastCallArgs.createdFrom).toBe('2026-08-05T17:00:00.000Z');
+    // Last ms before next ICT midnight
+    expect(lastCallArgs.createdTo).toBe('2026-08-06T16:59:59.999Z');
   });
 
   it('paginates via Trang sau', () => {

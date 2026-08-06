@@ -91,15 +91,21 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
     await expect(page.getByText(contactName)).toBeVisible();
 
     // --- advance O1 -> O2 -> O3 -> O4_TESTED, one real click at a time ---
-    // Scope "Chuyển lên" to this journey's card — deep-link / prior journeys
-    // leave other open opportunities on the shared facility (strict-mode trap).
+    // Card shell is `role="button"` (pipeline OpportunityKanbanCard) whose
+    // accessible name includes nested action labels. Playwright's default
+    // substring `name:` match therefore treats the shell as "Chuyển lên" /
+    // "Ghi danh" too — use the shell for contact scoping, then `exact: true`
+    // for the real `<button>` actions (post-merge main ui-e2e: strict-mode
+    // trap when leftover O4 cards share the board).
+    const contactCardName = new RegExp(
+      `^${contactName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+    );
     for (let step = 0; step < 3; step += 1) {
-      const opportunityCard = page
-        .locator('main.o-main div')
-        .filter({ hasText: contactName })
-        .filter({ has: page.getByRole('button', { name: 'Chuyển lên' }) })
-        .last();
-      const advanceButton = opportunityCard.getByRole('button', { name: 'Chuyển lên' });
+      const opportunityCard = page.getByRole('button', { name: contactCardName });
+      const advanceButton = opportunityCard.getByRole('button', {
+        name: 'Chuyển lên',
+        exact: true,
+      });
       await expect(advanceButton).toBeVisible();
       await advanceButton.click();
       // Settle: the optimistic update + onSettled invalidate both land before
@@ -107,33 +113,17 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
       await expect(page.getByText(contactName)).toBeVisible();
     }
     // --- O4_TESTED: real "Ghi danh" click navigates to /finance/new ---
-    // `OpportunityCard` only renders this button when `opp.stage ===
+    // `OpportunityKanbanCard` only renders this button when `opp.stage ===
     // 'O4_TESTED'` — its mere visibility here IS the proof all 3 one-step
     // advances landed exactly on stage, since a non-adjacent jump is
     // server-rejected (crm/router.ts) and would have left "Chuyển lên" showing
-    // instead. Scoped to the specific OpportunityCard containing this
-    // journey's own `contactName` (pipeline.tsx: one `<div>` per card, name +
-    // button as siblings) rather than just "main.o-main" — a CI retry
-    // (playwright.config.ts: retries: 1 under CI) that got this far before an
-    // earlier version of this test failed on a later assertion would leave a
-    // second, orphaned O4_TESTED opportunity from the first attempt still on
-    // screen, and an unscoped "the only visible Ghi danh button" query would
-    // then resolve to 2 elements — scoping by this run's own contact name
-    // stays correct even when that happens.
-    // `pipeline.tsx`'s `OpportunityCard` renders the contact name inside its
-    // own inner `HStack` (a sibling of the "Ghi danh" button, not an
-    // ancestor) — filtering by `hasText` alone and taking `.last()` grabs
-    // that inner, button-less `HStack` div instead of the card. Also
-    // requiring `has` a "Ghi danh" button (mirrors
-    // shift-config-admin.journey.ui.spec.ts's `groupCard` pattern) narrows to
-    // divs that contain both, and `.last()` then correctly picks the
-    // innermost of those — the card's own `Stack` wrapper.
-    const opportunityCard = page
-      .locator('main.o-main div')
-      .filter({ hasText: contactName })
-      .filter({ has: page.getByRole('button', { name: 'Ghi danh' }) })
-      .last();
-    const createReceiptButton = opportunityCard.getByRole('button', { name: 'Ghi danh' });
+    // instead. Scoped to this journey's own card shell by contact name —
+    // CI retries can leave an orphaned O4_TESTED card from the first attempt.
+    const opportunityCard = page.getByRole('button', { name: contactCardName });
+    const createReceiptButton = opportunityCard.getByRole('button', {
+      name: 'Ghi danh',
+      exact: true,
+    });
     await expect(createReceiptButton).toBeVisible();
     await createReceiptButton.click();
     await expect(page).toHaveURL(/\/finance\/new\?opportunityId=/);

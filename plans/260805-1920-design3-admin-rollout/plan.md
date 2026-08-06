@@ -146,14 +146,13 @@ phê duyệt.
 ## Evidence & References
 
 - Contract: [brainstorm-260805-1906-design3-rollout-contract.md](../reports/brainstorm-260805-1906-design3-rollout-contract.md)
-- Candidate doc: [docs/design-system-odoo-candidate.md](../../docs/design-system-odoo-candidate.md)
-- Nguồn design3: `apps/admin/src/pages/design-lab-3.tsx` (233 dòng) + `design-lab-3.css` (535 dòng, LGPL-3, tokens scope `.odoo-lab-root` — không có `:root`)
-- Component sẵn có: `packages/ui/src/components/control-bar.tsx`, `workflow-statusbar.tsx`, `progress-steps.tsx` (plan 260803-2043)
-- E2E coupling thật (red-team verified): 30 specs import `menuNav`; 7 specs bind
-  thẳng `.sh-main`/`.sh-content` (`crm-receipt`, `shift-register-approve-reject`,
-  `checkin-punch`, `checkin-offsite-approval`, `grading-submission`,
-  `lms-grade-parent-view`, `lms-stars-redeem-cycle`); + `admin-shell.ui.spec.ts`
-  pin chrome shell; helper: `apps/e2e/src/journey/menu-nav.ts`
+- Design authority (post-promote): [docs/design-system-odoo.md](../../docs/design-system-odoo.md)
+- Implementation source: `packages/ui/src/odoo.css`, `packages/ui/src/odoo/*`, `apps/admin/src/shell/shell.tsx`
+  (lab `/design3` + `design-system-odoo-candidate.md` deleted after promote — git history only)
+- Component restyled at place: `packages/ui/src/components/control-bar.tsx`, `workflow-statusbar.tsx`, `progress-steps.tsx` (plan 260803-2043)
+- E2E coupling (post shell swap): 30 specs import `menuNav` (app-switcher rewrite);
+  binders retarget `main.o-main`; `admin-shell.ui.spec.ts` pins Odoo chrome;
+  helper: `apps/e2e/src/journey/menu-nav.ts`. Runtime green on CI still open (validation).
 
 ## Red Team Review
 

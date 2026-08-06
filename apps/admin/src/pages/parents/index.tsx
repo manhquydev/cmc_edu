@@ -78,6 +78,8 @@ const LINK_STATUS_FILTERS: FilterDef[] = [
       { value: 'approved', label: 'Đã duyệt' },
       { value: 'rejected', label: 'Từ chối' },
     ],
+    // Default domain is pending — hide clear so × does not fight `|| 'pending'`.
+    hasClear: false,
   },
 ];
 
@@ -96,6 +98,8 @@ const PARENT_DIR_FILTERS: FilterDef[] = [
       { value: 'missing', label: 'Chưa có email' },
       { value: 'all', label: 'Tất cả' },
     ],
+    // Default domain is missing-email; clear would snap back via page onChange.
+    hasClear: false,
   },
 ];
 

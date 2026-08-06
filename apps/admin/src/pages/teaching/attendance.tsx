@@ -261,6 +261,16 @@ export default function AttendancePage() {
     value: c.id,
     label: `${c.code} — ${c.program}`,
   }));
+  // Pin URL-selected class so FilterBar search cannot drop it from the Selector.
+  if (
+    classBatchId &&
+    !classOptions.some((o) => o.value === classBatchId)
+  ) {
+    classOptions.unshift({
+      value: classBatchId,
+      label: `Lớp đã chọn (${classBatchId.slice(0, 8)}…)`,
+    });
+  }
   const sessionOptions = (sessions ?? []).map((s) => ({
     value: s.id,
     label: `${new Date(s.sessionDate).toLocaleDateString('vi-VN')} | ${s.status}`,

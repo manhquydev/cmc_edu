@@ -212,10 +212,10 @@ function UsersContent() {
     });
   }
 
-  // Full roster for manager select (unfiltered) when the create modal is open.
+  // Full roster for manager select — never fall back to the search-filtered table query.
   const managerOptions = [
     { value: NO_MANAGER, label: '— Chưa có —' },
-    ...(managerRoster?.items ?? data?.items ?? []).map((u) => ({
+    ...(managerRoster?.items ?? []).map((u) => ({
       value: u.id,
       label: `${u.fullName} (${u.employeeCode})`,
     })),

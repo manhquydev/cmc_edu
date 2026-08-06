@@ -44,4 +44,21 @@ describe('odoo.css float-layer scope (toast + command palette)', () => {
     expect(css).not.toMatch(/\.o_web_client\s+\.ck-cmd-backdrop\s*\{/);
     expect(css).not.toMatch(/\.o_web_client\s+\.ck-cmd-panel\s*\{/);
   });
+
+  it('stacks toast above navbar band and below command palette', () => {
+    const toast = ruleBlock('.ck-toast-viewport');
+    const cmd = ruleBlock('.ck-cmd');
+    const navbar = ruleBlock('.o-navbar');
+    expect(toast).toBeTruthy();
+    expect(cmd).toBeTruthy();
+    expect(navbar).toBeTruthy();
+    const toastZ = Number(toast!.match(/z-index\s*:\s*(\d+)/)?.[1]);
+    const cmdZ = Number(cmd!.match(/z-index\s*:\s*(\d+)/)?.[1]);
+    const navZ = Number(navbar!.match(/z-index\s*:\s*(\d+)/)?.[1]);
+    expect(toastZ).toBeGreaterThanOrEqual(1100);
+    expect(cmdZ).toBeGreaterThanOrEqual(1200);
+    expect(navZ).toBeGreaterThanOrEqual(1000);
+    expect(toastZ).toBeGreaterThan(navZ);
+    expect(cmdZ).toBeGreaterThan(toastZ);
+  });
 });

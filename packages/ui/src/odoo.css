@@ -2372,8 +2372,9 @@ button.o-kanban-card {
 .o_web_client .sh-content{ flex: 1; overflow-y: auto; }
 
 /* Toast — float layer (dialog radius + shadow-lg) */
+/* Float band: above .o-navbar (1000), below .ck-cmd (1200). Odoo notifications ≈1055. */
 .ck-toast-viewport{
-  position: fixed; z-index: 60; right: 20px; bottom: 20px;
+  position: fixed; z-index: 1100; right: 20px; bottom: 20px;
   display: flex; flex-direction: column; gap: 10px;
   max-width: min(380px, calc(100vw - 32px)); pointer-events: none;
 }

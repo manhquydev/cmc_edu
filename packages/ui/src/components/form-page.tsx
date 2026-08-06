@@ -15,18 +15,20 @@ export interface FormPageProps {
   result?: ReactNode;
 }
 
-// Thin premium form-page archetype (P4 template extraction): warm-canvas
-// wrapper + header slot + field region + a sticky action bar + optional
-// result slot. Composes existing @cmc/ui atoms — props-only, no form
-// state/validation (pages own that). Requires @cmc/ui/premium.css (.tpl-*,
-// .fp-action).
+// Form-page archetype: canvas wrap + header + Odoo-like form sheet + sticky
+// action bar + optional result. Props-only (pages own form state). Requires
+// @cmc/ui/odoo.css (.o-wrap, .o-form-sheet*, .o-form-body, .o-actions).
 export function FormPage({ header, children, actions, result }: FormPageProps) {
   return (
-    <div className="tpl-wrap">
+    <div className="o-wrap">
       {header}
-      <div className="tpl-form-body">{children}</div>
+      <div className="o-form-sheet-bg">
+        <div className="o-form-sheet">
+          <div className="o-form-body">{children}</div>
+        </div>
+      </div>
       {result}
-      <div className="tpl-actions">{actions}</div>
+      <div className="o-actions">{actions}</div>
     </div>
   );
 }

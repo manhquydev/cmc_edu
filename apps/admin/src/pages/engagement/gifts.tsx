@@ -117,7 +117,6 @@ export default function GiftsPage() {
         header={
           <PageHeader
             title="Phần thưởng"
-            subtitle="Quản lý danh mục phần thưởng đổi sao"
             breadcrumbs={[
               { label: 'Quản trị' },
               { label: 'Engagement' },

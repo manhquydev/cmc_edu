@@ -18,6 +18,6 @@ describe('EntityHeader', () => {
     );
     expect(screen.getByText('Nguyễn A')).toBeInTheDocument();
     expect(screen.getByText('NA')).toBeInTheDocument();
-    expect(container.querySelector('a.ck-eh-back[href="/crm"]')).toBeTruthy();
+    expect(container.querySelector('a.o-eh-back[href="/crm"]')).toBeTruthy();
   });
 });

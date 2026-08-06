@@ -30,7 +30,7 @@ describe('RefundPage', () => {
   it('renders a premium coming-soon EmptyState flagging the missing UX (not missing mutation)', () => {
     const { container } = renderWithProviders(<RefundPage />);
     expect(screen.getByText('Tính năng chưa áp dụng')).toBeInTheDocument();
-    expect(screen.getByText(/finance\.refundCreate đã tồn tại/)).toBeInTheDocument();
+    expect(screen.getByText(/chưa có màn tìm phiếu thu/)).toBeInTheDocument();
     expect(container.querySelector('svg[data-icon="card"]')).toBeInTheDocument();
   });
 });

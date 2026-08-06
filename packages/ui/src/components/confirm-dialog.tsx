@@ -45,19 +45,24 @@ export function ConfirmDialog({
   cancelLabel = 'Hủy',
   confirmColor = 'red',
 }: ConfirmDialogProps) {
+  // Wrapper is a mount/registry hook for design3 float docs. Astryx Dialog uses
+  // native <dialog>.showModal() (browser top layer — above toast/cmd z-index).
   return (
-    <AlertDialog
-      isOpen={opened}
-      onOpenChange={(next) => {
-        if (!next && !loading) onCancel();
-      }}
-      title={title}
-      description={message}
-      actionLabel={confirmLabel}
-      cancelLabel={cancelLabel}
-      onAction={onConfirm}
-      actionVariant={toActionVariant(confirmColor)}
-      isActionLoading={loading}
-    />
+    <div className="ck-dialog-root" data-cmc-float="dialog">
+      <AlertDialog
+        className="ck-dialog"
+        isOpen={opened}
+        onOpenChange={(next) => {
+          if (!next && !loading) onCancel();
+        }}
+        title={title}
+        description={message}
+        actionLabel={confirmLabel}
+        cancelLabel={cancelLabel}
+        onAction={onConfirm}
+        actionVariant={toActionVariant(confirmColor)}
+        isActionLoading={loading}
+      />
+    </div>
   );
 }

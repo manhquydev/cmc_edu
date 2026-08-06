@@ -42,7 +42,24 @@ describe('schedule-fc-events adapter', () => {
     expect(events[0]!.start).toBe('2026-01-05');
     expect(events[0]!.end).toBe('2027-01-01');
     expect(events[0]!.extendedProps.href).toBe('/teaching/attendance?classBatch=batch-1');
-    expect(events[0]!.classNames).toContain('ck-fc-ev--active');
+    expect(events[0]!.classNames).toContain('o-fc-ev--active');
+  });
+
+  // `ck-fc` is FocusCard's prefix in premium.css. The calendar used to emit it
+  // too, so its wrapper inherited FocusCard's accent rail, padding and
+  // hover-lift. Calendar classes must stay out of that namespace.
+  it('emits no ck-* class names', () => {
+    const events = classBatchToEvents([
+      {
+        id: 'batch-1',
+        code: 'ENG-A1',
+        program: 'English',
+        startDate: new Date(2026, 0, 5),
+        endDate: new Date(2026, 11, 31),
+        status: 'active',
+      },
+    ]);
+    expect(events[0]!.classNames.filter((c) => c.startsWith('ck-'))).toEqual([]);
   });
 
   it('skips cancelled batches', () => {
@@ -112,7 +129,7 @@ describe('schedule-fc-events adapter', () => {
       expect(ev.extendedProps.href).toBe('/teaching/sessions/sess-1?tab=attendance');
       expect(ev.extendedProps.sessionId).toBe('sess-1');
       expect(ev.extendedProps.batchId).toBe('batch-9');
-      expect(ev.classNames).toContain('ck-fc-ev--timed');
+      expect(ev.classNames).toContain('o-fc-ev--timed');
     });
 
     it('skips cancelled sessions', () => {

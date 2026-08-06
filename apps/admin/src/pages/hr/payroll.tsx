@@ -179,7 +179,7 @@ function PayslipDetail({
       {canDo('payslip', 'assemble') && (
         <HStack gap={1}>
           <Button
-            label="Tính lương (assemble)"
+            label="Tính lương"
             size="sm"
             variant="secondary"
             isLoading={anyMutating}
@@ -198,7 +198,7 @@ function PayslipDetail({
           )}
           {data && data.status === 'finalized' && canDo('payslip', 'reopen') && (
             <Button
-              label="Mở lại (reopen)"
+              label="Mở lại"
               size="sm"
               variant="secondary"
               isLoading={anyMutating}
@@ -383,7 +383,7 @@ function NetRow({ value }: { value: string }) {
       style={{ background: 'var(--cmc-surface-2)', margin: '0 -16px', padding: '12px 16px' }}
     >
       <Text type="body" size="sm" weight="bold">
-        Thực lĩnh (Net)
+        Thực lĩnh
       </Text>
       {/* TODO(astryx-review): brand-color net total has no Text color-enum
           slot — kept as a plain <span style> per the documented fallback. */}
@@ -455,7 +455,6 @@ export default function PayrollPage() {
         header={
           <PageHeader
             title="Bảng lương"
-            subtitle="Chi tiết phiếu lương nhân viên"
             breadcrumbs={[
               { label: 'Nhân sự' },
               { label: 'Bảng lương' },
@@ -478,7 +477,6 @@ export default function PayrollPage() {
         header={
           <PageHeader
             title="Bảng lương"
-            subtitle="Chi tiết phiếu lương nhân viên"
             breadcrumbs={[
               { label: 'Nhân sự' },
               { label: 'Bảng lương' },
@@ -516,7 +514,6 @@ export default function PayrollPage() {
       header={
         <PageHeader
           title="Bảng lương"
-          subtitle="Chọn nhân viên để xem / chốt lương theo tháng"
           breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Bảng lương' }]}
           actions={
             <div style={{ width: 140 }}>

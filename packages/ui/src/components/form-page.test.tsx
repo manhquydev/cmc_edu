@@ -13,7 +13,7 @@ describe('FormPage', () => {
     expect(getByText('HEADER')).toBeInTheDocument();
     expect(getByText('FIELDS')).toBeInTheDocument();
 
-    const actionBar = container.querySelector('.tpl-actions');
+    const actionBar = container.querySelector('.o-actions');
     expect(actionBar).not.toBeNull();
     expect(actionBar!.querySelectorAll('button, a').length).toBe(1);
     expect(actionBar).toHaveTextContent('Lưu');
@@ -39,5 +39,24 @@ describe('FormPage', () => {
       </FormPage>,
     );
     expect(getByText('RESULT')).toBeInTheDocument();
+  });
+
+  it('wraps fields in Odoo form sheet dual-layer; actions stay outside', () => {
+    const { container, getByText } = render(
+      <FormPage header={<div>HEADER</div>} actions={<Button label="Lưu" variant="primary" />}>
+        <div>FIELDS</div>
+      </FormPage>,
+    );
+    const bg = container.querySelector('.o-form-sheet-bg');
+    const sheet = container.querySelector('.o-form-sheet');
+    const body = container.querySelector('.o-form-body');
+    const actions = container.querySelector('.o-actions');
+    expect(bg).toBeTruthy();
+    expect(sheet).toBeTruthy();
+    expect(body).toBeTruthy();
+    expect(sheet!.contains(body!)).toBe(true);
+    expect(sheet!.contains(getByText('FIELDS'))).toBe(true);
+    expect(bg!.contains(actions!)).toBe(false);
+    expect(bg!.contains(getByText('HEADER'))).toBe(false);
   });
 });

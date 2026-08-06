@@ -254,7 +254,7 @@ function MyPayslipTab({ period }: { period: string }) {
               </span>
             </HStack>
             <HStack justify="between" style={{ background: 'var(--cmc-surface-2)', margin: '0 -16px', padding: '12px 16px' }}>
-              <Text type="body" size="sm" weight="bold">Thực lĩnh (Net)</Text>
+              <Text type="body" size="sm" weight="bold">Thực lĩnh</Text>
               <span style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--cmc-brand)' }}>
                 {fmtVND(data.totalNet)}
               </span>
@@ -281,7 +281,7 @@ export default function MyHrPage() {
   ) : (
     <EmptyState
       title="Không áp dụng cho vai trò Giám đốc"
-      description="Lương giám đốc/super_admin quản lý ngoài hệ thống — không có phiếu KPI."
+      description="Lương giám đốc/Quản trị hệ thống quản lý ngoài hệ thống — không có phiếu KPI."
       icon={<LineIcon name="target" size={28} />}
     />
   );
@@ -291,7 +291,7 @@ export default function MyHrPage() {
   ) : (
     <EmptyState
       title="Không áp dụng cho vai trò Giám đốc"
-      description="Lương giám đốc/super_admin quản lý ngoài hệ thống."
+      description="Lương giám đốc/Quản trị hệ thống quản lý ngoài hệ thống."
       icon={<LineIcon name="dollar" size={28} />}
     />
   );
@@ -301,7 +301,6 @@ export default function MyHrPage() {
       header={
         <PageHeader
           title="Của tôi"
-          subtitle="KPI và bảng lương cá nhân theo kỳ"
           breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Của tôi' }]}
           actions={
             <div style={{ width: 130 }}>

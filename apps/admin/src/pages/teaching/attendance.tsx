@@ -283,6 +283,7 @@ export default function AttendancePage() {
 
   return (
     <ListPage
+        density="ops"
       header={
         <PageHeader
           title="Điểm danh"

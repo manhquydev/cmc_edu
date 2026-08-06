@@ -141,6 +141,35 @@ describe('ReceiptDetailPage', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
+  // The workflow statusbar replaced a bespoke side-rail panel that rendered
+  // "Đã hủy" as its own terminal row. A cancelled receipt is not sitting at
+  // stage 0 — clamping its unknown stage index to 0 would show "Nháp (Draft)"
+  // as the current step and drop the cancellation from the workflow entirely.
+  it('marks "Đã hủy" as the current workflow step for a cancelled receipt', () => {
+    receiptState.data = { ...RECEIPT, status: 'cancelled' };
+    renderDetail();
+    const steps = screen.getByRole('list', { name: 'Các bước' });
+    expect(within(steps).getByRole('button', { current: 'step' })).toHaveTextContent('Đã hủy');
+  });
+
+  it('does not mark the draft stage as current for a cancelled receipt', () => {
+    receiptState.data = { ...RECEIPT, status: 'cancelled' };
+    renderDetail();
+    const steps = screen.getByRole('list', { name: 'Các bước' });
+    expect(within(steps).getByRole('button', { name: /Nháp \(Draft\)/ })).not.toHaveAttribute(
+      'aria-current',
+    );
+  });
+
+  it('marks the matching stage as current for a live receipt', () => {
+    receiptState.data = { ...RECEIPT, status: 'approved' };
+    renderDetail();
+    const steps = screen.getByRole('list', { name: 'Các bước' });
+    expect(within(steps).getByRole('button', { current: 'step' })).toHaveTextContent('Đã duyệt');
+    // The cancelled terminal step only exists on a cancelled receipt.
+    expect(within(steps).queryByRole('button', { name: /Đã hủy/ })).not.toBeInTheDocument();
+  });
+
   it('renders the provisioning-ok result banner and refetches after receiptApprove.onSuccess fires', () => {
     renderDetail();
     fireEvent.click(screen.getByRole('button', { name: 'Duyệt & Kích hoạt' }));

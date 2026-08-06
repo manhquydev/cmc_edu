@@ -397,7 +397,6 @@ export default function SalaryTiersPage() {
       header={
         <PageHeader
           title="Bậc lương & gán bậc"
-          subtitle="Quản lý bậc lương và gán bậc cho nhân viên sale/giáo viên"
           breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Bậc lương' }]}
         />
       }
@@ -407,7 +406,7 @@ export default function SalaryTiersPage() {
         activeId={activeNav}
         onSelect={setActiveNav}
         items={[
-          { id: 'tiers', label: 'Bậc lương', description: 'CRUD bậc & đơn giá' },
+          { id: 'tiers', label: 'Bậc lương', description: 'Thêm, sửa, xoá bậc & đơn giá' },
           { id: 'assign', label: 'Gán bậc', description: 'Sale / giáo viên' },
         ]}
       >

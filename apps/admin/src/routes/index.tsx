@@ -19,17 +19,15 @@ import { useSession } from '../lib/session-context.js';
 import { shouldCaptureReturnTo } from '../lib/safe-return-to.js';
 
 const CockpitPage = lazy(() => import('../pages/cockpit.js'));
-// Living design inventory — not a product module; visual review of tokens + composites.
-const DesignLabPage = lazy(() => import('../pages/design-lab.js'));
-// Auth-level page (sibling of /login, not a module route): rendered OUTSIDE
-// the Shell because a forced password rotation must complete before the user
-// enters the app proper.
+// Forced password rotation: rendered INSIDE Shell in chrome-suppressed mode
+// (no navbar/app-switcher/⌘K) so the user cannot navigate away mid-rotation.
 const ChangePasswordPage = lazy(() => import('../pages/change-password.js'));
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { me, isLoading } = useSession();
   const location = useLocation();
   if (isLoading) return <Skeleton height="100vh" radius={0} />;
+  // No pathname allow-list — every child of Shell requires a staff session.
   if (!me) {
     // Preserve the deep-link destination across login (and change-password)
     // via ?returnTo=. Policy lives in safe-return-to.ts — do not re-list
@@ -43,18 +41,13 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-export const router = createBrowserRouter([
+// Vite `base` (docker: /admin/) becomes import.meta.env.BASE_URL so the data
+// router matches URLs under the nginx /admin/ prefix.
+const routerBasename = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') || '/';
+
+export const router = createBrowserRouter(
+  [
   { path: '/login', element: <LoginPage /> },
-  {
-    path: '/change-password',
-    element: (
-      <RequireAuth>
-        <Suspense fallback={<Skeleton height="100vh" radius={0} />}>
-          <ChangePasswordPage />
-        </Suspense>
-      </RequireAuth>
-    ),
-  },
   {
     path: '/',
     element: <RequireAuth><Shell /></RequireAuth>,
@@ -68,11 +61,13 @@ export const router = createBrowserRouter([
           </Suspense>
         ),
       },
+      // Forced password rotation lives INSIDE Shell in chrome-suppressed mode
+      // (decision 10/10b) — no navbar/app-switcher/⌘K while rotating.
       {
-        path: 'design',
+        path: 'change-password',
         element: (
-          <Suspense fallback={<Skeleton height={200} radius={0} />}>
-            <DesignLabPage />
+          <Suspense fallback={<Skeleton height="100vh" radius={0} />}>
+            <ChangePasswordPage />
           </Suspense>
         ),
       },
@@ -90,4 +85,6 @@ export const router = createBrowserRouter([
       { path: '*', element: <ComingSoon /> },
     ],
   },
-]);
+  ],
+  routerBasename === '/' ? undefined : { basename: routerBasename },
+);

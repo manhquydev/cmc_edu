@@ -163,7 +163,6 @@ export default function ReportCardsPage() {
       header={
         <PageHeader
           title="Học bạ / Nhận xét"
-          subtitle="Soạn và xác nhận nhận xét AI cho học viên"
           breadcrumbs={[{ label: 'Quản trị' }, { label: 'Học bạ' }]}
         />
       }

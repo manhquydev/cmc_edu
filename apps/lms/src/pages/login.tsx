@@ -76,12 +76,14 @@ function ParentEmailOtpTab() {
 
   return (
     <Stack gap={2}>
-      {/* BLOCKED-ON-COMMS notice — always visible, not collapsible */}
-      <Banner
-        status="warning"
-        title="[DEV ONLY — blocked-on-comms]"
-        description="Email OTP đang dùng ConsoleEmailTransport (stub). Mã OTP chỉ xuất hiện trong console của server — không gửi email thật. Luồng này chưa hoạt động end-to-end cho production cho đến khi tích hợp Brevo/Graph credentials."
-      />
+      {/* Dev-only notice — gated to non-production builds, mirrors DevHeaderWriter below */}
+      {import.meta.env.DEV && (
+        <Banner
+          status="warning"
+          title="[DEV ONLY]"
+          description="Luồng xác thực qua email chưa hoạt động end-to-end. Mã xác thực chỉ hiển thị trong log máy chủ khi chạy dev."
+        />
+      )}
 
       {step === 'request' ? (
         <>
@@ -206,7 +208,7 @@ function StudentLoginTab() {
         }}
       />
       <Text type="supporting" size="2xs" justify="center" display="block">
-        Mật khẩu mặc định: Cmc2026@ — phải đổi lần đầu đăng nhập.
+        Học sinh mới cần mật khẩu mặc định — vui lòng liên hệ nhân viên tuyển sinh/CSKH để được cấp lại. Bắt buộc đổi mật khẩu ngay lần đăng nhập đầu tiên.
       </Text>
     </Stack>
   );

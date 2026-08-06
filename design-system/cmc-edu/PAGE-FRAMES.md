@@ -48,6 +48,13 @@
 | `primary` | Hàng đợi việc (Panel + TaskRow / EmptyState) |
 | `secondary` | Context: pipeline / lịch / gợi ý |
 
+> **Luật `subtitle` (giữ slot, siết điều kiện điền — mọi archetype có subtitle):**
+> `subtitle` hợp lệ khi mang thông tin **không suy ra được** từ title + nội dung
+> đang hiển thị: ràng buộc (giới hạn kết quả), hệ quả nghiệp vụ, hoặc danh tính
+> phiên (greeting cockpit). Diễn đạt lại title ⇒ bỏ.
+> Ví dụ hợp lệ: greeting cockpit (`pages/cockpit.md:7`) — mang danh tính phiên,
+> không suy ra được từ title "Tổng quan".
+
 ### B. `ListPage` — danh sách ops
 
 ```text
@@ -60,6 +67,9 @@
 
 `density="ops"` → `.tpl-wrap--ops` (padding chặt hơn).  
 **Grammar đầy đủ:** [VIEW-GRAMMAR.md](./VIEW-GRAMMAR.md).
+
+> **Luật `subtitle`:** cùng luật siết ở §A trên — mang thông tin không suy ra
+> được từ title; diễn đạt lại title ⇒ bỏ.
 
 ### C. `DetailPage` — chi tiết (record / settings / ops)
 

@@ -17,7 +17,7 @@ export default function GoResolverPage() {
         <PageHeader title="Liên kết" breadcrumbs={[{ label: 'Liên kết' }]} />
         <EmptyState
           title="Liên kết không tồn tại"
-          description="Entity hoặc id trong URL không hợp lệ. Kiểm tra lại liên kết được chia sẻ."
+          description="Loại đối tượng hoặc id trong URL không hợp lệ. Kiểm tra lại liên kết được chia sẻ."
           icon={<LineIcon name="globe" size={28} />}
         />
       </>

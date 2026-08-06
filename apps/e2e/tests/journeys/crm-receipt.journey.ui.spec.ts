@@ -73,6 +73,16 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
     await menuNav(page, 'Tài chính & Điều hành', 'CRM', { role: 'sale' });
     await expect(page).toHaveURL(/\/crm$/);
 
+    // Smoke: design3 list↔kanban switcher (Phase 4) — deep-link param + back.
+    await page.getByRole('button', { name: 'Xem dạng danh sách' }).click();
+    await expect(page).toHaveURL(/view=table/);
+    await page.getByRole('button', { name: 'Xem dạng kanban' }).click();
+    await expect(page).not.toHaveURL(/view=table/);
+    await expect(page.getByRole('button', { name: 'Xem dạng kanban' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
     // --- create the lead (O1_LEAD) ---
     await page.getByRole('button', { name: 'Thêm cơ hội' }).click();
     await page.getByLabel('Họ tên').fill(contactName);
@@ -85,7 +95,7 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
     // leave other open opportunities on the shared facility (strict-mode trap).
     for (let step = 0; step < 3; step += 1) {
       const opportunityCard = page
-        .locator('.sh-content div')
+        .locator('main.o-main div')
         .filter({ hasText: contactName })
         .filter({ has: page.getByRole('button', { name: 'Chuyển lên' }) })
         .last();
@@ -103,7 +113,7 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
     // server-rejected (crm/router.ts) and would have left "Chuyển lên" showing
     // instead. Scoped to the specific OpportunityCard containing this
     // journey's own `contactName` (pipeline.tsx: one `<div>` per card, name +
-    // button as siblings) rather than just ".sh-content" — a CI retry
+    // button as siblings) rather than just "main.o-main" — a CI retry
     // (playwright.config.ts: retries: 1 under CI) that got this far before an
     // earlier version of this test failed on a later assertion would leave a
     // second, orphaned O4_TESTED opportunity from the first attempt still on
@@ -119,7 +129,7 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
     // divs that contain both, and `.last()` then correctly picks the
     // innermost of those — the card's own `Stack` wrapper.
     const opportunityCard = page
-      .locator('.sh-content div')
+      .locator('main.o-main div')
       .filter({ hasText: contactName })
       .filter({ has: page.getByRole('button', { name: 'Ghi danh' }) })
       .last();

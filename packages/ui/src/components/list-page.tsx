@@ -27,8 +27,8 @@ export interface ListPageProps {
   density?: 'default' | 'ops';
 }
 
-// Thin premium list-page archetype: warm-canvas wrapper + ControlBar + body.
-// Composes existing @cmc/ui atoms — props-only. Requires premium.css (.tpl-*).
+// List-page archetype: canvas wrap + ControlBar + body. Props-only.
+// Requires @cmc/ui/odoo.css (.o-wrap, .o-list-body).
 export function ListPage({
   header,
   filters,
@@ -38,11 +38,11 @@ export function ListPage({
   empty,
   density = 'default',
 }: ListPageProps) {
-  const wrapClass = density === 'ops' ? 'tpl-wrap tpl-wrap--ops' : 'tpl-wrap';
+  const wrapClass = density === 'ops' ? 'o-wrap o-wrap--ops' : 'o-wrap';
   return (
     <div className={wrapClass}>
       <ControlBar header={header} filters={filters} footer={controlFooter} />
-      <div className="tpl-list-body">
+      <div className="o-list-body">
         {isEmpty ? (empty ?? <EmptyState title="Không có dữ liệu" />) : children}
       </div>
     </div>

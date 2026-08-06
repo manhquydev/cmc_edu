@@ -2,19 +2,18 @@
 // nav, and must not see nav it has no permission for") into a reusable
 // journey step.
 //
-// DOM contract (packages/ui/src/components/side-nav.tsx): a module row is a
-// `<button class="sh-item">` whose accessible name is `mod.label` (its
-// LineIcon carries `aria-hidden="true"`, so the icon never leaks into the
-// name). Clicking it toggles `active`, at which point its permission-filtered
-// children render as `<button class="sh-subitem">` inside a `.sh-sub`
-// container — SideNav computes that filter from `isChildVisible`/`canDo`, so
-// this helper exercises the exact gate the nav renders from, not a copy of
-// it. No `data-testid` exists on either button and none was needed: the
-// visible label is enough to select by role, per §4.2 (find by what a person
-// sees, not an id).
+// DOM contract (Odoo shell, design3): top-level modules live in the app
+// switcher (opened via "Mở app switcher"); children of the active app render
+// as horizontal section-menu buttons on the purple navbar (OdooNavbar).
+// Navigation is navigate-then-select (not expand-in-place side rail).
+//
+// Signature stays `menuNav(page, module, child)` for call-site compatibility.
+// Modules without children: pass childLabel === moduleLabel (or empty) is not
+// used by current call sites — every journey uses a real child. For cockpit
+// alone, callers use direct path or open switcher + click "Tổng quan".
 //
 // No `page.goto()` to the destination screen is used anywhere here — every
-// navigation is the two real clicks (module, then child) a person would make.
+// navigation is the real clicks a person would make.
 
 import { expect, type Locator, type Page } from '@playwright/test';
 
@@ -27,8 +26,16 @@ export interface MenuNavOptions {
   timeoutMs?: number;
 }
 
-function navRoot(page: Page): Locator {
-  return page.locator('.sh-nav');
+function navbar(page: Page): Locator {
+  return page.locator('nav.o-navbar, nav[aria-label="Ứng dụng"]');
+}
+
+function switcherToggle(page: Page): Locator {
+  return page.getByRole('button', { name: 'Mở app switcher', exact: true });
+}
+
+function switcherMenu(page: Page): Locator {
+  return page.getByRole('menu', { name: 'App switcher' });
 }
 
 function entryLabel(moduleLabel: string, childLabel: string): string {
@@ -40,10 +47,8 @@ function roleSuffix(role: string | undefined): string {
 }
 
 /**
- * Opens the side-nav module `moduleLabel`, then clicks its child
- * `childLabel`, exactly like a person would. FAILS (throws) the moment the
- * module or the child is not visible for the current session — that failure
- * IS the proof requested by §4.3, not a bug in the helper.
+ * Opens the Odoo app-switcher, selects `moduleLabel`, then clicks section-menu
+ * child `childLabel`. FAILS when module/child is not visible for the session.
  */
 async function menuNavImpl(
   page: Page,
@@ -52,49 +57,51 @@ async function menuNavImpl(
   opts: MenuNavOptions = {},
 ): Promise<void> {
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const nav = navRoot(page);
+  const nav = navbar(page);
 
-  const moduleButton = nav.getByRole('button', { name: moduleLabel, exact: true });
   await expect(
-    moduleButton,
-    `menuNav: module "${moduleLabel}" is not visible in the side-nav${roleSuffix(opts.role)} — ` +
+    switcherToggle(page),
+    `menuNav: app-switcher toggle not visible${roleSuffix(opts.role)} — shell may not have hydrated.`,
+  ).toBeVisible({ timeout: timeoutMs });
+
+  // Open switcher and pick the app (module).
+  await switcherToggle(page).click();
+  const moduleTile = switcherMenu(page).getByRole('menuitem', { name: moduleLabel, exact: true });
+  await expect(
+    moduleTile,
+    `menuNav: module "${moduleLabel}" is not visible in the app-switcher${roleSuffix(opts.role)} — ` +
       `expected it to be reachable for this session.`,
   ).toBeVisible({ timeout: timeoutMs });
-  await moduleButton.click();
+  await moduleTile.click();
 
-  const childButton = nav.locator('.sh-sub').getByRole('button', { name: childLabel, exact: true });
+  // Module without a distinct child (cockpit-style): selecting the app is enough.
+  if (childLabel === moduleLabel) {
+    return;
+  }
+
+  // Section menu children render on the navbar after the app becomes active.
+  const childButton = nav.getByRole('button', { name: childLabel, exact: true });
   await expect(
     childButton,
-    `menuNav: entry "${entryLabel(moduleLabel, childLabel)}" is not visible in the side-nav${roleSuffix(opts.role)} — ` +
-      `either the permission gate hid it (§4.3 regression) or the label changed.`,
+    `menuNav: entry "${entryLabel(moduleLabel, childLabel)}" is not visible in the section menu` +
+      `${roleSuffix(opts.role)} — either the permission gate hid it (§4.3 regression) or the label changed.`,
   ).toBeVisible({ timeout: timeoutMs });
   await childButton.click();
 }
 
 export interface AssertEntryAbsentOptions extends MenuNavOptions {
-  /** Extra time given to the settle signal (Tổng quan render) before giving up. */
+  /** Extra time given to the settle signal (switcher shows Tổng quan) before giving up. */
   settleTimeoutMs?: number;
 }
 
 /**
- * Negation primitive (M2): passes when `childLabel` under `moduleLabel` is
- * genuinely absent for the current session — either because the whole module
- * row is filtered out (`visibleModulesFor`'s module-level gate) or because the
- * module is visible but the specific child is filtered out
- * (`isNavChildVisible`). Both are legitimate "absent" outcomes; this helper
- * does not care which one produced it.
+ * Negation primitive: passes when `childLabel` under `moduleLabel` is
+ * genuinely absent. Settled-wait opens the app-switcher and waits for
+ * "Tổng quan" (always present for authenticated staff) so we never pass
+ * against an empty pre-hydration shell.
  *
- * Settled-wait: "Tổng quan" (cockpit) carries no permission gate and is
- * unconditionally the first entry in `NAV_MODULES`, but `Shell` computes
- * `modules` as `me ? visibleModulesFor(...) : []` — so the WHOLE nav renders
- * empty until the `session.me` query resolves. Asserting absence the instant
- * this function is called would trivially "pass" against that empty
- * pre-load state, which is exactly the false-absent this settled-wait exists
- * to prevent (Phase 5 reuses this same primitive for its "should NOT see
- * this" journeys, so getting this wrong here would silently under-prove every
- * one of those too). Waiting for "Tổng quan" to render first proves the nav
- * has hydrated with the real, role-derived module list before this checks
- * anything is missing from it.
+ * Absence is checked AFTER the switcher (or section menu) is open — never
+ * `count()===0` against a closed dropdown (that would be a ghost pass).
  */
 async function assertEntryAbsent(
   page: Page,
@@ -102,33 +109,53 @@ async function assertEntryAbsent(
   childLabel: string,
   opts: AssertEntryAbsentOptions = {},
 ): Promise<void> {
-  const nav = navRoot(page);
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const settleMs = opts.settleTimeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   await expect(
-    nav.getByRole('button', { name: 'Tổng quan', exact: true }),
-    'menuNav.assertEntryAbsent: side-nav never settled (cockpit entry, which has no ' +
-      'permission gate, did not render) — cannot tell a genuine absence from a nav that ' +
-      'never loaded.',
-  ).toBeVisible({ timeout: opts.settleTimeoutMs ?? DEFAULT_TIMEOUT_MS });
+    switcherToggle(page),
+    'menuNav.assertEntryAbsent: app-switcher toggle never settled — cannot tell a genuine absence from a shell that never loaded.',
+  ).toBeVisible({ timeout: settleMs });
 
-  const moduleButton = nav.getByRole('button', { name: moduleLabel, exact: true });
-  if ((await moduleButton.count()) === 0) {
-    // Whole module row filtered out (visibleModulesFor) — the child is
-    // absent a fortiori. This IS a pass, not something to investigate further.
+  await switcherToggle(page).click();
+  const menu = switcherMenu(page);
+  await expect(
+    menu.getByRole('menuitem', { name: 'Tổng quan', exact: true }),
+    'menuNav.assertEntryAbsent: app-switcher never settled (cockpit entry, which has no permission gate, did not render).',
+  ).toBeVisible({ timeout: settleMs });
+
+  const moduleTile = menu.getByRole('menuitem', { name: moduleLabel, exact: true });
+  if ((await moduleTile.count()) === 0) {
+    // Whole module filtered out — child absent a fortiori. Close switcher.
+    await switcherToggle(page).click().catch(() => undefined);
     return;
   }
-  await moduleButton.click();
 
-  const childButton = nav.locator('.sh-sub').getByRole('button', { name: childLabel, exact: true });
-  // `.toHaveCount(0)` polls up to its timeout rather than sampling once, so a
-  // child that appears only after a slow re-render is still caught — the
-  // settled-wait above already ruled out the "nav hasn't loaded at all" case,
-  // this one covers "this specific child's render is still in flight".
+  await moduleTile.click();
+
+  // Positive settle AFTER navigate: wait until the section menu has hydrated
+  // for this app (any button under the navbar that is not the switcher toggle).
+  // Without this, toHaveCount(0) can ghost-pass during the empty gap between
+  // switcher close and children paint (red-team Critical class).
+  const nav = navbar(page);
+  const sectionButtons = nav.locator('ul.o-menu-sections button.o-menu-item');
+  // Modules with zero visible children (or fully gated) may legitimately have
+  // an empty section menu — in that case absence of childLabel is true. For
+  // modules that keep at least one ungated sibling, wait for >=1 section item
+  // before asserting the forbidden child is missing.
+  // Prefer a short positive wait; if nothing appears, fall through to absence.
+  try {
+    await expect(sectionButtons.first()).toBeVisible({ timeout: Math.min(timeoutMs, 3_000) });
+  } catch {
+    // Empty section menu after settle window — treat as fully gated / no children.
+  }
+
+  const childButton = nav.getByRole('button', { name: childLabel, exact: true });
   await expect(
     childButton,
     `menuNav.assertEntryAbsent: entry "${entryLabel(moduleLabel, childLabel)}" IS visible` +
       `${roleSuffix(opts.role)} — expected it to be absent.`,
-  ).toHaveCount(0, { timeout: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS });
+  ).toHaveCount(0, { timeout: timeoutMs });
 }
 
 export const menuNav = Object.assign(menuNavImpl, { assertEntryAbsent });

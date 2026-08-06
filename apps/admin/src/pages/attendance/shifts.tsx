@@ -521,7 +521,6 @@ export default function ShiftsPage() {
     <>
       <PageHeader
         title="Đăng ký ca"
-        subtitle="Đăng ký và xét duyệt ca làm việc"
         breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Đăng ký ca' }]}
       />
       <CmcTabs activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />

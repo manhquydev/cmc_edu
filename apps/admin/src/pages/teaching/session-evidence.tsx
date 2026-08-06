@@ -199,7 +199,6 @@ export default function SessionEvidencePage() {
       header={
         <PageHeader
           title="Nhật ký buổi học"
-          subtitle="Viết tóm tắt, upload ảnh, công bố cho phụ huynh"
           breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Nhật ký buổi học' }]}
           actions={(classBatchId || sessionId) ? <CopyLinkButton mode="current" /> : undefined}
         />

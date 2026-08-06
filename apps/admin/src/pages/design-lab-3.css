@@ -1,7 +1,0 @@
-/*
- * Design Lab 3 — DEMO-ONLY leftovers.
- * Tokens + chrome live in @cmc/ui/odoo.css (import via apps/admin main.tsx).
- * This file is intentionally empty of product styles so /design3 cannot drift
- * from the shared odoo layer. Kept as a stub so old import paths fail loudly
- * if reintroduced without review.
- */

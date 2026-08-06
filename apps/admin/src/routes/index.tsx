@@ -19,10 +19,6 @@ import { useSession } from '../lib/session-context.js';
 import { shouldCaptureReturnTo } from '../lib/safe-return-to.js';
 
 const CockpitPage = lazy(() => import('../pages/cockpit.js'));
-// Living design inventory — not a product module; visual review of tokens + composites.
-const DesignLabPage = lazy(() => import('../pages/design-lab.js'));
-const DesignLab2Page = lazy(() => import('../pages/design-lab-2.js'));
-const DesignLab3Page = lazy(() => import('../pages/design-lab-3.js'));
 // Forced password rotation: rendered INSIDE Shell in chrome-suppressed mode
 // (no navbar/app-switcher/⌘K) so the user cannot navigate away mid-rotation.
 const ChangePasswordPage = lazy(() => import('../pages/change-password.js'));
@@ -31,10 +27,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const { me, isLoading } = useSession();
   const location = useLocation();
   if (isLoading) return <Skeleton height="100vh" radius={0} />;
-  // Allow direct access to design labs (/design and /design2) without login
-  if (location.pathname === '/design' || location.pathname === '/design2') {
-    return <>{children}</>;
-  }
+  // No pathname allow-list — every child of Shell requires a staff session.
   if (!me) {
     // Preserve the deep-link destination across login (and change-password)
     // via ?returnTo=. Policy lives in safe-return-to.ts — do not re-list
@@ -50,20 +43,6 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
-  // Design Lab 3 recreates Odoo's own full-page chrome (navbar, control panel),
-  // so it must render outside RequireAuth/Shell — a sibling of /login, never a
-  // child of '/' — otherwise it would nest inside the production sidebar/topbar.
-  // DEV-only: production builds redirect away (no public unauthenticated chrome).
-  {
-    path: '/design3',
-    element: import.meta.env.DEV ? (
-      <Suspense fallback={<Skeleton height={200} radius={0} />}>
-        <DesignLab3Page />
-      </Suspense>
-    ) : (
-      <Navigate to="/login" replace />
-    ),
-  },
   {
     path: '/',
     element: <RequireAuth><Shell /></RequireAuth>,
@@ -84,22 +63,6 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Skeleton height="100vh" radius={0} />}>
             <ChangePasswordPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'design',
-        element: (
-          <Suspense fallback={<Skeleton height={200} radius={0} />}>
-            <DesignLabPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'design2',
-        element: (
-          <Suspense fallback={<Skeleton height={200} radius={0} />}>
-            <DesignLab2Page />
           </Suspense>
         ),
       },

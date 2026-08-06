@@ -34,8 +34,7 @@ export function Shell() {
   const [enrollPickerOpen, setEnrollPickerOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
 
-  // Load-bearing anonymous branch: design labs allow-list can render Shell
-  // without me (RequireAuth in routes/index.tsx). Keep empty modules.
+  // Empty modules when me is null (should not reach Shell without RequireAuth).
   const modules = me ? visibleModulesFor(me.roles, canDo) : [];
   const canCreateReceipt = canDo('finance', 'receiptCreate');
   const activeId = activeModuleId(location.pathname, modules);
@@ -69,29 +68,6 @@ export function Shell() {
         });
       }
     }
-    if (import.meta.env.DEV) {
-      items.push({
-        id: 'design-lab',
-        label: 'Design Lab',
-        group: 'Dev',
-        href: '/design',
-        keywords: 'tokens components inventory',
-      });
-      items.push({
-        id: 'design-lab-2',
-        label: 'Design Lab 2 (Next-Gen)',
-        group: 'Dev',
-        href: '/design2',
-        keywords: 'nextgen aetheria design2 visual mockup',
-      });
-      items.push({
-        id: 'design-lab-3',
-        label: 'Design Lab 3 (Odoo)',
-        group: 'Dev',
-        href: '/design3',
-        keywords: 'odoo erp design3 navbar kanban statusbar',
-      });
-    }
     if (canCreateReceipt) {
       items.push({
         id: 'enroll',
@@ -120,37 +96,6 @@ export function Shell() {
       >
         <LineIcon name="search" size={15} strokeWidth={2.25} />
       </button>
-      {import.meta.env.DEV && (
-        <>
-          <button
-            type="button"
-            className="o-systray-badge"
-            onClick={() => navigate('/design')}
-            title="Design Lab — inventory token & component"
-            aria-label="Design Lab"
-          >
-            D
-          </button>
-          <button
-            type="button"
-            className="o-systray-badge"
-            onClick={() => navigate('/design2')}
-            title="Design Lab 2"
-            aria-label="Design Lab 2"
-          >
-            D2
-          </button>
-          <button
-            type="button"
-            className="o-systray-badge"
-            onClick={() => navigate('/design3')}
-            title="Design Lab 3 — Odoo UI recreation"
-            aria-label="Design Lab 3"
-          >
-            D3
-          </button>
-        </>
-      )}
       {canCreateReceipt && (
         <button
           type="button"

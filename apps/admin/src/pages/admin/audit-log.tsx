@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  Banner,
   DataTable,
   EmptyState,
   FilterBar,
@@ -72,6 +73,14 @@ function toCreatedToIso(dateText: string): string | undefined {
   return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
 }
 
+/**
+ * YYYY-MM-DD strings compare lexicographically as calendar order.
+ * D4: inverted range must not hit the API with a silent empty result.
+ */
+function isInvertedDateRange(from: string, to: string): boolean {
+  return Boolean(from && to && DATE_ONLY.test(from) && DATE_ONLY.test(to) && from > to);
+}
+
 function AuditLogContent() {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [debouncedText, setDebouncedText] = useState({
@@ -92,6 +101,10 @@ function AuditLogContent() {
     return () => clearTimeout(timer);
   }, [filters.actor, filters.action, filters.entity]);
 
+  const dateRangeInvalid = isInvertedDateRange(filters.createdFrom, filters.createdTo);
+  const createdFromIso = dateRangeInvalid ? undefined : toCreatedFromIso(filters.createdFrom);
+  const createdToIso = dateRangeInvalid ? undefined : toCreatedToIso(filters.createdTo);
+
   // Restart pagination when the effective query set changes.
   useEffect(() => {
     setPage(1);
@@ -99,23 +112,24 @@ function AuditLogContent() {
     debouncedText.actor,
     debouncedText.action,
     debouncedText.entity,
-    filters.createdFrom,
-    filters.createdTo,
+    createdFromIso,
+    createdToIso,
+    dateRangeInvalid,
   ]);
 
-  const { data, isLoading, error } = trpc.audit.list.useQuery({
-    ...(debouncedText.actor ? { actor: debouncedText.actor } : {}),
-    ...(debouncedText.action ? { action: debouncedText.action } : {}),
-    ...(debouncedText.entity ? { entity: debouncedText.entity } : {}),
-    ...(toCreatedFromIso(filters.createdFrom)
-      ? { createdFrom: toCreatedFromIso(filters.createdFrom) }
-      : {}),
-    ...(toCreatedToIso(filters.createdTo)
-      ? { createdTo: toCreatedToIso(filters.createdTo) }
-      : {}),
-    page,
-    pageSize: PAGE_SIZE,
-  });
+  const { data, isLoading, error } = trpc.audit.list.useQuery(
+    {
+      ...(debouncedText.actor ? { actor: debouncedText.actor } : {}),
+      ...(debouncedText.action ? { action: debouncedText.action } : {}),
+      ...(debouncedText.entity ? { entity: debouncedText.entity } : {}),
+      ...(createdFromIso ? { createdFrom: createdFromIso } : {}),
+      ...(createdToIso ? { createdTo: createdToIso } : {}),
+      page,
+      pageSize: PAGE_SIZE,
+    },
+    // Skip network while the range is inverted — Banner explains the fix.
+    { enabled: !dateRangeInvalid },
+  );
 
   const total = data?.total ?? 0;
 
@@ -144,13 +158,23 @@ function AuditLogContent() {
         />
       }
     >
-      <DataTable<AuditRow>
-        columns={COLUMNS}
-        data={(data?.items as AuditRow[] | undefined) ?? []}
-        loading={isLoading}
-        error={error?.message}
-        empty="Chưa có nhật ký nào"
-      />
+      {dateRangeInvalid ? (
+        <div style={{ padding: '12px var(--cmc-keyline-x)' }}>
+          <Banner
+            status="warning"
+            title="Khoảng ngày không hợp lệ"
+            description='"Từ ngày" phải trước hoặc bằng "Đến ngày". Chỉnh lại bộ lọc để tải nhật ký.'
+          />
+        </div>
+      ) : (
+        <DataTable<AuditRow>
+          columns={COLUMNS}
+          data={(data?.items as AuditRow[] | undefined) ?? []}
+          loading={isLoading}
+          error={error?.message}
+          empty="Chưa có nhật ký nào"
+        />
+      )}
     </ListPage>
   );
 }

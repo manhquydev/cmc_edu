@@ -110,6 +110,22 @@ describe('AuditLogPage', () => {
     expect(lastCallArgs.createdTo).toBe('2026-08-06T16:59:59.999Z');
   });
 
+  it('blocks inverted date range with a warning and does not query audit.list with both bounds', () => {
+    renderWithProviders(<AuditLogPage />);
+    listQuerySpy.mockClear();
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-08-10' } });
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2026-08-01' } });
+
+    expect(screen.getByText('Khoảng ngày không hợp lệ')).toBeInTheDocument();
+    // Intermediate one-sided `from` may query once; never send inverted both-bounds.
+    const bothBounds = listQuerySpy.mock.calls.filter((c) => {
+      const arg = c[0] as { createdFrom?: string; createdTo?: string };
+      return Boolean(arg?.createdFrom && arg?.createdTo);
+    });
+    expect(bothBounds).toHaveLength(0);
+    expect(screen.queryByText('facility.update')).not.toBeInTheDocument();
+  });
+
   it('paginates via Trang sau', () => {
     auditListState.data = { items: [ROW_A], total: 50, page: 1, pageSize: 20 };
     renderWithProviders(<AuditLogPage />);

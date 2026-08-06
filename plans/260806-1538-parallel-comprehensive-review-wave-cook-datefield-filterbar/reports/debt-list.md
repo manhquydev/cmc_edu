@@ -22,7 +22,7 @@
 | **D1** | FIXED | Parents FilterBar hosted in `ListPage.filters` (ControlBar) | Cook 2026-08-06 |
 | **D2** | FIXED | Gifts: empty + placeholder = all; options only `active` | Cook 2026-08-06 |
 | **D3** | FIXED | Pipeline lost select `hasClear: false` (default domain exclude) | Cook 2026-08-06 + FilterDef.hasClear |
-| **D4** | MAJOR | Audit date range: no **from ≤ to** client validation | Empty results possible |
+| **D4** | FIXED | Audit date range: inverted range Banner + query `enabled: false` | Cook 2026-08-06 |
 | **D5** | MAJOR | `guardian.listPendingLinks` hardcodes `pageSize: 50`, shows total | Pre-existing; truncated queue |
 | **D6** | MAJOR | Test gaps: gifts/parents/kpi filter paths; FilterBar **URL mode** untested | Coverage debt |
 

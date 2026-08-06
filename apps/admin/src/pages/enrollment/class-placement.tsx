@@ -108,6 +108,7 @@ export default function ClassPlacementPage() {
   return (
     <>
       <ListPage
+        density="ops"
         header={
           <PageHeader
             title="Xếp lớp học viên"

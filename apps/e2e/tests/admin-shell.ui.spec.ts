@@ -1,4 +1,4 @@
-// Admin shell UI safety net — Odoo navbar + app-switcher (design3 Phase 2).
+// Admin shell UI safety net — Console navbar + app-switcher (design3 Phase 2).
 //
 // Auth: preview builds are production builds (import.meta.env.PROD), so the
 // admin app's trpc client never sends the dev x-dev-user header — the only
@@ -35,7 +35,7 @@ test.describe('admin shell (UI safety net)', () => {
     ]);
   });
 
-  test('shell renders Odoo navbar brand and role after login redirect', async ({ page }) => {
+  test('shell renders Console navbar brand and role after login redirect', async ({ page }) => {
     await page.goto('/cockpit');
 
     // Brand tracks active module (cockpit → Tổng quan); no separate "Admin" sub-brand.

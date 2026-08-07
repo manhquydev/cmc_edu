@@ -5,7 +5,7 @@ import { LineIcon } from './line-icon.js';
 /**
  * Detail-page entity chrome — identity + status + primary actions.
  * Complements PageHeader when you need avatar/initials + meta chips.
- * Requires @cmc/ui/odoo.css (.o-eh*).
+ * Requires @cmc/ui/console.css (.o-eh*).
  */
 export interface EntityHeaderProps {
   title: string;

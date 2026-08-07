@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 /**
  * Sticky list ops chrome — Odoo ControlPanel analogue for CMC.
  * Compose: PageHeader · FilterBar · ListPagination (footer).
- * Requires @cmc/ui/odoo.css (.o-control-bar*).
+ * Requires @cmc/ui/console.css (.o-control-bar*).
  */
 export interface ControlBarProps {
   /** Usually `<PageHeader>`. */

@@ -9,7 +9,7 @@ export interface SettingsNavItem {
 
 /**
  * Polaris/Odoo-style settings layout: left rail + main panel.
- * Requires @cmc/ui/odoo.css (.o-settings-shell*).
+ * Requires @cmc/ui/console.css (.o-settings-shell*).
  */
 export interface SettingsShellProps {
   items: SettingsNavItem[];

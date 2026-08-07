@@ -5,7 +5,7 @@
  * https://github.com/odoo/odoo), branch 19.0, commit 5568f6e472e2e53bc2931e744421015b0f0f3550.
  * Values reimplemented as plain CSS custom properties scoped under .o_web_client
  * only (document-global selectors are forbidden — must not leak into LMS).
- * Import ONCE at admin app root: `import '@cmc/ui/odoo.css'` (after premium.css).
+ * Import ONCE at admin app root: `import '@cmc/ui/console.css'` (after premium.css).
  */
 
 .o_web_client {

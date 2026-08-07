@@ -17,7 +17,7 @@ export interface FormPageProps {
 
 // Form-page archetype: canvas wrap + header + Odoo-like form sheet + sticky
 // action bar + optional result. Props-only (pages own form state). Requires
-// @cmc/ui/odoo.css (.o-wrap, .o-form-sheet*, .o-form-body, .o-actions).
+// @cmc/ui/console.css (.o-wrap, .o-form-sheet*, .o-form-body, .o-actions).
 export function FormPage({ header, children, actions, result }: FormPageProps) {
   return (
     <div className="o-wrap">

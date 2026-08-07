@@ -8,7 +8,7 @@ import { toneColor, type Tone } from './tone.js';
 // props-only, no data fetching. Locked invariants: value renders near-black
 // (never tinted by status); urgency is a small `attention` DOT, not a
 // recoloured number; icon is a monochrome LineIcon; flat surface at rest.
-// Requires @cmc/ui/odoo.css (.o-mc* classes).
+// Requires @cmc/ui/console.css (.o-mc* classes).
 export interface MetricCardProps {
   label: string;
   value: ReactNode;

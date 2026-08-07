@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 
 /**
  * Odoo-analogue kanban primitives. Color bar uses --odoo-kanban-color-1..6.
- * Requires `@cmc/ui/odoo.css` and an ancestor with class `.o_web_client`.
+ * Requires `@cmc/ui/console.css` and an ancestor with class `.o_web_client`.
  */
 
 export interface KanbanBoardProps {

@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
  * main.o-main (and .o-page-header) paints over the open menu — live design3
  * audit 2026-08-06 (session-assessment + 6 Form/Detail pages).
  */
-const css = readFileSync(resolve(process.cwd(), 'src/odoo.css'), 'utf8');
+const css = readFileSync(resolve(process.cwd(), 'src/console.css'), 'utf8');
 
 function ruleBlock(selector: string): string | null {
   const re = new RegExp(

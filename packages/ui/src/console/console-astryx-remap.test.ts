@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-const css = readFileSync(resolve(process.cwd(), 'src/odoo.css'), 'utf8');
+const css = readFileSync(resolve(process.cwd(), 'src/console.css'), 'utf8');
 
 describe('Astryx remap computed-style proof', () => {
   let styleEl: HTMLStyleElement;

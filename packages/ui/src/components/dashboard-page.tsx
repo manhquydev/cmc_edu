@@ -4,7 +4,7 @@ import { Skeleton } from '@astryxdesign/core/Skeleton';
 /**
  * Shared operational dashboard layout for role cockpits.
  * Same chrome for every role — only slot content differs (metrics / tasks / side).
- * Requires `@cmc/ui/odoo.css` (`.o-wrap`, `.o-dash-*`).
+ * Requires `@cmc/ui/console.css` (`.o-wrap`, `.o-dash-*`).
  */
 export interface DashboardPageProps {
   /** Page title — typically "Tổng quan". */

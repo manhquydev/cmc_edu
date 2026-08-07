@@ -47,7 +47,7 @@ export interface DetailPageProps {
  *     [ body ]
  * ```
  *
- * Props-only; pages own tRPC. Requires `@cmc/ui/odoo.css` (`.o-detail*`, `.o-form-sheet*`).
+ * Props-only; pages own tRPC. Requires `@cmc/ui/console.css` (`.o-detail*`, `.o-form-sheet*`).
  */
 export function DetailPage({
   header,

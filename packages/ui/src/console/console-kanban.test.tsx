@@ -1,6 +1,6 @@
 import { fireEvent, render } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { KanbanBoard, KanbanColumn, KanbanCard } from './odoo-kanban.js';
+import { KanbanBoard, KanbanColumn, KanbanCard } from './console-kanban.js';
 
 describe('KanbanBoard / KanbanColumn / KanbanCard', () => {
   it('renders columns and cards with titles', () => {

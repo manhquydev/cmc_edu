@@ -1,6 +1,6 @@
 import { fireEvent, render } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { OdooNavbar } from './odoo-navbar.js';
+import { OdooNavbar } from './console-navbar.js';
 import type { NavModule } from '../components/nav-types.js';
 
 const apps: NavModule[] = [

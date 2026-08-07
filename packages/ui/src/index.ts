@@ -169,15 +169,15 @@ export type { SideNavProps } from './components/side-nav.js';
 export { AppFrame } from './components/app-frame.js';
 export type { AppFrameProps } from './components/app-frame.js';
 
-// Odoo admin UI layer (design3) — requires `@cmc/ui/odoo.css` + `.o_web_client` scope.
-export { OdooNavbar } from './odoo/odoo-navbar.js';
-export type { OdooNavbarProps } from './odoo/odoo-navbar.js';
-export { KanbanBoard, KanbanColumn, KanbanCard } from './odoo/odoo-kanban.js';
+// Odoo admin UI layer (design3) — requires `@cmc/ui/console.css` + `.o_web_client` scope.
+export { OdooNavbar } from './console/console-navbar.js';
+export type { OdooNavbarProps } from './console/console-navbar.js';
+export { KanbanBoard, KanbanColumn, KanbanCard } from './console/console-kanban.js';
 export type {
   KanbanBoardProps,
   KanbanColumnProps,
   KanbanCardProps,
-} from './odoo/odoo-kanban.js';
+} from './console/console-kanban.js';
 
 // Page templates (P4 template extraction) — thin, slot-based list/detail/form
 // page archetypes composing the atoms above. Props-only, no data fetching;

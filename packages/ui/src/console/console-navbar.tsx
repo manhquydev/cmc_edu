@@ -7,7 +7,7 @@ import type { NavEntry, NavModule } from '../components/nav-types.js';
  * Dumb / props-only — no session, router, or tRPC. Permission gate is required
  * (never optional fail-open like SideNav's isChildVisible).
  *
- * Requires `@cmc/ui/odoo.css` and an ancestor with class `.o_web_client`.
+ * Requires `@cmc/ui/console.css` and an ancestor with class `.o_web_client`.
  */
 export interface OdooNavbarProps {
   apps: NavModule[];

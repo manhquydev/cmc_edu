@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
  * P1 design3 densify: ControlBar is a single flat band (no nested cards);
  * Detail/Form use Odoo form sheet dual-layer under the admin shell.
  */
-const css = readFileSync(resolve(process.cwd(), 'src/odoo.css'), 'utf8');
+const css = readFileSync(resolve(process.cwd(), 'src/console.css'), 'utf8');
 
 function ruleBlock(selector: string): string | null {
   const re = new RegExp(

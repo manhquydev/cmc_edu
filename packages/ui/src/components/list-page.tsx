@@ -28,7 +28,7 @@ export interface ListPageProps {
 }
 
 // List-page archetype: canvas wrap + ControlBar + body. Props-only.
-// Requires @cmc/ui/odoo.css (.o-wrap, .o-list-body).
+// Requires @cmc/ui/console.css (.o-wrap, .o-list-body).
 export function ListPage({
   header,
   filters,

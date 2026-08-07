@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
  * keep unscoped rules in odoo.css. Re-scoping them under `.o_web_client`
  * silently strips position/z-index chrome — unit DOM tests will not catch it.
  */
-const css = readFileSync(resolve(process.cwd(), 'src/odoo.css'), 'utf8');
+const css = readFileSync(resolve(process.cwd(), 'src/console.css'), 'utf8');
 
 function ruleBlock(selector: string): string | null {
   // Match bare selector blocks only (not ".o_web_client .ck-toast…").

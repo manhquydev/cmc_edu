@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
-const css = readFileSync(resolve(process.cwd(), 'src/odoo.css'), 'utf8');
+const css = readFileSync(resolve(process.cwd(), 'src/console.css'), 'utf8');
 
 describe('odoo.css scope + token surface', () => {
   it('never uses a document-global :root selector (scope leak guard)', () => {

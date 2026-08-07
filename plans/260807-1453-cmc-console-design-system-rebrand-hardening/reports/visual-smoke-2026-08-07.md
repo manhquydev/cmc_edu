@@ -33,7 +33,7 @@
 
 ## Auth fidelity
 
-**Strong claim:** browser session from password login; cookie `cmc_staff_session`; no `x-dev-user`. Seed used mint only for user.create bootstrap, not for the inspected session.
+**Strong claim:** browser session from password login; cookie `cmc_staff_session`; no `x-dev-user`. Seed bootstrap uses e2e staff client (x-dev-user Mode A when not production) for `user.create` only. Browser session is form login only — not mintStaffCookie.
 
 ## Artifacts
 
@@ -64,3 +64,12 @@ No screenshots committed. Delete `.playwright-mcp/` if any.
 - **Sticky thead:** facilities list `position:sticky` under `.console-list`.
 
 No pixel defects attributed to Phases 1–2 rebrand or Phase 6 CSS deletions were observed on the inspected routes.
+
+
+## Residual open for design3 closure
+
+Phase 7 must **not** flip the design3-admin-rollout human-visual-smoke blocker to closed solely on this report without either re-running with fixtures or carrying these residuals:
+
+1. Opportunity detail chevron statusbar — not rendered this pass (WARN)
+2. Cancelled receipt statusbar — not rendered this pass (WARN)
+3. Synth DB teardown still pending (`docker rm -f cmc-synth-pg`)

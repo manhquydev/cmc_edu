@@ -213,11 +213,11 @@ Assessment.
 - [x] A staff user was seeded into the throwaway DB (the seed script creates
       none) and the admin app was served via the `playwright.config.ts:78-96`
       recipe, not `pnpm --filter @cmc/admin dev`.
-- [x] All six flagged routes/elements visually inspected live and recorded
+- [x] All six flagged routes/elements attempted; **4 fully rendered PASS, 2 WARN empty fixtures** — see report
       pass/fail in the report.
 - [x] Zero screenshot files added to the repo; disk-level automation
       artifacts (`.playwright-mcp/` or similar) deleted, not just gitignored.
-- [x] Throwaway Postgres container torn down after the session.
+- [ ] Throwaway Postgres container torn down after the session. *(deferred — still up for Phase 7; run `docker rm -f cmc-synth-pg` when plan finishes)*
 - [x] Any defect found is either fixed (small, tracked) or explicitly logged
       as a follow-up, not silently ignored.
 - [x] Report exists at the path above and is referenced by Phase 7's rollout-plan closure edit.
@@ -250,8 +250,16 @@ Assessment.
 
 **Report:** `reports/visual-smoke-2026-08-07.md` — **8 PASS / 2 WARN / 0 FAIL**.
 
-**Auth:** real form `POST /auth/staff-login` against synth DB staff user. No mint in browser; no `.env.prod`.
+**Auth:** real form `POST /auth/staff-login` against synth DB staff user. No mint/cookie-inject in browser (form login only). Seed bootstrap may use x-dev-user for user.create only. No `.env.prod`.
 
 **WARNs:** empty CRM detail navigation + empty finance list (fixture gaps on base seed, not rebrand regressions).
 
 **Teardown:** synth container left up for Phase 7 optional re-check; remove with `docker rm -f cmc-synth-pg` when done.
+
+
+### Residual for Phase 7 (do not close design3 smoke without these)
+
+1. CRM opportunity detail statusbar — not opened (no card click / empty pipeline detail path)
+2. Cancelled finance receipt statusbar — no receipts on base seed
+3. Optional: toast *trigger* (viewport present; action toast not forced)
+4. Teardown `cmc-synth-pg` still pending

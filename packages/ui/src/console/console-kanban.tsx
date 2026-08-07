@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 
 /**
- * Odoo-analogue kanban primitives. Color bar uses --odoo-kanban-color-1..6.
+ * Odoo-analogue kanban primitives. Color bar uses --console-kanban-color-1..6.
  * Requires `@cmc/ui/console.css` and an ancestor with class `.o_web_client`.
  */
 
@@ -43,7 +43,7 @@ export interface KanbanCardProps {
   title: ReactNode;
   subtitle?: ReactNode;
   footer?: ReactNode;
-  /** Maps to `--odoo-kanban-color-N` (1..6). */
+  /** Maps to `--console-kanban-color-N` (1..6). */
   colorIndex?: 1 | 2 | 3 | 4 | 5 | 6;
   children?: ReactNode;
   onClick?: () => void;
@@ -63,7 +63,7 @@ export function KanbanCard({
   const style =
     colorIndex != null
       ? ({
-          '--odoo-kanban-card-color': `var(--odoo-kanban-color-${colorIndex})`,
+          '--console-kanban-card-color': `var(--console-kanban-color-${colorIndex})`,
         } as CSSProperties)
       : undefined;
 

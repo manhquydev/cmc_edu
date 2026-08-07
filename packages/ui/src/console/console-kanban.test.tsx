@@ -29,8 +29,8 @@ describe('KanbanBoard / KanbanColumn / KanbanCard', () => {
       <KanbanCard title="X" colorIndex={4} />,
     );
     const card = container.querySelector('.o-kanban-card') as HTMLElement;
-    expect(card.style.getPropertyValue('--odoo-kanban-card-color')).toBe(
-      'var(--odoo-kanban-color-4)',
+    expect(card.style.getPropertyValue('--console-kanban-card-color')).toBe(
+      'var(--console-kanban-color-4)',
     );
   });
 

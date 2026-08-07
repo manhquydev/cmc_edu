@@ -12,11 +12,11 @@ describe('odoo.css scope + token surface', () => {
 
   it('scopes tokens under .o_web_client', () => {
     expect(css.includes('.o_web_client')).toBe(true);
-    expect(css.includes('--odoo-brand-purple:')).toBe(true);
-    expect(css.includes('--odoo-font-size-base:')).toBe(true);
-    expect(css.includes('--odoo-kanban-color-1:')).toBe(true);
-    expect(css.includes('--odoo-kanban-color-6:')).toBe(true);
-    expect(css.includes('--odoo-navbar-height:')).toBe(true);
+    expect(css.includes('--console-brand-purple:')).toBe(true);
+    expect(css.includes('--console-font-size-base:')).toBe(true);
+    expect(css.includes('--console-kanban-color-1:')).toBe(true);
+    expect(css.includes('--console-kanban-color-6:')).toBe(true);
+    expect(css.includes('--console-navbar-height:')).toBe(true);
   });
 
   it('exposes remapped class names (o- prefix, not odoo-lab-)', () => {
@@ -47,10 +47,10 @@ describe('odoo.css scope + token surface', () => {
     expect(css.includes('.o_web_client small')).toBe(true);
   });
 
-  it('wires kanban narrow viewport width to --odoo-kanban-card-width-sm', () => {
-    expect(css.includes('--odoo-kanban-card-width-sm:')).toBe(true);
+  it('wires kanban narrow viewport width to --console-kanban-card-width-sm', () => {
+    expect(css.includes('--console-kanban-card-width-sm:')).toBe(true);
     expect(css.includes('@media (max-width: 768px)')).toBe(true);
-    expect(css.includes('min(90vw, var(--odoo-kanban-card-width-sm))')).toBe(true);
+    expect(css.includes('min(90vw, var(--console-kanban-card-width-sm))')).toBe(true);
     // Cards fill column only inside the media block (desktop keeps fixed card width).
     const mediaIdx = css.indexOf('@media (max-width: 768px)');
     const mediaSlice = css.slice(mediaIdx, mediaIdx + 400);

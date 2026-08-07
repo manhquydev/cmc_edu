@@ -64,24 +64,24 @@ Per the [plan's Decision Log](../plans/260805-1421-design-lab-3-odoo-ui-recreati
 
 | Category | Token | Value | Source / Note |
 |---|---|---|---|
-| **Brand (decorative)** | `--odoo-brand-purple` | `#71639e` | Odoo community brand (used navbar only) |
-| | `--odoo-brand-purple-dark` | `#5a4f7e` | Navbar border depth |
-| | `--odoo-enterprise-purple` | `#714B67` | Odoo enterprise variant (reference, not used) |
-| **Status colors (muted, Bootstrap-derived)** | `--odoo-success` | `#28a745` | Approve, paid, done (green) |
-| | `--odoo-info` | `#17a2b8` | Info, pending (teal) |
-| | `--odoo-warning` | `#ffac00` | Warning, in progress (amber) |
-| | `--odoo-danger` | `#dc3545` | Danger, rejected (red) |
-| **Kanban card accent colors** | `--odoo-kanban-color-1..6` | gray, red, amber, teal, green, purple | Status-to-color mapping: draft→gray, rejected→red, pending→amber, confirmed→teal, approved→green, done→purple |
-| **Grays (Bootstrap 5 defaults)** | `--odoo-gray-100` through `--odoo-gray-900` | `#f8f9fa` to `#212529` | Full 9-step neutral ramp |
+| **Brand (decorative)** | `--console-brand-purple` | `#71639e` | Odoo community brand (used navbar only) |
+| | `--console-brand-purple-dark` | `#5a4f7e` | Navbar border depth |
+| | `--console-enterprise-purple` | `#714B67` | Odoo enterprise variant (reference, not used) |
+| **Status colors (muted, Bootstrap-derived)** | `--console-success` | `#28a745` | Approve, paid, done (green) |
+| | `--console-info` | `#17a2b8` | Info, pending (teal) |
+| | `--console-warning` | `#ffac00` | Warning, in progress (amber) |
+| | `--console-danger` | `#dc3545` | Danger, rejected (red) |
+| **Kanban card accent colors** | `--console-kanban-color-1..6` | gray, red, amber, teal, green, purple | Status-to-color mapping: draft→gray, rejected→red, pending→amber, confirmed→teal, approved→green, done→purple |
+| **Grays (Bootstrap 5 defaults)** | `--console-gray-100` through `--console-gray-900` | `#f8f9fa` to `#212529` | Full 9-step neutral ramp |
 | **Interactive accents (CMC, not Odoo)** | Not in this token set | — | TL12 defines `#0071E3` globally; admin keeps CMC blue for interactive chrome |
 
 ### Typography
 
 | Token | Value | Notes |
 |---|---|---|
-| `--odoo-font-size-base` | `14px` | Body text, table cells, control panel |
-| `--odoo-font-size-sm` | `13px` | Secondary, labels, kanban headers |
-| `--odoo-font-size-xs` | `12px` | Badges, hints, small form text |
+| `--console-font-size-base` | `14px` | Body text, table cells, control panel |
+| `--console-font-size-sm` | `13px` | Secondary, labels, kanban headers |
+| `--console-font-size-xs` | `12px` | Badges, hints, small form text |
 | Font family | `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif` | **CMC deviation:** Odoo uses bare system stack; we keep Inter (TL12 locked) |
 | Font weight | `400` (normal), `500` (medium), `700` (bold) | Only 3 steps; headers/labels typically 500–600, not 700 |
 | Line-height | Base `1.5`, small `1.25` | Odoo defaults; list/kanban use tight leading |
@@ -90,16 +90,16 @@ Per the [plan's Decision Log](../plans/260805-1421-design-lab-3-odoo-ui-recreati
 
 | Token | Value | Usage |
 |---|---|---|
-| `--odoo-spacer` | `16px` | Base unit; padding/gaps throughout |
-| `--odoo-radius` | `4px` | Cards, buttons, dropdowns (default) |
-| `--odoo-radius-sm` | `3px` | Search box, view-switcher, small elements |
-| `--odoo-radius-lg` | `6px` | Form sheets (less-used variant) |
-| `--odoo-navbar-height` | `46px` | Fixed navbar strip |
-| `--odoo-statusbar-height` | `33px` | Chevron statusbar |
-| `--odoo-list-cell-padding-x`, `-y` | `0.3rem`, `0.5rem` | Dense table cells (≈ 4.8px, 8px) |
-| `--odoo-kanban-card-width` | `320px` | Standard kanban card |
-| `--odoo-kanban-card-width-sm` | `300px` | Compact variant (mobile) |
-| `--odoo-kanban-gutter` | `8px` | Column gap, card bottom margin |
+| `--console-spacer` | `16px` | Base unit; padding/gaps throughout |
+| `--console-radius` | `4px` | Cards, buttons, dropdowns (default) |
+| `--console-radius-sm` | `3px` | Search box, view-switcher, small elements |
+| `--console-radius-lg` | `6px` | Form sheets (less-used variant) |
+| `--console-navbar-height` | `46px` | Fixed navbar strip |
+| `--console-statusbar-height` | `33px` | Chevron statusbar |
+| `--console-list-cell-padding-x`, `-y` | `0.3rem`, `0.5rem` | Dense table cells (≈ 4.8px, 8px) |
+| `--console-kanban-card-width` | `320px` | Standard kanban card |
+| `--console-kanban-card-width-sm` | `300px` | Compact variant (mobile) |
+| `--console-kanban-gutter` | `8px` | Column gap, card bottom margin |
 
 ---
 
@@ -148,7 +148,7 @@ Form statusbar only sticks to content top at `md+`; below `md` it's inline/stati
 
 **Kanban board**
 - `KanbanBoard` / `KanbanColumn` / `KanbanCard` in `@cmc/ui`
-- Horizontal flex board, card left-bar accent via `--odoo-kanban-color-*`
+- Horizontal flex board, card left-bar accent via `--console-kanban-color-*`
 - CRM pipeline pilot: list ↔ kanban + `?view=` deep-link
 
 **Statusbar (chevron shape)**

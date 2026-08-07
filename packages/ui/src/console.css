@@ -10,76 +10,76 @@
 
 .o_web_client {
   /* Brand (decorative only — interactive accent stays CMC blue #0071E3) */
-  --odoo-brand-purple: #71639e;
-  --odoo-brand-purple-dark: #5a4f7e;
-  --odoo-enterprise-purple: #714b67;
+  --console-brand-purple: #71639e;
+  --console-brand-purple-dark: #5a4f7e;
+  --console-enterprise-purple: #714b67;
 
   /* Status colors (muted/Bootstrap-derived, keep as-is — do not brighten) */
-  --odoo-success: #28a745;
-  --odoo-info: #17a2b8;
-  --odoo-warning: #ffac00;
-  --odoo-danger: #dc3545;
+  --console-success: #28a745;
+  --console-info: #17a2b8;
+  --console-warning: #ffac00;
+  --console-danger: #dc3545;
 
   /* Kanban record accent colors — status-N mapping: draft=1, rejected=2,
      pending=3, confirmed=4, approved=5, done=6 */
-  --odoo-kanban-color-1: #6c757d;
-  --odoo-kanban-color-2: #dc3545;
-  --odoo-kanban-color-3: #ffac00;
-  --odoo-kanban-color-4: #17a2b8;
-  --odoo-kanban-color-5: #28a745;
-  --odoo-kanban-color-6: #71639e;
+  --console-kanban-color-1: #6c757d;
+  --console-kanban-color-2: #dc3545;
+  --console-kanban-color-3: #ffac00;
+  --console-kanban-color-4: #17a2b8;
+  --console-kanban-color-5: #28a745;
+  --console-kanban-color-6: #71639e;
 
   /* Grays (Bootstrap defaults) */
-  --odoo-gray-100: #f8f9fa;
-  --odoo-gray-200: #e9ecef;
-  --odoo-gray-300: #dee2e6;
-  --odoo-gray-600: #6c757d;
-  --odoo-gray-900: #212529;
+  --console-gray-100: #f8f9fa;
+  --console-gray-200: #e9ecef;
+  --console-gray-300: #dee2e6;
+  --console-gray-600: #6c757d;
+  --console-gray-900: #212529;
 
   /* Typography — keep CMC's Inter family, adopt Odoo's size steps + density */
-  --odoo-font-size-base: 14px;
-  --odoo-font-size-sm: 13px;
-  --odoo-font-size-xs: 12px;
+  --console-font-size-base: 14px;
+  --console-font-size-sm: 13px;
+  --console-font-size-xs: 12px;
 
   /* Radius — small & consistent, NOT pill-shaped */
-  --odoo-radius: 4px;
-  --odoo-radius-sm: 3px;
-  --odoo-radius-lg: 6px;
+  --console-radius: 4px;
+  --console-radius-sm: 3px;
+  --console-radius-lg: 6px;
 
   /* Spacing */
-  --odoo-spacer: 16px;
+  --console-spacer: 16px;
 
   /* Navbar */
-  --odoo-navbar-height: 46px;
-  --odoo-navbar-entry-hover-bg: rgba(0, 0, 0, 0.08);
+  --console-navbar-height: 46px;
+  --console-navbar-entry-hover-bg: rgba(0, 0, 0, 0.08);
 
   /* Control panel / breadcrumb */
-  --odoo-breadcrumb-padding-x: 0.5rem;
+  --console-breadcrumb-padding-x: 0.5rem;
 
   /* List view */
-  --odoo-list-cell-padding-x: 0.3rem;
-  --odoo-list-cell-padding-y: 0.5rem;
+  --console-list-cell-padding-x: 0.3rem;
+  --console-list-cell-padding-y: 0.5rem;
 
   /* Kanban */
-  --odoo-kanban-bg: var(--odoo-gray-100);
-  --odoo-kanban-card-width: 320px;
-  --odoo-kanban-card-width-sm: 300px;
-  --odoo-kanban-color-bar-width: 3px;
-  --odoo-kanban-gutter: 8px;
+  --console-kanban-bg: var(--console-gray-100);
+  --console-kanban-card-width: 320px;
+  --console-kanban-card-width-sm: 300px;
+  --console-kanban-color-bar-width: 3px;
+  --console-kanban-gutter: 8px;
 
   /* Form / statusbar */
-  --odoo-sheet-max-width: 1400px;
-  --odoo-statusbar-height: 33px;
-  --odoo-statusbar-arrow-width: 1em;
+  --console-sheet-max-width: 1400px;
+  --console-statusbar-height: 33px;
+  --console-statusbar-arrow-width: 1em;
 }
 
 .o_web_client {
   box-sizing: border-box;
   min-height: 100vh;
-  background: var(--odoo-gray-100);
+  background: var(--console-gray-100);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: var(--odoo-font-size-base);
-  color: var(--odoo-gray-900);
+  font-size: var(--console-font-size-base);
+  color: var(--console-gray-900);
   display: flex;
   flex-flow: column nowrap;
 }
@@ -103,10 +103,10 @@
   z-index: 1000;
   display: flex;
   align-items: center;
-  height: var(--odoo-navbar-height);
+  height: var(--console-navbar-height);
   flex: 0 0 auto;
-  background: var(--odoo-brand-purple);
-  border-bottom: 1px solid var(--odoo-brand-purple-dark);
+  background: var(--console-brand-purple);
+  border-bottom: 1px solid var(--console-brand-purple-dark);
   color: rgba(255, 255, 255, 0.9);
   padding: 0 8px;
   gap: 4px;
@@ -116,8 +116,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--odoo-navbar-height);
-  height: var(--odoo-navbar-height);
+  width: var(--console-navbar-height);
+  height: var(--console-navbar-height);
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -126,7 +126,7 @@
 }
 
 .o-app-switcher-toggle:hover {
-  background: var(--odoo-navbar-entry-hover-bg);
+  background: var(--console-navbar-entry-hover-bg);
 }
 
 .o-brand {
@@ -148,7 +148,7 @@
 
 .o-menu-item {
   padding: 0 10px;
-  height: var(--odoo-navbar-height);
+  height: var(--console-navbar-height);
   display: flex;
   align-items: center;
   font-size: 1em;
@@ -157,7 +157,7 @@
 }
 
 .o-menu-item:hover {
-  background: var(--odoo-navbar-entry-hover-bg);
+  background: var(--console-navbar-entry-hover-bg);
 }
 
 .o-systray {
@@ -181,7 +181,7 @@
 }
 
 .o-systray-badge:hover {
-  background: var(--odoo-navbar-entry-hover-bg);
+  background: var(--console-navbar-entry-hover-bg);
 }
 
 .o-badge-count {
@@ -191,7 +191,7 @@
   min-width: 14px;
   padding: 0 3px;
   border-radius: 999px;
-  background: var(--odoo-success);
+  background: var(--console-success);
   color: #fff;
   font-size: 10px;
   line-height: 14px;
@@ -202,7 +202,7 @@
    grid — desktop and mobile both render a plain vertical item list). */
 .o-app-switcher-menu {
   position: absolute;
-  top: var(--odoo-navbar-height);
+  top: var(--console-navbar-height);
   left: 0;
   z-index: 10;
   display: flex;
@@ -210,8 +210,8 @@
   min-width: 220px;
   padding: 4px 0;
   background: #fff;
-  border: 1px solid var(--odoo-gray-300);
-  border-radius: 0 0 var(--odoo-radius) var(--odoo-radius);
+  border: 1px solid var(--console-gray-300);
+  border-radius: 0 0 var(--console-radius) var(--console-radius);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
@@ -223,14 +223,14 @@
   padding: 8px 16px;
   background: transparent;
   border: 0;
-  color: var(--odoo-gray-900);
+  color: var(--console-gray-900);
   cursor: pointer;
-  font-size: var(--odoo-font-size-base);
+  font-size: var(--console-font-size-base);
   text-align: left;
 }
 
 .o-app-switcher-tile:hover {
-  background: var(--odoo-gray-100);
+  background: var(--console-gray-100);
 }
 
 /* ------------------------------------------------------------------ */
@@ -242,22 +242,22 @@
   align-items: center;
   flex: 0 0 auto;
   gap: 16px;
-  padding: 8px var(--odoo-spacer);
+  padding: 8px var(--console-spacer);
   background: #fff;
-  border-bottom: 1px solid var(--odoo-gray-300);
+  border-bottom: 1px solid var(--console-gray-300);
 }
 
 .o-breadcrumbs {
   display: flex;
   align-items: center;
-  padding: 0 var(--odoo-breadcrumb-padding-x);
-  font-size: var(--odoo-font-size-base);
+  padding: 0 var(--console-breadcrumb-padding-x);
+  font-size: var(--console-font-size-base);
   white-space: nowrap;
 }
 
 .o-breadcrumb-sep {
   margin: 0 6px;
-  color: var(--odoo-gray-600);
+  color: var(--console-gray-600);
 }
 
 .o-breadcrumb-current {
@@ -292,12 +292,12 @@
   flex: 1 1 auto;
   max-width: 360px;
   padding: 4px 10px;
-  background: var(--odoo-gray-100);
-  border: 1px solid var(--odoo-gray-300);
-  border-radius: var(--odoo-radius-sm);
-  color: var(--odoo-gray-600);
+  background: var(--console-gray-100);
+  border: 1px solid var(--console-gray-300);
+  border-radius: var(--console-radius-sm);
+  color: var(--console-gray-600);
   cursor: pointer;
-  font-size: var(--odoo-font-size-sm);
+  font-size: var(--console-font-size-sm);
 }
 
 .o-actions {
@@ -309,8 +309,8 @@
 
 .o-view-switcher {
   display: flex;
-  border: 1px solid var(--odoo-gray-300);
-  border-radius: var(--odoo-radius-sm);
+  border: 1px solid var(--console-gray-300);
+  border-radius: var(--console-radius-sm);
   overflow: hidden;
 }
 
@@ -322,17 +322,17 @@
   height: 30px;
   background: #fff;
   border: 0;
-  color: var(--odoo-gray-600);
+  color: var(--console-gray-600);
   cursor: pointer;
 }
 
 .o-view-switcher button + button {
-  border-left: 1px solid var(--odoo-gray-300);
+  border-left: 1px solid var(--console-gray-300);
 }
 
 .o-view-switcher button.is-active {
-  background: var(--odoo-gray-100);
-  color: var(--odoo-brand-purple);
+  background: var(--console-gray-100);
+  color: var(--console-brand-purple);
 }
 
 /* ------------------------------------------------------------------ */
@@ -341,7 +341,7 @@
 
 .o-content {
   flex: 1 1 auto;
-  padding: var(--odoo-spacer);
+  padding: var(--console-spacer);
   overflow-y: auto;
 }
 
@@ -351,40 +351,40 @@
 
 .o-statusbar {
   display: flex;
-  height: var(--odoo-statusbar-height);
-  margin-bottom: var(--odoo-spacer);
+  height: var(--console-statusbar-height);
+  margin-bottom: var(--console-spacer);
 }
 
 .o-statusbar-step {
   position: relative;
-  padding: 0 calc(var(--odoo-statusbar-arrow-width) * 1.25) 0 calc(var(--odoo-statusbar-arrow-width) * 2);
-  margin-left: calc(var(--odoo-statusbar-arrow-width) * -1);
-  background: var(--odoo-gray-200);
+  padding: 0 calc(var(--console-statusbar-arrow-width) * 1.25) 0 calc(var(--console-statusbar-arrow-width) * 2);
+  margin-left: calc(var(--console-statusbar-arrow-width) * -1);
+  background: var(--console-gray-200);
   border: 0;
-  color: var(--odoo-gray-900);
-  font-size: var(--odoo-font-size-sm);
+  color: var(--console-gray-900);
+  font-size: var(--console-font-size-sm);
   cursor: pointer;
   clip-path: polygon(
-    0 0, calc(100% - var(--odoo-statusbar-arrow-width)) 0,
-    100% 50%, calc(100% - var(--odoo-statusbar-arrow-width)) 100%,
-    0 100%, var(--odoo-statusbar-arrow-width) 50%
+    0 0, calc(100% - var(--console-statusbar-arrow-width)) 0,
+    100% 50%, calc(100% - var(--console-statusbar-arrow-width)) 100%,
+    0 100%, var(--console-statusbar-arrow-width) 50%
   );
 }
 
 .o-statusbar-step:first-child {
   margin-left: 0;
   clip-path: polygon(
-    0 0, calc(100% - var(--odoo-statusbar-arrow-width)) 0,
-    100% 50%, calc(100% - var(--odoo-statusbar-arrow-width)) 100%, 0 100%
+    0 0, calc(100% - var(--console-statusbar-arrow-width)) 0,
+    100% 50%, calc(100% - var(--console-statusbar-arrow-width)) 100%, 0 100%
   );
 }
 
 /* Flatten the trailing edge — without this the last step keeps a
    right-pointing tip with nothing to interlock with. */
 .o-statusbar-step:last-child {
-  padding-right: var(--odoo-statusbar-arrow-width);
+  padding-right: var(--console-statusbar-arrow-width);
   clip-path: polygon(
-    0 0, 100% 0, 100% 100%, 0 100%, var(--odoo-statusbar-arrow-width) 50%
+    0 0, 100% 0, 100% 100%, 0 100%, var(--console-statusbar-arrow-width) 50%
   );
 }
 
@@ -393,7 +393,7 @@
 }
 
 .o-statusbar-step.is-active {
-  background: var(--odoo-gray-900);
+  background: var(--console-gray-900);
   color: #fff;
   z-index: 1;
 }
@@ -424,12 +424,12 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--odoo-gray-100);
+  background: var(--console-gray-100);
   text-align: left;
-  padding: var(--odoo-list-cell-padding-y) var(--odoo-list-cell-padding-x);
-  font-size: var(--odoo-font-size-sm);
-  color: var(--odoo-gray-900);
-  border-bottom: 1px solid var(--odoo-gray-300);
+  padding: var(--console-list-cell-padding-y) var(--console-list-cell-padding-x);
+  font-size: var(--console-font-size-sm);
+  color: var(--console-gray-900);
+  border-bottom: 1px solid var(--console-gray-300);
 }
 
 /* Depth cue under the sticky header, matching Odoo's inset shadow on the
@@ -439,18 +439,18 @@
 }
 
 .o-list-table td {
-  padding: var(--odoo-list-cell-padding-y) var(--odoo-list-cell-padding-x);
-  border-bottom: 1px solid var(--odoo-gray-200);
-  font-size: var(--odoo-font-size-sm);
+  padding: var(--console-list-cell-padding-y) var(--console-list-cell-padding-x);
+  border-bottom: 1px solid var(--console-gray-200);
+  font-size: var(--console-font-size-sm);
 }
 
 /* Zebra striping on ungrouped rows, matching Odoo's table-striped default. */
 .o-list-row:nth-child(odd) td {
-  background: var(--odoo-gray-100);
+  background: var(--console-gray-100);
 }
 
 .o-list-row:hover td {
-  background: var(--odoo-gray-200);
+  background: var(--console-gray-200);
 }
 
 .o-list-checkbox-col {
@@ -468,7 +468,7 @@
 .o-kanban-board {
   display: flex;
   align-items: flex-start;
-  gap: var(--odoo-kanban-gutter);
+  gap: var(--console-kanban-gutter);
   overflow-x: auto;
 }
 
@@ -476,9 +476,9 @@
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  background: var(--odoo-kanban-bg);
-  border-radius: var(--odoo-radius);
-  padding: var(--odoo-kanban-gutter);
+  background: var(--console-kanban-bg);
+  border-radius: var(--console-radius);
+  padding: var(--console-kanban-gutter);
   max-height: min(70vh, 640px);
 }
 
@@ -486,7 +486,7 @@
    (explicit col width + border-box padding clips cards; see cook review High #1). */
 @media (max-width: 768px) {
   .o-kanban-col {
-    width: min(90vw, var(--odoo-kanban-card-width-sm));
+    width: min(90vw, var(--console-kanban-card-width-sm));
   }
 
   .o-kanban-card,
@@ -500,9 +500,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 4px 4px 8px;
-  font-size: var(--odoo-font-size-sm);
+  font-size: var(--console-font-size-sm);
   font-weight: 600;
-  color: var(--odoo-gray-600);
+  color: var(--console-gray-600);
   text-transform: uppercase;
   flex-shrink: 0;
 }
@@ -511,7 +511,7 @@
 .o-kanban-col-body {
   display: flex;
   flex-direction: column;
-  gap: var(--odoo-kanban-gutter);
+  gap: var(--console-kanban-gutter);
   overflow-y: auto;
   min-height: 0;
   flex: 1;
@@ -525,9 +525,9 @@
 .o-kanban-col-count {
   min-width: 18px;
   padding: 0 4px;
-  background: var(--odoo-gray-300);
+  background: var(--console-gray-300);
   border-radius: 999px;
-  font-size: var(--odoo-font-size-xs);
+  font-size: var(--console-font-size-xs);
   text-align: center;
 }
 
@@ -536,24 +536,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--odoo-kanban-card-width);
+  width: var(--console-kanban-card-width);
   min-height: 88px;
   padding: 28px 8px;
-  border: 1px dashed var(--odoo-gray-300);
-  border-radius: var(--odoo-radius);
-  color: var(--odoo-gray-600);
-  font-size: var(--odoo-font-size-xs);
+  border: 1px dashed var(--console-gray-300);
+  border-radius: var(--console-radius);
+  color: var(--console-gray-600);
+  font-size: var(--console-font-size-xs);
   text-align: center;
 }
 
 .o-kanban-card {
   position: relative;
-  width: var(--odoo-kanban-card-width);
-  margin-bottom: var(--odoo-kanban-gutter);
+  width: var(--console-kanban-card-width);
+  margin-bottom: var(--console-kanban-gutter);
   padding: 10px;
   background: #fff;
-  border: 1px solid var(--odoo-gray-300);
-  border-radius: var(--odoo-radius-sm);
+  border: 1px solid var(--console-gray-300);
+  border-radius: var(--console-radius-sm);
 }
 
 /* Left color accent: two overlapping borders (thin translucent + solid),
@@ -564,26 +564,26 @@
   top: 0;
   bottom: 0;
   left: -1px;
-  border-left: 1px solid color-mix(in srgb, var(--odoo-kanban-card-color, var(--odoo-gray-600)) 50%, transparent);
-  border-right: var(--odoo-kanban-color-bar-width) solid var(--odoo-kanban-card-color, var(--odoo-gray-600));
+  border-left: 1px solid color-mix(in srgb, var(--console-kanban-card-color, var(--console-gray-600)) 50%, transparent);
+  border-right: var(--console-kanban-color-bar-width) solid var(--console-kanban-card-color, var(--console-gray-600));
 }
 
 .o-kanban-card-title {
   font-weight: 600;
-  font-size: var(--odoo-font-size-sm);
+  font-size: var(--console-font-size-sm);
 }
 
 .o-kanban-card-sub {
-  font-size: var(--odoo-font-size-xs);
-  color: var(--odoo-gray-600);
+  font-size: var(--console-font-size-xs);
+  color: var(--console-gray-600);
   margin-top: 2px;
 }
 
 .o-kanban-card-footer {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--odoo-gray-200);
-  font-size: var(--odoo-font-size-xs);
+  border-top: 1px solid var(--console-gray-200);
+  font-size: var(--console-font-size-xs);
   font-weight: 600;
 }
 
@@ -652,9 +652,9 @@
   --text-code-leading: 1.43;
   --text-supporting-leading: 1.5;
 
-  --color-text-primary: var(--odoo-gray-900, #212529);
-  --color-text-secondary: var(--odoo-gray-600, #6c757d);
-  --color-text-disabled: var(--odoo-gray-600, #6c757d);
+  --color-text-primary: var(--console-gray-900, #212529);
+  --color-text-secondary: var(--console-gray-600, #6c757d);
+  --color-text-disabled: var(--console-gray-600, #6c757d);
   color-scheme: light;
 }
 
@@ -692,7 +692,7 @@ button.o-kanban-card {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  background: var(--odoo-gray-100, #f8f9fa);
+  background: var(--console-gray-100, #f8f9fa);
 }
 
 /* Systray cluster inside OdooNavbar */
@@ -989,7 +989,7 @@ button.o-kanban-card {
   flex-direction: column;
   gap: 12px;
   width: 100%;
-  max-width: var(--odoo-sheet-max-width, 1400px);
+  max-width: var(--console-sheet-max-width, 1400px);
   min-width: 0;
   /* Prefer left align like Odoo sheet_bg (not centered alone) */
   margin-inline: 0 auto 0 0;
@@ -1000,8 +1000,8 @@ button.o-kanban-card {
   gap: var(--cmc-gap-cluster);
   min-width: 0;
   background: var(--cmc-surface-raised, #fff);
-  border: 1px solid var(--cmc-border-subtle, var(--odoo-gray-300, #dee2e6));
-  border-radius: var(--odoo-radius, 4px);
+  border: 1px solid var(--cmc-border-subtle, var(--console-gray-300, #dee2e6));
+  border-radius: var(--console-radius, 4px);
   padding: 16px var(--cmc-keyline-x, 16px);
   box-sizing: border-box;
 }
@@ -1449,8 +1449,8 @@ button.o-kanban-card {
 
 .o-list {
   background: #fff;
-  border: 1px solid var(--odoo-gray-300, #dee2e6);
-  border-radius: var(--odoo-radius, 4px);
+  border: 1px solid var(--console-gray-300, #dee2e6);
+  border-radius: var(--console-radius, 4px);
   overflow: auto;
   min-width: 0;
 }
@@ -1458,7 +1458,7 @@ button.o-kanban-card {
 /* Odoo-density control panel: single flat white band (no nested cards) */
 .o_web_client .o-control-bar {
   background: #fff;
-  border-bottom: 1px solid var(--odoo-gray-300, #dee2e6);
+  border-bottom: 1px solid var(--console-gray-300, #dee2e6);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: none;
@@ -1493,7 +1493,7 @@ button.o-kanban-card {
   gap: 8px;
   padding-top: 6px;
   margin-top: 2px;
-  border-top: 1px solid var(--odoo-gray-200, #e9ecef);
+  border-top: 1px solid var(--console-gray-200, #e9ecef);
 }
 /* List body sits tight under CP */
 .o_web_client .o-list-body {
@@ -1506,7 +1506,7 @@ button.o-kanban-card {
   margin: 0 0 16px;
   padding: 0;
   display: flex;
-  height: var(--odoo-statusbar-height, 33px);
+  height: var(--console-statusbar-height, 33px);
   align-items: stretch;
   gap: 0;
   overflow-x: auto;
@@ -1516,7 +1516,7 @@ button.o-kanban-card {
   display: flex;
   flex: 0 1 auto;
   min-width: 0;
-  margin-left: calc(var(--odoo-statusbar-arrow-width, 1em) * -1);
+  margin-left: calc(var(--console-statusbar-arrow-width, 1em) * -1);
 }
 .o_web_client .o-steps-item:first-child { margin-left: 0; }
 .o_web_client .o-steps-bridge { display: none; }
@@ -1525,39 +1525,39 @@ button.o-kanban-card {
   align-items: center;
   gap: 6px;
   height: 100%;
-  padding: 0 calc(var(--odoo-statusbar-arrow-width, 1em) * 1.25) 0 calc(var(--odoo-statusbar-arrow-width, 1em) * 2);
+  padding: 0 calc(var(--console-statusbar-arrow-width, 1em) * 1.25) 0 calc(var(--console-statusbar-arrow-width, 1em) * 2);
   border: 0;
-  background: var(--odoo-gray-200, #e9ecef);
-  color: var(--odoo-gray-900, #212529);
-  font-size: var(--odoo-font-size-sm, 13px);
+  background: var(--console-gray-200, #e9ecef);
+  color: var(--console-gray-900, #212529);
+  font-size: var(--console-font-size-sm, 13px);
   font-family: inherit;
   cursor: default;
   clip-path: polygon(
-    0 0, calc(100% - var(--odoo-statusbar-arrow-width, 1em)) 0,
-    100% 50%, calc(100% - var(--odoo-statusbar-arrow-width, 1em)) 100%,
-    0 100%, var(--odoo-statusbar-arrow-width, 1em) 50%
+    0 0, calc(100% - var(--console-statusbar-arrow-width, 1em)) 0,
+    100% 50%, calc(100% - var(--console-statusbar-arrow-width, 1em)) 100%,
+    0 100%, var(--console-statusbar-arrow-width, 1em) 50%
   );
 }
 .o_web_client .o-steps-item:first-child .o-steps-btn {
   clip-path: polygon(
-    0 0, calc(100% - var(--odoo-statusbar-arrow-width, 1em)) 0,
-    100% 50%, calc(100% - var(--odoo-statusbar-arrow-width, 1em)) 100%, 0 100%
+    0 0, calc(100% - var(--console-statusbar-arrow-width, 1em)) 0,
+    100% 50%, calc(100% - var(--console-statusbar-arrow-width, 1em)) 100%, 0 100%
   );
 }
 .o_web_client .o-steps-item:last-child .o-steps-btn {
-  padding-right: var(--odoo-statusbar-arrow-width, 1em);
+  padding-right: var(--console-statusbar-arrow-width, 1em);
   clip-path: polygon(
-    0 0, 100% 0, 100% 100%, 0 100%, var(--odoo-statusbar-arrow-width, 1em) 50%
+    0 0, 100% 0, 100% 100%, 0 100%, var(--console-statusbar-arrow-width, 1em) 50%
   );
 }
 .o_web_client .o-steps-btn:not(:disabled) { cursor: pointer; }
 .o_web_client .o-steps-item.is-current .o-steps-btn {
-  background: var(--odoo-gray-900, #212529);
+  background: var(--console-gray-900, #212529);
   color: #fff;
   z-index: 1;
 }
 .o_web_client .o-steps-item.is-done .o-steps-btn {
-  background: var(--odoo-gray-300, #dee2e6);
+  background: var(--console-gray-300, #dee2e6);
 }
 .o_web_client .o-steps-num {
   width: auto; height: auto; border: 0; background: transparent;
@@ -1572,15 +1572,15 @@ button.o-kanban-card {
 
 /* Dense wrap under Odoo shell */
 .o_web_client .o-wrap {
-  background: var(--odoo-gray-100, #f8f9fa);
+  background: var(--console-gray-100, #f8f9fa);
   padding: 16px;
   gap: 12px;
 }
 .o_web_client .o-wrap--ops { padding: 12px 14px; gap: 10px; }
 .o_web_client .o-page-header {
   background: #fff;
-  border: 1px solid var(--odoo-gray-300, #dee2e6);
-  border-radius: var(--odoo-radius, 4px);
+  border: 1px solid var(--console-gray-300, #dee2e6);
+  border-radius: var(--console-radius, 4px);
   box-shadow: none;
   /* Not sticky under Odoo shell — scroll lives on main.o-main. Clear base
      sticky + z-index:10 so page chrome never competes with the navbar layer. */
@@ -1589,19 +1589,19 @@ button.o-kanban-card {
 }
 /* Standalone filter (rare outside CP) keeps light sunken chrome */
 .o_web_client .o-filter-bar {
-  background: var(--odoo-gray-100, #f8f9fa);
-  border: 1px solid var(--odoo-gray-300, #dee2e6);
-  border-radius: var(--odoo-radius-sm, 3px);
+  background: var(--console-gray-100, #f8f9fa);
+  border: 1px solid var(--console-gray-300, #dee2e6);
+  border-radius: var(--console-radius-sm, 3px);
 }
 /* Form sheet grammar under shell */
 .o_web_client .o-form-sheet-bg {
-  max-width: var(--odoo-sheet-max-width, 1400px);
+  max-width: var(--console-sheet-max-width, 1400px);
   gap: 10px;
 }
 .o_web_client .o-form-sheet {
   background: #fff;
-  border: 1px solid var(--odoo-gray-300, #dee2e6);
-  border-radius: var(--odoo-radius, 4px);
+  border: 1px solid var(--console-gray-300, #dee2e6);
+  border-radius: var(--console-radius, 4px);
   box-shadow: none;
   padding: 14px 16px 16px;
   gap: 14px;
@@ -1618,8 +1618,8 @@ button.o-kanban-card {
 }
 .o_web_client .o-form-sheet-bg > .o-detail-statusbar {
   padding: 4px 0;
-  background: var(--odoo-gray-100, #f8f9fa);
-  border-bottom: 1px solid var(--odoo-gray-300, #dee2e6);
+  background: var(--console-gray-100, #f8f9fa);
+  border-bottom: 1px solid var(--console-gray-300, #dee2e6);
 }
 @media (min-width: 768px) {
   .o_web_client .o-form-sheet-bg > .o-detail-statusbar {
@@ -1635,28 +1635,28 @@ button.o-kanban-card {
   box-shadow: none;
   background: transparent;
   padding: 0 0 8px;
-  border-bottom: 1px solid var(--odoo-gray-200, #e9ecef);
+  border-bottom: 1px solid var(--console-gray-200, #e9ecef);
 }
 .o_web_client .o-mc {
-  border-radius: var(--odoo-radius, 4px);
-  border: 1px solid var(--odoo-gray-300, #dee2e6);
+  border-radius: var(--console-radius, 4px);
+  border: 1px solid var(--console-gray-300, #dee2e6);
   box-shadow: none;
   min-height: 112px;
 }
 .o_web_client .o-eh {
-  border-radius: var(--odoo-radius-lg, 6px);
-  border: 1px solid var(--odoo-gray-300, #dee2e6);
+  border-radius: var(--console-radius-lg, 6px);
+  border: 1px solid var(--console-gray-300, #dee2e6);
   box-shadow: none;
 }
 .o_web_client .o-dash-metrics > .o-mc { max-width: none; }
 
 
 .o-label-upper {
-  font-size: var(--odoo-font-size-xs, 12px);
+  font-size: var(--console-font-size-xs, 12px);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--odoo-gray-600, #6c757d);
+  color: var(--console-gray-600, #6c757d);
   line-height: 1.25;
 }
 

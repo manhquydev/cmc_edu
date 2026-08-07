@@ -6,6 +6,7 @@ priority: P1
 effort: "ongoing process + gap backlog"
 tags: [design-system, odoo, design3, layout, wireframe]
 created: 2026-08-06
+blockedBy: [260807-1453-cmc-console-design-system-rebrand-hardening]
 ---
 
 # Odoo UI Component Dissection → CMC Professional Parity

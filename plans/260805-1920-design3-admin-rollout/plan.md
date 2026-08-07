@@ -7,6 +7,7 @@ effort: "11-16w"
 tags: [design-system, odoo, admin, ui]
 created: 2026-08-05
 note: acceptance re-measure closed 2026-08-07; remains validation until human visual smoke + PR merge
+blockedBy: [260807-1453-cmc-console-design-system-rebrand-hardening]
 ---
 
 # Design3 Admin Rollout

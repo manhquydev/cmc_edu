@@ -254,9 +254,9 @@ describe('SchedulePage', () => {
     const { container } = renderWithProviders(<SchedulePage />, {
       route: '/teaching/schedule?view=kanban',
     });
-    const cols = container.querySelectorAll('.o-kanban-col');
+    const cols = container.querySelectorAll('.console-kanban-col');
     expect(cols).toHaveLength(4);
-    const counts = [...cols].map((c) => c.querySelector('.o-kanban-col-count')?.textContent);
+    const counts = [...cols].map((c) => c.querySelector('.console-kanban-col-count')?.textContent);
     // planned 1, active 2, completed 0, cancelled 0 — KANBAN_COLS order.
     expect(counts).toEqual(['1', '2', '0', '0']);
   });

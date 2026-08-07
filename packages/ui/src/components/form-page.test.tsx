@@ -13,7 +13,7 @@ describe('FormPage', () => {
     expect(getByText('HEADER')).toBeInTheDocument();
     expect(getByText('FIELDS')).toBeInTheDocument();
 
-    const actionBar = container.querySelector('.o-actions');
+    const actionBar = container.querySelector('.console-actions');
     expect(actionBar).not.toBeNull();
     expect(actionBar!.querySelectorAll('button, a').length).toBe(1);
     expect(actionBar).toHaveTextContent('Lưu');
@@ -47,10 +47,10 @@ describe('FormPage', () => {
         <div>FIELDS</div>
       </FormPage>,
     );
-    const bg = container.querySelector('.o-form-sheet-bg');
-    const sheet = container.querySelector('.o-form-sheet');
-    const body = container.querySelector('.o-form-body');
-    const actions = container.querySelector('.o-actions');
+    const bg = container.querySelector('.console-form-sheet-bg');
+    const sheet = container.querySelector('.console-form-sheet');
+    const body = container.querySelector('.console-form-body');
+    const actions = container.querySelector('.console-actions');
     expect(bg).toBeTruthy();
     expect(sheet).toBeTruthy();
     expect(body).toBeTruthy();

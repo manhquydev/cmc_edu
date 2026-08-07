@@ -20,9 +20,9 @@ describe('odoo.css scope + token surface', () => {
   });
 
   it('exposes remapped class names (o- prefix, not odoo-lab-)', () => {
-    expect(css.includes('.o-navbar')).toBe(true);
-    expect(css.includes('.o-kanban-board')).toBe(true);
-    expect(css.includes('.o-statusbar-step')).toBe(true);
+    expect(css.includes('.console-navbar')).toBe(true);
+    expect(css.includes('.console-kanban-board')).toBe(true);
+    expect(css.includes('.console-statusbar-step')).toBe(true);
     expect(css.includes('.odoo-lab-')).toBe(false);
   });
 
@@ -54,7 +54,7 @@ describe('odoo.css scope + token surface', () => {
     // Cards fill column only inside the media block (desktop keeps fixed card width).
     const mediaIdx = css.indexOf('@media (max-width: 768px)');
     const mediaSlice = css.slice(mediaIdx, mediaIdx + 400);
-    expect(mediaSlice.includes('.o-kanban-card')).toBe(true);
+    expect(mediaSlice.includes('.console-kanban-card')).toBe(true);
     expect(mediaSlice.includes('width: 100%')).toBe(true);
   });
 });

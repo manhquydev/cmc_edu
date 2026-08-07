@@ -25,7 +25,7 @@ export interface DetailPageProps {
   tabs?: ReactNode;
   /**
    * Main body when not using tabs-only content, or extra sections below tabs.
-   * Use `.o-detail-stack` / `.o-detail-split` inside for layout.
+   * Use `.console-detail-stack` / `.console-detail-split` inside for layout.
    */
   children?: ReactNode;
   /** Tighter padding for ops-dense detail. */
@@ -38,16 +38,16 @@ export interface DetailPageProps {
  * Odoo form analogue (design3):
  * ```
  * [ PageHeader — CP-like crumbs ]
- * [ .o-form-sheet-bg ]
+ * [ .console-form-sheet-bg ]
  *   [ summary — HighlightStrip / metrics (scrolls) ]
  *   [ statusbar — thin WorkflowStatusbar (sticky md+) ]
- *   [ .o-form-sheet ]
+ *   [ .console-form-sheet ]
  *     [ EntityHeader ]
  *     [ CmcTabs? ]
  *     [ body ]
  * ```
  *
- * Props-only; pages own tRPC. Requires `@cmc/ui/console.css` (`.o-detail*`, `.o-form-sheet*`).
+ * Props-only; pages own tRPC. Requires `@cmc/ui/console.css` (`.console-detail*`, `.console-form-sheet*`).
  */
 export function DetailPage({
   header,
@@ -58,23 +58,23 @@ export function DetailPage({
   children,
   density = 'default',
 }: DetailPageProps) {
-  const wrap = density === 'ops' ? 'o-wrap o-wrap--ops o-detail' : 'o-wrap o-detail';
+  const wrap = density === 'ops' ? 'console-wrap console-wrap--ops console-detail' : 'console-wrap console-detail';
   const hasBody = children != null && children !== false && children !== true;
   const hasSheet = entity != null || tabs != null || hasBody;
 
   return (
     <div className={wrap}>
       {header}
-      <div className="o-form-sheet-bg">
-        {summary != null ? <div className="o-detail-summary">{summary}</div> : null}
+      <div className="console-form-sheet-bg">
+        {summary != null ? <div className="console-detail-summary">{summary}</div> : null}
         {statusbar != null ? (
-          <div className="o-detail-statusbar">{statusbar}</div>
+          <div className="console-detail-statusbar">{statusbar}</div>
         ) : null}
         {hasSheet ? (
-          <div className="o-form-sheet">
-            {entity != null ? <div className="o-detail-entity">{entity}</div> : null}
-            {tabs != null ? <div className="o-detail-tabs">{tabs}</div> : null}
-            {hasBody ? <div className="o-detail-body">{children}</div> : null}
+          <div className="console-form-sheet">
+            {entity != null ? <div className="console-detail-entity">{entity}</div> : null}
+            {tabs != null ? <div className="console-detail-tabs">{tabs}</div> : null}
+            {hasBody ? <div className="console-detail-body">{children}</div> : null}
           </div>
         ) : null}
       </div>

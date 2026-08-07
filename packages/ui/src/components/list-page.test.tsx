@@ -44,13 +44,13 @@ describe('ListPage', () => {
     expect(queryByText('TABLE')).toBeNull();
   });
 
-  it('renders o-wrap--ops when density is ops', () => {
+  it('renders console-wrap--ops when density is ops', () => {
     const { container } = render(
       <ListPage density="ops" header={<div>HEADER</div>}>
         <div>TABLE</div>
       </ListPage>,
     );
-    expect(container.querySelector('.o-wrap--ops')).not.toBeNull();
+    expect(container.querySelector('.console-wrap--ops')).not.toBeNull();
   });
 
   it('wraps chrome in ControlBar and supports controlFooter', () => {
@@ -63,7 +63,7 @@ describe('ListPage', () => {
         <div>TABLE</div>
       </ListPage>,
     );
-    expect(container.querySelector('.o-control-bar')).toBeTruthy();
+    expect(container.querySelector('.console-control-bar')).toBeTruthy();
     expect(getByText('PAGER')).toBeInTheDocument();
   });
 });

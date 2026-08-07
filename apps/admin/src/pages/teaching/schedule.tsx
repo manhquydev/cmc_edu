@@ -240,7 +240,7 @@ function KanbanView({ rows, loading }: { rows: ClassBatchRow[]; loading: boolean
         return (
           <KanbanColumn key={col.key} title={col.label} count={items.length}>
             {items.length === 0 ? (
-              <div className="o-kanban-empty">Không có lớp</div>
+              <div className="console-kanban-empty">Không có lớp</div>
             ) : (
               items.map((item) => <SessionCard key={item.id} {...toSessionCard(item, 'default')} />)
             )}
@@ -289,7 +289,7 @@ export default function SchedulePage() {
           title="Lịch dạy"
           breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Lịch dạy' }]}
           actions={
-            <div className="o-view-switcher" role="toolbar" aria-label="Chế độ xem lịch">
+            <div className="console-view-switcher" role="toolbar" aria-label="Chế độ xem lịch">
               {VIEWS.map((v) => (
                 <button
                   key={v}

@@ -398,7 +398,7 @@ export default function CrmPipelinePage() {
             actions={
               <HStack gap={2} align="center">
                 <div
-                  className="o-view-switcher"
+                  className="console-view-switcher"
                   role="group"
                   aria-label="Chuyển chế độ xem pipeline"
                 >
@@ -452,7 +452,7 @@ export default function CrmPipelinePage() {
                 <Skeleton height={120} radius={0} data-testid="crm-pipeline-skeleton" />
               </div>
             ) : error ? (
-              <div className="o-kanban-empty" role="alert">
+              <div className="console-kanban-empty" role="alert">
                 {error.message || 'Lỗi tải pipeline CRM'}
               </div>
             ) : (
@@ -484,7 +484,7 @@ export default function CrmPipelinePage() {
                 return (
                   <KanbanColumn key={stage.key} title={stage.label} count={count}>
                     {stageItems.length === 0 ? (
-                      <div className="o-kanban-empty">Chưa có</div>
+                      <div className="console-kanban-empty">Chưa có</div>
                     ) : (
                       stageItems.map((opp) => (
                         <OpportunityKanbanCard

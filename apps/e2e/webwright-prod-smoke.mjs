@@ -170,7 +170,7 @@ async function main() {
   }
   await page.waitForTimeout(500);
   const shell = page.locator('.o_web_client');
-  const brand = page.locator('.o-brand');
+  const brand = page.locator('.console-brand');
   const brandText = ((await brand.first().textContent().catch(() => '')) || '').trim();
   results.cp3 =
     (await shell.count()) > 0 &&
@@ -216,11 +216,11 @@ async function main() {
   }
   await page.waitForTimeout(600);
   const stillShell = (await page.locator('.o_web_client').count()) > 0;
-  const main = page.locator('main.o-main');
+  const main = page.locator('main.console-main');
   const hasMain = (await main.count()) > 0;
   // kanban or list markers
   const design3Surface =
-    (await page.locator('.o-kanban-board, .o-list, table, [class*="kanban"]').count()) >
+    (await page.locator('.console-kanban-board, .console-list, table, [class*="kanban"]').count()) >
     0;
   results.cp5 = stillShell && hasMain;
   await shot(page, 5, 'crm_pipeline');
@@ -237,7 +237,7 @@ async function main() {
   await page.waitForTimeout(600);
   results.cp6 =
     (await page.locator('.o_web_client').count()) > 0 &&
-    (await page.locator('main.o-main').count()) > 0;
+    (await page.locator('main.console-main').count()) > 0;
   await shot(page, 6, 'finance');
   log(6, `finance url=${page.url()} cp6=${results.cp6}`);
 

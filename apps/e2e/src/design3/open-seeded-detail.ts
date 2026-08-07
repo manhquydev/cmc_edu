@@ -149,9 +149,9 @@ async function openOpportunity(
   const timeoutMs = opts.timeoutMs ?? 15_000;
   const match = textMatcher(opts.matchText);
 
-  // Prefer the card shell (`role=button` wrapping `.o-kanban-card`), click the
+  // Prefer the card shell (`role=button` wrapping `.console-kanban-card`), click the
   // top-left so we do not hit inner action buttons (Chuyển lên / Ghi danh).
-  const cardShell = page.locator('.o-kanban-col-body > [role="button"]');
+  const cardShell = page.locator('.console-kanban-col-body > [role="button"]');
   const deadline = Date.now() + Math.min(timeoutMs, 10_000);
   let clicked = false;
   while (Date.now() < deadline && !clicked) {
@@ -203,10 +203,10 @@ export async function measureDetailStatusbar(page: Page): Promise<DetailStatusba
   await page.waitForTimeout(400);
   // String form keeps e2e tsconfig (no DOM lib) happy while running in browser.
   return page.evaluate(`(() => {
-    const bar = document.querySelector('.o-detail-statusbar');
-    const sum = document.querySelector('.o-detail-summary');
-    if (!bar) return { ok: false, reason: 'no .o-detail-statusbar' };
-    const main = document.querySelector('main.o-main');
+    const bar = document.querySelector('.console-detail-statusbar');
+    const sum = document.querySelector('.console-detail-summary');
+    if (!bar) return { ok: false, reason: 'no .console-detail-statusbar' };
+    const main = document.querySelector('main.console-main');
     if (main) main.scrollTop = 200;
     const cs = getComputedStyle(bar);
     return {
@@ -214,7 +214,7 @@ export async function measureDetailStatusbar(page: Page): Promise<DetailStatusba
       statusbarPosition: cs.position,
       summaryPosition: sum ? getComputedStyle(sum).position : null,
       path: location.pathname,
-      brand: (document.querySelector('.o-brand')?.textContent || '').trim(),
+      brand: (document.querySelector('.console-brand')?.textContent || '').trim(),
     };
   })()`) as Promise<DetailStatusbarMeasure>;
 }

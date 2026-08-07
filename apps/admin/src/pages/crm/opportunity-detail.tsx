@@ -334,7 +334,7 @@ export default function OpportunityDetailPage() {
           />
         }
         summary={
-          <div className="o-detail-stack">
+          <div className="console-detail-stack">
             <HighlightStrip
               items={[
                 { key: 'phone', label: 'SĐT', value: formatContactPhone(opp.contact.phone) },
@@ -397,7 +397,7 @@ export default function OpportunityDetailPage() {
           />
         }
       >
-        <div className="o-detail-stack">
+        <div className="console-detail-stack">
           {actionError && (
             <Banner status="error" title="Thao tác thất bại" description={actionError} />
           )}
@@ -414,8 +414,8 @@ export default function OpportunityDetailPage() {
             />
           )}
 
-          <div className="o-detail-split">
-            <div className="o-detail-stack">
+          <div className="console-detail-split">
+            <div className="console-detail-stack">
               <SectionBlock title="Phụ trách & nguồn" description="Giao việc và kênh lead.">
                 <KeyValueList
                   items={[

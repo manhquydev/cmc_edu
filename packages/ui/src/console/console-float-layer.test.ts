@@ -48,7 +48,7 @@ describe('odoo.css float-layer scope (toast + command palette)', () => {
   it('stacks toast above navbar band and below command palette', () => {
     const toast = ruleBlock('.ck-toast-viewport');
     const cmd = ruleBlock('.ck-cmd');
-    const navbar = ruleBlock('.o-navbar');
+    const navbar = ruleBlock('.console-navbar');
     expect(toast).toBeTruthy();
     expect(cmd).toBeTruthy();
     expect(navbar).toBeTruthy();

@@ -111,8 +111,8 @@ export default function StudentDetailPage() {
       id: 'profile',
       label: 'Hồ sơ',
       content: (
-        <div className="o-detail-panel">
-          <div className="o-detail-stack">
+        <div className="console-detail-panel">
+          <div className="console-detail-stack">
             <SectionBlock title="Thông tin học viên" description="Trường hiển thị theo recipe detail hệ thống.">
               <KeyValueList
                 items={[
@@ -176,7 +176,7 @@ export default function StudentDetailPage() {
       id: 'enrollments',
       label: 'Lớp học',
       content: (
-        <div className="o-detail-panel">
+        <div className="console-detail-panel">
           <EmptyState
             title="Chưa có dữ liệu"
             description="Danh sách lớp học theo học viên đang được phát triển."
@@ -189,7 +189,7 @@ export default function StudentDetailPage() {
       id: 'attendance',
       label: 'Điểm danh',
       content: (
-        <div className="o-detail-panel">
+        <div className="console-detail-panel">
           <EmptyState
             title="Chưa có dữ liệu"
             description="Điểm danh cá nhân học viên đang được phát triển."
@@ -202,7 +202,7 @@ export default function StudentDetailPage() {
       id: 'grades',
       label: 'Điểm số',
       content: (
-        <div className="o-detail-panel">
+        <div className="console-detail-panel">
           <EmptyState
             title="Chưa có dữ liệu"
             description="Điểm số học viên đang được phát triển."
@@ -215,7 +215,7 @@ export default function StudentDetailPage() {
       id: 'guardians',
       label: 'Phụ huynh',
       content: (
-        <div className="o-detail-panel">
+        <div className="console-detail-panel">
           <EmptyState
             title="Chưa có dữ liệu"
             description="Danh sách phụ huynh liên kết đang được phát triển."

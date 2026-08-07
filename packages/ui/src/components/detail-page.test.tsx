@@ -11,7 +11,7 @@ describe('DetailPage', () => {
     );
     expect(getByText('HEADER')).toBeInTheDocument();
     expect(getByText('CONTENT')).toBeInTheDocument();
-    expect(container.querySelector('.o-detail')).toBeTruthy();
+    expect(container.querySelector('.console-detail')).toBeTruthy();
   });
 
   it('omits the tabs slot when not provided', () => {
@@ -37,9 +37,9 @@ describe('DetailPage', () => {
     expect(getByText('ENTITY')).toBeInTheDocument();
     expect(getByText('SUMMARY')).toBeInTheDocument();
     expect(getByText('TABS')).toBeInTheDocument();
-    expect(container.querySelector('.o-detail-entity')).toBeTruthy();
-    expect(container.querySelector('.o-detail-summary')).toBeTruthy();
-    expect(container.querySelector('.o-detail-tabs')).toBeTruthy();
+    expect(container.querySelector('.console-detail-entity')).toBeTruthy();
+    expect(container.querySelector('.console-detail-summary')).toBeTruthy();
+    expect(container.querySelector('.console-detail-tabs')).toBeTruthy();
   });
 
   it('uses Odoo form sheet dual-layer: summary outside sheet, entity/tabs/body inside', () => {
@@ -54,8 +54,8 @@ describe('DetailPage', () => {
         <div>CONTENT</div>
       </DetailPage>,
     );
-    const bg = container.querySelector('.o-form-sheet-bg');
-    const sheet = container.querySelector('.o-form-sheet');
+    const bg = container.querySelector('.console-form-sheet-bg');
+    const sheet = container.querySelector('.console-form-sheet');
     expect(bg).toBeTruthy();
     expect(sheet).toBeTruthy();
     expect(bg!.contains(sheet!)).toBe(true);
@@ -63,7 +63,7 @@ describe('DetailPage', () => {
     expect(sheet!.contains(getByText('SUMMARY'))).toBe(false);
     expect(sheet!.contains(getByText('STATUSBAR'))).toBe(false);
     expect(bg!.contains(getByText('SUMMARY'))).toBe(true);
-    expect(container.querySelector('.o-detail-statusbar')).toContainElement(getByText('STATUSBAR'));
+    expect(container.querySelector('.console-detail-statusbar')).toContainElement(getByText('STATUSBAR'));
     expect(sheet!.contains(getByText('ENTITY'))).toBe(true);
     expect(sheet!.contains(getByText('TABS'))).toBe(true);
     expect(sheet!.contains(getByText('CONTENT'))).toBe(true);
@@ -77,21 +77,21 @@ describe('DetailPage', () => {
         <div>CONTENT</div>
       </DetailPage>,
     );
-    expect(container.querySelector('.o-detail-statusbar')).toBeNull();
-    expect(container.querySelector('.o-detail-summary')).toBeTruthy();
+    expect(container.querySelector('.console-detail-statusbar')).toBeNull();
+    expect(container.querySelector('.console-detail-summary')).toBeTruthy();
   });
 
   it('omits body when children are absent', () => {
     const { container } = render(
       <DetailPage header={<div>HEADER</div>} tabs={<div>TABS</div>} />,
     );
-    expect(container.querySelector('.o-detail-body')).toBeNull();
-    expect(container.querySelector('.o-form-sheet')).toBeTruthy();
+    expect(container.querySelector('.console-detail-body')).toBeNull();
+    expect(container.querySelector('.console-form-sheet')).toBeTruthy();
   });
 
   it('omits sheet when only header is provided', () => {
     const { container } = render(<DetailPage header={<div>HEADER</div>} />);
-    expect(container.querySelector('.o-form-sheet-bg')).toBeTruthy();
-    expect(container.querySelector('.o-form-sheet')).toBeNull();
+    expect(container.querySelector('.console-form-sheet-bg')).toBeTruthy();
+    expect(container.querySelector('.console-form-sheet')).toBeNull();
   });
 });

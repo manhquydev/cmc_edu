@@ -9,7 +9,7 @@ export interface SettingsNavItem {
 
 /**
  * Polaris/Odoo-style settings layout: left rail + main panel.
- * Requires @cmc/ui/console.css (.o-settings-shell*).
+ * Requires @cmc/ui/console.css (.console-settings-shell*).
  */
 export interface SettingsShellProps {
   items: SettingsNavItem[];
@@ -28,27 +28,27 @@ export function SettingsShell({
   title = 'Cài đặt',
   className,
 }: SettingsShellProps) {
-  const cls = className ? `o-settings-shell ${className}` : 'o-settings-shell';
+  const cls = className ? `console-settings-shell ${className}` : 'console-settings-shell';
   return (
     <div className={cls}>
-      <aside className="o-settings-rail" aria-label={title}>
-        <div className="o-settings-rail-title">{title}</div>
-        <nav className="o-settings-nav">
+      <aside className="console-settings-rail" aria-label={title}>
+        <div className="console-settings-rail-title">{title}</div>
+        <nav className="console-settings-nav">
           {items.map((item) => {
             const active = item.id === activeId;
             return (
               <button
                 key={item.id}
                 type="button"
-                className={active ? 'o-settings-nav-item is-active' : 'o-settings-nav-item'}
+                className={active ? 'console-settings-nav-item is-active' : 'console-settings-nav-item'}
                 aria-current={active ? 'page' : undefined}
                 onClick={() => onSelect(item.id)}
               >
-                {item.icon ? <span className="o-settings-nav-icon">{item.icon}</span> : null}
-                <span className="o-settings-nav-copy">
-                  <span className="o-settings-nav-label">{item.label}</span>
+                {item.icon ? <span className="console-settings-nav-icon">{item.icon}</span> : null}
+                <span className="console-settings-nav-copy">
+                  <span className="console-settings-nav-label">{item.label}</span>
                   {item.description ? (
-                    <span className="o-settings-nav-desc">{item.description}</span>
+                    <span className="console-settings-nav-desc">{item.description}</span>
                   ) : null}
                 </span>
               </button>
@@ -56,7 +56,7 @@ export function SettingsShell({
           })}
         </nav>
       </aside>
-      <div className="o-settings-main">{children}</div>
+      <div className="console-settings-main">{children}</div>
     </div>
   );
 }

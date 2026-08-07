@@ -58,12 +58,12 @@ test.describe('P3-01 journey — chấm công cặp vào/ra (Chấm công)', () 
     await menuNav(page, 'Nhân sự', 'Chấm công', { role: 'giao_vien' });
     await expect(page).toHaveURL(/\/hr\/checkin/);
 
-    // Scoped to the content area (`main.o-main`, packages/ui/src/components/
+    // Scoped to the content area (`main.console-main`, packages/ui/src/components/
     // app-frame.tsx), not the whole page — the side-nav's own "Chấm công"
     // child entry (just clicked by menuNav above) carries the exact same
     // accessible name as this page's punch action button, so an unscoped
     // query would be ambiguous.
-    const content = page.locator('main.o-main');
+    const content = page.locator('main.console-main');
     await content.getByRole('button', { name: 'Chấm công', exact: true }).click();
 
     // Real, visible confirmation — success banner + button flips to the

@@ -53,7 +53,7 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
   }
 
   return (
-    <div className="o-filter-bar" role="search" aria-label="Bộ lọc">
+    <div className="console-filter-bar" role="search" aria-label="Bộ lọc">
       {filters.map((f) => {
         const val = currentValues[f.key] ?? '';
         if (f.type === 'select') {
@@ -94,7 +94,7 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
           return (
             <div key={f.key} style={{ width: 160 }}>
               <DateField
-                id={`o-filter-${f.key}`}
+                id={`console-filter-${f.key}`}
                 label={f.label}
                 value={val}
                 onChange={(v) => handleChange(f.key, v)}

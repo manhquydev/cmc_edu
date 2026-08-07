@@ -11,7 +11,7 @@ export interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ children, className }: KanbanBoardProps) {
-  const cls = className ? `o-kanban-board ${className}` : 'o-kanban-board';
+  const cls = className ? `console-kanban-board ${className}` : 'console-kanban-board';
   return <div className={cls}>{children}</div>;
 }
 
@@ -24,17 +24,17 @@ export interface KanbanColumnProps {
 }
 
 export function KanbanColumn({ title, count, children, className }: KanbanColumnProps) {
-  const cls = className ? `o-kanban-col ${className}` : 'o-kanban-col';
+  const cls = className ? `console-kanban-col ${className}` : 'console-kanban-col';
   const childArray = Array.isArray(children) ? children : children != null ? [children] : [];
   const displayCount = count ?? childArray.filter(Boolean).length;
 
   return (
     <div className={cls}>
-      <div className="o-kanban-col-header">
+      <div className="console-kanban-col-header">
         <span>{title}</span>
-        <span className="o-kanban-col-count">{displayCount}</span>
+        <span className="console-kanban-col-count">{displayCount}</span>
       </div>
-      <div className="o-kanban-col-body">{children}</div>
+      <div className="console-kanban-col-body">{children}</div>
     </div>
   );
 }
@@ -59,7 +59,7 @@ export function KanbanCard({
   onClick,
   className,
 }: KanbanCardProps) {
-  const cls = className ? `o-kanban-card ${className}` : 'o-kanban-card';
+  const cls = className ? `console-kanban-card ${className}` : 'console-kanban-card';
   const style =
     colorIndex != null
       ? ({
@@ -70,20 +70,20 @@ export function KanbanCard({
   if (onClick) {
     return (
       <button type="button" className={cls} style={style} onClick={onClick}>
-        <div className="o-kanban-card-title">{title}</div>
-        {subtitle != null ? <div className="o-kanban-card-sub">{subtitle}</div> : null}
+        <div className="console-kanban-card-title">{title}</div>
+        {subtitle != null ? <div className="console-kanban-card-sub">{subtitle}</div> : null}
         {children}
-        {footer != null ? <div className="o-kanban-card-footer">{footer}</div> : null}
+        {footer != null ? <div className="console-kanban-card-footer">{footer}</div> : null}
       </button>
     );
   }
 
   return (
     <div className={cls} style={style}>
-      <div className="o-kanban-card-title">{title}</div>
-      {subtitle != null ? <div className="o-kanban-card-sub">{subtitle}</div> : null}
+      <div className="console-kanban-card-title">{title}</div>
+      {subtitle != null ? <div className="console-kanban-card-sub">{subtitle}</div> : null}
       {children}
-      {footer != null ? <div className="o-kanban-card-footer">{footer}</div> : null}
+      {footer != null ? <div className="console-kanban-card-footer">{footer}</div> : null}
     </div>
   );
 }

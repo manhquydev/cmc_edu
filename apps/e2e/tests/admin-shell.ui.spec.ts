@@ -39,7 +39,7 @@ test.describe('admin shell (UI safety net)', () => {
     await page.goto('/cockpit');
 
     // Brand tracks active module (cockpit → Tổng quan); no separate "Admin" sub-brand.
-    await expect(page.locator('.o-brand')).toHaveText('Tổng quan');
+    await expect(page.locator('.console-brand')).toHaveText('Tổng quan');
 
     // Role badge reflects the injected staff session.
     await expect(page.getByText('Giám đốc kinh doanh', { exact: true })).toBeVisible();

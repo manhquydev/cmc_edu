@@ -27,7 +27,7 @@ export interface MenuNavOptions {
 }
 
 function navbar(page: Page): Locator {
-  return page.locator('nav.o-navbar, nav[aria-label="Ứng dụng"]');
+  return page.locator('nav.console-navbar, nav[aria-label="Ứng dụng"]');
 }
 
 function switcherToggle(page: Page): Locator {
@@ -138,7 +138,7 @@ async function assertEntryAbsent(
   // Without this, toHaveCount(0) can ghost-pass during the empty gap between
   // switcher close and children paint (red-team Critical class).
   const nav = navbar(page);
-  const sectionButtons = nav.locator('ul.o-menu-sections button.o-menu-item');
+  const sectionButtons = nav.locator('ul.console-menu-sections button.console-menu-item');
   // Modules with zero visible children (or fully gated) may legitimately have
   // an empty section menu — in that case absence of childLabel is true. For
   // modules that keep at least one ungated sibling, wait for >=1 section item

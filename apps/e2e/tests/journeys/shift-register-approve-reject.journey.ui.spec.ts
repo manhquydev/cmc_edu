@@ -104,7 +104,7 @@ test.describe('P3-03/04/07 journey — đăng ký ca: từ chối → nộp lạ
     );
     await gdPage.goto('/cockpit');
     await menuNav(gdPage, 'Nhân sự', 'Đăng ký ca', { role: 'giam_doc_kinh_doanh' });
-    await gdPage.locator('main.o-main').getByRole('button', { name: /Duyệt.*Từ chối/ }).click();
+    await gdPage.locator('main.console-main').getByRole('button', { name: /Duyệt.*Từ chối/ }).click();
     const pendingRow = gdPage.getByRole('row', { name: new RegExp(saleName) });
     await expect(pendingRow).toBeVisible();
     await pendingRow.getByRole('button', { name: 'Từ chối' }).click();
@@ -118,7 +118,7 @@ test.describe('P3-03/04/07 journey — đăng ký ca: từ chối → nộp lạ
 
     // --- director approves (P3-04) ---
     await gdPage.reload();
-    await gdPage.locator('main.o-main').getByRole('button', { name: /Duyệt.*Từ chối/ }).click();
+    await gdPage.locator('main.console-main').getByRole('button', { name: /Duyệt.*Từ chối/ }).click();
     const pending2 = gdPage.getByRole('row', { name: new RegExp(saleName) });
     await expect(pending2).toBeVisible();
     await pending2.getByRole('button', { name: 'Duyệt' }).click();

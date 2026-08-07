@@ -94,9 +94,9 @@
 /* Navbar (.o_main_navbar analogue) */
 /* ------------------------------------------------------------------ */
 
-.o-navbar {
+.console-navbar {
   /* Shell stacking layer: app-switcher is position:absolute under this bar.
-     Without a z-index, later flex sibling main.o-main (and its .o-page-header
+     Without a z-index, later flex sibling main.console-main (and its .console-page-header
      / sticky control chrome) paints over the open menu — live audit 2026-08-06
      confirmed hits on session-assessment and 6 sibling Form/Detail pages. */
   position: relative;
@@ -112,7 +112,7 @@
   gap: 4px;
 }
 
-.o-app-switcher-toggle {
+.console-app-switcher-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -125,18 +125,18 @@
   cursor: pointer;
 }
 
-.o-app-switcher-toggle:hover {
+.console-app-switcher-toggle:hover {
   background: var(--console-navbar-entry-hover-bg);
 }
 
-.o-brand {
+.console-brand {
   font-size: 1.2em;
   font-weight: 600;
   padding: 0 12px;
   white-space: nowrap;
 }
 
-.o-menu-sections {
+.console-menu-sections {
   display: flex;
   align-items: center;
   list-style: none;
@@ -146,7 +146,7 @@
   flex: 1 1 auto;
 }
 
-.o-menu-item {
+.console-menu-item {
   padding: 0 10px;
   height: var(--console-navbar-height);
   display: flex;
@@ -156,17 +156,17 @@
   border-radius: 0;
 }
 
-.o-menu-item:hover {
+.console-menu-item:hover {
   background: var(--console-navbar-entry-hover-bg);
 }
 
-.o-systray {
+.console-systray {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.o-systray-badge {
+.console-systray-badge {
   position: relative;
   display: flex;
   align-items: center;
@@ -180,11 +180,11 @@
   cursor: pointer;
 }
 
-.o-systray-badge:hover {
+.console-systray-badge:hover {
   background: var(--console-navbar-entry-hover-bg);
 }
 
-.o-badge-count {
+.console-badge-count {
   position: absolute;
   top: 2px;
   right: 2px;
@@ -200,7 +200,7 @@
 
 /* Vertical dropdown list, matching Odoo's real app-switcher (never an icon
    grid — desktop and mobile both render a plain vertical item list). */
-.o-app-switcher-menu {
+.console-app-switcher-menu {
   position: absolute;
   top: var(--console-navbar-height);
   left: 0;
@@ -215,7 +215,7 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.o-app-switcher-tile {
+.console-app-switcher-tile {
   display: flex;
   flex-flow: row;
   align-items: center;
@@ -229,7 +229,7 @@
   text-align: left;
 }
 
-.o-app-switcher-tile:hover {
+.console-app-switcher-tile:hover {
   background: var(--console-gray-100);
 }
 
@@ -237,7 +237,7 @@
 /* Control panel (.o_control_panel analogue) */
 /* ------------------------------------------------------------------ */
 
-.o-control-panel {
+.console-control-panel {
   display: flex;
   align-items: center;
   flex: 0 0 auto;
@@ -247,7 +247,7 @@
   border-bottom: 1px solid var(--console-gray-300);
 }
 
-.o-breadcrumbs {
+.console-breadcrumbs {
   display: flex;
   align-items: center;
   padding: 0 var(--console-breadcrumb-padding-x);
@@ -255,16 +255,16 @@
   white-space: nowrap;
 }
 
-.o-breadcrumb-sep {
+.console-breadcrumb-sep {
   margin: 0 6px;
   color: var(--console-gray-600);
 }
 
-.o-breadcrumb-current {
+.console-breadcrumb-current {
   font-weight: 600;
 }
 
-.o-breadcrumb-link {
+.console-breadcrumb-link {
   background: none;
   border: 0;
   padding: 0;
@@ -274,18 +274,18 @@
   text-decoration: none;
 }
 
-.o-breadcrumb-link:hover {
+.console-breadcrumb-link:hover {
   text-decoration: underline;
 }
 
 /* Odoo anchors create/action buttons on the left, beside the breadcrumb —
    not grouped with the view-switcher on the right. */
-.o-panel-buttons {
+.console-panel-buttons {
   display: flex;
   align-items: center;
 }
 
-.o-search {
+.console-search {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -300,21 +300,21 @@
   font-size: var(--console-font-size-sm);
 }
 
-.o-actions {
+.console-actions {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-left: auto;
 }
 
-.o-view-switcher {
+.console-view-switcher {
   display: flex;
   border: 1px solid var(--console-gray-300);
   border-radius: var(--console-radius-sm);
   overflow: hidden;
 }
 
-.o-view-switcher button {
+.console-view-switcher button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -326,11 +326,11 @@
   cursor: pointer;
 }
 
-.o-view-switcher button + button {
+.console-view-switcher button + button {
   border-left: 1px solid var(--console-gray-300);
 }
 
-.o-view-switcher button.is-active {
+.console-view-switcher button.is-active {
   background: var(--console-gray-100);
   color: var(--console-brand-purple);
 }
@@ -339,7 +339,7 @@
 /* Content area */
 /* ------------------------------------------------------------------ */
 
-.o-content {
+.console-content {
   flex: 1 1 auto;
   padding: var(--console-spacer);
   overflow-y: auto;
@@ -349,13 +349,13 @@
 /* Statusbar — interlocking chevron/arrow buttons (clip-path polygon) */
 /* ------------------------------------------------------------------ */
 
-.o-statusbar {
+.console-statusbar {
   display: flex;
   height: var(--console-statusbar-height);
   margin-bottom: var(--console-spacer);
 }
 
-.o-statusbar-step {
+.console-statusbar-step {
   position: relative;
   padding: 0 calc(var(--console-statusbar-arrow-width) * 1.25) 0 calc(var(--console-statusbar-arrow-width) * 2);
   margin-left: calc(var(--console-statusbar-arrow-width) * -1);
@@ -371,7 +371,7 @@
   );
 }
 
-.o-statusbar-step:first-child {
+.console-statusbar-step:first-child {
   margin-left: 0;
   clip-path: polygon(
     0 0, calc(100% - var(--console-statusbar-arrow-width)) 0,
@@ -381,18 +381,18 @@
 
 /* Flatten the trailing edge — without this the last step keeps a
    right-pointing tip with nothing to interlock with. */
-.o-statusbar-step:last-child {
+.console-statusbar-step:last-child {
   padding-right: var(--console-statusbar-arrow-width);
   clip-path: polygon(
     0 0, 100% 0, 100% 100%, 0 100%, var(--console-statusbar-arrow-width) 50%
   );
 }
 
-.o-statusbar-step:first-child:last-child {
+.console-statusbar-step:first-child:last-child {
   clip-path: none;
 }
 
-.o-statusbar-step.is-active {
+.console-statusbar-step.is-active {
   background: var(--console-gray-900);
   color: #fff;
   z-index: 1;
@@ -400,7 +400,7 @@
 
 /* Two-layer emphasis: fill + inset border-ring sharing the same clip-path,
    instead of a flat color swap only. */
-.o-statusbar-step.is-active::after {
+.console-statusbar-step.is-active::after {
   content: '';
   position: absolute;
   inset: 2px;
@@ -413,14 +413,14 @@
 /* List view (.o_list_renderer analogue) */
 /* ------------------------------------------------------------------ */
 
-.o-list-table {
+.console-list-table {
   width: 100%;
   border-collapse: collapse;
   background: #fff;
   font-variant-numeric: tabular-nums;
 }
 
-.o-list-table thead th {
+.console-list-table thead th {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -434,30 +434,30 @@
 
 /* Depth cue under the sticky header, matching Odoo's inset shadow on the
    first data row. */
-.o-list-table tbody tr:first-child td {
+.console-list-table tbody tr:first-child td {
   box-shadow: inset 0 5px 10px -4px rgba(0, 0, 0, 0.15);
 }
 
-.o-list-table td {
+.console-list-table td {
   padding: var(--console-list-cell-padding-y) var(--console-list-cell-padding-x);
   border-bottom: 1px solid var(--console-gray-200);
   font-size: var(--console-font-size-sm);
 }
 
 /* Zebra striping on ungrouped rows, matching Odoo's table-striped default. */
-.o-list-row:nth-child(odd) td {
+.console-list-row:nth-child(odd) td {
   background: var(--console-gray-100);
 }
 
-.o-list-row:hover td {
+.console-list-row:hover td {
   background: var(--console-gray-200);
 }
 
-.o-list-checkbox-col {
+.console-list-checkbox-col {
   width: 40px;
 }
 
-.o-list-number-col {
+.console-list-number-col {
   text-align: right;
 }
 
@@ -465,14 +465,14 @@
 /* Kanban board (.o_kanban_record analogue) */
 /* ------------------------------------------------------------------ */
 
-.o-kanban-board {
+.console-kanban-board {
   display: flex;
   align-items: flex-start;
   gap: var(--console-kanban-gutter);
   overflow-x: auto;
 }
 
-.o-kanban-col {
+.console-kanban-col {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
@@ -485,17 +485,17 @@
 /* Narrow viewports only — keep desktop col shrink-wrapped around 320px cards
    (explicit col width + border-box padding clips cards; see cook review High #1). */
 @media (max-width: 768px) {
-  .o-kanban-col {
+  .console-kanban-col {
     width: min(90vw, var(--console-kanban-card-width-sm));
   }
 
-  .o-kanban-card,
-  .o-kanban-empty {
+  .console-kanban-card,
+  .console-kanban-empty {
     width: 100%;
   }
 }
 
-.o-kanban-col-header {
+.console-kanban-col-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -508,7 +508,7 @@
 }
 
 /* Scrollable card stack — gap replaces per-card margin-bottom. */
-.o-kanban-col-body {
+.console-kanban-col-body {
   display: flex;
   flex-direction: column;
   gap: var(--console-kanban-gutter);
@@ -517,12 +517,12 @@
   flex: 1;
 }
 
-.o-kanban-col-body > .o-kanban-card,
-.o-kanban-col-body > * > .o-kanban-card {
+.console-kanban-col-body > .console-kanban-card,
+.console-kanban-col-body > * > .console-kanban-card {
   margin-bottom: 0;
 }
 
-.o-kanban-col-count {
+.console-kanban-col-count {
   min-width: 18px;
   padding: 0 4px;
   background: var(--console-gray-300);
@@ -532,7 +532,7 @@
 }
 
 /* Placeholder for a stage with no records — keeps empty columns visible. */
-.o-kanban-empty {
+.console-kanban-empty {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -546,7 +546,7 @@
   text-align: center;
 }
 
-.o-kanban-card {
+.console-kanban-card {
   position: relative;
   width: var(--console-kanban-card-width);
   margin-bottom: var(--console-kanban-gutter);
@@ -558,7 +558,7 @@
 
 /* Left color accent: two overlapping borders (thin translucent + solid),
    layered on the card's own edge rather than reserving content padding. */
-.o-kanban-card::after {
+.console-kanban-card::after {
   content: '';
   position: absolute;
   top: 0;
@@ -568,18 +568,18 @@
   border-right: var(--console-kanban-color-bar-width) solid var(--console-kanban-card-color, var(--console-gray-600));
 }
 
-.o-kanban-card-title {
+.console-kanban-card-title {
   font-weight: 600;
   font-size: var(--console-font-size-sm);
 }
 
-.o-kanban-card-sub {
+.console-kanban-card-sub {
   font-size: var(--console-font-size-xs);
   color: var(--console-gray-600);
   margin-top: 2px;
 }
 
-.o-kanban-card-footer {
+.console-kanban-card-footer {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--console-gray-200);
@@ -669,13 +669,13 @@
 .o_web_client small { font-size: var(--font-size-xs); }
 
 /* Button resets when OdooNavbar/KanbanCard use native <button> */
-.o-menu-item {
+.console-menu-item {
   background: transparent;
   border: 0;
   color: inherit;
   font: inherit;
 }
-button.o-kanban-card {
+button.console-kanban-card {
   display: block;
   text-align: left;
   font: inherit;
@@ -688,7 +688,7 @@ button.o-kanban-card {
 /* Shell content landmark (Phase 2) — replaces .sh-main / .sh-content   */
 /* ------------------------------------------------------------------ */
 
-.o_web_client > .o-main {
+.o_web_client > .console-main {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
@@ -696,7 +696,7 @@ button.o-kanban-card {
 }
 
 /* Systray cluster inside OdooNavbar */
-.o-systray {
+.console-systray {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -704,13 +704,13 @@ button.o-kanban-card {
 }
 
 /* Phase 3: shared template/archetype port */
-.o-wrap { background: var(--cmc-canvas); min-height: 100%; padding: 24px 28px;
+.console-wrap { background: var(--cmc-canvas); min-height: 100%; padding: 24px 28px;
   display: flex; flex-direction: column; gap: var(--cmc-gap-section); }
-.o-wrap--ops { padding: 18px 22px; gap: 16px; }
-.o-list-body, .o-detail-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.console-wrap--ops { padding: 18px 22px; gap: 16px; }
+.console-list-body, .console-detail-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
 /* List ControlBar — sticky ops chrome (Odoo ControlPanel analogue) */
-.o-control-bar {
+.console-control-bar {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-cluster);
@@ -727,16 +727,16 @@ button.o-kanban-card {
   -webkit-backdrop-filter: blur(10px);
   box-shadow: var(--cmc-shadow-xs);
 }
-.o-wrap--ops .o-control-bar {
+.console-wrap--ops .console-control-bar {
   margin-inline: calc(-1 * 12px);
   padding-inline: 12px;
 }
-.o-control-bar-header,
-.o-control-bar-filters,
-.o-control-bar-footer {
+.console-control-bar-header,
+.console-control-bar-filters,
+.console-control-bar-footer {
   min-width: 0;
 }
-.o-control-bar-footer {
+.console-control-bar-footer {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -746,7 +746,7 @@ button.o-kanban-card {
 
 
 /* Metric card — soft raised surface */
-.o-mc {
+.console-mc {
   display: block; text-decoration: none; color: inherit;
   background: var(--cmc-raised-bg); border-radius: var(--cmc-raised-radius);
   border: var(--cmc-raised-border);
@@ -757,33 +757,33 @@ button.o-kanban-card {
   transition: box-shadow var(--cmc-transition), border-color var(--cmc-transition),
     transform var(--cmc-transition);
 }
-.o-mc:hover { box-shadow: var(--cmc-shadow-md); border-color: var(--cmc-accent-soft); }
-.o-mc:active { transform: scale(0.995); }
-.o-mc-top {
+.console-mc:hover { box-shadow: var(--cmc-shadow-md); border-color: var(--cmc-accent-soft); }
+.console-mc:active { transform: scale(0.995); }
+.console-mc-top {
   display: flex; align-items: center; justify-content: space-between;
   gap: 8px; min-height: var(--cmc-line-label); margin-bottom: var(--cmc-space-3);
 }
-.o-mc-label {
+.console-mc-label {
   display: flex; align-items: center; gap: 7px; min-width: 0;
   font-size: var(--cmc-fs-label); font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--cmc-text-muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.o-mc-icon { color: var(--cmc-text-faint); flex-shrink: 0; }
-.o-mc-value {
+.console-mc-icon { color: var(--cmc-text-faint); flex-shrink: 0; }
+.console-mc-value {
   font-size: var(--cmc-fs-metric); font-weight: 600; line-height: 1;
   letter-spacing: -0.03em; color: var(--cmc-text); font-variant-numeric: tabular-nums;
   min-height: 1em;
 }
-.o-mc-ctx {
+.console-mc-ctx {
   margin-top: 10px; display: flex; align-items: center; gap: 3px;
   min-height: var(--cmc-line-meta);
   font-size: var(--cmc-fs-meta); color: var(--cmc-text-muted);
   transition: color var(--cmc-transition);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.o-mc:hover .o-mc-ctx { color: var(--cmc-brand); }
-.o-attn {
+.console-mc:hover .console-mc-ctx { color: var(--cmc-brand); }
+.console-attn {
   width: var(--cmc-dot-size); height: var(--cmc-dot-size);
   border-radius: 999px; flex-shrink: 0;
 }
@@ -860,7 +860,7 @@ button.o-kanban-card {
 
 
 /* Page header — soft card (quieter elevation than metric grid) */
-.o-page-header {
+.console-page-header {
   background: var(--cmc-raised-bg);
   border: var(--cmc-raised-border);
   border-radius: var(--cmc-raised-radius);
@@ -875,10 +875,10 @@ button.o-kanban-card {
 
 
 /* Breadcrumbs — parent crumbs are SPA links (gắn kết module → page) */
-.o-bc {
+.console-bc {
   min-width: 0;
 }
-.o-bc-link {
+.console-bc-link {
   color: var(--cmc-text-muted);
   text-decoration: none;
   font-size: var(--cmc-fs-meta);
@@ -886,21 +886,21 @@ button.o-kanban-card {
   border-radius: 4px;
   transition: color var(--cmc-transition), background var(--cmc-transition);
 }
-.o-bc-link:hover {
+.console-bc-link:hover {
   color: var(--cmc-brand);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.o-bc-link:focus-visible {
+.console-bc-link:focus-visible {
   outline: 2px solid var(--cmc-brand);
   outline-offset: 2px;
 }
-.o-bc-current {
+.console-bc-current {
   color: var(--cmc-text-2);
   font-size: var(--cmc-fs-meta);
   font-weight: 600;
 }
-.o-bc-plain {
+.console-bc-plain {
   color: var(--cmc-text-muted);
   font-size: var(--cmc-fs-meta);
   font-weight: 500;
@@ -908,7 +908,7 @@ button.o-kanban-card {
 
 
 /* Filter bar — slot chrome on warm surface-2 (not a third competing card) */
-.o-filter-bar {
+.console-filter-bar {
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;
   min-height: var(--cmc-head-h);
   padding: 10px var(--cmc-keyline-x);
@@ -919,16 +919,16 @@ button.o-kanban-card {
 }
 
 /* DateField — Odoo-like dense date control (native type=date) */
-.o-date-field {
+.console-date-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
 }
-.o-date-field--sm {
+.console-date-field--sm {
   width: 100%;
 }
-.o-date-field-label {
+.console-date-field-label {
   display: block;
   font-size: 11px;
   font-weight: 600;
@@ -937,7 +937,7 @@ button.o-kanban-card {
   color: var(--cmc-text-muted, #6b7280);
   font-family: var(--cmc-font-sans);
 }
-.o-date-field-label.o-sr-only {
+.console-date-field-label.console-sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -948,7 +948,7 @@ button.o-kanban-card {
   white-space: nowrap;
   border: 0;
 }
-.o-date-field-input {
+.console-date-field-input {
   width: 100%;
   height: 34px;
   padding: 0 10px;
@@ -960,31 +960,31 @@ button.o-kanban-card {
   font-family: var(--cmc-font-sans);
   box-sizing: border-box;
 }
-.o-date-field-input:disabled {
+.console-date-field-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
-.o-date-field-input:focus {
+.console-date-field-input:focus {
   outline: 2px solid var(--cmc-accent, #0071e3);
   outline-offset: 1px;
 }
 
 
 /* WorkflowStatusbar wraps ProgressSteps with record-page spacing */
-.o-workflow-statusbar {
+.console-workflow-statusbar {
   min-width: 0;
   padding: 4px 0;
 }
 
 
 /* ---- Detail page frame (entity · summary · tabs · body) — system-wide ---- */
-.o-detail {
+.console-detail {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-section);
 }
 /* Odoo form dual-layer: sheet_bg (canvas band) + white sheet */
-.o-form-sheet-bg {
+.console-form-sheet-bg {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -994,7 +994,7 @@ button.o-kanban-card {
   /* Prefer left align like Odoo sheet_bg (not centered alone) */
   margin-inline: 0 auto 0 0;
 }
-.o-form-sheet {
+.console-form-sheet {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-cluster);
@@ -1005,20 +1005,20 @@ button.o-kanban-card {
   padding: 16px var(--cmc-keyline-x, 16px);
   box-sizing: border-box;
 }
-.o-detail-entity {
+.console-detail-entity {
   min-width: 0;
 }
-.o-detail-summary {
+.console-detail-summary {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-cluster);
   min-width: 0;
 }
-.o-detail-tabs {
+.console-detail-tabs {
   min-width: 0;
   /* tabs sit in raised shell when page provides CmcTabs bare */
 }
-.o-detail-body {
+.console-detail-body {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-cluster);
@@ -1026,14 +1026,14 @@ button.o-kanban-card {
   flex: 1;
 }
 /* Vertical stack of SectionBlocks */
-.o-detail-stack {
+.console-detail-stack {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-cluster);
   min-width: 0;
 }
 /* 2-col desktop: primary content | secondary rail */
-.o-detail-split {
+.console-detail-split {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--cmc-gap-cluster);
@@ -1041,37 +1041,37 @@ button.o-kanban-card {
   min-width: 0;
 }
 @media (min-width: 1040px) {
-  .o-detail-split {
+  .console-detail-split {
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   }
 }
 /* Tab panel inset — consistent with keyline */
-.o-detail-panel {
+.console-detail-panel {
   padding: var(--cmc-space-3) 0 0;
   min-width: 0;
 }
 @media (max-width: 767px) {
-  .o-detail {
+  .console-detail {
     gap: var(--cmc-gap-cluster);
   }
 }
-.o-form-body { display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
-.o-actions { position: sticky; bottom: 0; display: flex; justify-content: flex-end;
+.console-form-body { display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
+.console-actions { position: sticky; bottom: 0; display: flex; justify-content: flex-end;
   align-items: center; gap: 12px; padding: 14px var(--cmc-pad-card-x); background: var(--cmc-surface-raised);
   border: 1px solid var(--cmc-border-subtle);
   border-radius: var(--cmc-radius-md); box-shadow: var(--cmc-shadow-md); }
 
 /* Dashboard / cockpit — role-agnostic frame (content slots only change) */
-.o-dash { gap: var(--cmc-gap-section); }
-.o-dash-title {
+.console-dash { gap: var(--cmc-gap-section); }
+.console-dash-title {
   font-size: var(--cmc-fs-page); font-weight: 600; letter-spacing: -0.03em;
   color: var(--cmc-text); margin: 0; line-height: 1.15;
 }
-.o-dash-sub {
+.console-dash-sub {
   font-size: var(--cmc-fs-body); color: var(--cmc-text-muted); margin: 6px 0 0; line-height: 1.4;
 }
-.o-dash-shortcuts { display: flex; flex-wrap: wrap; gap: 10px; }
-.o-dash-chip {
+.console-dash-shortcuts { display: flex; flex-wrap: wrap; gap: 10px; }
+.console-dash-chip {
   display: inline-flex; align-items: center; gap: 8px;
   height: 36px; padding: 0 14px;
   border-radius: var(--cmc-radius-pill);
@@ -1084,54 +1084,54 @@ button.o-kanban-card {
   transition: background var(--cmc-transition), border-color var(--cmc-transition),
     color var(--cmc-transition), box-shadow var(--cmc-transition);
 }
-.o-dash-chip:hover {
+.console-dash-chip:hover {
   background: var(--cmc-brand-muted);
   border-color: transparent;
   color: var(--cmc-brand);
   box-shadow: var(--cmc-shadow-sm);
 }
-.o-dash-chip:active { transform: scale(0.98); }
-.o-dash-chip-icon { color: var(--cmc-text-faint); display: flex; }
-.o-dash-chip:hover .o-dash-chip-icon { color: var(--cmc-brand); }
-.o-dash-chip-badge {
+.console-dash-chip:active { transform: scale(0.98); }
+.console-dash-chip-icon { color: var(--cmc-text-faint); display: flex; }
+.console-dash-chip:hover .console-dash-chip-icon { color: var(--cmc-brand); }
+.console-dash-chip-badge {
   min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: var(--cmc-brand-muted);
   color: var(--cmc-brand); font-size: 11px; font-weight: 600;
   display: inline-flex; align-items: center; justify-content: center;
   font-variant-numeric: tabular-nums;
 }
-.o-dash-metrics {
+.console-dash-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--cmc-gap-cluster);
 }
-.o-dash-metrics > .o-mc { max-width: none; }
+.console-dash-metrics > .console-mc { max-width: none; }
 @media (min-width: 1200px) {
-  .o-dash-metrics { grid-template-columns: repeat(4, 1fr); }
+  .console-dash-metrics { grid-template-columns: repeat(4, 1fr); }
 }
-.o-dash-body {
+.console-dash-body {
   display: grid; gap: var(--cmc-gap-cluster); align-items: start;
   grid-template-columns: 1fr;
 }
 @media (min-width: 1040px) {
-  .o-dash-body { grid-template-columns: 1.4fr 1fr; }
+  .console-dash-body { grid-template-columns: 1.4fr 1fr; }
 }
-.o-dash-primary, .o-dash-secondary {
+.console-dash-primary, .console-dash-secondary {
   display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); min-width: 0;
 }
 
 
 /* Dashboard / cockpit — role-agnostic frame (content slots only change) */
-.o-dash { gap: var(--cmc-gap-section); }
-.o-dash-title {
+.console-dash { gap: var(--cmc-gap-section); }
+.console-dash-title {
   font-size: var(--cmc-fs-page); font-weight: 600; letter-spacing: -0.03em;
   color: var(--cmc-text); margin: 0; line-height: 1.15;
 }
-.o-dash-sub {
+.console-dash-sub {
   font-size: var(--cmc-fs-body); color: var(--cmc-text-muted); margin: 6px 0 0; line-height: 1.4;
 }
-.o-dash-shortcuts { display: flex; flex-wrap: wrap; gap: 10px; }
-.o-dash-chip {
+.console-dash-shortcuts { display: flex; flex-wrap: wrap; gap: 10px; }
+.console-dash-chip {
   display: inline-flex; align-items: center; gap: 8px;
   height: 36px; padding: 0 14px;
   border-radius: var(--cmc-radius-pill);
@@ -1144,68 +1144,68 @@ button.o-kanban-card {
   transition: background var(--cmc-transition), border-color var(--cmc-transition),
     color var(--cmc-transition), box-shadow var(--cmc-transition);
 }
-.o-dash-chip:hover {
+.console-dash-chip:hover {
   background: var(--cmc-brand-muted);
   border-color: transparent;
   color: var(--cmc-brand);
   box-shadow: var(--cmc-shadow-sm);
 }
-.o-dash-chip:active { transform: scale(0.98); }
-.o-dash-chip-icon { color: var(--cmc-text-faint); display: flex; }
-.o-dash-chip:hover .o-dash-chip-icon { color: var(--cmc-brand); }
-.o-dash-chip-badge {
+.console-dash-chip:active { transform: scale(0.98); }
+.console-dash-chip-icon { color: var(--cmc-text-faint); display: flex; }
+.console-dash-chip:hover .console-dash-chip-icon { color: var(--cmc-brand); }
+.console-dash-chip-badge {
   min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: var(--cmc-brand-muted);
   color: var(--cmc-brand); font-size: 11px; font-weight: 600;
   display: inline-flex; align-items: center; justify-content: center;
   font-variant-numeric: tabular-nums;
 }
-.o-dash-metrics {
+.console-dash-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--cmc-gap-cluster);
 }
-.o-dash-metrics > .o-mc { max-width: none; }
+.console-dash-metrics > .console-mc { max-width: none; }
 @media (min-width: 1200px) {
-  .o-dash-metrics { grid-template-columns: repeat(4, 1fr); }
+  .console-dash-metrics { grid-template-columns: repeat(4, 1fr); }
 }
-.o-dash-body {
+.console-dash-body {
   display: grid; gap: var(--cmc-gap-cluster); align-items: start;
   grid-template-columns: 1fr;
 }
 @media (min-width: 1040px) {
-  .o-dash-body { grid-template-columns: 1.4fr 1fr; }
+  .console-dash-body { grid-template-columns: 1.4fr 1fr; }
 }
-.o-dash-primary, .o-dash-secondary {
+.console-dash-primary, .console-dash-secondary {
   display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); min-width: 0;
 }
 
 
 /* Progress steps */
-.o-steps {
+.console-steps {
   list-style: none; margin: 0; padding: 4px 0 8px;
   display: flex; align-items: stretch; gap: 0; overflow-x: auto;
 }
-.o-steps-item {
+.console-steps-item {
   position: relative; display: flex; align-items: center; flex: 1 1 0; min-width: 0;
 }
-.o-steps-bridge {
+.console-steps-bridge {
   position: absolute; left: -12%; top: 18px; width: 24%; height: 2px;
   background: var(--cmc-border); border-radius: 1px; z-index: 0;
 }
-.o-steps-item.is-done .o-steps-bridge,
-.o-steps-item.is-current .o-steps-bridge {
+.console-steps-item.is-done .console-steps-bridge,
+.console-steps-item.is-current .console-steps-bridge {
   background: color-mix(in srgb, var(--cmc-brand) 45%, var(--cmc-border));
 }
-.o-steps-btn {
+.console-steps-btn {
   position: relative; z-index: 1;
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   width: 100%; padding: 4px 6px; border: none; background: transparent;
   cursor: default; font-family: inherit; color: var(--cmc-text-muted);
 }
-.o-steps-btn:not(:disabled) { cursor: pointer; }
-.o-steps-btn:not(:disabled):hover .o-steps-label { color: var(--cmc-brand); }
-.o-steps-num {
+.console-steps-btn:not(:disabled) { cursor: pointer; }
+.console-steps-btn:not(:disabled):hover .console-steps-label { color: var(--cmc-brand); }
+.console-steps-num {
   width: 28px; height: 28px; border-radius: 999px;
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 700;
@@ -1213,24 +1213,24 @@ button.o-kanban-card {
   border: 1.5px solid transparent;
   transition: background var(--cmc-transition), color var(--cmc-transition), border-color var(--cmc-transition);
 }
-.o-steps-item.is-current .o-steps-num {
+.console-steps-item.is-current .console-steps-num {
   background: var(--cmc-brand); color: #fff; box-shadow: 0 0 0 3px var(--cmc-brand-muted);
 }
-.o-steps-item.is-done .o-steps-num {
+.console-steps-item.is-done .console-steps-num {
   background: var(--cmc-success-soft); color: var(--cmc-success-ink);
 }
-.o-steps-label {
+.console-steps-label {
   font-size: 11.5px; font-weight: 500; text-align: center; line-height: 1.25;
   max-width: 9em;
 }
-.o-steps-item.is-current .o-steps-label {
+.console-steps-item.is-current .console-steps-label {
   color: var(--cmc-brand-ink); font-weight: 600;
 }
-.o-steps-item.is-done .o-steps-label { color: var(--cmc-text-2); }
+.console-steps-item.is-done .console-steps-label { color: var(--cmc-text-2); }
 
 
 /* SettingsShell — left rail + main (Polaris / Odoo settings) */
-.o-settings-shell {
+.console-settings-shell {
   display: grid;
   grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
   gap: var(--cmc-gap-cluster);
@@ -1238,9 +1238,9 @@ button.o-kanban-card {
   min-width: 0;
 }
 @media (max-width: 860px) {
-  .o-settings-shell { grid-template-columns: 1fr; }
+  .console-settings-shell { grid-template-columns: 1fr; }
 }
-.o-settings-rail {
+.console-settings-rail {
   background: var(--cmc-surface-raised);
   border: 1px solid var(--cmc-border-subtle);
   border-radius: var(--cmc-radius-md);
@@ -1250,7 +1250,7 @@ button.o-kanban-card {
   top: 8px;
   min-width: 0;
 }
-.o-settings-rail-title {
+.console-settings-rail-title {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1258,8 +1258,8 @@ button.o-kanban-card {
   color: var(--cmc-text-muted);
   padding: 4px 10px 10px;
 }
-.o-settings-nav { display: flex; flex-direction: column; gap: 2px; }
-.o-settings-nav-item {
+.console-settings-nav { display: flex; flex-direction: column; gap: 2px; }
+.console-settings-nav-item {
   display: flex; align-items: flex-start; gap: 10px;
   width: 100%; text-align: left;
   padding: 10px 12px;
@@ -1268,19 +1268,19 @@ button.o-kanban-card {
   font: inherit; cursor: pointer;
   transition: background var(--cmc-transition);
 }
-.o-settings-nav-item:hover { background: var(--cmc-surface-2); }
-.o-settings-nav-item.is-active {
+.console-settings-nav-item:hover { background: var(--cmc-surface-2); }
+.console-settings-nav-item.is-active {
   background: var(--cmc-brand-muted);
   color: var(--cmc-brand-ink);
 }
-.o-settings-nav-label { display: block; font-size: 13.5px; font-weight: 600; }
-.o-settings-nav-desc { display: block; margin-top: 2px; font-size: 12px; color: var(--cmc-text-muted); line-height: 1.35; }
-.o-settings-nav-item.is-active .o-settings-nav-desc { color: var(--cmc-brand-ink); opacity: 0.85; }
-.o-settings-main { min-width: 0; display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
+.console-settings-nav-label { display: block; font-size: 13.5px; font-weight: 600; }
+.console-settings-nav-desc { display: block; margin-top: 2px; font-size: 12px; color: var(--cmc-text-muted); line-height: 1.35; }
+.console-settings-nav-item.is-active .console-settings-nav-desc { color: var(--cmc-brand-ink); opacity: 0.85; }
+.console-settings-main { min-width: 0; display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
 
 
 /* Entity header */
-.o-eh {
+.console-eh {
   background: var(--cmc-surface-raised);
   border: 1px solid var(--cmc-border-subtle);
   border-radius: var(--cmc-radius-md);
@@ -1288,40 +1288,40 @@ button.o-kanban-card {
   padding: 16px var(--cmc-pad-card-x) 18px;
   display: flex; flex-direction: column; gap: 12px;
 }
-.o-eh-back {
+.console-eh-back {
   display: inline-flex; align-items: center; gap: 2px;
   font-size: 12.5px; font-weight: 500; color: var(--cmc-text-muted);
   text-decoration: none; width: fit-content;
 }
-.o-eh-back svg { transform: rotate(180deg); }
-.o-eh-back:hover { color: var(--cmc-brand); }
-.o-eh-main {
+.console-eh-back svg { transform: rotate(180deg); }
+.console-eh-back:hover { color: var(--cmc-brand); }
+.console-eh-main {
   display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap;
 }
-.o-eh-avatar {
+.console-eh-avatar {
   width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
   background: linear-gradient(145deg, var(--cmc-brand-muted), color-mix(in srgb, var(--cmc-brand) 18%, #fff));
   color: var(--cmc-brand-ink);
   font-size: 18px; font-weight: 700; letter-spacing: -0.02em;
   display: flex; align-items: center; justify-content: center;
 }
-.o-eh-id { flex: 1; min-width: 160px; }
-.o-eh-title-row {
+.console-eh-id { flex: 1; min-width: 160px; }
+.console-eh-title-row {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
 }
-.o-eh-title {
+.console-eh-title {
   margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -0.03em;
   color: var(--cmc-text); line-height: 1.2;
 }
-.o-eh-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.o-eh-sub {
+.console-eh-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.console-eh-sub {
   margin: 4px 0 0; font-size: 13.5px; color: var(--cmc-text-muted); line-height: 1.4;
 }
-.o-eh-meta {
+.console-eh-meta {
   margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px 14px;
   font-size: 12px; color: var(--cmc-text-faint); font-variant-numeric: tabular-nums;
 }
-.o-eh-actions {
+.console-eh-actions {
   display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto;
 }
 
@@ -1447,7 +1447,7 @@ button.o-kanban-card {
 /* DataTable wrapper — sticky header affordance lives here            */
 /* ------------------------------------------------------------------ */
 
-.o-list {
+.console-list {
   background: #fff;
   border: 1px solid var(--console-gray-300, #dee2e6);
   border-radius: var(--console-radius, 4px);
@@ -1456,7 +1456,7 @@ button.o-kanban-card {
 }
 
 /* Odoo-density control panel: single flat white band (no nested cards) */
-.o_web_client .o-control-bar {
+.o_web_client .console-control-bar {
   background: #fff;
   border-bottom: 1px solid var(--console-gray-300, #dee2e6);
   backdrop-filter: none;
@@ -1467,12 +1467,12 @@ button.o-kanban-card {
   gap: 8px;
   border-radius: 0;
 }
-.o_web_client .o-wrap--ops .o-control-bar {
+.o_web_client .console-wrap--ops .console-control-bar {
   margin-inline: calc(-1 * 14px);
   padding-inline: 14px;
 }
 /* Flatten PageHeader / FilterBar when they live inside the CP band */
-.o_web_client .o-control-bar .o-page-header {
+.o_web_client .console-control-bar .console-page-header {
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -1480,7 +1480,7 @@ button.o-kanban-card {
   padding: 0;
   min-height: 0;
 }
-.o_web_client .o-control-bar .o-filter-bar {
+.o_web_client .console-control-bar .console-filter-bar {
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -1488,7 +1488,7 @@ button.o-kanban-card {
   min-height: 0;
   gap: 8px;
 }
-.o_web_client .o-control-bar-footer {
+.o_web_client .console-control-bar-footer {
   justify-content: flex-end;
   gap: 8px;
   padding-top: 6px;
@@ -1496,12 +1496,12 @@ button.o-kanban-card {
   border-top: 1px solid var(--console-gray-200, #e9ecef);
 }
 /* List body sits tight under CP */
-.o_web_client .o-list-body {
+.o_web_client .console-list-body {
   gap: 0;
 }
 
 /* Chevron ProgressSteps (Odoo statusbar analogue) — horizontal arrow buttons */
-.o_web_client .o-steps {
+.o_web_client .console-steps {
   list-style: none;
   margin: 0 0 16px;
   padding: 0;
@@ -1511,16 +1511,16 @@ button.o-kanban-card {
   gap: 0;
   overflow-x: auto;
 }
-.o_web_client .o-steps-item {
+.o_web_client .console-steps-item {
   position: relative;
   display: flex;
   flex: 0 1 auto;
   min-width: 0;
   margin-left: calc(var(--console-statusbar-arrow-width, 1em) * -1);
 }
-.o_web_client .o-steps-item:first-child { margin-left: 0; }
-.o_web_client .o-steps-bridge { display: none; }
-.o_web_client .o-steps-btn {
+.o_web_client .console-steps-item:first-child { margin-left: 0; }
+.o_web_client .console-steps-bridge { display: none; }
+.o_web_client .console-steps-btn {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1538,67 +1538,67 @@ button.o-kanban-card {
     0 100%, var(--console-statusbar-arrow-width, 1em) 50%
   );
 }
-.o_web_client .o-steps-item:first-child .o-steps-btn {
+.o_web_client .console-steps-item:first-child .console-steps-btn {
   clip-path: polygon(
     0 0, calc(100% - var(--console-statusbar-arrow-width, 1em)) 0,
     100% 50%, calc(100% - var(--console-statusbar-arrow-width, 1em)) 100%, 0 100%
   );
 }
-.o_web_client .o-steps-item:last-child .o-steps-btn {
+.o_web_client .console-steps-item:last-child .console-steps-btn {
   padding-right: var(--console-statusbar-arrow-width, 1em);
   clip-path: polygon(
     0 0, 100% 0, 100% 100%, 0 100%, var(--console-statusbar-arrow-width, 1em) 50%
   );
 }
-.o_web_client .o-steps-btn:not(:disabled) { cursor: pointer; }
-.o_web_client .o-steps-item.is-current .o-steps-btn {
+.o_web_client .console-steps-btn:not(:disabled) { cursor: pointer; }
+.o_web_client .console-steps-item.is-current .console-steps-btn {
   background: var(--console-gray-900, #212529);
   color: #fff;
   z-index: 1;
 }
-.o_web_client .o-steps-item.is-done .o-steps-btn {
+.o_web_client .console-steps-item.is-done .console-steps-btn {
   background: var(--console-gray-300, #dee2e6);
 }
-.o_web_client .o-steps-num {
+.o_web_client .console-steps-num {
   width: auto; height: auto; border: 0; background: transparent;
   font-size: 12px; font-weight: 700; color: inherit;
   box-shadow: none;
 }
-.o_web_client .o-steps-label {
+.o_web_client .console-steps-label {
   font-size: inherit; font-weight: 500; max-width: none; color: inherit;
   text-align: left;
 }
-.o_web_client .o-workflow-statusbar { padding: 0; min-width: 0; }
+.o_web_client .console-workflow-statusbar { padding: 0; min-width: 0; }
 
 /* Dense wrap under Odoo shell */
-.o_web_client .o-wrap {
+.o_web_client .console-wrap {
   background: var(--console-gray-100, #f8f9fa);
   padding: 16px;
   gap: 12px;
 }
-.o_web_client .o-wrap--ops { padding: 12px 14px; gap: 10px; }
-.o_web_client .o-page-header {
+.o_web_client .console-wrap--ops { padding: 12px 14px; gap: 10px; }
+.o_web_client .console-page-header {
   background: #fff;
   border: 1px solid var(--console-gray-300, #dee2e6);
   border-radius: var(--console-radius, 4px);
   box-shadow: none;
-  /* Not sticky under Odoo shell — scroll lives on main.o-main. Clear base
+  /* Not sticky under Odoo shell — scroll lives on main.console-main. Clear base
      sticky + z-index:10 so page chrome never competes with the navbar layer. */
   position: static;
   z-index: auto;
 }
 /* Standalone filter (rare outside CP) keeps light sunken chrome */
-.o_web_client .o-filter-bar {
+.o_web_client .console-filter-bar {
   background: var(--console-gray-100, #f8f9fa);
   border: 1px solid var(--console-gray-300, #dee2e6);
   border-radius: var(--console-radius-sm, 3px);
 }
 /* Form sheet grammar under shell */
-.o_web_client .o-form-sheet-bg {
+.o_web_client .console-form-sheet-bg {
   max-width: var(--console-sheet-max-width, 1400px);
   gap: 10px;
 }
-.o_web_client .o-form-sheet {
+.o_web_client .console-form-sheet {
   background: #fff;
   border: 1px solid var(--console-gray-300, #dee2e6);
   border-radius: var(--console-radius, 4px);
@@ -1607,29 +1607,29 @@ button.o-kanban-card {
   gap: 14px;
 }
 /* Summary band = HighlightStrip / metrics above the white sheet — never sticky
-   (tall composite). Thin WorkflowStatusbar lives in `.o-detail-statusbar`. */
-.o_web_client .o-form-sheet-bg > .o-detail-summary {
+   (tall composite). Thin WorkflowStatusbar lives in `.console-detail-statusbar`. */
+.o_web_client .console-form-sheet-bg > .console-detail-summary {
   padding: 0 0 4px;
   background: transparent;
 }
 /* Odoo `.o_form_statusbar` analogue — sticky md+ only (form_controller.scss). */
-.o-detail-statusbar {
+.console-detail-statusbar {
   min-width: 0;
 }
-.o_web_client .o-form-sheet-bg > .o-detail-statusbar {
+.o_web_client .console-form-sheet-bg > .console-detail-statusbar {
   padding: 4px 0;
   background: var(--console-gray-100, #f8f9fa);
   border-bottom: 1px solid var(--console-gray-300, #dee2e6);
 }
 @media (min-width: 768px) {
-  .o_web_client .o-form-sheet-bg > .o-detail-statusbar {
+  .o_web_client .console-form-sheet-bg > .console-detail-statusbar {
     position: sticky;
     top: 0;
-    z-index: 4; /* below .o-control-bar (5) and .o-navbar (1000) */
+    z-index: 4; /* below .console-control-bar (5) and .console-navbar (1000) */
   }
 }
 /* Entity inside sheet: drop second card chrome */
-.o_web_client .o-form-sheet .o-eh {
+.o_web_client .console-form-sheet .console-eh {
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -1637,21 +1637,21 @@ button.o-kanban-card {
   padding: 0 0 8px;
   border-bottom: 1px solid var(--console-gray-200, #e9ecef);
 }
-.o_web_client .o-mc {
+.o_web_client .console-mc {
   border-radius: var(--console-radius, 4px);
   border: 1px solid var(--console-gray-300, #dee2e6);
   box-shadow: none;
   min-height: 112px;
 }
-.o_web_client .o-eh {
+.o_web_client .console-eh {
   border-radius: var(--console-radius-lg, 6px);
   border: 1px solid var(--console-gray-300, #dee2e6);
   box-shadow: none;
 }
-.o_web_client .o-dash-metrics > .o-mc { max-width: none; }
+.o_web_client .console-dash-metrics > .console-mc { max-width: none; }
 
 
-.o-label-upper {
+.console-label-upper {
   font-size: var(--console-font-size-xs, 12px);
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -2423,7 +2423,7 @@ button.o-kanban-card {
 .o_web_client .sh-content{ flex: 1; overflow-y: auto; }
 
 /* Toast — float layer (dialog radius + shadow-lg) */
-/* Float band: above .o-navbar (1000), below .ck-cmd (1200). Odoo notifications ≈1055. */
+/* Float band: above .console-navbar (1000), below .ck-cmd (1200). Odoo notifications ≈1055. */
 .ck-toast-viewport{
   position: fixed; z-index: 1100; right: 20px; bottom: 20px;
   display: flex; flex-direction: column; gap: 8px;

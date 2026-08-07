@@ -21,7 +21,7 @@ const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').
 /**
  * Admin application shell — Odoo navbar + app-switcher (design3).
  * Session, permission-gated nav (visibleModulesFor), CommandPalette, and
- * systray live here. Page content renders in <main class="o-main">.
+ * systray live here. Page content renders in <main class="console-main">.
  *
  * Chrome-suppressed mode: on /change-password (forced password rotation) the
  * navbar, app-switcher, ⌘K, and systray are hidden so the user cannot navigate
@@ -89,7 +89,7 @@ export function Shell() {
     <>
       <button
         type="button"
-        className="o-systray-badge"
+        className="console-systray-badge"
         onClick={() => setCmdOpen(true)}
         title="Điều hướng nhanh (⌘K / Ctrl+K)"
         aria-label="Tìm (⌘K)"
@@ -99,7 +99,7 @@ export function Shell() {
       {canCreateReceipt && (
         <button
           type="button"
-          className="o-systray-badge"
+          className="console-systray-badge"
           onClick={() => setEnrollPickerOpen(true)}
           title="Ghi danh (tạo phiếu)"
           aria-label="Ghi danh"
@@ -112,7 +112,7 @@ export function Shell() {
       {me && (
         <button
           type="button"
-          className="o-systray-badge"
+          className="console-systray-badge"
           onClick={() => window.location.assign(`${API_URL}/auth/logout`)}
           aria-label="Đăng xuất"
           title="Đăng xuất"
@@ -136,7 +136,7 @@ export function Shell() {
           systray={systray}
         />
       )}
-      <main className="o-main" role="main">
+      <main className="console-main" role="main">
         <Outlet />
       </main>
       {!suppressChrome && (

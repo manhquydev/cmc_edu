@@ -14,8 +14,8 @@ describe('KanbanBoard / KanbanColumn / KanbanCard', () => {
         </KanbanColumn>
       </KanbanBoard>,
     );
-    expect(container.querySelector('.o-kanban-board')).toBeInTheDocument();
-    expect(container.querySelectorAll('.o-kanban-col-body')).toHaveLength(2);
+    expect(container.querySelector('.console-kanban-board')).toBeInTheDocument();
+    expect(container.querySelectorAll('.console-kanban-col-body')).toHaveLength(2);
     expect(getByText('Draft')).toBeInTheDocument();
     expect(getByText('Nguyễn A')).toBeInTheDocument();
     expect(getByText('English A2')).toBeInTheDocument();
@@ -28,7 +28,7 @@ describe('KanbanBoard / KanbanColumn / KanbanCard', () => {
     const { container } = render(
       <KanbanCard title="X" colorIndex={4} />,
     );
-    const card = container.querySelector('.o-kanban-card') as HTMLElement;
+    const card = container.querySelector('.console-kanban-card') as HTMLElement;
     expect(card.style.getPropertyValue('--console-kanban-card-color')).toBe(
       'var(--console-kanban-color-4)',
     );
@@ -48,6 +48,6 @@ describe('KanbanBoard / KanbanColumn / KanbanCard', () => {
         <KanbanCard title="B" />
       </KanbanColumn>,
     );
-    expect(container.querySelector('.o-kanban-col-count')).toHaveTextContent('2');
+    expect(container.querySelector('.console-kanban-col-count')).toHaveTextContent('2');
   });
 });

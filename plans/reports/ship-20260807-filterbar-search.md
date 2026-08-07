@@ -49,3 +49,15 @@ Earlier fail on `c4f403e` (run 31137446299): 2 journeys stale vs FilterBar API. 
 - PM: `plans/reports/pm-260807-0841-filterbar-search-ship.md`
 - Design authority: `docs/design-system-odoo.md`
 - Pre-ship baseline: `plans/reports/orchestrate-20260806-234049-ui-component-readiness/`
+
+## Environment consolidation (2026-08-07 ship preflight)
+
+| Surface | Result |
+|---------|--------|
+| Branch | `develop` @ `3ee2952` clean, = `origin/develop` |
+| Worktrees | 1 (primary only) |
+| vs `main` | **15** commits ahead, **0** behind |
+| PR | [#75](https://github.com/manhquydev/cmc_edu/pull/75) `develop` → `main` (OPEN, MERGEABLE) |
+| `feat/ui-copy-standard` | Stale; not merged (would regress FilterBar wave) |
+| `jules/integration-smoke` | Cherry-picked `plans/jules/integration-smoke.md` |
+| Stashes (2) | Left unapplied (WIP / superseded audit) |

@@ -235,6 +235,19 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
     expect(item?.studentFullName).toBe('Nguyễn Văn Test');
   });
 
+  it('listForGrading search matches student fullName (case-insensitive)', async () => {
+    const { submissionId: hitId } = await seedSubmittedSubmission({
+      studentName: 'Trần Search Alpha',
+    });
+    const { submissionId: missId } = await seedSubmittedSubmission({
+      studentName: 'Lê Other Beta',
+    });
+
+    const queue = await teacher.submission.listForGrading({ search: 'search alpha' });
+    expect(queue.items.map((s) => s.id)).toContain(hitId);
+    expect(queue.items.map((s) => s.id)).not.toContain(missId);
+  });
+
   it('listForGrading filters out a submission from a class the teacher does not own (post-implementation hardening MH1)', async () => {
     const { submissionId } = await seedSubmittedSubmission();
 

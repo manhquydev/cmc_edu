@@ -50,7 +50,7 @@ MainComponentsContainer           Toast + CommandPalette (+ dialogs)
 |--------------|-----|
 | create / layout buttons | PageHeader `actions` |
 | breadcrumbs | PageHeader `breadcrumbs` |
-| search / facets | FilterBar (lite) |
+| search / facets | FilterBar (lite) — see **Search OS** below |
 | selection actions | BulkActionBar (when DataTable selected) |
 | pager | ListPagination in `controlFooter` |
 | view switcher | page-local today (extract later) |
@@ -64,6 +64,70 @@ ListPage
     footer  = ListPagination | BulkActionBar?
   body      = DataTable | KanbanBoard | custom
 ```
+
+---
+
+## Search OS (system-wide Filters · Group By · Favorites)
+
+> Full wireframes + gap matrix:  
+> `plans/260806-odoo-ui-component-dissection/reports/odoo-search-system-filters-groupby-favorites.md`  
+> Odoo pin paths: `addons/web/static/src/search/{search_bar,search_bar_menu,search_model,custom_*}`
+
+Odoo mounts **one** search stack on nearly every multi-record view (`WithSearch` → `SearchModel` → CP center). Modules do not invent filter UIs — they declare search arch / fields.
+
+| Odoo piece | Role | CMC analogue | Status |
+|------------|------|--------------|--------|
+| `WithSearch` + `SearchModel` | Shared domain / groupBy / orderBy / query | URL params + page query state | **PARTIAL** (no shared model) |
+| `SearchBar` + facet chips | Active conditions visible & removable | — | **MISSING** |
+| Free-text + field autocomplete | Multi-field search | FilterBar `type: 'text'` (single keys) | **PARTIAL** |
+| `SearchBarMenu` → **Filters** | Named preset checkboxes + Custom Filter | FilterBar `type: 'select'` row | **PARTIAL** |
+| `SearchBarMenu` → **Group By** | Stackable group facets | — | **MISSING** |
+| `SearchBarMenu` → **Favorites** | Saved snapshots (`ir.filters`) + default | — | **MISSING** |
+| Selection replaces SearchBar | CP center swap when rows selected | BulkActionBar in footer | **PARTIAL** |
+| `SearchPanel` left rail | Category/filter sidebar | — | **SKIP** unless module needs |
+
+**Facet color grammar (Odoo `FACET_COLORS` → CMC tokens):**
+
+| `facet.type` | Odoo cue | CMC token direction |
+|--------------|----------|---------------------|
+| filter / field | primary | `--cmc-accent` |
+| groupBy | action | secondary action (not brand purple) |
+| favorite | warning / star | warning + star icon |
+
+**Target (lite, no OWL):** evolve FilterBar / add `SearchChrome` — chips + optional three-section menu — still hosted only in `ListPage` → ControlBar `filters` slot.
+
+**Apply now (agents):**  
+[G1 Search application playbook](../../plans/260806-1509-odoo-ui-g1-search-g2-fields-grammar-audit/reports/g1-search-application-playbook.md)  
+— decision tree, archetypes A–C, URL contract, anti-patterns. Cook mega-menu still **parked**.
+
+```text
+Odoo CP center                          CMC ControlBar.filters (target)
+─────────────────                       ──────────────────────────────
+[chips…][Search…][▾ F|GB|Fav]   →       SearchChrome / FilterBar v2
+     ↕ selection swap                     (BulkActionBar still footer for now)
+```
+
+---
+
+## Form fields (Odoo widgets → CMC)
+
+> Inventory + map (research):  
+> [G2 form fields inventory](../../plans/260806-1509-odoo-ui-g1-search-g2-fields-grammar-audit/reports/g2-form-fields-inventory-map.md)  
+> Odoo pin: `views/fields/*` (68 widget folders + registry helpers). **Do not port OWL.**
+
+| Family | CMC direction | Status |
+|--------|---------------|--------|
+| Form sheet / statusbar / notebook | DetailPage · FormPage · WorkflowStatusbar · CmcTabs | **SHIPPED** |
+| char / text / int / selection | Astryx TextInput · TextArea · NumberInput · Selector | **SHIPPED** |
+| date / datetime | `DateField` (native `type=date`, design3 density) | **SHIPPED** (date only; datetime later) |
+| many2one async | Selector / custom lookup | **PARTIAL** |
+| x2many / lines | DataTable + page forms | **PARTIAL** |
+| monetary | NumberInput + format | **PARTIAL** |
+| boolean / binary / html | ad hoc or missing | **MISSING** / sparse |
+| domain / properties / studio | — | **SKIP** |
+
+**Coverage audit (pages):**  
+[admin-grammar-coverage-audit.md](../../plans/260806-1509-odoo-ui-g1-search-g2-fields-grammar-audit/reports/admin-grammar-coverage-audit.md) — frames **40/55** (72.7%) / routed **40/44** (90.9%) as of 2026-08-06 audit. **FilterBar (post-cook):** **12/23** list surfaces (**~52%**) — pipeline, kpi, parents, audit-log, gifts added; see debt list for remaining.
 
 ---
 
@@ -105,7 +169,8 @@ DetailPage
 | Status chips | StatusBadge / Badge |
 | Avatar | Avatar |
 | Tabs | CmcTabs |
-| Filters | FilterBar |
+| Filters (lite) | FilterBar |
+| Search OS (target) | FilterBar → SearchChrome (facets + presets; see above) |
 | Metrics | MetricCard / StatCard / InsightMetric |
 
 ---
@@ -121,7 +186,7 @@ DetailPage
 
 Refresh statuses via the dissection process in `plans/260806-odoo-ui-component-dissection/plan.md` when Odoo pin or shell changes.
 
-**Last status refresh:** 2026-08-06 — thin statusbar sticky **SHIPPED**; navbar stacking **SHIPPED**; brand=module **SHIPPED**; kanban responsive **SHIPPED**; form dual-sheet **SHIPPED**; list Astryx sticky **CUT/debt**; SettingsShell **PARTIAL** (no P1 — see xia settings); float toast z-band **SHIPPED** (1100); ConfirmDialog **SHIPPED** markers (`ck-dialog` / top-layer note).
+**Last status refresh:** 2026-08-06 (post P0) — **DateField** SHIPPED (date only); FilterBar on **12/23** lists; SearchChrome/facets still parked. Playbook + field map: `plans/260806-1509-odoo-ui-g1-search-g2-fields-grammar-audit/`. Review debt: `plans/260806-1538-parallel-comprehensive-review-wave-cook-datefield-filterbar/reports/debt-list.md`.
 
 ### Float stacking (design3)
 

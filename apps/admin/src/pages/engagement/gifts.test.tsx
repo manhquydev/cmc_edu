@@ -11,6 +11,7 @@ const giftListState: { data: unknown; error: { message: string } | null } = {
   data: [{ id: 'g1', name: 'Bút bi', starsRequired: 10, stock: 5, isActive: true }],
   error: null,
 };
+const giftListQuerySpy = vi.fn();
 const upsertMutate = vi.fn();
 let upsertOnSuccess: (() => void) | undefined;
 
@@ -24,11 +25,13 @@ vi.mock('../../lib/trpc.js', async () => {
         facilityId: 'f1',
         config: { approvalSecondEyeThreshold: 20_000_000 },
       }),
-      'gift.list.useQuery': () =>
-        queryResult(giftListState.data, {
+      'gift.list.useQuery': (...args: unknown[]) => {
+        giftListQuerySpy(...args);
+        return queryResult(giftListState.data, {
           error: giftListState.error,
           isError: giftListState.error !== null,
-        }),
+        });
+      },
       'gift.upsert.useMutation': (options: { onSuccess?: () => void }) => {
         upsertOnSuccess = options?.onSuccess;
         return mutationResult({ mutate: upsertMutate });
@@ -48,12 +51,33 @@ describe('GiftsPage', () => {
   beforeEach(() => {
     giftListState.data = [{ id: 'g1', name: 'Bút bi', starsRequired: 10, stock: 5, isActive: true }];
     giftListState.error = null;
+    giftListQuerySpy.mockClear();
   });
 
   it('renders gift rows bound to gift.list.useQuery', () => {
     renderWithProviders(<GiftsPage />);
     expect(screen.getByText('Bút bi')).toBeInTheDocument();
     expect(screen.getByText((content) => content.includes('10'))).toBeInTheDocument();
+  });
+
+  it('defaults FilterBar to all gifts (includeInactive: true) without a fake "all" option value', () => {
+    renderWithProviders(<GiftsPage />);
+    expect(giftListQuerySpy).toHaveBeenCalledWith({ includeInactive: true });
+    // G1: empty + placeholder = all; real option is only "Đang hiện"
+    const search = screen.getByRole('search', { name: 'Bộ lọc' });
+    expect(within(search).getByRole('combobox', { name: 'Trạng thái' })).toBeInTheDocument();
+    fireEvent.click(within(search).getByRole('combobox', { name: 'Trạng thái' }));
+    expect(screen.getByRole('option', { name: 'Đang hiện' })).toBeInTheDocument();
+    // No explicit option labeled as a second "Tất cả" path (placeholder handles all)
+    expect(screen.queryByRole('option', { name: 'Tất cả' })).not.toBeInTheDocument();
+  });
+
+  it('queries includeInactive: false when "Đang hiện" is selected', () => {
+    renderWithProviders(<GiftsPage />);
+    giftListQuerySpy.mockClear();
+    fireEvent.click(screen.getByRole('combobox', { name: 'Trạng thái' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Đang hiện' }));
+    expect(giftListQuerySpy).toHaveBeenCalledWith({ includeInactive: false });
   });
 
   it('creates a gift with byte-identical gift.upsert input and invalidates gift.list on success', () => {

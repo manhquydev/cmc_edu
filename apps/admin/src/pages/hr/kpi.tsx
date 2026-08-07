@@ -19,18 +19,17 @@ import {
   DataTable,
   Dialog,
   DialogHeader,
+  FilterBar,
   HStack,
   ListPage,
   NumberInput,
   PageHeader,
-  Selector,
   Stack,
   StatusBadge,
   TextArea,
-  TextInput,
   useToast,
 } from '@cmc/ui';
-import type { TableColumn } from '@cmc/ui';
+import type { FilterDef, TableColumn } from '@cmc/ui';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
 
@@ -55,6 +54,22 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'confirmed', label: 'Đã xác nhận' },
   { value: 'approved', label: 'Đã duyệt' },
   { value: 'draft', label: 'Nháp' },
+];
+
+const KPI_FILTERS: FilterDef[] = [
+  {
+    key: 'status',
+    label: 'Trạng thái',
+    type: 'select',
+    options: STATUS_FILTER_OPTIONS,
+    placeholder: 'Tất cả',
+  },
+  {
+    key: 'period',
+    label: 'Kỳ (YYYY-MM)',
+    type: 'text',
+    placeholder: 'YYYY-MM',
+  },
 ];
 
 interface KpiRow {
@@ -144,8 +159,12 @@ export default function KpiPage() {
   const { canDo } = useSession();
   const utils = trpc.useUtils();
   const { success: toastSuccess } = useToast();
-  const [period, setPeriod] = useState(defaultPeriodICT());
-  const [statusFilter, setStatusFilter] = useState<string | undefined>('submitted');
+  const [filterValues, setFilterValues] = useState({
+    status: 'submitted',
+    period: defaultPeriodICT(),
+  });
+  const period = filterValues.period;
+  const statusFilter = filterValues.status || undefined;
   const [confirmTarget, setConfirmTarget] = useState<KpiRow | null>(null);
   const [overrideTarget, setOverrideTarget] = useState<KpiRow | null>(null);
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
@@ -246,27 +265,26 @@ export default function KpiPage() {
             title="Duyệt KPI"
             breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Duyệt KPI' }]}
             actions={
-              <HStack gap={1} align="end">
-                <div style={{ width: 160 }}>
-                  <Selector
-                    label="Trạng thái"
-                    options={STATUS_FILTER_OPTIONS}
-                    value={statusFilter}
-                    onChange={(v) => setStatusFilter(v)}
-                  />
-                </div>
-                <div style={{ width: 130 }}>
-                  <TextInput size="sm" label="Kỳ (YYYY-MM)" value={period} onChange={(v) => setPeriod(v)} />
-                </div>
-                {canDo('kpi', 'bulkApprove') && (
-                  <Button
-                    label={`Đã trả lương kỳ ${period}`}
-                    size="sm"
-                    variant="primary"
-                    onClick={() => setBulkConfirmOpen(true)}
-                  />
-                )}
-              </HStack>
+              canDo('kpi', 'bulkApprove') ? (
+                <Button
+                  label={`Đã trả lương kỳ ${period}`}
+                  size="sm"
+                  variant="primary"
+                  onClick={() => setBulkConfirmOpen(true)}
+                />
+              ) : undefined
+            }
+          />
+        }
+        filters={
+          <FilterBar
+            filters={KPI_FILTERS}
+            value={filterValues}
+            onChange={(next) =>
+              setFilterValues({
+                status: next.status ?? '',
+                period: next.period || defaultPeriodICT(),
+              })
             }
           />
         }

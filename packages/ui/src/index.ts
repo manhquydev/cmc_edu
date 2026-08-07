@@ -140,6 +140,9 @@ export type { StatCardProps } from './components/stat-card.js';
 export { FilterBar } from './components/filter-bar.js';
 export type { FilterBarProps, FilterDef } from './components/filter-bar.js';
 
+export { DateField } from './components/date-field.js';
+export type { DateFieldProps } from './components/date-field.js';
+
 export { MasterDetail } from './components/master-detail.js';
 export type { MasterDetailProps } from './components/master-detail.js';
 

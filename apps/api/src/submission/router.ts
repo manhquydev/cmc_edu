@@ -54,6 +54,8 @@ const listForChildInput = z.object({ studentId: z.string().uuid() });
 const listForGradingInput = z.object({
   exerciseId: z.string().uuid().optional(),
   status: z.enum(['draft', 'submitted', 'graded']).optional().default('submitted'),
+  /** Student fullName substring (case-insensitive). */
+  search: z.string().trim().min(1).max(100).optional(),
 });
 
 const saveTeacherAnnotationInput = z.object({
@@ -433,8 +435,58 @@ export const submissionRouter = router({
       const { facilityId } = scoped(ctx);
 
       return withFacility(ctx.db, facilityId, async (tx) => {
+        // Pre-scope teachers to their classes *before* `take: 100` so search
+        // cannot fill the page with other teachers' students and empty the queue.
+        const roles = ctx.subject?.roles ?? [];
+        const isDirector = roles.some((r) =>
+          ['super_admin', 'giam_doc_dao_tao', 'giam_doc_kinh_doanh'].includes(r),
+        );
+        const isTeacherOnly = roles.includes('giao_vien') && !isDirector;
+
+        let teacherStudentIds: string[] | undefined;
+        if (isTeacherOnly) {
+          const appUser = await tx.appUser.findFirst({
+            where: { userId: ctx.subject!.userId, facilityId },
+            select: { id: true },
+          });
+          if (!appUser) {
+            return { items: [] };
+          }
+          const ownedBatches = await tx.classBatch.findMany({
+            where: { facilityId, teacherAppUserId: appUser.id },
+            select: { id: true },
+          });
+          if (ownedBatches.length === 0) {
+            return { items: [] };
+          }
+          const enrollments = await tx.enrollment.findMany({
+            where: {
+              facilityId,
+              classBatchId: { in: ownedBatches.map((b) => b.id) },
+              status: { in: ['reserved', 'active'] },
+            },
+            select: { studentId: true },
+          });
+          teacherStudentIds = [...new Set(enrollments.map((e) => e.studentId))];
+          if (teacherStudentIds.length === 0) {
+            return { items: [] };
+          }
+        }
+
         const items = await tx.submission.findMany({
-          where: { facilityId, exerciseId: input.exerciseId, status: input.status },
+          where: {
+            facilityId,
+            exerciseId: input.exerciseId,
+            status: input.status,
+            ...(teacherStudentIds ? { studentId: { in: teacherStudentIds } } : {}),
+            ...(input.search
+              ? {
+                  student: {
+                    fullName: { contains: input.search, mode: 'insensitive' },
+                  },
+                }
+              : {}),
+          },
           orderBy: { submittedAt: 'asc' },
           take: 100,
           // `student` joined so the grading queue can show a name instead of
@@ -444,13 +496,10 @@ export const submissionRouter = router({
           include: { exercise: { select: { basePdfRef: true } }, student: { select: { fullName: true } } },
         });
 
-        // Post-implementation hardening (MH1): sibling `grade`/`saveTeacherAnnotation`
-        // are class-scoped — this read queue was returning every submission in
-        // the facility regardless of exercise/class, leaking other classes'
-        // basePdfRef + scores to a teacher not assigned to them. Director
-        // roles/non-teacher roles pass through instantly (assertTeacherOwnsStudentClass
-        // no-ops for them); a teacher-only caller is filtered per submission.
-        const scoped = await Promise.all(
+        // Post-implementation hardening (MH1): belt-and-suspenders ownership
+        // check (directors/non-teachers pass assert instantly; teachers already
+        // SQL-scoped above).
+        const scopedRows = await Promise.all(
           items.map(async (item) => {
             try {
               await assertTeacherOwnsStudentClass(tx, facilityId, ctx.subject, item.studentId);
@@ -465,7 +514,7 @@ export const submissionRouter = router({
           }),
         );
 
-        return { items: scoped.filter((item) => item !== null).map(toSubmissionDto) };
+        return { items: scopedRows.filter((item) => item !== null).map(toSubmissionDto) };
       });
     }),
 

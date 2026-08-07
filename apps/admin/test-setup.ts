@@ -3,6 +3,17 @@
 // is safe under the node-env logic tests too.
 import '@testing-library/jest-dom';
 
+// Astryx Dialog uses CSS.escape in layout effects; jsdom / incomplete CSSOM
+// leaves `CSS` or `CSS.escape` undefined and crashes any page that mounts a Dialog.
+if (typeof globalThis.CSS === 'undefined') {
+  (globalThis as { CSS: { escape: (s: string) => string } }).CSS = {
+    escape: (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`),
+  };
+} else if (typeof globalThis.CSS.escape !== 'function') {
+  globalThis.CSS.escape = (value: string) =>
+    value.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`);
+}
+
 // jsdom does not implement `HTMLDialogElement.showModal`/`close` (Astryx's
 // `Dialog` component uses a native `<dialog>` and calls these directly —
 // `Dialog.tsx` around the isOpen effect). Stub them as no-ops that reflect

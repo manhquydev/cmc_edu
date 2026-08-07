@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   BulkActionBar,
   Button,
@@ -6,6 +6,7 @@ import {
   Dialog,
   DialogHeader,
   EmptyState,
+  FilterBar,
   HStack,
   LineIcon,
   ListPage,
@@ -15,7 +16,7 @@ import {
   TextInput,
   useToast,
 } from '@cmc/ui';
-import type { TableColumn } from '@cmc/ui';
+import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -45,16 +46,39 @@ interface CreateForm {
 
 const EMPTY_CREATE_FORM: CreateForm = { name: '', code: '' };
 
+const FACILITY_FILTERS: FilterDef[] = [
+  {
+    key: 'q',
+    label: 'Tìm kiếm',
+    type: 'text',
+    placeholder: 'Tên hoặc mã cơ sở…',
+  },
+];
+
 // Separate query component so the hook is only called when permission is granted.
 function FacilitiesContent() {
   const utils = trpc.useUtils();
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const pageSize = 20;
   const { success: toastSuccess } = useToast();
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+    setSelectedIds([]);
+  }, [debouncedSearch]);
+
   const { data, isLoading, error } = trpc.facility.list.useQuery({
     page,
     pageSize,
+    ...(debouncedSearch ? { search: debouncedSearch } : {}),
   });
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -101,6 +125,13 @@ function FacilitiesContent() {
             actions={
               <Button label="Thêm cơ sở" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />
             }
+          />
+        }
+        filters={
+          <FilterBar
+            filters={FACILITY_FILTERS}
+            value={{ q: searchInput }}
+            onChange={(next) => setSearchInput(next.q ?? '')}
           />
         }
         controlFooter={

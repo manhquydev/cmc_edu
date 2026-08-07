@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Badge,
   Button,
@@ -6,6 +6,7 @@ import {
   Dialog,
   DialogHeader,
   EmptyState,
+  FilterBar,
   HStack,
   LineIcon,
   BulkActionBar,
@@ -20,7 +21,7 @@ import {
   TextInput,
   useToast,
 } from '@cmc/ui';
-import type { TableColumn } from '@cmc/ui';
+import type { FilterDef, TableColumn } from '@cmc/ui';
 import { ACTIVE_ROLES, formatRole } from '@cmc/auth';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
@@ -101,6 +102,15 @@ const EMPTY_FORM: CreateForm = {
 
 const NO_MANAGER = '__none__';
 
+const USER_FILTERS: FilterDef[] = [
+  {
+    key: 'q',
+    label: 'Tìm kiếm',
+    type: 'text',
+    placeholder: 'Tên, email, mã NV…',
+  },
+];
+
 /** Job title suggested from the first role picked, so the free-text field
  *  starts from the right answer instead of an empty box. Still editable —
  *  two teachers can hold different titles. */
@@ -122,11 +132,29 @@ function UsersContent() {
   const [resetDone, setResetDone] = useState(false);
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const pageSize = 20;
   const { success: toastSuccess } = useToast();
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+    setSelectedIds([]);
+  }, [debouncedSearch]);
+
   const utils = trpc.useUtils();
-  const { data, isLoading, error } = trpc.user.list.useQuery();
+  const listInput = debouncedSearch ? { search: debouncedSearch } : {};
+  const { data, isLoading, error } = trpc.user.list.useQuery(listInput);
+  // Manager picker must see the full roster, not the filtered table query.
+  const { data: managerRoster } = trpc.user.list.useQuery(
+    {},
+    { enabled: modalOpen },
+  );
 
   const createMut = trpc.user.create.useMutation({
     onSuccess: () => {
@@ -184,11 +212,10 @@ function UsersContent() {
     });
   }
 
-  // Reuses the list already on screen — a manager is by definition someone who
-  // already has a staff profile here.
+  // Full roster for manager select — never fall back to the search-filtered table query.
   const managerOptions = [
     { value: NO_MANAGER, label: '— Chưa có —' },
-    ...(data?.items ?? []).map((u) => ({
+    ...(managerRoster?.items ?? []).map((u) => ({
       value: u.id,
       label: `${u.fullName} (${u.employeeCode})`,
     })),
@@ -273,6 +300,13 @@ function UsersContent() {
             actions={
               <Button label="Thêm nhân viên" size="sm" variant="primary" onClick={() => setModalOpen(true)} />
             }
+          />
+        }
+        filters={
+          <FilterBar
+            filters={USER_FILTERS}
+            value={{ q: searchInput }}
+            onChange={(next) => setSearchInput(next.q ?? '')}
           />
         }
         controlFooter={

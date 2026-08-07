@@ -141,8 +141,8 @@ test.describe('P1-06 journey — liên kết phụ huynh–con: yêu cầu → d
   });
 });
 
-/** Switches the link-request status filter (label is visually hidden). */
+/** Switches the link-request status filter (Astryx Selector, visible "Trạng thái" label). */
 async function selectLinkFilter(page: import('@playwright/test').Page, label: string): Promise<void> {
-  await page.getByRole('combobox', { name: 'Lọc theo trạng thái' }).click();
+  await page.getByRole('combobox', { name: 'Trạng thái' }).click();
   await page.getByRole('option', { name: label, exact: true }).click();
 }

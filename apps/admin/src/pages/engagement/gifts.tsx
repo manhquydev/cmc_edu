@@ -7,6 +7,7 @@ import {
   DataTable,
   Dialog,
   DialogHeader,
+  FilterBar,
   HStack,
   LineIcon,
   ListPage,
@@ -18,8 +19,20 @@ import {
   TextInput,
   useToast,
 } from '@cmc/ui';
-import type { TableColumn } from '@cmc/ui';
+import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+
+// G1 select grammar: options = real values only; empty + placeholder = all.
+// Do not add value:'all' — that duplicates FilterBar hasClear “Tất cả”.
+const GIFT_FILTERS: FilterDef[] = [
+  {
+    key: 'active',
+    label: 'Trạng thái',
+    type: 'select',
+    options: [{ value: 'active', label: 'Đang hiện' }],
+    placeholder: 'Tất cả',
+  },
+];
 
 interface GiftRow {
   id: string;
@@ -80,7 +93,10 @@ export default function GiftsPage() {
   const { success: toastSuccess } = useToast();
 
   const utils = trpc.useUtils();
-  const { data, isLoading, error } = trpc.gift.list.useQuery({ includeInactive: true });
+  // '' = all (include inactive); 'active' = only visible gifts.
+  const [filterValues, setFilterValues] = useState({ active: '' });
+  const includeInactive = filterValues.active !== 'active';
+  const { data, isLoading, error } = trpc.gift.list.useQuery({ includeInactive });
 
   const upsertMut = trpc.gift.upsert.useMutation({
     onSuccess: () => {
@@ -125,6 +141,17 @@ export default function GiftsPage() {
             actions={
               <Button label="Thêm phần thưởng" variant="primary" size="sm" onClick={() => setModalOpen(true)} />
             }
+          />
+        }
+        filters={
+          <FilterBar
+            filters={GIFT_FILTERS}
+            value={filterValues}
+            onChange={(next) => {
+              setFilterValues({ active: next.active ?? '' });
+              setPage(1);
+              setSelectedIds([]);
+            }}
           />
         }
         controlFooter={

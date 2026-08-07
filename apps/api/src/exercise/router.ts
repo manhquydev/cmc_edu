@@ -120,7 +120,11 @@ const createExerciseInput = z.object({
 
 const exerciseIdInput = z.object({ exerciseId: z.string().uuid() });
 
-const exerciseListInput = z.object({ curriculumUnitId: z.string().uuid().optional() });
+const exerciseListInput = z.object({
+  curriculumUnitId: z.string().uuid().optional(),
+  status: z.enum(['draft', 'published', 'closed']).optional(),
+  type: exerciseTypeSchema.optional(),
+});
 
 export const exerciseRouter = router({
   // `basePdfRef` must come from a prior `POST /upload/exercise-pdf` call —
@@ -193,7 +197,11 @@ export const exerciseRouter = router({
     .input(exerciseListInput)
     .query(async ({ ctx, input }) => {
       const exercises = await ctx.db.exercise.findMany({
-        where: input.curriculumUnitId ? { curriculumUnitId: input.curriculumUnitId } : undefined,
+        where: {
+          ...(input.curriculumUnitId ? { curriculumUnitId: input.curriculumUnitId } : {}),
+          ...(input.status ? { status: input.status } : {}),
+          ...(input.type ? { type: input.type } : {}),
+        },
         orderBy: { createdAt: 'desc' },
       });
       return { items: exercises.map(toExerciseDto) };

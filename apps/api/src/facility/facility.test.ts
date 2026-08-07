@@ -94,6 +94,38 @@ describe('facility.create / facility.list (K7)', () => {
     await expect(sale.facility.list({})).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
+  it('facility.list search filters by name or code (case-insensitive)', async () => {
+    const unique = Date.now();
+    const match = await createTestFacility(`Facility Search Match ${unique}`);
+    const other = await createTestFacility(`Facility Search Other ${unique}`);
+    facilityIdsToDelete.push(match.id, other.id);
+    // Force distinctive code on match via create with explicit code.
+    const admin = appRouter.createCaller(
+      buildStaffContext({ facilityId: match.id, userId: 'admin-facility-search', roles: ['super_admin'] }),
+    );
+    const coded = await admin.facility.create({
+      name: `Coded Search Facility ${unique}`,
+      code: `SRCH${String(unique).slice(-6)}`,
+    });
+    facilityIdsToDelete.push(coded.id);
+
+    const byName = await admin.facility.list({
+      page: 1,
+      pageSize: 50,
+      search: `Coded Search Facility ${unique}`,
+    });
+    expect(byName.items.some((f) => f.id === coded.id)).toBe(true);
+    expect(byName.items.every((f) => f.id !== other.id || f.name.includes(String(unique)))).toBe(true);
+
+    const byCode = await admin.facility.list({
+      page: 1,
+      pageSize: 50,
+      search: `SRCH${String(unique).slice(-6)}`,
+    });
+    expect(byCode.items.some((f) => f.id === coded.id)).toBe(true);
+    expect(byCode.total).toBeGreaterThanOrEqual(1);
+  });
+
   it('facility.create with a duplicate code returns a friendly error, not a raw Prisma P2002', async () => {
     const bootstrap = await createTestFacility('Facility Test Bootstrap Dup Code');
     facilityIdsToDelete.push(bootstrap.id);

@@ -106,6 +106,15 @@ describe('ParentListPage', () => {
     expect(screen.getByText('Nguyễn Văn C')).toBeInTheDocument();
   });
 
+  it('hosts FilterBar in the ListPage control band (role=search), not only as free body chrome', () => {
+    renderWithProviders(<ParentListPage />);
+    // G1 grammar: filters= slot → ControlBar → .o-filter-bar with role="search"
+    const search = screen.getByRole('search', { name: 'Bộ lọc' });
+    expect(search).toBeInTheDocument();
+    // Status filter for the default link-request tab is present in that band
+    expect(within(search).getByText('Trạng thái')).toBeInTheDocument();
+  });
+
   it('hides the "Tất cả phụ huynh" tab for a role without parentAccount.updateEmail', () => {
     sessionRoles = ['giao_vien'];
     renderWithProviders(<ParentListPage />);

@@ -63,6 +63,10 @@ Run **one command per surface**. Stop after each report before the next.
 /ak:xia /home/manhquy/Downloads/odoo-src \
   "search control_panel LEFT CENTER RIGHT selection-swap sticky" --compare
 
+# 2b Search OS (Filters · Group By · Favorites · facets)
+/ak:xia /home/manhquy/Downloads/odoo-src \
+  "search_bar facets SearchBarMenu filters groupBy favorites" --compare
+
 # 3 List
 /ak:xia /home/manhquy/Downloads/odoo-src \
   "list_renderer sticky thead density cell padding" --compare
@@ -82,6 +86,7 @@ Run **one command per surface**. Stop after each report before the next.
 |---------|-----------------------------------------------|
 | Shell | `webclient/webclient*`, `webclient/navbar/**` |
 | CP | `search/layout.xml`, `search/control_panel/**` |
+| Search OS | `search/search_bar/**`, `search/search_bar_menu/**`, `search/search_model.js`, `search/custom_*`, `search/with_search/**`, `search/utils/misc.js` (+ list_controller slots only) |
 | List | `views/list/**` |
 | Form | `views/form/form_controller.*`, `form.variables.scss`, `button_box/**`, `status_bar_buttons/**`, `form_status_indicator/**` |
 | Kanban | `views/kanban/**` |

@@ -2,9 +2,12 @@
 
 ## Status & Provenance
 
-**Status: shipped for admin (unit/static)** — design3 shell + odoo layer + premium
-import retirement on admin (2026-08-06). **Merge/validation still open:** full
-`ui-e2e` + `acceptance:report` re-measure (see rollout plan).
+**Status: shipped for admin** — design3 shell + odoo layer + premium import
+retirement on admin (2026-08-06). **CI:** `typecheck-and-test` + full `ui-e2e`
+green on `develop` PR #75 (`eaa223a`, 2026-08-07). **Acceptance re-measure:**
+done @ `eaa223a` CI journey artifact — **31/38 proven** (7 `no-ui-path`
+ceiling); see `plans/reports/cook-260807-0902-design3-validation-acceptance.md`.
+**Still open:** human visual smoke (see rollout plan).
 
 This document is the **authoritative design language for `apps/admin`** based on a
 source-grounded recreation of Odoo's backend web-client UI. It **supersedes
@@ -176,18 +179,19 @@ Build only when a real surface needs them.
 
 ## Rollout status (as-built)
 
-### Done (unit / static)
+### Done (unit / static + CI)
 
 ✓ **Design language in `@cmc/ui`:** tokens under `.o_web_client`, `OdooNavbar`, `KanbanBoard`, template `o-*` reskin  
 ✓ **Admin shell swap:** SideNav/`AppFrame` production shell replaced; design-lab routes deleted  
 ✓ **Module coverage:** central templates cover most pages; CRM/finance/teaching/classes/enrollment residual sweeps landed  
 ✓ **premium.css retired on admin:** import removed; LMS unchanged  
 ✓ **Static gates:** `scripts/check-ui-frames.mjs` (FilterBar name preserved), unit suites for shell/odoo layer  
+✓ **G1 FilterBar lite + list search wave (2026-08-07):** ControlBar hosts FilterBar; `hasClear` for default-domain selects; optional `search` on major list procedures; **~20/23** ListPages use FilterBar (holdouts: leaderboard, class-placement, refund stub). Full Odoo Search OS (facets/GroupBy/Favorites) remains parked.  
+✓ **Full `ui-e2e` green** on `develop` PR #75 (`fdc2c93`) — journeys aligned to reactive FilterBar (no submit button; combobox labels)
 
-### Still open merge / validation gates
+### Still open validation gates
 
-✗ **Full `ui-e2e` green on the design3 branch** (menu-nav + admin-shell + journey binders rewritten; CI proof required)  
-✗ **`pnpm acceptance:report` re-run** vs Phase 1 per-flow baseline (38 flow ids)  
+✓ **`pnpm acceptance:report` re-measure** @ `eaa223a` (CI `gitDirty:false`) — 31/38 proven, 38 flow ids retained; tool exit 1 only for pre-existing untriaged orphans  
 ✗ **Human visual smoke** after premium drop (toast, ⌘K, CRM list/kanban, cancelled receipt, teaching calendar)  
 ✗ **True class-language retirement** (`ck-*` → `o-*` rename) — optional backlog, not required for shell language  
 
@@ -216,6 +220,8 @@ is navbar chrome only. No token conflict under separate import paths
 - [plans/260805-1920-design3-admin-rollout/plan.md](../plans/260805-1920-design3-admin-rollout/plan.md) — Production rollout plan (phases 1–6)
 - [plans/260806-odoo-ui-component-dissection/plan.md](../plans/260806-odoo-ui-component-dissection/plan.md) — **Ongoing Odoo→CMC dissection process** (pin, wireframes, matrix, gap backlog)
 - [plans/260806-odoo-ui-component-dissection/reports/odoo-19-source-dissection.md](../plans/260806-odoo-ui-component-dissection/reports/odoo-19-source-dissection.md) — Source-grounded wireframes + full component matrix (Odoo 19.0 pin)
+- [plans/reports/ship-20260807-filterbar-search.md](../plans/reports/ship-20260807-filterbar-search.md) — FilterBar + API search ship + CI proof
+- [plans/reports/orchestrate-20260806-234049-ui-component-readiness/report.md](../plans/reports/orchestrate-20260806-234049-ui-component-readiness/report.md) — Pre-ship component readiness baseline
 
 ### Implementation source (authoritative)
 

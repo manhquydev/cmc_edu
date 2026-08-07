@@ -66,8 +66,9 @@ test.describe('ADM-04 journey — nhật ký hệ thống: lọc theo người t
     await menuNav(page, 'Quản trị', 'Nhật ký hệ thống', { role: 'super_admin' });
     await expect(page).toHaveURL(/\/admin\/audit-log/);
 
+    // Reactive FilterBar text field: page debounces 300ms then re-queries
+    // audit.list — there is no "Lọc" submit button after the D4 FilterBar move.
     await page.getByLabel('Người thực hiện').fill(actorA);
-    await page.getByRole('button', { name: 'Lọc' }).click();
 
     // A's entry is shown; B's is filtered out. The exclusion is the real proof
     // the filter works (not merely that A's fresh entry floated to the top).

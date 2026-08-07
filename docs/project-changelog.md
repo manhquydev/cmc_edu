@@ -6,6 +6,32 @@
 
 ---
 
+## [2026-08-07] G1 FilterBar + API list search (design3 admin)
+
+**Context:** After design3 shell promote, list filters were partial (~12/23
+ListPage) and several APIs only accepted page/pageSize. PR #75 on `develop`
+closes the FilterBar hygiene + optional search wave; required CI green at
+`fdc2c93`.
+
+**Product / API:**
+- `FilterBar` in ControlBar with `hasClear` for default-domain selects; audit
+  date range validation before query.
+- Optional `search` (Prisma `contains`, facility/RLS preserved) on major lists:
+  users, facilities, courses, classBatch, pickList, listForGrading, and related
+  surfaces.
+- Admin list FilterBar adoption ~**20/23** (holdouts: leaderboard,
+  class-placement, refund).
+
+**Proof:** `typecheck-and-test` + `ui-e2e` SUCCESS on PR #75. E2e journeys
+ADM-04 and P1-06 aligned to reactive FilterBar. Ship report:
+`plans/reports/ship-20260807-filterbar-search.md`. Full Odoo Search OS still
+parked.
+
+**Still open:** `pnpm acceptance:report` re-measure; human visual smoke; merge
+to `main` when desired.
+
+---
+
 ## [2026-08-02] Day-one authoring: course create UI + CurriculumUnit ensure (local-sim)
 
 **Context:** Timeline MCP e2e (org bootstrap → class → receipt → attendance)

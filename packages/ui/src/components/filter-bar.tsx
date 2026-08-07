@@ -1,6 +1,7 @@
 import { Selector } from '@astryxdesign/core/Selector';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { useSearchParams } from 'react-router-dom';
+import { DateField } from './date-field.js';
 
 export interface FilterDef {
   key: string;
@@ -8,6 +9,12 @@ export interface FilterDef {
   type: 'text' | 'select' | 'date';
   options?: { value: string; label: string }[];
   placeholder?: string;
+  /**
+   * Select only. When false, hides the clear (×) control so empty cannot
+   * fight a page default domain (e.g. pipeline lost=`exclude`). Default true —
+   * empty + placeholder means “all” per G1 Search playbook.
+   */
+  hasClear?: boolean;
 }
 
 export interface FilterBarProps {
@@ -50,16 +57,35 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
       {filters.map((f) => {
         const val = currentValues[f.key] ?? '';
         if (f.type === 'select') {
+          const allowClear = f.hasClear !== false;
+          const opts = f.options ?? [];
+          // Astryx: nullable value requires hasClear:true. Default-domain
+          // selects (hasClear:false) keep a non-null selected option.
+          if (allowClear) {
+            return (
+              <div key={f.key} style={{ width: 160 }}>
+                <Selector
+                  size="sm"
+                  label={f.label}
+                  placeholder={f.placeholder ?? 'Tất cả'}
+                  options={opts}
+                  value={val || null}
+                  onChange={(v: string | null) => handleChange(f.key, v ?? '')}
+                  hasClear
+                />
+              </div>
+            );
+          }
+          const nonNullValue = val || opts[0]?.value || '';
           return (
             <div key={f.key} style={{ width: 160 }}>
               <Selector
                 size="sm"
                 label={f.label}
                 placeholder={f.placeholder ?? 'Tất cả'}
-                options={f.options ?? []}
-                value={val || null}
-                onChange={(v) => handleChange(f.key, v ?? '')}
-                hasClear
+                options={opts}
+                value={nonNullValue}
+                onChange={(v: string) => handleChange(f.key, v)}
               />
             </div>
           );
@@ -67,29 +93,13 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
         if (f.type === 'date') {
           return (
             <div key={f.key} style={{ width: 160 }}>
-              <label className="o-filter-date">
-                <span className="o-label-upper" style={{ display: 'block', marginBottom: 4 }}>
-                  {f.label}
-                </span>
-                <input
-                  type="date"
-                  className="o-filter-date-input"
-                  aria-label={f.label}
-                  value={val}
-                  onChange={(e) => handleChange(f.key, e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: 34,
-                    padding: '0 10px',
-                    borderRadius: 'var(--cmc-radius-control)',
-                    border: '1px solid var(--cmc-border)',
-                    background: 'var(--cmc-surface-sunken)',
-                    color: 'var(--cmc-text)',
-                    fontSize: 13,
-                    fontFamily: 'var(--cmc-font-sans)',
-                  }}
-                />
-              </label>
+              <DateField
+                id={`o-filter-${f.key}`}
+                label={f.label}
+                value={val}
+                onChange={(v) => handleChange(f.key, v)}
+                size="sm"
+              />
             </div>
           );
         }

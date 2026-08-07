@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // Phase-04 super-admin-completion: audit-log viewer — bảng ai-làm-gì-khi-nào
@@ -58,6 +58,11 @@ describe('AuditLogPage', () => {
     sessionRoles = ['super_admin'];
     auditListState.data = { items: [ROW_A], total: 1, page: 1, pageSize: 20 };
     listQuerySpy.mockClear();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders audit rows bound to audit.list.useQuery', () => {
@@ -67,15 +72,58 @@ describe('AuditLogPage', () => {
     expect(screen.getByText('Facility')).toBeInTheDocument();
   });
 
-  it('applies actor/action/entity filters to the audit.list query on submit', () => {
+  it('applies actor/action/entity filters to audit.list after text debounce', async () => {
     renderWithProviders(<AuditLogPage />);
     fireEvent.change(screen.getByLabelText('Người thực hiện'), { target: { value: 'staff-2' } });
     fireEvent.change(screen.getByLabelText('Loại việc'), { target: { value: 'user.updateRoles' } });
     fireEvent.change(screen.getByLabelText('Đối tượng'), { target: { value: 'AppUser' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lọc' }));
 
-    const lastCallArgs = listQuerySpy.mock.calls.at(-1)?.[0];
-    expect(lastCallArgs).toMatchObject({ actor: 'staff-2', action: 'user.updateRoles', entity: 'AppUser', page: 1 });
+    // Immediate keystrokes must not hit the server with partial free-text.
+    const midCall = listQuerySpy.mock.calls.at(-1)?.[0] as { actor?: string } | undefined;
+    expect(midCall?.actor).toBeUndefined();
+
+    await vi.advanceTimersByTimeAsync(350);
+
+    await waitFor(() => {
+      const lastCallArgs = listQuerySpy.mock.calls.at(-1)?.[0];
+      expect(lastCallArgs).toMatchObject({
+        actor: 'staff-2',
+        action: 'user.updateRoles',
+        entity: 'AppUser',
+        page: 1,
+      });
+    });
+  });
+
+  it('maps date fields to inclusive ICT day bounds for audit.list', () => {
+    renderWithProviders(<AuditLogPage />);
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-08-06' } });
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2026-08-06' } });
+
+    const lastCallArgs = listQuerySpy.mock.calls.at(-1)?.[0] as {
+      createdFrom?: string;
+      createdTo?: string;
+    };
+    // ICT midnight 2026-08-06 → 2026-08-05T17:00:00.000Z
+    expect(lastCallArgs.createdFrom).toBe('2026-08-05T17:00:00.000Z');
+    // Last ms before next ICT midnight
+    expect(lastCallArgs.createdTo).toBe('2026-08-06T16:59:59.999Z');
+  });
+
+  it('blocks inverted date range with a warning and does not query audit.list with both bounds', () => {
+    renderWithProviders(<AuditLogPage />);
+    listQuerySpy.mockClear();
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-08-10' } });
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2026-08-01' } });
+
+    expect(screen.getByText('Khoảng ngày không hợp lệ')).toBeInTheDocument();
+    // Intermediate one-sided `from` may query once; never send inverted both-bounds.
+    const bothBounds = listQuerySpy.mock.calls.filter((c) => {
+      const arg = c[0] as { createdFrom?: string; createdTo?: string };
+      return Boolean(arg?.createdFrom && arg?.createdTo);
+    });
+    expect(bothBounds).toHaveLength(0);
+    expect(screen.queryByText('facility.update')).not.toBeInTheDocument();
   });
 
   it('paginates via Trang sau', () => {

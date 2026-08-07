@@ -8,6 +8,7 @@ import { badRequest, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 import { nextClassBatchCode } from './class-code.js';
 import { MAX_CLASS_SPAN_DAYS, planClassSessions, spanDaysInclusive } from './generate-sessions.js';
+import { PROGRAM_VALUES } from './program.js';
 import { assertNoRoomConflict } from './room-conflict.js';
 import { compareDateOnly, ictToUtc, isValidDateOnly, isValidTimeOfDay } from '@cmc/domain-time';
 
@@ -44,6 +45,8 @@ const classBatchListInput = z.object({
   courseId: z.string().uuid().optional(),
   page: z.number().int().positive().default(1),
   pageSize: z.number().int().positive().max(100).default(20),
+  /** Matches class code, status, program, or related course name — G1 FilterBar. */
+  search: z.string().trim().min(1).max(100).optional(),
 });
 
 const classBatchGetInput = z.object({
@@ -254,7 +257,30 @@ export const classBatchRouter = router({
     .input(classBatchListInput)
     .query(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
-      const where = { facilityId, ...(input.courseId ? { courseId: input.courseId } : {}) };
+      const term = input.search;
+      const programHit =
+        term && (PROGRAM_VALUES as readonly string[]).includes(term.toUpperCase())
+          ? (term.toUpperCase() as (typeof PROGRAM_VALUES)[number])
+          : undefined;
+
+      const where = {
+        facilityId,
+        ...(input.courseId ? { courseId: input.courseId } : {}),
+        ...(term
+          ? {
+              OR: [
+                { code: { contains: term, mode: 'insensitive' as const } },
+                { status: { contains: term, mode: 'insensitive' as const } },
+                ...(programHit ? [{ program: programHit }] : []),
+                {
+                  course: {
+                    name: { contains: term, mode: 'insensitive' as const },
+                  },
+                },
+              ],
+            }
+          : {}),
+      };
 
       return withFacility(ctx.db, facilityId, async (tx) => {
         const [rows, total] = await Promise.all([

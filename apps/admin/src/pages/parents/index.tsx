@@ -7,8 +7,8 @@ import {
   DataTable,
   Dialog,
   DialogHeader,
+  FilterBar,
   HStack,
-  LineIcon,
   ListPage,
   PageHeader,
   Selector,
@@ -18,7 +18,7 @@ import {
   TextInput,
   useToast,
 } from '@cmc/ui';
-import type { TableColumn } from '@cmc/ui';
+import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -68,9 +68,39 @@ const RELATION_OPTIONS = [
 // Defaults to `missing` — the actionable subset (locked out of LMS login),
 // same reasoning as `guardian.listPendingLinks` defaulting its status filter
 // to `pending`: staff open this tab to fix something, not to browse everyone.
-const EMAIL_FILTER_OPTIONS: { value: EmailFilter; label: string }[] = [
-  { value: 'missing', label: 'Chưa có email (bị khoá LMS)' },
-  { value: 'all', label: 'Tất cả' },
+const LINK_STATUS_FILTERS: FilterDef[] = [
+  {
+    key: 'status',
+    label: 'Trạng thái',
+    type: 'select',
+    options: [
+      { value: 'pending', label: 'Chờ duyệt' },
+      { value: 'approved', label: 'Đã duyệt' },
+      { value: 'rejected', label: 'Từ chối' },
+    ],
+    // Default domain is pending — hide clear so × does not fight `|| 'pending'`.
+    hasClear: false,
+  },
+];
+
+const PARENT_DIR_FILTERS: FilterDef[] = [
+  {
+    key: 'q',
+    label: 'Tìm kiếm',
+    type: 'text',
+    placeholder: 'Tìm theo SĐT hoặc email…',
+  },
+  {
+    key: 'email',
+    label: 'Email LMS',
+    type: 'select',
+    options: [
+      { value: 'missing', label: 'Chưa có email' },
+      { value: 'all', label: 'Tất cả' },
+    ],
+    // Default domain is missing-email; clear would snap back via page onChange.
+    hasClear: false,
+  },
 ];
 
 const ALL_PARENTS_PAGE_SIZE = 20;
@@ -101,12 +131,13 @@ const BASE_COLUMNS: TableColumn<LinkRow>[] = [
 function LinkRequestsTab({
   canUpdateEmail,
   onOpenEmailModal,
+  filterStatus,
 }: {
   canUpdateEmail: boolean;
   onOpenEmailModal: (row: LinkRow) => void;
+  /** Hosted in ListPage.filters (ControlBar) — not inside the tab body. */
+  filterStatus: FilterStatus;
 }) {
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('pending');
-
   // Approve modal state
   const [approveRow, setApproveRow] = useState<LinkRow | null>(null);
   const [relation, setRelation] = useState<string>('guardian');
@@ -207,30 +238,11 @@ function LinkRequestsTab({
 
   return (
     <>
-      <HStack padding={4} gap={2}>
-        <Text type="supporting" size="sm">
-          Lọc:
+      {data && (
+        <Text type="supporting" size="sm" style={{ padding: '4px var(--cmc-keyline-x)' }}>
+          {data.total} yêu cầu
         </Text>
-        <div style={{ width: 160 }}>
-          <Selector
-            label="Lọc theo trạng thái"
-            isLabelHidden
-            value={filterStatus}
-            onChange={(v) => setFilterStatus((v as FilterStatus) ?? 'pending')}
-            options={[
-              { value: 'pending', label: 'Chờ duyệt' },
-              { value: 'approved', label: 'Đã duyệt' },
-              { value: 'rejected', label: 'Từ chối' },
-            ]}
-            size="sm"
-          />
-        </div>
-        {data && (
-          <Text type="supporting" size="sm">
-            {data.total} yêu cầu
-          </Text>
-        )}
-      </HStack>
+      )}
 
       <DataTable<LinkRow>
         columns={columns}
@@ -329,17 +341,14 @@ function LinkRequestsTab({
  */
 function AllParentsTab({
   onOpenEmailModal,
+  debouncedSearch,
+  emailFilter,
 }: {
   onOpenEmailModal: (row: ParentRow) => void;
+  /** Hosted in ListPage.filters (ControlBar) — not inside the tab body. */
+  debouncedSearch: string;
+  emailFilter: EmailFilter;
 }) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  const [emailFilter, setEmailFilter] = useState<EmailFilter>('missing');
   const [page, setPage] = useState(1);
 
   // Narrowing/widening the result set can strand the user on a now
@@ -397,35 +406,11 @@ function AllParentsTab({
 
   return (
     <Stack gap={2}>
-      <HStack padding={4} gap={2} align="center">
-        <div style={{ width: 220 }}>
-          <TextInput
-            label="Tìm kiếm"
-            isLabelHidden
-            placeholder="Tìm theo SĐT hoặc email…"
-            value={searchTerm}
-            onChange={setSearchTerm}
-            hasClear
-            size="sm"
-            startIcon={<LineIcon name="search" size={14} />}
-          />
-        </div>
-        <div style={{ width: 220 }}>
-          <Selector
-            label="Lọc theo email"
-            isLabelHidden
-            value={emailFilter}
-            onChange={(v) => setEmailFilter((v as EmailFilter) ?? 'missing')}
-            options={EMAIL_FILTER_OPTIONS}
-            size="sm"
-          />
-        </div>
-        {data && (
-          <Text type="supporting" size="sm">
-            {total} phụ huynh
-          </Text>
-        )}
-      </HStack>
+      {data && (
+        <Text type="supporting" size="sm" style={{ padding: '4px var(--cmc-keyline-x)' }}>
+          {total} phụ huynh
+        </Text>
+      )}
 
       <DataTable<ParentRow>
         columns={columns}
@@ -468,6 +453,17 @@ export default function ParentListPage() {
   const { canDo } = useSession();
   const canUpdateEmail = canDo('parentAccount', 'updateEmail');
   const [activeTab, setActiveTab] = useState<'requests' | 'all'>('requests');
+
+  // Filter state lives on the page so FilterBar can host in ListPage.filters
+  // (ControlBar) — G1 grammar: never mount FilterBar inside tab/body content.
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('pending');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+  const [emailFilter, setEmailFilter] = useState<EmailFilter>('missing');
 
   const utils = trpc.useUtils();
 
@@ -516,6 +512,24 @@ export default function ParentListPage() {
     updateEmailMut.mutate({ parentAccountId: emailTarget.parentAccountId, email: emailInput });
   }
 
+  const listFilters =
+    activeTab === 'requests' ? (
+      <FilterBar
+        filters={LINK_STATUS_FILTERS}
+        value={{ status: filterStatus }}
+        onChange={(next) => setFilterStatus((next.status as FilterStatus) || 'pending')}
+      />
+    ) : (
+      <FilterBar
+        filters={PARENT_DIR_FILTERS}
+        value={{ q: searchTerm, email: emailFilter }}
+        onChange={(next) => {
+          setSearchTerm(next.q ?? '');
+          setEmailFilter((next.email as EmailFilter) || 'missing');
+        }}
+      />
+    );
+
   return (
     <>
       <ListPage
@@ -526,6 +540,7 @@ export default function ParentListPage() {
             breadcrumbs={[{ label: 'Quản trị' }, { label: 'Phụ huynh' }]}
           />
         }
+        filters={listFilters}
       >
         <CmcTabs
           activeTab={activeTab}
@@ -538,6 +553,7 @@ export default function ParentListPage() {
                 <LinkRequestsTab
                   canUpdateEmail={canUpdateEmail}
                   onOpenEmailModal={openEmailModalFromLink}
+                  filterStatus={filterStatus}
                 />
               ),
             },
@@ -549,7 +565,13 @@ export default function ParentListPage() {
                   {
                     id: 'all',
                     label: 'Tất cả phụ huynh',
-                    content: <AllParentsTab onOpenEmailModal={openEmailModalFromParent} />,
+                    content: (
+                      <AllParentsTab
+                        onOpenEmailModal={openEmailModalFromParent}
+                        debouncedSearch={debouncedSearch}
+                        emailFilter={emailFilter}
+                      />
+                    ),
                   },
                 ]
               : []),

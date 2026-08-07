@@ -2,13 +2,14 @@
 // Create dialog was a documented gap (acceptance DOCUMENTED_GAPS.course.create):
 // API course.create existed while this page was list-only.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Banner,
   Button,
   DataTable,
   Dialog,
   DialogHeader,
+  FilterBar,
   HStack,
   ListPage,
   ListPagination,
@@ -17,7 +18,7 @@ import {
   Stack,
   TextInput,
 } from '@cmc/ui';
-import type { TableColumn } from '@cmc/ui';
+import type { FilterDef, TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 /** Mirrors apps/api/src/class/program.ts PROGRAM_VALUES — keep labels user-facing. */
@@ -26,6 +27,22 @@ const PROGRAM_OPTIONS = [
   { value: 'BRIGHT_IG', label: 'BRIGHT_IG' },
   { value: 'BLACK_HOLE', label: 'BLACK_HOLE' },
 ] as const;
+
+const COURSE_FILTERS: FilterDef[] = [
+  {
+    key: 'q',
+    label: 'Tìm kiếm',
+    type: 'text',
+    placeholder: 'Tên khoá học…',
+  },
+  {
+    key: 'program',
+    label: 'Chương trình',
+    type: 'select',
+    options: PROGRAM_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+    placeholder: 'Tất cả',
+  },
+];
 
 interface CourseRow {
   id: string;
@@ -52,11 +69,27 @@ export default function CourseListPage() {
   const [program, setProgram] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [programFilter, setProgramFilter] = useState('');
   const pageSize = 20;
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, programFilter]);
 
   const { data, isLoading, error } = trpc.course.list.useQuery({
     page,
     pageSize,
+    ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    ...(programFilter
+      ? { program: programFilter as 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE' }
+      : {}),
   });
 
   const createMut = trpc.course.create.useMutation({
@@ -96,6 +129,16 @@ export default function CourseListPage() {
                 onClick={() => setCreateOpen(true)}
               />
             }
+          />
+        }
+        filters={
+          <FilterBar
+            filters={COURSE_FILTERS}
+            value={{ q: searchInput, program: programFilter }}
+            onChange={(next) => {
+              setSearchInput(next.q ?? '');
+              setProgramFilter(next.program ?? '');
+            }}
           />
         }
         controlFooter={

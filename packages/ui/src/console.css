@@ -377,7 +377,10 @@
   background: #fff;
   font-variant-numeric: tabular-nums;
 }
-.console-list-table thead th {
+/* Sticky list headers — `.console-list-table` (native lists) and
+   `.console-list thead th` (DataTable → Astryx Table under overflow:auto). */
+.console-list-table thead th,
+.console-list thead th {
   position: sticky;
   top: 0;
   z-index: 1;

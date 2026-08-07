@@ -1,7 +1,7 @@
 ---
 phase: 5
 title: "Phase 5: Component Library Completion"
-status: todo
+status: completed
 priority: P2
 effort: "1d"
 dependencies: [1, 2, 3]
@@ -167,16 +167,16 @@ file rather than creating new component surface.
 
 ## Success Criteria
 
-- [ ] Navbar brand confirmed already correct (verification note, zero code change).
-- [ ] `ViewSwitcher` and `FormDialog` decisions made and documented either way
+- [x] Navbar brand confirmed already correct (verification note, zero code change).
+- [x] `ViewSwitcher` and `FormDialog` decisions made and documented either way
       (extracted with tests, or explicitly declined with a one-sentence reason
       grounded in what was actually read).
-- [ ] `ControlBar`'s slot structure unchanged; any value-level fix is backed
+- [x] `ControlBar`'s slot structure unchanged; any value-level fix is backed
       by a specific Phase 3 audit finding, not a general "feels soft" judgment.
-- [ ] Sticky `<thead>` has e2e coverage.
-- [ ] Deferred items list is explicit and complete (leaderboard, refund,
+- [x] Sticky `<thead>` has e2e coverage.
+- [x] Deferred items list is explicit and complete (leaderboard, refund,
       class-placement, Search OS) with the actual blocker named for each.
-- [ ] All CI gates green (including `pnpm --filter @cmc/admin build` and the
+- [x] All CI gates green (including `pnpm --filter @cmc/admin build` and the
       `PLAYWRIGHT_UI=1` e2e command); `detect_changes()` blast radius matches
       this phase's (now much smaller) actual file list.
 
@@ -193,3 +193,44 @@ file rather than creating new component surface.
   match real consumers as originally specified) — the evaluate-first
   structure exists to make "no extraction" a legitimate, expected outcome,
   not a failure to complete the phase.
+
+
+## Completion Notes
+
+**Completed:** 2026-08-07 on `feature/cmc-console-design-system-rebrand`.
+
+### Decisions / verifications
+
+1. **Navbar brand** — **no work.** `console-navbar.tsx` resolves
+   `brand ?? activeApp?.label ?? apps[0].label ?? 'CMC EDU'`. E2e
+   `admin-shell.ui.spec.ts` asserts `.console-brand` → `Tổng quan` on cockpit.
+
+2. **ViewSwitcher extraction** — **declined (YAGNI).** `pipeline.tsx` uses
+   `'kanban' | 'table'` without toolbar role; `schedule.tsx` uses
+   `'list' | 'calendar' | 'kanban' | 'week'` with `role="toolbar"`. Shared
+   chrome is already one CSS class (`.console-view-switcher`). Zero prior
+   `ViewSwitcher` references. Extraction would not remove meaningful logic.
+
+3. **FormDialog** — **declined.** All CRM dialogs already use
+   `Dialog purpose="form"` + `DialogHeader` (+ existing `ConfirmDialog`). A
+   fourth wrapper adds no shared contract; footer HStacks are thin and
+   dialog-specific enough that a shared footer piece is not worth a public API.
+
+4. **ControlBar densify** — **no value change.** Phase 3 audit found no
+   control-panel spacing gap. `console-cp-sheet.test.ts` already locks
+   `padding: 8px` densify under shell. Slot props unchanged.
+
+5. **Sticky thead** — **done.** CSS now targets both `.console-list-table thead th`
+   and `.console-list thead th` (DataTable/Astryx path). Unit:
+   `console-list-sticky.test.ts`. E2e: `admin-shell.ui.spec.ts` facilities list
+   asserts `getComputedStyle(th).position === 'sticky'` (admin baseURL `:4173`,
+   super_admin cookie).
+
+### Deferred (explicit, not dropped)
+
+| Item | Blocker |
+|------|---------|
+| `leaderboard.tsx` FilterBar | Backend ranked-aggregate endpoint does not exist |
+| `refund.tsx` FilterBar | Receipt-search/pick + approval UX spec does not exist |
+| `class-placement.tsx` | Not a gap — custom lookup wizard, not list-filter archetype |
+| Odoo Search OS (facets/GroupBy/Favorites) | Already parked; stays parked |

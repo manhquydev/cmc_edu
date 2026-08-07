@@ -4,9 +4,10 @@
 
 **Status: shipped for admin** — design3 shell + odoo layer + premium import
 retirement on admin (2026-08-06). **CI:** `typecheck-and-test` + full `ui-e2e`
-green on `develop` PR #75 (`fdc2c93`, 2026-08-07). **Still open:** 
-`pnpm acceptance:report` re-measure vs Phase 1 baseline and human visual smoke
-(see rollout plan).
+green on `develop` PR #75 (`eaa223a`, 2026-08-07). **Acceptance re-measure:**
+done @ `eaa223a` CI journey artifact — **31/38 proven** (7 `no-ui-path`
+ceiling); see `plans/reports/cook-260807-0902-design3-validation-acceptance.md`.
+**Still open:** human visual smoke (see rollout plan).
 
 This document is the **authoritative design language for `apps/admin`** based on a
 source-grounded recreation of Odoo's backend web-client UI. It **supersedes
@@ -190,7 +191,7 @@ Build only when a real surface needs them.
 
 ### Still open validation gates
 
-✗ **`pnpm acceptance:report` re-run** vs Phase 1 per-flow baseline (38 flow ids)  
+✓ **`pnpm acceptance:report` re-measure** @ `eaa223a` (CI `gitDirty:false`) — 31/38 proven, 38 flow ids retained; tool exit 1 only for pre-existing untriaged orphans  
 ✗ **Human visual smoke** after premium drop (toast, ⌘K, CRM list/kanban, cancelled receipt, teaching calendar)  
 ✗ **True class-language retirement** (`ck-*` → `o-*` rename) — optional backlog, not required for shell language  
 

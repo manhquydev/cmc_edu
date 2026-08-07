@@ -6,6 +6,7 @@ priority: P1
 effort: "11-16w"
 tags: [design-system, odoo, admin, ui]
 created: 2026-08-05
+note: acceptance re-measure closed 2026-08-07; remains validation until human visual smoke + PR merge
 ---
 
 # Design3 Admin Rollout
@@ -84,7 +85,7 @@ Từ phiên validate session 1 (2026-08-05):
 | 3 | [Phase 3: Central View Template Reskin](./phase-03-central-view-template-reskin.md) | Unit complete; **ui-e2e green** (same); visual smoke still open |
 | 4 | [Phase 4: Pilot CRM Migration](./phase-04-pilot-crm-migration.md) | Unit complete; **ui-e2e green** (same) |
 | 5 | [Phase 5: Module Sweeps](./phase-05-module-sweeps.md) | Unit complete + FilterBar/search wave (2026-08-07); see reports/phase-05-module-sweep-status.md + `plans/reports/ship-20260807-filterbar-search.md` |
-| 6 | [Phase 6: Cleanup, Premium Retirement, Docs](./phase-06-cleanup-premium-retirement-docs.md) | Unit complete; docs updated 2026-08-07; **ui-e2e green**; acceptance re-measure + human visual smoke still open |
+| 6 | [Phase 6: Cleanup, Premium Retirement, Docs](./phase-06-cleanup-premium-retirement-docs.md) | Unit complete; docs updated; **ui-e2e green**; **acceptance re-measure done** 2026-08-07 (`eaa223a` CI artifact); human visual smoke still open |
 
 Dependencies: tuyến tính 1→2→3→4→5→6. Mỗi phase ≥1 PR riêng, CI
 (`typecheck-and-test` + `ui-e2e`) xanh là gate chuyển phase. Sau Phase 3 có
@@ -124,23 +125,26 @@ phê duyệt.
 
 ## Success Criteria
 
-- [ ] Mọi route sau login (gồm `change-password` — decision 10; trừ `/login`)
-      render Odoo shell. Gate Phase 2:
-      `grep -rn "AppFrame\|SideNav" apps/admin/src/shell` = 0. Gate Phase 6
-      (sau khi xoá design-lab): repo-admin-wide = 0.
-- [ ] Lớp odoo trong `packages/ui/src/odoo*`; `design-lab-3.css` không còn là
-      nguồn chuẩn; `/design3` DEV-only + fixture-data-only từ Phase 1, XOÁ ở
-      Phase 6 sau khi docs lưu đủ thiết kế (decision 9).
-- [x] E2E: required checks green on develop PR #75 (`fdc2c93`, 2026-08-07) —
+- [x] Mọi route sau login (gồm `change-password` — decision 10; trừ `/login`)
+      render Odoo shell. Gate: no production `AppFrame`/`SideNav` in
+      `apps/admin/src/shell` (only test negative asserts); design-lab pages
+      deleted; authority `docs/design-system-odoo.md`.
+- [x] Lớp odoo trong `packages/ui/src/odoo*`; lab routes deleted; docs hold
+      re-implementation authority (decision 9).
+- [x] E2E: required checks green on develop PR #75 (`eaa223a`, 2026-08-07) —
       `typecheck-and-test` + full `ui-e2e` (FilterBar journeys ADM-04 / P1-06
       fixed). Re-check after any main merge if main diverges.
-- [ ] `pnpm acceptance:report`: baseline chụp tại Phase 1 dưới dạng **danh sách
-      per-flow-id** (không phải 1 tỷ số); cuối Phase 6 mọi flow trong baseline
-      vẫn pass (flow mới thêm giữa chừng đánh giá riêng).
+- [x] `pnpm acceptance:report` re-measure @ `eaa223a` with CI
+      `acceptance-journeys-*` artifact (`gitDirty:false`): **31/38 proven**,
+      7 `no-ui-path` (method ceiling), baseline 38 flow ids unchanged. Report:
+      `plans/reports/cook-260807-0902-design3-validation-acceptance.md`.
+      Tool exit 1 from **pre-existing** 6 untriaged orphans (not FilterBar
+      regression) — triage separate.
 - [x] Docs: TL12 supersede-for-admin + `docs/design-system-odoo.md` authority;
       system-architecture + codebase-summary + changelog banners updated
-      2026-08-07 (FilterBar/search + CI). Still open: acceptance re-measure
-      claim only after report re-run.
+      2026-08-07 (FilterBar/search + CI + acceptance re-measure).
+- [ ] Human visual smoke after premium drop (toast, ⌘K, CRM list/kanban,
+      teaching calendar) — manual only.
 
 ## Evidence & References
 

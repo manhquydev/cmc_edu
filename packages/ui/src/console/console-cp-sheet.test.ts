@@ -17,7 +17,7 @@ function ruleBlock(selector: string): string | null {
   return m ? m[1] : null;
 }
 
-describe('odoo.css ControlBar densify + form sheet', () => {
+describe('console.css ControlBar densify + form sheet', () => {
   it('flattens page-header inside control-bar under shell', () => {
     const body = ruleBlock('.o_web_client .console-control-bar .console-page-header');
     expect(body, 'expected CP-nested page-header rule').toBeTruthy();

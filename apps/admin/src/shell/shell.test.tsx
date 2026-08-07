@@ -94,7 +94,7 @@ function renderShell(route = '/cockpit') {
   );
 }
 
-describe('Shell (Odoo chrome)', () => {
+describe('Shell (Console chrome)', () => {
   beforeEach(() => {
     sessionState.me = {
       userId: 'u1',

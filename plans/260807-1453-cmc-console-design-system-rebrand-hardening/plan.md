@@ -294,7 +294,7 @@ because a later phase silently assumes it.
 | 3 | [Phase 3: Fresh Source-Grounded Audit](./phase-03-fresh-source-grounded-audit.md) | 3rd | Completed |
 | 4 | [Phase 4: Live Browser Visual Smoke](./phase-04-live-browser-visual-smoke.md) | **6th (moved)** | Pending |
 | 5 | [Phase 5: Component Library Completion](./phase-05-component-library-completion.md) | 4th | Completed |
-| 6 | [Phase 6: Codebase Cleanup](./phase-06-codebase-cleanup.md) | 5th | Pending |
+| 6 | [Phase 6: Codebase Cleanup](./phase-06-codebase-cleanup.md) | 5th | Completed |
 | 7 | [Phase 7: Docs and Cross-Plan Consolidation](./phase-07-docs-and-cross-plan-consolidation.md) | 7th | Pending |
 
 **Red-team correction:** file numbers no longer match execution order.

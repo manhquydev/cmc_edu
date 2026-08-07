@@ -1,7 +1,7 @@
 ---
 phase: 6
 title: "Phase 6: Codebase Cleanup"
-status: todo
+status: completed
 priority: P2
 effort: "2-3d"
 dependencies: [1, 2, 5]
@@ -112,15 +112,15 @@ Verification-and-deletion phase — no new abstractions, no behavior change.
 
 ## Success Criteria
 
-- [ ] `git ls-files | grep -i odoo` output contains only justified hits, each
+- [x] `git ls-files | grep -i odoo` output contains only justified hits, each
       accounted for in this phase's notes under bucket (a) historical,
       (b) deleted, or (c) owned by Phase 7 — with
       `design-system/cmc-edu/ODOO-COMPONENT-MAP.md` explicitly in (c).
-- [ ] No orphaned CSS selectors remain in `console.css` (or each surviving
+- [x] No orphaned CSS selectors remain in `console.css` (or each surviving
       "zero-hit" selector has a documented reason, e.g. dynamic class
       construction).
-- [ ] All CI gates green.
-- [ ] `detect_changes()` confirms a deletion-only (or near-zero-behavior) diff.
+- [x] All CI gates green.
+- [x] `detect_changes()` confirms a deletion-only (or near-zero-behavior) diff.
 
 ## Risk Assessment
 
@@ -141,3 +141,19 @@ Verification-and-deletion phase — no new abstractions, no behavior change.
   own byproducts. If the `find -iname '*odoo*'` sweep surfaces unrelated old
   cruft (e.g., something from a pre-2026-08 exploration), note it as a
   separate future item rather than pulling it into this diff.
+
+
+## Completion Notes
+
+**Completed:** 2026-08-07.
+
+See `notes/phase-06-odoo-path-classification.md` for full (a)/(b)/(c) buckets.
+
+**Deleted:** 13 orphan CSS rule groups (dead breadcrumb/list-table/control-panel
+chrome with zero emitters). Sticky thead retained on `.console-list thead th`.
+
+**Phase 7 owns:** `design-system/cmc-edu/ODOO-COMPONENT-MAP.md`.
+
+**SideNav/AppFrame:** still exported; no dead imports found.
+
+**Phase 5:** no extraction leftovers.

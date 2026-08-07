@@ -19,7 +19,7 @@ import { useCallback, useMemo, useState } from 'react';
 const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').trim();
 
 /**
- * Admin application shell — Odoo navbar + app-switcher (design3).
+ * Admin application shell — Console navbar + app-switcher (design3).
  * Session, permission-gated nav (visibleModulesFor), CommandPalette, and
  * systray live here. Page content renders in <main class="console-main">.
  *

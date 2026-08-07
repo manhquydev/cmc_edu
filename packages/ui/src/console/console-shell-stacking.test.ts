@@ -18,10 +18,10 @@ function ruleBlock(selector: string): string | null {
   return m ? m[1] : null;
 }
 
-describe('odoo.css shell stacking (navbar over main content)', () => {
+describe('console.css shell stacking (navbar over main content)', () => {
   it('gives .console-navbar a shell z-index above page chrome', () => {
     const body = ruleBlock('.console-navbar');
-    expect(body, 'expected .console-navbar {…} in odoo.css').toBeTruthy();
+    expect(body, 'expected .console-navbar {…} in console.css').toBeTruthy();
     expect(body).toMatch(/position\s*:\s*relative/);
     const z = body!.match(/z-index\s*:\s*(\d+)/);
     expect(z, 'expected .console-navbar z-index').toBeTruthy();

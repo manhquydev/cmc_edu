@@ -171,19 +171,6 @@
 .console-systray-badge:hover {
   background: var(--console-navbar-entry-hover-bg);
 }
-.console-badge-count {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  min-width: 14px;
-  padding: 0 3px;
-  border-radius: 999px;
-  background: var(--console-success);
-  color: #fff;
-  font-size: 10px;
-  line-height: 14px;
-  text-align: center;
-}
 /* Vertical dropdown list, matching Odoo's real app-switcher (never an icon
    grid — desktop and mobile both render a plain vertical item list). */
 .console-app-switcher-menu {
@@ -216,64 +203,11 @@
 .console-app-switcher-tile:hover {
   background: var(--console-gray-100);
 }
-/* ------------------------------------------------------------------ */
-/* Control panel (.o_control_panel analogue) */
-/* ------------------------------------------------------------------ */
-.console-control-panel {
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-  gap: 16px;
-  padding: 8px var(--console-spacer);
-  background: #fff;
-  border-bottom: 1px solid var(--console-gray-300);
-}
-.console-breadcrumbs {
-  display: flex;
-  align-items: center;
-  padding: 0 var(--console-breadcrumb-padding-x);
-  font-size: var(--console-font-size-base);
-  white-space: nowrap;
-}
-.console-breadcrumb-sep {
-  margin: 0 6px;
-  color: var(--console-gray-600);
-}
-.console-breadcrumb-current {
-  font-weight: 600;
-}
-.console-breadcrumb-link {
-  background: none;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  text-decoration: none;
-}
-.console-breadcrumb-link:hover {
-  text-decoration: underline;
-}
+/* ------------------------------------------------------------------ */ /* Control panel (.o_control_panel analogue) */ /* ------------------------------------------------------------------ */
+
 /* Odoo anchors create/action buttons on the left, beside the breadcrumb —
    not grouped with the view-switcher on the right. */
-.console-panel-buttons {
-  display: flex;
-  align-items: center;
-}
-.console-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1 1 auto;
-  max-width: 360px;
-  padding: 4px 10px;
-  background: var(--console-gray-100);
-  border: 1px solid var(--console-gray-300);
-  border-radius: var(--console-radius-sm);
-  color: var(--console-gray-600);
-  cursor: pointer;
-  font-size: var(--console-font-size-sm);
-}
+
 .console-actions {
   display: flex;
   align-items: center;
@@ -303,14 +237,6 @@
 .console-view-switcher button.is-active {
   background: var(--console-gray-100);
   color: var(--console-brand-purple);
-}
-/* ------------------------------------------------------------------ */
-/* Content area */
-/* ------------------------------------------------------------------ */
-.console-content {
-  flex: 1 1 auto;
-  padding: var(--console-spacer);
-  overflow-y: auto;
 }
 /* ------------------------------------------------------------------ */
 /* Statusbar — interlocking chevron/arrow buttons (clip-path polygon) */
@@ -359,7 +285,7 @@
   z-index: 1;
 }
 /* Two-layer emphasis: fill + inset border-ring sharing the same clip-path,
-   instead of a flat color swap only. */
+instead of a flat color swap only. */
 .console-statusbar-step.is-active::after {
   content: '';
   position: absolute;
@@ -368,18 +294,8 @@
   border: 1px solid rgba(255, 255, 255, 0.35);
   pointer-events: none;
 }
-/* ------------------------------------------------------------------ */
-/* List view (.o_list_renderer analogue) */
-/* ------------------------------------------------------------------ */
-.console-list-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  font-variant-numeric: tabular-nums;
-}
-/* Sticky list headers — `.console-list-table` (native lists) and
-   `.console-list thead th` (DataTable → Astryx Table under overflow:auto). */
-.console-list-table thead th,
+/* ------------------------------------------------------------------ */ /* List view (.o_list_renderer analogue) */ /* ------------------------------------------------------------------ */
+/* Sticky list headers — `` (native lists) and `.console-list thead th` (DataTable → Astryx Table under overflow:auto). */ thead th,
 .console-list thead th {
   position: sticky;
   top: 0;
@@ -391,29 +307,11 @@
   color: var(--console-gray-900);
   border-bottom: 1px solid var(--console-gray-300);
 }
-/* Depth cue under the sticky header, matching Odoo's inset shadow on the
-   first data row. */
-.console-list-table tbody tr:first-child td {
+/* Depth cue under the sticky header {
   box-shadow: inset 0 5px 10px -4px rgba(0, 0, 0, 0.15);
 }
-.console-list-table td {
-  padding: var(--console-list-cell-padding-y) var(--console-list-cell-padding-x);
-  border-bottom: 1px solid var(--console-gray-200);
-  font-size: var(--console-font-size-sm);
-}
 /* Zebra striping on ungrouped rows, matching Odoo's table-striped default. */
-.console-list-row:nth-child(odd) td {
-  background: var(--console-gray-100);
-}
-.console-list-row:hover td {
-  background: var(--console-gray-200);
-}
-.console-list-checkbox-col {
-  width: 40px;
-}
-.console-list-number-col {
-  text-align: right;
-}
+
 /* ------------------------------------------------------------------ */
 /* Kanban board (.o_kanban_record analogue) */
 /* ------------------------------------------------------------------ */
@@ -498,7 +396,7 @@
   border-radius: var(--console-radius-sm);
 }
 /* Left color accent: two overlapping borders (thin translucent + solid),
-   layered on the card's own edge rather than reserving content padding. */
+layered on the card's own edge rather than reserving content padding. */
 .console-kanban-card::after {
   content: '';
   position: absolute;
@@ -1497,14 +1395,6 @@ button.console-kanban-card {
   box-shadow: none;
 }
 .o_web_client .console-dash-metrics > .console-mc { max-width: none; }
-.console-label-upper {
-  font-size: var(--console-font-size-xs, 12px);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--console-gray-600, #6c757d);
-  line-height: 1.25;
-}
 /* ------------------------------------------------------------------ */
 /* Phase 6: premium mirror under .o_web_client                                              */
 /* CMC Console admin styles (legacy premium mirror retired Phase 2).               */
@@ -1514,7 +1404,9 @@ button.console-kanban-card {
 
 /*
  * @cmc/ui premium composite styles — the design-language layer for MetricCard,
- * Panel, TaskRow, FunnelBar (promoted from the cockpit pilot). Import ONCE per
+* Panel,
+TaskRow,
+FunnelBar (promoted from the cockpit pilot). Import ONCE per
  * app root: `import '@cmc/ui/console.css'`. Remaining `sh-*` owned by SideNav/AppFrame. Consumes --cmc-* tokens (tokens.css
  * must load first). Classnames are stable (.console-*); components reference them so
  * there is no per-render inline <style> duplication.
@@ -1616,7 +1508,10 @@ button.console-kanban-card {
 .o_web_client .console-inbox-section + .console-inbox-section { border-top: 1px solid var(--cmc-border-subtle); }
 /* -------------------------------------------------------------------------
  * Funnel family — modern ops (stack bars · rail · conversion strip)
- * Not 2018 thin gray bars: step chips, layered tracks, share %, hover lift.
+ * Not 2018 thin gray bars: step chips,
+layered tracks,
+share %,
+hover lift.
  * ---------------------------------------------------------------------- */
 .o_web_client .console-fn-skel { padding: 8px var(--cmc-pad-card-x) 20px; }
 .o_web_client .console-fn-summary {
@@ -1932,7 +1827,8 @@ button.console-kanban-card {
   white-space: nowrap;
 }
 .o_web_client .console-fc:hover .console-fc-cta { background: var(--cmc-brand-hover); }
-/* Empty state — restrained, monochrome icon */
+/* Empty state — restrained,
+monochrome icon */
 .o_web_client .console-empty { padding: 32px var(--cmc-pad-card-x); text-align: center; color: var(--cmc-text-muted);
   font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 /* Table shell — one raised family with Panel/Metric (flush table inside) */
@@ -1951,8 +1847,11 @@ button.console-kanban-card {
   overflow: hidden; text-overflow: ellipsis;
 }
 /* Shell / app frame — promoted from the admin light-mode shell pilot
- * (P3 shell extraction). White chrome / warm content canvas, monochrome
- * outline icons, one accent, restrained hairlines. Classnames verbatim from
+ * (P3 shell extraction). White chrome / warm content canvas,
+monochrome
+ * outline icons,
+one accent,
+restrained hairlines. Classnames verbatim from
  * the original inline `shellStyles` so the rendered result stays identical. */
 .o_web_client .sh-root { display: flex; height: 100vh; overflow: hidden; background: var(--cmc-canvas); }
 /* Sidebar */
@@ -1990,7 +1889,8 @@ button.console-kanban-card {
 }
 .o_web_client .sh-content { flex: 1; overflow-y: auto; }
 /* Toast — float layer (dialog radius + shadow-lg) */
-/* Float band: above .console-navbar (1000), below .console-cmd (1200). Odoo notifications ≈1055. */
+/* Float band: above .console-navbar (1000),
+below .console-cmd (1200). Odoo notifications ≈1055. */
 .console-toast-viewport {
   position: fixed; z-index: 1100; right: 20px; bottom: 20px;
   display: flex; flex-direction: column; gap: 8px;
@@ -2143,8 +2043,16 @@ dialog.console-dialog::backdrop {
 @media (prefers-reduced-motion: reduce) {
 }
 /* -------------------------------------------------------------------------
- * Completeness pack — section, KV, bulk, pagination, steps, settings, entity
- * Patterns adapted from Polaris settings, Stripe bulk bar, Linear steppers.
+ * Completeness pack — section,
+KV,
+bulk,
+pagination,
+steps,
+settings,
+entity
+ * Patterns adapted from Polaris settings,
+Stripe bulk bar,
+Linear steppers.
  * ---------------------------------------------------------------------- */
 
 /* Section block */
@@ -2469,7 +2377,8 @@ dialog.console-dialog::backdrop {
 
 /* -------------------------------------------------------------------------
  * Education schedule v3 — fixed-slot geometry + mobile/desktop
- * Same component = same height; long text truncates, never reflows rows.
+ * Same component = same height; long text truncates,
+never reflows rows.
  * Breakpoints: mobile ≤767 · desktop ≥768 (week board).
  * ---------------------------------------------------------------------- */
 
@@ -2695,7 +2604,9 @@ dialog.console-dialog::backdrop {
   pointer-events: none;
 }
 /* -------------------------------------------------------------------------
- * Week board — equal columns, scroll-snap mobile, desktop 7-col
+ * Week board — equal columns,
+scroll-snap mobile,
+desktop 7-col
  * ---------------------------------------------------------------------- */
 .o_web_client .console-week {
   --console-week-col-min: 132px;
@@ -3032,7 +2943,8 @@ dialog.console-dialog::backdrop {
   border-radius: 20px;
   border: 1px solid var(--cmc-border-subtle);
 }
-/* Kanban — fixed column width, cards equal height */
+/* Kanban — fixed column width,
+cards equal height */
 .o_web_client .console-kanban {
   display: flex;
   gap: 12px;

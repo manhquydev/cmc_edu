@@ -1,7 +1,7 @@
 /**
  * Astryx density remap proof (Phase 1 gate).
  *
- * Injects the full odoo.css and asserts:
+ * Injects the full console.css and asserts:
  * 1) custom properties on `.o_web_client` (14/13/12)
  * 2) raw h1/p/small rules resolve font-size to the remapped steps
  * 3) stand-in Badge/Button/DataTable class hooks inherit remapped sizes
@@ -20,7 +20,7 @@ describe('Astryx remap computed-style proof', () => {
 
   beforeEach(() => {
     styleEl = document.createElement('style');
-    // Full odoo.css so token + remap + raw-tag rules are all active.
+    // Full console.css so token + remap + raw-tag rules are all active.
     styleEl.textContent =
       css +
       `

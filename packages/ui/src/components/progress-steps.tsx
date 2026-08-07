@@ -1,6 +1,6 @@
 /**
  * Horizontal stepper for multi-step flows / workflow statusbars.
- * Under `.o_web_client`, odoo.css applies Odoo chevron clip-path skin.
+ * Under `.o_web_client`, console.css applies console chevron clip-path skin.
  * Requires @cmc/ui/console.css (.console-steps*).
  */
 export interface ProgressStep {

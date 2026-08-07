@@ -169,7 +169,7 @@ export type { SideNavProps } from './components/side-nav.js';
 export { AppFrame } from './components/app-frame.js';
 export type { AppFrameProps } from './components/app-frame.js';
 
-// Odoo admin UI layer (design3) — requires `@cmc/ui/console.css` + `.o_web_client` scope.
+// CMC Console admin UI layer (design3) — requires `@cmc/ui/console.css` + `.o_web_client` scope.
 export { ConsoleNavbar } from './console/console-navbar.js';
 export type { ConsoleNavbarProps } from './console/console-navbar.js';
 export { KanbanBoard, KanbanColumn, KanbanCard } from './console/console-kanban.js';

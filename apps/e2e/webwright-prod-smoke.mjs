@@ -160,7 +160,7 @@ async function main() {
   await shot(page, 2, 'post_login');
   log(2, `staff cookie=${hasStaffCookie} cp2=${results.cp2}`);
 
-  // ── CP3 Odoo shell ───────────────────────────────────────────────────────
+  // ── CP3 Console shell ───────────────────────────────────────────────────────
   // Navigate home if still on change-password
   if (page.url().includes('change-password')) {
     await page.goto('https://localhost/admin/cockpit', {
@@ -176,7 +176,7 @@ async function main() {
     (await shell.count()) > 0 &&
     brandText.length > 0 &&
     (await brand.first().isVisible().catch(() => false));
-  await shot(page, 3, 'odoo_shell');
+  await shot(page, 3, 'console_shell');
   log(
     3,
     `shell .o_web_client=${await shell.count()} brand="${brandText}" url=${page.url()} cp3=${results.cp3}`,

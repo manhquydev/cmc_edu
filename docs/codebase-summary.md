@@ -49,7 +49,7 @@
 > + `ui-e2e` tại `fdc2c93`). Journey ADM-04 / P1-06 chỉnh theo FilterBar reactive
 > (không nút Lọc; combobox `Trạng thái`). Còn mở: acceptance re-measure + visual
 > smoke. Ship: `plans/reports/ship-20260807-filterbar-search.md`. Design authority:
-> `docs/design-system-odoo.md`.
+> `docs/design-system-console.md`.
 
 ---
 
@@ -70,7 +70,7 @@ D:\project\vip\CMC
 │   ├── db/              # Prisma schema, migrations, seed — 48 models
 │   ├── domain-finance/  # Finance domain logic (SO receipt codes, refund cap, phone dedup)
 │   ├── domain-identity/ # Identity domain logic (phone normalization)
-│   └── ui/              # Design system: Astryx barrel + dual chrome — admin Odoo language (`odoo.css`, ConsoleNavbar, KanbanBoard, template `o-*` + ControlBar/FilterBar); LMS premium language (`premium.css`, AppFrame/SideNav). Shared: LineIcon, MetricCard/Panel/TaskRow/FunnelBar, ListPage/DetailPage/FormPage. Inter + light-only. (design3 admin + FilterBar search wave 2026-08-07 — see docs/design-system-odoo.md)
+│   └── ui/              # Design system: Astryx barrel + dual chrome — admin CMC Console (`console.css`, ConsoleNavbar, KanbanBoard, `console-*` + ControlBar/FilterBar); LMS `lms-*` (`apps/lms/src/app.css`). Shared: LineIcon, MetricCard/Panel/TaskRow/FunnelBar, ListPage/DetailPage/FormPage. Inter + light-only. (design3 admin + FilterBar search wave 2026-08-07 — see docs/design-system-console.md)
 ├── docs/                # Design docs (TL00-TL31, frozen design corpus)
 └── plans/               # Session reports (audits, remediation, deep reviews)
 ```

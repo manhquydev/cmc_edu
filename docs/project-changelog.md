@@ -6,6 +6,29 @@
 
 ---
 
+## [2026-08-07] CMC Console design-system rebrand (admin)
+
+**Context:** Rebrand admin ERP UI language from Odoo-named identifiers to
+**CMC Console**; retire legacy class mirrors; close design3 visual-smoke gap
+with agent-driven synth-DB smoke (real staff-login).
+
+**Product / UI package:**
+- Tokens `--odoo-*` → `--console-*`; classes `.o-*` → `.console-*` (keep
+  `.o_web_client` DOM mirror); `OdooNavbar` → `ConsoleNavbar`.
+- Paths: `odoo.css` → `console.css`, `packages/ui/src/console/`.
+- Deleted dead `premium.css` (LMS emits only `lms-*` in `apps/lms/src/app.css`).
+- Retired `ck-*` / `tpl-*` emitters; 13 `sh-*` kept for public SideNav/AppFrame.
+- Sticky list thead on DataTable; Odoo pin attribution → `7de220c…`.
+
+**Proof:** unit/e2e gates on branch `feature/cmc-console-design-system-rebrand`;
+visual smoke report 8/0 fail (+2 fixture WARNs). Plan:
+`plans/260807-1453-cmc-console-design-system-rebrand-hardening/`.
+
+**Docs:** sole authority `docs/design-system-console.md`; map
+`design-system/cmc-edu/CONSOLE-COMPONENT-MAP.md`.
+
+---
+
 ## [2026-08-07] G1 FilterBar + API list search (design3 admin)
 
 **Context:** After design3 shell promote, list filters were partial (~12/23

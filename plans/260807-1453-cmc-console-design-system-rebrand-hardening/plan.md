@@ -1,7 +1,7 @@
 ---
 title: "CMC Console Design System Rebrand & Hardening"
 description: "Rename apps/admin's Odoo-sourced ERP design system to 'CMC Console' branding (tokens/components/files/docs), retire legacy ck-*/tpl-*/sh-* mirror classes for real, re-audit against real Odoo 19.0 source fresh, close the long-open human visual smoke gate via live browser check, complete the admin component library, and clean up transition debt. Scope: apps/admin (ERP) ONLY — LMS keeps its separate TL12 premium design and is not touched."
-status: pending
+status: completed
 priority: P1
 effort: "5-8w (provisional — Phase 2 re-derives its own estimate at Step 0.4)"
 tags: [design-system, rebrand, console, admin, ui, cleanup]
@@ -295,7 +295,7 @@ because a later phase silently assumes it.
 | 4 | [Phase 4: Live Browser Visual Smoke](./phase-04-live-browser-visual-smoke.md) | **6th (moved)** | Completed |
 | 5 | [Phase 5: Component Library Completion](./phase-05-component-library-completion.md) | 4th | Completed |
 | 6 | [Phase 6: Codebase Cleanup](./phase-06-codebase-cleanup.md) | 5th | Completed |
-| 7 | [Phase 7: Docs and Cross-Plan Consolidation](./phase-07-docs-and-cross-plan-consolidation.md) | 7th | Pending |
+| 7 | [Phase 7: Docs and Cross-Plan Consolidation](./phase-07-docs-and-cross-plan-consolidation.md) | 7th | Completed |
 
 **Red-team correction:** file numbers no longer match execution order.
 Original sequencing put the only pixel-level human check (Phase 4) before the

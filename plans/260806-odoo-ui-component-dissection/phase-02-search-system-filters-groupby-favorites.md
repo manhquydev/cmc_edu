@@ -54,7 +54,7 @@ Odoo applies **one** search chrome to nearly every multi-record view via `WithSe
 | Path | Role |
 |------|------|
 | `reports/odoo-search-system-filters-groupby-favorites.md` | Authority dissection |
-| `design-system/cmc-edu/ODOO-COMPONENT-MAP.md` | Evergreen map |
+| `design-system/cmc-edu/CONSOLE-COMPONENT-MAP.md` | Evergreen map |
 | `design-system/cmc-edu/VIEW-GRAMMAR.md` | Interaction rules |
 | `packages/ui/src/components/filter-bar.tsx` | Current CMC analogue |
 | Odoo `search/search_bar*`, `search_bar_menu*`, `search_model.js` | Source grammar |

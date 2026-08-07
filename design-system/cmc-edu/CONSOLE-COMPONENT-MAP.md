@@ -1,9 +1,9 @@
-# Odoo → CMC component map (admin design3)
+# CMC Console ↔ Odoo 19 component map (admin design3)
 
 > **Purpose:** One-page authority for which Odoo backend UI piece maps to which `@cmc/ui` surface.  
 > **Source pin process:** `plans/260806-odoo-ui-component-dissection/`  
 > **Full wireframes + matrix:** `plans/260806-odoo-ui-component-dissection/reports/odoo-19-source-dissection.md`  
-> **Runtime design language:** `docs/design-system-odoo.md`  
+> **Runtime design language:** `docs/design-system-console.md`  
 > **Upstream:** [odoo/odoo@19.0](https://github.com/odoo/odoo/tree/19.0/addons/web/static/src)
 
 **Do not port OWL/XML/Bootstrap.** Port layout grammar, slots, density, stacking.
@@ -16,9 +16,9 @@
 Odoo                              CMC (apps/admin)
 ─────────────────────────────────────────────────────────────
 .o_web_client                     .o_web_client  (shell.tsx)
-.o_main_navbar                    OdooNavbar → .o-navbar
+.o_main_navbar                    ConsoleNavbar → .console-navbar
 apps menu                         .o-app-switcher-toggle + .o-app-switcher-menu
-.o_menu_brand                     .o-brand  (active module label; OdooNavbar default)
+.o_menu_brand                     .console-brand  (active module label; ConsoleNavbar default)
 .o_menu_sections                  .o-menu-sections / .o-menu-item
 .o_menu_systray                   systray slot (⌘K, enroll, role, logout)
 .o_action_manager > .o_action     (collapsed)
@@ -26,7 +26,7 @@ apps menu                         .o-app-switcher-toggle + .o-app-switcher-menu
 MainComponentsContainer           Toast + CommandPalette (+ dialogs)
 ```
 
-**Stacking rule:** `.o-navbar` must sit above `main.o-main` (z-index shell layer). App-switcher is absolute under navbar — never let `.o-page-header` win hit-testing.
+**Stacking rule:** `.console-navbar` must sit above `main.o-main` (z-index shell layer). App-switcher is absolute under navbar — never let `.o-page-header` win hit-testing.
 
 ---
 
@@ -191,7 +191,7 @@ Refresh statuses via the dissection process in `plans/260806-odoo-ui-component-d
 ### Float stacking (design3)
 
 ```text
-page chrome (1–10) < .o-navbar (1000) < .ck-toast-viewport (1100)
+page chrome (1–10) < .console-navbar (1000) < .ck-toast-viewport (1100)
   < dialog.ck-dialog band (1150) < .ck-cmd (1200)
 native <dialog>.showModal() top-layer > all of the above while open
 ```
@@ -202,7 +202,7 @@ Proof: `packages/ui/src/odoo/odoo-float-layer.test.ts`. Xia: `plans/reports/xia-
 
 ## Related
 
-- [VIEW-GRAMMAR.md](./VIEW-GRAMMAR.md) — interaction rules (update: admin shell is OdooNavbar, not SideNav)
+- [VIEW-GRAMMAR.md](./VIEW-GRAMMAR.md) — interaction rules (update: admin shell is ConsoleNavbar, not SideNav)
 - [PAGE-FRAMES.md](./PAGE-FRAMES.md) — frame tiers
 - [STRUCTURE.md](./STRUCTURE.md) — surface families (premium-era; admin paints via odoo mirror)
 - [MASTER.md](./MASTER.md) — tokens / anti-patterns

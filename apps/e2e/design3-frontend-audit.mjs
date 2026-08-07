@@ -599,7 +599,7 @@ function toMarkdown(results, summary, meta) {
     '1. **Shell language:** Admin production chrome is design3 (ConsoleNavbar + `.o_web_client` + `.console-main`) on walked authenticated routes — unit/static rollout claim holds at runtime if shellOk is high.',
   );
   lines.push(
-    '2. **Template coverage:** Most business pages render via shared templates emitting `o-*` (PageHeader/List/Form/Detail). Dialogs and login intentionally outside templates.',
+    '2. **Template coverage:** Most business pages render via shared templates emitting `console-*` (PageHeader/List/Form/Detail). Dialogs and login intentionally outside templates.',
   );
   lines.push(
     '3. **Stacking debt:** Navbar/app-switcher z-index vs main content is a structural defect class — page chrome (incl. `.console-page-header`) can obscure the open menu when geometry overlaps. Fix belongs in `packages/ui` shell CSS (raise `.console-navbar` stacking), not page-by-page hacks.',
@@ -608,7 +608,7 @@ function toMarkdown(results, summary, meta) {
     '4. **Premium residual:** Phase 6 selector mirror may paint `ck-*` correctly, but true class-language retirement is still backlog when residual DOM classes appear.',
   );
   lines.push(
-    '5. **Merge gates still open:** full `ui-e2e` + acceptance re-measure per `docs/design-system-odoo.md`.',
+    '5. **Merge gates still open:** full `ui-e2e` + acceptance re-measure per `docs/design-system-console.md`.',
   );
   lines.push('');
   lines.push('## Recommended fix order');
@@ -617,13 +617,13 @@ function toMarkdown(results, summary, meta) {
     '1. **P0 shell stacking:** set `.console-navbar { z-index: 1000; }` (or Odoo-parity shell layer) so `.console-app-switcher-menu` always wins over main; add regression test with open menu + page-header under navbar band.',
   );
   lines.push(
-    '2. **Audit sticky cousins:** `.console-control-bar` sticky z-index:5 and base `.console-page-header` sticky z-index:10 (static under `.o_web_client`) — keep shell layers documented in design-system-odoo.',
+    '2. **Audit sticky cousins:** `.console-control-bar` sticky z-index:5 and base `.console-page-header` sticky z-index:10 (static under `.o_web_client`) — keep shell layers documented in design-system-console.',
   );
   lines.push(
     '3. **Empty/placeholder routes:** close or hide nav for EmptyState screens still reachable (refund/leaderboard if present).',
   );
   lines.push(
-    '4. **Optional residual rename:** `ck-*` → `o-*` when bandwidth allows; not required for shell language.',
+    '4. **Optional residual rename:** `ck-*` → `console-*` when bandwidth allows; not required for shell language.',
   );
   lines.push('');
   lines.push('## Artifacts');

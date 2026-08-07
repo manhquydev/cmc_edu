@@ -1,7 +1,7 @@
 ---
 phase: 7
 title: "Phase 7: Docs and Cross-Plan Consolidation"
-status: todo
+status: completed
 priority: P1
 effort: "2-3d"
 dependencies: [1, 2, 3, 4, 5, 6]
@@ -162,25 +162,25 @@ them, verify links and claims against current source after editing.
 
 ## Success Criteria
 
-- [ ] `docs/design-system-odoo.md` no longer exists anywhere; every reference
+- [x] `docs/design-system-odoo.md` no longer exists anywhere; every reference
       to it is gone or repointed, including in `apps/e2e/design3-frontend-audit.mjs`
       and the dissection plan's `AGENT-COMMAND-MAP.md`/phase files.
       `docs/06-kien-truc-url-routing.md` deliberately left untouched.
-- [ ] `docs/design-system-console.md` is internally consistent with the actual
+- [x] `docs/design-system-console.md` is internally consistent with the actual
       shipped code (spot-check at least 5 token/class names against
       `console.css`), and its LGPL-3 attribution + upstream URL + the
       Phase-3-reconciled commit are present verbatim.
-- [ ] `CONSOLE-COMPONENT-MAP.md` exists; `ODOO-COMPONENT-MAP.md` doesn't.
-- [ ] `plans/260806-odoo-ui-component-dissection/plan.md` source-of-truth
+- [x] `CONSOLE-COMPONENT-MAP.md` exists; `ODOO-COMPONENT-MAP.md` doesn't.
+- [x] `plans/260806-odoo-ui-component-dissection/plan.md` source-of-truth
       table points at real, current file paths.
-- [ ] `plans/260805-1920-design3-admin-rollout/plan.md` status is `completed`,
+- [x] `plans/260805-1920-design3-admin-rollout/plan.md` status is `completed`,
       with BOTH blockers evidenced: Phase 4's smoke report **and** PR #75
       merged.
-- [ ] No doc still describes `premium.css` as the LMS design layer (it is
+- [x] No doc still describes `premium.css` as the LMS design layer (it is
       deleted in Phase 2).
-- [ ] Zero edits present in any historical/completed plan file outside the two
+- [x] Zero edits present in any historical/completed plan file outside the two
       named above.
-- [ ] `detect_changes()` confirms doc-only blast radius.
+- [x] `detect_changes()` confirms doc-only blast radius.
 
 ## Risk Assessment
 
@@ -195,3 +195,15 @@ them, verify links and claims against current source after editing.
   list exists because it's easy to "helpfully" fix an old plan's now-stale
   Odoo references while in the area — resist that; those files are accurate
   history of what was true when they ran, not live documentation.
+
+
+## Completion Notes
+
+**Completed:** 2026-08-07.
+
+- Rewrote `docs/design-system-console.md` (LGPL pin `7de220c…` preserved).
+- Cross-refs: TL12, system-architecture, codebase-summary, changelog, e2e audit
+  strings, design-system README/VIEW-GRAMMAR/STYLING-BRIDGE, CONSOLE-COMPONENT-MAP.
+- Dissection plan authority paths updated (not historical reports).
+- design3-admin-rollout → `completed` citing PR #75 + Phase 4 smoke **with residuals**.
+- premium.css no longer described as LMS design layer in evergreen docs.

@@ -496,7 +496,7 @@ to resolve).
 |---|---|---|---|
 | 1 | Sequencing | Given Phase 2's real scope (~4x original estimate) and the 6-9w total effort, how to sequence delivery? | **Ship as one continuous effort** — all 7 phases stay in this plan, executed sequentially as written. No split-off. |
 | 2 | GitNexus availability | GitNexus isn't indexed in this repo — index now or use the manual fallback? | ~~**Index now, before Phase 1 starts** — upgraded from "attempt, fall back on failure" to a blocking prerequisite: troubleshoot until `npx gitnexus analyze` succeeds.~~ **SUPERSEDED 2026-08-07 by round-2 finding #13 + the user's "apply all 15" decision.** Unpinned `npx` against a repo root holding `.env.prod` contradicts this repo's own pinned+checksummed convention (`scripts/bootstrap-harness.sh:28-60`), and the only symbol renamed has 3 production call sites — there is no call graph to analyse. Manual verification is now the primary path; see Constraints. |
-| 3 | Odoo pin commit | Two conflicting pin commits exist (`5568f6e4…` vs `7de220c9…`) — does the user already know which is right? | **Don't know — investigate in Phase 3.** Phase 3's Step 0 (already written) handles this; no change needed beyond confirming it stays as the resolution path. |
+| 3 | Odoo pin commit | Two conflicting pin commits exist (`5568f6e4…` vs `7de220c9…`) — does the user already know which is right? | **Resolved 2026-08-07 in Phase 3:** authoritative pin is `7de220c941c77d4fffdc270a7862c69475fa4577` (clone + value match). Tracked files updated; see `reports/fresh-fidelity-audit-2026-08-07.md`. |
 | 4 | Visual smoke ownership | Who drives the browser for Phase 4's live check? | **The implementing agent drives it live**, operator reviews the resulting report. |
 
 ### Phase Propagation

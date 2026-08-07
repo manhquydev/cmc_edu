@@ -151,20 +151,20 @@ report stays a clean point-in-time record).
 
 ## Success Criteria
 
-- [ ] Odoo pin reconciled, with the decision and its derivation evidence
+- [x] Odoo pin reconciled, with the decision and its derivation evidence
       recorded in **tracked** files (`console.css` header,
       `docs/design-system-console.md`, `console-tokens.test.ts`) — not only in
       the gitignored `ODOO_PIN.txt`.
-- [ ] If the in-code pin changed, `console-tokens.test.ts`'s assertion was
+- [x] If the in-code pin changed, `console-tokens.test.ts`'s assertion was
       updated in the same commit and `pnpm test` is green.
-- [ ] Every authority surface **touched by Phases 1-2** has an entry in the
+- [x] Every authority surface **touched by Phases 1-2** has an entry in the
       fresh audit report; surfaces not touched are listed explicitly as out of
       this pass, with the automated value-lock test that covers them named
       (time-box decision, 2026-08-07).
-- [ ] No un-triaged findings — everything is Accept/Reject/Already-known.
-- [ ] Computed-value spot-check confirms Phase 1-2 changed no visual values,
+- [x] No un-triaged findings — everything is Accept/Reject/Already-known.
+- [x] Computed-value spot-check confirms Phase 1-2 changed no visual values,
       only names.
-- [ ] Report committed at the path above.
+- [x] Report committed at the path above.
 
 ## Risk Assessment
 

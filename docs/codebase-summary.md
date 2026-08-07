@@ -41,6 +41,16 @@
 > **Cập nhật 2026-08-02 — Tier 1 guardrails + ui-e2e restoration + toolchain majors.**
 > Hôm nay merged 4 PR lớn: **#39** (GitHub secret scanning + push protection + Dependabot config + husky pre-commit + pnpm overrides HIGH advisories + branch protection on main requiring typecheck-and-test check), **#46** (ui-e2e regression fix — match corrected admin contracts from 01f6e4c; ui-chromium 40/40 specs green in CI, first genuinely-green e2e run), **#45** (Trivy config-scan report-only + GitHub Actions SHA-pinned), **#47** (vite 6→8, @vitejs/plugin-react 4→6, vitest 2→4 — zero config changes). **CodeQL default setup enabled** — first scan: 20 alerts (6 HIGH false-positive/by-design, 4 MEDIUM workflow-permission real, 10 LOW); 4 MEDIUM gaps being addressed in parallel hardening phase. Journal: `docs/journals/260802-tier1-guardrails-restoration.md`.
 
+> **Cập nhật 2026-08-07 — design3 FilterBar + list search (PR #75 `develop`).**
+> Shell design3 (Odoo language) đã ship trước đó. Đợt này: ControlBar/`FilterBar`
+> hygiene (`hasClear`, date-range validation on audit log), optional API `search`
+> trên các list chính (users, facilities, courses, classes, pickList, grading…),
+> FilterBar trên ~**20/23** ListPage. **CI required checks xanh** (`typecheck-and-test`
+> + `ui-e2e` tại `fdc2c93`). Journey ADM-04 / P1-06 chỉnh theo FilterBar reactive
+> (không nút Lọc; combobox `Trạng thái`). Còn mở: acceptance re-measure + visual
+> smoke. Ship: `plans/reports/ship-20260807-filterbar-search.md`. Design authority:
+> `docs/design-system-odoo.md`.
+
 ---
 
 ## Monorepo Structure
@@ -60,7 +70,7 @@ D:\project\vip\CMC
 │   ├── db/              # Prisma schema, migrations, seed — 48 models
 │   ├── domain-finance/  # Finance domain logic (SO receipt codes, refund cap, phone dedup)
 │   ├── domain-identity/ # Identity domain logic (phone normalization)
-│   └── ui/              # Design system: Astryx barrel + dual chrome — admin Odoo language (`odoo.css`, OdooNavbar, KanbanBoard, template `o-*`); LMS premium language (`premium.css`, AppFrame/SideNav). Shared: LineIcon, MetricCard/Panel/TaskRow/FunnelBar, ListPage/DetailPage/FormPage. Inter + light-only. (Mantine fully removed 2026-07-10; design3 admin rollout 2026-08-06 — see docs/design-system-odoo.md)
+│   └── ui/              # Design system: Astryx barrel + dual chrome — admin Odoo language (`odoo.css`, OdooNavbar, KanbanBoard, template `o-*` + ControlBar/FilterBar); LMS premium language (`premium.css`, AppFrame/SideNav). Shared: LineIcon, MetricCard/Panel/TaskRow/FunnelBar, ListPage/DetailPage/FormPage. Inter + light-only. (design3 admin + FilterBar search wave 2026-08-07 — see docs/design-system-odoo.md)
 ├── docs/                # Design docs (TL00-TL31, frozen design corpus)
 └── plans/               # Session reports (audits, remediation, deep reviews)
 ```

@@ -24,15 +24,16 @@ cbb2e9f fix(admin): validate audit log date range before query
 4c78c31 fix(admin): ControlBar filter host and select semantics
 ```
 
-## CI follow-up (2026-08-07)
+## CI follow-up (2026-08-07) — **green**
 
-| Check | Status |
-|-------|--------|
-| typecheck-and-test | **pass** (incl. `c4f403e` pickList/classBatch/listForGrading search tests) |
-| ui-e2e (run 31137446299) | **fail** — 2 journeys stale vs FilterBar API |
-| e2e fix commit | align ADM-04 + P1-06 with reactive FilterBar (no `Lọc` button; combobox `Trạng thái`) |
+| Check | Status | HEAD |
+|-------|--------|------|
+| typecheck-and-test | **pass** | `fdc2c93` |
+| ui-e2e | **pass** | `fdc2c93` |
 
-### Root cause (ui-e2e)
+Earlier fail on `c4f403e` (run 31137446299): 2 journeys stale vs FilterBar API. Fixed in `fdc2c93`.
+
+### Root cause (ui-e2e, fixed)
 
 1. **ADM-04** (`audit-log-view`): journey clicked `getByRole('button', { name: 'Lọc' })` — FilterBar text filters debounce 300ms and re-query; no submit button.
 2. **P1-06** (`parent-link-approve-reject`): `selectLinkFilter` used combobox name `Lọc theo trạng thái` — page label is now `Trạng thái` (same as KPI inbox pattern).
@@ -40,4 +41,11 @@ cbb2e9f fix(admin): validate audit log date range before query
 ## Remaining follow-ups (non-blocking)
 
 - Optional UI debounce unit tests for FilterBar hosts
-- Acceptance re-measure after ui-e2e green
+- Acceptance re-measure (`pnpm acceptance:report`) if needed for snapshot docs
+- PR #75 ready for human merge review when desired
+
+## Related
+
+- PM: `plans/reports/pm-260807-0841-filterbar-search-ship.md`
+- Design authority: `docs/design-system-odoo.md`
+- Pre-ship baseline: `plans/reports/orchestrate-20260806-234049-ui-component-readiness/`

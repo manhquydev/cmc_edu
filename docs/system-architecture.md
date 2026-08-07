@@ -10,7 +10,9 @@
 >
 > **Updated 2026-07-26 (nghiệm thu journey + CI khôi phục):** e2e hiện **43 spec file** (31 journey UI), chạy trong project `ui-chromium` trên CI. Sổ nghiệm thu: **31/38 luồng đã chứng minh chạy** tại commit `324bd12`, sinh từ artifact CI (`gitDirty:false`) — **đã chạm trần journey**; 7 luồng còn lại `no-ui-path` ⇒ 38/38 đều có trạng thái máy-chứng. Journey ở mức smoke — chứng minh luồng chạy thông, không chứng minh đúng số học nghiệp vụ; UAT người thật chưa chạy. Chi tiết: `docs/codebase-summary.md`.
 >
-> **Updated 2026-08-06 (design3 admin shell):** `apps/admin` production chrome is the **Odoo backend UI language** — root `.o_web_client`, top **OdooNavbar** + app-switcher, content in `main.o-main`. Premium side-nav shell (`AppFrame`/`SideNav` + `premium.css`) is **not** used on admin; LMS keeps TL12 premium (`@cmc/ui/premium.css`). Design authority: `docs/design-system-odoo.md`. Lab route `/design3` was deleted after promote. Merge gates still require green `ui-e2e` + acceptance re-measure on the rollout branch.
+> **Updated 2026-08-06 (design3 admin shell):** `apps/admin` production chrome is the **Odoo backend UI language** — root `.o_web_client`, top **OdooNavbar** + app-switcher, content in `main.o-main`. Premium side-nav shell (`AppFrame`/`SideNav` + `premium.css`) is **not** used on admin; LMS keeps TL12 premium (`@cmc/ui/premium.css`). Design authority: `docs/design-system-odoo.md`. Lab route `/design3` was deleted after promote.
+>
+> **Updated 2026-08-07 (FilterBar + list search + ui-e2e):** G1 **FilterBar** is the list filter host on ControlBar (debounced text; select `hasClear` for default-domain filters). Optional tRPC **`search`** on major list procedures (users, facilities, courses, classBatch, pickList, grading queue, …). ListPage FilterBar adoption ~**20/23** (holdouts: leaderboard, class-placement, refund). **CI:** `typecheck-and-test` + `ui-e2e` green on `develop` PR #75 (`fdc2c93`). Still open: `pnpm acceptance:report` re-measure + human visual smoke. Evidence: `plans/reports/ship-20260807-filterbar-search.md`.
 
 ---
 

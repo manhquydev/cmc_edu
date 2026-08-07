@@ -111,7 +111,7 @@ Skip one-off decorative pixels.
 | 2 | ControlPanel slot fidelity | LEFT/CENTER/RIGHT bands, view switcher density, selection replaces search | **Accept densify** — L/C/R SKIP |
 | 3 | Form sheet grammar | sheet_bg → statusbar sticky → sheet → notebook order | **SHIPPED** (thin statusbar md+) |
 | 4 | List density & sticky thead | table cell padding, sticky header z-index under shell | Tokens OK; sticky e2e **CUT/debt** |
-| 5 | Search / facets (lite) | Not full Odoo search model — FilterBar + bulk only | Accept partial (baseline) |
+| 5 | Search / facets (lite) | FilterBar + optional API `search` on major lists | **SHIPPED lite 2026-08-07** (~20/23 ListPage; PR #75). Not full Odoo Search OS |
 | 5b | Search OS deep dive | Filters · Group By · Favorites system-wide | **Research closed** — cook **parked** (brainstorm: `plans/reports/brainstorm-260806-odoo-search-os-next-step.md`) |
 | 6 | Class purity | Optional `ck-*` → `o-*` rename | Backlog |
 | X | Xia compare (read-only) | 7 surfaces (shell…float+settings) | **Done 2026-08-06** — synthesis acceptance close |
@@ -131,6 +131,7 @@ Skip one-off decorative pixels.
 - [x] Phase 1c / form sticky / float P1 triaged and cooked on `feat/design3-admin-rollout`
 - [x] Search OS dissection (Filters / Group By / Favorites) — `reports/odoo-search-system-filters-groupby-favorites.md`
 - [x] Decision: **do not cook Search OS now** (2026-08-06 brainstorm) — re-open only on demand triggers
+- [x] FilterBar lite + API list `search` wave (2026-08-07) — ControlBar host, `hasClear`, major list procedures; CI ui-e2e green PR #75 (`plans/reports/ship-20260807-filterbar-search.md`)
 - [ ] Backlog cook (parked): FilterBar chips first, then presets — not scheduled
 - [ ] Optional P2 (Settings mobile / list sticky debt / favorites storage) — not blocking this wave
 

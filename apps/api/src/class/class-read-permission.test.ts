@@ -111,6 +111,27 @@ describe('class read permissions (class.read / classRoster.read)', () => {
       expect(result.items.map((b) => b.id)).toContain(classBatch.id);
     });
 
+    it('classBatch.list search matches code (G1 FilterBar)', async () => {
+      const other = await seedClassBatch({ facilityId: facility.id, program: 'BRIGHT_IG' });
+      const byCode = await sale.classBatch.list({
+        page: 1,
+        pageSize: 50,
+        search: classBatch.code,
+      });
+      expect(byCode.items.some((b) => b.id === classBatch.id)).toBe(true);
+      // Distinct program/code batch should not match the primary class code string.
+      expect(byCode.items.every((b) => b.id !== other.id || b.code.includes(classBatch.code))).toBe(
+        true,
+      );
+
+      const byProgram = await sale.classBatch.list({
+        page: 1,
+        pageSize: 50,
+        search: 'BRIGHT_IG',
+      });
+      expect(byProgram.items.some((b) => b.id === other.id)).toBe(true);
+    });
+
     it('giam_doc_kinh_doanh can list class batches', async () => {
       const result = await gdkd.classBatch.list({ page: 1, pageSize: 20 });
       expect(result.items.map((b) => b.id)).toContain(classBatch.id);

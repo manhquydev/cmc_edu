@@ -78,4 +78,30 @@ describe('user.pickList (staff.pickList)', () => {
     const result = await gdkd.user.pickList({});
     expect(result.items.map((u) => u.fullName)).not.toContain('GV Cơ Sở Khác');
   });
+
+  it('search matches fullName / employeeCode case-insensitively', async () => {
+    await seedAppUser({
+      facilityId: facility.id,
+      userId: 'pick-alpha-search',
+      fullName: 'Trần Alpha Pick',
+      roles: ['sale'],
+    });
+    await seedAppUser({
+      facilityId: facility.id,
+      userId: 'pick-beta-search',
+      fullName: 'Lê Beta Pick',
+      roles: ['sale'],
+    });
+
+    const byName = await gdkd.user.pickList({ search: 'alpha pick' });
+    expect(byName.items.some((u) => u.fullName === 'Trần Alpha Pick')).toBe(true);
+    expect(byName.items.every((u) => u.fullName !== 'Lê Beta Pick')).toBe(true);
+
+    // employeeCode is CMC#### — search by fullName fragment is the stable case
+    const byRoleAndSearch = await gddt.user.pickList({ role: 'sale', search: 'Beta' });
+    expect(byRoleAndSearch.items.map((u) => u.fullName)).toEqual(
+      expect.arrayContaining(['Lê Beta Pick']),
+    );
+    expect(byRoleAndSearch.items.every((u) => u.roles.includes('sale'))).toBe(true);
+  });
 });

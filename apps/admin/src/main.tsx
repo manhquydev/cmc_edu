@@ -15,10 +15,7 @@ import '@astryxdesign/core/reset.css';
 import '@fontsource-variable/inter';
 import '@cmc/ui/tokens.css';
 import '@cmc/ui/astryx-theme-cmc.css';
-// Odoo admin UI layer (design3) — tokens/composites for admin shell.
-// Phase 6: console.css deleted (Phase 2); console.css
-// includes a scoped mirror of premium selectors under `.o_web_client` so
-// remaining ck-*/tpl-*/sh-* class emissions keep styling without leaking to LMS.
+// CMC Console design system (admin ERP UI) — import once at app root.
 import '@cmc/ui/console.css';
 import './app.css';
 import { QueryClientProvider } from '@tanstack/react-query';

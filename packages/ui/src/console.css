@@ -5,7 +5,7 @@
  * https://github.com/odoo/odoo), branch 19.0, commit 5568f6e472e2e53bc2931e744421015b0f0f3550.
  * Values reimplemented as plain CSS custom properties scoped under .o_web_client
  * only (document-global selectors are forbidden — must not leak into LMS).
- * Import ONCE at admin app root: `import '@cmc/ui/console.css'` (after premium.css).
+ * Import ONCE at admin app root: `import '@cmc/ui/console.css'` (sole admin design-system stylesheet).
  */
 .o_web_client {
   /* Brand (decorative only — interactive accent stays CMC blue #0071E3) */
@@ -1502,15 +1502,15 @@ button.console-kanban-card {
 }
 /* ------------------------------------------------------------------ */
 /* Phase 6: premium mirror under .o_web_client                                              */
-/* Copy of premium.css selectors, scoped for admin shell.               */
-/* premium.css file is UNCHANGED (LMS). Remove admin premium import     */
+/* CMC Console admin styles (legacy premium mirror retired Phase 2).               */
+/* premium.css DELETED Phase 2 (LMS emitted zero consumers).     */
 /* only after this block is present.                                    */
 /* ------------------------------------------------------------------ */
 
 /*
  * @cmc/ui premium composite styles — the design-language layer for MetricCard,
  * Panel, TaskRow, FunnelBar (promoted from the cockpit pilot). Import ONCE per
- * app root: `import '@cmc/ui/premium.css'`. Consumes --cmc-* tokens (tokens.css
+ * app root: `import '@cmc/ui/console.css'`. Remaining `sh-*` owned by SideNav/AppFrame. Consumes --cmc-* tokens (tokens.css
  * must load first). Classnames are stable (.console-*); components reference them so
  * there is no per-render inline <style> duplication.
  *
@@ -3059,8 +3059,6 @@ dialog.console-dialog::backdrop {
 .console-av--sm { width: 28px; height: 28px; font-size: 11px; }
 .console-av--md { width: 36px; height: 36px; font-size: 13px; }
 .console-av--lg { width: 48px; height: 48px; font-size: 16px; border-radius: 14px; }
-.o_web_client .console-surface--quiet { box-shadow: var(--cmc-shadow-xs); }
-.o_web_client .console-surface--float { box-shadow: var(--cmc-shadow-md); border-radius: var(--cmc-radius-lg); }
 .o_web_client .console-badge-soft--success { background: var(--cmc-success-soft); color: var(--cmc-success-ink); }
 .o_web_client .console-badge-soft--warning { background: var(--cmc-warning-soft); color: var(--cmc-warning-ink); }
 .o_web_client .console-badge-soft--danger { background: var(--cmc-danger-soft); color: var(--cmc-danger-ink); }

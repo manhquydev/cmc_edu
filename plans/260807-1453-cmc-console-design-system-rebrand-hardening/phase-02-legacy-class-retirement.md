@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Phase 2: Legacy Class Retirement"
-status: todo
+status: completed
 priority: P1
 effort: "2-3w"
 dependencies: [1]
@@ -291,3 +291,26 @@ doesn't respect commit boundaries.
 - **`SideNav`/`AppFrame` deletion temptation**: zero current importers makes
   them look like safe cleanup targets, but removing a public export is a
   contract change nobody asked for — leave them.
+
+
+## Completion Notes
+
+**Completed:** 2026-08-07 on `feature/cmc-console-design-system-rebrand`.
+
+**Disposition (post dynamic recovery):** fold=0, rename=236, delete=79 of 315 `ck-*`.
+See `notes/phase-02-ck-disposition.md`.
+
+**sh-* survivors (13):** sh-sb, sh-brand, sh-nav, sh-item, sh-item-icon, sh-sub, sh-subitem, sh-root, sh-main, sh-top, sh-top-title, sh-top-actions, sh-content.
+
+**sh-* deleted (6):** sh-brand-name, sh-brand-sub, sh-cta, sh-cta--ghost, sh-cta--secondary, sh-logo.
+
+**tpl-*:** all 28 deleted (zero emitters).
+
+**premium.css:** deleted after LMS zero-consumer verification (`notes/phase-02-lms-premium-check.txt`).
+
+**Commits:**
+- `650ff5d` delete premium.css
+- `78342be` ck/tpl retirement + sh keep/delete
+- follow-up nits: disposition accuracy, header comments, orphan surface utilities
+
+**Gates:** typecheck 29/29; ui 142; admin 555; admin+lms build; ui-chromium **54/54**; journeys.json restored from bak-phase1.

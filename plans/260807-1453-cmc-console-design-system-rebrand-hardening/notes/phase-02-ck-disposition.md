@@ -1,6 +1,6 @@
 # Phase 2 ck-* disposition (delete-first)
 
-Generated after premium.css deletion. Totals: fold=0 rename=215 delete=100 (sum=315; CSS had 315).
+Generated after premium.css deletion. Totals: fold=0 rename=236 delete=79 (21 dynamic modifiers reclassified from delete→rename after recovery) (sum=315; CSS had 315).
 
 Re-derived effort: delete-dominated (~32% delete). Expected remaining work: rename 215 unique CSS rule families + fold 0 into existing console-* + sh keep 13 / delete 6 + tpl delete 28.
 
@@ -8,17 +8,17 @@ Re-derived effort: delete-dominated (~32% delete). Expected remaining work: rena
 |---|---|---|---|
 | `ck-attn` | delete | no | yes |
 | `ck-av` | rename | yes | no |
-| `ck-av--lg` | delete | no | no |
-| `ck-av--md` | delete | no | no |
-| `ck-av--sm` | delete | no | no |
+| `ck-av--lg` | rename | yes (dynamic template) | no |
+| `ck-av--md` | rename | yes (dynamic template) | no |
+| `ck-av--sm` | rename | yes (dynamic template) | no |
 | `ck-av-img` | rename | yes | no |
 | `ck-av-initials` | rename | yes | no |
 | `ck-badge-soft` | rename | yes | no |
-| `ck-badge-soft--danger` | delete | no | no |
-| `ck-badge-soft--info` | delete | no | no |
-| `ck-badge-soft--neutral` | delete | no | no |
-| `ck-badge-soft--success` | delete | no | no |
-| `ck-badge-soft--warning` | delete | no | no |
+| `ck-badge-soft--danger` | rename | yes (dynamic template) | no |
+| `ck-badge-soft--info` | rename | yes (dynamic template) | no |
+| `ck-badge-soft--neutral` | rename | yes (dynamic template) | no |
+| `ck-badge-soft--success` | rename | yes (dynamic template) | no |
+| `ck-badge-soft--warning` | rename | yes (dynamic template) | no |
 | `ck-bc` | delete | no | yes |
 | `ck-bc-current` | delete | no | yes |
 | `ck-bc-link` | delete | no | yes |
@@ -30,10 +30,10 @@ Re-derived effort: delete-dominated (~32% delete). Expected remaining work: rena
 | `ck-bulk-label` | rename | yes | no |
 | `ck-bulk-meta` | rename | yes | no |
 | `ck-callout` | rename | yes | no |
-| `ck-callout--danger` | delete | no | no |
-| `ck-callout--info` | delete | no | no |
-| `ck-callout--neutral` | delete | no | no |
-| `ck-callout--success` | delete | no | no |
+| `ck-callout--danger` | rename | yes (dynamic template) | no |
+| `ck-callout--info` | rename | yes (dynamic template) | no |
+| `ck-callout--neutral` | rename | yes (dynamic template) | no |
+| `ck-callout--success` | rename | yes (dynamic template) | no |
 | `ck-callout--warning` | rename | yes | no |
 | `ck-callout-action` | rename | yes | no |
 | `ck-callout-body` | rename | yes | no |
@@ -202,12 +202,12 @@ Re-derived effort: delete-dominated (~32% delete). Expected remaining work: rena
 | `ck-row-tag` | rename | yes | no |
 | `ck-row-title` | rename | yes | no |
 | `ck-sc` | rename | yes | no |
-| `ck-sc--active` | delete | no | no |
-| `ck-sc--attention` | delete | no | no |
-| `ck-sc--cancelled` | delete | no | no |
-| `ck-sc--done` | delete | no | no |
-| `ck-sc--live` | delete | no | no |
-| `ck-sc--planned` | delete | no | no |
+| `ck-sc--active` | rename | yes (dynamic template) | no |
+| `ck-sc--attention` | rename | yes (dynamic template) | no |
+| `ck-sc--cancelled` | rename | yes (dynamic template) | no |
+| `ck-sc--done` | rename | yes (dynamic template) | no |
+| `ck-sc--live` | rename | yes (dynamic template) | no |
+| `ck-sc--planned` | rename | yes (dynamic template) | no |
 | `ck-sc-chip` | rename | yes | no |
 | `ck-sc-chip-label` | rename | yes | no |
 | `ck-sc-cta` | rename | yes | no |
@@ -282,9 +282,9 @@ Re-derived effort: delete-dominated (~32% delete). Expected remaining work: rena
 | `ck-tl-title` | rename | yes | no |
 | `ck-tl-trailing` | rename | yes | no |
 | `ck-toast` | rename | yes | no |
-| `ck-toast--error` | delete | no | no |
-| `ck-toast--info` | delete | no | no |
-| `ck-toast--success` | delete | no | no |
+| `ck-toast--error` | rename | yes (dynamic template) | no |
+| `ck-toast--info` | rename | yes (dynamic template) | no |
+| `ck-toast--success` | rename | yes (dynamic template) | no |
 | `ck-toast-body` | rename | yes | no |
 | `ck-toast-desc` | rename | yes | no |
 | `ck-toast-dismiss` | rename | yes | no |
@@ -346,3 +346,10 @@ Re-derived effort: delete-dominated (~32% delete). Expected remaining work: rena
 - `sh-cta--ghost`
 - `sh-cta--secondary`
 - `sh-logo`
+
+
+## Dynamic-modifier recovery
+
+21 classes are emitted only via template literals (e.g. `` `ck-toast--${tone}` ``).
+Static class greps marked them `delete`; the implementation recovered them as
+`console-*` renames with CSS rules. Rows above updated to `rename | yes (dynamic template)`.

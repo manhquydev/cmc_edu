@@ -292,7 +292,7 @@ because a later phase silently assumes it.
 | 1 | [Phase 1: Rebrand — Tokens, Symbols, Files & Docs](./phase-01-start.md) | 1st | Completed |
 | 2 | [Phase 2: Legacy Class Retirement](./phase-02-legacy-class-retirement.md) | 2nd | Completed |
 | 3 | [Phase 3: Fresh Source-Grounded Audit](./phase-03-fresh-source-grounded-audit.md) | 3rd | Completed |
-| 4 | [Phase 4: Live Browser Visual Smoke](./phase-04-live-browser-visual-smoke.md) | **6th (moved)** | Pending |
+| 4 | [Phase 4: Live Browser Visual Smoke](./phase-04-live-browser-visual-smoke.md) | **6th (moved)** | Completed |
 | 5 | [Phase 5: Component Library Completion](./phase-05-component-library-completion.md) | 4th | Completed |
 | 6 | [Phase 6: Codebase Cleanup](./phase-06-codebase-cleanup.md) | 5th | Completed |
 | 7 | [Phase 7: Docs and Cross-Plan Consolidation](./phase-07-docs-and-cross-plan-consolidation.md) | 7th | Pending |

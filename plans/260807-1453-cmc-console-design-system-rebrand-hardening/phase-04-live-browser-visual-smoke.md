@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "Phase 4: Live Browser Visual Smoke"
-status: todo
+status: completed
 priority: P1
 effort: "1-2d"
 dependencies: [3, 5, 6]
@@ -202,25 +202,25 @@ Assessment.
 
 ## Success Criteria
 
-- [ ] Environment stood up via `synthetic-seed-env.sh`, never the local-sim
+- [x] Environment stood up via `synthetic-seed-env.sh`, never the local-sim
       stack, never `.env.prod` credentials — confirmed in the report.
-- [ ] **Real `POST /auth/staff-login` password flow used** (validation
+- [x] **Real `POST /auth/staff-login` password flow used** (validation
       decision), against the seeded staff user — not `mintStaffCookie`. Any
       route that had to fall back to an injected cookie is named in the report
       and its claim downgraded to rendering-only. A `cmc_staff_session` cookie
       visible in DevTools is NOT by itself evidence of permission fidelity
       (finding #7). `STAFF_SESSION_SECRET` was not sourced from `.env.prod`.
-- [ ] A staff user was seeded into the throwaway DB (the seed script creates
+- [x] A staff user was seeded into the throwaway DB (the seed script creates
       none) and the admin app was served via the `playwright.config.ts:78-96`
       recipe, not `pnpm --filter @cmc/admin dev`.
-- [ ] All six flagged routes/elements visually inspected live and recorded
+- [x] All six flagged routes/elements visually inspected live and recorded
       pass/fail in the report.
-- [ ] Zero screenshot files added to the repo; disk-level automation
+- [x] Zero screenshot files added to the repo; disk-level automation
       artifacts (`.playwright-mcp/` or similar) deleted, not just gitignored.
-- [ ] Throwaway Postgres container torn down after the session.
-- [ ] Any defect found is either fixed (small, tracked) or explicitly logged
+- [x] Throwaway Postgres container torn down after the session.
+- [x] Any defect found is either fixed (small, tracked) or explicitly logged
       as a follow-up, not silently ignored.
-- [ ] Report exists at the path above and is referenced by Phase 7's rollout-plan closure edit.
+- [x] Report exists at the path above and is referenced by Phase 7's rollout-plan closure edit.
 
 ## Risk Assessment
 
@@ -242,3 +242,16 @@ Assessment.
 - **Finding a real bug this late**: Phases 1-3 and 5-6 should have caught
   regressions already; if this phase finds one anyway, that's informative for
   how thorough the earlier gates need to be next time, not just a fix-and-move-on.
+
+
+## Completion Notes
+
+**Completed:** 2026-08-07.
+
+**Report:** `reports/visual-smoke-2026-08-07.md` — **8 PASS / 2 WARN / 0 FAIL**.
+
+**Auth:** real form `POST /auth/staff-login` against synth DB staff user. No mint in browser; no `.env.prod`.
+
+**WARNs:** empty CRM detail navigation + empty finance list (fixture gaps on base seed, not rebrand regressions).
+
+**Teardown:** synth container left up for Phase 7 optional re-check; remove with `docker rm -f cmc-synth-pg` when done.

@@ -17,16 +17,16 @@ Odoo                              CMC (apps/admin)
 ─────────────────────────────────────────────────────────────
 .o_web_client                     .o_web_client  (shell.tsx)
 .o_main_navbar                    ConsoleNavbar → .console-navbar
-apps menu                         .o-app-switcher-toggle + .o-app-switcher-menu
+apps menu                         .console-app-switcher-toggle + .console-app-switcher-menu
 .o_menu_brand                     .console-brand  (active module label; ConsoleNavbar default)
-.o_menu_sections                  .o-menu-sections / .o-menu-item
+.o_menu_sections                  .console-menu-sections / .console-menu-item
 .o_menu_systray                   systray slot (⌘K, enroll, role, logout)
 .o_action_manager > .o_action     (collapsed)
-.o_content (scroll)               main.o-main { overflow: auto }
+.o_content (scroll)               main.console-main { overflow: auto }
 MainComponentsContainer           Toast + CommandPalette (+ dialogs)
 ```
 
-**Stacking rule:** `.console-navbar` must sit above `main.o-main` (z-index shell layer). App-switcher is absolute under navbar — never let `.o-page-header` win hit-testing.
+**Stacking rule:** `.console-navbar` must sit above `main.console-main` (z-index shell layer). App-switcher is absolute under navbar — never let `.console-page-header` win hit-testing.
 
 ---
 
@@ -35,8 +35,8 @@ MainComponentsContainer           Toast + CommandPalette (+ dialogs)
 | Odoo view | CMC frame | Compose with |
 |-----------|-----------|--------------|
 | list | **ListPage** | ControlBar · FilterBar · DataTable · ListPagination · BulkActionBar |
-| form (read) | **DetailPage** | PageHeader · `.o-form-sheet-bg` / `.o-form-sheet` · EntityHeader? · statusbar? · tabs · sections |
-| form (edit) | **FormPage** | same sheet dual-layer · fields · sticky `.o-actions` |
+| form (read) | **DetailPage** | PageHeader · `.console-form-sheet-bg` / `.console-form-sheet` · EntityHeader? · statusbar? · tabs · sections |
+| form (edit) | **FormPage** | same sheet dual-layer · fields · sticky `.console-actions` |
 | kanban | **ListPage** body **or** KanbanBoard | CRM: list↔kanban + `?view=` |
 | calendar | SoftOps FullCalendar / WeekSchedule | not Odoo grid-shell |
 | settings | **SettingsShell** | SettingsSection rows |
@@ -135,8 +135,8 @@ Odoo CP center                          CMC ControlBar.filters (target)
 
 | Odoo | CMC |
 |------|-----|
-| `.o_form_statusbar` | DetailPage `statusbar` → `.o-detail-statusbar` + WorkflowStatusbar (**sticky md+**) |
-| `.o_form_sheet_bg` + `.o_form_sheet` | **DetailPage / FormPage** emit `.o-form-sheet-bg` + `.o-form-sheet` (**SHIPPED** P1) |
+| `.o_form_statusbar` | DetailPage `statusbar` → `.console-detail-statusbar` + WorkflowStatusbar (**sticky md+**) |
+| `.o_form_sheet_bg` + `.o_form_sheet` | **DetailPage / FormPage** emit `.console-form-sheet-bg` + `.console-form-sheet` (**SHIPPED** P1) |
 | button_box | StatActions / EntityHeader actions |
 | notebook | CmcTabs |
 | Save / Discard | FormPage sticky actions |
@@ -145,10 +145,10 @@ Odoo CP center                          CMC ControlBar.filters (target)
 ```text
 DetailPage
   PageHeader
-  .o-form-sheet-bg
-    .o-detail-summary     ← HighlightStrip / StatActions (scrolls)
-    .o-detail-statusbar   ← WorkflowStatusbar (sticky md+)
-    .o-form-sheet
+  .console-form-sheet-bg
+    .console-detail-summary     ← HighlightStrip / StatActions (scrolls)
+    .console-detail-statusbar   ← WorkflowStatusbar (sticky md+)
+    .console-form-sheet
       EntityHeader
       tabs?
       body
@@ -191,12 +191,12 @@ Refresh statuses via the dissection process in `plans/260806-odoo-ui-component-d
 ### Float stacking (design3)
 
 ```text
-page chrome (1–10) < .console-navbar (1000) < .ck-toast-viewport (1100)
-  < dialog.ck-dialog band (1150) < .ck-cmd (1200)
+page chrome (1–10) < .console-navbar (1000) < .console-toast-viewport (1100)
+  < dialog.console-dialog band (1150) < .console-cmd (1200)
 native <dialog>.showModal() top-layer > all of the above while open
 ```
 
-Proof: `packages/ui/src/odoo/odoo-float-layer.test.ts`. Xia: `plans/reports/xia-compare-260806-odoo-float-layers.md`.
+Proof: `packages/ui/src/console/console-float-layer.test.ts`. Xia: `plans/reports/xia-compare-260806-odoo-float-layers.md`.
 
 ---
 

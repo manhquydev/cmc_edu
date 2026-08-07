@@ -271,7 +271,7 @@ quan), không bằng exit code của `pnpm lint`.
 
 ## Sources
 
-- `packages/ui/src/tokens.css`, `premium.css`, `index.ts`  
+- `packages/ui/src/tokens.css`, `console.css (admin) / apps/lms/src/app.css (LMS)`, `index.ts`  
 - `ak-ui-ux-pro-max` design-system (style: data-dense) — colors/fonts **overridden** by CMC  
 - `ak-ui-styling` component catalog — **mapped**, not installed  
 - Prior audits: `plans/260802-research-ui-ux-product-eval/reports/*`  

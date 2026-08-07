@@ -31,7 +31,7 @@ Odoo applies **one** search chrome to nearly every multi-record view via `WithSe
 - [x] Wireframe SearchBar facets + three-column menu + selection-swap + SearchPanel distinction
 - [x] Map CMC `FilterBar` / ListPage adoption and gap matrix
 - [x] Write report under `reports/odoo-search-system-filters-groupby-favorites.md`
-- [x] Update evergreen `ODOO-COMPONENT-MAP` + `VIEW-GRAMMAR` search rules
+- [x] Update evergreen `CONSOLE-COMPONENT-MAP` + `VIEW-GRAMMAR` search rules
 
 ### Optional cook (only if product prioritizes P1)
 

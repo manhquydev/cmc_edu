@@ -6,7 +6,7 @@ priority: P1
 effort: "11-16w"
 tags: [design-system, odoo, admin, ui]
 created: 2026-08-05
-note: acceptance re-measure closed 2026-08-07; remains validation until human visual smoke + PR merge
+note: "completed 2026-08-07 — PR #75 merged + Phase 4 visual smoke (8P/2W/0F residuals: empty CRM detail + cancelled receipt fixtures); rebrand plan 260807-1453"
 blockedBy: [260807-1453-cmc-console-design-system-rebrand-hardening]
 ---
 

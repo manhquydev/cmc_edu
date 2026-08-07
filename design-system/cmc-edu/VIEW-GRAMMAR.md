@@ -11,7 +11,7 @@
 > `addons/web/static/src/webclient/` · `search/control_panel/` · `views/{list,form,kanban}/`
 
 > **Admin shell (design3, 2026-08):** production chrome is **ConsoleNavbar + `.o_web_client` + `main.console-main`**.  
-> `AppFrame` / `SideNav` remain for **LMS** (TL12 premium) only — do not reintroduce as admin shell.
+> `AppFrame` / `SideNav` remain **public barrel exports** (unused by admin and LMS pages today; LMS chrome is `lms-*` in app.css) — do not reintroduce as admin shell.
 
 ---
 

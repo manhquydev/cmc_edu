@@ -15,7 +15,7 @@ export interface ActivityItem {
 /**
  * Vertical activity / audit trail — CRM aftersale, receipt history.
  * Primer-ish density with CMC warm hairlines.
- * Requires @cmc/ui/premium.css (.ck-tl*).
+ * Requires @cmc/ui/console.css (.console-tl*).
  */
 export interface ActivityTimelineProps {
   items: ActivityItem[];
@@ -24,29 +24,29 @@ export interface ActivityTimelineProps {
 
 export function ActivityTimeline({ items, empty }: ActivityTimelineProps) {
   if (items.length === 0) {
-    return empty ? <div className="ck-tl-empty">{empty}</div> : null;
+    return empty ? <div className="console-tl-empty">{empty}</div> : null;
   }
   return (
-    <ol className="ck-tl">
+    <ol className="console-tl">
       {items.map((item, i) => (
-        <li key={item.id} className="ck-tl-item">
+        <li key={item.id} className="console-tl-item">
           <span
-            className="ck-tl-rail"
+            className="console-tl-rail"
             aria-hidden
           >
             <span
-              className="ck-tl-dot"
+              className="console-tl-dot"
               style={{ background: toneColor(item.tone ?? 'brand') }}
             />
-            {i < items.length - 1 ? <span className="ck-tl-line" /> : null}
+            {i < items.length - 1 ? <span className="console-tl-line" /> : null}
           </span>
-          <div className="ck-tl-body">
-            <div className="ck-tl-head">
-              <span className="ck-tl-title">{item.title}</span>
-              {item.time ? <time className="ck-tl-time">{item.time}</time> : null}
+          <div className="console-tl-body">
+            <div className="console-tl-head">
+              <span className="console-tl-title">{item.title}</span>
+              {item.time ? <time className="console-tl-time">{item.time}</time> : null}
             </div>
-            {item.meta ? <div className="ck-tl-meta">{item.meta}</div> : null}
-            {item.trailing ? <div className="ck-tl-trailing">{item.trailing}</div> : null}
+            {item.meta ? <div className="console-tl-meta">{item.meta}</div> : null}
+            {item.trailing ? <div className="console-tl-trailing">{item.trailing}</div> : null}
           </div>
         </li>
       ))}

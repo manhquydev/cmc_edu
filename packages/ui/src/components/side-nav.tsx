@@ -5,7 +5,7 @@ import type { NavEntry, NavModule } from './nav-types.js';
 // Sidebar tree nav (promoted from apps/admin/src/shell/shell.tsx — P3 shell
 // extraction). DUMB — props-only, no router/session/tRPC coupling. Renders
 // module rows + permission-filtered children when a module is active, one
-// LineIcon per entry. Requires @cmc/ui/premium.css (.sh-* classes).
+// LineIcon per entry. Requires @cmc/ui/console.css (.sh-* classes).
 export interface SideNavProps {
   modules: NavModule[];
   /** Active top-level module id (see `activeModuleId`). */

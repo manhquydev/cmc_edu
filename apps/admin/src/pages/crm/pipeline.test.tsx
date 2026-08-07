@@ -142,8 +142,8 @@ describe('CrmPipelinePage', () => {
 
   it('renders stage funnel bars in O1→O5 order using server-aggregated stageCounts (not a count over items)', () => {
     const { container } = renderWithProviders(<CrmPipelinePage />);
-    const labels = Array.from(container.querySelectorAll('.ck-fn-label')).map((el) => el.textContent);
-    const counts = Array.from(container.querySelectorAll('.ck-fn-count')).map((el) => el.textContent);
+    const labels = Array.from(container.querySelectorAll('.console-fn-label')).map((el) => el.textContent);
+    const counts = Array.from(container.querySelectorAll('.console-fn-count')).map((el) => el.textContent);
     expect(labels).toEqual(STAGE_LABEL_ORDER);
     // Matches STAGE_COUNTS_MOCK, NOT the items-derived counts (which would be
     // ['1','2','0','0','0']) — proves the funnel is server-sourced.
@@ -220,14 +220,14 @@ describe('CrmPipelinePage', () => {
     listState.data = undefined;
     const { container } = renderWithProviders(<CrmPipelinePage />);
     expect(container.querySelector('[data-testid="crm-pipeline-skeleton"]')).toBeInTheDocument();
-    expect(container.querySelectorAll('.ck-fn-row')).toHaveLength(0);
+    expect(container.querySelectorAll('.console-fn-row')).toHaveLength(0);
   });
 
   it('renders a premium error state (no Banner) when opportunityList fails', () => {
     listState.error = { message: 'Lỗi mạng' };
     const { container } = renderWithProviders(<CrmPipelinePage />);
     expect(screen.getByText('Lỗi mạng')).toBeInTheDocument();
-    expect(container.querySelectorAll('.ck-fn-row')).toHaveLength(0);
+    expect(container.querySelectorAll('.console-fn-row')).toHaveLength(0);
   });
 
   it('does not render pictographic emoji for the stage-advance affordance', () => {

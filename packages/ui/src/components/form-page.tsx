@@ -7,7 +7,7 @@ export interface FormPageProps {
   children: ReactNode;
   /**
    * Action bar content — typically a single pill-styled primary `<Button>`
-   * (apply the `.fp-action` class from premium.css, or reuse `.sh-cta`) plus
+   * (apply the `.fp-action` class from console.css, or reuse `.fp-action` / primary button) plus
    * an optional secondary/cancel action.
    */
   actions: ReactNode;

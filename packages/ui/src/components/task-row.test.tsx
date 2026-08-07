@@ -13,12 +13,12 @@ describe('TaskRow', () => {
     expect(getByText('Duyệt SO1')).toBeInTheDocument();
     expect(getByText('5.000.000 đ')).toBeInTheDocument();
     // Title/meta use CSS classes only — tone colour is on the dot, never the text.
-    expect(container.querySelector('.ck-row-title')!.getAttribute('style')).toBeNull();
-    expect(container.querySelector('.ck-row-main')).toBeTruthy();
-    const dot = container.querySelector('.ck-dot') as HTMLElement;
+    expect(container.querySelector('.console-row-title')!.getAttribute('style')).toBeNull();
+    expect(container.querySelector('.console-row-main')).toBeTruthy();
+    const dot = container.querySelector('.console-dot') as HTMLElement;
     expect(dot).toBeInTheDocument();
     expect(dot.getAttribute('style')).toMatch(/background/);
-    expect(container.querySelector('.ck-chev svg')).toBeInTheDocument();
+    expect(container.querySelector('.console-chev svg')).toBeInTheDocument();
     expect(container.querySelector('a[href="/finance/1"]')).toBeInTheDocument();
   });
 });

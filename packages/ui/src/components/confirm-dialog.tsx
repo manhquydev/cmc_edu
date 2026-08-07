@@ -48,9 +48,9 @@ export function ConfirmDialog({
   // Wrapper is a mount/registry hook for design3 float docs. Astryx Dialog uses
   // native <dialog>.showModal() (browser top layer — above toast/cmd z-index).
   return (
-    <div className="ck-dialog-root" data-cmc-float="dialog">
+    <div className="console-dialog-root" data-cmc-float="dialog">
       <AlertDialog
-        className="ck-dialog"
+        className="console-dialog"
         isOpen={opened}
         onOpenChange={(next) => {
           if (!next && !loading) onCancel();

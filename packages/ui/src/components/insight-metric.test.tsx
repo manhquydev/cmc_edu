@@ -22,7 +22,7 @@ describe('InsightMetric', () => {
     expect(screen.getByText('Lead mới')).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument();
     expect(screen.getByText('+18%')).toBeInTheDocument();
-    expect(container.querySelectorAll('.ck-im-spark-bar').length).toBe(5);
-    expect(container.querySelector('a.ck-im[href="/crm"]')).toBeTruthy();
+    expect(container.querySelectorAll('.console-im-spark-bar').length).toBe(5);
+    expect(container.querySelector('a.console-im[href="/crm"]')).toBeTruthy();
   });
 });

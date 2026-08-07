@@ -501,7 +501,7 @@ export default function OpportunityDetailPage() {
 
               <SectionBlock title="Lịch test đầu vào">
                 {!appointments || appointments.length === 0 ? (
-                  <div className="ck-empty">Chưa có lịch test</div>
+                  <div className="console-empty">Chưa có lịch test</div>
                 ) : (
                   <Stack gap={0}>
                     {appointments.map((appt, idx) => (

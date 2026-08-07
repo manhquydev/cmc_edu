@@ -181,7 +181,7 @@ export type {
 
 // Page templates (P4 template extraction) — thin, slot-based list/detail/form
 // page archetypes composing the atoms above. Props-only, no data fetching;
-// pages own tRPC + business logic. Require @cmc/ui/console.css (.tpl-*).
+// pages own tRPC + business logic. Require @cmc/ui/console.css (.console-* page templates).
 export { ListPage } from './components/list-page.js';
 export type { ListPageProps } from './components/list-page.js';
 export { ControlBar } from './components/control-bar.js';

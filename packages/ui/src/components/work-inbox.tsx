@@ -52,7 +52,7 @@ export function WorkInbox({
 
   const headerAction =
     viewAllHref && total > 0 ? (
-      <Link to={viewAllHref} className="ck-pnl-action">
+      <Link to={viewAllHref} className="console-pnl-action">
         {viewAllLabel}
         <LineIcon name="chevron" size={14} />
       </Link>
@@ -61,13 +61,13 @@ export function WorkInbox({
   return (
     <Panel title={titleWithCount} action={headerAction}>
       {loading ? (
-        <div className="ck-inbox-skel">
+        <div className="console-inbox-skel">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} height={40} radius={1} />
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <div className="ck-inbox-empty">
+        <div className="console-inbox-empty">
           <EmptyState
             title={emptyTitle}
             description={emptyDescription}
@@ -76,11 +76,11 @@ export function WorkInbox({
           />
         </div>
       ) : sections && sections.length > 0 ? (
-        <div className="ck-inbox">
+        <div className="console-inbox">
           {sections.map((sec) =>
             sec.items.length === 0 ? null : (
-              <div key={sec.id} className="ck-inbox-section">
-                <div className="ck-inbox-section-label">{sec.label}</div>
+              <div key={sec.id} className="console-inbox-section">
+                <div className="console-inbox-section-label">{sec.label}</div>
                 {sec.items.map((item, i) => (
                   <TaskRow key={`${sec.id}-${i}`} {...item} />
                 ))}

@@ -13,7 +13,7 @@ describe('CommandPalette', () => {
     const { container } = render(
       <CommandPalette open={false} onOpenChange={vi.fn()} items={ITEMS} />,
     );
-    expect(container.querySelector('.ck-cmd')).toBeNull();
+    expect(container.querySelector('.console-cmd')).toBeNull();
   });
 
   it('filters items and navigates on click', () => {

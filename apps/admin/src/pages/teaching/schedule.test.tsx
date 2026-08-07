@@ -261,10 +261,10 @@ describe('SchedulePage', () => {
     expect(counts).toEqual(['1', '2', '0', '0']);
   });
 
-  it('kanban view keeps a batch card per row and drops the premium ck-kanban shell', () => {
+  it('kanban view keeps a batch card per row and drops the premium console-kanban shell', () => {
     renderWithProviders(<SchedulePage />, { route: '/teaching/schedule?view=kanban' });
     expect(screen.getByText('ENG-A1')).toBeInTheDocument();
-    expect(document.querySelector('.ck-kanban')).toBeNull();
+    expect(document.querySelector('.console-kanban')).toBeNull();
   });
 
   it('renders the FilterBar course filter input', () => {

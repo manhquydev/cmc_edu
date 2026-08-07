@@ -272,7 +272,7 @@ async function measurePage(page, route) {
   result.markers.statusbar =
     (await page.locator('.console-workflow-statusbar, .console-steps').count()) > 0;
   result.markers.emptyState =
-    (await page.locator('.ck-empty, [data-empty-state], .console-empty').count()) > 0 ||
+    (await page.locator('.console-empty, [data-empty-state], .console-empty').count()) > 0 ||
     (await page.getByText(/tính năng chưa|chưa áp dụng|coming soon/i).count()) > 0;
 
   // Residual premium class census in rendered DOM under main

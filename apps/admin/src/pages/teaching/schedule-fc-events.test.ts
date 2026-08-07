@@ -45,7 +45,7 @@ describe('schedule-fc-events adapter', () => {
     expect(events[0]!.classNames).toContain('console-fc-ev--active');
   });
 
-  // `ck-fc` is FocusCard's prefix in premium.css. The calendar used to emit it
+  // `console-fc` is FocusCard's prefix in console.css. The calendar used to emit it
   // too, so its wrapper inherited FocusCard's accent rail, padding and
   // hover-lift. Calendar classes must stay out of that namespace.
   it('emits no ck-* class names', () => {

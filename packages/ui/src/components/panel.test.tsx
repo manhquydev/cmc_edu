@@ -7,12 +7,12 @@ describe('Panel', () => {
     const { container, getByText } = render(<Panel title="Việc cần xử lý"><div>body</div></Panel>);
     expect(getByText('Việc cần xử lý')).toBeInTheDocument();
     expect(getByText('body')).toBeInTheDocument();
-    expect(container.querySelector('.ck-pnl-icon')).toBeNull();
+    expect(container.querySelector('.console-pnl-icon')).toBeNull();
   });
 
   it('renders an optional monochrome icon', () => {
     const { container } = render(<Panel title="T" icon="filter">x</Panel>);
-    const svg = container.querySelector('.ck-pnl-icon svg')!;
+    const svg = container.querySelector('.console-pnl-icon svg')!;
     expect(svg).toHaveAttribute('stroke', 'currentColor');
     expect(svg).toHaveAttribute('fill', 'none');
   });

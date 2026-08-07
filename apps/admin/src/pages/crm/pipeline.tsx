@@ -457,7 +457,7 @@ export default function CrmPipelinePage() {
               </div>
             ) : (
               <>
-                <div className="ck-fn">
+                <div className="console-fn">
                   {STAGES.map((stage) => (
                     <FunnelBar
                       key={stage.key}

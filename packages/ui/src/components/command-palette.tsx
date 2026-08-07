@@ -24,7 +24,7 @@ export interface CommandPaletteProps {
 /**
  * ⌘K / Ctrl+K command palette for nav jump.
  * Parent owns open state + items (permission-filtered).
- * Requires @cmc/ui/premium.css (.ck-cmd*).
+ * Requires @cmc/ui/console.css (.console-cmd*).
  */
 export function CommandPalette({
   open,
@@ -104,18 +104,18 @@ export function CommandPalette({
   });
 
   return (
-    <div className="ck-cmd" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="console-cmd" role="dialog" aria-modal="true" aria-label={title}>
       <button
         type="button"
-        className="ck-cmd-backdrop"
+        className="console-cmd-backdrop"
         aria-label="Đóng"
         onClick={() => onOpenChange(false)}
       />
-      <div className="ck-cmd-panel">
-        <div className="ck-cmd-head">
+      <div className="console-cmd-panel">
+        <div className="console-cmd-head">
           <input
             ref={inputRef}
-            className="ck-cmd-input"
+            className="console-cmd-input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={placeholder}
@@ -123,15 +123,15 @@ export function CommandPalette({
             autoComplete="off"
             spellCheck={false}
           />
-          <kbd className="ck-cmd-kbd">esc</kbd>
+          <kbd className="console-cmd-kbd">esc</kbd>
         </div>
-        <div className="ck-cmd-list" role="listbox">
+        <div className="console-cmd-list" role="listbox">
           {filtered.length === 0 ? (
-            <div className="ck-cmd-empty">Không có kết quả</div>
+            <div className="console-cmd-empty">Không có kết quả</div>
           ) : (
             groups.map((g) => (
-              <div key={g.name} className="ck-cmd-group">
-                <div className="ck-cmd-group-label">{g.name}</div>
+              <div key={g.name} className="console-cmd-group">
+                <div className="console-cmd-group-label">{g.name}</div>
                 {g.items.map(({ item, index }) => (
                   <button
                     key={item.id}
@@ -139,15 +139,15 @@ export function CommandPalette({
                     role="option"
                     aria-selected={index === active}
                     className={
-                      index === active ? 'ck-cmd-item is-active' : 'ck-cmd-item'
+                      index === active ? 'console-cmd-item is-active' : 'console-cmd-item'
                     }
                     onMouseEnter={() => setActive(index)}
                     onClick={() => runItem(item)}
                   >
-                    {item.icon ? <span className="ck-cmd-item-icon">{item.icon}</span> : null}
-                    <span className="ck-cmd-item-label">{item.label}</span>
+                    {item.icon ? <span className="console-cmd-item-icon">{item.icon}</span> : null}
+                    <span className="console-cmd-item-label">{item.label}</span>
                     {item.group ? (
-                      <span className="ck-cmd-item-meta">{item.group}</span>
+                      <span className="console-cmd-item-meta">{item.group}</span>
                     ) : null}
                   </button>
                 ))}
@@ -155,15 +155,15 @@ export function CommandPalette({
             ))
           )}
         </div>
-        <div className="ck-cmd-foot">
+        <div className="console-cmd-foot">
           <span>
-            <kbd className="ck-cmd-kbd">↑↓</kbd> di chuyển
+            <kbd className="console-cmd-kbd">↑↓</kbd> di chuyển
           </span>
           <span>
-            <kbd className="ck-cmd-kbd">↵</kbd> mở
+            <kbd className="console-cmd-kbd">↵</kbd> mở
           </span>
           <span>
-            <kbd className="ck-cmd-kbd">esc</kbd> đóng
+            <kbd className="console-cmd-kbd">esc</kbd> đóng
           </span>
         </div>
       </div>

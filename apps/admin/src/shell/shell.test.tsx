@@ -168,7 +168,7 @@ describe('Shell (Odoo chrome)', () => {
     const { container } = renderShell('/finance');
     // Open palette via hotkey affordance button
     fireEvent.click(screen.getByLabelText('Tìm (⌘K)'));
-    const palette = container.querySelector('.ck-cmd') ?? container.querySelector('[role="dialog"]');
+    const palette = container.querySelector('.console-cmd') ?? container.querySelector('[role="dialog"]');
     expect(palette).toBeTruthy();
     // Scope to palette list — section menu also shows "Phiếu thu".
     const paletteText = palette!.textContent ?? '';

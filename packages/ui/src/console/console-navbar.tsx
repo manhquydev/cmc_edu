@@ -9,7 +9,7 @@ import type { NavEntry, NavModule } from '../components/nav-types.js';
  *
  * Requires `@cmc/ui/console.css` and an ancestor with class `.o_web_client`.
  */
-export interface OdooNavbarProps {
+export interface ConsoleNavbarProps {
   apps: NavModule[];
   activeAppId: string | null;
   /** Required permission gate — children that fail are never rendered. */
@@ -21,7 +21,7 @@ export interface OdooNavbarProps {
   className?: string;
 }
 
-export function OdooNavbar({
+export function ConsoleNavbar({
   apps,
   activeAppId,
   isChildVisible,
@@ -29,7 +29,7 @@ export function OdooNavbar({
   brand,
   systray,
   className,
-}: OdooNavbarProps) {
+}: ConsoleNavbarProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const rootRef = useRef<HTMLElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);

@@ -2,7 +2,7 @@ import {
   Badge,
   CommandPalette,
   LineIcon,
-  OdooNavbar,
+  ConsoleNavbar,
   activeModuleId,
   useCommandPaletteHotkey,
   type CommandItem,
@@ -126,7 +126,7 @@ export function Shell() {
   return (
     <div className="o_web_client">
       {!suppressChrome && (
-        <OdooNavbar
+        <ConsoleNavbar
           apps={modules}
           activeAppId={activeId}
           isChildVisible={(c) => isNavChildVisible(c, canDo)}

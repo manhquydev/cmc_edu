@@ -107,7 +107,7 @@ describe('Shell (Odoo chrome)', () => {
     sessionState.canDo = () => true;
   });
 
-  it('renders .o_web_client + OdooNavbar when session is present', () => {
+  it('renders .o_web_client + ConsoleNavbar when session is present', () => {
     const { container } = renderShell('/cockpit');
     expect(container.querySelector('.o_web_client')).toBeInTheDocument();
     expect(screen.getByLabelText('Mở app switcher')).toBeInTheDocument();

@@ -596,7 +596,7 @@ function toMarkdown(results, summary, meta) {
   lines.push('## Design3 sync verdict (honest)');
   lines.push('');
   lines.push(
-    '1. **Shell language:** Admin production chrome is design3 (OdooNavbar + `.o_web_client` + `.console-main`) on walked authenticated routes — unit/static rollout claim holds at runtime if shellOk is high.',
+    '1. **Shell language:** Admin production chrome is design3 (ConsoleNavbar + `.o_web_client` + `.console-main`) on walked authenticated routes — unit/static rollout claim holds at runtime if shellOk is high.',
   );
   lines.push(
     '2. **Template coverage:** Most business pages render via shared templates emitting `o-*` (PageHeader/List/Form/Detail). Dialogs and login intentionally outside templates.',

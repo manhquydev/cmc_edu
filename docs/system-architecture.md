@@ -10,7 +10,7 @@
 >
 > **Updated 2026-07-26 (nghiệm thu journey + CI khôi phục):** e2e hiện **43 spec file** (31 journey UI), chạy trong project `ui-chromium` trên CI. Sổ nghiệm thu: **31/38 luồng đã chứng minh chạy** tại commit `324bd12`, sinh từ artifact CI (`gitDirty:false`) — **đã chạm trần journey**; 7 luồng còn lại `no-ui-path` ⇒ 38/38 đều có trạng thái máy-chứng. Journey ở mức smoke — chứng minh luồng chạy thông, không chứng minh đúng số học nghiệp vụ; UAT người thật chưa chạy. Chi tiết: `docs/codebase-summary.md`.
 >
-> **Updated 2026-08-06 (design3 admin shell):** `apps/admin` production chrome is the **Odoo backend UI language** — root `.o_web_client`, top **OdooNavbar** + app-switcher, content in `main.o-main`. Premium side-nav shell (`AppFrame`/`SideNav` + `premium.css`) is **not** used on admin; LMS keeps TL12 premium (`@cmc/ui/premium.css`). Design authority: `docs/design-system-odoo.md`. Lab route `/design3` was deleted after promote.
+> **Updated 2026-08-06 (design3 admin shell):** `apps/admin` production chrome is the **Odoo backend UI language** — root `.o_web_client`, top **ConsoleNavbar** + app-switcher, content in `main.o-main`. Premium side-nav shell (`AppFrame`/`SideNav` + `premium.css`) is **not** used on admin; LMS keeps TL12 premium (`@cmc/ui/premium.css`). Design authority: `docs/design-system-odoo.md`. Lab route `/design3` was deleted after promote.
 >
 > **Updated 2026-08-07 (FilterBar + list search + ui-e2e):** G1 **FilterBar** is the list filter host on ControlBar (debounced text; select `hasClear` for default-domain filters). Optional tRPC **`search`** on major list procedures (users, facilities, courses, classBatch, pickList, grading queue, …). ListPage FilterBar adoption ~**20/23** (holdouts: leaderboard, class-placement, refund). **CI:** `typecheck-and-test` + `ui-e2e` green on `develop` PR #75 (`eaa223a`). **Acceptance re-measure** @ same SHA (CI journey artifact, `gitDirty:false`): **31/38 proven**, 7 `no-ui-path` — no journey regression from FilterBar ship. Evidence: `plans/reports/ship-20260807-filterbar-search.md`, `plans/reports/cook-260807-0902-design3-validation-acceptance.md`. Still open: human visual smoke; 6 untriaged API orphans (pre-existing tool exit 1).
 
@@ -70,7 +70,7 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 
 **apps/admin/** — ERP SPA, ~30 routes
 - 100% Astryx (@astryxdesign/core@0.1.4) via `@cmc/ui/primitives` single-door barrel (Phase 3 complete)
-- **Shell (2026-08-06):** `apps/admin/src/shell/shell.tsx` renders `.o_web_client` + `OdooNavbar` (app-switcher, permission-gated section menus, systray) + `main.o-main` outlet. `/login` is outside the shell; `/change-password` is inside with **chrome suppressed** (no navbar/⌘K). CSS: `@cmc/ui/odoo.css` only (no `premium.css` on admin). See `docs/design-system-odoo.md`.
+- **Shell (2026-08-06):** `apps/admin/src/shell/shell.tsx` renders `.o_web_client` + `ConsoleNavbar` (app-switcher, permission-gated section menus, systray) + `main.o-main` outlet. `/login` is outside the shell; `/change-password` is inside with **chrome suppressed** (no navbar/⌘K). CSS: `@cmc/ui/odoo.css` only (no `premium.css` on admin). See `docs/design-system-odoo.md`.
 - tRPC client gated with `x-dev-user` header (dev auth until Entra SSO)
 - Route groups: sales, teaching, hr, finance, admin + generic table coverage
 - `can()` RBAC guards per route; `session.me` for over-threshold role check

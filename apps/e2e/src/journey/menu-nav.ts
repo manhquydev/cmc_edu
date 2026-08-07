@@ -4,7 +4,7 @@
 //
 // DOM contract (Odoo shell, design3): top-level modules live in the app
 // switcher (opened via "Mở app switcher"); children of the active app render
-// as horizontal section-menu buttons on the purple navbar (OdooNavbar).
+// as horizontal section-menu buttons on the purple navbar (ConsoleNavbar).
 // Navigation is navigate-then-select (not expand-in-place side rail).
 //
 // Signature stays `menuNav(page, module, child)` for call-site compatibility.

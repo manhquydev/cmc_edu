@@ -668,7 +668,7 @@
 .o_web_client p { font-size: var(--font-size-base); }
 .o_web_client small { font-size: var(--font-size-xs); }
 
-/* Button resets when OdooNavbar/KanbanCard use native <button> */
+/* Button resets when ConsoleNavbar/KanbanCard use native <button> */
 .console-menu-item {
   background: transparent;
   border: 0;
@@ -695,7 +695,7 @@ button.console-kanban-card {
   background: var(--console-gray-100, #f8f9fa);
 }
 
-/* Systray cluster inside OdooNavbar */
+/* Systray cluster inside ConsoleNavbar */
 .console-systray {
   display: flex;
   align-items: center;

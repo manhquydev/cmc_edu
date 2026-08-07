@@ -226,6 +226,11 @@ file rather than creating new component surface.
    asserts `getComputedStyle(th).position === 'sticky'` (admin baseURL `:4173`,
    super_admin cookie).
 
+   **Follow-up (Phase 4 smoke):** e2e asserts `position: sticky` only, not
+   scroll-pin geometry. Nested Astryx `overflow-x: auto` under `.console-list`
+   may create a second scrollport — verify headers pin on a long list during
+   human visual smoke; if not, neutralize nested overflow in a later CSS fix.
+
 ### Deferred (explicit, not dropped)
 
 | Item | Blocker |

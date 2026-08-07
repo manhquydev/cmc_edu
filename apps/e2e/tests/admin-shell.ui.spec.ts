@@ -84,11 +84,13 @@ test.describe('admin shell (UI safety net)', () => {
     await page.goto('/admin/facilities');
     await expect(page).toHaveURL(/\/admin\/facilities/);
 
+    // Wait for loaded table (empty/error/loading paths have no thead).
     const list = page.locator('.console-list').first();
-    await expect(list).toBeVisible();
+    await expect(list.getByRole('columnheader', { name: /tên cơ sở/i })).toBeVisible();
     const th = list.locator('thead th').first();
-    await expect(th).toBeVisible();
 
+    // Asserts CSS application (position:sticky). Scroll-pin geometry under nested
+    // Astryx overflow is a Phase 4 visual-smoke follow-up, not claimed here.
     const position = await th.evaluate((el) => getComputedStyle(el).position);
     expect(position).toBe('sticky');
 

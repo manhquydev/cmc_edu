@@ -16,13 +16,13 @@ LMS (student/parent) keeps the TL12 premium language (`@cmc/ui/premium.css`) and
 does not adopt Odoo chrome.
 
 **Implementation surface (source of truth for re-implementation):**
-- CSS: [`packages/ui/src/odoo.css`](../packages/ui/src/odoo.css) — tokens under
+- CSS: [`packages/ui/src/console.css`](../packages/ui/src/console.css) — tokens under
   `.o_web_client`, component skins (`.o-*`), plus Phase 6 scoped mirror of
   remaining premium (`.ck-*` / `.tpl-*` / `.sh-*`) selectors so admin no longer
   imports `premium.css`.
-- Shell: [`ConsoleNavbar`](../packages/ui/src/odoo/odoo-navbar.tsx) + admin
+- Shell: [`ConsoleNavbar`](../packages/ui/src/console/console-navbar.tsx) + admin
   `apps/admin/src/shell/shell.tsx` (`.o_web_client` + `<main class="o-main">`).
-- Kanban: [`KanbanBoard` / `KanbanColumn` / `KanbanCard`](../packages/ui/src/odoo/odoo-kanban.tsx).
+- Kanban: [`KanbanBoard` / `KanbanColumn` / `KanbanCard`](../packages/ui/src/console/console-kanban.tsx).
 - Templates: ListPage, DetailPage, FormPage, DashboardPage, ControlBar, etc.
   emit `o-*` classes (Phase 3 port).
 
@@ -36,8 +36,8 @@ git history if needed. This file is the sole evergreen authority.
 
 ### Verification method
 
-- **Source:** Odoo 19.0 backend web-client source (`github.com/odoo/odoo`, LGPL-3, branch `19.0`, commit `5568f6e472e2e53bc2931e744421015b0f0f3550`)
-- **Implementation:** [`packages/ui/src/odoo.css`](../packages/ui/src/odoo.css) + [`ConsoleNavbar`](../packages/ui/src/odoo/odoo-navbar.tsx) + [`KanbanBoard`](../packages/ui/src/odoo/odoo-kanban.tsx); production shell `apps/admin/src/shell/shell.tsx`
+- **Source:** Odoo 19.0 backend web-client source (`github.com/odoo/odoo`, LGPL-3, branch `19.0`, commit `7de220c941c77d4fffdc270a7862c69475fa4577` — pin reconciled 2026-08-07 (Phase 3; see plans/260807-1453-cmc-console-design-system-rebrand-hardening/reports/fresh-fidelity-audit-2026-08-07.md))
+- **Implementation:** [`packages/ui/src/console.css`](../packages/ui/src/console.css) + [`ConsoleNavbar`](../packages/ui/src/console/console-navbar.tsx) + [`KanbanBoard`](../packages/ui/src/console/console-kanban.tsx); production shell `apps/admin/src/shell/shell.tsx`
 - **Verification layers:**
   - Phase implementation with explicit decision log ([plans/260805-1421-design-lab-3-odoo-ui-recreation/plan.md](../plans/260805-1421-design-lab-3-odoo-ui-recreation/plan.md))
   - Red-team review: 13 findings, 12 accepted, 1 rejected; 6 agents reviewing decisions against source
@@ -225,9 +225,9 @@ is navbar chrome only. No token conflict under separate import paths
 
 ### Implementation source (authoritative)
 
-- [`packages/ui/src/odoo.css`](../packages/ui/src/odoo.css) — tokens, skins, premium mirror, float layers (LGPL-3 attribution)
-- [`packages/ui/src/odoo/odoo-navbar.tsx`](../packages/ui/src/odoo/odoo-navbar.tsx)
-- [`packages/ui/src/odoo/odoo-kanban.tsx`](../packages/ui/src/odoo/odoo-kanban.tsx)
+- [`packages/ui/src/console.css`](../packages/ui/src/console.css) — tokens, skins, premium mirror, float layers (LGPL-3 attribution)
+- [`packages/ui/src/console/console-navbar.tsx`](../packages/ui/src/console/console-navbar.tsx)
+- [`packages/ui/src/console/console-kanban.tsx`](../packages/ui/src/console/console-kanban.tsx)
 - [`apps/admin/src/shell/shell.tsx`](../apps/admin/src/shell/shell.tsx)
 
 ### Related design docs

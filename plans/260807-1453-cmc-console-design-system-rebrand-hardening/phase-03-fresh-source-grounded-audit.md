@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "Phase 3: Fresh Source-Grounded Audit"
-status: todo
+status: completed
 priority: P1
 effort: "3-4d"
 dependencies: [1, 2]
@@ -179,3 +179,16 @@ report stays a clean point-in-time record).
   follow-up decision (or Phase 5 if they're component-completeness shaped),
   not get fixed inline mid-audit — keeps this phase's diff clean and the
   report trustworthy as a point-in-time record.
+
+
+## Completion Notes
+
+**Completed:** 2026-08-07.
+
+**Pin decision:** `7de220c941c77d4fffdc270a7862c69475fa4577` (matches local odoo-src + shipped values).
+Prior `5568f6e4…` retired from tracked attribution.
+
+**Report:** `reports/fresh-fidelity-audit-2026-08-07.md`
+
+**Tracked diff:** console.css header, console-tokens.test.ts, design-system-console.md (pin + path fix).
+No fidelity production fixes (none required).

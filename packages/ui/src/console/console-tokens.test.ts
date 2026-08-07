@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 
 const css = readFileSync(resolve(process.cwd(), 'src/console.css'), 'utf8');
 
-describe('odoo.css scope + token surface', () => {
+describe('console.css scope + token surface', () => {
   it('never uses a document-global :root selector (scope leak guard)', () => {
     // Grep-equivalent: the string must be absent from the whole file (incl. comments).
     expect(css.includes(':root')).toBe(false);
@@ -19,7 +19,7 @@ describe('odoo.css scope + token surface', () => {
     expect(css.includes('--console-navbar-height:')).toBe(true);
   });
 
-  it('exposes remapped class names (o- prefix, not odoo-lab-)', () => {
+  it('exposes remapped class names (console- prefix, not odoo-lab-)', () => {
     expect(css.includes('.console-navbar')).toBe(true);
     expect(css.includes('.console-kanban-board')).toBe(true);
     expect(css.includes('.console-statusbar-step')).toBe(true);
@@ -28,7 +28,7 @@ describe('odoo.css scope + token surface', () => {
 
   it('retains LGPL-3 Odoo provenance attribution', () => {
     expect(css.includes('LGPL-3')).toBe(true);
-    expect(css.includes('5568f6e472e2e53bc2931e744421015b0f0f3550')).toBe(true);
+    expect(css.includes('7de220c941c77d4fffdc270a7862c69475fa4577')).toBe(true);
   });
 
   it('remaps both --font-size-* and --text-*-size under .o_web_client', () => {

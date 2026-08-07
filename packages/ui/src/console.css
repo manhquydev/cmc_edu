@@ -1,8 +1,10 @@
 /*
- * @cmc/ui odoo layer — Odoo backend UI language for admin.
+ * @cmc/ui console layer — CMC Console (admin ERP UI language).
  * Ported from apps/admin design-lab-3 (source-grounded recreation).
  * Tokens/styles from Odoo addons/web static source (LGPL-3,
- * https://github.com/odoo/odoo), branch 19.0, commit 5568f6e472e2e53bc2931e744421015b0f0f3550.
+ * https://github.com/odoo/odoo), branch 19.0, commit 7de220c941c77d4fffdc270a7862c69475fa4577.
+ * Pin reconciled 2026-08-07 (plan 260807-1453 Phase 3): shipped values match this
+ * commit in local sparse clone; prior header hash 5568f6e4… retired (not in clone).
  * Values reimplemented as plain CSS custom properties scoped under .o_web_client
  * only (document-global selectors are forbidden — must not leak into LMS).
  * Import ONCE at admin app root: `import '@cmc/ui/console.css'` (sole admin design-system stylesheet).

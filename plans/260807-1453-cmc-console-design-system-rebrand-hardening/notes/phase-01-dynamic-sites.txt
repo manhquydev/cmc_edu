@@ -1,0 +1,17 @@
+# Dynamic construction sites (not pure class literals)
+
+1. packages/ui/src/components/filter-bar.tsx ~line 97
+   id={`o-filter-${f.key}`}  → id={`console-filter-${f.key}`}
+   (HTML id, not a CSS class)
+
+2. packages/ui/src/components/dashboard-page.tsx
+   Comment mentions `.o-dash-*` template family; live classes are full names
+   (o-dash-metrics, o-dash-head, o-dash-title, …) already in class map.
+
+3. packages/ui/src/odoo/odoo-kanban.tsx (→ console-kanban.tsx)
+   Template literals for className and --odoo-kanban-card-color token construction.
+   Token rename in commit 1b; class rename in 1c.
+
+4. o_web_client — NEVER rename (underscore DOM mirror). Baseline count of
+   source references is high because odoo.css scopes hundreds of .ck-* rules
+   under .o_web_client; that is intentional and stays.

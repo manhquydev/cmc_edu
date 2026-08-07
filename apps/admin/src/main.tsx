@@ -16,7 +16,7 @@ import '@fontsource-variable/inter';
 import '@cmc/ui/tokens.css';
 import '@cmc/ui/astryx-theme-cmc.css';
 // Odoo admin UI layer (design3) — tokens/composites for admin shell.
-// Phase 6: premium.css is NOT imported here (LMS still loads it). odoo.css
+// Phase 6: premium.css deleted (Phase 2); console.css
 // includes a scoped mirror of premium selectors under `.o_web_client` so
 // remaining ck-*/tpl-*/sh-* class emissions keep styling without leaking to LMS.
 import '@cmc/ui/console.css';

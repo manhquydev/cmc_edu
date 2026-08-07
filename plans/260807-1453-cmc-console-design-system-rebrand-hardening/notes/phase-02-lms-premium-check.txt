@@ -1,0 +1,3 @@
+# LMS premium consumer check — 2026-08-07
+command: grep -rohE '\b(ck|sh|tpl)-[a-z][a-z0-9-]*' apps/lms/src
+result: EMPTY (safe to delete premium.css)

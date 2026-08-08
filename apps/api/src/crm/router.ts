@@ -13,6 +13,7 @@ import { isOpportunityLost } from './opportunity-lost.js';
 import { findOrCreateContact } from './find-or-create-contact.js';
 import { normalizeContactPhone, toContactPhoneSearchDigits } from './normalize-contact-phone.js';
 import { advanceOpportunityOneStep } from './advance-opportunity.js';
+import { isOpportunityRotting } from './rotting.js';
 
 /** Full OpportunityStage catalog (docs/10). */
 const STAGE_VALUES = [
@@ -71,6 +72,16 @@ const opportunityLookupInput = z.object({
 });
 
 const opportunityGetInput = z.object({
+  opportunityId: z.string().uuid(),
+});
+
+const opportunitySetNextActionInput = z.object({
+  opportunityId: z.string().uuid(),
+  nextActionAt: z.string().datetime(),
+  nextActionNote: z.string().trim().min(1).max(200),
+});
+
+const opportunityClearNextActionInput = z.object({
   opportunityId: z.string().uuid(),
 });
 
@@ -217,9 +228,15 @@ export const crmRouter = router({
           if (!isOpportunityLost(opportunity)) {
             throw badRequest('Opportunity is not marked lost; nothing to reopen.');
           }
+          // Reopen is a CRM stage UPDATE → reset rotting clock (P2).
           return tx.opportunity.update({
             where: { id: opportunity.id },
-            data: { stage: 'O2_CONTACTED', lostReason: null, closedAt: null },
+            data: {
+              stage: 'O2_CONTACTED',
+              lostReason: null,
+              closedAt: null,
+              stageChangedAt: new Date(),
+            },
           });
         }
 
@@ -358,6 +375,8 @@ export const crmRouter = router({
           closedAt: opportunity.closedAt,
           lostReason: opportunity.lostReason,
           source: opportunity.source,
+          nextActionAt: opportunity.nextActionAt,
+          nextActionNote: opportunity.nextActionNote,
           assignedTo,
           contact: opportunity.contact,
         };
@@ -427,12 +446,114 @@ export const crmRouter = router({
           ? await tx.appUser.findMany({ where: { id: { in: ownerIds } }, select: { id: true, userId: true, fullName: true } })
           : [];
         const ownerById = new Map(owners.map((o) => [o.id, { userId: o.userId, fullName: o.fullName }]));
+        const now = new Date();
         const itemsWithOwner = items.map((i) => ({
           ...i,
           assignedTo: i.assignedToId ? ownerById.get(i.assignedToId) ?? null : null,
+          // Derived at read time (P2) — no flag table / worker.
+          isRotting: isOpportunityRotting({
+            stage: i.stage,
+            closedAt: i.closedAt,
+            stageChangedAt: i.stageChangedAt,
+            createdAt: i.createdAt,
+            nextActionAt: i.nextActionAt,
+          }, now),
         }));
 
         return { items: itemsWithOwner, total, page: input.page, pageSize: input.pageSize, stageCounts, lostCount };
+      });
+    }),
+
+  /**
+   * P4: set the single next-action (due date + short note) on an open opportunity.
+   */
+  opportunitySetNextAction: requirePermission('crm', 'opportunityAdvance')
+    .input(opportunitySetNextActionInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      const at = new Date(input.nextActionAt);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const opp = await tx.opportunity.findFirst({
+          where: { id: input.opportunityId, facilityId },
+          select: { id: true, stage: true, closedAt: true },
+        });
+        if (!opp) throw notFound('Opportunity not found.');
+        if (opp.stage === 'O5_ENROLLED' || isOpportunityLost(opp)) {
+          throw badRequest('Không đặt việc trên cơ hội đã nhập học hoặc đã mất.');
+        }
+        return tx.opportunity.update({
+          where: { id: opp.id },
+          data: {
+            nextActionAt: at,
+            nextActionNote: input.nextActionNote,
+          },
+          select: {
+            id: true,
+            nextActionAt: true,
+            nextActionNote: true,
+          },
+        });
+      });
+    }),
+
+  /** P4: clear next-action (mark done). */
+  opportunityClearNextAction: requirePermission('crm', 'opportunityAdvance')
+    .input(opportunityClearNextActionInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const opp = await tx.opportunity.findFirst({
+          where: { id: input.opportunityId, facilityId },
+          select: { id: true },
+        });
+        if (!opp) throw notFound('Opportunity not found.');
+        return tx.opportunity.update({
+          where: { id: opp.id },
+          data: { nextActionAt: null, nextActionNote: null },
+          select: { id: true, nextActionAt: true, nextActionNote: true },
+        });
+      });
+    }),
+
+  /**
+   * P4: due/overdue follow-ups for the current user (WorkInbox).
+   * Active = closedAt IS NULL AND stage <> O5 (do NOT reuse NOT_LOST_WHERE).
+   */
+  opportunityDueFollowUps: requirePermission('crm', 'opportunityList')
+    .query(async ({ ctx }) => {
+      const { facilityId } = scoped(ctx);
+      const now = new Date();
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const me = await tx.appUser.findFirst({
+          where: { userId: ctx.subject.userId, facilityId },
+          select: { id: true },
+        });
+        if (!me) return { items: [] as const };
+
+        const items = await tx.opportunity.findMany({
+          where: {
+            facilityId,
+            assignedToId: me.id,
+            nextActionAt: { lte: now },
+            closedAt: null,
+            stage: { not: 'O5_ENROLLED' },
+          },
+          include: {
+            contact: { select: { id: true, name: true, phone: true } },
+          },
+          orderBy: { nextActionAt: 'asc' },
+          take: 50,
+        });
+
+        return {
+          items: items.map((i) => ({
+            id: i.id,
+            stage: i.stage,
+            nextActionAt: i.nextActionAt,
+            nextActionNote: i.nextActionNote,
+            contact: i.contact,
+          })),
+        };
       });
     }),
 });

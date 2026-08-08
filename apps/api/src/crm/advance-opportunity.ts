@@ -52,9 +52,11 @@ export async function advanceOpportunityOneStep(
   // Use the validated literal (not the raw `string` arg) so Prisma's
   // OpportunityStage enum type is satisfied without a cast.
   const nextStage = ADVANCE_ORDER[targetIndex];
+  // P2 rotting clock: every CRM-domain stage UPDATE must reset stageChangedAt.
+  // Finance O4↔O5 transitions deliberately do NOT touch this field.
   const updated = await tx.opportunity.update({
     where: { id: opportunity.id },
-    data: { stage: nextStage },
+    data: { stage: nextStage, stageChangedAt: new Date() },
   });
   return { opportunity: updated, fromStage: opportunity.stage } as const;
 }

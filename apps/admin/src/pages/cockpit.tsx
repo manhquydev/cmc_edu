@@ -151,26 +151,53 @@ function SaleInbox() {
     { stage: 'O4_TESTED', pageSize: 50, lost: 'exclude' },
     { refetchOnWindowFocus: false },
   );
+  const dueQ = trpc.crm.opportunityDueFollowUps.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
   const open = (data?.items ?? []).filter((o) => !o.closedAt).slice(0, 12);
-  const items: TaskRowProps[] = open.map((o) => ({
+  const enrollItems: TaskRowProps[] = open.map((o) => ({
     title: `Ghi danh — ${o.contact.name}`,
     meta: formatContactPhone(o.contact.phone),
     href: `/finance/new?opportunityId=${o.id}`,
     tone: 'success' as Tone,
     tag: 'O4',
   }));
+  const dueItems: TaskRowProps[] = (dueQ.data?.items ?? []).map((o) => ({
+    title: o.nextActionNote ?? `Nhắc việc — ${o.contact.name}`,
+    meta: o.nextActionAt
+      ? `${o.contact.name} · hạn ${new Date(o.nextActionAt).toLocaleDateString('vi-VN')}`
+      : o.contact.name,
+    href: `/crm/opportunities/${o.id}`,
+    tone: 'warning' as Tone,
+    tag: 'Nhắc',
+  }));
+
+  const sections =
+    dueItems.length > 0
+      ? [
+          { id: 'due', label: 'Nhắc việc đến hạn', items: dueItems },
+          ...(enrollItems.length
+            ? [{ id: 'enroll', label: 'Sẵn sàng ghi danh (O4)', items: enrollItems }]
+            : []),
+        ]
+      : undefined;
+
+  const total = dueItems.length + open.length;
 
   return (
-    <WorkInbox
-      title="Việc cần bạn xử lý"
-      count={open.length}
-      viewAllHref="/crm?stage=O4_TESTED"
-      items={items}
-      loading={isLoading}
-      emptyTitle="Không có cơ hội sẵn sàng ghi danh"
-      emptyDescription="Cơ hội ở giai đoạn đã kiểm tra (O4) sẽ hiện ở đây."
-      emptyAction={<Button label="Mở CRM" variant="secondary" size="sm" onClick={() => navigate('/crm')} />}
-    />
+    <div data-testid="crm-due-followups">
+      <WorkInbox
+        title="Việc cần bạn xử lý"
+        count={total}
+        viewAllHref="/crm"
+        items={sections ? undefined : enrollItems}
+        sections={sections}
+        loading={isLoading || dueQ.isLoading}
+        emptyTitle="Không có việc chờ xử lý"
+        emptyDescription="Nhắc việc đến hạn và cơ hội O4 sẵn sàng ghi danh sẽ hiện ở đây."
+        emptyAction={<Button label="Mở CRM" variant="secondary" size="sm" onClick={() => navigate('/crm')} />}
+      />
+    </div>
   );
 }
 

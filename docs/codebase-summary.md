@@ -77,9 +77,9 @@ D:\project\vip\CMC
 
 **Stack:**  
 - **Monorepo:** pnpm + Turbo  
-- **Language:** TypeScript (ESM)  
+- **Language:** TypeScript 6 (ESM)  
 - **API:** tRPC 11 (procedure-based, not REST)  
-- **Database:** Postgres + Prisma ORM with row-level security (RLS)  
+- **Database:** Postgres + Prisma 7 ORM (driver adapter `@prisma/adapter-pg` over `pg`, `packages/db/src/index.ts`) with row-level security (RLS)  
 - **Frontend:** Vite + React — apps/admin (ERP, 30 routes) + apps/lms (LMS, parent+student kind gate)  
 - **Auth:** Registry-driven RBAC (centralized in `@cmc/auth`)
 - **UI Testing:** Playwright (browser-based e2e; `PLAYWRIGHT_UI=1` gate) with Vite dev/preview proxy for same-origin API calls

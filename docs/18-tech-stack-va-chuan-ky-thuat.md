@@ -1,7 +1,8 @@
 # Tài liệu 18 — Tech Stack & Chuẩn Kỹ thuật (v2)
 
 > Ngăn xếp công nghệ + chuẩn code + cấu trúc repo, để dev/agent build đúng nền. Version bám thật
-> từ `package.json` repo (2026-07-05). Đây là "technical doc" nền cho toàn dự án.
+> từ `package.json` repo (2026-07-05; TypeScript/Prisma cập nhật 2026-08-08 — PR #88, #90/#91).
+> Đây là "technical doc" nền cho toàn dự án.
 
 ---
 
@@ -10,12 +11,12 @@
 | Tầng | Công nghệ | Version | Ghi chú |
 |---|---|---|---|
 | **Monorepo** | pnpm workspaces + Turborepo | pnpm 10.24 · turbo 2.3 | Node **≥22**, ESM |
-| **Ngôn ngữ** | TypeScript | 5.7 | strict; type-safe end-to-end |
+| **Ngôn ngữ** | TypeScript | 6.0.3 | strict; type-safe end-to-end |
 | **Frontend** | **Vite + React + react-router-dom** | Vite 6 · React 19 · router 7 | **SPA, KHÔNG Next.js**; path-based routing (ADR 0016) |
 | **UI** | Astryx + CSS custom properties + **premium design-language layer** | @astryxdesign/core@0.1.4 · @stylexjs/stylex@0.18.3 · @fontsource-variable/inter | Single-door @cmc/ui barrel (Phase 3–4 complete) · premium layer (Phase 5) · tokens `@cmc/ui` (TL12) · Inter Variable primary typeface |
 | **UI Testing** | Vitest + @testing-library/react + jsdom | vitest 2.1 · @testing-library/react 16 · jsdom | Component-test harness in `packages/ui` (40+ tests encode premium design invariants) |
 | **API** | tRPC + zod | tRPC 11 · zod 3 | hợp đồng FE↔BE (TL11) |
-| **DB / ORM** | PostgreSQL + Prisma | Prisma 6 | RLS theo `facilityId` |
+| **DB / ORM** | PostgreSQL + Prisma | Prisma 7.9.1 | RLS theo `facilityId`; kết nối runtime qua driver adapter `@prisma/adapter-pg` (`packages/db/src/index.ts`); `prisma.config.ts` tách riêng cho CLI (migrate/generate/studio) |
 | **Auth** | Microsoft Entra SSO (`@azure/msal-node`) | msal 2.16 | staff SSO; LMS 2-tier (parent=email+OTP, student=SĐT PH+password) — xem product-decision 2026-07-07 bên dưới |
 | **Email** | MS Graph + Brevo | — | transactional outbox — **xem note BLOCKED-ON-COMMS bên dưới** |
 | **Test** | Vitest + Playwright | vitest 2.1 · playwright 1.49 | unit/integration + e2e |

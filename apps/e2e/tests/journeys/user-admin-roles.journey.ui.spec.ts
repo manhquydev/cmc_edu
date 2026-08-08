@@ -77,7 +77,10 @@ test.describe('ADM-02 journey — quản trị nhân sự: tạo tài khoản + 
     // findInList (which only scans the rendered page) once the shared-facility
     // roster exceeds 20 users. Driving the FilterBar's server-side search keeps
     // this journey robust regardless of how many accounts other specs seed.
-    await page.getByPlaceholder('Tên, email, mã NV', { exact: false }).fill(staffName);
+    // Target the field by its label (same reactive FilterBar the audit-log and
+    // enrollment journeys drive) — the label-bound input fires the debounced
+    // onChange that user.list({ search }) reads; a placeholder locator does not.
+    await page.getByLabel('Tìm kiếm').fill(staffName);
 
     // The new account appears in the list, carrying the role picked at create
     // time — not yet the target 'Giáo viên' role this journey exists to prove.

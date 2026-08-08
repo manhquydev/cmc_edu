@@ -36,5 +36,30 @@ export function useOpportunityActions() {
     onSuccess: invalidateList,
   });
 
-  return { createMutation, markLostMutation, assignMutation };
+  const invalidateDetail = () => void utils.crm.opportunityGet.invalidate();
+  const invalidateDue = () => void utils.crm.opportunityDueFollowUps.invalidate();
+
+  const setNextActionMutation = trpc.crm.opportunitySetNextAction.useMutation({
+    onSuccess: () => {
+      invalidateList();
+      invalidateDetail();
+      invalidateDue();
+    },
+  });
+
+  const clearNextActionMutation = trpc.crm.opportunityClearNextAction.useMutation({
+    onSuccess: () => {
+      invalidateList();
+      invalidateDetail();
+      invalidateDue();
+    },
+  });
+
+  return {
+    createMutation,
+    markLostMutation,
+    assignMutation,
+    setNextActionMutation,
+    clearNextActionMutation,
+  };
 }

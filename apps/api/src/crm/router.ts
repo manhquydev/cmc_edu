@@ -75,6 +75,16 @@ const opportunityGetInput = z.object({
   opportunityId: z.string().uuid(),
 });
 
+const opportunitySetNextActionInput = z.object({
+  opportunityId: z.string().uuid(),
+  nextActionAt: z.string().datetime(),
+  nextActionNote: z.string().trim().min(1).max(200),
+});
+
+const opportunityClearNextActionInput = z.object({
+  opportunityId: z.string().uuid(),
+});
+
 const opportunityListInput = z.object({
   stage: z.enum(STAGE_VALUES).optional(),
   /** Free-text search over the linked contact's name (case-insensitive) OR
@@ -365,6 +375,8 @@ export const crmRouter = router({
           closedAt: opportunity.closedAt,
           lostReason: opportunity.lostReason,
           source: opportunity.source,
+          nextActionAt: opportunity.nextActionAt,
+          nextActionNote: opportunity.nextActionNote,
           assignedTo,
           contact: opportunity.contact,
         };
@@ -444,10 +456,104 @@ export const crmRouter = router({
             closedAt: i.closedAt,
             stageChangedAt: i.stageChangedAt,
             createdAt: i.createdAt,
+            nextActionAt: i.nextActionAt,
           }, now),
         }));
 
         return { items: itemsWithOwner, total, page: input.page, pageSize: input.pageSize, stageCounts, lostCount };
+      });
+    }),
+
+  /**
+   * P4: set the single next-action (due date + short note) on an open opportunity.
+   */
+  opportunitySetNextAction: requirePermission('crm', 'opportunityAdvance')
+    .input(opportunitySetNextActionInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      const at = new Date(input.nextActionAt);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const opp = await tx.opportunity.findFirst({
+          where: { id: input.opportunityId, facilityId },
+          select: { id: true, stage: true, closedAt: true },
+        });
+        if (!opp) throw notFound('Opportunity not found.');
+        if (opp.stage === 'O5_ENROLLED' || isOpportunityLost(opp)) {
+          throw badRequest('Không đặt việc trên cơ hội đã nhập học hoặc đã mất.');
+        }
+        return tx.opportunity.update({
+          where: { id: opp.id },
+          data: {
+            nextActionAt: at,
+            nextActionNote: input.nextActionNote,
+          },
+          select: {
+            id: true,
+            nextActionAt: true,
+            nextActionNote: true,
+          },
+        });
+      });
+    }),
+
+  /** P4: clear next-action (mark done). */
+  opportunityClearNextAction: requirePermission('crm', 'opportunityAdvance')
+    .input(opportunityClearNextActionInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const opp = await tx.opportunity.findFirst({
+          where: { id: input.opportunityId, facilityId },
+          select: { id: true },
+        });
+        if (!opp) throw notFound('Opportunity not found.');
+        return tx.opportunity.update({
+          where: { id: opp.id },
+          data: { nextActionAt: null, nextActionNote: null },
+          select: { id: true, nextActionAt: true, nextActionNote: true },
+        });
+      });
+    }),
+
+  /**
+   * P4: due/overdue follow-ups for the current user (WorkInbox).
+   * Active = closedAt IS NULL AND stage <> O5 (do NOT reuse NOT_LOST_WHERE).
+   */
+  opportunityDueFollowUps: requirePermission('crm', 'opportunityList')
+    .query(async ({ ctx }) => {
+      const { facilityId } = scoped(ctx);
+      const now = new Date();
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const me = await tx.appUser.findFirst({
+          where: { userId: ctx.subject.userId, facilityId },
+          select: { id: true },
+        });
+        if (!me) return { items: [] as const };
+
+        const items = await tx.opportunity.findMany({
+          where: {
+            facilityId,
+            assignedToId: me.id,
+            nextActionAt: { lte: now },
+            closedAt: null,
+            stage: { not: 'O5_ENROLLED' },
+          },
+          include: {
+            contact: { select: { id: true, name: true, phone: true } },
+          },
+          orderBy: { nextActionAt: 'asc' },
+          take: 50,
+        });
+
+        return {
+          items: items.map((i) => ({
+            id: i.id,
+            stage: i.stage,
+            nextActionAt: i.nextActionAt,
+            nextActionNote: i.nextActionNote,
+            contact: i.contact,
+          })),
+        };
       });
     }),
 });

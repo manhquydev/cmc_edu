@@ -82,6 +82,14 @@ test.describe('ADM-02 journey — quản trị nhân sự: tạo tài khoản + 
     // onChange that user.list({ search }) reads; a placeholder locator does not.
     await page.getByLabel('Tìm kiếm').fill(staffName);
 
+    // Wait for the server-side filter to settle to the single match before
+    // scanning rows. findInList snapshots the row count then reads each row by
+    // index; while the list is still collapsing from the full roster down to
+    // one row, a stale nth(i) never re-attaches and its innerText read hangs
+    // until the test times out. This web-first assertion waits out the
+    // transition deterministically so findInList only ever sees the settled list.
+    await expect(page.getByRole('cell', { name: staffName, exact: true })).toBeVisible();
+
     // The new account appears in the list, carrying the role picked at create
     // time — not yet the target 'Giáo viên' role this journey exists to prove.
     // The Roles column renders the canonical `formatRole` label ('Sale'), not

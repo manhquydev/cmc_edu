@@ -3,10 +3,10 @@
  * Intentionally uses FC default CSS variables so bo góc + toolbar match
  * https://github.com/fullcalendar/fullcalendar standard theme — not Soft Ops card chrome.
  *
- * Scope: only under .o-fc so page ListPage Soft Ops is untouched.
+ * Scope: only under .console-fc so page ListPage Soft Ops is untouched.
  */
 
-.o-fc {
+.console-fc {
   /* —— FC standard palette (from @fullcalendar/core injected :root defaults) —— */
   --fc-small-font-size: 0.85em;
   --fc-page-bg-color: #fff;
@@ -43,18 +43,18 @@
 }
 
 /* Title size matches FC default toolbar */
-.o-fc .fc .fc-toolbar.fc-header-toolbar {
+.console-fc .fc .fc-toolbar.fc-header-toolbar {
   margin-bottom: 1.5em;
 }
 
-.o-fc .fc .fc-toolbar-title {
+.console-fc .fc .fc-toolbar-title {
   font-size: 1.75em;
   font-weight: 400;
   margin: 0;
 }
 
 /* Button geometry: FC standard 0.25em radius (not Soft Ops 12px) */
-.o-fc .fc .fc-button {
+.console-fc .fc .fc-button {
   border-radius: 0.25em;
   font-weight: 400;
   line-height: 1.5;
@@ -64,19 +64,19 @@
 }
 
 /* Button groups: shared edges like FC (left/right flush) */
-.o-fc .fc-direction-ltr .fc-button-group > .fc-button:not(:first-child) {
+.console-fc .fc-direction-ltr .fc-button-group > .fc-button:not(:first-child) {
   border-bottom-left-radius: 0;
   border-top-left-radius: 0;
   margin-left: -1px;
 }
 
-.o-fc .fc-direction-ltr .fc-button-group > .fc-button:not(:last-child) {
+.console-fc .fc-direction-ltr .fc-button-group > .fc-button:not(:last-child) {
   border-bottom-right-radius: 0;
   border-top-right-radius: 0;
 }
 
 /* Events: square-ish FC chips (default ~0 radius feel; slight 0 for classic) */
-.o-fc .fc .fc-event {
+.console-fc .fc .fc-event {
   border-radius: 0;
   border-width: 1px;
   font-size: 0.85em;
@@ -85,46 +85,46 @@
   padding: 0 1px;
 }
 
-.o-fc .fc .fc-daygrid-event {
+.console-fc .fc .fc-daygrid-event {
   border-radius: 0;
 }
 
 /* Status classes still tint via border/background but keep FC event shape */
-.o-fc .fc .fc-event.o-fc-ev--active {
+.console-fc .fc .fc-event.console-fc-ev--active {
   background: var(--fc-event-bg-color);
   border-color: var(--fc-event-border-color);
   color: var(--fc-event-text-color);
 }
 
-.o-fc .fc .fc-event.o-fc-ev--planned {
+.console-fc .fc .fc-event.console-fc-ev--planned {
   background: #6c757d;
   border-color: #6c757d;
   color: #fff;
 }
 
-.o-fc .fc .fc-event.o-fc-ev--done {
+.console-fc .fc .fc-event.console-fc-ev--done {
   background: #28a745;
   border-color: #28a745;
   color: #fff;
 }
 
-.o-fc .fc .fc-event.o-fc-ev--cancelled {
+.console-fc .fc .fc-event.console-fc-ev--cancelled {
   opacity: 0.55;
   text-decoration: line-through;
 }
 
-.o-fc .fc .fc-col-header-cell-cushion,
-.o-fc .fc .fc-daygrid-day-number {
+.console-fc .fc .fc-col-header-cell-cushion,
+.console-fc .fc .fc-daygrid-day-number {
   text-decoration: none;
   color: inherit;
 }
 
-.o-fc .fc a[data-navlink]:hover {
+.console-fc .fc a[data-navlink]:hover {
   text-decoration: underline;
 }
 
 /* docs: eventContent injection layout */
-.o-fc .o-fc-ev-inner {
+.console-fc .console-fc-ev-inner {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -134,12 +134,12 @@
   padding: 1px 2px;
 }
 
-.o-fc .o-fc-ev-time {
+.console-fc .console-fc-ev-time {
   font-weight: 700;
   font-size: 0.85em;
 }
 
-.o-fc .o-fc-ev-title {
+.console-fc .console-fc-ev-title {
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -147,19 +147,19 @@
   max-width: 100%;
 }
 
-.o-fc .o-fc-ev-status {
+.console-fc .console-fc-ev-status {
   font-size: 0.75em;
   opacity: 0.9;
   text-transform: uppercase;
 }
 
 /* Week number column (docs: week-numbers) */
-.o-fc .fc .fc-daygrid-week-number {
+.console-fc .fc .fc-daygrid-week-number {
   font-size: 0.85em;
   color: grey;
 }
 
-.o-fc-loading {
+.console-fc-loading {
   min-height: 320px;
   display: flex;
   align-items: center;
@@ -169,13 +169,13 @@
 }
 
 /* Soft range refetch: keep FC mounted, dim slightly, status bar above grid */
-.o-fc.o-fc-fetching .fc {
+.console-fc.console-fc-fetching .fc {
   opacity: 0.72;
   transition: opacity 0.15s ease;
   pointer-events: none;
 }
 
-.o-fc-fetching-bar {
+.console-fc-fetching-bar {
   font-size: 0.85rem;
   color: grey;
   padding: 0.35rem 0.5rem;

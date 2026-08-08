@@ -99,7 +99,7 @@ test.describe('P2-06 journey — chấm bài (GV chấm bài nộp, bài rời h
     await expect(scoreInput).toBeVisible();
     await scoreInput.fill('8');
     // "Chấm bài" is also the side-nav entry for this screen — scope to content.
-    await page.locator('main.o-main').getByRole('button', { name: 'Chấm bài' }).click();
+    await page.locator('main.console-main').getByRole('button', { name: 'Chấm bài' }).click();
 
     // Falsification of the grade: once graded, the submission leaves the
     // ungraded queue. If the grade had not taken effect the row would remain.

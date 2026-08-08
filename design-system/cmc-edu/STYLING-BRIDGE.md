@@ -48,7 +48,7 @@ Skill **ak-ui-styling** assumes shadcn + Tailwind. CMC EDU is **Astryx + CSS tok
 ### Shell CSS snippet (to implement)
 
 ```css
-/* premium.css — proposed */
+/* console.css (admin) / app.css (LMS) */
 .sh-cta--secondary {
   background: transparent;
   color: var(--cmc-text-2);
@@ -133,7 +133,7 @@ Align copy with AlertDialog skill patterns; prefer `intent` over color string wh
 
 ---
 
-## z-index scale (design3 admin / odoo.css — authoritative)
+## z-index scale (design3 admin / console.css — authoritative)
 
 | Layer | z | Selector cue |
 |-------|--:|--------------|
@@ -141,7 +141,7 @@ Align copy with AlertDialog skill patterns; prefer `intent` over color string wh
 | Page chrome (under shell) | auto/static | `.o_web_client .o-page-header` |
 | App switcher (in navbar) | 10 | `.o-app-switcher-menu` |
 | Navbar shell | **1000** | `.o-navbar` |
-| Toast viewport | **1100** | `.ck-toast-viewport` (Odoo notif ≈1055) |
+| Toast viewport | **1100** | `.console-toast-viewport` (Odoo notif ≈1055) |
 | Dialog band (docs) | **1150** | `dialog.ck-dialog` — ConfirmDialog also uses native **top layer** via `showModal()` (above all fixed z) |
 | Command palette | **1200** | `.ck-cmd` |
 | ConfirmDialog top layer | browser | above toast/cmd while open |
@@ -153,7 +153,7 @@ Stale proposal (topbar 20 … toast 60) retired — do not use for admin design3
 ## DX conventions
 
 1. Import UI only from `@cmc/ui` (one-door).  
-2. New composite → `packages/ui` + premium.css class, not page-local mega CSS.  
+2. New composite → `packages/ui` + console.css class (admin), not page-local mega CSS.  
 3. Screenshots before/after for shell/topbar/button hierarchy.  
 4. E2E: confirm dialogs + toast role when added.  
 5. When skill docs say “add shadcn X”, open this bridge first.

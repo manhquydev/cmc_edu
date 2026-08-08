@@ -3,22 +3,22 @@
 > **Authority:** Maps Odoo UX concepts → CMC `@cmc/ui` frames.  
 > **Does not** port OWL, Bootstrap, or XML views.  
 > **Stack:** React + Astryx + CSS tokens.  
-> Related: [PAGE-FRAMES.md](./PAGE-FRAMES.md) · [STRUCTURE.md](./STRUCTURE.md) · [MASTER.md](./MASTER.md) · **[ODOO-COMPONENT-MAP.md](./ODOO-COMPONENT-MAP.md)**  
+> Related: [PAGE-FRAMES.md](./PAGE-FRAMES.md) · [STRUCTURE.md](./STRUCTURE.md) · [MASTER.md](./MASTER.md) · **[CONSOLE-COMPONENT-MAP.md](./CONSOLE-COMPONENT-MAP.md)**  
 > **Source-grounded dissection (2026-08-06):** `plans/260806-odoo-ui-component-dissection/`  
 > **Xia extract (layout, pre-design3 shell notes):**  
 > `plans/260804-ui-smart-cohesion-upgrade/reports/xia-odoo-layout-grammar-2026-08-04.md`  
 > **Upstream:** [odoo/odoo@19.0](https://github.com/odoo/odoo) ·  
 > `addons/web/static/src/webclient/` · `search/control_panel/` · `views/{list,form,kanban}/`
 
-> **Admin shell (design3, 2026-08):** production chrome is **OdooNavbar + `.o_web_client` + `main.o-main`**.  
-> `AppFrame` / `SideNav` remain for **LMS** (TL12 premium) only — do not reintroduce as admin shell.
+> **Admin shell (design3, 2026-08):** production chrome is **ConsoleNavbar + `.o_web_client` + `main.console-main`**.  
+> `AppFrame` / `SideNav` remain **public barrel exports** (unused by admin and LMS pages today; LMS chrome is `lms-*` in app.css) — do not reintroduce as admin shell.
 
 ---
 
 ## 1. One product OS
 
 ```text
-Admin (design3):  OdooNavbar + main.o-main
+Admin (design3):  ConsoleNavbar + main.console-main
 LMS (TL12):       AppFrame + SideNav
   └── exactly one page frame:
         DashboardPage | ListPage | DetailPage | FormPage | SettingsShell

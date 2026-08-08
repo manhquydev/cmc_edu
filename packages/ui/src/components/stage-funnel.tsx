@@ -69,7 +69,7 @@ export function StageFunnel({
   const total = stages.reduce((s, x) => s + x.value, 0);
 
   const headerAction = viewAllHref ? (
-    <Link to={viewAllHref} className="ck-pnl-action">
+    <Link to={viewAllHref} className="console-pnl-action">
       {viewAllLabel}
       <LineIcon name="chevron" size={14} />
     </Link>
@@ -78,11 +78,11 @@ export function StageFunnel({
   return (
     <Panel title={title} action={headerAction}>
       {loading ? (
-        <div className="ck-fn-skel">
+        <div className="console-fn-skel">
           <Skeleton height={layout === 'rail' ? 72 : 120} radius={1} />
         </div>
       ) : total === 0 ? (
-        <div className="ck-inbox-empty">
+        <div className="console-inbox-empty">
           <EmptyState
             title={emptyTitle}
             description={emptyDescription}
@@ -93,21 +93,21 @@ export function StageFunnel({
       ) : (
         <>
           {total > 0 ? (
-            <div className="ck-fn-summary" aria-live="polite">
-              <span className="ck-fn-summary-total">{total}</span>
-              <span className="ck-fn-summary-label">cơ hội trong pipeline</span>
+            <div className="console-fn-summary" aria-live="polite">
+              <span className="console-fn-summary-total">{total}</span>
+              <span className="console-fn-summary-label">cơ hội trong pipeline</span>
               {footer?.count != null && footer.count > 0 ? (
-                <span className="ck-fn-summary-pill">{footer.count} cần xử lý</span>
+                <span className="console-fn-summary-pill">{footer.count} cần xử lý</span>
               ) : null}
             </div>
           ) : null}
 
           {layout === 'rail' ? (
-            <div className="ck-rail" role="list">
+            <div className="console-rail" role="list">
               {stages.map((stage, i) => {
                 const clickable = Boolean(stage.href && stage.value > 0);
                 const cls = [
-                  'ck-rail-stage',
+                  'console-rail-stage',
                   stage.value === 0 ? 'is-muted' : '',
                   stage.emphasize && stage.value > 0 ? 'is-emphasize' : '',
                   clickable ? 'is-link' : '',
@@ -116,12 +116,12 @@ export function StageFunnel({
                   .join(' ');
                 const body = (
                   <>
-                    <span className="ck-rail-idx" aria-hidden>
+                    <span className="console-rail-idx" aria-hidden>
                       {stageStepLabel(stage, i)}
                     </span>
-                    <span className="ck-rail-val">{stage.value}</span>
-                    <span className="ck-rail-label">{stage.label}</span>
-                    {i < stages.length - 1 ? <span className="ck-rail-bridge" aria-hidden /> : null}
+                    <span className="console-rail-val">{stage.value}</span>
+                    <span className="console-rail-label">{stage.label}</span>
+                    {i < stages.length - 1 ? <span className="console-rail-bridge" aria-hidden /> : null}
                   </>
                 );
                 if (clickable) {
@@ -141,20 +141,20 @@ export function StageFunnel({
           ) : null}
 
           {layout === 'split' ? (
-            <div className="ck-cstrip">
-              <div className="ck-cstrip-track" role="img" aria-label="Phân bố pipeline">
+            <div className="console-cstrip">
+              <div className="console-cstrip-track" role="img" aria-label="Phân bố pipeline">
                 {stages.map((stage) => {
                   if (stage.value <= 0) return null;
                   const flex = stage.value;
                   const cls = [
-                    'ck-cstrip-seg',
+                    'console-cstrip-seg',
                     stage.emphasize ? 'is-emphasize' : '',
                   ]
                     .filter(Boolean)
                     .join(' ');
                   const segment = (
                     <span className={cls} title={`${stage.label}: ${stage.value}`}>
-                      <span className="ck-cstrip-seg-val">{stage.value}</span>
+                      <span className="console-cstrip-seg-val">{stage.value}</span>
                     </span>
                   );
                   if (stage.href) {
@@ -162,7 +162,7 @@ export function StageFunnel({
                       <Link
                         key={stage.key}
                         to={stage.href}
-                        className="ck-cstrip-seg-link"
+                        className="console-cstrip-seg-link"
                         style={{ flex }}
                       >
                         {segment}
@@ -170,27 +170,27 @@ export function StageFunnel({
                     );
                   }
                   return (
-                    <span key={stage.key} className="ck-cstrip-seg-wrap" style={{ flex }}>
+                    <span key={stage.key} className="console-cstrip-seg-wrap" style={{ flex }}>
                       {segment}
                     </span>
                   );
                 })}
               </div>
-              <ul className="ck-cstrip-legend">
+              <ul className="console-cstrip-legend">
                 {stages.map((stage) => (
                   <li
                     key={stage.key}
                     className={[
-                      'ck-cstrip-legend-item',
+                      'console-cstrip-legend-item',
                       stage.value === 0 ? 'is-muted' : '',
                       stage.emphasize && stage.value > 0 ? 'is-emphasize' : '',
                     ]
                       .filter(Boolean)
                       .join(' ')}
                   >
-                    <span className="ck-cstrip-swatch" aria-hidden />
-                    <span className="ck-cstrip-legend-label">{stage.label}</span>
-                    <span className="ck-cstrip-legend-val">{stage.value}</span>
+                    <span className="console-cstrip-swatch" aria-hidden />
+                    <span className="console-cstrip-legend-label">{stage.label}</span>
+                    <span className="console-cstrip-legend-val">{stage.value}</span>
                   </li>
                 ))}
               </ul>
@@ -198,7 +198,7 @@ export function StageFunnel({
           ) : null}
 
           {layout === 'stack' ? (
-            <div className="ck-fn">
+            <div className="console-fn">
               {stages.map((stage, i) => {
                 const clickable = Boolean(stage.href && stage.value > 0);
                 const bar = (
@@ -216,13 +216,13 @@ export function StageFunnel({
                 );
                 if (!clickable) {
                   return (
-                    <div key={stage.key} className="ck-fn-static">
+                    <div key={stage.key} className="console-fn-static">
                       {bar}
                     </div>
                   );
                 }
                 return (
-                  <Link key={stage.key} to={stage.href!} className="ck-fn-link">
+                  <Link key={stage.key} to={stage.href!} className="console-fn-link">
                     {bar}
                   </Link>
                 );
@@ -231,11 +231,11 @@ export function StageFunnel({
           ) : null}
 
           {footer && footer.count !== 0 && (
-            <div className="ck-fn-footer">
-              <span className="ck-fn-footer-text">
+            <div className="console-fn-footer">
+              <span className="console-fn-footer-text">
                 {footer.count != null ? `${footer.label}: ${footer.count}` : footer.label}
               </span>
-              <Link to={footer.href} className="ck-fn-footer-cta">
+              <Link to={footer.href} className="console-fn-footer-cta">
                 Xử lý
                 <LineIcon name="chevron" size={14} />
               </Link>

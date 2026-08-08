@@ -13,15 +13,13 @@
     },
     "./tokens.css": "./src/tokens.css",
     "./astryx-theme-cmc.css": "./src/astryx-theme-cmc.css",
-    "./premium.css": "./src/premium.css",
-    "./odoo.css": "./src/odoo.css"
+    "./console.css": "./src/console.css"
   },
   "files": [
     "dist",
     "src/tokens.css",
     "src/astryx-theme-cmc.css",
-    "src/premium.css",
-    "src/odoo.css"
+    "src/console.css"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

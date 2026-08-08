@@ -23,7 +23,7 @@
 | Tầng | Component | CSS | Ghi chú |
 |------|-----------|-----|---------|
 | Shell | `AppFrame`, `SideNav` | `.sh-*` | Nav, brand, topbar actions |
-| Page frame | 4 templates dưới | `.tpl-*` | Cùng canvas/padding |
+| Page frame | 4 templates dưới | `.console-*` | Cùng canvas/padding |
 | Atoms | MetricCard, Panel, DataTable… | `.ck-*` | Không page-local layout |
 
 **Quy tắc:** màn mới **bắt buộc** dùng 1 trong 4 template. Cấm invent layout full-page mới.
@@ -163,7 +163,7 @@ Greeting: `Xin chào · {formatRoles}` — không raw role key.
 | Dashboard frame | `packages/ui/src/components/dashboard-page.tsx` |
 | Shortcut chip | `packages/ui/src/components/shortcut-chip.tsx` |
 | List/Detail/Form | `list-page.tsx`, `detail-page.tsx`, `form-page.tsx` |
-| Styles | `packages/ui/src/premium.css` (`.tpl-*`) |
+| Styles | `packages/ui/src/console.css` (`.console-*` admin templates) |
 | Cockpit roles | `apps/admin/src/pages/cockpit.tsx` |
 
 ---

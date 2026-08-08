@@ -4,8 +4,8 @@ import { toneColor, type Tone } from './tone.js';
 
 // A single task/queue row (promoted from the cockpit pilot). `tone` colours ONLY
 // the leading dot; title + meta stay default ink (locked principle). Requires
-// @cmc/ui/premium.css (.ck-row* classes). Rows self-separate via the
-// `.ck-row + .ck-row` hairline, so render siblings directly.
+// @cmc/ui/console.css (.console-row* classes). Rows self-separate via the
+// `.console-row + .console-row` hairline, so render siblings directly.
 export interface TaskRowProps {
   title: string;
   meta: string;
@@ -17,14 +17,14 @@ export interface TaskRowProps {
 
 export function TaskRow({ title, meta, href, tone, tag }: TaskRowProps) {
   return (
-    <Link to={href} className="ck-row" title={`${title} — ${meta}`}>
-      <span className="ck-dot" style={{ background: toneColor(tone) }} />
-      <span className="ck-row-main">
-        <span className="ck-row-title">{title}</span>
-        <span className="ck-row-meta">{meta}</span>
+    <Link to={href} className="console-row" title={`${title} — ${meta}`}>
+      <span className="console-dot" style={{ background: toneColor(tone) }} />
+      <span className="console-row-main">
+        <span className="console-row-title">{title}</span>
+        <span className="console-row-meta">{meta}</span>
       </span>
-      {tag ? <span className="ck-row-tag">{tag}</span> : null}
-      <span className="ck-chev"><LineIcon name="chevron" size={16} /></span>
+      {tag ? <span className="console-row-tag">{tag}</span> : null}
+      <span className="console-chev"><LineIcon name="chevron" size={16} /></span>
     </Link>
   );
 }

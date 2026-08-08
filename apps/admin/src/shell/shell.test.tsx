@@ -94,7 +94,7 @@ function renderShell(route = '/cockpit') {
   );
 }
 
-describe('Shell (Odoo chrome)', () => {
+describe('Shell (Console chrome)', () => {
   beforeEach(() => {
     sessionState.me = {
       userId: 'u1',
@@ -107,19 +107,19 @@ describe('Shell (Odoo chrome)', () => {
     sessionState.canDo = () => true;
   });
 
-  it('renders .o_web_client + OdooNavbar when session is present', () => {
+  it('renders .o_web_client + ConsoleNavbar when session is present', () => {
     const { container } = renderShell('/cockpit');
     expect(container.querySelector('.o_web_client')).toBeInTheDocument();
     expect(screen.getByLabelText('Mở app switcher')).toBeInTheDocument();
     // Brand tracks active module label (cockpit → Tổng quan), not a hardcoded product name.
-    expect(container.querySelector('.o-brand')).toHaveTextContent('Tổng quan');
+    expect(container.querySelector('.console-brand')).toHaveTextContent('Tổng quan');
     expect(screen.getByRole('main')).toBeInTheDocument();
     expect(screen.getByText('cockpit-body')).toBeInTheDocument();
   });
 
   it('falls back brand to CMC EDU when pathname matches no module', () => {
     const { container } = renderShell('/unknown');
-    expect(container.querySelector('.o-brand')).toHaveTextContent('CMC EDU');
+    expect(container.querySelector('.console-brand')).toHaveTextContent('CMC EDU');
   });
 
   it('does not throw and shows zero apps when me is null (anonymous allow-list)', () => {
@@ -168,7 +168,7 @@ describe('Shell (Odoo chrome)', () => {
     const { container } = renderShell('/finance');
     // Open palette via hotkey affordance button
     fireEvent.click(screen.getByLabelText('Tìm (⌘K)'));
-    const palette = container.querySelector('.ck-cmd') ?? container.querySelector('[role="dialog"]');
+    const palette = container.querySelector('.console-cmd') ?? container.querySelector('[role="dialog"]');
     expect(palette).toBeTruthy();
     // Scope to palette list — section menu also shows "Phiếu thu".
     const paletteText = palette!.textContent ?? '';

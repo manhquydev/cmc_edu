@@ -142,7 +142,7 @@ function ToastViewport({
   return (
     <div
       id={regionId}
-      className="ck-toast-viewport"
+      className="console-toast-viewport"
       aria-live="polite"
       aria-relevant="additions text"
       aria-atomic="false"
@@ -150,16 +150,16 @@ function ToastViewport({
       {items.map((item) => (
         <div
           key={item.id}
-          className={`ck-toast ck-toast--${item.tone}`}
+          className={`console-toast console-toast--${item.tone}`}
           role={item.tone === 'error' ? 'alert' : 'status'}
         >
-          <div className="ck-toast-body">
-            <div className="ck-toast-title">{item.title}</div>
-            {item.description && <div className="ck-toast-desc">{item.description}</div>}
+          <div className="console-toast-body">
+            <div className="console-toast-title">{item.title}</div>
+            {item.description && <div className="console-toast-desc">{item.description}</div>}
           </div>
           <button
             type="button"
-            className="ck-toast-dismiss"
+            className="console-toast-dismiss"
             aria-label="Đóng thông báo"
             onClick={() => onDismiss(item.id)}
           >

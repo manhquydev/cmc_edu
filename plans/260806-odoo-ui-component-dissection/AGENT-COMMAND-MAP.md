@@ -23,7 +23,7 @@ DENY by default
 ├── addons/* except web (no account, crm, …)
 ├── website / portal / mail chatter product
 ├── OWL services, registries, RPC, view compilers (read classes only)
-└── Bootstrap source trees (mirror density tokens already in odoo.css)
+└── Bootstrap source trees (mirror density tokens already in console.css)
 ```
 
 If a task needs a path outside ALLOWLIST → **stop and ask**. Do not “just browse”.
@@ -39,7 +39,7 @@ If a task needs a path outside ALLOWLIST → **stop and ask**. Do not “just br
 | **L2 Scout source** | File inventory inside ALLOWLIST | Explore/Task `explore` **or** `/ck:scout` on `odoo-src/.../ALLOW` | one surface at a time | path list |
 | **L3 Xia compare** | Side-by-side grammar | `/ak:xia <odoo-src> "<surface>" --compare` | **one** of: shell \| CP \| list \| form \| kanban | `plans/reports/xia-…md` |
 | **L4 Research tokens** | SCSS variables → token table | `/ck:research` or `researcher` agent | `navbar.variables.scss`, form/list SCSS | token delta |
-| **L5 Design authority** | Evergreen map/grammar | `/ck:docs` or docs-manager (edit only map/VIEW-GRAMMAR) | xia + dissection | `ODOO-COMPONENT-MAP.md` |
+| **L5 Design authority** | Evergreen map/grammar | `/ck:docs` or docs-manager (edit only map/VIEW-GRAMMAR) | xia + dissection | `CONSOLE-COMPONENT-MAP.md` |
 | **L6 Plan cook** | Cookable phases | `/ck:plan` (pass brainstorm + xia paths) | ranked P0–P2 gaps only | `plans/<ts>-…/plan.md` |
 | **L7 Cook** | Implement gap | `/ak:cook` / `/ck:cook` | **one** phase file | code + tests |
 | **L8 Test** | Prove density/stacking + form detail grammar | `/ck:test` + unit `odoo-*.test.ts` + `design3-frontend-audit.mjs` + **detail:** `PLAYWRIGHT_UI=1 … tests/design3-statusbar.ui.spec.ts` + ops `pnpm exec tsx apps/e2e/smoke-statusbar.ts` (shared `openSeededDetail` — **no** `a[href]` scrape; hard-fail if list empty) | changed surface | green evidence |
@@ -92,7 +92,7 @@ Run **one command per surface**. Stop after each report before the next.
 | Kanban | `views/kanban/**` |
 | Float | `core/dialog/**`, `core/notifications/**`, `core/commands/**` |
 
-Local compare always includes: `packages/ui/src/odoo.css`, matching `components/*`, `docs/design-system-odoo.md`.
+Local compare always includes: `packages/ui/src/console.css`, matching `components/*`, `docs/design-system-console.md`.
 
 Mode default: **`--compare`** until human approves a port/cook plan. Do **not** start with `--copy` / `--port` on Odoo webclient.
 

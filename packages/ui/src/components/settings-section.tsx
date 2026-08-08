@@ -10,12 +10,12 @@ export interface SettingsRowProps {
 /** Single settings row — label stack + control. */
 export function SettingsRow({ label, description, control }: SettingsRowProps) {
   return (
-    <div className="ck-set-row">
-      <div className="ck-set-copy">
-        <div className="ck-set-label">{label}</div>
-        {description ? <div className="ck-set-desc">{description}</div> : null}
+    <div className="console-set-row">
+      <div className="console-set-copy">
+        <div className="console-set-label">{label}</div>
+        {description ? <div className="console-set-desc">{description}</div> : null}
       </div>
-      <div className="ck-set-control">{control}</div>
+      <div className="console-set-control">{control}</div>
     </div>
   );
 }
@@ -28,16 +28,16 @@ export interface SettingsSectionProps {
 
 /**
  * Settings / admin preference block (Polaris-style settings layout).
- * Requires @cmc/ui/premium.css (.ck-set*).
+ * Requires @cmc/ui/console.css (.console-set*).
  */
 export function SettingsSection({ title, description, children }: SettingsSectionProps) {
   return (
-    <section className="ck-set">
-      <header className="ck-set-head">
-        <h3 className="ck-set-title">{title}</h3>
-        {description ? <p className="ck-set-lead">{description}</p> : null}
+    <section className="console-set">
+      <header className="console-set-head">
+        <h3 className="console-set-title">{title}</h3>
+        {description ? <p className="console-set-lead">{description}</p> : null}
       </header>
-      <div className="ck-set-body">{children}</div>
+      <div className="console-set-body">{children}</div>
     </section>
   );
 }

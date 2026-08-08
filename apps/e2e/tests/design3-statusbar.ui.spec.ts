@@ -84,13 +84,13 @@ test.describe('design3 detail statusbar grammar', () => {
 
     const receiptOpen = await openSeededDetail(page, 'receipt', { matchText: receiptCode });
     expect(receiptOpen.path).toMatch(/\/finance\/[0-9a-f-]{36}$/i);
-    await expect(page.locator('.o-detail-statusbar')).toBeVisible();
+    await expect(page.locator('.console-detail-statusbar')).toBeVisible();
     const receiptMeasure = await measureDetailStatusbar(page);
     assertStickyStatusbar(receiptMeasure);
 
     const oppOpen = await openSeededDetail(page, 'opportunity', { matchText: contactName });
     expect(oppOpen.path).toMatch(/\/crm\/opportunities\/[0-9a-f-]{36}$/i);
-    await expect(page.locator('.o-detail-statusbar')).toBeVisible();
+    await expect(page.locator('.console-detail-statusbar')).toBeVisible();
     const oppMeasure = await measureDetailStatusbar(page);
     assertStickyStatusbar(oppMeasure);
 

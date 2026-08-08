@@ -18,7 +18,7 @@ export function WorkflowStatusbar({
   onStepClick,
   className,
 }: WorkflowStatusbarProps) {
-  const cls = className ? `o-workflow-statusbar ${className}` : 'o-workflow-statusbar';
+  const cls = className ? `console-workflow-statusbar ${className}` : 'console-workflow-statusbar';
   return (
     <div className={cls}>
       <ProgressSteps steps={steps} activeIndex={activeIndex} onStepClick={onStepClick} />

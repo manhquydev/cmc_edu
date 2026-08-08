@@ -16,7 +16,7 @@ import { LineIcon } from './line-icon.js';
  *
  * Fixed slot geometry keeps cards aligned when text lengths differ.
  * Full strings always on `title` HTML attrs for hover / a11y.
- * Requires @cmc/ui/premium.css (.ck-sc*).
+ * Requires @cmc/ui/console.css (.console-sc*).
  */
 export type SessionStatus =
   | 'planned'
@@ -104,8 +104,8 @@ export function SessionCard({
   footPriority = 'actionable',
 }: SessionCardProps) {
   const cls = [
-    'ck-sc',
-    `ck-sc--${status}`,
+    'console-sc',
+    `console-sc--${status}`,
     density === 'compact' ? 'is-compact' : 'is-default',
     href ? 'is-link' : '',
     !actionLabel ? 'no-cta' : '',
@@ -119,38 +119,38 @@ export function SessionCard({
   const body = (
     <>
       {/* P0 time + status — never multi-line */}
-      <div className="ck-sc-top">
-        <span className="ck-sc-time" title={timeLabel || undefined}>
+      <div className="console-sc-top">
+        <span className="console-sc-time" title={timeLabel || undefined}>
           {timeLabel ?? '\u00a0'}
         </span>
-        <span className="ck-sc-chip" title={STATUS_LABEL[status]}>
-          <span className="ck-sc-dot" aria-hidden />
-          <span className="ck-sc-chip-label">{STATUS_LABEL[status]}</span>
+        <span className="console-sc-chip" title={STATUS_LABEL[status]}>
+          <span className="console-sc-dot" aria-hidden />
+          <span className="console-sc-chip-label">{STATUS_LABEL[status]}</span>
         </span>
       </div>
 
       {/* P0 identity */}
-      <div className="ck-sc-title" title={title}>
+      <div className="console-sc-title" title={title}>
         {title}
       </div>
 
       {/* P1 / P2 secondary — default has 2 fixed lines; compact 1 */}
-      <div className="ck-sc-secondary" title={hoverDetail}>
-        <div className="ck-sc-line ck-sc-line--p1">{foot.line1}</div>
+      <div className="console-sc-secondary" title={hoverDetail}>
+        <div className="console-sc-line console-sc-line--p1">{foot.line1}</div>
         {density === 'default' ? (
-          <div className="ck-sc-line ck-sc-line--p2">{foot.line2}</div>
+          <div className="console-sc-line console-sc-line--p2">{foot.line2}</div>
         ) : null}
       </div>
 
       {/* CTA or equal spacer */}
-      <div className="ck-sc-cta-slot">
+      <div className="console-sc-cta-slot">
         {href && actionLabel ? (
-          <span className="ck-sc-cta">
-            <span className="ck-sc-cta-label">{actionLabel}</span>
+          <span className="console-sc-cta">
+            <span className="console-sc-cta-label">{actionLabel}</span>
             <LineIcon name="chevron" size={12} />
           </span>
         ) : (
-          <span className="ck-sc-cta-spacer" aria-hidden />
+          <span className="console-sc-cta-spacer" aria-hidden />
         )}
       </div>
     </>

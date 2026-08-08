@@ -21,7 +21,7 @@ describe('DateField', () => {
     const { container } = render(
       <DateField label="Ẩn" value="" onChange={() => {}} isLabelHidden />,
     );
-    expect(container.querySelector('.o-sr-only')).toBeTruthy();
+    expect(container.querySelector('.console-sr-only')).toBeTruthy();
     expect(screen.getByLabelText('Ẩn')).toBeInTheDocument();
   });
 });

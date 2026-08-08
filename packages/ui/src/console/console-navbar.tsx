@@ -7,9 +7,9 @@ import type { NavEntry, NavModule } from '../components/nav-types.js';
  * Dumb / props-only — no session, router, or tRPC. Permission gate is required
  * (never optional fail-open like SideNav's isChildVisible).
  *
- * Requires `@cmc/ui/odoo.css` and an ancestor with class `.o_web_client`.
+ * Requires `@cmc/ui/console.css` and an ancestor with class `.o_web_client`.
  */
-export interface OdooNavbarProps {
+export interface ConsoleNavbarProps {
   apps: NavModule[];
   activeAppId: string | null;
   /** Required permission gate — children that fail are never rendered. */
@@ -21,7 +21,7 @@ export interface OdooNavbarProps {
   className?: string;
 }
 
-export function OdooNavbar({
+export function ConsoleNavbar({
   apps,
   activeAppId,
   isChildVisible,
@@ -29,7 +29,7 @@ export function OdooNavbar({
   brand,
   systray,
   className,
-}: OdooNavbarProps) {
+}: ConsoleNavbarProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const rootRef = useRef<HTMLElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -39,7 +39,7 @@ export function OdooNavbar({
   const brandContent =
     brand ?? activeApp?.label ?? (apps[0] ? apps[0].label : 'CMC EDU');
 
-  const rootClass = className ? `o-navbar ${className}` : 'o-navbar';
+  const rootClass = className ? `console-navbar ${className}` : 'console-navbar';
 
   useEffect(() => {
     if (!switcherOpen) return;
@@ -73,7 +73,7 @@ export function OdooNavbar({
       <button
         ref={toggleRef}
         type="button"
-        className="o-app-switcher-toggle"
+        className="console-app-switcher-toggle"
         onClick={() => setSwitcherOpen((open) => !open)}
         aria-expanded={switcherOpen}
         aria-controls={switcherOpen ? menuId : undefined}
@@ -82,14 +82,14 @@ export function OdooNavbar({
         <LineIcon name="grid" size={18} strokeWidth={2.25} />
       </button>
 
-      <span className="o-brand">{brandContent}</span>
+      <span className="console-brand">{brandContent}</span>
 
-      <ul className="o-menu-sections">
+      <ul className="console-menu-sections">
         {menuChildren.map((child) => (
           <li key={child.id}>
             <button
               type="button"
-              className="o-menu-item"
+              className="console-menu-item"
               onClick={() => {
                 setSwitcherOpen(false);
                 onNavigate(child.path);
@@ -101,12 +101,12 @@ export function OdooNavbar({
         ))}
       </ul>
 
-      {systray ? <div className="o-systray">{systray}</div> : null}
+      {systray ? <div className="console-systray">{systray}</div> : null}
 
       {switcherOpen && (
         <div
           id={menuId}
-          className="o-app-switcher-menu"
+          className="console-app-switcher-menu"
           role="menu"
           aria-label="App switcher"
         >
@@ -115,7 +115,7 @@ export function OdooNavbar({
               key={mod.id}
               type="button"
               role="menuitem"
-              className="o-app-switcher-tile"
+              className="console-app-switcher-tile"
               aria-current={mod.id === activeAppId ? 'page' : undefined}
               onClick={() => {
                 onNavigate(mod.path);

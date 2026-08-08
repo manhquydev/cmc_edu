@@ -1,13 +1,32 @@
 ---
 title: "Design3 Admin Rollout"
 description: "Phủ design system design3 (Odoo backend UI language) toàn apps/admin: extract vào @cmc/ui + restyle component sẵn có, thay shell, re-skin template trung tâm, migrate từng module. LMS giữ nguyên."
-status: validation
+status: completed
 priority: P1
 effort: "11-16w"
 tags: [design-system, odoo, admin, ui]
 created: 2026-08-05
-note: acceptance re-measure closed 2026-08-07; remains validation until human visual smoke + PR merge
+note: "completed 2026-08-07 — PR #75 merged + Phase 4 visual smoke (8P/2W/0F residuals: empty CRM detail + cancelled receipt fixtures); rebrand plan 260807-1453"
+blockedBy: [260807-1453-cmc-console-design-system-rebrand-hardening]
 ---
+
+## Closure (CMC Console rebrand — 2026-08-07)
+
+**Status → `completed`.** Both line-9 blockers closed:
+
+1. **PR merge:** GitHub PR #75 (`develop` → `main`) **MERGED** 2026-08-07
+   (merge commit on main used as rebrand base).
+2. **Human visual smoke:** agent-driven Phase 4 report  
+   `plans/260807-1453-cmc-console-design-system-rebrand-hardening/reports/visual-smoke-2026-08-07.md`  
+   (real staff-login, synth DB, admin preview) — **8 PASS / 2 WARN / 0 FAIL**.
+
+**Residuals (not blockers for this plan's smoke gate, but not full product UAT):**
+- Opportunity detail statusbar not opened (empty detail path on seed)
+- Cancelled receipt statusbar not rendered (no finance rows on seed)
+
+Further rebrand/hardening lived in plan
+`plans/260807-1453-cmc-console-design-system-rebrand-hardening/` (CMC Console naming).
+
 
 # Design3 Admin Rollout
 

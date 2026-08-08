@@ -6,7 +6,7 @@ import { LineIcon, type IconName } from './line-icon.js';
 /**
  * Modern KPI tile — not 2019 “big number on flat card” only.
  * Optional spark bars + delta pill + soft icon wash.
- * Requires @cmc/ui/premium.css (.ck-im*).
+ * Requires @cmc/ui/console.css (.console-im*).
  */
 export interface InsightMetricProps {
   label: string;
@@ -35,10 +35,10 @@ export function InsightMetric({
 }: InsightMetricProps) {
   const body = (
     <>
-      <div className="ck-im-top">
-        <span className="ck-im-label">{label}</span>
+      <div className="console-im-top">
+        <span className="console-im-label">{label}</span>
         {icon ? (
-          <span className="ck-im-icon" aria-hidden>
+          <span className="console-im-icon" aria-hidden>
             <LineIcon name={icon} size={18} />
           </span>
         ) : null}
@@ -46,26 +46,26 @@ export function InsightMetric({
       {loading ? (
         <Skeleton height={30} width="48%" radius={0} />
       ) : (
-        <div className="ck-im-value-row">
-          <div className="ck-im-value">{value}</div>
+        <div className="console-im-value-row">
+          <div className="console-im-value">{value}</div>
           {delta ? (
-            <span className={`ck-im-delta is-${deltaTone}`}>{delta}</span>
+            <span className={`console-im-delta is-${deltaTone}`}>{delta}</span>
           ) : null}
         </div>
       )}
       {spark && spark.length > 0 && !loading ? (
-        <div className="ck-im-spark" aria-hidden>
+        <div className="console-im-spark" aria-hidden>
           {spark.map((v, i) => (
             <span
               key={i}
-              className="ck-im-spark-bar"
+              className="console-im-spark-bar"
               style={{ height: `${Math.max(12, Math.min(100, v * 100))}%` }}
             />
           ))}
         </div>
       ) : null}
       {context ? (
-        <div className="ck-im-ctx">
+        <div className="console-im-ctx">
           {context}
           {href ? <LineIcon name="chevron" size={13} /> : null}
         </div>
@@ -75,10 +75,10 @@ export function InsightMetric({
 
   if (href) {
     return (
-      <Link to={href} className="ck-im">
+      <Link to={href} className="console-im">
         {body}
       </Link>
     );
   }
-  return <div className="ck-im">{body}</div>;
+  return <div className="console-im">{body}</div>;
 }

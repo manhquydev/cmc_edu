@@ -1,6 +1,6 @@
 import { fireEvent, render } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { OdooNavbar } from './odoo-navbar.js';
+import { ConsoleNavbar } from './console-navbar.js';
 import type { NavModule } from '../components/nav-types.js';
 
 const apps: NavModule[] = [
@@ -23,10 +23,10 @@ const apps: NavModule[] = [
   },
 ];
 
-describe('OdooNavbar', () => {
+describe('ConsoleNavbar', () => {
   it('renders brand and app-switcher toggle', () => {
     const { getByLabelText, getByText } = render(
-      <OdooNavbar
+      <ConsoleNavbar
         apps={apps}
         activeAppId="finance-ops"
         isChildVisible={() => true}
@@ -39,7 +39,7 @@ describe('OdooNavbar', () => {
 
   it('hides gated children from the section menu (required isChildVisible)', () => {
     const { queryByText, getByText } = render(
-      <OdooNavbar
+      <ConsoleNavbar
         apps={apps}
         activeAppId="finance-ops"
         isChildVisible={(c) => c.id !== 'recon'}
@@ -52,7 +52,7 @@ describe('OdooNavbar', () => {
 
   it('does not render any section menu children when the gate rejects all of them', () => {
     const { queryByText } = render(
-      <OdooNavbar
+      <ConsoleNavbar
         apps={apps}
         activeAppId="finance-ops"
         isChildVisible={() => false}
@@ -66,7 +66,7 @@ describe('OdooNavbar', () => {
   it('lists apps in the switcher and navigates on tile click', () => {
     const onNavigate = vi.fn();
     const { getByLabelText, getByRole, queryByRole } = render(
-      <OdooNavbar
+      <ConsoleNavbar
         apps={apps}
         activeAppId="cockpit"
         isChildVisible={() => true}
@@ -81,7 +81,7 @@ describe('OdooNavbar', () => {
 
   it('closes the app switcher on Escape and returns focus to the toggle', () => {
     const { getByLabelText, getByRole, queryByRole } = render(
-      <OdooNavbar
+      <ConsoleNavbar
         apps={apps}
         activeAppId="cockpit"
         isChildVisible={() => true}
@@ -100,7 +100,7 @@ describe('OdooNavbar', () => {
     const { getByLabelText, getByRole, queryByRole } = render(
       <div>
         <button type="button">Outside</button>
-        <OdooNavbar
+        <ConsoleNavbar
           apps={apps}
           activeAppId="cockpit"
           isChildVisible={() => true}
@@ -117,7 +117,7 @@ describe('OdooNavbar', () => {
   it('navigates when a visible section menu item is clicked', () => {
     const onNavigate = vi.fn();
     const { getByText } = render(
-      <OdooNavbar
+      <ConsoleNavbar
         apps={apps}
         activeAppId="finance-ops"
         isChildVisible={() => true}
@@ -130,7 +130,7 @@ describe('OdooNavbar', () => {
 
   it('renders the systray slot when provided', () => {
     const { getByText } = render(
-      <OdooNavbar
+      <ConsoleNavbar
         apps={apps}
         activeAppId="cockpit"
         isChildVisible={() => true}

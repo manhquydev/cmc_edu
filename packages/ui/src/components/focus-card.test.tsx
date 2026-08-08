@@ -21,6 +21,6 @@ describe('FocusCard', () => {
     expect(screen.getByText('Việc ưu tiên')).toBeInTheDocument();
     expect(screen.getByText('Duyệt 4 phiếu thu nháp')).toBeInTheDocument();
     expect(screen.getByText('Mở hàng đợi')).toBeInTheDocument();
-    expect(container.querySelector('a.ck-fc[href="/finance?status=draft"]')).toBeTruthy();
+    expect(container.querySelector('a.console-fc[href="/finance?status=draft"]')).toBeTruthy();
   });
 });

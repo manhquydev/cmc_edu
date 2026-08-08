@@ -117,7 +117,7 @@ test.describe('Journey xuyên app — GV chấm điểm ERP → phụ huynh th�
     // grade crosses) with a value that cannot be truncated. Observation left
     // here for the fixing plan to triage.
     await teacherPage.getByRole('spinbutton', { name: /Điểm/ }).fill('9');
-    await teacherPage.locator('main.o-main').getByRole('button', { name: 'Chấm bài' }).click();
+    await teacherPage.locator('main.console-main').getByRole('button', { name: 'Chấm bài' }).click();
     await expect(queueRow).toHaveCount(0);
     await teacherContext.close();
 

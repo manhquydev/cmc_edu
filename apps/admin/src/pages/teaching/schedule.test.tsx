@@ -254,17 +254,17 @@ describe('SchedulePage', () => {
     const { container } = renderWithProviders(<SchedulePage />, {
       route: '/teaching/schedule?view=kanban',
     });
-    const cols = container.querySelectorAll('.o-kanban-col');
+    const cols = container.querySelectorAll('.console-kanban-col');
     expect(cols).toHaveLength(4);
-    const counts = [...cols].map((c) => c.querySelector('.o-kanban-col-count')?.textContent);
+    const counts = [...cols].map((c) => c.querySelector('.console-kanban-col-count')?.textContent);
     // planned 1, active 2, completed 0, cancelled 0 — KANBAN_COLS order.
     expect(counts).toEqual(['1', '2', '0', '0']);
   });
 
-  it('kanban view keeps a batch card per row and drops the premium ck-kanban shell', () => {
+  it('kanban view keeps a batch card per row and drops the premium console-kanban shell', () => {
     renderWithProviders(<SchedulePage />, { route: '/teaching/schedule?view=kanban' });
     expect(screen.getByText('ENG-A1')).toBeInTheDocument();
-    expect(document.querySelector('.ck-kanban')).toBeNull();
+    expect(document.querySelector('.console-kanban')).toBeNull();
   });
 
   it('renders the FilterBar course filter input', () => {

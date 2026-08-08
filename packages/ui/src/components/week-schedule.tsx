@@ -34,7 +34,7 @@ export interface WeekScheduleProps {
 
 /**
  * Modern education week board — floating day columns, soft today, session pills.
- * Not classical hard-grid calendars. Requires @cmc/ui/premium.css (.ck-week*).
+ * Not classical hard-grid calendars. Requires @cmc/ui/console.css (.console-week*).
  */
 export function WeekSchedule({
   days,
@@ -49,19 +49,19 @@ export function WeekSchedule({
 }: WeekScheduleProps) {
   if (loading) {
     return (
-      <div className="ck-week">
+      <div className="console-week">
         {(title || toolbar) && (
-          <div className="ck-week-toolbar">
-            <div className="ck-week-toolbar-title">{title ?? 'Đang tải…'}</div>
+          <div className="console-week-toolbar">
+            <div className="console-week-toolbar-title">{title ?? 'Đang tải…'}</div>
           </div>
         )}
-        <div className="ck-week-grid">
+        <div className="console-week-grid">
           {Array.from({ length: 7 }, (_, i) => (
-            <div key={i} className="ck-week-col">
-              <div className="ck-week-head">
+            <div key={i} className="console-week-col">
+              <div className="console-week-head">
                 <Skeleton height={44} radius={1} />
               </div>
-              <div className="ck-week-body">
+              <div className="console-week-body">
                 <Skeleton height={80} radius={1} />
                 <Skeleton height={80} radius={1} />
               </div>
@@ -75,26 +75,26 @@ export function WeekSchedule({
   const total = days.reduce((n, d) => n + d.sessions.length, 0);
   if (total === 0) {
     return (
-      <div className="ck-week-empty">
+      <div className="console-week-empty">
         <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />
       </div>
     );
   }
 
   return (
-    <div className="ck-week">
+    <div className="console-week">
       {(title || toolbar) && (
-        <div className="ck-week-toolbar">
-          {title ? <div className="ck-week-toolbar-title">{title}</div> : <span />}
-          {toolbar ? <div className="ck-week-toolbar-actions">{toolbar}</div> : null}
+        <div className="console-week-toolbar">
+          {title ? <div className="console-week-toolbar-title">{title}</div> : <span />}
+          {toolbar ? <div className="console-week-toolbar-actions">{toolbar}</div> : null}
         </div>
       )}
-      <div className="ck-week-grid" role="grid" aria-label="Lịch tuần">
+      <div className="console-week-grid" role="grid" aria-label="Lịch tuần">
         {days.map((day) => (
           <div
             key={day.key}
             className={[
-              'ck-week-col',
+              'console-week-col',
               day.isToday ? 'is-today' : '',
               day.isWeekend ? 'is-weekend' : '',
               day.sessions.length === 0 ? 'is-empty' : '',
@@ -103,21 +103,21 @@ export function WeekSchedule({
               .join(' ')}
             role="gridcell"
           >
-            <div className="ck-week-head">
-              <span className="ck-week-wd">{day.weekday}</span>
-              <span className="ck-week-num">{day.dayNum}</span>
-              {day.isToday ? <span className="ck-week-today-pill">Hôm nay</span> : null}
+            <div className="console-week-head">
+              <span className="console-week-wd">{day.weekday}</span>
+              <span className="console-week-num">{day.dayNum}</span>
+              {day.isToday ? <span className="console-week-today-pill">Hôm nay</span> : null}
               {!day.isToday && day.caption ? (
-                <span className="ck-week-cap">{day.caption}</span>
+                <span className="console-week-cap">{day.caption}</span>
               ) : null}
               {day.sessions.length > 0 ? (
-                <span className="ck-week-count">{day.sessions.length}</span>
+                <span className="console-week-count">{day.sessions.length}</span>
               ) : null}
             </div>
-            <div className="ck-week-body">
+            <div className="console-week-body">
               {day.sessions.length === 0 ? (
-                <div className="ck-week-gap">
-                  <span className="ck-week-gap-dot" />
+                <div className="console-week-gap">
+                  <span className="console-week-gap-dot" />
                   <span>Trống</span>
                 </div>
               ) : (
@@ -134,12 +134,12 @@ export function WeekSchedule({
         ))}
       </div>
       {showLegend ? (
-        <div className="ck-week-legend" aria-hidden>
-          <span className="ck-week-leg ck-week-leg--live">Đang học</span>
-          <span className="ck-week-leg ck-week-leg--active">Trong kỳ</span>
-          <span className="ck-week-leg ck-week-leg--attention">Chưa điểm danh</span>
-          <span className="ck-week-leg ck-week-leg--planned">Sắp mở</span>
-          <span className="ck-week-leg ck-week-leg--done">Kết thúc</span>
+        <div className="console-week-legend" aria-hidden>
+          <span className="console-week-leg console-week-leg--live">Đang học</span>
+          <span className="console-week-leg console-week-leg--active">Trong kỳ</span>
+          <span className="console-week-leg console-week-leg--attention">Chưa điểm danh</span>
+          <span className="console-week-leg console-week-leg--planned">Sắp mở</span>
+          <span className="console-week-leg console-week-leg--done">Kết thúc</span>
         </div>
       ) : null}
     </div>

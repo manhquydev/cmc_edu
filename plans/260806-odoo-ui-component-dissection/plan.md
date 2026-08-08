@@ -6,6 +6,7 @@ priority: P1
 effort: "ongoing process + gap backlog"
 tags: [design-system, odoo, design3, layout, wireframe]
 created: 2026-08-06
+blockedBy: [260807-1453-cmc-console-design-system-rebrand-hardening]
 ---
 
 # Odoo UI Component Dissection → CMC Professional Parity
@@ -21,9 +22,9 @@ Staff admin UI (`apps/admin`) looks and behaves like a **professional Odoo backe
 | Odoo pin | [ODOO_PIN.txt](./ODOO_PIN.txt) — branch `19.0`, local sparse clone `/home/manhquy/Downloads/odoo-src` |
 | Upstream | https://github.com/odoo/odoo.git |
 | Extract report | [reports/odoo-19-source-dissection.md](./reports/odoo-19-source-dissection.md) |
-| Evergreen map | [design-system/cmc-edu/ODOO-COMPONENT-MAP.md](../../design-system/cmc-edu/ODOO-COMPONENT-MAP.md) |
-| Admin design authority | [docs/design-system-odoo.md](../../docs/design-system-odoo.md) |
-| Code | `packages/ui/src/odoo.css`, `odoo/odoo-navbar.tsx`, `odoo/odoo-kanban.tsx`, templates under `packages/ui/src/components/` |
+| Evergreen map | [design-system/cmc-edu/CONSOLE-COMPONENT-MAP.md](../../design-system/cmc-edu/CONSOLE-COMPONENT-MAP.md) |
+| Admin design authority | [docs/design-system-console.md](../../docs/design-system-console.md) |
+| Code | `packages/ui/src/console.css`, `console/console-navbar.tsx`, `console/console-kanban.tsx`, templates under `packages/ui/src/components/` |
 
 ## Non-goals (locked)
 
@@ -96,9 +97,9 @@ Skip one-off decorative pixels.
 
 ### Step 5 — Document
 
-- Update `design-system/cmc-edu/ODOO-COMPONENT-MAP.md` (evergreen)
+- Update `design-system/cmc-edu/CONSOLE-COMPONENT-MAP.md` (evergreen)
 - Append delta notes under `plans/260806-…/reports/` (dated)
-- Touch `docs/design-system-odoo.md` only when tokens/shell contract change
+- Touch `docs/design-system-console.md` only when tokens/shell contract change
 
 ## Phases (implementation backlog from first dissection)
 
@@ -113,7 +114,7 @@ Skip one-off decorative pixels.
 | 4 | List density & sticky thead | table cell padding, sticky header z-index under shell | Tokens OK; sticky e2e **CUT/debt** |
 | 5 | Search / facets (lite) | FilterBar + optional API `search` on major lists | **SHIPPED lite 2026-08-07** (~20/23 ListPage; PR #75). Not full Odoo Search OS |
 | 5b | Search OS deep dive | Filters · Group By · Favorites system-wide | **Research closed** — cook **parked** (brainstorm: `plans/reports/brainstorm-260806-odoo-search-os-next-step.md`) |
-| 6 | Class purity | Optional `ck-*` → `o-*` rename | Backlog |
+| 6 | Class purity | Optional `ck-*` → `console-*` rename | Backlog |
 | X | Xia compare (read-only) | 7 surfaces (shell…float+settings) | **Done 2026-08-06** — synthesis acceptance close |
 | A | Agent OS (anti-sprawl) | [AGENT-COMMAND-MAP.md](./AGENT-COMMAND-MAP.md) | **Done** |
 

@@ -6,10 +6,10 @@
 > Áp cùng nguyên tắc UX (TL2) và routing (TL6).
 
 > **Superseded for `apps/admin` (rolled out, 2026-08-06).** Admin uses the Odoo
-> backend UI language — see [docs/design-system-odoo.md](./design-system-odoo.md).
+> backend UI language — see [docs/design-system-console.md](./design-system-console.md).
 > This TL12 document remains authoritative for **LMS** (student/parent) and for
 > shared base tokens (`--cmc-*`, Inter, accent `#0071E3`, light-only). Do not
-> apply TL12 premium shell/page chrome (`AppFrame`/`SideNav`/`premium.css`) to
+> apply TL12-era page chrome notes to
 > admin work.
 
 ---
@@ -25,7 +25,7 @@ giờ ship một tầng design-language đơn vị cao mức trên Astryx base �
 monochrome outline icons (no emoji), one accent #0071E3, warm canvas #F7F6F3, restraint + whitespace + 
 typography**. Bao gồm: typed `tokens.premium` object, shared `LineIcon` monochrome set (Feather outline), 
 composites (`MetricCard`, `Panel`, `TaskRow`, `FunnelBar`), app shell (`AppFrame` + `SideNav`), 
-page templates (`ListPage`, `DetailPage`, `FormPage`). Imported via single `@cmc/ui/premium.css` 
+page templates (`ListPage`, `DetailPage`, `FormPage`). Admin: `@cmc/ui/console.css`. LMS: `apps/lms/src/app.css` (`lms-*`; shared `@cmc/ui` components may still document legacy class notes) 
 at app root (`--sh-*`, `--tpl-*` CSS classes). Admin shell + cockpit + finance cockpit migrated onto 
 these components; LMS shares base tokens + icons.
 
@@ -73,7 +73,7 @@ disabled · loading · error · empty. Thiếu bất kỳ trạng thái nào = c
 ## 4.5. Premium Design-Language Layer Components (`@cmc/ui` 2026-07)
 
 Tầng mới `@cmc/ui` promote từ admin cockpit pilot. Toàn bộ DUMB (props-only, không tRPC/session), 
-styled **một lần** bằng `@cmc/ui/premium.css` ở app root. Các component này LOCKED vào nguyên tắc:
+styled via **CMC Console** (`@cmc/ui/console.css`) on admin; LMS uses app-local `lms-*` CSS. Các component này LOCKED vào nguyên tắc:
 
 **Principles:** Light mode only · Monochrome outline icons (Feather set via `LineIcon` component, 
 no emoji) · One accent (`#0071E3`) · Warm canvas (`#F7F6F3`) · Notion-subtle elevation · Inter 
@@ -106,7 +106,7 @@ All icons forward `data-icon` attribute for testing/analytics.
 - `DetailPage`: header (record name + actions) + optional tabs + children → detail archetype. 
   Props: `header`, `tabs`, `children`.
 - `FormPage`: form container → form archetype. Caller owns validation/submit logic.
-  All require `@cmc/ui/premium.css` (`.tpl-*` CSS classes).
+  Admin templates use `.console-*` under `@cmc/ui/console.css` (legacy `.tpl-*` retired).
 
 **Adoption Status (2026-07-12):** Toàn bộ 21/21 màn admin ERP non-blocked (8 phase TDD, engaged 
 via phase-00-phase-07) đã migrate từ legacy component lên premium template/composite architecture. 
@@ -115,7 +115,7 @@ monochrome + premium token. Xem `plans/260711-1720-premium-erp-screen-buildout/p
 12 exemplar screen cũ (cockpit, finance-receipt-*, student-*, grading, etc.) đã xây sẵn premium 
 (không đổi lần này). 1 màn stub (leaderboard) chờ backend + spec; network-ip/shift-config đã shipped PR #34.
 
-**Deployment:** Import `@cmc/ui/premium.css` once per app root (admin + lms will share). 
+**Deployment:** Admin imports `@cmc/ui/console.css` once. LMS does not import console.css; uses `apps/lms/src/app.css`. 
 Classes encode paddings, gaps, shadows, blur effects — no inline styles in components.
 
 ## 5. Pattern trang (khớp routing TL6)

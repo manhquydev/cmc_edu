@@ -286,6 +286,13 @@ model Opportunity {
   // at the API layer (referral|walkin|fanpage|hotline|event|other), no DB enum.
   assignedToId String?
   source       String?
+  // CRM rotting clock (P2): last stage-change instant. NULL only for rows that
+  // pre-date the migration and failed backfill; runtime uses
+  // COALESCE(stageChangedAt, createdAt). New inserts get DEFAULT now() at the
+  // DB layer so create-sites (incl. finance walk-in) need no app code.
+  // Intentionally NOT updated by finance receiptApprove (O4→O5) or receiptCancel
+  // (O5→O4): O5 is never rotting; a just-cancelled receipt should look rotting.
+  stageChangedAt DateTime? @db.Timestamptz(3)
   createdAt  DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt  DateTime         @updatedAt @db.Timestamptz(3)
 

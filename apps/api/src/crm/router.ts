@@ -458,28 +458,28 @@ export const crmRouter = router({
     }),
 
   /**
-   * P3 bulk import — confirm write. Per-row create with commit-time re-check;
-   * errors do not abort valid rows (no all-or-nothing transaction).
+   * P3 bulk import — confirm write. Each create is its own withFacility
+   * transaction (commit-time re-check per row); errors never abort valid rows.
    */
   opportunityBulkConfirm: requirePermission('crm', 'opportunityCreate')
     .input(opportunityBulkImportInput)
     .mutation(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
-      return withFacility(ctx.db, facilityId, async (tx) => {
-        let assignedToId: string | null = null;
-        if (ctx.subject.roles.includes('sale')) {
+      let assignedToId: string | null = null;
+      if (ctx.subject.roles.includes('sale')) {
+        assignedToId = await withFacility(ctx.db, facilityId, async (tx) => {
           const callerAppUser = await tx.appUser.findFirst({
             where: { userId: ctx.subject.userId, facilityId },
             select: { id: true },
           });
-          assignedToId = callerAppUser?.id ?? null;
-        }
-        return confirmBulkImport(tx, {
-          facilityId,
-          text: input.text,
-          defaultSource: input.defaultSource ?? null,
-          assignedToId,
+          return callerAppUser?.id ?? null;
         });
+      }
+      return confirmBulkImport(ctx.db, {
+        facilityId,
+        text: input.text,
+        defaultSource: input.defaultSource ?? null,
+        assignedToId,
       });
     }),
 });

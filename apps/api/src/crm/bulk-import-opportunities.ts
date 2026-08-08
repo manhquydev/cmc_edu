@@ -3,7 +3,7 @@
 // Open-opportunity dedup is NEW logic (findOrCreateContact only dedups Contact).
 // Confirm re-checks open opps per phone to reduce TOCTOU vs preview.
 
-import type { Prisma } from '@cmc/db';
+import { withFacility, type Prisma, type PrismaClient } from '@cmc/db';
 import { normalizeContactPhone } from './normalize-contact-phone.js';
 import { findOrCreateContact } from './find-or-create-contact.js';
 
@@ -349,8 +349,13 @@ export async function previewBulkImport(
   return { rows, summary, overLimit };
 }
 
+/**
+ * Confirm bulk import. Each create runs in its **own** withFacility transaction
+ * so a single row failure / timeout cannot abort the whole batch (plan: not
+ * all-or-nothing).
+ */
 export async function confirmBulkImport(
-  tx: Prisma.TransactionClient,
+  db: PrismaClient,
   opts: {
     facilityId: string;
     text: string;
@@ -361,7 +366,9 @@ export async function confirmBulkImport(
   results: BulkImportResultRow[];
   summary: { created: number; skipped: number; error: number };
 }> {
-  const preview = await previewBulkImport(tx, opts.facilityId, opts.text, opts.defaultSource);
+  const preview = await withFacility(db, opts.facilityId, (tx) =>
+    previewBulkImport(tx, opts.facilityId, opts.text, opts.defaultSource),
+  );
   const results: BulkImportResultRow[] = [];
   let created = 0;
   let skipped = 0;
@@ -383,46 +390,52 @@ export async function confirmBulkImport(
       continue;
     }
 
-    // Commit-time re-check (TOCTOU reduction).
-    const stillOpen = await loadOpenOpportunityPhones(tx, opts.facilityId, [
-      row.normalizedPhone,
-    ]);
-    if (stillOpen.has(row.normalizedPhone)) {
-      skipped += 1;
-      results.push({
-        line: row.line,
-        status: 'skipped',
-        reason: 'Đã có cơ hội đang mở với SĐT này (re-check lúc ghi)',
-        name: row.name,
-        phone: row.phone,
-      });
-      continue;
-    }
-
     try {
-      const contact = await findOrCreateContact(tx, {
-        facilityId: opts.facilityId,
-        name: row.name,
-        phone: row.normalizedPhone,
-        email: row.email,
-      });
-      const opportunity = await tx.opportunity.create({
-        data: {
+      const outcome = await withFacility(db, opts.facilityId, async (tx) => {
+        // Commit-time re-check (TOCTOU reduction) inside this row's transaction.
+        const stillOpen = await loadOpenOpportunityPhones(tx, opts.facilityId, [
+          row.normalizedPhone!,
+        ]);
+        if (stillOpen.has(row.normalizedPhone!)) {
+          return { kind: 'skipped' as const };
+        }
+        const contact = await findOrCreateContact(tx, {
           facilityId: opts.facilityId,
-          contactId: contact.id,
-          stage: 'O1_LEAD',
-          assignedToId: opts.assignedToId,
-          source: row.source ?? opts.defaultSource ?? null,
-        },
+          name: row.name,
+          phone: row.normalizedPhone!,
+          email: row.email,
+        });
+        const opportunity = await tx.opportunity.create({
+          data: {
+            facilityId: opts.facilityId,
+            contactId: contact.id,
+            stage: 'O1_LEAD',
+            assignedToId: opts.assignedToId,
+            source: row.source ?? opts.defaultSource ?? null,
+          },
+        });
+        return { kind: 'created' as const, opportunityId: opportunity.id };
       });
-      created += 1;
-      results.push({
-        line: row.line,
-        status: 'created',
-        opportunityId: opportunity.id,
-        name: row.name,
-        phone: row.phone,
-      });
+
+      if (outcome.kind === 'skipped') {
+        skipped += 1;
+        results.push({
+          line: row.line,
+          status: 'skipped',
+          reason: 'Đã có cơ hội đang mở với SĐT này (re-check lúc ghi)',
+          name: row.name,
+          phone: row.phone,
+        });
+      } else {
+        created += 1;
+        results.push({
+          line: row.line,
+          status: 'created',
+          opportunityId: outcome.opportunityId,
+          name: row.name,
+          phone: row.phone,
+        });
+      }
     } catch (e) {
       error += 1;
       results.push({

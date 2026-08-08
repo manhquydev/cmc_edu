@@ -1,7 +1,7 @@
 /**
  * Compact table footer pagination — page size + range + prev/next.
  * Presentational; parent owns page state (URL or local).
- * Requires @cmc/ui/premium.css (.ck-page*).
+ * Requires @cmc/ui/console.css (.console-page*).
  */
 export interface ListPaginationProps {
   page: number;
@@ -27,8 +27,8 @@ export function ListPagination({
   const to = Math.min(total, safePage * pageSize);
 
   return (
-    <div className="ck-page" role="navigation" aria-label="Phân trang">
-      <div className="ck-page-range">
+    <div className="console-page" role="navigation" aria-label="Phân trang">
+      <div className="console-page-range">
         {total === 0 ? (
           <span>Không có dòng</span>
         ) : (
@@ -41,7 +41,7 @@ export function ListPagination({
         )}
       </div>
       {pageSizeOptions && pageSizeOptions.length > 0 && onPageSizeChange ? (
-        <label className="ck-page-size">
+        <label className="console-page-size">
           <span>Mỗi trang</span>
           <select
             value={pageSize}
@@ -56,22 +56,22 @@ export function ListPagination({
           </select>
         </label>
       ) : null}
-      <div className="ck-page-nav">
+      <div className="console-page-nav">
         <button
           type="button"
-          className="ck-page-btn"
+          className="console-page-btn"
           disabled={safePage <= 1}
           onClick={() => onPageChange(safePage - 1)}
           aria-label="Trang trước"
         >
           ‹
         </button>
-        <span className="ck-page-indicator" aria-current="page">
+        <span className="console-page-indicator" aria-current="page">
           {safePage} / {totalPages}
         </span>
         <button
           type="button"
-          className="ck-page-btn"
+          className="console-page-btn"
           disabled={safePage >= totalPages}
           onClick={() => onPageChange(safePage + 1)}
           aria-label="Trang sau"

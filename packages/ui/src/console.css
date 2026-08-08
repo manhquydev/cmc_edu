@@ -1,142 +1,135 @@
 /*
- * @cmc/ui odoo layer — Odoo backend UI language for admin.
+ * @cmc/ui console layer — CMC Console (admin ERP UI language).
  * Ported from apps/admin design-lab-3 (source-grounded recreation).
  * Tokens/styles from Odoo addons/web static source (LGPL-3,
- * https://github.com/odoo/odoo), branch 19.0, commit 5568f6e472e2e53bc2931e744421015b0f0f3550.
+ * https://github.com/odoo/odoo), branch 19.0, commit 7de220c941c77d4fffdc270a7862c69475fa4577.
+ * Pin reconciled 2026-08-07 (plan 260807-1453 Phase 3): shipped values match this
+ * commit in local sparse clone; prior header hash 5568f6e4… retired (not in clone).
  * Values reimplemented as plain CSS custom properties scoped under .o_web_client
  * only (document-global selectors are forbidden — must not leak into LMS).
- * Import ONCE at admin app root: `import '@cmc/ui/odoo.css'` (after premium.css).
+ * Import ONCE at admin app root: `import '@cmc/ui/console.css'` (sole admin design-system stylesheet).
  */
-
 .o_web_client {
   /* Brand (decorative only — interactive accent stays CMC blue #0071E3) */
-  --odoo-brand-purple: #71639e;
-  --odoo-brand-purple-dark: #5a4f7e;
-  --odoo-enterprise-purple: #714b67;
+  --console-brand-purple: #71639e;
+  --console-brand-purple-dark: #5a4f7e;
+  --console-enterprise-purple: #714b67;
 
   /* Status colors (muted/Bootstrap-derived, keep as-is — do not brighten) */
-  --odoo-success: #28a745;
-  --odoo-info: #17a2b8;
-  --odoo-warning: #ffac00;
-  --odoo-danger: #dc3545;
+  --console-success: #28a745;
+  --console-info: #17a2b8;
+  --console-warning: #ffac00;
+  --console-danger: #dc3545;
 
   /* Kanban record accent colors — status-N mapping: draft=1, rejected=2,
      pending=3, confirmed=4, approved=5, done=6 */
-  --odoo-kanban-color-1: #6c757d;
-  --odoo-kanban-color-2: #dc3545;
-  --odoo-kanban-color-3: #ffac00;
-  --odoo-kanban-color-4: #17a2b8;
-  --odoo-kanban-color-5: #28a745;
-  --odoo-kanban-color-6: #71639e;
+  --console-kanban-color-1: #6c757d;
+  --console-kanban-color-2: #dc3545;
+  --console-kanban-color-3: #ffac00;
+  --console-kanban-color-4: #17a2b8;
+  --console-kanban-color-5: #28a745;
+  --console-kanban-color-6: #71639e;
 
   /* Grays (Bootstrap defaults) */
-  --odoo-gray-100: #f8f9fa;
-  --odoo-gray-200: #e9ecef;
-  --odoo-gray-300: #dee2e6;
-  --odoo-gray-600: #6c757d;
-  --odoo-gray-900: #212529;
+  --console-gray-100: #f8f9fa;
+  --console-gray-200: #e9ecef;
+  --console-gray-300: #dee2e6;
+  --console-gray-600: #6c757d;
+  --console-gray-900: #212529;
 
   /* Typography — keep CMC's Inter family, adopt Odoo's size steps + density */
-  --odoo-font-size-base: 14px;
-  --odoo-font-size-sm: 13px;
-  --odoo-font-size-xs: 12px;
+  --console-font-size-base: 14px;
+  --console-font-size-sm: 13px;
+  --console-font-size-xs: 12px;
 
   /* Radius — small & consistent, NOT pill-shaped */
-  --odoo-radius: 4px;
-  --odoo-radius-sm: 3px;
-  --odoo-radius-lg: 6px;
+  --console-radius: 4px;
+  --console-radius-sm: 3px;
+  --console-radius-lg: 6px;
 
   /* Spacing */
-  --odoo-spacer: 16px;
+  --console-spacer: 16px;
 
   /* Navbar */
-  --odoo-navbar-height: 46px;
-  --odoo-navbar-entry-hover-bg: rgba(0, 0, 0, 0.08);
+  --console-navbar-height: 46px;
+  --console-navbar-entry-hover-bg: rgba(0, 0, 0, 0.08);
 
   /* Control panel / breadcrumb */
-  --odoo-breadcrumb-padding-x: 0.5rem;
+  --console-breadcrumb-padding-x: 0.5rem;
 
   /* List view */
-  --odoo-list-cell-padding-x: 0.3rem;
-  --odoo-list-cell-padding-y: 0.5rem;
+  --console-list-cell-padding-x: 0.3rem;
+  --console-list-cell-padding-y: 0.5rem;
 
   /* Kanban */
-  --odoo-kanban-bg: var(--odoo-gray-100);
-  --odoo-kanban-card-width: 320px;
-  --odoo-kanban-card-width-sm: 300px;
-  --odoo-kanban-color-bar-width: 3px;
-  --odoo-kanban-gutter: 8px;
+  --console-kanban-bg: var(--console-gray-100);
+  --console-kanban-card-width: 320px;
+  --console-kanban-card-width-sm: 300px;
+  --console-kanban-color-bar-width: 3px;
+  --console-kanban-gutter: 8px;
 
   /* Form / statusbar */
-  --odoo-sheet-max-width: 1400px;
-  --odoo-statusbar-height: 33px;
-  --odoo-statusbar-arrow-width: 1em;
+  --console-sheet-max-width: 1400px;
+  --console-statusbar-height: 33px;
+  --console-statusbar-arrow-width: 1em;
 }
-
 .o_web_client {
   box-sizing: border-box;
   min-height: 100vh;
-  background: var(--odoo-gray-100);
+  background: var(--console-gray-100);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: var(--odoo-font-size-base);
-  color: var(--odoo-gray-900);
+  font-size: var(--console-font-size-base);
+  color: var(--console-gray-900);
   display: flex;
   flex-flow: column nowrap;
 }
-
 .o_web_client *,
 .o_web_client *::before,
 .o_web_client *::after {
   box-sizing: border-box;
 }
-
 /* ------------------------------------------------------------------ */
 /* Navbar (.o_main_navbar analogue) */
 /* ------------------------------------------------------------------ */
-
-.o-navbar {
+.console-navbar {
   /* Shell stacking layer: app-switcher is position:absolute under this bar.
-     Without a z-index, later flex sibling main.o-main (and its .o-page-header
+     Without a z-index, later flex sibling main.console-main (and its .console-page-header
      / sticky control chrome) paints over the open menu — live audit 2026-08-06
      confirmed hits on session-assessment and 6 sibling Form/Detail pages. */
   position: relative;
   z-index: 1000;
   display: flex;
   align-items: center;
-  height: var(--odoo-navbar-height);
+  height: var(--console-navbar-height);
   flex: 0 0 auto;
-  background: var(--odoo-brand-purple);
-  border-bottom: 1px solid var(--odoo-brand-purple-dark);
+  background: var(--console-brand-purple);
+  border-bottom: 1px solid var(--console-brand-purple-dark);
   color: rgba(255, 255, 255, 0.9);
   padding: 0 8px;
   gap: 4px;
 }
-
-.o-app-switcher-toggle {
+.console-app-switcher-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--odoo-navbar-height);
-  height: var(--odoo-navbar-height);
+  width: var(--console-navbar-height);
+  height: var(--console-navbar-height);
   background: transparent;
   border: 0;
   border-radius: 0;
   color: inherit;
   cursor: pointer;
 }
-
-.o-app-switcher-toggle:hover {
-  background: var(--odoo-navbar-entry-hover-bg);
+.console-app-switcher-toggle:hover {
+  background: var(--console-navbar-entry-hover-bg);
 }
-
-.o-brand {
+.console-brand {
   font-size: 1.2em;
   font-weight: 600;
   padding: 0 12px;
   white-space: nowrap;
 }
-
-.o-menu-sections {
+.console-menu-sections {
   display: flex;
   align-items: center;
   list-style: none;
@@ -145,28 +138,24 @@
   gap: 2px;
   flex: 1 1 auto;
 }
-
-.o-menu-item {
+.console-menu-item {
   padding: 0 10px;
-  height: var(--odoo-navbar-height);
+  height: var(--console-navbar-height);
   display: flex;
   align-items: center;
   font-size: 1em;
   cursor: pointer;
   border-radius: 0;
 }
-
-.o-menu-item:hover {
-  background: var(--odoo-navbar-entry-hover-bg);
+.console-menu-item:hover {
+  background: var(--console-navbar-entry-hover-bg);
 }
-
-.o-systray {
+.console-systray {
   display: flex;
   align-items: center;
   gap: 4px;
 }
-
-.o-systray-badge {
+.console-systray-badge {
   position: relative;
   display: flex;
   align-items: center;
@@ -179,30 +168,14 @@
   color: inherit;
   cursor: pointer;
 }
-
-.o-systray-badge:hover {
-  background: var(--odoo-navbar-entry-hover-bg);
+.console-systray-badge:hover {
+  background: var(--console-navbar-entry-hover-bg);
 }
-
-.o-badge-count {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  min-width: 14px;
-  padding: 0 3px;
-  border-radius: 999px;
-  background: var(--odoo-success);
-  color: #fff;
-  font-size: 10px;
-  line-height: 14px;
-  text-align: center;
-}
-
 /* Vertical dropdown list, matching Odoo's real app-switcher (never an icon
    grid — desktop and mobile both render a plain vertical item list). */
-.o-app-switcher-menu {
+.console-app-switcher-menu {
   position: absolute;
-  top: var(--odoo-navbar-height);
+  top: var(--console-navbar-height);
   left: 0;
   z-index: 10;
   display: flex;
@@ -210,12 +183,11 @@
   min-width: 220px;
   padding: 4px 0;
   background: #fff;
-  border: 1px solid var(--odoo-gray-300);
-  border-radius: 0 0 var(--odoo-radius) var(--odoo-radius);
+  border: 1px solid var(--console-gray-300);
+  border-radius: 0 0 var(--console-radius) var(--console-radius);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
-
-.o-app-switcher-tile {
+.console-app-switcher-tile {
   display: flex;
   flex-flow: row;
   align-items: center;
@@ -223,98 +195,32 @@
   padding: 8px 16px;
   background: transparent;
   border: 0;
-  color: var(--odoo-gray-900);
+  color: var(--console-gray-900);
   cursor: pointer;
-  font-size: var(--odoo-font-size-base);
+  font-size: var(--console-font-size-base);
   text-align: left;
 }
-
-.o-app-switcher-tile:hover {
-  background: var(--odoo-gray-100);
+.console-app-switcher-tile:hover {
+  background: var(--console-gray-100);
 }
-
-/* ------------------------------------------------------------------ */
-/* Control panel (.o_control_panel analogue) */
-/* ------------------------------------------------------------------ */
-
-.o-control-panel {
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-  gap: 16px;
-  padding: 8px var(--odoo-spacer);
-  background: #fff;
-  border-bottom: 1px solid var(--odoo-gray-300);
-}
-
-.o-breadcrumbs {
-  display: flex;
-  align-items: center;
-  padding: 0 var(--odoo-breadcrumb-padding-x);
-  font-size: var(--odoo-font-size-base);
-  white-space: nowrap;
-}
-
-.o-breadcrumb-sep {
-  margin: 0 6px;
-  color: var(--odoo-gray-600);
-}
-
-.o-breadcrumb-current {
-  font-weight: 600;
-}
-
-.o-breadcrumb-link {
-  background: none;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.o-breadcrumb-link:hover {
-  text-decoration: underline;
-}
+/* ------------------------------------------------------------------ */ /* Control panel (.o_control_panel analogue) */ /* ------------------------------------------------------------------ */
 
 /* Odoo anchors create/action buttons on the left, beside the breadcrumb —
    not grouped with the view-switcher on the right. */
-.o-panel-buttons {
-  display: flex;
-  align-items: center;
-}
 
-.o-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1 1 auto;
-  max-width: 360px;
-  padding: 4px 10px;
-  background: var(--odoo-gray-100);
-  border: 1px solid var(--odoo-gray-300);
-  border-radius: var(--odoo-radius-sm);
-  color: var(--odoo-gray-600);
-  cursor: pointer;
-  font-size: var(--odoo-font-size-sm);
-}
-
-.o-actions {
+.console-actions {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-left: auto;
 }
-
-.o-view-switcher {
+.console-view-switcher {
   display: flex;
-  border: 1px solid var(--odoo-gray-300);
-  border-radius: var(--odoo-radius-sm);
+  border: 1px solid var(--console-gray-300);
+  border-radius: var(--console-radius-sm);
   overflow: hidden;
 }
-
-.o-view-switcher button {
+.console-view-switcher button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -322,85 +228,65 @@
   height: 30px;
   background: #fff;
   border: 0;
-  color: var(--odoo-gray-600);
+  color: var(--console-gray-600);
   cursor: pointer;
 }
-
-.o-view-switcher button + button {
-  border-left: 1px solid var(--odoo-gray-300);
+.console-view-switcher button + button {
+  border-left: 1px solid var(--console-gray-300);
 }
-
-.o-view-switcher button.is-active {
-  background: var(--odoo-gray-100);
-  color: var(--odoo-brand-purple);
+.console-view-switcher button.is-active {
+  background: var(--console-gray-100);
+  color: var(--console-brand-purple);
 }
-
-/* ------------------------------------------------------------------ */
-/* Content area */
-/* ------------------------------------------------------------------ */
-
-.o-content {
-  flex: 1 1 auto;
-  padding: var(--odoo-spacer);
-  overflow-y: auto;
-}
-
 /* ------------------------------------------------------------------ */
 /* Statusbar — interlocking chevron/arrow buttons (clip-path polygon) */
 /* ------------------------------------------------------------------ */
-
-.o-statusbar {
+.console-statusbar {
   display: flex;
-  height: var(--odoo-statusbar-height);
-  margin-bottom: var(--odoo-spacer);
+  height: var(--console-statusbar-height);
+  margin-bottom: var(--console-spacer);
 }
-
-.o-statusbar-step {
+.console-statusbar-step {
   position: relative;
-  padding: 0 calc(var(--odoo-statusbar-arrow-width) * 1.25) 0 calc(var(--odoo-statusbar-arrow-width) * 2);
-  margin-left: calc(var(--odoo-statusbar-arrow-width) * -1);
-  background: var(--odoo-gray-200);
+  padding: 0 calc(var(--console-statusbar-arrow-width) * 1.25) 0 calc(var(--console-statusbar-arrow-width) * 2);
+  margin-left: calc(var(--console-statusbar-arrow-width) * -1);
+  background: var(--console-gray-200);
   border: 0;
-  color: var(--odoo-gray-900);
-  font-size: var(--odoo-font-size-sm);
+  color: var(--console-gray-900);
+  font-size: var(--console-font-size-sm);
   cursor: pointer;
   clip-path: polygon(
-    0 0, calc(100% - var(--odoo-statusbar-arrow-width)) 0,
-    100% 50%, calc(100% - var(--odoo-statusbar-arrow-width)) 100%,
-    0 100%, var(--odoo-statusbar-arrow-width) 50%
+    0 0, calc(100% - var(--console-statusbar-arrow-width)) 0,
+    100% 50%, calc(100% - var(--console-statusbar-arrow-width)) 100%,
+    0 100%, var(--console-statusbar-arrow-width) 50%
   );
 }
-
-.o-statusbar-step:first-child {
+.console-statusbar-step:first-child {
   margin-left: 0;
   clip-path: polygon(
-    0 0, calc(100% - var(--odoo-statusbar-arrow-width)) 0,
-    100% 50%, calc(100% - var(--odoo-statusbar-arrow-width)) 100%, 0 100%
+    0 0, calc(100% - var(--console-statusbar-arrow-width)) 0,
+    100% 50%, calc(100% - var(--console-statusbar-arrow-width)) 100%, 0 100%
   );
 }
-
 /* Flatten the trailing edge — without this the last step keeps a
    right-pointing tip with nothing to interlock with. */
-.o-statusbar-step:last-child {
-  padding-right: var(--odoo-statusbar-arrow-width);
+.console-statusbar-step:last-child {
+  padding-right: var(--console-statusbar-arrow-width);
   clip-path: polygon(
-    0 0, 100% 0, 100% 100%, 0 100%, var(--odoo-statusbar-arrow-width) 50%
+    0 0, 100% 0, 100% 100%, 0 100%, var(--console-statusbar-arrow-width) 50%
   );
 }
-
-.o-statusbar-step:first-child:last-child {
+.console-statusbar-step:first-child:last-child {
   clip-path: none;
 }
-
-.o-statusbar-step.is-active {
-  background: var(--odoo-gray-900);
+.console-statusbar-step.is-active {
+  background: var(--console-gray-900);
   color: #fff;
   z-index: 1;
 }
-
 /* Two-layer emphasis: fill + inset border-ring sharing the same clip-path,
-   instead of a flat color swap only. */
-.o-statusbar-step.is-active::after {
+instead of a flat color swap only. */
+.console-statusbar-step.is-active::after {
   content: '';
   position: absolute;
   inset: 2px;
@@ -408,192 +294,136 @@
   border: 1px solid rgba(255, 255, 255, 0.35);
   pointer-events: none;
 }
-
-/* ------------------------------------------------------------------ */
-/* List view (.o_list_renderer analogue) */
-/* ------------------------------------------------------------------ */
-
-.o-list-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  font-variant-numeric: tabular-nums;
-}
-
-.o-list-table thead th {
+/* ------------------------------------------------------------------ */ /* List view (.o_list_renderer analogue) */ /* ------------------------------------------------------------------ */
+/* Sticky list headers — DataTable (.console-list thead th under overflow:auto). */
+.console-list thead th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--odoo-gray-100);
+  background: var(--console-gray-100);
   text-align: left;
-  padding: var(--odoo-list-cell-padding-y) var(--odoo-list-cell-padding-x);
-  font-size: var(--odoo-font-size-sm);
-  color: var(--odoo-gray-900);
-  border-bottom: 1px solid var(--odoo-gray-300);
+  padding: var(--console-list-cell-padding-y) var(--console-list-cell-padding-x);
+  font-size: var(--console-font-size-sm);
+  color: var(--console-gray-900);
+  border-bottom: 1px solid var(--console-gray-300);
 }
-
-/* Depth cue under the sticky header, matching Odoo's inset shadow on the
-   first data row. */
-.o-list-table tbody tr:first-child td {
-  box-shadow: inset 0 5px 10px -4px rgba(0, 0, 0, 0.15);
-}
-
-.o-list-table td {
-  padding: var(--odoo-list-cell-padding-y) var(--odoo-list-cell-padding-x);
-  border-bottom: 1px solid var(--odoo-gray-200);
-  font-size: var(--odoo-font-size-sm);
-}
-
 /* Zebra striping on ungrouped rows, matching Odoo's table-striped default. */
-.o-list-row:nth-child(odd) td {
-  background: var(--odoo-gray-100);
-}
-
-.o-list-row:hover td {
-  background: var(--odoo-gray-200);
-}
-
-.o-list-checkbox-col {
-  width: 40px;
-}
-
-.o-list-number-col {
-  text-align: right;
-}
 
 /* ------------------------------------------------------------------ */
 /* Kanban board (.o_kanban_record analogue) */
 /* ------------------------------------------------------------------ */
-
-.o-kanban-board {
+.console-kanban-board {
   display: flex;
   align-items: flex-start;
-  gap: var(--odoo-kanban-gutter);
+  gap: var(--console-kanban-gutter);
   overflow-x: auto;
 }
-
-.o-kanban-col {
+.console-kanban-col {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  background: var(--odoo-kanban-bg);
-  border-radius: var(--odoo-radius);
-  padding: var(--odoo-kanban-gutter);
+  background: var(--console-kanban-bg);
+  border-radius: var(--console-radius);
+  padding: var(--console-kanban-gutter);
   max-height: min(70vh, 640px);
 }
-
 /* Narrow viewports only — keep desktop col shrink-wrapped around 320px cards
    (explicit col width + border-box padding clips cards; see cook review High #1). */
-@media (max-width: 768px) {
-  .o-kanban-col {
-    width: min(90vw, var(--odoo-kanban-card-width-sm));
+@media (max-width: 768px) {.console-kanban-col {
+    width: min(90vw, var(--console-kanban-card-width-sm));
   }
-
-  .o-kanban-card,
-  .o-kanban-empty {
+.console-kanban-card,
+.console-kanban-empty {
     width: 100%;
   }
 }
-
-.o-kanban-col-header {
+.console-kanban-col-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 4px 4px 8px;
-  font-size: var(--odoo-font-size-sm);
+  font-size: var(--console-font-size-sm);
   font-weight: 600;
-  color: var(--odoo-gray-600);
+  color: var(--console-gray-600);
   text-transform: uppercase;
   flex-shrink: 0;
 }
-
 /* Scrollable card stack — gap replaces per-card margin-bottom. */
-.o-kanban-col-body {
+.console-kanban-col-body {
   display: flex;
   flex-direction: column;
-  gap: var(--odoo-kanban-gutter);
+  gap: var(--console-kanban-gutter);
   overflow-y: auto;
   min-height: 0;
   flex: 1;
 }
-
-.o-kanban-col-body > .o-kanban-card,
-.o-kanban-col-body > * > .o-kanban-card {
+.console-kanban-col-body > .console-kanban-card,
+.console-kanban-col-body > * > .console-kanban-card {
   margin-bottom: 0;
 }
-
-.o-kanban-col-count {
+.console-kanban-col-count {
   min-width: 18px;
   padding: 0 4px;
-  background: var(--odoo-gray-300);
+  background: var(--console-gray-300);
   border-radius: 999px;
-  font-size: var(--odoo-font-size-xs);
+  font-size: var(--console-font-size-xs);
   text-align: center;
 }
-
 /* Placeholder for a stage with no records — keeps empty columns visible. */
-.o-kanban-empty {
+.console-kanban-empty {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--odoo-kanban-card-width);
+  width: var(--console-kanban-card-width);
   min-height: 88px;
   padding: 28px 8px;
-  border: 1px dashed var(--odoo-gray-300);
-  border-radius: var(--odoo-radius);
-  color: var(--odoo-gray-600);
-  font-size: var(--odoo-font-size-xs);
+  border: 1px dashed var(--console-gray-300);
+  border-radius: var(--console-radius);
+  color: var(--console-gray-600);
+  font-size: var(--console-font-size-xs);
   text-align: center;
 }
-
-.o-kanban-card {
+.console-kanban-card {
   position: relative;
-  width: var(--odoo-kanban-card-width);
-  margin-bottom: var(--odoo-kanban-gutter);
+  width: var(--console-kanban-card-width);
+  margin-bottom: var(--console-kanban-gutter);
   padding: 10px;
   background: #fff;
-  border: 1px solid var(--odoo-gray-300);
-  border-radius: var(--odoo-radius-sm);
+  border: 1px solid var(--console-gray-300);
+  border-radius: var(--console-radius-sm);
 }
-
 /* Left color accent: two overlapping borders (thin translucent + solid),
-   layered on the card's own edge rather than reserving content padding. */
-.o-kanban-card::after {
+layered on the card's own edge rather than reserving content padding. */
+.console-kanban-card::after {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
   left: -1px;
-  border-left: 1px solid color-mix(in srgb, var(--odoo-kanban-card-color, var(--odoo-gray-600)) 50%, transparent);
-  border-right: var(--odoo-kanban-color-bar-width) solid var(--odoo-kanban-card-color, var(--odoo-gray-600));
+  border-left: 1px solid color-mix(in srgb, var(--console-kanban-card-color, var(--console-gray-600)) 50%, transparent);
+  border-right: var(--console-kanban-color-bar-width) solid var(--console-kanban-card-color, var(--console-gray-600));
 }
-
-.o-kanban-card-title {
+.console-kanban-card-title {
   font-weight: 600;
-  font-size: var(--odoo-font-size-sm);
+  font-size: var(--console-font-size-sm);
 }
-
-.o-kanban-card-sub {
-  font-size: var(--odoo-font-size-xs);
-  color: var(--odoo-gray-600);
+.console-kanban-card-sub {
+  font-size: var(--console-font-size-xs);
+  color: var(--console-gray-600);
   margin-top: 2px;
 }
-
-.o-kanban-card-footer {
+.console-kanban-card-footer {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--odoo-gray-200);
-  font-size: var(--odoo-font-size-xs);
+  border-top: 1px solid var(--console-gray-200);
+  font-size: var(--console-font-size-xs);
   font-weight: 600;
 }
-
-
 /* ------------------------------------------------------------------ */
 /* Astryx theme remap (load-bearing for Phase 3 templates)            */
 /* Both --font-size-* AND --text-*-* families — override one does not */
 /* cascade into the other when theme provider redefines by indirection */
 /* ------------------------------------------------------------------ */
-
 .o_web_client {
   /* Odoo dense steps: base 14 / sm 13 / xs 12 */
   --font-size-4xs: 10px;
@@ -628,7 +458,6 @@
   --font-family-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-family-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
-
   --text-heading-1-weight: 600;
   --text-heading-2-weight: 600;
   --text-heading-3-weight: 600;
@@ -652,12 +481,11 @@
   --text-code-leading: 1.43;
   --text-supporting-leading: 1.5;
 
-  --color-text-primary: var(--odoo-gray-900, #212529);
-  --color-text-secondary: var(--odoo-gray-600, #6c757d);
-  --color-text-disabled: var(--odoo-gray-600, #6c757d);
+  --color-text-primary: var(--console-gray-900, #212529);
+  --color-text-secondary: var(--console-gray-600, #6c757d);
+  --color-text-disabled: var(--console-gray-600, #6c757d);
   color-scheme: light;
 }
-
 /* Raw HTML tags under Odoo shell (admin has 100+ raw h1-h6/p/small) */
 .o_web_client h1 { font-size: var(--font-size-2xl); }
 .o_web_client h2 { font-size: var(--font-size-xl); }
@@ -667,15 +495,14 @@
 .o_web_client h6 { font-size: var(--font-size-xs); }
 .o_web_client p { font-size: var(--font-size-base); }
 .o_web_client small { font-size: var(--font-size-xs); }
-
-/* Button resets when OdooNavbar/KanbanCard use native <button> */
-.o-menu-item {
+/* Button resets when ConsoleNavbar/KanbanCard use native <button> */
+.console-menu-item {
   background: transparent;
   border: 0;
   color: inherit;
   font: inherit;
 }
-button.o-kanban-card {
+button.console-kanban-card {
   display: block;
   text-align: left;
   font: inherit;
@@ -683,34 +510,30 @@ button.o-kanban-card {
   cursor: pointer;
   appearance: none;
 }
-
 /* ------------------------------------------------------------------ */
 /* Shell content landmark (Phase 2) — replaces .sh-main / .sh-content   */
 /* ------------------------------------------------------------------ */
-
-.o_web_client > .o-main {
+.o_web_client > .console-main {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  background: var(--odoo-gray-100, #f8f9fa);
+  background: var(--console-gray-100, #f8f9fa);
 }
-
-/* Systray cluster inside OdooNavbar */
-.o-systray {
+/* Systray cluster inside ConsoleNavbar */
+.console-systray {
   display: flex;
   align-items: center;
   gap: 4px;
   margin-left: auto;
 }
-
 /* Phase 3: shared template/archetype port */
-.o-wrap { background: var(--cmc-canvas); min-height: 100%; padding: 24px 28px;
+.console-wrap { background: var(--cmc-canvas); min-height: 100%; padding: 24px 28px;
   display: flex; flex-direction: column; gap: var(--cmc-gap-section); }
-.o-wrap--ops { padding: 18px 22px; gap: 16px; }
-.o-list-body, .o-detail-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-
+.console-wrap--ops { padding: 18px 22px; gap: 16px; }
+.console-list-body,
+.console-detail-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 /* List ControlBar — sticky ops chrome (Odoo ControlPanel analogue) */
-.o-control-bar {
+.console-control-bar {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-cluster);
@@ -727,26 +550,24 @@ button.o-kanban-card {
   -webkit-backdrop-filter: blur(10px);
   box-shadow: var(--cmc-shadow-xs);
 }
-.o-wrap--ops .o-control-bar {
+.console-wrap--ops .console-control-bar {
   margin-inline: calc(-1 * 12px);
   padding-inline: 12px;
 }
-.o-control-bar-header,
-.o-control-bar-filters,
-.o-control-bar-footer {
+.console-control-bar-header,
+.console-control-bar-filters,
+.console-control-bar-footer {
   min-width: 0;
 }
-.o-control-bar-footer {
+.console-control-bar-footer {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
 }
-
-
 /* Metric card — soft raised surface */
-.o-mc {
+.console-mc {
   display: block; text-decoration: none; color: inherit;
   background: var(--cmc-raised-bg); border-radius: var(--cmc-raised-radius);
   border: var(--cmc-raised-border);
@@ -757,68 +578,66 @@ button.o-kanban-card {
   transition: box-shadow var(--cmc-transition), border-color var(--cmc-transition),
     transform var(--cmc-transition);
 }
-.o-mc:hover { box-shadow: var(--cmc-shadow-md); border-color: var(--cmc-accent-soft); }
-.o-mc:active { transform: scale(0.995); }
-.o-mc-top {
+.console-mc:hover { box-shadow: var(--cmc-shadow-md); border-color: var(--cmc-accent-soft); }
+.console-mc:active { transform: scale(0.995); }
+.console-mc-top {
   display: flex; align-items: center; justify-content: space-between;
   gap: 8px; min-height: var(--cmc-line-label); margin-bottom: var(--cmc-space-3);
 }
-.o-mc-label {
+.console-mc-label {
   display: flex; align-items: center; gap: 7px; min-width: 0;
   font-size: var(--cmc-fs-label); font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--cmc-text-muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.o-mc-icon { color: var(--cmc-text-faint); flex-shrink: 0; }
-.o-mc-value {
+.console-mc-icon { color: var(--cmc-text-faint); flex-shrink: 0; }
+.console-mc-value {
   font-size: var(--cmc-fs-metric); font-weight: 600; line-height: 1;
   letter-spacing: -0.03em; color: var(--cmc-text); font-variant-numeric: tabular-nums;
   min-height: 1em;
 }
-.o-mc-ctx {
+.console-mc-ctx {
   margin-top: 10px; display: flex; align-items: center; gap: 3px;
   min-height: var(--cmc-line-meta);
   font-size: var(--cmc-fs-meta); color: var(--cmc-text-muted);
   transition: color var(--cmc-transition);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.o-mc:hover .o-mc-ctx { color: var(--cmc-brand); }
-.o-attn {
+.console-mc:hover .console-mc-ctx { color: var(--cmc-brand); }
+.console-attn {
   width: var(--cmc-dot-size); height: var(--cmc-dot-size);
   border-radius: 999px; flex-shrink: 0;
 }
-
 /* Panel — soft card (same raised family as Metric) */
-.ck-pnl {
+.console-pnl {
   background: var(--cmc-raised-bg); border-radius: var(--cmc-raised-radius);
   overflow: hidden;
   border: var(--cmc-raised-border);
   box-shadow: var(--cmc-raised-shadow);
 }
-.ck-pnl-head {
+.console-pnl-head {
   display: flex; align-items: center; justify-content: space-between;
   min-height: var(--cmc-head-h);
   padding: 12px var(--cmc-keyline-x); gap: 12px;
   border-bottom: 1px solid var(--cmc-border-subtle);
   box-sizing: border-box;
 }
-.ck-pnl-title {
+.console-pnl-title {
   font-size: var(--cmc-fs-body); font-weight: 600; color: var(--cmc-text);
   letter-spacing: -0.01em;
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ck-pnl-icon { color: var(--cmc-text-faint); flex-shrink: 0; }
-.ck-pnl-action-slot { flex-shrink: 0; }
-.ck-pnl-action {
+.console-pnl-icon { color: var(--cmc-text-faint); flex-shrink: 0; }
+.console-pnl-action-slot { flex-shrink: 0; }
+.console-pnl-action {
   display: inline-flex; align-items: center; gap: 2px;
   font-size: var(--cmc-fs-meta); font-weight: 500; color: var(--cmc-brand);
   text-decoration: none; font-family: inherit;
   white-space: nowrap;
 }
-.ck-pnl-action:hover { text-decoration: underline; }
-
+.console-pnl-action:hover { text-decoration: underline; }
 /* Rows — soft sunken hover (never cast shadow on rows) */
-.ck-row {
+.console-row {
   display: flex; align-items: center; gap: 12px;
   min-height: var(--cmc-row-h);
   padding: 10px var(--cmc-keyline-x);
@@ -826,29 +645,29 @@ button.o-kanban-card {
   text-decoration: none; color: inherit;
   transition: background var(--cmc-transition);
 }
-.ck-row + .ck-row { border-top: 1px solid var(--cmc-border-subtle); }
-.ck-row:hover { background: var(--cmc-surface-sunken); }
-.ck-dot {
+.console-row + .console-row { border-top: 1px solid var(--cmc-border-subtle); }
+.console-row:hover { background: var(--cmc-surface-sunken); }
+.console-dot {
   width: var(--cmc-dot-size); height: var(--cmc-dot-size);
   border-radius: 999px; flex-shrink: 0;
 }
-.ck-row-main {
+.console-row-main {
   flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;
 }
-.ck-row-title {
+.console-row-title {
   display: block;
   font-size: var(--cmc-fs-body); font-weight: 500; color: var(--cmc-text);
   line-height: var(--cmc-line-title);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ck-row-meta {
+.console-row-meta {
   display: block;
   font-size: var(--cmc-fs-meta); color: var(--cmc-text-muted);
   font-variant-numeric: tabular-nums;
   line-height: var(--cmc-line-meta);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ck-row-tag {
+.console-row-tag {
   flex-shrink: 0; font-size: var(--cmc-fs-label); font-weight: 600;
   height: var(--cmc-chip-h-sm); padding: 0 9px;
   display: inline-flex; align-items: center;
@@ -856,11 +675,9 @@ button.o-kanban-card {
   background: var(--cmc-brand-muted); color: var(--cmc-brand);
   white-space: nowrap;
 }
-.ck-chev { color: var(--cmc-text-faint); flex-shrink: 0; }
-
-
+.console-chev { color: var(--cmc-text-faint); flex-shrink: 0; }
 /* Page header — soft card (quieter elevation than metric grid) */
-.o-page-header {
+.console-page-header {
   background: var(--cmc-raised-bg);
   border: var(--cmc-raised-border);
   border-radius: var(--cmc-raised-radius);
@@ -872,13 +689,11 @@ button.o-kanban-card {
   top: 0;
   z-index: 10;
 }
-
-
 /* Breadcrumbs — parent crumbs are SPA links (gắn kết module → page) */
-.o-bc {
+.console-bc {
   min-width: 0;
 }
-.o-bc-link {
+.console-bc-link {
   color: var(--cmc-text-muted);
   text-decoration: none;
   font-size: var(--cmc-fs-meta);
@@ -886,29 +701,27 @@ button.o-kanban-card {
   border-radius: 4px;
   transition: color var(--cmc-transition), background var(--cmc-transition);
 }
-.o-bc-link:hover {
+.console-bc-link:hover {
   color: var(--cmc-brand);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.o-bc-link:focus-visible {
+.console-bc-link:focus-visible {
   outline: 2px solid var(--cmc-brand);
   outline-offset: 2px;
 }
-.o-bc-current {
+.console-bc-current {
   color: var(--cmc-text-2);
   font-size: var(--cmc-fs-meta);
   font-weight: 600;
 }
-.o-bc-plain {
+.console-bc-plain {
   color: var(--cmc-text-muted);
   font-size: var(--cmc-fs-meta);
   font-weight: 500;
 }
-
-
 /* Filter bar — slot chrome on warm surface-2 (not a third competing card) */
-.o-filter-bar {
+.console-filter-bar {
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;
   min-height: var(--cmc-head-h);
   padding: 10px var(--cmc-keyline-x);
@@ -917,18 +730,17 @@ button.o-kanban-card {
   border-radius: var(--cmc-raised-radius);
   box-sizing: border-box;
 }
-
 /* DateField — Odoo-like dense date control (native type=date) */
-.o-date-field {
+.console-date-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
 }
-.o-date-field--sm {
+.console-date-field--sm {
   width: 100%;
 }
-.o-date-field-label {
+.console-date-field-label {
   display: block;
   font-size: 11px;
   font-weight: 600;
@@ -937,7 +749,7 @@ button.o-kanban-card {
   color: var(--cmc-text-muted, #6b7280);
   font-family: var(--cmc-font-sans);
 }
-.o-date-field-label.o-sr-only {
+.console-date-field-label.console-sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -948,7 +760,7 @@ button.o-kanban-card {
   white-space: nowrap;
   border: 0;
 }
-.o-date-field-input {
+.console-date-field-input {
   width: 100%;
   height: 34px;
   padding: 0 10px;
@@ -960,65 +772,61 @@ button.o-kanban-card {
   font-family: var(--cmc-font-sans);
   box-sizing: border-box;
 }
-.o-date-field-input:disabled {
+.console-date-field-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
-.o-date-field-input:focus {
+.console-date-field-input:focus {
   outline: 2px solid var(--cmc-accent, #0071e3);
   outline-offset: 1px;
 }
-
-
 /* WorkflowStatusbar wraps ProgressSteps with record-page spacing */
-.o-workflow-statusbar {
+.console-workflow-statusbar {
   min-width: 0;
   padding: 4px 0;
 }
-
-
 /* ---- Detail page frame (entity · summary · tabs · body) — system-wide ---- */
-.o-detail {
+.console-detail {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-section);
 }
 /* Odoo form dual-layer: sheet_bg (canvas band) + white sheet */
-.o-form-sheet-bg {
+.console-form-sheet-bg {
   display: flex;
   flex-direction: column;
   gap: 12px;
   width: 100%;
-  max-width: var(--odoo-sheet-max-width, 1400px);
+  max-width: var(--console-sheet-max-width, 1400px);
   min-width: 0;
   /* Prefer left align like Odoo sheet_bg (not centered alone) */
   margin-inline: 0 auto 0 0;
 }
-.o-form-sheet {
+.console-form-sheet {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-cluster);
   min-width: 0;
   background: var(--cmc-surface-raised, #fff);
-  border: 1px solid var(--cmc-border-subtle, var(--odoo-gray-300, #dee2e6));
-  border-radius: var(--odoo-radius, 4px);
+  border: 1px solid var(--cmc-border-subtle, var(--console-gray-300, #dee2e6));
+  border-radius: var(--console-radius, 4px);
   padding: 16px var(--cmc-keyline-x, 16px);
   box-sizing: border-box;
 }
-.o-detail-entity {
+.console-detail-entity {
   min-width: 0;
 }
-.o-detail-summary {
+.console-detail-summary {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-cluster);
   min-width: 0;
 }
-.o-detail-tabs {
+.console-detail-tabs {
   min-width: 0;
   /* tabs sit in raised shell when page provides CmcTabs bare */
 }
-.o-detail-body {
+.console-detail-body {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-cluster);
@@ -1026,52 +834,49 @@ button.o-kanban-card {
   flex: 1;
 }
 /* Vertical stack of SectionBlocks */
-.o-detail-stack {
+.console-detail-stack {
   display: flex;
   flex-direction: column;
   gap: var(--cmc-gap-cluster);
   min-width: 0;
 }
 /* 2-col desktop: primary content | secondary rail */
-.o-detail-split {
+.console-detail-split {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--cmc-gap-cluster);
   align-items: start;
   min-width: 0;
 }
-@media (min-width: 1040px) {
-  .o-detail-split {
+@media (min-width: 1040px) {.console-detail-split {
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   }
 }
 /* Tab panel inset — consistent with keyline */
-.o-detail-panel {
+.console-detail-panel {
   padding: var(--cmc-space-3) 0 0;
   min-width: 0;
 }
-@media (max-width: 767px) {
-  .o-detail {
+@media (max-width: 767px) {.console-detail {
     gap: var(--cmc-gap-cluster);
   }
 }
-.o-form-body { display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
-.o-actions { position: sticky; bottom: 0; display: flex; justify-content: flex-end;
+.console-form-body { display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
+.console-actions { position: sticky; bottom: 0; display: flex; justify-content: flex-end;
   align-items: center; gap: 12px; padding: 14px var(--cmc-pad-card-x); background: var(--cmc-surface-raised);
   border: 1px solid var(--cmc-border-subtle);
   border-radius: var(--cmc-radius-md); box-shadow: var(--cmc-shadow-md); }
-
 /* Dashboard / cockpit — role-agnostic frame (content slots only change) */
-.o-dash { gap: var(--cmc-gap-section); }
-.o-dash-title {
+.console-dash { gap: var(--cmc-gap-section); }
+.console-dash-title {
   font-size: var(--cmc-fs-page); font-weight: 600; letter-spacing: -0.03em;
   color: var(--cmc-text); margin: 0; line-height: 1.15;
 }
-.o-dash-sub {
+.console-dash-sub {
   font-size: var(--cmc-fs-body); color: var(--cmc-text-muted); margin: 6px 0 0; line-height: 1.4;
 }
-.o-dash-shortcuts { display: flex; flex-wrap: wrap; gap: 10px; }
-.o-dash-chip {
+.console-dash-shortcuts { display: flex; flex-wrap: wrap; gap: 10px; }
+.console-dash-chip {
   display: inline-flex; align-items: center; gap: 8px;
   height: 36px; padding: 0 14px;
   border-radius: var(--cmc-radius-pill);
@@ -1084,54 +889,51 @@ button.o-kanban-card {
   transition: background var(--cmc-transition), border-color var(--cmc-transition),
     color var(--cmc-transition), box-shadow var(--cmc-transition);
 }
-.o-dash-chip:hover {
+.console-dash-chip:hover {
   background: var(--cmc-brand-muted);
   border-color: transparent;
   color: var(--cmc-brand);
   box-shadow: var(--cmc-shadow-sm);
 }
-.o-dash-chip:active { transform: scale(0.98); }
-.o-dash-chip-icon { color: var(--cmc-text-faint); display: flex; }
-.o-dash-chip:hover .o-dash-chip-icon { color: var(--cmc-brand); }
-.o-dash-chip-badge {
+.console-dash-chip:active { transform: scale(0.98); }
+.console-dash-chip-icon { color: var(--cmc-text-faint); display: flex; }
+.console-dash-chip:hover .console-dash-chip-icon { color: var(--cmc-brand); }
+.console-dash-chip-badge {
   min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: var(--cmc-brand-muted);
   color: var(--cmc-brand); font-size: 11px; font-weight: 600;
   display: inline-flex; align-items: center; justify-content: center;
   font-variant-numeric: tabular-nums;
 }
-.o-dash-metrics {
+.console-dash-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--cmc-gap-cluster);
 }
-.o-dash-metrics > .o-mc { max-width: none; }
-@media (min-width: 1200px) {
-  .o-dash-metrics { grid-template-columns: repeat(4, 1fr); }
+.console-dash-metrics > .console-mc { max-width: none; }
+@media (min-width: 1200px) {.console-dash-metrics { grid-template-columns: repeat(4, 1fr); }
 }
-.o-dash-body {
+.console-dash-body {
   display: grid; gap: var(--cmc-gap-cluster); align-items: start;
   grid-template-columns: 1fr;
 }
-@media (min-width: 1040px) {
-  .o-dash-body { grid-template-columns: 1.4fr 1fr; }
+@media (min-width: 1040px) {.console-dash-body { grid-template-columns: 1.4fr 1fr; }
 }
-.o-dash-primary, .o-dash-secondary {
+.console-dash-primary,
+.console-dash-secondary {
   display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); min-width: 0;
 }
-
-
 /* Dashboard / cockpit — role-agnostic frame (content slots only change) */
-.o-dash { gap: var(--cmc-gap-section); }
-.o-dash-title {
+.console-dash { gap: var(--cmc-gap-section); }
+.console-dash-title {
   font-size: var(--cmc-fs-page); font-weight: 600; letter-spacing: -0.03em;
   color: var(--cmc-text); margin: 0; line-height: 1.15;
 }
-.o-dash-sub {
+.console-dash-sub {
   font-size: var(--cmc-fs-body); color: var(--cmc-text-muted); margin: 6px 0 0; line-height: 1.4;
 }
-.o-dash-shortcuts { display: flex; flex-wrap: wrap; gap: 10px; }
-.o-dash-chip {
+.console-dash-shortcuts { display: flex; flex-wrap: wrap; gap: 10px; }
+.console-dash-chip {
   display: inline-flex; align-items: center; gap: 8px;
   height: 36px; padding: 0 14px;
   border-radius: var(--cmc-radius-pill);
@@ -1144,68 +946,65 @@ button.o-kanban-card {
   transition: background var(--cmc-transition), border-color var(--cmc-transition),
     color var(--cmc-transition), box-shadow var(--cmc-transition);
 }
-.o-dash-chip:hover {
+.console-dash-chip:hover {
   background: var(--cmc-brand-muted);
   border-color: transparent;
   color: var(--cmc-brand);
   box-shadow: var(--cmc-shadow-sm);
 }
-.o-dash-chip:active { transform: scale(0.98); }
-.o-dash-chip-icon { color: var(--cmc-text-faint); display: flex; }
-.o-dash-chip:hover .o-dash-chip-icon { color: var(--cmc-brand); }
-.o-dash-chip-badge {
+.console-dash-chip:active { transform: scale(0.98); }
+.console-dash-chip-icon { color: var(--cmc-text-faint); display: flex; }
+.console-dash-chip:hover .console-dash-chip-icon { color: var(--cmc-brand); }
+.console-dash-chip-badge {
   min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: var(--cmc-brand-muted);
   color: var(--cmc-brand); font-size: 11px; font-weight: 600;
   display: inline-flex; align-items: center; justify-content: center;
   font-variant-numeric: tabular-nums;
 }
-.o-dash-metrics {
+.console-dash-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--cmc-gap-cluster);
 }
-.o-dash-metrics > .o-mc { max-width: none; }
-@media (min-width: 1200px) {
-  .o-dash-metrics { grid-template-columns: repeat(4, 1fr); }
+.console-dash-metrics > .console-mc { max-width: none; }
+@media (min-width: 1200px) {.console-dash-metrics { grid-template-columns: repeat(4, 1fr); }
 }
-.o-dash-body {
+.console-dash-body {
   display: grid; gap: var(--cmc-gap-cluster); align-items: start;
   grid-template-columns: 1fr;
 }
-@media (min-width: 1040px) {
-  .o-dash-body { grid-template-columns: 1.4fr 1fr; }
+@media (min-width: 1040px) {.console-dash-body { grid-template-columns: 1.4fr 1fr; }
 }
-.o-dash-primary, .o-dash-secondary {
+.console-dash-primary,
+.console-dash-secondary {
   display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); min-width: 0;
 }
-
-
 /* Progress steps */
-.o-steps {
+.console-steps {
   list-style: none; margin: 0; padding: 4px 0 8px;
   display: flex; align-items: stretch; gap: 0; overflow-x: auto;
 }
-.o-steps-item {
+.console-steps-item {
   position: relative; display: flex; align-items: center; flex: 1 1 0; min-width: 0;
 }
-.o-steps-bridge {
+.console-steps-bridge {
   position: absolute; left: -12%; top: 18px; width: 24%; height: 2px;
   background: var(--cmc-border); border-radius: 1px; z-index: 0;
 }
-.o-steps-item.is-done .o-steps-bridge,
-.o-steps-item.is-current .o-steps-bridge {
+.console-steps-item.is-done .console-steps-bridge,
+.console-steps-item.is-current .console-steps-bridge {
   background: color-mix(in srgb, var(--cmc-brand) 45%, var(--cmc-border));
 }
-.o-steps-btn {
+.console-steps-btn {
   position: relative; z-index: 1;
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   width: 100%; padding: 4px 6px; border: none; background: transparent;
   cursor: default; font-family: inherit; color: var(--cmc-text-muted);
 }
-.o-steps-btn:not(:disabled) { cursor: pointer; }
-.o-steps-btn:not(:disabled):hover .o-steps-label { color: var(--cmc-brand); }
-.o-steps-num {
+.console-steps-btn:not(:disabled) { cursor: pointer; }
+.console-steps-btn:not(:disabled):hover .console-steps-label { color: var(--cmc-brand); }
+.console-steps-num {
   width: 28px; height: 28px; border-radius: 999px;
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 700;
@@ -1213,34 +1012,31 @@ button.o-kanban-card {
   border: 1.5px solid transparent;
   transition: background var(--cmc-transition), color var(--cmc-transition), border-color var(--cmc-transition);
 }
-.o-steps-item.is-current .o-steps-num {
+.console-steps-item.is-current .console-steps-num {
   background: var(--cmc-brand); color: #fff; box-shadow: 0 0 0 3px var(--cmc-brand-muted);
 }
-.o-steps-item.is-done .o-steps-num {
+.console-steps-item.is-done .console-steps-num {
   background: var(--cmc-success-soft); color: var(--cmc-success-ink);
 }
-.o-steps-label {
+.console-steps-label {
   font-size: 11.5px; font-weight: 500; text-align: center; line-height: 1.25;
   max-width: 9em;
 }
-.o-steps-item.is-current .o-steps-label {
+.console-steps-item.is-current .console-steps-label {
   color: var(--cmc-brand-ink); font-weight: 600;
 }
-.o-steps-item.is-done .o-steps-label { color: var(--cmc-text-2); }
-
-
+.console-steps-item.is-done .console-steps-label { color: var(--cmc-text-2); }
 /* SettingsShell — left rail + main (Polaris / Odoo settings) */
-.o-settings-shell {
+.console-settings-shell {
   display: grid;
   grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
   gap: var(--cmc-gap-cluster);
   align-items: start;
   min-width: 0;
 }
-@media (max-width: 860px) {
-  .o-settings-shell { grid-template-columns: 1fr; }
+@media (max-width: 860px) {.console-settings-shell { grid-template-columns: 1fr; }
 }
-.o-settings-rail {
+.console-settings-rail {
   background: var(--cmc-surface-raised);
   border: 1px solid var(--cmc-border-subtle);
   border-radius: var(--cmc-radius-md);
@@ -1250,7 +1046,7 @@ button.o-kanban-card {
   top: 8px;
   min-width: 0;
 }
-.o-settings-rail-title {
+.console-settings-rail-title {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1258,8 +1054,8 @@ button.o-kanban-card {
   color: var(--cmc-text-muted);
   padding: 4px 10px 10px;
 }
-.o-settings-nav { display: flex; flex-direction: column; gap: 2px; }
-.o-settings-nav-item {
+.console-settings-nav { display: flex; flex-direction: column; gap: 2px; }
+.console-settings-nav-item {
   display: flex; align-items: flex-start; gap: 10px;
   width: 100%; text-align: left;
   padding: 10px 12px;
@@ -1268,19 +1064,17 @@ button.o-kanban-card {
   font: inherit; cursor: pointer;
   transition: background var(--cmc-transition);
 }
-.o-settings-nav-item:hover { background: var(--cmc-surface-2); }
-.o-settings-nav-item.is-active {
+.console-settings-nav-item:hover { background: var(--cmc-surface-2); }
+.console-settings-nav-item.is-active {
   background: var(--cmc-brand-muted);
   color: var(--cmc-brand-ink);
 }
-.o-settings-nav-label { display: block; font-size: 13.5px; font-weight: 600; }
-.o-settings-nav-desc { display: block; margin-top: 2px; font-size: 12px; color: var(--cmc-text-muted); line-height: 1.35; }
-.o-settings-nav-item.is-active .o-settings-nav-desc { color: var(--cmc-brand-ink); opacity: 0.85; }
-.o-settings-main { min-width: 0; display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
-
-
+.console-settings-nav-label { display: block; font-size: 13.5px; font-weight: 600; }
+.console-settings-nav-desc { display: block; margin-top: 2px; font-size: 12px; color: var(--cmc-text-muted); line-height: 1.35; }
+.console-settings-nav-item.is-active .console-settings-nav-desc { color: var(--cmc-brand-ink); opacity: 0.85; }
+.console-settings-main { min-width: 0; display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
 /* Entity header */
-.o-eh {
+.console-eh {
   background: var(--cmc-surface-raised);
   border: 1px solid var(--cmc-border-subtle);
   border-radius: var(--cmc-radius-md);
@@ -1288,147 +1082,104 @@ button.o-kanban-card {
   padding: 16px var(--cmc-pad-card-x) 18px;
   display: flex; flex-direction: column; gap: 12px;
 }
-.o-eh-back {
+.console-eh-back {
   display: inline-flex; align-items: center; gap: 2px;
   font-size: 12.5px; font-weight: 500; color: var(--cmc-text-muted);
   text-decoration: none; width: fit-content;
 }
-.o-eh-back svg { transform: rotate(180deg); }
-.o-eh-back:hover { color: var(--cmc-brand); }
-.o-eh-main {
+.console-eh-back svg { transform: rotate(180deg); }
+.console-eh-back:hover { color: var(--cmc-brand); }
+.console-eh-main {
   display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap;
 }
-.o-eh-avatar {
+.console-eh-avatar {
   width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
   background: linear-gradient(145deg, var(--cmc-brand-muted), color-mix(in srgb, var(--cmc-brand) 18%, #fff));
   color: var(--cmc-brand-ink);
   font-size: 18px; font-weight: 700; letter-spacing: -0.02em;
   display: flex; align-items: center; justify-content: center;
 }
-.o-eh-id { flex: 1; min-width: 160px; }
-.o-eh-title-row {
+.console-eh-id { flex: 1; min-width: 160px; }
+.console-eh-title-row {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
 }
-.o-eh-title {
+.console-eh-title {
   margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -0.03em;
   color: var(--cmc-text); line-height: 1.2;
 }
-.o-eh-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.o-eh-sub {
+.console-eh-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.console-eh-sub {
   margin: 4px 0 0; font-size: 13.5px; color: var(--cmc-text-muted); line-height: 1.4;
 }
-.o-eh-meta {
+.console-eh-meta {
   margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px 14px;
   font-size: 12px; color: var(--cmc-text-faint); font-variant-numeric: tabular-nums;
 }
-.o-eh-actions {
+.console-eh-actions {
   display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto;
 }
-
 /* Inventory matrix (Design Lab helper) */
-.ck-inv {
-  width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.4;
-}
-.ck-inv th {
-  text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600;
-  letter-spacing: 0.04em; text-transform: uppercase; color: var(--cmc-text-muted);
-  border-bottom: 1px solid var(--cmc-border-subtle);
-}
-.ck-inv td {
-  padding: 10px; border-bottom: 1px solid var(--cmc-border-subtle); vertical-align: top;
-}
-.ck-inv-ok { color: var(--cmc-success-ink); font-weight: 600; font-size: 12px; }
-.ck-inv-partial { color: var(--cmc-warning-ink); font-weight: 600; font-size: 12px; }
-.ck-inv-miss { color: var(--cmc-danger-ink); font-weight: 600; font-size: 12px; }
-.ck-inv-tag {
-  display: inline-block; padding: 2px 7px; border-radius: 999px;
-  font-size: 10.5px; font-weight: 600; background: var(--cmc-surface-sunken); color: var(--cmc-text-muted);
-}
 
 /* -------------------------------------------------------------------------
  * Xia port pack — Shopify callout · Primer meta/count · Cal/Airbnb avatar · timeline
  * ---------------------------------------------------------------------- */
 
 /* Callout (softer than Banner) */
-.ck-callout {
+.console-callout {
   display: flex; align-items: flex-start; gap: 12px;
   padding: 12px 14px;
   border-radius: var(--cmc-radius-md);
   border: 1px solid var(--cmc-border-subtle);
   background: var(--cmc-surface-2);
 }
-.ck-callout--info {
-  background: var(--cmc-info-soft);
-  border-color: color-mix(in srgb, var(--cmc-brand) 18%, var(--cmc-border-subtle));
-}
-.ck-callout--success {
-  background: var(--cmc-success-soft);
-  border-color: color-mix(in srgb, var(--cmc-success) 20%, var(--cmc-border-subtle));
-}
-.ck-callout--warning {
+.console-callout--warning {
   background: var(--cmc-warning-soft);
   border-color: color-mix(in srgb, var(--cmc-warning) 22%, var(--cmc-border-subtle));
 }
-.ck-callout--danger {
-  background: var(--cmc-danger-soft);
-  border-color: color-mix(in srgb, var(--cmc-danger) 20%, var(--cmc-border-subtle));
-}
-.ck-callout--neutral {
-  background: var(--cmc-neutral-soft);
-}
-.ck-callout-icon {
+.console-callout-icon {
   flex-shrink: 0; width: 28px; height: 28px; border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
   background: var(--cmc-surface-raised); color: var(--cmc-text-muted);
   box-shadow: var(--cmc-shadow-xs);
 }
-.ck-callout--info .ck-callout-icon { color: var(--cmc-brand); }
-.ck-callout--success .ck-callout-icon { color: var(--cmc-success); }
-.ck-callout--warning .ck-callout-icon { color: var(--cmc-warning); }
-.ck-callout--danger .ck-callout-icon { color: var(--cmc-danger); }
-.ck-callout-body { flex: 1; min-width: 0; }
-.ck-callout-title {
+.console-callout--warning .console-callout-icon { color: var(--cmc-warning); }
+.console-callout-body { flex: 1; min-width: 0; }
+.console-callout-title {
   font-size: 13.5px; font-weight: 600; color: var(--cmc-text);
   letter-spacing: -0.01em; margin-bottom: 2px;
 }
-.ck-callout-text {
+.console-callout-text {
   font-size: 13px; color: var(--cmc-text-2); line-height: 1.5;
 }
-.ck-callout-action { flex-shrink: 0; align-self: center; }
-
+.console-callout-action { flex-shrink: 0; align-self: center; }
 /* Avatar */
-.ck-av {
+.console-av {
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 999px; overflow: hidden; flex-shrink: 0;
   background: linear-gradient(145deg, var(--cmc-brand-muted), color-mix(in srgb, var(--cmc-brand) 16%, #fff));
   color: var(--cmc-brand-ink); font-weight: 700; letter-spacing: -0.02em;
   vertical-align: middle;
 }
-.ck-av--sm { width: 28px; height: 28px; font-size: 11px; }
-.ck-av--md { width: 36px; height: 36px; font-size: 13px; }
-.ck-av--lg { width: 48px; height: 48px; font-size: 16px; border-radius: 14px; }
-.ck-av.is-ring {
+.console-av.is-ring {
   box-shadow: 0 0 0 2px var(--cmc-surface-raised), 0 0 0 3.5px var(--cmc-accent-soft);
 }
-.ck-av-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.ck-av-initials { line-height: 1; }
-
+.console-av-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.console-av-initials { line-height: 1; }
 /* Meta row (GitHub dense) */
-.ck-meta-row {
+.console-meta-row {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
   font-size: 12.5px; color: var(--cmc-text-muted);
 }
-.ck-meta-item {
+.console-meta-item {
   display: inline-flex; align-items: center; gap: 6px;
   font-variant-numeric: tabular-nums;
 }
-.ck-meta-dot {
+.console-meta-dot {
   width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0;
 }
-.ck-meta-text { line-height: 1.3; }
-
+.console-meta-text { line-height: 1.3; }
 /* Count badge (tab/nav) */
-.ck-count {
+.console-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 18px; height: 18px; padding: 0 6px;
   border-radius: 999px;
@@ -1436,29 +1187,24 @@ button.o-kanban-card {
   background: var(--cmc-surface-sunken); color: var(--cmc-text-muted);
   font-variant-numeric: tabular-nums; vertical-align: middle;
 }
-.ck-count.is-emphasize {
+.console-count.is-emphasize {
   background: var(--cmc-brand-muted); color: var(--cmc-brand);
 }
-
-
-
 /* ------------------------------------------------------------------ */
 /* Phase 3: shared template/archetype port (o-* from premium tpl-/ck-) */
 /* DataTable wrapper — sticky header affordance lives here            */
 /* ------------------------------------------------------------------ */
-
-.o-list {
+.console-list {
   background: #fff;
-  border: 1px solid var(--odoo-gray-300, #dee2e6);
-  border-radius: var(--odoo-radius, 4px);
+  border: 1px solid var(--console-gray-300, #dee2e6);
+  border-radius: var(--console-radius, 4px);
   overflow: auto;
   min-width: 0;
 }
-
 /* Odoo-density control panel: single flat white band (no nested cards) */
-.o_web_client .o-control-bar {
+.o_web_client .console-control-bar {
   background: #fff;
-  border-bottom: 1px solid var(--odoo-gray-300, #dee2e6);
+  border-bottom: 1px solid var(--console-gray-300, #dee2e6);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: none;
@@ -1467,12 +1213,12 @@ button.o-kanban-card {
   gap: 8px;
   border-radius: 0;
 }
-.o_web_client .o-wrap--ops .o-control-bar {
+.o_web_client .console-wrap--ops .console-control-bar {
   margin-inline: calc(-1 * 14px);
   padding-inline: 14px;
 }
 /* Flatten PageHeader / FilterBar when they live inside the CP band */
-.o_web_client .o-control-bar .o-page-header {
+.o_web_client .console-control-bar .console-page-header {
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -1480,7 +1226,7 @@ button.o-kanban-card {
   padding: 0;
   min-height: 0;
 }
-.o_web_client .o-control-bar .o-filter-bar {
+.o_web_client .console-control-bar .console-filter-bar {
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -1488,190 +1234,178 @@ button.o-kanban-card {
   min-height: 0;
   gap: 8px;
 }
-.o_web_client .o-control-bar-footer {
+.o_web_client .console-control-bar-footer {
   justify-content: flex-end;
   gap: 8px;
   padding-top: 6px;
   margin-top: 2px;
-  border-top: 1px solid var(--odoo-gray-200, #e9ecef);
+  border-top: 1px solid var(--console-gray-200, #e9ecef);
 }
 /* List body sits tight under CP */
-.o_web_client .o-list-body {
+.o_web_client .console-list-body {
   gap: 0;
 }
-
 /* Chevron ProgressSteps (Odoo statusbar analogue) — horizontal arrow buttons */
-.o_web_client .o-steps {
+.o_web_client .console-steps {
   list-style: none;
   margin: 0 0 16px;
   padding: 0;
   display: flex;
-  height: var(--odoo-statusbar-height, 33px);
+  height: var(--console-statusbar-height, 33px);
   align-items: stretch;
   gap: 0;
   overflow-x: auto;
 }
-.o_web_client .o-steps-item {
+.o_web_client .console-steps-item {
   position: relative;
   display: flex;
   flex: 0 1 auto;
   min-width: 0;
-  margin-left: calc(var(--odoo-statusbar-arrow-width, 1em) * -1);
+  margin-left: calc(var(--console-statusbar-arrow-width, 1em) * -1);
 }
-.o_web_client .o-steps-item:first-child { margin-left: 0; }
-.o_web_client .o-steps-bridge { display: none; }
-.o_web_client .o-steps-btn {
+.o_web_client .console-steps-item:first-child { margin-left: 0; }
+.o_web_client .console-steps-bridge { display: none; }
+.o_web_client .console-steps-btn {
   display: flex;
   align-items: center;
   gap: 6px;
   height: 100%;
-  padding: 0 calc(var(--odoo-statusbar-arrow-width, 1em) * 1.25) 0 calc(var(--odoo-statusbar-arrow-width, 1em) * 2);
+  padding: 0 calc(var(--console-statusbar-arrow-width, 1em) * 1.25) 0 calc(var(--console-statusbar-arrow-width, 1em) * 2);
   border: 0;
-  background: var(--odoo-gray-200, #e9ecef);
-  color: var(--odoo-gray-900, #212529);
-  font-size: var(--odoo-font-size-sm, 13px);
+  background: var(--console-gray-200, #e9ecef);
+  color: var(--console-gray-900, #212529);
+  font-size: var(--console-font-size-sm, 13px);
   font-family: inherit;
   cursor: default;
   clip-path: polygon(
-    0 0, calc(100% - var(--odoo-statusbar-arrow-width, 1em)) 0,
-    100% 50%, calc(100% - var(--odoo-statusbar-arrow-width, 1em)) 100%,
-    0 100%, var(--odoo-statusbar-arrow-width, 1em) 50%
+    0 0, calc(100% - var(--console-statusbar-arrow-width, 1em)) 0,
+    100% 50%, calc(100% - var(--console-statusbar-arrow-width, 1em)) 100%,
+    0 100%, var(--console-statusbar-arrow-width, 1em) 50%
   );
 }
-.o_web_client .o-steps-item:first-child .o-steps-btn {
+.o_web_client .console-steps-item:first-child .console-steps-btn {
   clip-path: polygon(
-    0 0, calc(100% - var(--odoo-statusbar-arrow-width, 1em)) 0,
-    100% 50%, calc(100% - var(--odoo-statusbar-arrow-width, 1em)) 100%, 0 100%
+    0 0, calc(100% - var(--console-statusbar-arrow-width, 1em)) 0,
+    100% 50%, calc(100% - var(--console-statusbar-arrow-width, 1em)) 100%, 0 100%
   );
 }
-.o_web_client .o-steps-item:last-child .o-steps-btn {
-  padding-right: var(--odoo-statusbar-arrow-width, 1em);
+.o_web_client .console-steps-item:last-child .console-steps-btn {
+  padding-right: var(--console-statusbar-arrow-width, 1em);
   clip-path: polygon(
-    0 0, 100% 0, 100% 100%, 0 100%, var(--odoo-statusbar-arrow-width, 1em) 50%
+    0 0, 100% 0, 100% 100%, 0 100%, var(--console-statusbar-arrow-width, 1em) 50%
   );
 }
-.o_web_client .o-steps-btn:not(:disabled) { cursor: pointer; }
-.o_web_client .o-steps-item.is-current .o-steps-btn {
-  background: var(--odoo-gray-900, #212529);
+.o_web_client .console-steps-btn:not(:disabled) { cursor: pointer; }
+.o_web_client .console-steps-item.is-current .console-steps-btn {
+  background: var(--console-gray-900, #212529);
   color: #fff;
   z-index: 1;
 }
-.o_web_client .o-steps-item.is-done .o-steps-btn {
-  background: var(--odoo-gray-300, #dee2e6);
+.o_web_client .console-steps-item.is-done .console-steps-btn {
+  background: var(--console-gray-300, #dee2e6);
 }
-.o_web_client .o-steps-num {
+.o_web_client .console-steps-num {
   width: auto; height: auto; border: 0; background: transparent;
   font-size: 12px; font-weight: 700; color: inherit;
   box-shadow: none;
 }
-.o_web_client .o-steps-label {
+.o_web_client .console-steps-label {
   font-size: inherit; font-weight: 500; max-width: none; color: inherit;
   text-align: left;
 }
-.o_web_client .o-workflow-statusbar { padding: 0; min-width: 0; }
-
+.o_web_client .console-workflow-statusbar { padding: 0; min-width: 0; }
 /* Dense wrap under Odoo shell */
-.o_web_client .o-wrap {
-  background: var(--odoo-gray-100, #f8f9fa);
+.o_web_client .console-wrap {
+  background: var(--console-gray-100, #f8f9fa);
   padding: 16px;
   gap: 12px;
 }
-.o_web_client .o-wrap--ops { padding: 12px 14px; gap: 10px; }
-.o_web_client .o-page-header {
+.o_web_client .console-wrap--ops { padding: 12px 14px; gap: 10px; }
+.o_web_client .console-page-header {
   background: #fff;
-  border: 1px solid var(--odoo-gray-300, #dee2e6);
-  border-radius: var(--odoo-radius, 4px);
+  border: 1px solid var(--console-gray-300, #dee2e6);
+  border-radius: var(--console-radius, 4px);
   box-shadow: none;
-  /* Not sticky under Odoo shell — scroll lives on main.o-main. Clear base
+  /* Not sticky under Odoo shell — scroll lives on main.console-main. Clear base
      sticky + z-index:10 so page chrome never competes with the navbar layer. */
   position: static;
   z-index: auto;
 }
 /* Standalone filter (rare outside CP) keeps light sunken chrome */
-.o_web_client .o-filter-bar {
-  background: var(--odoo-gray-100, #f8f9fa);
-  border: 1px solid var(--odoo-gray-300, #dee2e6);
-  border-radius: var(--odoo-radius-sm, 3px);
+.o_web_client .console-filter-bar {
+  background: var(--console-gray-100, #f8f9fa);
+  border: 1px solid var(--console-gray-300, #dee2e6);
+  border-radius: var(--console-radius-sm, 3px);
 }
 /* Form sheet grammar under shell */
-.o_web_client .o-form-sheet-bg {
-  max-width: var(--odoo-sheet-max-width, 1400px);
+.o_web_client .console-form-sheet-bg {
+  max-width: var(--console-sheet-max-width, 1400px);
   gap: 10px;
 }
-.o_web_client .o-form-sheet {
+.o_web_client .console-form-sheet {
   background: #fff;
-  border: 1px solid var(--odoo-gray-300, #dee2e6);
-  border-radius: var(--odoo-radius, 4px);
+  border: 1px solid var(--console-gray-300, #dee2e6);
+  border-radius: var(--console-radius, 4px);
   box-shadow: none;
   padding: 14px 16px 16px;
   gap: 14px;
 }
 /* Summary band = HighlightStrip / metrics above the white sheet — never sticky
-   (tall composite). Thin WorkflowStatusbar lives in `.o-detail-statusbar`. */
-.o_web_client .o-form-sheet-bg > .o-detail-summary {
+   (tall composite). Thin WorkflowStatusbar lives in `.console-detail-statusbar`. */
+.o_web_client .console-form-sheet-bg > .console-detail-summary {
   padding: 0 0 4px;
   background: transparent;
 }
 /* Odoo `.o_form_statusbar` analogue — sticky md+ only (form_controller.scss). */
-.o-detail-statusbar {
+.console-detail-statusbar {
   min-width: 0;
 }
-.o_web_client .o-form-sheet-bg > .o-detail-statusbar {
+.o_web_client .console-form-sheet-bg > .console-detail-statusbar {
   padding: 4px 0;
-  background: var(--odoo-gray-100, #f8f9fa);
-  border-bottom: 1px solid var(--odoo-gray-300, #dee2e6);
+  background: var(--console-gray-100, #f8f9fa);
+  border-bottom: 1px solid var(--console-gray-300, #dee2e6);
 }
-@media (min-width: 768px) {
-  .o_web_client .o-form-sheet-bg > .o-detail-statusbar {
+@media (min-width: 768px) {.o_web_client .console-form-sheet-bg > .console-detail-statusbar {
     position: sticky;
     top: 0;
-    z-index: 4; /* below .o-control-bar (5) and .o-navbar (1000) */
+    z-index: 4; /* below .console-control-bar (5) and .console-navbar (1000) */
   }
 }
 /* Entity inside sheet: drop second card chrome */
-.o_web_client .o-form-sheet .o-eh {
+.o_web_client .console-form-sheet .console-eh {
   border: 0;
   border-radius: 0;
   box-shadow: none;
   background: transparent;
   padding: 0 0 8px;
-  border-bottom: 1px solid var(--odoo-gray-200, #e9ecef);
+  border-bottom: 1px solid var(--console-gray-200, #e9ecef);
 }
-.o_web_client .o-mc {
-  border-radius: var(--odoo-radius, 4px);
-  border: 1px solid var(--odoo-gray-300, #dee2e6);
+.o_web_client .console-mc {
+  border-radius: var(--console-radius, 4px);
+  border: 1px solid var(--console-gray-300, #dee2e6);
   box-shadow: none;
   min-height: 112px;
 }
-.o_web_client .o-eh {
-  border-radius: var(--odoo-radius-lg, 6px);
-  border: 1px solid var(--odoo-gray-300, #dee2e6);
+.o_web_client .console-eh {
+  border-radius: var(--console-radius-lg, 6px);
+  border: 1px solid var(--console-gray-300, #dee2e6);
   box-shadow: none;
 }
-.o_web_client .o-dash-metrics > .o-mc { max-width: none; }
-
-
-.o-label-upper {
-  font-size: var(--odoo-font-size-xs, 12px);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--odoo-gray-600, #6c757d);
-  line-height: 1.25;
-}
-
+.o_web_client .console-dash-metrics > .console-mc { max-width: none; }
 /* ------------------------------------------------------------------ */
 /* Phase 6: premium mirror under .o_web_client                                              */
-/* Copy of premium.css selectors, scoped for admin shell.               */
-/* premium.css file is UNCHANGED (LMS). Remove admin premium import     */
+/* CMC Console admin styles (legacy premium mirror retired Phase 2).               */
+/* premium.css DELETED Phase 2 (LMS emitted zero consumers).     */
 /* only after this block is present.                                    */
 /* ------------------------------------------------------------------ */
 
 /*
  * @cmc/ui premium composite styles — the design-language layer for MetricCard,
- * Panel, TaskRow, FunnelBar (promoted from the cockpit pilot). Import ONCE per
- * app root: `import '@cmc/ui/premium.css'`. Consumes --cmc-* tokens (tokens.css
- * must load first). Classnames are stable (.ck-*); components reference them so
+* Panel,
+TaskRow,
+FunnelBar (promoted from the cockpit pilot). Import ONCE per
+ * app root: `import '@cmc/ui/console.css'`. Remaining `sh-*` owned by SideNav/AppFrame. Consumes --cmc-* tokens (tokens.css
+ * must load first). Classnames are stable (.console-*); components reference them so
  * there is no per-render inline <style> duplication.
  *
  * System structure: ONE raised family + shared slots (keyline, head, row, chip).
@@ -1680,203 +1414,44 @@ button.o-kanban-card {
  */
 
 /* ---- Segmented icon view toggle (schedule / list boards) ---- */
-.o_web_client .ck-view-toggle{
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 3px;
-  background: var(--cmc-surface-sunken);
-  border: 1px solid var(--cmc-border-subtle);
-  border-radius: var(--cmc-radius-control);
-  box-sizing: border-box;
+@media (max-width: 767px) { /* touch ≥ target */
 }
-.o_web_client .ck-view-toggle-btn{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border: none;
-  border-radius: calc(var(--cmc-radius-control) - 2px);
-  background: transparent;
-  color: var(--cmc-text-muted);
-  cursor: pointer;
-  font-family: inherit;
-  transition: background var(--cmc-transition), color var(--cmc-transition),
-    box-shadow var(--cmc-transition);
-}
-.o_web_client .ck-view-toggle-btn:hover{
-  color: var(--cmc-text);
-  background: color-mix(in srgb, var(--cmc-surface-raised) 70%, transparent);
-}
-.o_web_client .ck-view-toggle-btn.is-active{
-  background: var(--cmc-surface-raised);
-  color: var(--cmc-brand);
-  box-shadow: var(--cmc-shadow-xs);
-}
-.o_web_client .ck-view-toggle-btn:focus-visible{
-  outline: 2px solid var(--cmc-brand);
-  outline-offset: 1px;
-}
-@media (max-width: 767px) {
-  .o_web_client .ck-view-toggle-btn{ width: 36px; height: 36px; } /* touch ≥ target */
-}
-
 /* ---- Page-level layout helpers (replace ad-hoc inline padding/radius) ---- */
-.o_web_client .ck-pad-2{ padding: var(--cmc-space-2); }
-.o_web_client .ck-pad-3{ padding: var(--cmc-space-3); }
-.o_web_client .ck-pad-4{ padding: var(--cmc-space-4); }
-.o_web_client .ck-pad-x-3{ padding-inline: var(--cmc-space-3); }
-.o_web_client .ck-pad-y-2{ padding-block: var(--cmc-space-2); }
-.o_web_client .ck-pad-x3-y2{
-  padding-inline: var(--cmc-space-3);
-  padding-block: var(--cmc-space-2);
-}
-.o_web_client .ck-pad-x-keyline{ padding-inline: var(--cmc-keyline-x); }
-.o_web_client .ck-pad-empty{
-  padding: var(--cmc-space-4);
-  text-align: center;
-}
-.o_web_client .ck-list-row{
-  padding-inline: var(--cmc-space-3);
-  padding-block: var(--cmc-space-2);
-  border-bottom: 1px solid var(--cmc-border-subtle);
-  box-sizing: border-box;
-}
-.o_web_client .ck-inset-panel{
-  border: 1px solid var(--cmc-border-subtle);
-  border-radius: var(--cmc-radius-control);
-  background: var(--cmc-surface-raised);
-}
-.o_web_client .ck-radius-control{ border-radius: var(--cmc-radius-control); }
-.o_web_client .ck-radius-card{ border-radius: var(--cmc-radius-md); }
-.o_web_client .ck-radius-pill{ border-radius: var(--cmc-radius-pill); }
 
 /* ---- Shared utilities (use across all composites) ---- */
-.o_web_client .ck-surface{
-  background: var(--cmc-raised-bg);
-  border: var(--cmc-raised-border);
-  border-radius: var(--cmc-raised-radius);
-  box-shadow: var(--cmc-raised-shadow);
-}
-.o_web_client .ck-surface--quiet{ box-shadow: var(--cmc-shadow-xs); }
-.o_web_client .ck-surface--float{ box-shadow: var(--cmc-shadow-md); border-radius: var(--cmc-radius-lg); }
-.o_web_client .ck-truncate{
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.o_web_client .ck-label-upper{
-  font-size: var(--cmc-fs-label);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--cmc-text-muted);
-  line-height: var(--cmc-line-label);
-}
-.o_web_client .ck-title-1line{
-  font-size: var(--cmc-fs-body);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--cmc-text);
-  line-height: var(--cmc-line-title);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.o_web_client .ck-meta-1line{
-  font-size: var(--cmc-fs-meta);
-  font-weight: 500;
-  color: var(--cmc-text-muted);
-  font-variant-numeric: tabular-nums;
-  line-height: var(--cmc-line-meta);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.o_web_client .ck-keyline{
-  padding-left: var(--cmc-keyline-x);
-  padding-right: var(--cmc-keyline-x);
-}
 
 /* Metric card — soft raised surface */
-.o_web_client .ck-mc{
-  display: block; text-decoration: none; color: inherit;
-  background: var(--cmc-raised-bg); border-radius: var(--cmc-raised-radius);
-  border: var(--cmc-raised-border);
-  box-shadow: var(--cmc-raised-shadow);
-  padding: var(--cmc-pad-card) var(--cmc-keyline-x);
-  min-height: 128px;
-  box-sizing: border-box;
-  transition: box-shadow var(--cmc-transition), border-color var(--cmc-transition),
-    transform var(--cmc-transition);
-}
-.o_web_client .ck-mc:hover{ box-shadow: var(--cmc-shadow-md); border-color: var(--cmc-accent-soft); }
-.o_web_client .ck-mc:active{ transform: scale(0.995); }
-.o_web_client .ck-mc-top{
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 8px; min-height: var(--cmc-line-label); margin-bottom: var(--cmc-space-3);
-}
-.o_web_client .ck-mc-label{
-  display: flex; align-items: center; gap: 7px; min-width: 0;
-  font-size: var(--cmc-fs-label); font-weight: 600; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--cmc-text-muted);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.o_web_client .ck-mc-icon{ color: var(--cmc-text-faint); flex-shrink: 0; }
-.o_web_client .ck-mc-value{
-  font-size: var(--cmc-fs-metric); font-weight: 600; line-height: 1;
-  letter-spacing: -0.03em; color: var(--cmc-text); font-variant-numeric: tabular-nums;
-  min-height: 1em;
-}
-.o_web_client .ck-mc-ctx{
-  margin-top: 10px; display: flex; align-items: center; gap: 3px;
-  min-height: var(--cmc-line-meta);
-  font-size: var(--cmc-fs-meta); color: var(--cmc-text-muted);
-  transition: color var(--cmc-transition);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.o_web_client .ck-mc:hover .ck-mc-ctx{ color: var(--cmc-brand); }
-.o_web_client .ck-attn{
-  width: var(--cmc-dot-size); height: var(--cmc-dot-size);
-  border-radius: 999px; flex-shrink: 0;
-}
 
 /* Panel — soft card (same raised family as Metric) */
-.o_web_client .ck-pnl{
+.o_web_client .console-pnl {
   background: var(--cmc-raised-bg); border-radius: var(--cmc-raised-radius);
   overflow: hidden;
   border: var(--cmc-raised-border);
   box-shadow: var(--cmc-raised-shadow);
 }
-.o_web_client .ck-pnl-head{
+.o_web_client .console-pnl-head {
   display: flex; align-items: center; justify-content: space-between;
   min-height: var(--cmc-head-h);
   padding: 12px var(--cmc-keyline-x); gap: 12px;
   border-bottom: 1px solid var(--cmc-border-subtle);
   box-sizing: border-box;
 }
-.o_web_client .ck-pnl-title{
+.o_web_client .console-pnl-title {
   font-size: var(--cmc-fs-body); font-weight: 600; color: var(--cmc-text);
   letter-spacing: -0.01em;
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.o_web_client .ck-pnl-icon{ color: var(--cmc-text-faint); flex-shrink: 0; }
-.o_web_client .ck-pnl-action-slot{ flex-shrink: 0; }
-.o_web_client .ck-pnl-action{
+.o_web_client .console-pnl-icon { color: var(--cmc-text-faint); flex-shrink: 0; }
+.o_web_client .console-pnl-action-slot { flex-shrink: 0; }
+.o_web_client .console-pnl-action {
   display: inline-flex; align-items: center; gap: 2px;
   font-size: var(--cmc-fs-meta); font-weight: 500; color: var(--cmc-brand);
   text-decoration: none; font-family: inherit;
   white-space: nowrap;
 }
-.o_web_client .ck-pnl-action:hover{ text-decoration: underline; }
-
+.o_web_client .console-pnl-action:hover { text-decoration: underline; }
 /* Rows — soft sunken hover (never cast shadow on rows) */
-.o_web_client .ck-row{
+.o_web_client .console-row {
   display: flex; align-items: center; gap: 12px;
   min-height: var(--cmc-row-h);
   padding: 10px var(--cmc-keyline-x);
@@ -1884,29 +1459,29 @@ button.o-kanban-card {
   text-decoration: none; color: inherit;
   transition: background var(--cmc-transition);
 }
-.o_web_client .ck-row + .ck-row{ border-top: 1px solid var(--cmc-border-subtle); }
-.o_web_client .ck-row:hover{ background: var(--cmc-surface-sunken); }
-.o_web_client .ck-dot{
+.o_web_client .console-row + .console-row { border-top: 1px solid var(--cmc-border-subtle); }
+.o_web_client .console-row:hover { background: var(--cmc-surface-sunken); }
+.o_web_client .console-dot {
   width: var(--cmc-dot-size); height: var(--cmc-dot-size);
   border-radius: 999px; flex-shrink: 0;
 }
-.o_web_client .ck-row-main{
+.o_web_client .console-row-main {
   flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;
 }
-.o_web_client .ck-row-title{
+.o_web_client .console-row-title {
   display: block;
   font-size: var(--cmc-fs-body); font-weight: 500; color: var(--cmc-text);
   line-height: var(--cmc-line-title);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.o_web_client .ck-row-meta{
+.o_web_client .console-row-meta {
   display: block;
   font-size: var(--cmc-fs-meta); color: var(--cmc-text-muted);
   font-variant-numeric: tabular-nums;
   line-height: var(--cmc-line-meta);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.o_web_client .ck-row-tag{
+.o_web_client .console-row-tag {
   flex-shrink: 0; font-size: var(--cmc-fs-label); font-weight: 600;
   height: var(--cmc-chip-h-sm); padding: 0 9px;
   display: inline-flex; align-items: center;
@@ -1914,98 +1489,55 @@ button.o-kanban-card {
   background: var(--cmc-brand-muted); color: var(--cmc-brand);
   white-space: nowrap;
 }
-.o_web_client .ck-chev{ color: var(--cmc-text-faint); flex-shrink: 0; }
-
+.o_web_client .console-chev { color: var(--cmc-text-faint); flex-shrink: 0; }
 /* Page header — soft card (quieter elevation than metric grid) */
-.o_web_client .ck-page-header{
-  background: var(--cmc-raised-bg);
-  border: var(--cmc-raised-border);
-  border-radius: var(--cmc-raised-radius);
-  box-shadow: var(--cmc-shadow-xs);
-  padding: 12px var(--cmc-keyline-x);
-  min-height: var(--cmc-head-h);
-  box-sizing: border-box;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
 
 /* Breadcrumbs — parent crumbs are SPA links (gắn kết module → page) */
-.o_web_client .ck-bc{
-  min-width: 0;
-}
-.o_web_client .ck-bc-link{
-  color: var(--cmc-text-muted);
-  text-decoration: none;
-  font-size: var(--cmc-fs-meta);
-  font-weight: 500;
-  border-radius: 4px;
-  transition: color var(--cmc-transition), background var(--cmc-transition);
-}
-.o_web_client .ck-bc-link:hover{
-  color: var(--cmc-brand);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.o_web_client .ck-bc-link:focus-visible{
-  outline: 2px solid var(--cmc-brand);
-  outline-offset: 2px;
-}
-.o_web_client .ck-bc-current{
-  color: var(--cmc-text-2);
-  font-size: var(--cmc-fs-meta);
-  font-weight: 600;
-}
-.o_web_client .ck-bc-plain{
-  color: var(--cmc-text-muted);
-  font-size: var(--cmc-fs-meta);
-  font-weight: 500;
-}
 
 /* Work inbox */
-.o_web_client .ck-inbox-skel{ padding: 8px var(--cmc-pad-card-x) 18px; display: flex; flex-direction: column; gap: 10px; }
-.o_web_client .ck-inbox-empty{ padding: 8px 12px 16px; }
-.o_web_client .ck-inbox-section-label{
+.o_web_client .console-inbox-skel { padding: 8px var(--cmc-pad-card-x) 18px; display: flex; flex-direction: column; gap: 10px; }
+.o_web_client .console-inbox-empty { padding: 8px 12px 16px; }
+.o_web_client .console-inbox-section-label {
   padding: 10px var(--cmc-pad-card-x) 4px;
   font-size: var(--cmc-fs-label); font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--cmc-text-muted);
 }
-.o_web_client .ck-inbox-section + .ck-inbox-section{ border-top: 1px solid var(--cmc-border-subtle); }
-
+.o_web_client .console-inbox-section + .console-inbox-section { border-top: 1px solid var(--cmc-border-subtle); }
 /* -------------------------------------------------------------------------
  * Funnel family — modern ops (stack bars · rail · conversion strip)
- * Not 2018 thin gray bars: step chips, layered tracks, share %, hover lift.
+ * Not 2018 thin gray bars: step chips,
+layered tracks,
+share %,
+hover lift.
  * ---------------------------------------------------------------------- */
-.o_web_client .ck-fn-skel{ padding: 8px var(--cmc-pad-card-x) 20px; }
-
-.o_web_client .ck-fn-summary{
+.o_web_client .console-fn-skel { padding: 8px var(--cmc-pad-card-x) 20px; }
+.o_web_client .console-fn-summary {
   display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 10px;
   padding: 4px var(--cmc-pad-card-x) 12px;
 }
-.o_web_client .ck-fn-summary-total{
+.o_web_client .console-fn-summary-total {
   font-size: 22px; font-weight: 600; letter-spacing: -0.03em;
   color: var(--cmc-text); font-variant-numeric: tabular-nums; line-height: 1;
 }
-.o_web_client .ck-fn-summary-label{ font-size: 13px; color: var(--cmc-text-muted); }
-.o_web_client .ck-fn-summary-pill{
+.o_web_client .console-fn-summary-label { font-size: 13px; color: var(--cmc-text-muted); }
+.o_web_client .console-fn-summary-pill {
   margin-left: auto; font-size: 11px; font-weight: 600;
   padding: 4px 10px; border-radius: 999px;
   background: var(--cmc-brand-muted); color: var(--cmc-brand);
 }
-
 /* Stack rows */
-.o_web_client .ck-fn{ padding: 4px 10px 14px; display: flex; flex-direction: column; gap: 2px; }
-.o_web_client .ck-fn-row{
+.o_web_client .console-fn { padding: 4px 10px 14px; display: flex; flex-direction: column; gap: 2px; }
+.o_web_client .console-fn-row {
   display: flex; align-items: stretch; gap: 10px;
   padding: 10px 12px; border-radius: var(--cmc-radius-control);
   transition: background var(--cmc-transition);
 }
-.o_web_client .ck-fn-row.is-sm{ padding: 7px 10px; gap: 8px; }
-.o_web_client .ck-fn-row.is-muted{ opacity: 0.42; }
-.o_web_client .ck-fn-row.is-emphasize{
+.o_web_client .console-fn-row.is-sm { padding: 7px 10px; gap: 8px; }
+.o_web_client .console-fn-row.is-muted { opacity: 0.42; }
+.o_web_client .console-fn-row.is-emphasize {
   background: color-mix(in srgb, var(--cmc-brand-muted) 55%, transparent);
 }
-.o_web_client .ck-fn-step{
+.o_web_client .console-fn-step {
   flex-shrink: 0; align-self: center;
   min-width: 28px; height: 28px; padding: 0 6px;
   display: inline-flex; align-items: center; justify-content: center;
@@ -2014,80 +1546,79 @@ button.o-kanban-card {
   background: var(--cmc-surface-sunken); color: var(--cmc-text-muted);
   font-variant-numeric: tabular-nums;
 }
-.o_web_client .ck-fn-row.is-emphasize .ck-fn-step{
+.o_web_client .console-fn-row.is-emphasize .console-fn-step {
   background: var(--cmc-brand); color: #fff;
 }
-.o_web_client .ck-fn-main{ flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.o_web_client .ck-fn-head{
+.o_web_client .console-fn-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.o_web_client .console-fn-head {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
 }
-.o_web_client .ck-fn-label{
+.o_web_client .console-fn-label {
   font-size: 13px; font-weight: 500; color: var(--cmc-text-2);
   letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.o_web_client .ck-fn-row.is-emphasize .ck-fn-label{ font-weight: 600; color: var(--cmc-brand-ink); }
-.o_web_client .ck-fn-hint{ font-size: 11px; color: var(--cmc-text-faint); flex-shrink: 0; }
-.o_web_client .ck-fn-barline{ display: flex; align-items: center; gap: 10px; }
-.o_web_client .ck-fn-track{
+.o_web_client .console-fn-row.is-emphasize .console-fn-label { font-weight: 600; color: var(--cmc-brand-ink); }
+.o_web_client .console-fn-hint { font-size: 11px; color: var(--cmc-text-faint); flex-shrink: 0; }
+.o_web_client .console-fn-barline { display: flex; align-items: center; gap: 10px; }
+.o_web_client .console-fn-track {
   flex: 1; height: 10px; display: block;
   background: var(--cmc-surface-sunken);
   border-radius: 999px; overflow: hidden;
   box-shadow: inset 0 1px 1px rgba(28, 25, 20, 0.04);
 }
-.o_web_client .ck-fn-row.is-sm .ck-fn-track{ height: 7px; }
-.o_web_client .ck-fn-fill{
+.o_web_client .console-fn-row.is-sm .console-fn-track { height: 7px; }
+.o_web_client .console-fn-fill {
   display: block; height: 100%; min-width: 0;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--cmc-brand) 0%, color-mix(in srgb, var(--cmc-brand) 78%, #5eb0ff) 100%);
   transition: width var(--cmc-duration-enter) var(--cmc-ease);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--cmc-brand) 20%, transparent);
 }
-.o_web_client .ck-fn-row.is-emphasize .ck-fn-fill{
+.o_web_client .console-fn-row.is-emphasize .console-fn-fill {
   background: linear-gradient(90deg, var(--cmc-brand-hover) 0%, var(--cmc-brand) 100%);
   box-shadow: 0 0 12px color-mix(in srgb, var(--cmc-brand) 28%, transparent);
 }
-.o_web_client .ck-fn-count{
+.o_web_client .console-fn-count {
   min-width: 22px; text-align: right;
   font-size: 14px; font-weight: 650; color: var(--cmc-text);
   font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
 }
-.o_web_client .ck-fn-share{
+.o_web_client .console-fn-share {
   min-width: 34px; text-align: right;
   font-size: 11px; font-weight: 600; color: var(--cmc-text-muted);
   font-variant-numeric: tabular-nums;
 }
-.o_web_client .ck-fn-chev{ width: 12px; color: var(--cmc-text-faint); font-size: 16px; line-height: 1; }
-.o_web_client .ck-fn-link{
+.o_web_client .console-fn-chev { width: 12px; color: var(--cmc-text-faint); font-size: 16px; line-height: 1; }
+.o_web_client .console-fn-link {
   text-decoration: none; color: inherit; border-radius: var(--cmc-radius-control);
   transition: background var(--cmc-transition), transform var(--cmc-transition);
   display: block; margin: 0 6px; padding: 0 2px;
 }
-.o_web_client .ck-fn-link:hover{ background: color-mix(in srgb, var(--cmc-canvas) 70%, var(--cmc-surface-sunken)); }
-.o_web_client .ck-fn-link:hover .ck-fn-chev{ color: var(--cmc-brand); }
-.o_web_client .ck-fn-link:active{ transform: scale(0.997); }
-.o_web_client .ck-fn-static{ margin: 0 6px; padding: 0 2px; }
-.o_web_client .ck-fn-footer{
+.o_web_client .console-fn-link:hover { background: color-mix(in srgb, var(--cmc-canvas) 70%, var(--cmc-surface-sunken)); }
+.o_web_client .console-fn-link:hover .console-fn-chev { color: var(--cmc-brand); }
+.o_web_client .console-fn-link:active { transform: scale(0.997); }
+.o_web_client .console-fn-static { margin: 0 6px; padding: 0 2px; }
+.o_web_client .console-fn-footer {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 12px var(--cmc-pad-card-x) 16px; border-top: 1px solid var(--cmc-border-subtle);
   background: color-mix(in srgb, var(--cmc-brand-muted) 35%, transparent);
 }
-.o_web_client .ck-fn-footer-text{ font-size: 13px; color: var(--cmc-text-2); font-weight: 500; }
-.o_web_client .ck-fn-footer-cta{
+.o_web_client .console-fn-footer-text { font-size: 13px; color: var(--cmc-text-2); font-weight: 500; }
+.o_web_client .console-fn-footer-cta {
   display: inline-flex; align-items: center; gap: 2px;
   font-size: 13px; font-weight: 600; color: var(--cmc-brand); text-decoration: none;
   padding: 6px 12px; border-radius: 999px; background: var(--cmc-surface-raised);
   border: 1px solid var(--cmc-accent-soft);
   transition: background var(--cmc-transition), border-color var(--cmc-transition);
 }
-.o_web_client .ck-fn-footer-cta:hover{ background: var(--cmc-brand-muted); border-color: transparent; text-decoration: none; }
-
+.o_web_client .console-fn-footer-cta:hover { background: var(--cmc-brand-muted); border-color: transparent; text-decoration: none; }
 /* Horizontal stage rail (pipeline) */
-.o_web_client .ck-rail{
+.o_web_client .console-rail {
   display: flex; align-items: stretch; gap: 0;
   padding: 4px var(--cmc-pad-card-x) 18px;
   overflow-x: auto;
 }
-.o_web_client .ck-rail-stage{
+.o_web_client .console-rail-stage {
   position: relative; flex: 1 1 0; min-width: 72px;
   display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   padding: 12px 14px 14px; margin-right: 2px;
@@ -2098,90 +1629,89 @@ button.o-kanban-card {
   transition: background var(--cmc-transition), border-color var(--cmc-transition),
     box-shadow var(--cmc-transition), transform var(--cmc-transition);
 }
-.o_web_client .ck-rail-stage.is-link{ cursor: pointer; }
-.o_web_client .ck-rail-stage.is-link:hover{
+.o_web_client .console-rail-stage.is-link { cursor: pointer; }
+.o_web_client .console-rail-stage.is-link:hover {
   background: var(--cmc-surface-raised);
   border-color: var(--cmc-border-subtle);
   box-shadow: var(--cmc-shadow-sm);
   transform: translateY(-1px);
 }
-.o_web_client .ck-rail-stage.is-muted{ opacity: 0.4; }
-.o_web_client .ck-rail-stage.is-emphasize{
+.o_web_client .console-rail-stage.is-muted { opacity: 0.4; }
+.o_web_client .console-rail-stage.is-emphasize {
   background: var(--cmc-brand-muted);
   border-color: color-mix(in srgb, var(--cmc-brand) 22%, transparent);
   box-shadow: var(--cmc-shadow-xs);
 }
-.o_web_client .ck-rail-stage.is-emphasize .ck-rail-val{ color: var(--cmc-brand-ink); }
-.o_web_client .ck-rail-idx{
+.o_web_client .console-rail-stage.is-emphasize .console-rail-val { color: var(--cmc-brand-ink); }
+.o_web_client .console-rail-idx {
   font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--cmc-text-faint);
 }
-.o_web_client .ck-rail-stage.is-emphasize .ck-rail-idx{ color: var(--cmc-brand); }
-.o_web_client .ck-rail-val{
+.o_web_client .console-rail-stage.is-emphasize .console-rail-idx { color: var(--cmc-brand); }
+.o_web_client .console-rail-val {
   font-size: 22px; font-weight: 650; letter-spacing: -0.03em; line-height: 1.05;
   color: var(--cmc-text); font-variant-numeric: tabular-nums;
 }
-.o_web_client .ck-rail-label{
+.o_web_client .console-rail-label {
   font-size: 11.5px; font-weight: 500; color: var(--cmc-text-muted);
   line-height: 1.25; max-width: 100%;
 }
-.o_web_client .ck-rail-bridge{
+.o_web_client .console-rail-bridge {
   position: absolute; right: -7px; top: 50%; width: 12px; height: 2px;
   background: var(--cmc-border); border-radius: 1px; z-index: 1;
   transform: translateY(-50%);
   pointer-events: none;
 }
-.o_web_client .ck-rail-stage:last-child .ck-rail-bridge{ display: none; }
-
+.o_web_client .console-rail-stage:last-child .console-rail-bridge { display: none; }
 /* Conversion strip (split layout) */
-.o_web_client .ck-cstrip{ padding: 4px var(--cmc-pad-card-x) 16px; display: flex; flex-direction: column; gap: 14px; }
-.o_web_client .ck-cstrip-track{
+.o_web_client .console-cstrip { padding: 4px var(--cmc-pad-card-x) 16px; display: flex; flex-direction: column; gap: 14px; }
+.o_web_client .console-cstrip-track {
   display: flex; height: 44px; border-radius: 14px; overflow: hidden;
   background: var(--cmc-surface-sunken);
   box-shadow: inset 0 1px 2px rgba(28, 25, 20, 0.04);
   gap: 2px; padding: 3px;
 }
-.o_web_client .ck-cstrip-seg-link, .o_web_client .ck-cstrip-seg-wrap{
+.o_web_client .console-cstrip-seg-link,
+.o_web_client .console-cstrip-seg-wrap {
   display: flex; min-width: 0; text-decoration: none; color: inherit;
   border-radius: 11px; overflow: hidden;
 }
-.o_web_client .ck-cstrip-seg{
+.o_web_client .console-cstrip-seg {
   display: flex; align-items: center; justify-content: center;
   flex: 1; width: 100%; min-width: 28px; border-radius: 11px;
   background: color-mix(in srgb, var(--cmc-brand) 22%, var(--cmc-surface-raised));
   color: var(--cmc-brand-ink);
   transition: filter var(--cmc-transition), background var(--cmc-transition);
 }
-.o_web_client .ck-cstrip-seg.is-emphasize{
+.o_web_client .console-cstrip-seg.is-emphasize {
   background: linear-gradient(135deg, var(--cmc-brand) 0%, color-mix(in srgb, var(--cmc-brand) 70%, #5eb0ff) 100%);
   color: #fff;
 }
-.o_web_client .ck-cstrip-seg-link:hover .ck-cstrip-seg{ filter: brightness(1.05); }
-.o_web_client .ck-cstrip-seg-val{
+.o_web_client .console-cstrip-seg-link:hover .console-cstrip-seg { filter: brightness(1.05); }
+.o_web_client .console-cstrip-seg-val {
   font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
-.o_web_client .ck-cstrip-legend{
+.o_web_client .console-cstrip-legend {
   list-style: none; margin: 0; padding: 0;
   display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px 12px;
 }
-.o_web_client .ck-cstrip-legend-item{
+.o_web_client .console-cstrip-legend-item {
   display: flex; align-items: center; gap: 8px; font-size: 12.5px;
 }
-.o_web_client .ck-cstrip-legend-item.is-muted{ opacity: 0.4; }
-.o_web_client .ck-cstrip-swatch{
+.o_web_client .console-cstrip-legend-item.is-muted { opacity: 0.4; }
+.o_web_client .console-cstrip-swatch {
   width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0;
   background: color-mix(in srgb, var(--cmc-brand) 35%, var(--cmc-surface-sunken));
 }
-.o_web_client .ck-cstrip-legend-item.is-emphasize .ck-cstrip-swatch{ background: var(--cmc-brand); }
-.o_web_client .ck-cstrip-legend-label{ flex: 1; color: var(--cmc-text-2); min-width: 0;
+.o_web_client .console-cstrip-legend-item.is-emphasize .console-cstrip-swatch { background: var(--cmc-brand); }
+.o_web_client .console-cstrip-legend-label { flex: 1; color: var(--cmc-text-2); min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.o_web_client .ck-cstrip-legend-val{
+.o_web_client .console-cstrip-legend-val {
   font-weight: 650; color: var(--cmc-text); font-variant-numeric: tabular-nums;
 }
-
-/* Insight metric — modern KPI with spark + delta (same raised family as .ck-mc) */
-.o_web_client .ck-im{
+/* Insight metric — modern KPI with spark + delta (same raised family as .console-mc) */
+.o_web_client .console-im {
   display: flex; flex-direction: column; gap: 8px;
   background: var(--cmc-raised-bg);
   border: var(--cmc-raised-border);
@@ -2194,57 +1724,56 @@ button.o-kanban-card {
   min-height: 128px;
   box-sizing: border-box;
 }
-.o_web_client a.ck-im:hover{
+.o_web_client a.console-im:hover {
   box-shadow: var(--cmc-shadow-md);
   border-color: var(--cmc-accent-soft);
   transform: translateY(-1px);
 }
-.o_web_client .ck-im-top{ display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.o_web_client .ck-im-label{
+.o_web_client .console-im-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.o_web_client .console-im-label {
   font-size: var(--cmc-fs-label); font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--cmc-text-muted);
 }
-.o_web_client .ck-im-icon{
+.o_web_client .console-im-icon {
   width: 32px; height: 32px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   background: var(--cmc-brand-muted); color: var(--cmc-brand);
 }
-.o_web_client .ck-im-value-row{ display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.o_web_client .ck-im-value{
+.o_web_client .console-im-value-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.o_web_client .console-im-value {
   font-size: var(--cmc-fs-metric); font-weight: 650; letter-spacing: -0.03em; line-height: 1;
   color: var(--cmc-text); font-variant-numeric: tabular-nums;
 }
-.o_web_client .ck-im-delta{
+.o_web_client .console-im-delta {
   font-size: var(--cmc-fs-meta); font-weight: 650;
   height: var(--cmc-chip-h); padding: 0 8px;
   display: inline-flex; align-items: center;
   border-radius: var(--cmc-radius-pill);
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-.o_web_client .ck-im-delta.is-up{ background: var(--cmc-success-soft); color: var(--cmc-success-ink); }
-.o_web_client .ck-im-delta.is-down{ background: var(--cmc-danger-soft); color: var(--cmc-danger-ink); }
-.o_web_client .ck-im-delta.is-neutral{ background: var(--cmc-neutral-soft); color: var(--cmc-neutral-ink); }
-.o_web_client .ck-im-spark{
+.o_web_client .console-im-delta.is-up { background: var(--cmc-success-soft); color: var(--cmc-success-ink); }
+.o_web_client .console-im-delta.is-down { background: var(--cmc-danger-soft); color: var(--cmc-danger-ink); }
+.o_web_client .console-im-delta.is-neutral { background: var(--cmc-neutral-soft); color: var(--cmc-neutral-ink); }
+.o_web_client .console-im-spark {
   display: flex; align-items: flex-end; gap: 3px; height: 28px; margin-top: 2px;
 }
-.o_web_client .ck-im-spark-bar{
+.o_web_client .console-im-spark-bar {
   flex: 1; max-width: 10px; border-radius: 3px 3px 1px 1px;
   background: color-mix(in srgb, var(--cmc-brand) 45%, var(--cmc-surface-sunken));
   min-height: 4px;
 }
-.o_web_client .ck-im-spark-bar:last-child{
+.o_web_client .console-im-spark-bar:last-child {
   background: var(--cmc-brand);
 }
-.o_web_client .ck-im-ctx{
+.o_web_client .console-im-ctx {
   margin-top: auto; display: flex; align-items: center; gap: 2px;
   font-size: 12.5px; color: var(--cmc-text-muted);
   transition: color var(--cmc-transition);
 }
-.o_web_client a.ck-im:hover .ck-im-ctx{ color: var(--cmc-brand); }
-
+.o_web_client a.console-im:hover .console-im-ctx { color: var(--cmc-brand); }
 /* Focus card — next best action (raised family + rail accent) */
-.o_web_client .ck-fc{
-  --ck-fc-accent: var(--cmc-brand);
+.o_web_client .console-fc {
+  --console-fc-accent: var(--cmc-brand);
   display: flex; flex-direction: column; gap: 14px;
   text-decoration: none; color: inherit;
   background: var(--cmc-raised-bg);
@@ -2252,39 +1781,39 @@ button.o-kanban-card {
   border-radius: var(--cmc-raised-radius);
   box-shadow: var(--cmc-raised-shadow);
   padding: 18px var(--cmc-keyline-x);
-  border-left: var(--cmc-rail-w) solid var(--ck-fc-accent);
+  border-left: var(--cmc-rail-w) solid var(--console-fc-accent);
   transition: box-shadow var(--cmc-transition), border-color var(--cmc-transition),
     transform var(--cmc-transition);
   min-width: 0;
 }
-.o_web_client .ck-fc:hover{
+.o_web_client .console-fc:hover {
   box-shadow: var(--cmc-shadow-md);
-  border-color: color-mix(in srgb, var(--ck-fc-accent) 25%, var(--cmc-border-subtle));
+  border-color: color-mix(in srgb, var(--console-fc-accent) 25%, var(--cmc-border-subtle));
   transform: translateY(-1px);
 }
-.o_web_client .ck-fc-body{ display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.o_web_client .ck-fc-kicker{
+.o_web_client .console-fc-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.o_web_client .console-fc-kicker {
   font-size: var(--cmc-fs-label); font-weight: 700; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--ck-fc-accent);
+  text-transform: uppercase; color: var(--console-fc-accent);
   line-height: var(--cmc-line-label);
 }
-.o_web_client .ck-fc-title{
+.o_web_client .console-fc-title {
   font-size: var(--cmc-fs-title); font-weight: 650; letter-spacing: -0.02em;
   color: var(--cmc-text); line-height: 1.3;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.o_web_client .ck-fc-desc{
+.o_web_client .console-fc-desc {
   font-size: 13px; color: var(--cmc-text-muted); line-height: 1.5;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.o_web_client .ck-fc-meta{
+.o_web_client .console-fc-meta {
   font-size: var(--cmc-fs-meta); color: var(--cmc-text-faint);
   font-variant-numeric: tabular-nums;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.o_web_client .ck-fc-cta{
+.o_web_client .console-fc-cta {
   align-self: flex-start;
   display: inline-flex; align-items: center; gap: 4px;
   height: var(--cmc-cta-h); padding: 0 14px;
@@ -2294,55 +1823,17 @@ button.o-kanban-card {
   transition: background var(--cmc-transition);
   white-space: nowrap;
 }
-.o_web_client .ck-fc:hover .ck-fc-cta{ background: var(--cmc-brand-hover); }
-
-/* Empty state — restrained, monochrome icon */
-.o_web_client .ck-empty{ padding: 32px var(--cmc-pad-card-x); text-align: center; color: var(--cmc-text-muted);
+.o_web_client .console-fc:hover .console-fc-cta { background: var(--cmc-brand-hover); }
+/* Empty state — restrained,
+monochrome icon */
+.o_web_client .console-empty { padding: 32px var(--cmc-pad-card-x); text-align: center; color: var(--cmc-text-muted);
   font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.o_web_client .ck-empty-icon{ color: var(--cmc-text-faint); }
-
 /* Table shell — one raised family with Panel/Metric (flush table inside) */
-.o_web_client .ck-table-shell{
-  background: var(--cmc-raised-bg);
-  border: var(--cmc-raised-border);
-  border-radius: var(--cmc-raised-radius);
-  box-shadow: var(--cmc-raised-shadow);
-  overflow: hidden;
-}
-.o_web_client .ck-table-shell table{ width: 100%; border-collapse: collapse; }
-.o_web_client .ck-table-shell thead th{
-  font-size: var(--cmc-font-size-column); font-weight: 600;
-  letter-spacing: 0.04em; text-transform: uppercase;
-  color: var(--cmc-text-muted); text-align: left;
-  height: var(--cmc-head-h);
-  padding: 0 var(--cmc-keyline-x); background: var(--cmc-surface-2);
-  border-bottom: 1px solid var(--cmc-border-subtle);
-  box-sizing: border-box;
-  white-space: nowrap;
-}
-.o_web_client .ck-table-shell tbody td{
-  height: var(--cmc-row-h);
-  padding: 0 var(--cmc-keyline-x); font-size: var(--cmc-font-size-data);
-  border-bottom: 1px solid var(--cmc-border-subtle); color: var(--cmc-text);
-  box-sizing: border-box;
-  vertical-align: middle;
-}
-.o_web_client .ck-table-shell tbody tr:last-child td{ border-bottom: none; }
-.o_web_client .ck-table-shell tbody tr:hover td{ background: var(--cmc-surface-sunken); }
 
 /* Filter bar — slot chrome on warm surface-2 (not a third competing card) */
-.o_web_client .ck-filter-bar{
-  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;
-  min-height: var(--cmc-head-h);
-  padding: 10px var(--cmc-keyline-x);
-  background: var(--cmc-surface-2);
-  border: var(--cmc-raised-border);
-  border-radius: var(--cmc-raised-radius);
-  box-sizing: border-box;
-}
 
 /* Soft status badges — pastel fill + ink (less loud in dense tables) */
-.o_web_client .ck-badge-soft{
+.o_web_client .console-badge-soft {
   display: inline-flex; align-items: center; gap: 4px;
   height: var(--cmc-chip-h-sm);
   box-sizing: border-box;
@@ -2352,85 +1843,58 @@ button.o-kanban-card {
   white-space: nowrap; max-width: 100%;
   overflow: hidden; text-overflow: ellipsis;
 }
-.o_web_client .ck-badge-soft--success{ background: var(--cmc-success-soft); color: var(--cmc-success-ink); }
-.o_web_client .ck-badge-soft--warning{ background: var(--cmc-warning-soft); color: var(--cmc-warning-ink); }
-.o_web_client .ck-badge-soft--danger{ background: var(--cmc-danger-soft); color: var(--cmc-danger-ink); }
-.o_web_client .ck-badge-soft--info{ background: var(--cmc-info-soft); color: var(--cmc-info-ink); }
-.o_web_client .ck-badge-soft--neutral{ background: var(--cmc-neutral-soft); color: var(--cmc-neutral-ink); }
-
 /* Shell / app frame — promoted from the admin light-mode shell pilot
- * (P3 shell extraction). White chrome / warm content canvas, monochrome
- * outline icons, one accent, restrained hairlines. Classnames verbatim from
+ * (P3 shell extraction). White chrome / warm content canvas,
+monochrome
+ * outline icons,
+one accent,
+restrained hairlines. Classnames verbatim from
  * the original inline `shellStyles` so the rendered result stays identical. */
-.o_web_client .sh-root{ display: flex; height: 100vh; overflow: hidden; background: var(--cmc-canvas); }
-
+.o_web_client .sh-root { display: flex; height: 100vh; overflow: hidden; background: var(--cmc-canvas); }
 /* Sidebar */
-.o_web_client .sh-sb{ width: 248px; flex-shrink: 0; background: var(--cmc-surface);
+.o_web_client .sh-sb { width: 248px; flex-shrink: 0; background: var(--cmc-surface);
   border-right: 1px solid var(--cmc-border-subtle); display: flex; flex-direction: column; }
-.o_web_client .sh-brand{ display: flex; align-items: center; gap: 10px; padding: 18px 18px 16px; }
-.o_web_client .sh-logo{ width: 28px; height: 28px; border-radius: 10px; background: var(--cmc-brand);
-  color: #fff; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; letter-spacing: -0.02em; }
-.o_web_client .sh-brand-name{ font-size: 15px; font-weight: 700; color: var(--cmc-text); letter-spacing: -0.02em; line-height: 1; }
-.o_web_client .sh-brand-sub{ font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--cmc-text-faint); margin-top: 3px; }
-.o_web_client .sh-nav{ flex: 1; overflow-y: auto; padding: 6px 10px 16px; }
-
-.o_web_client .sh-item{ display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
+.o_web_client .sh-brand { display: flex; align-items: center; gap: 10px; padding: 18px 18px 16px; }
+.o_web_client .sh-nav { flex: 1; overflow-y: auto; padding: 6px 10px 16px; }
+.o_web_client .sh-item { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
   padding: 9px 12px; margin-top: 2px; border-radius: var(--cmc-radius-control); cursor: pointer; border: none; background: none;
   font-size: 14px; font-weight: 500; color: var(--cmc-text-2); font-family: inherit;
   transition: background var(--cmc-transition), color var(--cmc-transition); }
-.o_web_client .sh-item:hover{ background: var(--cmc-surface-sunken); }
-.o_web_client .sh-item-icon{ color: var(--cmc-text-muted); transition: color var(--cmc-transition); }
-.o_web_client .sh-item.is-active{ background: var(--cmc-brand-muted); color: var(--cmc-brand); font-weight: 600; }
-.o_web_client .sh-item.is-active .sh-item-icon{ color: var(--cmc-brand); }
-
-.o_web_client .sh-sub{ margin: 2px 0 6px 0; display: flex; flex-direction: column; }
-.o_web_client .sh-subitem{ display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 12px; margin-left: 25px;
+.o_web_client .sh-item:hover { background: var(--cmc-surface-sunken); }
+.o_web_client .sh-item-icon { color: var(--cmc-text-muted); transition: color var(--cmc-transition); }
+.o_web_client .sh-item.is-active { background: var(--cmc-brand-muted); color: var(--cmc-brand); font-weight: 600; }
+.o_web_client .sh-item.is-active .sh-item-icon { color: var(--cmc-brand); }
+.o_web_client .sh-sub { margin: 2px 0 6px 0; display: flex; flex-direction: column; }
+.o_web_client .sh-subitem { display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 12px; margin-left: 25px;
   border-left: 1.5px solid var(--cmc-border-subtle); border-radius: 0 6px 6px 0; cursor: pointer;
   background: none; border-top: none; border-right: none; border-bottom: none; text-align: left; font-family: inherit;
   font-size: 13px; color: var(--cmc-text-muted); transition: background var(--cmc-transition), color var(--cmc-transition); }
-.o_web_client .sh-subitem:hover{ background: var(--cmc-surface-sunken); color: var(--cmc-text-2); }
-.o_web_client .sh-subitem.is-active{ color: var(--cmc-brand); border-left-color: var(--cmc-brand); font-weight: 600; }
-
+.o_web_client .sh-subitem:hover { background: var(--cmc-surface-sunken); color: var(--cmc-text-2); }
+.o_web_client .sh-subitem.is-active { color: var(--cmc-brand); border-left-color: var(--cmc-brand); font-weight: 600; }
 /* Main column */
-.o_web_client .sh-main{ flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.o_web_client .sh-top{ height: 60px; flex-shrink: 0; background: rgba(255, 255, 255, 0.78);
+.o_web_client .sh-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.o_web_client .sh-top { height: 60px; flex-shrink: 0; background: rgba(255, 255, 255, 0.78);
   backdrop-filter: var(--cmc-blur-nav); -webkit-backdrop-filter: var(--cmc-blur-nav);
   border-bottom: 1px solid var(--cmc-border-subtle); display: flex; align-items: center;
   justify-content: space-between; padding: 0 24px; }
-.o_web_client .sh-top-title{ font-size: 15px; font-weight: 600; color: var(--cmc-text); letter-spacing: -0.01em; }
-.o_web_client .sh-top-actions{ display: flex; align-items: center; gap: 14px; }
-.o_web_client .sh-cta{ display: inline-flex; align-items: center; gap: 5px; height: 34px; padding: 0 15px;
-  border-radius: var(--cmc-radius-pill); background: var(--cmc-brand); color: #fff;
-  font-size: 13px; font-weight: 600; border: none; cursor: pointer; font-family: inherit;
-  transition: background var(--cmc-transition), color var(--cmc-transition), transform var(--cmc-transition); }
-.o_web_client .sh-cta:hover{ background: var(--cmc-brand-hover); }
-.o_web_client .sh-cta:active{ transform: scale(0.98); }
+.o_web_client .sh-top-title { font-size: 15px; font-weight: 600; color: var(--cmc-text); letter-spacing: -0.01em; }
+.o_web_client .sh-top-actions { display: flex; align-items: center; gap: 14px; }
 /* Secondary / ghost — one primary CTA per context (logout must not compete). */
-.o_web_client .sh-cta--secondary{
-  background: transparent; color: var(--cmc-text-2);
-  border: 1px solid var(--cmc-border); }
-.o_web_client .sh-cta--secondary:hover{ background: var(--cmc-surface-sunken); color: var(--cmc-text); }
-.o_web_client .sh-cta--ghost{
-  background: transparent; color: var(--cmc-text-muted); border: none; }
-.o_web_client .sh-cta--ghost:hover{ background: var(--cmc-surface-sunken); color: var(--cmc-text); }
-.o_web_client .sh-item:active{ background: var(--cmc-surface-sunken); }
-.o_web_client .ck-mc:active{ box-shadow: none; background: var(--cmc-surface-sunken); }
+.o_web_client .sh-item:active { background: var(--cmc-surface-sunken); }
 /* Metric strip: avoid full-bleed empty single card (design-system cockpit). */
-.o_web_client .ck-metrics > .ck-mc{ max-width: 360px; }
 @media (max-width: 560px) {
-  .o_web_client .ck-metrics > .ck-mc{ max-width: none; }
 }
-.o_web_client .sh-content{ flex: 1; overflow-y: auto; }
-
+.o_web_client .sh-content { flex: 1; overflow-y: auto; }
 /* Toast — float layer (dialog radius + shadow-lg) */
-/* Float band: above .o-navbar (1000), below .ck-cmd (1200). Odoo notifications ≈1055. */
-.ck-toast-viewport{
+/* Float band: above .console-navbar (1000),
+below .console-cmd (1200). Odoo notifications ≈1055. */
+.console-toast-viewport {
   position: fixed; z-index: 1100; right: 20px; bottom: 20px;
   display: flex; flex-direction: column; gap: 8px;
   max-width: min(380px, calc(100vw - 32px));
   pointer-events: none;
 }
-.ck-toast{
+.console-toast {
   pointer-events: auto;
   display: flex; align-items: flex-start; gap: 10px;
   padding: 12px 12px 12px 14px;
@@ -2440,30 +1904,26 @@ button.o-kanban-card {
   border-radius: var(--cmc-radius-md);
   box-shadow: var(--cmc-shadow-lg);
 }
-.ck-toast--success{ border-left-color: var(--cmc-success); }
-.ck-toast--error{ border-left-color: var(--cmc-danger); }
-.ck-toast--info{ border-left-color: var(--cmc-brand); }
-.ck-toast-body{ flex: 1; min-width: 0; }
-.ck-toast-title{ font-size: 13.5px; font-weight: 600; color: var(--cmc-text); line-height: 1.3; }
-.ck-toast-desc{ margin-top: 3px; font-size: 12.5px; color: var(--cmc-text-muted); line-height: 1.4; }
-.ck-toast-dismiss{
+.console-toast-body { flex: 1; min-width: 0; }
+.console-toast-title { font-size: 13.5px; font-weight: 600; color: var(--cmc-text); line-height: 1.3; }
+.console-toast-desc { margin-top: 3px; font-size: 12.5px; color: var(--cmc-text-muted); line-height: 1.4; }
+.console-toast-dismiss {
   flex-shrink: 0; width: 28px; height: 28px; border: none; border-radius: var(--cmc-radius-control);
   background: transparent; color: var(--cmc-text-muted); cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.ck-toast-dismiss:hover{ background: var(--cmc-surface-sunken); color: var(--cmc-text); }
-
+.console-toast-dismiss:hover { background: var(--cmc-surface-sunken); color: var(--cmc-text); }
 /*
  * ConfirmDialog (Astryx AlertDialog → native <dialog>.showModal).
  * Browser top layer paints ABOVE all fixed z-index (toast 1100, cmd 1200).
  * Markers + backdrop chrome live here; z-index 1150 documents the intended
  * band if a future non-modal path is used.
  */
-.ck-dialog-root{
+.console-dialog-root {
   /* Registry hook only — does not create a stacking context for showModal. */
   display: contents;
 }
-dialog.ck-dialog{
+dialog.console-dialog {
   z-index: 1150;
   border: 1px solid var(--cmc-border-subtle);
   border-radius: var(--cmc-radius-lg);
@@ -2473,56 +1933,20 @@ dialog.ck-dialog{
   max-width: min(440px, calc(100vw - 32px));
   padding: 0;
 }
-dialog.ck-dialog::backdrop{
+dialog.console-dialog::backdrop {
   background: rgba(29, 29, 31, 0.45);
 }
-@media (prefers-reduced-motion: reduce) {
-  .o_web_client .sh-cta, .o_web_client .ck-mc, .o_web_client .sh-item, .ck-toast, .o_web_client .ck-fn-fill{ transition: none; }
-  .o_web_client .sh-cta:active, .o_web_client .ck-mc:active{ transform: none; }
+@media (prefers-reduced-motion: reduce) {.o_web_client .sh-item,
+.console-toast,
+.o_web_client .console-fn-fill { transition: none; }
 }
-
 /* Page templates — thin premium wrappers for list/detail/form/dashboard.
- * All pages share .tpl-wrap canvas chrome; only slots differ. */
-.o_web_client .tpl-wrap{ background: var(--cmc-canvas); min-height: 100%; padding: 24px 28px;
-  display: flex; flex-direction: column; gap: var(--cmc-gap-section); }
-.o_web_client .tpl-wrap--ops{ padding: 18px 22px; gap: 16px; }
-.o_web_client .tpl-list-body, .o_web_client .tpl-detail-body{ display: flex; flex-direction: column; flex: 1; min-height: 0; }
+ * All pages share .console-wrap canvas chrome; only slots differ. */
 
 /* List ControlBar — sticky ops chrome (Odoo ControlPanel analogue) */
-.o_web_client .tpl-control-bar{
-  display: flex;
-  flex-direction: column;
-  gap: var(--cmc-gap-cluster);
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  min-width: 0;
-  /* Quiet surface so scrolled table rows do not bleed through */
-  margin-inline: calc(-1 * var(--cmc-space-3, 16px));
-  padding: 10px var(--cmc-space-3, 16px) 12px;
-  background: color-mix(in srgb, var(--cmc-canvas) 92%, var(--cmc-surface-raised));
-  border-bottom: 1px solid var(--cmc-border-subtle);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: var(--cmc-shadow-xs);
-}
-.o_web_client .tpl-wrap--ops .tpl-control-bar{
-  margin-inline: calc(-1 * 12px);
-  padding-inline: 12px;
-}
-.o_web_client .tpl-control-bar-header, .o_web_client .tpl-control-bar-filters, .o_web_client .tpl-control-bar-footer{
-  min-width: 0;
-}
-.o_web_client .tpl-control-bar-footer{
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-}
 
 /* HighlightStrip — Lightning-style key field band under EntityHeader */
-.o_web_client .ck-highlight{
+.o_web_client .console-highlight {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px 20px;
@@ -2533,20 +1957,20 @@ dialog.ck-dialog::backdrop{
   box-shadow: var(--cmc-shadow-xs);
   min-width: 0;
 }
-.o_web_client .ck-highlight-item{
+.o_web_client .console-highlight-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
 }
-.o_web_client .ck-highlight-label{
+.o_web_client .console-highlight-label {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--cmc-text-muted);
 }
-.o_web_client .ck-highlight-value{
+.o_web_client .console-highlight-value {
   font-size: 14px;
   font-weight: 600;
   color: var(--cmc-text);
@@ -2555,18 +1979,17 @@ dialog.ck-dialog::backdrop{
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.o_web_client .ck-highlight-value--tabular{
+.o_web_client .console-highlight-value--tabular {
   font-variant-numeric: tabular-nums;
 }
-
 /* StatActions — Odoo smart buttons / related counts */
-.o_web_client .ck-stat-actions{
+.o_web_client .console-stat-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
 }
-.o_web_client .ck-stat-action{
+.o_web_client .console-stat-action {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -2581,208 +2004,98 @@ dialog.ck-dialog::backdrop{
   cursor: pointer;
   transition: background var(--cmc-transition, 160ms ease), border-color var(--cmc-transition, 160ms ease);
 }
-.o_web_client .ck-stat-action:hover{
+.o_web_client .console-stat-action:hover {
   background: var(--cmc-surface-2);
   border-color: var(--cmc-border);
 }
-.o_web_client .ck-stat-action-count{
+.o_web_client .console-stat-action-count {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--cmc-brand);
 }
-.o_web_client .ck-stat-action-label{
+.o_web_client .console-stat-action-label {
   color: var(--cmc-text-2);
 }
-
 /* WorkflowStatusbar wraps ProgressSteps with record-page spacing */
-.o_web_client .ck-workflow-statusbar{
-  min-width: 0;
-  padding: 4px 0;
-}
 
 /* ---- Detail page frame (entity · summary · tabs · body) — system-wide ---- */
-.o_web_client .tpl-detail{
-  display: flex;
-  flex-direction: column;
-  gap: var(--cmc-gap-section);
-}
-.o_web_client .tpl-detail-entity{
-  min-width: 0;
-}
-.o_web_client .tpl-detail-summary{
-  display: flex;
-  flex-direction: column;
-  gap: var(--cmc-gap-cluster);
-  min-width: 0;
-}
-.o_web_client .tpl-detail-tabs{
-  min-width: 0;
-  /* tabs sit in raised shell when page provides CmcTabs bare */
-}
-.o_web_client .tpl-detail-body{
-  display: flex;
-  flex-direction: column;
-  gap: var(--cmc-gap-cluster);
-  min-width: 0;
-  flex: 1;
-}
 /* Vertical stack of SectionBlocks */
-.o_web_client .tpl-detail-stack{
-  display: flex;
-  flex-direction: column;
-  gap: var(--cmc-gap-cluster);
-  min-width: 0;
-}
 /* 2-col desktop: primary content | secondary rail */
-.o_web_client .tpl-detail-split{
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--cmc-gap-cluster);
-  align-items: start;
-  min-width: 0;
-}
 @media (min-width: 1040px) {
-  .o_web_client .tpl-detail-split{
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  }
 }
 /* Tab panel inset — consistent with keyline */
-.o_web_client .tpl-detail-panel{
-  padding: var(--cmc-space-3) 0 0;
-  min-width: 0;
-}
 @media (max-width: 767px) {
-  .o_web_client .tpl-detail{
-    gap: var(--cmc-gap-cluster);
-  }
 }
-.o_web_client .tpl-form-body{ display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
-.o_web_client .tpl-actions{ position: sticky; bottom: 0; display: flex; justify-content: flex-end;
-  align-items: center; gap: 12px; padding: 14px var(--cmc-pad-card-x); background: var(--cmc-surface-raised);
-  border: 1px solid var(--cmc-border-subtle);
-  border-radius: var(--cmc-radius-md); box-shadow: var(--cmc-shadow-md); }
-
 /* Dashboard / cockpit — role-agnostic frame (content slots only change) */
-.o_web_client .tpl-dash{ gap: var(--cmc-gap-section); }
-.o_web_client .tpl-dash-title{
-  font-size: var(--cmc-fs-page); font-weight: 600; letter-spacing: -0.03em;
-  color: var(--cmc-text); margin: 0; line-height: 1.15;
-}
-.o_web_client .tpl-dash-sub{
-  font-size: var(--cmc-fs-body); color: var(--cmc-text-muted); margin: 6px 0 0; line-height: 1.4;
-}
-.o_web_client .tpl-dash-shortcuts{ display: flex; flex-wrap: wrap; gap: 10px; }
-.o_web_client .tpl-dash-chip{
-  display: inline-flex; align-items: center; gap: 8px;
-  height: 36px; padding: 0 14px;
-  border-radius: var(--cmc-radius-pill);
-  background: var(--cmc-surface-raised);
-  color: var(--cmc-text-2);
-  font-size: 13px; font-weight: 500; font-family: inherit;
-  text-decoration: none;
-  border: 1px solid var(--cmc-border-subtle);
-  box-shadow: var(--cmc-shadow-xs);
-  transition: background var(--cmc-transition), border-color var(--cmc-transition),
-    color var(--cmc-transition), box-shadow var(--cmc-transition);
-}
-.o_web_client .tpl-dash-chip:hover{
-  background: var(--cmc-brand-muted);
-  border-color: transparent;
-  color: var(--cmc-brand);
-  box-shadow: var(--cmc-shadow-sm);
-}
-.o_web_client .tpl-dash-chip:active{ transform: scale(0.98); }
-.o_web_client .tpl-dash-chip-icon{ color: var(--cmc-text-faint); display: flex; }
-.o_web_client .tpl-dash-chip:hover .tpl-dash-chip-icon{ color: var(--cmc-brand); }
-.o_web_client .tpl-dash-chip-badge{
-  min-width: 18px; height: 18px; padding: 0 5px;
-  border-radius: 999px; background: var(--cmc-brand-muted);
-  color: var(--cmc-brand); font-size: 11px; font-weight: 600;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-variant-numeric: tabular-nums;
-}
-.o_web_client .tpl-dash-metrics{
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--cmc-gap-cluster);
-}
-.o_web_client .tpl-dash-metrics > .ck-mc{ max-width: none; }
 @media (min-width: 1200px) {
-  .o_web_client .tpl-dash-metrics{ grid-template-columns: repeat(4, 1fr); }
-}
-.o_web_client .tpl-dash-body{
-  display: grid; gap: var(--cmc-gap-cluster); align-items: start;
-  grid-template-columns: 1fr;
 }
 @media (min-width: 1040px) {
-  .o_web_client .tpl-dash-body{ grid-template-columns: 1.4fr 1fr; }
 }
-.o_web_client .tpl-dash-primary, .o_web_client .tpl-dash-secondary{
-  display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); min-width: 0;
-}
-
 /* Pill primary CTA for form action bars — same shape language as .sh-cta. */
-.o_web_client .fp-action{ display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 22px;
+.o_web_client .fp-action { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 22px;
   border-radius: var(--cmc-radius-pill); background: var(--cmc-brand); color: #fff;
   font-size: 14px; font-weight: 600; border: none; cursor: pointer; font-family: inherit;
   transition: background var(--cmc-transition); }
-.o_web_client .fp-action:hover{ background: var(--cmc-brand-hover); }
+.o_web_client .fp-action:hover { background: var(--cmc-brand-hover); }
 @media (prefers-reduced-motion: reduce) {
-  .o_web_client .tpl-dash-chip:active{ transform: none; }
 }
-
 /* -------------------------------------------------------------------------
- * Completeness pack — section, KV, bulk, pagination, steps, settings, entity
- * Patterns adapted from Polaris settings, Stripe bulk bar, Linear steppers.
+ * Completeness pack — section,
+KV,
+bulk,
+pagination,
+steps,
+settings,
+entity
+ * Patterns adapted from Polaris settings,
+Stripe bulk bar,
+Linear steppers.
  * ---------------------------------------------------------------------- */
 
 /* Section block */
-.o_web_client .ck-sec{ display: flex; flex-direction: column; gap: 14px; }
-.o_web_client .ck-sec--raised{
+.o_web_client .console-sec { display: flex; flex-direction: column; gap: 14px; }
+.o_web_client .console-sec--raised {
   background: var(--cmc-surface-raised);
   border: 1px solid var(--cmc-border-subtle);
   border-radius: var(--cmc-radius-md);
   box-shadow: var(--cmc-shadow-sm);
   padding: 18px var(--cmc-pad-card-x) 20px;
 }
-.o_web_client .ck-sec-head{
+.o_web_client .console-sec-head {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
 }
-.o_web_client .ck-sec-title{
+.o_web_client .console-sec-title {
   margin: 0; font-size: var(--cmc-fs-title); font-weight: 600;
   letter-spacing: -0.02em; color: var(--cmc-text);
 }
-.o_web_client .ck-sec-desc{
+.o_web_client .console-sec-desc {
   margin: 4px 0 0; font-size: 13px; color: var(--cmc-text-muted); line-height: 1.45;
   max-width: 56ch;
 }
-.o_web_client .ck-sec-action{ flex-shrink: 0; }
-.o_web_client .ck-sec-body{ display: flex; flex-direction: column; gap: 12px; }
-
+.o_web_client .console-sec-action { flex-shrink: 0; }
+.o_web_client .console-sec-body { display: flex; flex-direction: column; gap: 12px; }
 /* Key-value detail list */
-.o_web_client .ck-kv{ margin: 0; display: flex; flex-direction: column; gap: 0; }
-.o_web_client .ck-kv--2{
+.o_web_client .console-kv { margin: 0; display: flex; flex-direction: column; gap: 0; }
+.o_web_client .console-kv--2 {
   display: grid; grid-template-columns: 1fr 1fr; gap: 0;
 }
-.o_web_client .ck-kv-row{
+.o_web_client .console-kv-row {
   display: grid; grid-template-columns: minmax(100px, 36%) 1fr; gap: 8px 14px;
   padding: 11px 0; border-bottom: 1px solid var(--cmc-border-subtle);
 }
-.o_web_client .ck-kv-row--full{ grid-column: 1 / -1; }
-.o_web_client .ck-kv-label{
+.o_web_client .console-kv-row--full { grid-column: 1 / -1; }
+.o_web_client .console-kv-label {
   margin: 0; font-size: 12px; font-weight: 600; color: var(--cmc-text-muted);
   letter-spacing: 0.01em;
 }
-.o_web_client .ck-kv-value{
+.o_web_client .console-kv-value {
   margin: 0; font-size: 13.5px; color: var(--cmc-text); font-variant-numeric: tabular-nums;
   line-height: 1.4; word-break: break-word;
 }
-@media (max-width: 640px) {
-  .o_web_client .ck-kv--2{ grid-template-columns: 1fr; }
+@media (max-width: 640px) {.o_web_client .console-kv--2 { grid-template-columns: 1fr; }
 }
-
 /* Bulk action bar */
-.o_web_client .ck-bulk{
+.o_web_client .console-bulk {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   padding: 10px 14px;
   background: var(--cmc-brand-muted);
@@ -2790,192 +2103,99 @@ dialog.ck-dialog::backdrop{
   border-radius: var(--cmc-radius-md);
   box-shadow: var(--cmc-shadow-xs);
 }
-.o_web_client .ck-bulk-meta{ display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.o_web_client .ck-bulk-count{
+.o_web_client .console-bulk-meta { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.o_web_client .console-bulk-count {
   min-width: 24px; height: 24px; padding: 0 7px;
   border-radius: 999px; background: var(--cmc-brand); color: #fff;
   font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
   font-variant-numeric: tabular-nums;
 }
-.o_web_client .ck-bulk-label{ font-weight: 500; color: var(--cmc-brand-ink); }
-.o_web_client .ck-bulk-clear{
+.o_web_client .console-bulk-label { font-weight: 500; color: var(--cmc-brand-ink); }
+.o_web_client .console-bulk-clear {
   border: none; background: transparent; color: var(--cmc-brand);
   font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 4px 6px;
   border-radius: 6px;
 }
-.o_web_client .ck-bulk-clear:hover{ background: var(--cmc-surface-raised); }
-.o_web_client .ck-bulk-actions{ display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-
+.o_web_client .console-bulk-clear:hover { background: var(--cmc-surface-raised); }
+.o_web_client .console-bulk-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 /* List pagination */
-.o_web_client .ck-page{
+.o_web_client .console-page {
   display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px 16px;
   padding: 10px var(--cmc-pad-card-x);
   background: var(--cmc-surface-raised);
   border-top: 1px solid var(--cmc-border-subtle);
   font-size: 12.5px; color: var(--cmc-text-muted);
 }
-.o_web_client .ck-page-range{ margin-right: auto; color: var(--cmc-text-2); }
-.o_web_client .ck-page-range strong{ color: var(--cmc-text); font-variant-numeric: tabular-nums; }
-.o_web_client .ck-page-size{
+.o_web_client .console-page-range { margin-right: auto; color: var(--cmc-text-2); }
+.o_web_client .console-page-range strong { color: var(--cmc-text); font-variant-numeric: tabular-nums; }
+.o_web_client .console-page-size {
   display: inline-flex; align-items: center; gap: 8px; font-size: 12px;
 }
-.o_web_client .ck-page-size select{
+.o_web_client .console-page-size select {
   height: 30px; padding: 0 8px; border-radius: var(--cmc-radius-control);
   border: 1px solid var(--cmc-border); background: var(--cmc-surface-sunken);
   font: inherit; color: var(--cmc-text); cursor: pointer;
 }
-.o_web_client .ck-page-nav{ display: flex; align-items: center; gap: 6px; }
-.o_web_client .ck-page-btn{
+.o_web_client .console-page-nav { display: flex; align-items: center; gap: 6px; }
+.o_web_client .console-page-btn {
   width: 32px; height: 32px; border-radius: var(--cmc-radius-control);
   border: 1px solid var(--cmc-border-subtle); background: var(--cmc-surface-raised);
   color: var(--cmc-text-2); font-size: 16px; cursor: pointer; font-family: inherit;
   transition: background var(--cmc-transition), border-color var(--cmc-transition);
 }
-.o_web_client .ck-page-btn:hover:not(:disabled){
+.o_web_client .console-page-btn:hover:not(:disabled) {
   background: var(--cmc-surface-sunken); border-color: var(--cmc-border);
 }
-.o_web_client .ck-page-btn:disabled{ opacity: 0.35; cursor: not-allowed; }
-.o_web_client .ck-page-indicator{
+.o_web_client .console-page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.o_web_client .console-page-indicator {
   min-width: 52px; text-align: center; font-weight: 600; color: var(--cmc-text);
   font-variant-numeric: tabular-nums; font-size: 12.5px;
 }
-
 /* Progress steps */
-.o_web_client .ck-steps{
-  list-style: none; margin: 0; padding: 4px 0 8px;
-  display: flex; align-items: stretch; gap: 0; overflow-x: auto;
-}
-.o_web_client .ck-steps-item{
-  position: relative; display: flex; align-items: center; flex: 1 1 0; min-width: 0;
-}
-.o_web_client .ck-steps-bridge{
-  position: absolute; left: -12%; top: 18px; width: 24%; height: 2px;
-  background: var(--cmc-border); border-radius: 1px; z-index: 0;
-}
-.o_web_client .ck-steps-item.is-done .ck-steps-bridge, .o_web_client .ck-steps-item.is-current .ck-steps-bridge{
-  background: color-mix(in srgb, var(--cmc-brand) 45%, var(--cmc-border));
-}
-.o_web_client .ck-steps-btn{
-  position: relative; z-index: 1;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  width: 100%; padding: 4px 6px; border: none; background: transparent;
-  cursor: default; font-family: inherit; color: var(--cmc-text-muted);
-}
-.o_web_client .ck-steps-btn:not(:disabled){ cursor: pointer; }
-.o_web_client .ck-steps-btn:not(:disabled):hover .ck-steps-label{ color: var(--cmc-brand); }
-.o_web_client .ck-steps-num{
-  width: 28px; height: 28px; border-radius: 999px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700;
-  background: var(--cmc-surface-sunken); color: var(--cmc-text-muted);
-  border: 1.5px solid transparent;
-  transition: background var(--cmc-transition), color var(--cmc-transition), border-color var(--cmc-transition);
-}
-.o_web_client .ck-steps-item.is-current .ck-steps-num{
-  background: var(--cmc-brand); color: #fff; box-shadow: 0 0 0 3px var(--cmc-brand-muted);
-}
-.o_web_client .ck-steps-item.is-done .ck-steps-num{
-  background: var(--cmc-success-soft); color: var(--cmc-success-ink);
-}
-.o_web_client .ck-steps-label{
-  font-size: 11.5px; font-weight: 500; text-align: center; line-height: 1.25;
-  max-width: 9em;
-}
-.o_web_client .ck-steps-item.is-current .ck-steps-label{
-  color: var(--cmc-brand-ink); font-weight: 600;
-}
-.o_web_client .ck-steps-item.is-done .ck-steps-label{ color: var(--cmc-text-2); }
 
 /* Settings section */
-.o_web_client .ck-set{
+.o_web_client .console-set {
   background: var(--cmc-surface-raised);
   border: 1px solid var(--cmc-border-subtle);
   border-radius: var(--cmc-radius-md);
   box-shadow: var(--cmc-shadow-sm);
   overflow: hidden;
 }
-.o_web_client .ck-set-head{
+.o_web_client .console-set-head {
   padding: 16px var(--cmc-pad-card-x) 12px;
   border-bottom: 1px solid var(--cmc-border-subtle);
 }
-.o_web_client .ck-set-title{
+.o_web_client .console-set-title {
   margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; color: var(--cmc-text);
 }
-.o_web_client .ck-set-lead{
+.o_web_client .console-set-lead {
   margin: 4px 0 0; font-size: 13px; color: var(--cmc-text-muted); line-height: 1.45;
 }
-.o_web_client .ck-set-body{ display: flex; flex-direction: column; }
-.o_web_client .ck-set-row{
+.o_web_client .console-set-body { display: flex; flex-direction: column; }
+.o_web_client .console-set-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 14px var(--cmc-pad-card-x);
   border-top: 1px solid var(--cmc-border-subtle);
 }
-.o_web_client .ck-set-row:first-child{ border-top: none; }
-.o_web_client .ck-set-copy{ min-width: 0; flex: 1; }
-.o_web_client .ck-set-label{ font-size: 14px; font-weight: 500; color: var(--cmc-text); }
-.o_web_client .ck-set-desc{ margin-top: 2px; font-size: 12.5px; color: var(--cmc-text-muted); line-height: 1.4; }
-.o_web_client .ck-set-control{ flex-shrink: 0; }
-
+.o_web_client .console-set-row:first-child { border-top: none; }
+.o_web_client .console-set-copy { min-width: 0; flex: 1; }
+.o_web_client .console-set-label { font-size: 14px; font-weight: 500; color: var(--cmc-text); }
+.o_web_client .console-set-desc { margin-top: 2px; font-size: 12.5px; color: var(--cmc-text-muted); line-height: 1.4; }
+.o_web_client .console-set-control { flex-shrink: 0; }
 /* SettingsShell — left rail + main (Polaris / Odoo settings) */
-.o_web_client .ck-settings-shell{
-  display: grid;
-  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
-  gap: var(--cmc-gap-cluster);
-  align-items: start;
-  min-width: 0;
-}
 @media (max-width: 860px) {
-  .o_web_client .ck-settings-shell{ grid-template-columns: 1fr; }
 }
-.o_web_client .ck-settings-rail{
-  background: var(--cmc-surface-raised);
-  border: 1px solid var(--cmc-border-subtle);
-  border-radius: var(--cmc-radius-md);
-  box-shadow: var(--cmc-shadow-xs);
-  padding: 12px 10px;
-  position: sticky;
-  top: 8px;
-  min-width: 0;
-}
-.o_web_client .ck-settings-rail-title{
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--cmc-text-muted);
-  padding: 4px 10px 10px;
-}
-.o_web_client .ck-settings-nav{ display: flex; flex-direction: column; gap: 2px; }
-.o_web_client .ck-settings-nav-item{
-  display: flex; align-items: flex-start; gap: 10px;
-  width: 100%; text-align: left;
-  padding: 10px 12px;
-  border: none; border-radius: var(--cmc-radius-control);
-  background: transparent; color: var(--cmc-text);
-  font: inherit; cursor: pointer;
-  transition: background var(--cmc-transition);
-}
-.o_web_client .ck-settings-nav-item:hover{ background: var(--cmc-surface-2); }
-.o_web_client .ck-settings-nav-item.is-active{
-  background: var(--cmc-brand-muted);
-  color: var(--cmc-brand-ink);
-}
-.o_web_client .ck-settings-nav-label{ display: block; font-size: 13.5px; font-weight: 600; }
-.o_web_client .ck-settings-nav-desc{ display: block; margin-top: 2px; font-size: 12px; color: var(--cmc-text-muted); line-height: 1.35; }
-.o_web_client .ck-settings-nav-item.is-active .ck-settings-nav-desc{ color: var(--cmc-brand-ink); opacity: 0.85; }
-.o_web_client .ck-settings-main{ min-width: 0; display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
-
 /* Command palette ⌘K */
-.ck-cmd{
+.console-cmd {
   position: fixed; inset: 0; z-index: 1200;
   display: flex; align-items: flex-start; justify-content: center;
   padding: min(18vh, 120px) 16px 16px;
 }
-.ck-cmd-backdrop{
+.console-cmd-backdrop {
   position: absolute; inset: 0; border: none; padding: 0;
   background: rgba(29, 29, 31, 0.45); cursor: pointer;
 }
-.ck-cmd-panel{
+.console-cmd-panel {
   position: relative; z-index: 1;
   width: min(560px, 100%);
   background: var(--cmc-surface-raised);
@@ -2985,206 +2205,120 @@ dialog.ck-dialog::backdrop{
   overflow: hidden;
   display: flex; flex-direction: column; max-height: min(70vh, 520px);
 }
-.ck-cmd-head{
+.console-cmd-head {
   display: flex; align-items: center; gap: 10px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--cmc-border-subtle);
 }
-.ck-cmd-input{
+.console-cmd-input {
   flex: 1; min-width: 0; border: none; outline: none;
   font: inherit; font-size: 15px; color: var(--cmc-text);
   background: transparent;
 }
-.ck-cmd-input::placeholder{ color: var(--cmc-text-faint); }
-.ck-cmd-kbd{
+.console-cmd-input::placeholder { color: var(--cmc-text-faint); }
+.console-cmd-kbd {
   font-size: 11px; font-weight: 600; font-family: inherit;
   padding: 2px 6px; border-radius: 6px;
   border: 1px solid var(--cmc-border);
   background: var(--cmc-surface-2); color: var(--cmc-text-muted);
 }
-.ck-cmd-list{ overflow: auto; flex: 1; padding: 8px; }
-.ck-cmd-empty{
+.console-cmd-list { overflow: auto; flex: 1; padding: 8px; }
+.console-cmd-empty {
   padding: 28px 16px; text-align: center;
   font-size: 13px; color: var(--cmc-text-muted);
 }
-.ck-cmd-group{ margin-bottom: 8px; }
-.ck-cmd-group-label{
+.console-cmd-group { margin-bottom: 8px; }
+.console-cmd-group-label {
   font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
   text-transform: uppercase; color: var(--cmc-text-muted);
   padding: 6px 10px 4px;
 }
-.ck-cmd-item{
+.console-cmd-item {
   display: flex; align-items: center; gap: 10px;
   width: 100%; text-align: left;
   padding: 10px 12px; border: none; border-radius: var(--cmc-radius-control);
   background: transparent; color: var(--cmc-text);
   font: inherit; font-size: 14px; cursor: pointer;
 }
-.ck-cmd-item:hover, .ck-cmd-item.is-active{
+.console-cmd-item:hover,
+.console-cmd-item.is-active {
   background: var(--cmc-brand-muted); color: var(--cmc-brand-ink);
 }
-.ck-cmd-item-label{ flex: 1; min-width: 0; font-weight: 500; }
-.ck-cmd-item-meta{
+.console-cmd-item-label { flex: 1; min-width: 0; font-weight: 500; }
+.console-cmd-item-meta {
   font-size: 12px; color: var(--cmc-text-muted); flex-shrink: 0;
 }
-.ck-cmd-foot{
+.console-cmd-foot {
   display: flex; flex-wrap: wrap; gap: 12px 16px;
   padding: 8px 14px;
   border-top: 1px solid var(--cmc-border-subtle);
   font-size: 11.5px; color: var(--cmc-text-muted);
   background: var(--cmc-surface-2);
 }
-
 /* Entity header */
-.o_web_client .ck-eh{
-  background: var(--cmc-surface-raised);
-  border: 1px solid var(--cmc-border-subtle);
-  border-radius: var(--cmc-radius-md);
-  box-shadow: var(--cmc-shadow-sm);
-  padding: 16px var(--cmc-pad-card-x) 18px;
-  display: flex; flex-direction: column; gap: 12px;
-}
-.o_web_client .ck-eh-back{
-  display: inline-flex; align-items: center; gap: 2px;
-  font-size: 12.5px; font-weight: 500; color: var(--cmc-text-muted);
-  text-decoration: none; width: fit-content;
-}
-.o_web_client .ck-eh-back svg{ transform: rotate(180deg); }
-.o_web_client .ck-eh-back:hover{ color: var(--cmc-brand); }
-.o_web_client .ck-eh-main{
-  display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap;
-}
-.o_web_client .ck-eh-avatar{
-  width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
-  background: linear-gradient(145deg, var(--cmc-brand-muted), color-mix(in srgb, var(--cmc-brand) 18%, #fff));
-  color: var(--cmc-brand-ink);
-  font-size: 18px; font-weight: 700; letter-spacing: -0.02em;
-  display: flex; align-items: center; justify-content: center;
-}
-.o_web_client .ck-eh-id{ flex: 1; min-width: 160px; }
-.o_web_client .ck-eh-title-row{
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
-}
-.o_web_client .ck-eh-title{
-  margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -0.03em;
-  color: var(--cmc-text); line-height: 1.2;
-}
-.o_web_client .ck-eh-badges{ display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.o_web_client .ck-eh-sub{
-  margin: 4px 0 0; font-size: 13.5px; color: var(--cmc-text-muted); line-height: 1.4;
-}
-.o_web_client .ck-eh-meta{
-  margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px 14px;
-  font-size: 12px; color: var(--cmc-text-faint); font-variant-numeric: tabular-nums;
-}
-.o_web_client .ck-eh-actions{
-  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto;
-}
 
 /* Inventory matrix (Design Lab helper) */
-.o_web_client .ck-inv{
-  width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.4;
-}
-.o_web_client .ck-inv th{
-  text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600;
-  letter-spacing: 0.04em; text-transform: uppercase; color: var(--cmc-text-muted);
-  border-bottom: 1px solid var(--cmc-border-subtle);
-}
-.o_web_client .ck-inv td{
-  padding: 10px; border-bottom: 1px solid var(--cmc-border-subtle); vertical-align: top;
-}
-.o_web_client .ck-inv-ok{ color: var(--cmc-success-ink); font-weight: 600; font-size: 12px; }
-.o_web_client .ck-inv-partial{ color: var(--cmc-warning-ink); font-weight: 600; font-size: 12px; }
-.o_web_client .ck-inv-miss{ color: var(--cmc-danger-ink); font-weight: 600; font-size: 12px; }
-.o_web_client .ck-inv-tag{
-  display: inline-block; padding: 2px 7px; border-radius: 999px;
-  font-size: 10.5px; font-weight: 600; background: var(--cmc-surface-sunken); color: var(--cmc-text-muted);
-}
 
 /* -------------------------------------------------------------------------
  * Xia port pack — Shopify callout · Primer meta/count · Cal/Airbnb avatar · timeline
  * ---------------------------------------------------------------------- */
 
 /* Callout (softer than Banner) */
-.o_web_client .ck-callout{
+.o_web_client .console-callout {
   display: flex; align-items: flex-start; gap: 12px;
   padding: 12px 14px;
   border-radius: var(--cmc-radius-md);
   border: 1px solid var(--cmc-border-subtle);
   background: var(--cmc-surface-2);
 }
-.o_web_client .ck-callout--info{
-  background: var(--cmc-info-soft);
-  border-color: color-mix(in srgb, var(--cmc-brand) 18%, var(--cmc-border-subtle));
-}
-.o_web_client .ck-callout--success{
-  background: var(--cmc-success-soft);
-  border-color: color-mix(in srgb, var(--cmc-success) 20%, var(--cmc-border-subtle));
-}
-.o_web_client .ck-callout--warning{
+.o_web_client .console-callout--warning {
   background: var(--cmc-warning-soft);
   border-color: color-mix(in srgb, var(--cmc-warning) 22%, var(--cmc-border-subtle));
 }
-.o_web_client .ck-callout--danger{
-  background: var(--cmc-danger-soft);
-  border-color: color-mix(in srgb, var(--cmc-danger) 20%, var(--cmc-border-subtle));
-}
-.o_web_client .ck-callout--neutral{
-  background: var(--cmc-neutral-soft);
-}
-.o_web_client .ck-callout-icon{
+.o_web_client .console-callout-icon {
   flex-shrink: 0; width: 28px; height: 28px; border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
   background: var(--cmc-surface-raised); color: var(--cmc-text-muted);
   box-shadow: var(--cmc-shadow-xs);
 }
-.o_web_client .ck-callout--info .ck-callout-icon{ color: var(--cmc-brand); }
-.o_web_client .ck-callout--success .ck-callout-icon{ color: var(--cmc-success); }
-.o_web_client .ck-callout--warning .ck-callout-icon{ color: var(--cmc-warning); }
-.o_web_client .ck-callout--danger .ck-callout-icon{ color: var(--cmc-danger); }
-.o_web_client .ck-callout-body{ flex: 1; min-width: 0; }
-.o_web_client .ck-callout-title{
+.o_web_client .console-callout--warning .console-callout-icon { color: var(--cmc-warning); }
+.o_web_client .console-callout-body { flex: 1; min-width: 0; }
+.o_web_client .console-callout-title {
   font-size: 13.5px; font-weight: 600; color: var(--cmc-text);
   letter-spacing: -0.01em; margin-bottom: 2px;
 }
-.o_web_client .ck-callout-text{
+.o_web_client .console-callout-text {
   font-size: 13px; color: var(--cmc-text-2); line-height: 1.5;
 }
-.o_web_client .ck-callout-action{ flex-shrink: 0; align-self: center; }
-
+.o_web_client .console-callout-action { flex-shrink: 0; align-self: center; }
 /* Avatar */
-.o_web_client .ck-av{
+.o_web_client .console-av {
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 999px; overflow: hidden; flex-shrink: 0;
   background: linear-gradient(145deg, var(--cmc-brand-muted), color-mix(in srgb, var(--cmc-brand) 16%, #fff));
   color: var(--cmc-brand-ink); font-weight: 700; letter-spacing: -0.02em;
   vertical-align: middle;
 }
-.o_web_client .ck-av--sm{ width: 28px; height: 28px; font-size: 11px; }
-.o_web_client .ck-av--md{ width: 36px; height: 36px; font-size: 13px; }
-.o_web_client .ck-av--lg{ width: 48px; height: 48px; font-size: 16px; border-radius: 14px; }
-.o_web_client .ck-av.is-ring{
+.o_web_client .console-av.is-ring {
   box-shadow: 0 0 0 2px var(--cmc-surface-raised), 0 0 0 3.5px var(--cmc-accent-soft);
 }
-.o_web_client .ck-av-img{ width: 100%; height: 100%; object-fit: cover; display: block; }
-.o_web_client .ck-av-initials{ line-height: 1; }
-
+.o_web_client .console-av-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.o_web_client .console-av-initials { line-height: 1; }
 /* Meta row (GitHub dense) */
-.o_web_client .ck-meta-row{
+.o_web_client .console-meta-row {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
   font-size: 12.5px; color: var(--cmc-text-muted);
 }
-.o_web_client .ck-meta-item{
+.o_web_client .console-meta-item {
   display: inline-flex; align-items: center; gap: 6px;
   font-variant-numeric: tabular-nums;
 }
-.o_web_client .ck-meta-dot{
+.o_web_client .console-meta-dot {
   width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0;
 }
-.o_web_client .ck-meta-text{ line-height: 1.3; }
-
+.o_web_client .console-meta-text { line-height: 1.3; }
 /* Count badge (tab/nav) */
-.o_web_client .ck-count{
+.o_web_client .console-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 18px; height: 18px; padding: 0 6px;
   border-radius: 999px;
@@ -3192,111 +2326,84 @@ dialog.ck-dialog::backdrop{
   background: var(--cmc-surface-sunken); color: var(--cmc-text-muted);
   font-variant-numeric: tabular-nums; vertical-align: middle;
 }
-.o_web_client .ck-count.is-emphasize{
+.o_web_client .console-count.is-emphasize {
   background: var(--cmc-brand-muted); color: var(--cmc-brand);
 }
-
 /* Activity timeline */
-.o_web_client .ck-tl{
+.o_web_client .console-tl {
   list-style: none; margin: 0; padding: 4px 0 0;
   display: flex; flex-direction: column;
 }
-.o_web_client .ck-tl-item{
+.o_web_client .console-tl-item {
   display: flex; gap: 12px; align-items: stretch;
 }
-.o_web_client .ck-tl-rail{
+.o_web_client .console-tl-rail {
   width: 16px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;
   position: relative;
 }
-.o_web_client .ck-tl-dot{
+.o_web_client .console-tl-dot {
   width: 9px; height: 9px; border-radius: 999px; margin-top: 5px;
   box-shadow: 0 0 0 3px var(--cmc-surface-raised);
   z-index: 1;
 }
-.o_web_client .ck-tl-line{
+.o_web_client .console-tl-line {
   flex: 1; width: 2px; min-height: 12px;
   background: var(--cmc-border-subtle); margin: 4px 0 0;
   border-radius: 1px;
 }
-.o_web_client .ck-tl-body{
+.o_web_client .console-tl-body {
   flex: 1; min-width: 0; padding-bottom: 16px;
 }
-.o_web_client .ck-tl-item:last-child .ck-tl-body{ padding-bottom: 4px; }
-.o_web_client .ck-tl-head{
+.o_web_client .console-tl-item:last-child .console-tl-body { padding-bottom: 4px; }
+.o_web_client .console-tl-head {
   display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
 }
-.o_web_client .ck-tl-title{
+.o_web_client .console-tl-title {
   font-size: 13.5px; font-weight: 550; color: var(--cmc-text); letter-spacing: -0.01em;
 }
-.o_web_client .ck-tl-time{
+.o_web_client .console-tl-time {
   font-size: 11.5px; color: var(--cmc-text-faint); font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
-.o_web_client .ck-tl-meta{
+.o_web_client .console-tl-meta {
   margin-top: 2px; font-size: 12.5px; color: var(--cmc-text-muted); line-height: 1.4;
 }
-.o_web_client .ck-tl-trailing{ margin-top: 6px; }
-.o_web_client .ck-tl-empty{ padding: 8px 0; color: var(--cmc-text-muted); font-size: 13px; }
-
+.o_web_client .console-tl-trailing { margin-top: 6px; }
+.o_web_client .console-tl-empty { padding: 8px 0; color: var(--cmc-text-muted); font-size: 13px; }
 /* Xia reference cards (Design Lab) */
-.o_web_client .ck-xia-grid{
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
-}
-.o_web_client .ck-xia-card{
-  background: var(--cmc-surface-raised);
-  border: 1px solid var(--cmc-border-subtle);
-  border-radius: var(--cmc-radius-md);
-  box-shadow: var(--cmc-shadow-xs);
-  padding: 14px 16px;
-  display: flex; flex-direction: column; gap: 8px;
-}
-.o_web_client .ck-xia-card h4{
-  margin: 0; font-size: 13px; font-weight: 650; color: var(--cmc-text);
-  letter-spacing: -0.01em;
-}
-.o_web_client .ck-xia-card p{
-  margin: 0; font-size: 12px; color: var(--cmc-text-muted); line-height: 1.45;
-}
-.o_web_client .ck-xia-card .ck-xia-port{
-  font-size: 11px; font-weight: 600; color: var(--cmc-success-ink);
-  background: var(--cmc-success-soft); padding: 3px 8px; border-radius: 999px; width: fit-content;
-}
-.o_web_client .ck-xia-card .ck-xia-skip{
-  font-size: 11px; font-weight: 600; color: var(--cmc-text-muted);
-  background: var(--cmc-surface-sunken); padding: 3px 8px; border-radius: 999px; width: fit-content;
-}
 
 /* -------------------------------------------------------------------------
  * Education schedule v3 — fixed-slot geometry + mobile/desktop
- * Same component = same height; long text truncates, never reflows rows.
+ * Same component = same height; long text truncates,
+never reflows rows.
  * Breakpoints: mobile ≤767 · desktop ≥768 (week board).
  * ---------------------------------------------------------------------- */
 
 /* Session card — progressive fields + fixed slots */
-.o_web_client .ck-sc{
-  --ck-sc-pad-y: 10px;
-  --ck-sc-pad-x: 12px;
-  --ck-sc-gap: 4px;
-  --ck-sc-top-h: 22px;
-  --ck-sc-title-h: 18px;
-  --ck-sc-line-h: 15px;
-  --ck-sc-sec-h: 32px; /* two lines default */
-  --ck-sc-cta-h: 28px;
-  --ck-sc-radius: 14px;
-  --ck-sc-min-h: calc(
-    var(--ck-sc-pad-y) * 2 + var(--ck-sc-gap) * 3
-    + var(--ck-sc-top-h) + var(--ck-sc-title-h)
-    + var(--ck-sc-sec-h) + var(--ck-sc-cta-h)
+.o_web_client .console-sc {
+  --console-sc-pad-y: 10px;
+  --console-sc-pad-x: 12px;
+  --console-sc-gap: 4px;
+  --console-sc-top-h: 22px;
+  --console-sc-title-h: 18px;
+  --console-sc-line-h: 15px;
+  --console-sc-sec-h: 32px; /* two lines default */
+  --console-sc-cta-h: 28px;
+  --console-sc-radius: 14px;
+  --console-sc-min-h: calc(
+    var(--console-sc-pad-y) * 2 + var(--console-sc-gap) * 3
+    + var(--console-sc-top-h) + var(--console-sc-title-h)
+    + var(--console-sc-sec-h) + var(--console-sc-cta-h)
   );
 
   display: flex;
   flex-direction: column;
-  gap: var(--ck-sc-gap);
+  gap: var(--console-sc-gap);
   box-sizing: border-box;
-  min-height: var(--ck-sc-min-h);
-  height: var(--ck-sc-min-h);
-  padding: var(--ck-sc-pad-y) var(--ck-sc-pad-x);
-  border-radius: var(--ck-sc-radius);
+  min-height: var(--console-sc-min-h);
+  height: var(--console-sc-min-h);
+  padding: var(--console-sc-pad-y) var(--console-sc-pad-x);
+  border-radius: var(--console-sc-radius);
   background: var(--cmc-surface-raised);
   border: 1px solid transparent;
   box-shadow: 0 1px 2px rgba(28, 25, 20, 0.04), 0 0 0 1px var(--cmc-border-subtle);
@@ -3309,92 +2416,49 @@ dialog.ck-dialog::backdrop{
   width: 100%;
   min-width: 0;
 }
-.o_web_client .ck-sc::before{
+.o_web_client .console-sc::before {
   content: '';
   position: absolute;
   inset: 0 auto 0 0;
   width: var(--cmc-rail-w);
-  border-radius: var(--ck-sc-radius) 0 0 var(--ck-sc-radius);
+  border-radius: var(--console-sc-radius) 0 0 var(--console-sc-radius);
   background: var(--cmc-brand);
 }
 /* Compact: one secondary line only */
-.o_web_client .ck-sc.is-compact{
-  --ck-sc-pad-y: 8px;
-  --ck-sc-pad-x: 10px;
-  --ck-sc-gap: 3px;
-  --ck-sc-top-h: 20px;
-  --ck-sc-title-h: 16px;
-  --ck-sc-line-h: 14px;
-  --ck-sc-sec-h: 14px; /* single P1/P2 line */
-  --ck-sc-cta-h: 26px;
-  --ck-sc-radius: 12px;
+.o_web_client .console-sc.is-compact {
+  --console-sc-pad-y: 8px;
+  --console-sc-pad-x: 10px;
+  --console-sc-gap: 3px;
+  --console-sc-top-h: 20px;
+  --console-sc-title-h: 16px;
+  --console-sc-line-h: 14px;
+  --console-sc-sec-h: 14px; /* single P1/P2 line */
+  --console-sc-cta-h: 26px;
+  --console-sc-radius: 12px;
 }
-.o_web_client .ck-sc.is-link{ cursor: pointer; }
-.o_web_client .ck-sc.is-link:hover{
+.o_web_client .console-sc.is-link { cursor: pointer; }
+.o_web_client .console-sc.is-link:hover {
   box-shadow: var(--cmc-shadow-md);
   transform: translateY(-1px);
 }
-@media (prefers-reduced-motion: reduce) {
-  .o_web_client .ck-sc.is-link:hover{ transform: none; }
-  .o_web_client .ck-sc--live .ck-sc-dot{ animation: none; }
+@media (prefers-reduced-motion: reduce) {.o_web_client .console-sc.is-link:hover { transform: none; }
 }
-
-.o_web_client .ck-sc--planned{
-  background: color-mix(in srgb, var(--cmc-surface-sunken) 45%, var(--cmc-surface-raised));
+@keyframes console-sc-pulse {0%,
+100% { opacity: 1; }50% { opacity: 0.45; }
 }
-.o_web_client .ck-sc--planned::before{ background: var(--cmc-text-faint); }
-.o_web_client .ck-sc--active{
-  background: color-mix(in srgb, var(--cmc-brand-muted) 55%, var(--cmc-surface-raised));
-  box-shadow: 0 1px 2px rgba(0, 113, 227, 0.06),
-    0 0 0 1px color-mix(in srgb, var(--cmc-brand) 12%, transparent);
-}
-.o_web_client .ck-sc--active::before{ background: var(--cmc-brand); }
-.o_web_client .ck-sc--live{
-  background: linear-gradient(145deg,
-    color-mix(in srgb, var(--cmc-brand-muted) 70%, #fff) 0%,
-    color-mix(in srgb, var(--cmc-success-soft) 35%, #fff) 100%);
-  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.1),
-    0 0 0 1px color-mix(in srgb, var(--cmc-brand) 18%, transparent);
-}
-.o_web_client .ck-sc--live::before{
-  background: linear-gradient(180deg, var(--cmc-brand), var(--cmc-success));
-}
-.o_web_client .ck-sc--live .ck-sc-dot{
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cmc-success) 25%, transparent);
-  animation: ck-sc-pulse 1.8s ease-in-out infinite;
-}
-.o_web_client .ck-sc--done{ background: var(--cmc-surface-raised); opacity: 0.78; }
-.o_web_client .ck-sc--done::before{ background: var(--cmc-text-muted); }
-.o_web_client .ck-sc--cancelled{
-  background: color-mix(in srgb, var(--cmc-danger-soft) 25%, var(--cmc-surface-raised));
-  opacity: 0.7;
-}
-.o_web_client .ck-sc--cancelled::before{ background: var(--cmc-danger); }
-.o_web_client .ck-sc--attention{
-  background: color-mix(in srgb, var(--cmc-warning-soft) 65%, var(--cmc-surface-raised));
-  box-shadow: 0 1px 3px rgba(178, 106, 0, 0.08),
-    0 0 0 1px color-mix(in srgb, var(--cmc-warning) 18%, transparent);
-}
-.o_web_client .ck-sc--attention::before{ background: var(--cmc-warning); }
-
-@keyframes ck-sc-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
-}
-
 /* P0 time | status */
-.o_web_client .ck-sc-top{
+.o_web_client .console-sc-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  height: var(--ck-sc-top-h);
-  min-height: var(--ck-sc-top-h);
-  max-height: var(--ck-sc-top-h);
+  height: var(--console-sc-top-h);
+  min-height: var(--console-sc-top-h);
+  max-height: var(--console-sc-top-h);
   flex-shrink: 0;
   min-width: 0;
 }
-.o_web_client .ck-sc-time{
+.o_web_client .console-sc-time {
   flex: 1 1 auto;
   min-width: 0;
   font-size: 12px;
@@ -3406,12 +2470,11 @@ dialog.ck-dialog::backdrop{
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: var(--ck-sc-top-h);
+  line-height: var(--console-sc-top-h);
 }
-.o_web_client .ck-sc.is-compact .ck-sc-time{ font-size: 11px; }
+.o_web_client .console-sc.is-compact .console-sc-time { font-size: 11px; }
 /* Empty time still reserves height via nbsp from component */
-
-.o_web_client .ck-sc-chip{
+.o_web_client .console-sc-chip {
   flex: 0 1 auto;
   display: inline-flex;
   align-items: center;
@@ -3428,51 +2491,41 @@ dialog.ck-dialog::backdrop{
   white-space: nowrap;
   overflow: hidden;
 }
-.o_web_client .ck-sc.is-compact .ck-sc-chip{ height: 17px; max-width: 44%; font-size: 9.5px; }
-.o_web_client .ck-sc-chip-label{
+.o_web_client .console-sc.is-compact .console-sc-chip { height: 17px; max-width: 44%; font-size: 9.5px; }
+.o_web_client .console-sc-chip-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.o_web_client .ck-sc-dot{
+.o_web_client .console-sc-dot {
   width: 6px;
   height: 6px;
   border-radius: 999px;
   flex-shrink: 0;
   background: var(--cmc-brand);
 }
-.o_web_client .ck-sc--planned .ck-sc-dot{ background: var(--cmc-text-faint); }
-.o_web_client .ck-sc--active .ck-sc-dot{ background: var(--cmc-brand); }
-.o_web_client .ck-sc--live .ck-sc-dot{ background: var(--cmc-success); }
-.o_web_client .ck-sc--done .ck-sc-dot{ background: var(--cmc-text-muted); }
-.o_web_client .ck-sc--cancelled .ck-sc-dot{ background: var(--cmc-danger); }
-.o_web_client .ck-sc--attention .ck-sc-dot{ background: var(--cmc-warning); }
-.o_web_client .ck-sc--live .ck-sc-chip{ color: var(--cmc-success-ink); }
-.o_web_client .ck-sc--attention .ck-sc-chip{ color: var(--cmc-warning-ink); }
-
 /* P0 title */
-.o_web_client .ck-sc-title{
-  height: var(--ck-sc-title-h);
-  min-height: var(--ck-sc-title-h);
-  max-height: var(--ck-sc-title-h);
+.o_web_client .console-sc-title {
+  height: var(--console-sc-title-h);
+  min-height: var(--console-sc-title-h);
+  max-height: var(--console-sc-title-h);
   flex-shrink: 0;
   font-size: 13.5px;
   font-weight: 650;
   letter-spacing: -0.025em;
   color: var(--cmc-text);
-  line-height: var(--ck-sc-title-h);
+  line-height: var(--console-sc-title-h);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
 }
-.o_web_client .ck-sc.is-compact .ck-sc-title{ font-size: 12.5px; }
-
+.o_web_client .console-sc.is-compact .console-sc-title { font-size: 12.5px; }
 /* P1/P2 secondary block */
-.o_web_client .ck-sc-secondary{
-  height: var(--ck-sc-sec-h);
-  min-height: var(--ck-sc-sec-h);
-  max-height: var(--ck-sc-sec-h);
+.o_web_client .console-sc-secondary {
+  height: var(--console-sc-sec-h);
+  min-height: var(--console-sc-sec-h);
+  max-height: var(--console-sc-sec-h);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -3481,9 +2534,9 @@ dialog.ck-dialog::backdrop{
   min-width: 0;
   overflow: hidden;
 }
-.o_web_client .ck-sc-line{
-  height: var(--ck-sc-line-h);
-  line-height: var(--ck-sc-line-h);
+.o_web_client .console-sc-line {
+  height: var(--console-sc-line-h);
+  line-height: var(--console-sc-line-h);
   font-size: 11.5px;
   white-space: nowrap;
   overflow: hidden;
@@ -3491,28 +2544,27 @@ dialog.ck-dialog::backdrop{
   min-width: 0;
   font-variant-numeric: tabular-nums;
 }
-.o_web_client .ck-sc-line--p1{
+.o_web_client .console-sc-line--p1 {
   font-weight: 550;
   color: var(--cmc-text-2);
 }
-.o_web_client .ck-sc-line--p2{
+.o_web_client .console-sc-line--p2 {
   font-weight: 500;
   color: var(--cmc-text-muted);
   font-size: 11px;
 }
-.o_web_client .ck-sc.is-compact .ck-sc-line{ font-size: 11px; }
-
+.o_web_client .console-sc.is-compact .console-sc-line { font-size: 11px; }
 /* CTA slot */
-.o_web_client .ck-sc-cta-slot{
+.o_web_client .console-sc-cta-slot {
   margin-top: auto;
-  height: var(--ck-sc-cta-h);
-  min-height: var(--ck-sc-cta-h);
-  max-height: var(--ck-sc-cta-h);
+  height: var(--console-sc-cta-h);
+  min-height: var(--console-sc-cta-h);
+  max-height: var(--console-sc-cta-h);
   flex-shrink: 0;
   display: flex;
   align-items: stretch;
 }
-.o_web_client .ck-sc-cta{
+.o_web_client .console-sc-cta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3530,37 +2582,38 @@ dialog.ck-dialog::backdrop{
     border-color var(--cmc-transition);
   min-width: 0;
 }
-.o_web_client .ck-sc-cta-label{
+.o_web_client .console-sc-cta-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.o_web_client .ck-sc.is-compact .ck-sc-cta{ font-size: 11px; }
-.o_web_client .ck-sc.is-link:hover .ck-sc-cta{
+.o_web_client .console-sc.is-compact .console-sc-cta { font-size: 11px; }
+.o_web_client .console-sc.is-link:hover .console-sc-cta {
   background: var(--cmc-brand);
   color: #fff;
   border-color: transparent;
 }
-.o_web_client .ck-sc-cta-spacer{
+.o_web_client .console-sc-cta-spacer {
   display: block;
   width: 100%;
   height: 100%;
   visibility: hidden;
   pointer-events: none;
 }
-
 /* -------------------------------------------------------------------------
- * Week board — equal columns, scroll-snap mobile, desktop 7-col
+ * Week board — equal columns,
+scroll-snap mobile,
+desktop 7-col
  * ---------------------------------------------------------------------- */
-.o_web_client .ck-week{
-  --ck-week-col-min: 132px;
+.o_web_client .console-week {
+  --console-week-col-min: 132px;
   background: color-mix(in srgb, var(--cmc-canvas) 40%, var(--cmc-surface-raised));
   border: 1px solid var(--cmc-border-subtle);
   border-radius: 20px;
   box-shadow: var(--cmc-shadow-sm);
   overflow: hidden;
 }
-.o_web_client .ck-week-toolbar{
+.o_web_client .console-week-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3571,7 +2624,7 @@ dialog.ck-dialog::backdrop{
   background: color-mix(in srgb, var(--cmc-surface-raised) 90%, transparent);
   backdrop-filter: blur(12px);
 }
-.o_web_client .ck-week-toolbar-title{
+.o_web_client .console-week-toolbar-title {
   font-size: 14px;
   font-weight: 650;
   letter-spacing: -0.02em;
@@ -3581,15 +2634,14 @@ dialog.ck-dialog::backdrop{
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.o_web_client .ck-week-toolbar-actions{
+.o_web_client .console-week-toolbar-actions {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
 }
-
 /* Desktop: 7 equal columns */
-.o_web_client .ck-week-grid{
+.o_web_client .console-week-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
@@ -3601,10 +2653,8 @@ dialog.ck-dialog::backdrop{
       transparent 70%),
     transparent;
 }
-
 /* Mobile: horizontal snap scroll — cards never squash */
-@media (max-width: 767px) {
-  .o_web_client .ck-week-grid{
+@media (max-width: 767px) {.o_web_client .console-week-grid {
     display: flex;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
@@ -3613,48 +2663,43 @@ dialog.ck-dialog::backdrop{
     padding: 12px 12px 14px;
     grid-template-columns: none;
   }
-  .o_web_client .ck-week-col{
+.o_web_client .console-week-col {
     flex: 0 0 min(72vw, 220px);
     width: min(72vw, 220px);
     max-width: 220px;
     scroll-snap-align: start;
   }
-  .o_web_client .ck-week{
+.o_web_client .console-week {
     border-radius: 16px;
   }
-  .o_web_client .ck-week-toolbar{
+.o_web_client .console-week-toolbar {
     padding: 10px 12px;
     min-height: 44px;
   }
-  .o_web_client .ck-week-toolbar-title{ font-size: 13px; }
-  .o_web_client .ck-week-legend{
+.o_web_client .console-week-toolbar-title { font-size: 13px; }
+.o_web_client .console-week-legend {
     gap: 6px;
     padding: 8px 10px 12px;
   }
-  .o_web_client .ck-smon-grid{
+.o_web_client .console-smon-grid {
     grid-template-columns: 1fr;
   }
-  .o_web_client .ck-kanban-col{
-    flex: 0 0 min(80vw, 260px);
-  }
 }
-
 @media (min-width: 768px) and (max-width: 1100px) {
   /* tablet: still scroll if cramped rather than squash text */
-  .o_web_client .ck-week-grid{
+.o_web_client .console-week-grid {
     display: flex;
     overflow-x: auto;
     scroll-snap-type: x proximity;
     gap: 8px;
   }
-  .o_web_client .ck-week-col{
+.o_web_client .console-week-col {
     flex: 0 0 clamp(128px, 14vw, 160px);
     width: clamp(128px, 14vw, 160px);
     scroll-snap-align: start;
   }
 }
-
-.o_web_client .ck-week-col{
+.o_web_client .console-week-col {
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -3664,10 +2709,10 @@ dialog.ck-dialog::backdrop{
   border: 1px solid color-mix(in srgb, var(--cmc-border-subtle) 90%, transparent);
   box-shadow: 0 1px 2px rgba(28, 25, 20, 0.03);
 }
-.o_web_client .ck-week-col.is-weekend{
+.o_web_client .console-week-col.is-weekend {
   background: color-mix(in srgb, var(--cmc-canvas) 65%, var(--cmc-surface-raised));
 }
-.o_web_client .ck-week-col.is-today{
+.o_web_client .console-week-col.is-today {
   background: linear-gradient(180deg,
     color-mix(in srgb, var(--cmc-brand-muted) 55%, #fff) 0%,
     var(--cmc-surface-raised) 48%);
@@ -3675,14 +2720,13 @@ dialog.ck-dialog::backdrop{
   box-shadow: 0 4px 16px rgba(0, 113, 227, 0.1),
     0 0 0 1px color-mix(in srgb, var(--cmc-brand) 10%, transparent);
 }
-.o_web_client .ck-week-col.is-today .ck-week-num{
+.o_web_client .console-week-col.is-today .console-week-num {
   background: var(--cmc-brand);
   color: #fff;
   box-shadow: 0 2px 8px rgba(0, 113, 227, 0.28);
 }
-
 /* Day header — fixed height so columns align */
-.o_web_client .ck-week-head{
+.o_web_client .console-week-head {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3696,7 +2740,7 @@ dialog.ck-dialog::backdrop{
   position: relative;
   flex-shrink: 0;
 }
-.o_web_client .ck-week-wd{
+.o_web_client .console-week-wd {
   height: 14px;
   font-size: 10px;
   font-weight: 700;
@@ -3705,8 +2749,8 @@ dialog.ck-dialog::backdrop{
   color: var(--cmc-text-faint);
   line-height: 14px;
 }
-.o_web_client .ck-week-col.is-today .ck-week-wd{ color: var(--cmc-brand); }
-.o_web_client .ck-week-num{
+.o_web_client .console-week-col.is-today .console-week-wd { color: var(--cmc-brand); }
+.o_web_client .console-week-num {
   width: 32px;
   height: 32px;
   border-radius: 999px;
@@ -3720,7 +2764,8 @@ dialog.ck-dialog::backdrop{
   letter-spacing: -0.02em;
   flex-shrink: 0;
 }
-.o_web_client .ck-week-today-pill, .o_web_client .ck-week-cap{
+.o_web_client .console-week-today-pill,
+.o_web_client .console-week-cap {
   height: 16px;
   line-height: 16px;
   font-size: 9.5px;
@@ -3733,7 +2778,7 @@ dialog.ck-dialog::backdrop{
   white-space: nowrap;
   text-align: center;
 }
-.o_web_client .ck-week-today-pill{
+.o_web_client .console-week-today-pill {
   color: var(--cmc-brand);
   background: var(--cmc-surface-raised);
   padding: 0 7px;
@@ -3741,7 +2786,7 @@ dialog.ck-dialog::backdrop{
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--cmc-brand) 15%, transparent);
   text-transform: uppercase;
 }
-.o_web_client .ck-week-cap{
+.o_web_client .console-week-cap {
   color: var(--cmc-text-faint);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -3749,7 +2794,7 @@ dialog.ck-dialog::backdrop{
   letter-spacing: 0;
   font-size: 10px;
 }
-.o_web_client .ck-week-count{
+.o_web_client .console-week-count {
   position: absolute;
   top: 8px;
   right: 6px;
@@ -3766,12 +2811,11 @@ dialog.ck-dialog::backdrop{
   justify-content: center;
   font-variant-numeric: tabular-nums;
 }
-.o_web_client .ck-week-col.is-today .ck-week-count{
+.o_web_client .console-week-col.is-today .console-week-count {
   background: var(--cmc-brand);
   color: #fff;
 }
-
-.o_web_client .ck-week-body{
+.o_web_client .console-week-body {
   flex: 1 1 auto;
   padding: 4px 8px 10px;
   display: flex;
@@ -3780,7 +2824,7 @@ dialog.ck-dialog::backdrop{
   min-height: 148px; /* ≥1 compact card + gap pocket */
   min-width: 0;
 }
-.o_web_client .ck-week-gap{
+.o_web_client .console-week-gap {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -3795,20 +2839,20 @@ dialog.ck-dialog::backdrop{
   border-radius: 12px;
   opacity: 0.75;
 }
-.o_web_client .ck-week-gap-dot{
+.o_web_client .console-week-gap-dot {
   width: 4px;
   height: 4px;
   border-radius: 999px;
   background: var(--cmc-text-faint);
 }
-.o_web_client .ck-week-empty{
+.o_web_client .console-week-empty {
   padding: 28px;
   background: var(--cmc-surface-raised);
   border-radius: 20px;
   border: 1px solid var(--cmc-border-subtle);
   box-shadow: var(--cmc-shadow-sm);
 }
-.o_web_client .ck-week-legend{
+.o_web_client .console-week-legend {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 10px;
@@ -3818,7 +2862,7 @@ dialog.ck-dialog::backdrop{
   font-size: 11.5px;
   color: var(--cmc-text-muted);
 }
-.o_web_client .ck-week-leg{
+.o_web_client .console-week-leg {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -3830,7 +2874,7 @@ dialog.ck-dialog::backdrop{
   font-weight: 500;
   white-space: nowrap;
 }
-.o_web_client .ck-week-leg::before{
+.o_web_client .console-week-leg::before {
   content: '';
   width: 7px;
   height: 7px;
@@ -3838,24 +2882,23 @@ dialog.ck-dialog::backdrop{
   background: var(--cmc-border);
   flex-shrink: 0;
 }
-.o_web_client .ck-week-leg--live::before{ background: var(--cmc-success); }
-.o_web_client .ck-week-leg--active::before{ background: var(--cmc-brand); }
-.o_web_client .ck-week-leg--attention::before{ background: var(--cmc-warning); }
-.o_web_client .ck-week-leg--planned::before{ background: var(--cmc-text-faint); }
-.o_web_client .ck-week-leg--done::before{ background: var(--cmc-text-muted); }
-
+.o_web_client .console-week-leg--live::before { background: var(--cmc-success); }
+.o_web_client .console-week-leg--active::before { background: var(--cmc-brand); }
+.o_web_client .console-week-leg--attention::before { background: var(--cmc-warning); }
+.o_web_client .console-week-leg--planned::before { background: var(--cmc-text-faint); }
+.o_web_client .console-week-leg--done::before { background: var(--cmc-text-muted); }
 /* Month agenda — equal card cells via fixed SessionCard height */
-.o_web_client .ck-smon{
+.o_web_client .console-smon {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
-.o_web_client .ck-smon-block{
+.o_web_client .console-smon-block {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.o_web_client .ck-smon-head{
+.o_web_client .console-smon-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3863,7 +2906,7 @@ dialog.ck-dialog::backdrop{
   min-height: 28px;
   padding: 0 2px;
 }
-.o_web_client .ck-smon-label{
+.o_web_client .console-smon-label {
   margin: 0;
   font-size: 12px;
   font-weight: 700;
@@ -3875,7 +2918,7 @@ dialog.ck-dialog::backdrop{
   white-space: nowrap;
   min-width: 0;
 }
-.o_web_client .ck-smon-n{
+.o_web_client .console-smon-n {
   flex-shrink: 0;
   font-size: 11.5px;
   font-weight: 650;
@@ -3885,21 +2928,21 @@ dialog.ck-dialog::backdrop{
   border-radius: 999px;
   font-variant-numeric: tabular-nums;
 }
-.o_web_client .ck-smon-grid{
+.o_web_client .console-smon-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
   align-items: stretch;
 }
-.o_web_client .ck-smon-empty{
+.o_web_client .console-smon-empty {
   padding: 24px;
   background: var(--cmc-surface-raised);
   border-radius: 20px;
   border: 1px solid var(--cmc-border-subtle);
 }
-
-/* Kanban — fixed column width, cards equal height */
-.o_web_client .ck-kanban{
+/* Kanban — fixed column width,
+cards equal height */
+.o_web_client .console-kanban {
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -3908,60 +2951,99 @@ dialog.ck-dialog::backdrop{
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x proximity;
 }
-.o_web_client .ck-kanban-col{
-  flex: 0 0 252px;
-  width: 252px;
-  min-width: 252px;
-  background: color-mix(in srgb, var(--cmc-canvas) 50%, var(--cmc-surface-raised));
-  border: 1px solid var(--cmc-border-subtle);
-  border-radius: 18px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: min(70vh, 640px);
-  box-shadow: var(--cmc-shadow-xs);
-  scroll-snap-align: start;
-  box-sizing: border-box;
+/* Phase 2: recovered dynamic-modifier rules (ck-* → console-*) */
+.console-callout--info {
+  background: var(--cmc-info-soft);
+  border-color: color-mix(in srgb, var(--cmc-brand) 18%, var(--cmc-border-subtle));
 }
-.o_web_client .ck-kanban-head{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 28px;
-  padding: 2px 4px 4px;
-  flex-shrink: 0;
+.console-callout--success {
+  background: var(--cmc-success-soft);
+  border-color: color-mix(in srgb, var(--cmc-success) 20%, var(--cmc-border-subtle));
 }
-.o_web_client .ck-kanban-title{
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--cmc-text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
+.console-callout--danger {
+  background: var(--cmc-danger-soft);
+  border-color: color-mix(in srgb, var(--cmc-danger) 20%, var(--cmc-border-subtle));
 }
-.o_web_client .ck-kanban-body{
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
-  min-height: 80px;
-  min-width: 0;
+.console-callout--neutral {
+  background: var(--cmc-neutral-soft);
 }
-.o_web_client .ck-kanban-empty{
-  font-size: 12px;
-  color: var(--cmc-text-faint);
-  text-align: center;
-  padding: 28px 8px;
-  border: 1px dashed var(--cmc-border-subtle);
-  border-radius: 12px;
-  min-height: 88px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.console-callout--info .console-callout-icon { color: var(--cmc-brand); }
+.console-callout--success .console-callout-icon { color: var(--cmc-success); }
+.console-callout--danger .console-callout-icon { color: var(--cmc-danger); }
+.console-av--sm { width: 28px; height: 28px; font-size: 11px; }
+.console-av--md { width: 36px; height: 36px; font-size: 13px; }
+.console-av--lg { width: 48px; height: 48px; font-size: 16px; border-radius: 14px; }
+.o_web_client .console-badge-soft--success { background: var(--cmc-success-soft); color: var(--cmc-success-ink); }
+.o_web_client .console-badge-soft--warning { background: var(--cmc-warning-soft); color: var(--cmc-warning-ink); }
+.o_web_client .console-badge-soft--danger { background: var(--cmc-danger-soft); color: var(--cmc-danger-ink); }
+.o_web_client .console-badge-soft--info { background: var(--cmc-info-soft); color: var(--cmc-info-ink); }
+.o_web_client .console-badge-soft--neutral { background: var(--cmc-neutral-soft); color: var(--cmc-neutral-ink); }
+.console-toast--success { border-left-color: var(--cmc-success); }
+.console-toast--error { border-left-color: var(--cmc-danger); }
+.console-toast--info { border-left-color: var(--cmc-brand); }
+.o_web_client .console-callout--info {
+  background: var(--cmc-info-soft);
+  border-color: color-mix(in srgb, var(--cmc-brand) 18%, var(--cmc-border-subtle));
 }
-
+.o_web_client .console-callout--success {
+  background: var(--cmc-success-soft);
+  border-color: color-mix(in srgb, var(--cmc-success) 20%, var(--cmc-border-subtle));
+}
+.o_web_client .console-callout--danger {
+  background: var(--cmc-danger-soft);
+  border-color: color-mix(in srgb, var(--cmc-danger) 20%, var(--cmc-border-subtle));
+}
+.o_web_client .console-callout--neutral {
+  background: var(--cmc-neutral-soft);
+}
+.o_web_client .console-callout--info .console-callout-icon { color: var(--cmc-brand); }
+.o_web_client .console-callout--success .console-callout-icon { color: var(--cmc-success); }
+.o_web_client .console-callout--danger .console-callout-icon { color: var(--cmc-danger); }
+.o_web_client .console-av--sm { width: 28px; height: 28px; font-size: 11px; }
+.o_web_client .console-av--md { width: 36px; height: 36px; font-size: 13px; }
+.o_web_client .console-av--lg { width: 48px; height: 48px; font-size: 16px; border-radius: 14px; }
+.o_web_client .console-sc--planned {
+  background: color-mix(in srgb, var(--cmc-surface-sunken) 45%, var(--cmc-surface-raised));
+}
+.o_web_client .console-sc--planned::before { background: var(--cmc-text-faint); }
+.o_web_client .console-sc--active {
+  background: color-mix(in srgb, var(--cmc-brand-muted) 55%, var(--cmc-surface-raised));
+  box-shadow: 0 1px 2px rgba(0, 113, 227, 0.06),
+    0 0 0 1px color-mix(in srgb, var(--cmc-brand) 12%, transparent);
+}
+.o_web_client .console-sc--active::before { background: var(--cmc-brand); }
+.o_web_client .console-sc--live {
+  background: linear-gradient(145deg,
+    color-mix(in srgb, var(--cmc-brand-muted) 70%, #fff) 0%,
+    color-mix(in srgb, var(--cmc-success-soft) 35%, #fff) 100%);
+  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.1),
+    0 0 0 1px color-mix(in srgb, var(--cmc-brand) 18%, transparent);
+}
+.o_web_client .console-sc--live::before {
+  background: linear-gradient(180deg, var(--cmc-brand), var(--cmc-success));
+}
+.o_web_client .console-sc--live .console-sc-dot {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cmc-success) 25%, transparent);
+  animation: console-sc-pulse 1.8s ease-in-out infinite;
+}
+.o_web_client .console-sc--done { background: var(--cmc-surface-raised); opacity: 0.78; }
+.o_web_client .console-sc--done::before { background: var(--cmc-text-muted); }
+.o_web_client .console-sc--cancelled {
+  background: color-mix(in srgb, var(--cmc-danger-soft) 25%, var(--cmc-surface-raised));
+  opacity: 0.7;
+}
+.o_web_client .console-sc--cancelled::before { background: var(--cmc-danger); }
+.o_web_client .console-sc--attention {
+  background: color-mix(in srgb, var(--cmc-warning-soft) 65%, var(--cmc-surface-raised));
+  box-shadow: 0 1px 3px rgba(178, 106, 0, 0.08),
+    0 0 0 1px color-mix(in srgb, var(--cmc-warning) 18%, transparent);
+}
+.o_web_client .console-sc--attention::before { background: var(--cmc-warning); }
+.o_web_client .console-sc--planned .console-sc-dot { background: var(--cmc-text-faint); }
+.o_web_client .console-sc--active .console-sc-dot { background: var(--cmc-brand); }
+.o_web_client .console-sc--live .console-sc-dot { background: var(--cmc-success); }
+.o_web_client .console-sc--done .console-sc-dot { background: var(--cmc-text-muted); }
+.o_web_client .console-sc--cancelled .console-sc-dot { background: var(--cmc-danger); }
+.o_web_client .console-sc--attention .console-sc-dot { background: var(--cmc-warning); }
+.o_web_client .console-sc--live .console-sc-chip { color: var(--cmc-success-ink); }
+.o_web_client .console-sc--attention .console-sc-chip { color: var(--cmc-warning-ink); }

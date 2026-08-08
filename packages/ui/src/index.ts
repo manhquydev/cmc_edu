@@ -91,7 +91,7 @@ export type { IconName } from './components/line-icon.js';
 // props-only; no session/tRPC coupling). MetricCard + TaskRow render
 // react-router `Link`s (a declared peer) so they need a Router ancestor;
 // AppFrame/SideNav below stay router-free via an onNavigate callback.
-// Require `@cmc/ui/premium.css` imported once at the app root.
+// Require `@cmc/ui/console.css` imported once at the app root.
 export type { Tone } from './components/tone.js';
 export { MetricCard } from './components/metric-card.js';
 export type { MetricCardProps } from './components/metric-card.js';
@@ -159,7 +159,7 @@ export { ResultPanel } from './components/result-panel.js';
 export type { ResultPanelProps, ResultStatus } from './components/result-panel.js';
 
 // App shell (promoted from apps/admin/src/shell — P3 shell extraction). DUMB —
-// props-only, no router/session/tRPC coupling. Requires @cmc/ui/premium.css
+// props-only, no router/session/tRPC coupling. Requires @cmc/ui/console.css
 // (.sh-* classes). LMS keeps its own lightweight mobile frame (YAGNI — see
 // plans/260710-1730-premium-design-language-buildout/phase-03).
 export type { NavEntry, NavModule } from './components/nav-types.js';
@@ -169,19 +169,19 @@ export type { SideNavProps } from './components/side-nav.js';
 export { AppFrame } from './components/app-frame.js';
 export type { AppFrameProps } from './components/app-frame.js';
 
-// Odoo admin UI layer (design3) — requires `@cmc/ui/odoo.css` + `.o_web_client` scope.
-export { OdooNavbar } from './odoo/odoo-navbar.js';
-export type { OdooNavbarProps } from './odoo/odoo-navbar.js';
-export { KanbanBoard, KanbanColumn, KanbanCard } from './odoo/odoo-kanban.js';
+// CMC Console admin UI layer (design3) — requires `@cmc/ui/console.css` + `.o_web_client` scope.
+export { ConsoleNavbar } from './console/console-navbar.js';
+export type { ConsoleNavbarProps } from './console/console-navbar.js';
+export { KanbanBoard, KanbanColumn, KanbanCard } from './console/console-kanban.js';
 export type {
   KanbanBoardProps,
   KanbanColumnProps,
   KanbanCardProps,
-} from './odoo/odoo-kanban.js';
+} from './console/console-kanban.js';
 
 // Page templates (P4 template extraction) — thin, slot-based list/detail/form
 // page archetypes composing the atoms above. Props-only, no data fetching;
-// pages own tRPC + business logic. Require @cmc/ui/premium.css (.tpl-*).
+// pages own tRPC + business logic. Require @cmc/ui/console.css (.console-* page templates).
 export { ListPage } from './components/list-page.js';
 export type { ListPageProps } from './components/list-page.js';
 export { ControlBar } from './components/control-bar.js';

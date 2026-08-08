@@ -9,23 +9,23 @@ export interface MetaItemProps {
 /** Single meta fragment: optional dot + text. */
 export function MetaItem({ dot, children }: MetaItemProps) {
   return (
-    <span className="ck-meta-item">
+    <span className="console-meta-item">
       {dot ? (
-        <span className="ck-meta-dot" style={{ background: dot }} aria-hidden />
+        <span className="console-meta-dot" style={{ background: dot }} aria-hidden />
       ) : null}
-      <span className="ck-meta-text">{children}</span>
+      <span className="console-meta-text">{children}</span>
     </span>
   );
 }
 
 /**
  * Dense metadata row — GitHub repo card / PR meta pattern.
- * Requires @cmc/ui/premium.css (.ck-meta*).
+ * Requires @cmc/ui/console.css (.console-meta*).
  */
 export interface MetaRowProps {
   children: ReactNode;
 }
 
 export function MetaRow({ children }: MetaRowProps) {
-  return <div className="ck-meta-row">{children}</div>;
+  return <div className="console-meta-row">{children}</div>;
 }

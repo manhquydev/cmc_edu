@@ -1,0 +1,42 @@
+# Phase 1 token rename map — generated 2026-08-07
+# Scope: packages/ui live code + docs/design-system-odoo.md (evergreen). Historical plans UNTOUCHED.
+
+--odoo-brand-purple → --console-brand-purple
+--odoo-brand-purple-dark → --console-brand-purple-dark
+--odoo-breadcrumb-padding-x → --console-breadcrumb-padding-x
+--odoo-danger → --console-danger
+--odoo-enterprise-purple → --console-enterprise-purple
+--odoo-font-size-base → --console-font-size-base
+--odoo-font-size-sm → --console-font-size-sm
+--odoo-font-size-xs → --console-font-size-xs
+--odoo-gray-100 → --console-gray-100
+--odoo-gray-200 → --console-gray-200
+--odoo-gray-300 → --console-gray-300
+--odoo-gray-600 → --console-gray-600
+--odoo-gray-900 → --console-gray-900
+--odoo-info → --console-info
+--odoo-kanban-bg → --console-kanban-bg
+--odoo-kanban-card-color → --console-kanban-card-color
+--odoo-kanban-card-width → --console-kanban-card-width
+--odoo-kanban-card-width-sm → --console-kanban-card-width-sm
+--odoo-kanban-color-1 → --console-kanban-color-1
+--odoo-kanban-color-2 → --console-kanban-color-2
+--odoo-kanban-color-3 → --console-kanban-color-3
+--odoo-kanban-color-4 → --console-kanban-color-4
+--odoo-kanban-color-5 → --console-kanban-color-5
+--odoo-kanban-color-6 → --console-kanban-color-6
+--odoo-kanban-color-bar-width → --console-kanban-color-bar-width
+--odoo-kanban-gutter → --console-kanban-gutter
+--odoo-list-cell-padding-x → --console-list-cell-padding-x
+--odoo-list-cell-padding-y → --console-list-cell-padding-y
+--odoo-navbar-entry-hover-bg → --console-navbar-entry-hover-bg
+--odoo-navbar-height → --console-navbar-height
+--odoo-radius → --console-radius
+--odoo-radius-lg → --console-radius-lg
+--odoo-radius-sm → --console-radius-sm
+--odoo-sheet-max-width → --console-sheet-max-width
+--odoo-spacer → --console-spacer
+--odoo-statusbar-arrow-width → --console-statusbar-arrow-width
+--odoo-statusbar-height → --console-statusbar-height
+--odoo-success → --console-success
+--odoo-warning → --console-warning

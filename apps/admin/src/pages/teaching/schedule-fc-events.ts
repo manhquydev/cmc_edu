@@ -76,10 +76,10 @@ export function exclusiveEndDateOnly(inclusiveEnd: Date | string): string {
 
 function statusClass(status: string): string {
   const s = status.trim().toLowerCase();
-  if (s === 'active' || s === 'confirmed' || s === 'planned') return 'o-fc-ev--active';
-  if (s === 'done' || s === 'completed') return 'o-fc-ev--done';
-  if (s === 'cancelled') return 'o-fc-ev--cancelled';
-  return 'o-fc-ev--neutral';
+  if (s === 'active' || s === 'confirmed' || s === 'planned') return 'console-fc-ev--active';
+  if (s === 'done' || s === 'completed') return 'console-fc-ev--done';
+  if (s === 'cancelled') return 'console-fc-ev--cancelled';
+  return 'console-fc-ev--neutral';
 }
 
 function toIsoInstant(input: Date | string): string {
@@ -115,7 +115,7 @@ export function classSessionToEvents(rows: ClassSessionLike[]): ScheduleFcEvent[
       allDay: false,
       url: href,
       display: 'auto',
-      classNames: ['o-fc-ev', 'o-fc-ev--timed', statusClass(row.status)],
+      classNames: ['console-fc-ev', 'console-fc-ev--timed', statusClass(row.status)],
       extendedProps: {
         batchId: row.classBatchId,
         sessionId: row.id,
@@ -152,7 +152,7 @@ export function classBatchToEvents(rows: ClassBatchLike[]): ScheduleFcEvent[] {
       // Still set for a11y tab order hints in some themes.
       url: href,
       display: 'block',
-      classNames: ['o-fc-ev', statusClass(row.status)],
+      classNames: ['console-fc-ev', statusClass(row.status)],
       extendedProps: {
         batchId: row.id,
         program: row.program,

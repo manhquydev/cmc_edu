@@ -13,15 +13,13 @@
     },
     "./tokens.css": "./src/tokens.css",
     "./astryx-theme-cmc.css": "./src/astryx-theme-cmc.css",
-    "./premium.css": "./src/premium.css",
-    "./odoo.css": "./src/odoo.css"
+    "./console.css": "./src/console.css"
   },
   "files": [
     "dist",
     "src/tokens.css",
     "src/astryx-theme-cmc.css",
-    "src/premium.css",
-    "src/odoo.css"
+    "src/console.css"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -43,12 +41,13 @@
     "@stylexjs/stylex": "0.19.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@types/node": "^22.10.0",
     "@types/react": "^19.2.18",
     "@vitejs/plugin-react": "^6.0.5",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-router-dom": "^7.18.2",
-    "typescript": "^5.7.0",
+    "typescript": "^6.0.0",
     "vitest": "^4.1.10"
   }
 }

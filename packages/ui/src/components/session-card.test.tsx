@@ -19,14 +19,14 @@ describe('SessionCard', () => {
     expect(screen.getByText('ENG-A1')).toBeInTheDocument();
     expect(screen.getByText('08:00 – 09:30')).toBeInTheDocument();
     expect(screen.getByText('Đang học')).toBeInTheDocument();
-    expect(container.querySelector('a.ck-sc[href="/teaching/attendance"]')).toBeTruthy();
+    expect(container.querySelector('a.console-sc[href="/teaching/attendance"]')).toBeTruthy();
   });
 
   it('reserves secondary and cta slots when optional text is missing', () => {
     const { container } = render(<SessionCard title="X" status="planned" />);
-    expect(container.querySelector('.ck-sc-secondary')).toBeTruthy();
-    expect(container.querySelector('.ck-sc-cta-slot')).toBeTruthy();
-    expect(container.querySelector('.ck-sc-cta-spacer')).toBeTruthy();
+    expect(container.querySelector('.console-sc-secondary')).toBeTruthy();
+    expect(container.querySelector('.console-sc-cta-slot')).toBeTruthy();
+    expect(container.querySelector('.console-sc-cta-spacer')).toBeTruthy();
   });
 
   it('default density shows program and meta on separate lines', () => {
@@ -38,7 +38,7 @@ describe('SessionCard', () => {
         density="default"
       />,
     );
-    expect(container.querySelectorAll('.ck-sc-line').length).toBe(2);
+    expect(container.querySelectorAll('.console-sc-line').length).toBe(2);
     expect(screen.getByText('English Advanced')).toBeInTheDocument();
     expect(screen.getByText('P.301 · GV Mai')).toBeInTheDocument();
   });

@@ -10,7 +10,7 @@ export interface HighlightItem {
 
 /**
  * Lightning-style highlight panel — 3–4 key fields under EntityHeader.
- * Requires @cmc/ui/premium.css (.ck-highlight*).
+ * Requires @cmc/ui/console.css (.console-highlight*).
  */
 export interface HighlightStripProps {
   items: HighlightItem[];
@@ -19,15 +19,15 @@ export interface HighlightStripProps {
 
 export function HighlightStrip({ items, className }: HighlightStripProps) {
   if (items.length === 0) return null;
-  const cls = className ? `ck-highlight ${className}` : 'ck-highlight';
+  const cls = className ? `console-highlight ${className}` : 'console-highlight';
   return (
     <div className={cls} role="group" aria-label="Thông tin nổi bật">
       {items.map((item) => (
-        <div key={item.key} className="ck-highlight-item">
-          <div className="ck-highlight-label">{item.label}</div>
+        <div key={item.key} className="console-highlight-item">
+          <div className="console-highlight-label">{item.label}</div>
           <div
             className={
-              item.tabular ? 'ck-highlight-value ck-highlight-value--tabular' : 'ck-highlight-value'
+              item.tabular ? 'console-highlight-value console-highlight-value--tabular' : 'console-highlight-value'
             }
           >
             {item.value}

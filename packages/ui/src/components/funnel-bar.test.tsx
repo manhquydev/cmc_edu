@@ -7,17 +7,17 @@ describe('FunnelBar', () => {
     const { container, getByText } = render(<FunnelBar label="Đã ghi danh" value={6} max={6} />);
     expect(getByText('Đã ghi danh')).toBeInTheDocument();
     expect(getByText('6')).toBeInTheDocument();
-    expect((container.querySelector('.ck-fn-fill') as HTMLElement).style.width).toBe('100%');
+    expect((container.querySelector('.console-fn-fill') as HTMLElement).style.width).toBe('100%');
   });
 
   it('fill is proportional (value/max = 0.5 → 50%)', () => {
     const { container } = render(<FunnelBar label="x" value={3} max={6} />);
-    expect((container.querySelector('.ck-fn-fill') as HTMLElement).style.width).toBe('50%');
+    expect((container.querySelector('.console-fn-fill') as HTMLElement).style.width).toBe('50%');
   });
 
   it('zero value renders 0% width', () => {
     const { container } = render(<FunnelBar label="x" value={0} max={6} />);
-    expect((container.querySelector('.ck-fn-fill') as HTMLElement).style.width).toBe('0%');
+    expect((container.querySelector('.console-fn-fill') as HTMLElement).style.width).toBe('0%');
   });
 
   it('shows step chip and share when requested', () => {
@@ -27,7 +27,7 @@ describe('FunnelBar', () => {
     expect(getByText('Đã kiểm tra')).toBeInTheDocument();
     expect(getByText('38%')).toBeInTheDocument();
     expect(container.querySelector('.is-emphasize')).toBeTruthy();
-    expect(container.querySelector('.ck-fn-step')?.textContent).toBe('O4');
+    expect(container.querySelector('.console-fn-step')?.textContent).toBe('O4');
   });
 
   it('funnelFillWidth floors nonzero visibility', () => {

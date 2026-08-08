@@ -32,7 +32,7 @@ describe('ToastProvider', () => {
     );
     fireEvent.click(screen.getByText('ok'));
     expect(screen.getByRole('status')).toHaveTextContent('Đã lưu');
-    expect(document.querySelector('.ck-toast-viewport')).toHaveAttribute('aria-live', 'polite');
+    expect(document.querySelector('.console-toast-viewport')).toHaveAttribute('aria-live', 'polite');
   });
 
   it('auto-dismisses success after default duration', () => {

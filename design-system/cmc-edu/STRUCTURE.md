@@ -1,6 +1,6 @@
 # CMC EDU — Unified component structure
 
-> **Authority:** `packages/ui/src/tokens.css` structural tokens + `premium.css` `.ck-*`.  
+> **Authority:** `packages/ui/src/tokens.css` structural tokens + `console.css (admin) or apps/lms/src/app.css (LMS)` `.ck-*`.  
 > **Goal:** One system for the whole admin app — no “mixed toolkit” look.
 
 ---

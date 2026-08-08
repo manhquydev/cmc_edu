@@ -31,10 +31,10 @@ export function PageHeader({ title, subtitle, actions, breadcrumbs }: PageHeader
   const showMainRow = showTitleBlock || Boolean(actions);
 
   return (
-    <div className="o-page-header">
+    <div className="console-page-header">
       <Stack gap={0.5}>
         {breadcrumbs && breadcrumbs.length > 0 && (
-          <nav className="o-bc" aria-label="Đường dẫn">
+          <nav className="console-bc" aria-label="Đường dẫn">
             <Breadcrumbs>
               {breadcrumbs.map((bc, i) => {
                 const isLast = i === breadcrumbs.length - 1;
@@ -42,11 +42,11 @@ export function PageHeader({ title, subtitle, actions, breadcrumbs }: PageHeader
                 return (
                   <BreadcrumbItem key={`${bc.label}-${i}`} isCurrent={isLast}>
                     {clickable ? (
-                      <RouterLink to={bc.href!} className="o-bc-link">
+                      <RouterLink to={bc.href!} className="console-bc-link">
                         {bc.label}
                       </RouterLink>
                     ) : (
-                      <span className={isLast ? 'o-bc-current' : 'o-bc-plain'}>{bc.label}</span>
+                      <span className={isLast ? 'console-bc-current' : 'console-bc-plain'}>{bc.label}</span>
                     )}
                   </BreadcrumbItem>
                 );

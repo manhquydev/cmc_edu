@@ -1,0 +1,355 @@
+# Phase 2 ck-* disposition (delete-first)
+
+Generated after premium.css deletion. Totals: fold=0 rename=236 delete=79 (21 dynamic modifiers reclassified from delete→rename after recovery) (sum=315; CSS had 315).
+
+Re-derived effort: delete-dominated (~32% delete). Expected remaining work: rename 215 unique CSS rule families + fold 0 into existing console-* + sh keep 13 / delete 6 + tpl delete 28.
+
+| class | disposition | emitted? | console peer? |
+|---|---|---|---|
+| `ck-attn` | delete | no | yes |
+| `ck-av` | rename | yes | no |
+| `ck-av--lg` | rename | yes (dynamic template) | no |
+| `ck-av--md` | rename | yes (dynamic template) | no |
+| `ck-av--sm` | rename | yes (dynamic template) | no |
+| `ck-av-img` | rename | yes | no |
+| `ck-av-initials` | rename | yes | no |
+| `ck-badge-soft` | rename | yes | no |
+| `ck-badge-soft--danger` | rename | yes (dynamic template) | no |
+| `ck-badge-soft--info` | rename | yes (dynamic template) | no |
+| `ck-badge-soft--neutral` | rename | yes (dynamic template) | no |
+| `ck-badge-soft--success` | rename | yes (dynamic template) | no |
+| `ck-badge-soft--warning` | rename | yes (dynamic template) | no |
+| `ck-bc` | delete | no | yes |
+| `ck-bc-current` | delete | no | yes |
+| `ck-bc-link` | delete | no | yes |
+| `ck-bc-plain` | delete | no | yes |
+| `ck-bulk` | rename | yes | no |
+| `ck-bulk-actions` | rename | yes | no |
+| `ck-bulk-clear` | rename | yes | no |
+| `ck-bulk-count` | rename | yes | no |
+| `ck-bulk-label` | rename | yes | no |
+| `ck-bulk-meta` | rename | yes | no |
+| `ck-callout` | rename | yes | no |
+| `ck-callout--danger` | rename | yes (dynamic template) | no |
+| `ck-callout--info` | rename | yes (dynamic template) | no |
+| `ck-callout--neutral` | rename | yes (dynamic template) | no |
+| `ck-callout--success` | rename | yes (dynamic template) | no |
+| `ck-callout--warning` | rename | yes | no |
+| `ck-callout-action` | rename | yes | no |
+| `ck-callout-body` | rename | yes | no |
+| `ck-callout-icon` | rename | yes | no |
+| `ck-callout-text` | rename | yes | no |
+| `ck-callout-title` | rename | yes | no |
+| `ck-chev` | rename | yes | no |
+| `ck-cmd` | rename | yes | no |
+| `ck-cmd-backdrop` | rename | yes | no |
+| `ck-cmd-empty` | rename | yes | no |
+| `ck-cmd-foot` | rename | yes | no |
+| `ck-cmd-group` | rename | yes | no |
+| `ck-cmd-group-label` | rename | yes | no |
+| `ck-cmd-head` | rename | yes | no |
+| `ck-cmd-input` | rename | yes | no |
+| `ck-cmd-item` | rename | yes | no |
+| `ck-cmd-item-label` | rename | yes | no |
+| `ck-cmd-item-meta` | rename | yes | no |
+| `ck-cmd-kbd` | rename | yes | no |
+| `ck-cmd-list` | rename | yes | no |
+| `ck-cmd-panel` | rename | yes | no |
+| `ck-count` | rename | yes | no |
+| `ck-cstrip` | rename | yes | no |
+| `ck-cstrip-legend` | rename | yes | no |
+| `ck-cstrip-legend-item` | rename | yes | no |
+| `ck-cstrip-legend-label` | rename | yes | no |
+| `ck-cstrip-legend-val` | rename | yes | no |
+| `ck-cstrip-seg` | rename | yes | no |
+| `ck-cstrip-seg-link` | rename | yes | no |
+| `ck-cstrip-seg-val` | rename | yes | no |
+| `ck-cstrip-seg-wrap` | rename | yes | no |
+| `ck-cstrip-swatch` | rename | yes | no |
+| `ck-cstrip-track` | rename | yes | no |
+| `ck-dialog` | rename | yes | no |
+| `ck-dialog-root` | rename | yes | no |
+| `ck-dot` | rename | yes | no |
+| `ck-eh` | delete | no | yes |
+| `ck-eh-actions` | delete | no | yes |
+| `ck-eh-avatar` | delete | no | yes |
+| `ck-eh-back` | delete | no | yes |
+| `ck-eh-badges` | delete | no | yes |
+| `ck-eh-id` | delete | no | yes |
+| `ck-eh-main` | delete | no | yes |
+| `ck-eh-meta` | delete | no | yes |
+| `ck-eh-sub` | delete | no | yes |
+| `ck-eh-title` | delete | no | yes |
+| `ck-eh-title-row` | delete | no | yes |
+| `ck-empty` | rename | yes | no |
+| `ck-empty-icon` | delete | no | no |
+| `ck-fc` | rename | yes | no |
+| `ck-fc-body` | rename | yes | no |
+| `ck-fc-cta` | rename | yes | no |
+| `ck-fc-desc` | rename | yes | no |
+| `ck-fc-kicker` | rename | yes | no |
+| `ck-fc-meta` | rename | yes | no |
+| `ck-fc-title` | rename | yes | no |
+| `ck-filter-bar` | delete | no | yes |
+| `ck-fn` | rename | yes | no |
+| `ck-fn-barline` | rename | yes | no |
+| `ck-fn-chev` | rename | yes | no |
+| `ck-fn-count` | rename | yes | no |
+| `ck-fn-fill` | rename | yes | no |
+| `ck-fn-footer` | rename | yes | no |
+| `ck-fn-footer-cta` | rename | yes | no |
+| `ck-fn-footer-text` | rename | yes | no |
+| `ck-fn-head` | rename | yes | no |
+| `ck-fn-hint` | rename | yes | no |
+| `ck-fn-label` | rename | yes | no |
+| `ck-fn-link` | rename | yes | no |
+| `ck-fn-main` | rename | yes | no |
+| `ck-fn-row` | rename | yes | no |
+| `ck-fn-share` | rename | yes | no |
+| `ck-fn-skel` | rename | yes | no |
+| `ck-fn-static` | rename | yes | no |
+| `ck-fn-step` | rename | yes | no |
+| `ck-fn-summary` | rename | yes | no |
+| `ck-fn-summary-label` | rename | yes | no |
+| `ck-fn-summary-pill` | rename | yes | no |
+| `ck-fn-summary-total` | rename | yes | no |
+| `ck-fn-track` | rename | yes | no |
+| `ck-highlight` | rename | yes | no |
+| `ck-highlight-item` | rename | yes | no |
+| `ck-highlight-label` | rename | yes | no |
+| `ck-highlight-value` | rename | yes | no |
+| `ck-highlight-value--tabular` | rename | yes | no |
+| `ck-im` | rename | yes | no |
+| `ck-im-ctx` | rename | yes | no |
+| `ck-im-delta` | rename | yes | no |
+| `ck-im-icon` | rename | yes | no |
+| `ck-im-label` | rename | yes | no |
+| `ck-im-spark` | rename | yes | no |
+| `ck-im-spark-bar` | rename | yes | no |
+| `ck-im-top` | rename | yes | no |
+| `ck-im-value` | rename | yes | no |
+| `ck-im-value-row` | rename | yes | no |
+| `ck-inbox-empty` | rename | yes | no |
+| `ck-inbox-section` | rename | yes | no |
+| `ck-inbox-section-label` | rename | yes | no |
+| `ck-inbox-skel` | rename | yes | no |
+| `ck-inset-panel` | delete | no | no |
+| `ck-inv` | delete | no | no |
+| `ck-inv-miss` | delete | no | no |
+| `ck-inv-ok` | delete | no | no |
+| `ck-inv-partial` | delete | no | no |
+| `ck-inv-tag` | delete | no | no |
+| `ck-kanban` | rename | yes | no |
+| `ck-kanban-body` | delete | no | no |
+| `ck-kanban-col` | delete | no | yes |
+| `ck-kanban-empty` | delete | no | yes |
+| `ck-kanban-head` | delete | no | no |
+| `ck-kanban-title` | delete | no | no |
+| `ck-keyline` | delete | no | no |
+| `ck-kv` | rename | yes | no |
+| `ck-kv--2` | rename | yes | no |
+| `ck-kv-label` | rename | yes | no |
+| `ck-kv-row` | rename | yes | no |
+| `ck-kv-row--full` | rename | yes | no |
+| `ck-kv-value` | rename | yes | no |
+| `ck-label-upper` | delete | no | yes |
+| `ck-list-row` | delete | no | yes |
+| `ck-mc` | delete | no | yes |
+| `ck-mc-ctx` | delete | no | yes |
+| `ck-mc-icon` | delete | no | yes |
+| `ck-mc-label` | delete | no | yes |
+| `ck-mc-top` | delete | no | yes |
+| `ck-mc-value` | delete | no | yes |
+| `ck-meta-1line` | delete | no | no |
+| `ck-meta-dot` | rename | yes | no |
+| `ck-meta-item` | rename | yes | no |
+| `ck-meta-row` | rename | yes | no |
+| `ck-meta-text` | rename | yes | no |
+| `ck-metrics` | delete | no | no |
+| `ck-pad-2` | delete | no | no |
+| `ck-pad-3` | delete | no | no |
+| `ck-pad-4` | delete | no | no |
+| `ck-pad-empty` | delete | no | no |
+| `ck-pad-x-3` | delete | no | no |
+| `ck-pad-x-keyline` | delete | no | no |
+| `ck-pad-x3-y2` | delete | no | no |
+| `ck-pad-y-2` | delete | no | no |
+| `ck-page` | rename | yes | no |
+| `ck-page-btn` | rename | yes | no |
+| `ck-page-header` | delete | no | yes |
+| `ck-page-indicator` | rename | yes | no |
+| `ck-page-nav` | rename | yes | no |
+| `ck-page-range` | rename | yes | no |
+| `ck-page-size` | rename | yes | no |
+| `ck-pnl` | rename | yes | no |
+| `ck-pnl-action` | rename | yes | no |
+| `ck-pnl-action-slot` | rename | yes | no |
+| `ck-pnl-head` | rename | yes | no |
+| `ck-pnl-icon` | rename | yes | no |
+| `ck-pnl-title` | rename | yes | no |
+| `ck-radius-card` | delete | no | no |
+| `ck-radius-control` | delete | no | no |
+| `ck-radius-pill` | delete | no | no |
+| `ck-rail` | rename | yes | no |
+| `ck-rail-bridge` | rename | yes | no |
+| `ck-rail-idx` | rename | yes | no |
+| `ck-rail-label` | rename | yes | no |
+| `ck-rail-stage` | rename | yes | no |
+| `ck-rail-val` | rename | yes | no |
+| `ck-row` | rename | yes | no |
+| `ck-row-main` | rename | yes | no |
+| `ck-row-meta` | rename | yes | no |
+| `ck-row-tag` | rename | yes | no |
+| `ck-row-title` | rename | yes | no |
+| `ck-sc` | rename | yes | no |
+| `ck-sc--active` | rename | yes (dynamic template) | no |
+| `ck-sc--attention` | rename | yes (dynamic template) | no |
+| `ck-sc--cancelled` | rename | yes (dynamic template) | no |
+| `ck-sc--done` | rename | yes (dynamic template) | no |
+| `ck-sc--live` | rename | yes (dynamic template) | no |
+| `ck-sc--planned` | rename | yes (dynamic template) | no |
+| `ck-sc-chip` | rename | yes | no |
+| `ck-sc-chip-label` | rename | yes | no |
+| `ck-sc-cta` | rename | yes | no |
+| `ck-sc-cta-label` | rename | yes | no |
+| `ck-sc-cta-slot` | rename | yes | no |
+| `ck-sc-cta-spacer` | rename | yes | no |
+| `ck-sc-dot` | rename | yes | no |
+| `ck-sc-line` | rename | yes | no |
+| `ck-sc-line--p1` | rename | yes | no |
+| `ck-sc-line--p2` | rename | yes | no |
+| `ck-sc-secondary` | rename | yes | no |
+| `ck-sc-time` | rename | yes | no |
+| `ck-sc-title` | rename | yes | no |
+| `ck-sc-top` | rename | yes | no |
+| `ck-sec` | rename | yes | no |
+| `ck-sec--raised` | rename | yes | no |
+| `ck-sec-action` | rename | yes | no |
+| `ck-sec-body` | rename | yes | no |
+| `ck-sec-desc` | rename | yes | no |
+| `ck-sec-head` | rename | yes | no |
+| `ck-sec-title` | rename | yes | no |
+| `ck-set` | rename | yes | no |
+| `ck-set-body` | rename | yes | no |
+| `ck-set-control` | rename | yes | no |
+| `ck-set-copy` | rename | yes | no |
+| `ck-set-desc` | rename | yes | no |
+| `ck-set-head` | rename | yes | no |
+| `ck-set-label` | rename | yes | no |
+| `ck-set-lead` | rename | yes | no |
+| `ck-set-row` | rename | yes | no |
+| `ck-set-title` | rename | yes | no |
+| `ck-settings-main` | delete | no | yes |
+| `ck-settings-nav` | delete | no | yes |
+| `ck-settings-nav-desc` | delete | no | yes |
+| `ck-settings-nav-item` | delete | no | yes |
+| `ck-settings-nav-label` | delete | no | yes |
+| `ck-settings-rail` | delete | no | yes |
+| `ck-settings-rail-title` | delete | no | yes |
+| `ck-settings-shell` | delete | no | yes |
+| `ck-smon` | rename | yes | no |
+| `ck-smon-block` | rename | yes | no |
+| `ck-smon-empty` | rename | yes | no |
+| `ck-smon-grid` | rename | yes | no |
+| `ck-smon-head` | rename | yes | no |
+| `ck-smon-label` | rename | yes | no |
+| `ck-smon-n` | rename | yes | no |
+| `ck-stat-action` | rename | yes | no |
+| `ck-stat-action-count` | rename | yes | no |
+| `ck-stat-action-label` | rename | yes | no |
+| `ck-stat-actions` | rename | yes | no |
+| `ck-steps` | delete | no | yes |
+| `ck-steps-bridge` | delete | no | yes |
+| `ck-steps-btn` | delete | no | yes |
+| `ck-steps-item` | delete | no | yes |
+| `ck-steps-label` | delete | no | yes |
+| `ck-steps-num` | delete | no | yes |
+| `ck-surface` | delete | no | no |
+| `ck-surface--float` | delete | no | no |
+| `ck-surface--quiet` | delete | no | no |
+| `ck-table-shell` | delete | no | no |
+| `ck-title-1line` | delete | no | no |
+| `ck-tl` | rename | yes | no |
+| `ck-tl-body` | rename | yes | no |
+| `ck-tl-dot` | rename | yes | no |
+| `ck-tl-empty` | rename | yes | no |
+| `ck-tl-head` | rename | yes | no |
+| `ck-tl-item` | rename | yes | no |
+| `ck-tl-line` | rename | yes | no |
+| `ck-tl-meta` | rename | yes | no |
+| `ck-tl-rail` | rename | yes | no |
+| `ck-tl-time` | rename | yes | no |
+| `ck-tl-title` | rename | yes | no |
+| `ck-tl-trailing` | rename | yes | no |
+| `ck-toast` | rename | yes | no |
+| `ck-toast--error` | rename | yes (dynamic template) | no |
+| `ck-toast--info` | rename | yes (dynamic template) | no |
+| `ck-toast--success` | rename | yes (dynamic template) | no |
+| `ck-toast-body` | rename | yes | no |
+| `ck-toast-desc` | rename | yes | no |
+| `ck-toast-dismiss` | rename | yes | no |
+| `ck-toast-title` | rename | yes | no |
+| `ck-toast-viewport` | rename | yes | no |
+| `ck-truncate` | delete | no | no |
+| `ck-view-toggle` | delete | no | no |
+| `ck-view-toggle-btn` | delete | no | no |
+| `ck-week` | rename | yes | no |
+| `ck-week-body` | rename | yes | no |
+| `ck-week-cap` | rename | yes | no |
+| `ck-week-col` | rename | yes | no |
+| `ck-week-count` | rename | yes | no |
+| `ck-week-empty` | rename | yes | no |
+| `ck-week-gap` | rename | yes | no |
+| `ck-week-gap-dot` | rename | yes | no |
+| `ck-week-grid` | rename | yes | no |
+| `ck-week-head` | rename | yes | no |
+| `ck-week-leg` | rename | yes | no |
+| `ck-week-leg--active` | rename | yes | no |
+| `ck-week-leg--attention` | rename | yes | no |
+| `ck-week-leg--done` | rename | yes | no |
+| `ck-week-leg--live` | rename | yes | no |
+| `ck-week-leg--planned` | rename | yes | no |
+| `ck-week-legend` | rename | yes | no |
+| `ck-week-num` | rename | yes | no |
+| `ck-week-today-pill` | rename | yes | no |
+| `ck-week-toolbar` | rename | yes | no |
+| `ck-week-toolbar-actions` | rename | yes | no |
+| `ck-week-toolbar-title` | rename | yes | no |
+| `ck-week-wd` | rename | yes | no |
+| `ck-workflow-statusbar` | delete | no | yes |
+| `ck-xia-card` | delete | no | no |
+| `ck-xia-grid` | delete | no | no |
+| `ck-xia-port` | delete | no | no |
+| `ck-xia-skip` | delete | no | no |
+
+## sh-* survivors (SideNav/AppFrame)
+
+- `sh-brand`
+- `sh-content`
+- `sh-item`
+- `sh-item-icon`
+- `sh-main`
+- `sh-nav`
+- `sh-root`
+- `sh-sb`
+- `sh-sub`
+- `sh-subitem`
+- `sh-top`
+- `sh-top-actions`
+- `sh-top-title`
+
+## sh-* deleted (zero emitters)
+
+- `sh-brand-name`
+- `sh-brand-sub`
+- `sh-cta`
+- `sh-cta--ghost`
+- `sh-cta--secondary`
+- `sh-logo`
+
+
+## Dynamic-modifier recovery
+
+21 classes are emitted only via template literals (e.g. `` `ck-toast--${tone}` ``).
+Static class greps marked them `delete`; the implementation recovered them as
+`console-*` renames with CSS rules. Rows above updated to `rename | yes (dynamic template)`.

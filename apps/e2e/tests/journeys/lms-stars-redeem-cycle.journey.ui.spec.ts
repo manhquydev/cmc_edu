@@ -111,7 +111,7 @@ test.describe('P4-01 journey (xuyên app) — chấm bài sinh sao → học sin
     // column), so this journey grades an integer — the star mint depends on the
     // grade landing, not on the score value.
     await teacherPage.getByRole('spinbutton', { name: /Điểm/ }).fill('8');
-    await teacherPage.locator('main.o-main').getByRole('button', { name: 'Chấm bài' }).click();
+    await teacherPage.locator('main.console-main').getByRole('button', { name: 'Chấm bài' }).click();
     await expect(queueRow).toHaveCount(0);
     await teacherContext.close();
 

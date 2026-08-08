@@ -49,7 +49,7 @@ export function DataTable<T extends Record<string, unknown>>({
 
   if (error) {
     return (
-      <div className="o-list">
+      <div className="console-list">
         <Banner status="error" title="Lỗi tải dữ liệu" description={error} />
       </div>
     );
@@ -57,7 +57,7 @@ export function DataTable<T extends Record<string, unknown>>({
 
   if (loading) {
     return (
-      <div className="o-list">
+      <div className="console-list">
         <Stack gap={0.5} paddingBlock={2}>
           {Array.from({ length: SKELETON_ROWS }, (_, i) => (
             <Skeleton key={i} height={32} radius={0} />
@@ -69,7 +69,7 @@ export function DataTable<T extends Record<string, unknown>>({
 
   if (data.length === 0) {
     return (
-      <div className="o-list">
+      <div className="console-list">
         <EmptyState title={empty} />
       </div>
     );
@@ -151,7 +151,7 @@ export function DataTable<T extends Record<string, unknown>>({
   ];
 
   return (
-    <div className="o-list">
+    <div className="console-list">
       <Table<T>
         data={data}
         idKey={(row) => resolveId(row)}

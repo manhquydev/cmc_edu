@@ -1,6 +1,6 @@
 /**
  * Identity mark — Airbnb trust / Cal booking avatar language.
- * Initials fallback when no image. Requires @cmc/ui/premium.css (.ck-av*).
+ * Initials fallback when no image. Requires @cmc/ui/console.css (.console-av*).
  */
 export interface AvatarProps {
   name: string;
@@ -21,8 +21,8 @@ function initialsFrom(name: string): string {
 export function Avatar({ name, src, size = 'md', ring = false }: AvatarProps) {
   const initials = initialsFrom(name);
   const cls = [
-    'ck-av',
-    `ck-av--${size}`,
+    'console-av',
+    `console-av--${size}`,
     ring ? 'is-ring' : '',
   ]
     .filter(Boolean)
@@ -31,13 +31,13 @@ export function Avatar({ name, src, size = 'md', ring = false }: AvatarProps) {
   if (src) {
     return (
       <span className={cls} title={name}>
-        <img src={src} alt="" className="ck-av-img" />
+        <img src={src} alt="" className="console-av-img" />
       </span>
     );
   }
   return (
     <span className={cls} title={name} aria-label={name}>
-      <span className="ck-av-initials" aria-hidden>
+      <span className="console-av-initials" aria-hidden>
         {initials}
       </span>
     </span>

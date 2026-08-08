@@ -33,18 +33,18 @@ export function DateField({
   const inputId = id ?? reactId;
   return (
     <label
-      className={['o-date-field', size === 'sm' ? 'o-date-field--sm' : '', className]
+      className={['console-date-field', size === 'sm' ? 'console-date-field--sm' : '', className]
         .filter(Boolean)
         .join(' ')}
       htmlFor={inputId}
     >
-      <span className={isLabelHidden ? 'o-date-field-label o-sr-only' : 'o-date-field-label'}>
+      <span className={isLabelHidden ? 'console-date-field-label console-sr-only' : 'console-date-field-label'}>
         {label}
       </span>
       <input
         id={inputId}
         type="date"
-        className="o-date-field-input"
+        className="console-date-field-input"
         aria-label={label}
         value={value}
         disabled={disabled}

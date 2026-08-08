@@ -1,6 +1,6 @@
 /**
  * Compact counter — GitHub tab/nav count chip.
- * Requires @cmc/ui/premium.css (.ck-count).
+ * Requires @cmc/ui/console.css (.console-count).
  */
 export interface CountBadgeProps {
   count: number;
@@ -12,7 +12,7 @@ export interface CountBadgeProps {
 
 export function CountBadge({ count, hideZero = true, emphasize = false }: CountBadgeProps) {
   if (hideZero && count <= 0) return null;
-  const cls = emphasize && count > 0 ? 'ck-count is-emphasize' : 'ck-count';
+  const cls = emphasize && count > 0 ? 'console-count is-emphasize' : 'console-count';
   return (
     <span className={cls} aria-label={`${count}`}>
       {count > 999 ? '999+' : count}

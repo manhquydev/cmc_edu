@@ -198,3 +198,6 @@ infra/nginx/certs/
 
 # Local nodeterm canvas state (machine-specific)
 .nodeterm/
+
+# Authenticated/e2e screenshot dumps (plan 260807-1453 prereq)
+outputs/

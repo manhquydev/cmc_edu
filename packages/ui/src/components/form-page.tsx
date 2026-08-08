@@ -7,7 +7,7 @@ export interface FormPageProps {
   children: ReactNode;
   /**
    * Action bar content — typically a single pill-styled primary `<Button>`
-   * (apply the `.fp-action` class from premium.css, or reuse `.sh-cta`) plus
+   * (apply the `.fp-action` class from console.css, or reuse `.fp-action` / primary button) plus
    * an optional secondary/cancel action.
    */
   actions: ReactNode;
@@ -17,18 +17,18 @@ export interface FormPageProps {
 
 // Form-page archetype: canvas wrap + header + Odoo-like form sheet + sticky
 // action bar + optional result. Props-only (pages own form state). Requires
-// @cmc/ui/odoo.css (.o-wrap, .o-form-sheet*, .o-form-body, .o-actions).
+// @cmc/ui/console.css (.console-wrap, .console-form-sheet*, .console-form-body, .console-actions).
 export function FormPage({ header, children, actions, result }: FormPageProps) {
   return (
-    <div className="o-wrap">
+    <div className="console-wrap">
       {header}
-      <div className="o-form-sheet-bg">
-        <div className="o-form-sheet">
-          <div className="o-form-body">{children}</div>
+      <div className="console-form-sheet-bg">
+        <div className="console-form-sheet">
+          <div className="console-form-body">{children}</div>
         </div>
       </div>
       {result}
-      <div className="o-actions">{actions}</div>
+      <div className="console-actions">{actions}</div>
     </div>
   );
 }

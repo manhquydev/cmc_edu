@@ -11,7 +11,7 @@ export interface KeyValueItem {
 /**
  * Detail description list — modern key/value grid for entity pages.
  * Not a 2010 definition list dump: aligned labels, tabular values.
- * Requires @cmc/ui/premium.css (.ck-kv*).
+ * Requires @cmc/ui/console.css (.console-kv*).
  */
 export interface KeyValueListProps {
   items: KeyValueItem[];
@@ -22,15 +22,15 @@ export interface KeyValueListProps {
 export function KeyValueList({ items, columns = 2 }: KeyValueListProps) {
   return (
     <dl
-      className={columns === 2 ? 'ck-kv ck-kv--2' : 'ck-kv'}
+      className={columns === 2 ? 'console-kv console-kv--2' : 'console-kv'}
     >
       {items.map((item) => (
         <div
           key={item.key}
-          className={item.fullWidth ? 'ck-kv-row ck-kv-row--full' : 'ck-kv-row'}
+          className={item.fullWidth ? 'console-kv-row console-kv-row--full' : 'console-kv-row'}
         >
-          <dt className="ck-kv-label">{item.label}</dt>
-          <dd className="ck-kv-value">{item.value}</dd>
+          <dt className="console-kv-label">{item.label}</dt>
+          <dd className="console-kv-value">{item.value}</dd>
         </div>
       ))}
     </dl>

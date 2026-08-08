@@ -147,8 +147,8 @@ export default function ReceiptDetailPage() {
   const isOverThreshold = threshold !== undefined && receipt.netAmount > threshold;
 
   const overviewContent = (
-    <div className="o-detail-panel">
-      <div className="o-detail-stack">
+    <div className="console-detail-panel">
+      <div className="console-detail-stack">
         {approveMutation.error && (
           <Banner
             status="error"
@@ -271,7 +271,7 @@ export default function ReceiptDetailPage() {
   );
 
   const orderLinesContent = (
-    <div className="o-detail-panel">
+    <div className="console-detail-panel">
       <SectionBlock title="Chi tiết thanh toán" description="Dòng dịch vụ và tổng cộng.">
         <div
           style={{
@@ -399,7 +399,7 @@ export default function ReceiptDetailPage() {
           />
         }
         summary={
-          <div className="o-detail-stack">
+          <div className="console-detail-stack">
             <HighlightStrip
               items={[
                 {

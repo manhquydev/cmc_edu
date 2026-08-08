@@ -4,7 +4,7 @@
 //
 // DOM contract (Odoo shell, design3): top-level modules live in the app
 // switcher (opened via "Mở app switcher"); children of the active app render
-// as horizontal section-menu buttons on the purple navbar (OdooNavbar).
+// as horizontal section-menu buttons on the purple navbar (ConsoleNavbar).
 // Navigation is navigate-then-select (not expand-in-place side rail).
 //
 // Signature stays `menuNav(page, module, child)` for call-site compatibility.
@@ -27,7 +27,7 @@ export interface MenuNavOptions {
 }
 
 function navbar(page: Page): Locator {
-  return page.locator('nav.o-navbar, nav[aria-label="Ứng dụng"]');
+  return page.locator('nav.console-navbar, nav[aria-label="Ứng dụng"]');
 }
 
 function switcherToggle(page: Page): Locator {
@@ -138,7 +138,7 @@ async function assertEntryAbsent(
   // Without this, toHaveCount(0) can ghost-pass during the empty gap between
   // switcher close and children paint (red-team Critical class).
   const nav = navbar(page);
-  const sectionButtons = nav.locator('ul.o-menu-sections button.o-menu-item');
+  const sectionButtons = nav.locator('ul.console-menu-sections button.console-menu-item');
   // Modules with zero visible children (or fully gated) may legitimately have
   // an empty section menu — in that case absence of childLabel is true. For
   // modules that keep at least one ungated sibling, wait for >=1 section item

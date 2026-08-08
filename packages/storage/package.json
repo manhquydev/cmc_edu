@@ -25,8 +25,9 @@
     "@aws-sdk/client-s3": "^3.1103.0"
   },
   "devDependencies": {
+    "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^4.1.10",
-    "typescript": "^5.7.0",
+    "typescript": "^6.0.0",
     "vitest": "^4.1.10"
   }
 }

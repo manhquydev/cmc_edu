@@ -108,7 +108,7 @@ describe('ParentListPage', () => {
 
   it('hosts FilterBar in the ListPage control band (role=search), not only as free body chrome', () => {
     renderWithProviders(<ParentListPage />);
-    // G1 grammar: filters= slot → ControlBar → .o-filter-bar with role="search"
+    // G1 grammar: filters= slot → ControlBar → .console-filter-bar with role="search"
     const search = screen.getByRole('search', { name: 'Bộ lọc' });
     expect(search).toBeInTheDocument();
     // Status filter for the default link-request tab is present in that band

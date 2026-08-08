@@ -9,7 +9,7 @@ describe('BulkActionBar', () => {
         <button type="button">X</button>
       </BulkActionBar>,
     );
-    expect(container.querySelector('.ck-bulk')).toBeNull();
+    expect(container.querySelector('.console-bulk')).toBeNull();
   });
 
   it('shows count and clear', () => {

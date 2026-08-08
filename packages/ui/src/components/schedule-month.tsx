@@ -27,11 +27,11 @@ export function ScheduleMonth({
 }: ScheduleMonthProps) {
   if (loading) {
     return (
-      <div className="ck-smon">
+      <div className="console-smon">
         {[1, 2].map((i) => (
-          <div key={i} className="ck-smon-block">
+          <div key={i} className="console-smon-block">
             <Skeleton height={18} width="30%" radius={1} />
-            <div className="ck-smon-grid">
+            <div className="console-smon-grid">
               <Skeleton height={96} radius={1} />
               <Skeleton height={96} radius={1} />
               <Skeleton height={96} radius={1} />
@@ -44,21 +44,21 @@ export function ScheduleMonth({
 
   if (groups.length === 0) {
     return (
-      <div className="ck-smon-empty">
+      <div className="console-smon-empty">
         <EmptyState title={emptyTitle} description={emptyDescription} />
       </div>
     );
   }
 
   return (
-    <div className="ck-smon">
+    <div className="console-smon">
       {groups.map((g) => (
-        <section key={g.key} className="ck-smon-block">
-          <header className="ck-smon-head">
-            <h3 className="ck-smon-label">{g.label}</h3>
-            <span className="ck-smon-n">{g.items.length} lớp</span>
+        <section key={g.key} className="console-smon-block">
+          <header className="console-smon-head">
+            <h3 className="console-smon-label">{g.label}</h3>
+            <span className="console-smon-n">{g.items.length} lớp</span>
           </header>
-          <div className="ck-smon-grid">
+          <div className="console-smon-grid">
             {g.items.map((item, i) => (
               <SessionCard key={`${g.key}-${item.title}-${i}`} {...item} />
             ))}

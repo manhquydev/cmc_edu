@@ -61,7 +61,7 @@ export function StatusBadge({
   if (appearance === 'soft') {
     const tone = STATUS_SOFT[status] ?? 'info';
     const el = (
-      <span className={`ck-badge-soft ck-badge-soft--${tone}`}>{text}</span>
+      <span className={`console-badge-soft console-badge-soft--${tone}`}>{text}</span>
     );
     if (size === 'lg') {
       return <span style={{ display: 'inline-block', fontSize: '1.15em' }}>{el}</span>;

@@ -28,7 +28,7 @@ export interface ListPageProps {
 }
 
 // List-page archetype: canvas wrap + ControlBar + body. Props-only.
-// Requires @cmc/ui/odoo.css (.o-wrap, .o-list-body).
+// Requires @cmc/ui/console.css (.console-wrap, .console-list-body).
 export function ListPage({
   header,
   filters,
@@ -38,11 +38,11 @@ export function ListPage({
   empty,
   density = 'default',
 }: ListPageProps) {
-  const wrapClass = density === 'ops' ? 'o-wrap o-wrap--ops' : 'o-wrap';
+  const wrapClass = density === 'ops' ? 'console-wrap console-wrap--ops' : 'console-wrap';
   return (
     <div className={wrapClass}>
       <ControlBar header={header} filters={filters} footer={controlFooter} />
-      <div className="o-list-body">
+      <div className="console-list-body">
         {isEmpty ? (empty ?? <EmptyState title="Không có dữ liệu" />) : children}
       </div>
     </div>

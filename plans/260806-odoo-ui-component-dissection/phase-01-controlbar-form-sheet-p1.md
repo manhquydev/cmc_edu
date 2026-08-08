@@ -25,19 +25,19 @@
 3. **FormPage** — body inside sheet dual-layer; sticky actions stay outside sheet.
 4. **CSS sheet tokens** — max-width, border, sticky summary slot, flatten EntityHeader inside sheet.
 5. **Tests** — detail/form structure classes; CSS contract file for densify/sheet.
-6. **Docs** — touch ODOO-COMPONENT-MAP + plan phase status only.
+6. **Docs** — touch CONSOLE-COMPONENT-MAP + plan phase status only.
 
 ## Files
 
 | Path | Action |
 |------|--------|
-| `packages/ui/src/odoo.css` | densify + sheet rules |
+| `packages/ui/src/console.css` | densify + sheet rules |
 | `packages/ui/src/components/detail-page.tsx` | sheet markup |
 | `packages/ui/src/components/form-page.tsx` | sheet markup |
 | `packages/ui/src/components/detail-page.test.tsx` | structure asserts |
 | `packages/ui/src/components/form-page.test.tsx` | structure asserts |
-| `packages/ui/src/odoo/odoo-cp-sheet.test.ts` | CSS contracts |
-| `design-system/cmc-edu/ODOO-COMPONENT-MAP.md` | status bump |
+| `packages/ui/src/console/odoo-cp-sheet.test.ts` | CSS contracts |
+| `design-system/cmc-edu/CONSOLE-COMPONENT-MAP.md` | status bump |
 
 ## Validation
 

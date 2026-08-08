@@ -4,7 +4,7 @@ import { LineIcon, type IconName } from './line-icon.js';
 /**
  * Soft inline callout — Shopify Highlight / Primer Callout style.
  * Lighter than Banner; for page-level tips, not form field errors.
- * Requires @cmc/ui/premium.css (.ck-callout*).
+ * Requires @cmc/ui/console.css (.console-callout*).
  */
 export type CalloutTone = 'info' | 'success' | 'warning' | 'danger' | 'neutral';
 
@@ -34,15 +34,15 @@ export function Callout({
 }: CalloutProps) {
   const iconName = icon ?? TONE_ICON[tone];
   return (
-    <aside className={`ck-callout ck-callout--${tone}`} role="note">
-      <span className="ck-callout-icon" aria-hidden>
+    <aside className={`console-callout console-callout--${tone}`} role="note">
+      <span className="console-callout-icon" aria-hidden>
         <LineIcon name={iconName} size={18} />
       </span>
-      <div className="ck-callout-body">
-        {title ? <div className="ck-callout-title">{title}</div> : null}
-        <div className="ck-callout-text">{children}</div>
+      <div className="console-callout-body">
+        {title ? <div className="console-callout-title">{title}</div> : null}
+        <div className="console-callout-text">{children}</div>
       </div>
-      {action != null ? <div className="ck-callout-action">{action}</div> : null}
+      {action != null ? <div className="console-callout-action">{action}</div> : null}
     </aside>
   );
 }

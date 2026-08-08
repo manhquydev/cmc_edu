@@ -11,6 +11,6 @@ describe('Callout', () => {
     );
     expect(screen.getByText('Chú ý')).toBeInTheDocument();
     expect(screen.getByText('Nội dung tip')).toBeInTheDocument();
-    expect(container.querySelector('.ck-callout--warning')).toBeTruthy();
+    expect(container.querySelector('.console-callout--warning')).toBeTruthy();
   });
 });

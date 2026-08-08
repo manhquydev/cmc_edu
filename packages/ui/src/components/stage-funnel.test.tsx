@@ -19,7 +19,7 @@ describe('StageFunnel', () => {
     expect(container.querySelector('a[href="/crm?stage=O4"]')).toBeTruthy();
     expect(container.querySelector('.is-muted')).toBeTruthy();
     expect(container.querySelector('.is-emphasize')).toBeTruthy();
-    expect(container.querySelector('.ck-fn-summary-total')?.textContent).toBe('4');
+    expect(container.querySelector('.console-fn-summary-total')?.textContent).toBe('4');
   });
 
   it('renders rail layout stages', () => {
@@ -28,9 +28,9 @@ describe('StageFunnel', () => {
         <StageFunnel stages={stages} layout="rail" />
       </MemoryRouter>,
     );
-    expect(container.querySelector('.ck-rail')).toBeTruthy();
-    expect(container.querySelector('a.ck-rail-stage[href="/crm?stage=O4"]')).toBeTruthy();
-    expect(container.querySelector('.ck-fn')).toBeNull();
+    expect(container.querySelector('.console-rail')).toBeTruthy();
+    expect(container.querySelector('a.console-rail-stage[href="/crm?stage=O4"]')).toBeTruthy();
+    expect(container.querySelector('.console-fn')).toBeNull();
   });
 
   it('renders split conversion strip', () => {
@@ -39,8 +39,8 @@ describe('StageFunnel', () => {
         <StageFunnel stages={stages} layout="split" />
       </MemoryRouter>,
     );
-    expect(container.querySelector('.ck-cstrip-track')).toBeTruthy();
-    expect(container.querySelectorAll('.ck-cstrip-legend-item').length).toBe(3);
+    expect(container.querySelector('.console-cstrip-track')).toBeTruthy();
+    expect(container.querySelectorAll('.console-cstrip-legend-item').length).toBe(3);
   });
 
   it('shows empty state when all zeros', () => {

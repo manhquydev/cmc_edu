@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 // Warm-canvas application frame: sidebar slot + blurred sticky topbar + content
 // (promoted from apps/admin/src/shell/shell.tsx — P3 shell extraction). DUMB —
 // props-only, no router/session/tRPC coupling; `nav` is typically a `<SideNav>`
-// but any element works. Requires @cmc/ui/premium.css (.sh-* classes).
+// but any element works. Requires @cmc/ui/console.css (.sh-* classes).
 export interface AppFrameProps {
   /** Sidebar content — typically `<SideNav ... />`. */
   nav: ReactNode;

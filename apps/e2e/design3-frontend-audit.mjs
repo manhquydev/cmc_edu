@@ -244,40 +244,40 @@ async function measurePage(page, route) {
 
   // Shell markers
   result.shell.oWebClient = (await page.locator('.o_web_client').count()) > 0;
-  result.shell.oNavbar = (await page.locator('.o-navbar').count()) > 0;
-  result.shell.oMain = (await page.locator('main.o-main').count()) > 0;
-  // Brand shows active module label (not hardcoded CMC EDU). Pass = non-empty .o-brand.
+  result.shell.oNavbar = (await page.locator('.console-navbar').count()) > 0;
+  result.shell.oMain = (await page.locator('main.console-main').count()) > 0;
+  // Brand shows active module label (not hardcoded CMC EDU). Pass = non-empty .console-brand.
   result.shell.brandCmc =
-    (await page.locator('.o-brand').evaluateAll((els) =>
+    (await page.locator('.console-brand').evaluateAll((els) =>
       els.some((el) => (el.textContent || '').trim().length > 0),
     ).catch(() => false));
   result.shell.appSwitcherToggle =
     (await page.getByRole('button', { name: 'Mở app switcher' }).count()) > 0;
 
   // Component markers
-  const ph = page.locator('.o-page-header');
+  const ph = page.locator('.console-page-header');
   result.markers.pageHeaderCount = await ph.count();
   result.markers.pageHeaderVisible =
     result.markers.pageHeaderCount > 0 &&
     (await ph.first().isVisible().catch(() => false));
-  result.markers.controlBarCount = await page.locator('.o-control-bar').count();
-  result.markers.filterBarCount = await page.locator('.o-filter-bar').count();
+  result.markers.controlBarCount = await page.locator('.console-control-bar').count();
+  result.markers.filterBarCount = await page.locator('.console-filter-bar').count();
   result.markers.listFrame =
-    (await page.locator('.o-list, .o-wrap, .o-list-body').count()) > 0;
+    (await page.locator('.console-list, .console-wrap, .console-list-body').count()) > 0;
   result.markers.formFrame =
-    (await page.locator('.o-form, .o-form-body, form').count()) > 0;
+    (await page.locator('.console-form, .console-form-body, form').count()) > 0;
   result.markers.detailFrame =
-    (await page.locator('.o-detail, .o-detail-body, .o-eh').count()) > 0;
-  result.markers.kanban = (await page.locator('.o-kanban, .o_kanban').count()) > 0;
+    (await page.locator('.console-detail, .console-detail-body, .console-eh').count()) > 0;
+  result.markers.kanban = (await page.locator('.console-kanban, .o_kanban').count()) > 0;
   result.markers.statusbar =
-    (await page.locator('.o-workflow-statusbar, .o-steps').count()) > 0;
+    (await page.locator('.console-workflow-statusbar, .console-steps').count()) > 0;
   result.markers.emptyState =
-    (await page.locator('.ck-empty, [data-empty-state], .o-empty').count()) > 0 ||
+    (await page.locator('.console-empty, [data-empty-state], .console-empty').count()) > 0 ||
     (await page.getByText(/tính năng chưa|chưa áp dụng|coming soon/i).count()) > 0;
 
   // Residual premium class census in rendered DOM under main
   result.markers.residualCkTplSh = await page.evaluate(() => {
-    const main = document.querySelector('main.o-main') || document.body;
+    const main = document.querySelector('main.console-main') || document.body;
     const set = new Set();
     main.querySelectorAll('[class]').forEach((el) => {
       for (const c of el.classList) {
@@ -303,11 +303,11 @@ async function measurePage(page, route) {
 
     if (menuVisible) {
       const metrics = await page.evaluate(() => {
-        const menuEl = document.querySelector('.o-app-switcher-menu');
-        const navEl = document.querySelector('.o-navbar');
-        const headers = [...document.querySelectorAll('.o-page-header')];
-        const controlBars = [...document.querySelectorAll('.o-control-bar')];
-        const main = document.querySelector('main.o-main');
+        const menuEl = document.querySelector('.console-app-switcher-menu');
+        const navEl = document.querySelector('.console-navbar');
+        const headers = [...document.querySelectorAll('.console-page-header')];
+        const controlBars = [...document.querySelectorAll('.console-control-bar')];
+        const main = document.querySelector('main.console-main');
 
         function box(el) {
           if (!el) return null;
@@ -346,11 +346,11 @@ async function measurePage(page, route) {
                 typeof el.className === 'string'
                   ? el.className.slice(0, 120)
                   : '',
-              inMenu: Boolean(el.closest('.o-app-switcher-menu')),
-              inNavbar: Boolean(el.closest('.o-navbar')),
-              inMain: Boolean(el.closest('main.o-main')),
-              isPageHeader: el.classList?.contains('o-page-header') ||
-                Boolean(el.closest('.o-page-header')),
+              inMenu: Boolean(el.closest('.console-app-switcher-menu')),
+              inNavbar: Boolean(el.closest('.console-navbar')),
+              inMain: Boolean(el.closest('main.console-main')),
+              isPageHeader: el.classList?.contains('console-page-header') ||
+                Boolean(el.closest('.console-page-header')),
             }));
             sampleHits.push({ x, y, stack });
           }
@@ -485,9 +485,9 @@ function toMarkdown(results, summary, meta) {
   );
   lines.push(`|--------|-------|`);
   lines.push(
-    `| Shell design3 (o_web_client + o-navbar + o-main) | ${summary.shellOk}/${summary.total} (${summary.shellPct}%) |`,
+    `| Shell design3 (o_web_client + console-navbar + console-main) | ${summary.shellOk}/${summary.total} (${summary.shellPct}%) |`,
   );
-  lines.push(`| Pages with \`.o-page-header\` | ${summary.withHeader}/${summary.total} |`);
+  lines.push(`| Pages with \`.console-page-header\` | ${summary.withHeader}/${summary.total} |`);
   lines.push(
     `| **App-switcher covered by page content** (elementsFromPoint) | **${summary.menuCoveredCount}/${summary.total}** |`,
   );
@@ -504,7 +504,7 @@ function toMarkdown(results, summary, meta) {
   lines.push('## Critical stacking finding (menu overlay)');
   lines.push('');
   lines.push(
-    'App switcher (`.o-app-switcher-menu`) is `position:absolute; z-index:10` inside `.o-navbar` which is `position:relative` **without** a shell-level z-index. `<main class="o-main">` is the next flex sibling and paints after the navbar, so page chrome that overlaps the dropdown band can win hit-testing and visual stacking.',
+    'App switcher (`.console-app-switcher-menu`) is `position:absolute; z-index:10` inside `.console-navbar` which is `position:relative` **without** a shell-level z-index. `<main class="console-main">` is the next flex sibling and paints after the navbar, so page chrome that overlaps the dropdown band can win hit-testing and visual stacking.',
   );
   lines.push('');
   if (summary.menuCoveredPaths.length) {
@@ -526,7 +526,7 @@ function toMarkdown(results, summary, meta) {
     lines.push('### Spotlight: `/teaching/session-assessment`');
     lines.push('');
     lines.push(`- Shell OK: ${sa.shell.oWebClient && sa.shell.oNavbar && sa.shell.oMain}`);
-    lines.push(`- \`.o-page-header\` count: ${sa.markers.pageHeaderCount} (visible=${sa.markers.pageHeaderVisible})`);
+    lines.push(`- \`.console-page-header\` count: ${sa.markers.pageHeaderCount} (visible=${sa.markers.pageHeaderVisible})`);
     lines.push(
       `- PageHeader computed: position=\`${sa.stacking.pageHeaderPosition}\` z-index=\`${sa.stacking.pageHeaderZ}\``,
     );
@@ -596,34 +596,34 @@ function toMarkdown(results, summary, meta) {
   lines.push('## Design3 sync verdict (honest)');
   lines.push('');
   lines.push(
-    '1. **Shell language:** Admin production chrome is design3 (OdooNavbar + `.o_web_client` + `.o-main`) on walked authenticated routes — unit/static rollout claim holds at runtime if shellOk is high.',
+    '1. **Shell language:** Admin production chrome is design3 (ConsoleNavbar + `.o_web_client` + `.console-main`) on walked authenticated routes — unit/static rollout claim holds at runtime if shellOk is high.',
   );
   lines.push(
-    '2. **Template coverage:** Most business pages render via shared templates emitting `o-*` (PageHeader/List/Form/Detail). Dialogs and login intentionally outside templates.',
+    '2. **Template coverage:** Most business pages render via shared templates emitting `console-*` (PageHeader/List/Form/Detail). Dialogs and login intentionally outside templates.',
   );
   lines.push(
-    '3. **Stacking debt:** Navbar/app-switcher z-index vs main content is a structural defect class — page chrome (incl. `.o-page-header`) can obscure the open menu when geometry overlaps. Fix belongs in `packages/ui` shell CSS (raise `.o-navbar` stacking), not page-by-page hacks.',
+    '3. **Stacking debt:** Navbar/app-switcher z-index vs main content is a structural defect class — page chrome (incl. `.console-page-header`) can obscure the open menu when geometry overlaps. Fix belongs in `packages/ui` shell CSS (raise `.console-navbar` stacking), not page-by-page hacks.',
   );
   lines.push(
     '4. **Premium residual:** Phase 6 selector mirror may paint `ck-*` correctly, but true class-language retirement is still backlog when residual DOM classes appear.',
   );
   lines.push(
-    '5. **Merge gates still open:** full `ui-e2e` + acceptance re-measure per `docs/design-system-odoo.md`.',
+    '5. **Merge gates still open:** full `ui-e2e` + acceptance re-measure per `docs/design-system-console.md`.',
   );
   lines.push('');
   lines.push('## Recommended fix order');
   lines.push('');
   lines.push(
-    '1. **P0 shell stacking:** set `.o-navbar { z-index: 1000; }` (or Odoo-parity shell layer) so `.o-app-switcher-menu` always wins over main; add regression test with open menu + page-header under navbar band.',
+    '1. **P0 shell stacking:** set `.console-navbar { z-index: 1000; }` (or Odoo-parity shell layer) so `.console-app-switcher-menu` always wins over main; add regression test with open menu + page-header under navbar band.',
   );
   lines.push(
-    '2. **Audit sticky cousins:** `.o-control-bar` sticky z-index:5 and base `.o-page-header` sticky z-index:10 (static under `.o_web_client`) — keep shell layers documented in design-system-odoo.',
+    '2. **Audit sticky cousins:** `.console-control-bar` sticky z-index:5 and base `.console-page-header` sticky z-index:10 (static under `.o_web_client`) — keep shell layers documented in design-system-console.',
   );
   lines.push(
     '3. **Empty/placeholder routes:** close or hide nav for EmptyState screens still reachable (refund/leaderboard if present).',
   );
   lines.push(
-    '4. **Optional residual rename:** `ck-*` → `o-*` when bandwidth allows; not required for shell language.',
+    '4. **Optional residual rename:** `ck-*` → `console-*` when bandwidth allows; not required for shell language.',
   );
   lines.push('');
   lines.push('## Artifacts');

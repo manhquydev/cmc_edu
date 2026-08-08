@@ -1,6 +1,6 @@
 // Funnel / proportional stage bar — ops-dense but modern (not 2018 pill-only).
 // Structure: optional step chip · label head · track with soft fill · count · share.
-// Wrap siblings in `.ck-fn`. Requires @cmc/ui/premium.css (.ck-fn* classes).
+// Wrap siblings in `.console-fn`. Requires @cmc/ui/console.css (.console-fn* classes).
 
 export interface FunnelBarProps {
   label: string;
@@ -48,7 +48,7 @@ export function FunnelBar({
   const width = funnelFillWidth(value, max);
   const share = sharePct(value, max);
   const cls = [
-    'ck-fn-row',
+    'console-fn-row',
     size === 'sm' ? 'is-sm' : '',
     muted ? 'is-muted' : '',
     emphasize ? 'is-emphasize' : '',
@@ -63,23 +63,23 @@ export function FunnelBar({
       aria-label={`${label}: ${value}${showShare ? ` (${share}%)` : ''}`}
     >
       {step != null && step !== '' ? (
-        <span className="ck-fn-step" aria-hidden>
+        <span className="console-fn-step" aria-hidden>
           {step}
         </span>
       ) : null}
-      <div className="ck-fn-main">
-        <div className="ck-fn-head">
-          <span className="ck-fn-label">{label}</span>
-          {hint ? <span className="ck-fn-hint">{hint}</span> : null}
+      <div className="console-fn-main">
+        <div className="console-fn-head">
+          <span className="console-fn-label">{label}</span>
+          {hint ? <span className="console-fn-hint">{hint}</span> : null}
         </div>
-        <div className="ck-fn-barline">
-          <span className="ck-fn-track">
-            <span className="ck-fn-fill" style={{ width: `${width}%` }} />
+        <div className="console-fn-barline">
+          <span className="console-fn-track">
+            <span className="console-fn-fill" style={{ width: `${width}%` }} />
           </span>
-          <span className="ck-fn-count">{value}</span>
-          {showShare ? <span className="ck-fn-share">{share}%</span> : null}
+          <span className="console-fn-count">{value}</span>
+          {showShare ? <span className="console-fn-share">{share}%</span> : null}
           {showChevron ? (
-            <span className="ck-fn-chev" aria-hidden>
+            <span className="console-fn-chev" aria-hidden>
               ›
             </span>
           ) : null}

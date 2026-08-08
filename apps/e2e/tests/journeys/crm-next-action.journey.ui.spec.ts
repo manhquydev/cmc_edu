@@ -7,7 +7,7 @@ import { withFacility } from '@cmc/db';
 import { mintStaffCookie } from '../../src/session-injection.js';
 import { randomVnPhone } from '../../src/random-vn-phone.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
-import { getDb } from '../../src/db.js';
+import { getDb, seedAppUser } from '../../src/db.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
@@ -52,6 +52,15 @@ test.describe('P4 journey — nhắc việc theo cơ hội', () => {
   const userId = `e2e-next-sale-${runId}`;
 
   test('sale sets next action; due shows on cockpit after backdate', async ({ browser }) => {
+    // opportunityCreate assigns to the caller's AppUser when role=sale.
+    // Due inbox filters assignedToId = me — seed the staff row first.
+    await seedAppUser({
+      facilityId,
+      userId,
+      fullName: `E2E Sale ${runId}`,
+      roles: ['sale'],
+    });
+
     const context = await browser.newContext({ baseURL: 'http://localhost:4173' });
     const page = await context.newPage();
     await context.addCookies(

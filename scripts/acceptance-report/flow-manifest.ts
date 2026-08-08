@@ -247,6 +247,19 @@ export const flows: FlowEntry[] = [
     // phát-hiện→hiển-thị; action/dismiss chưa drive (H2 hợp lệ, phủ hẹp).
     journey: 'apps/e2e/tests/journeys/recon-exceeds-threshold.journey.ui.spec.ts',
   },
+  {
+    id: 'P1-11',
+    displayName: 'Cảnh báo cơ hội đang nguội',
+    cluster: 'P1',
+    actorRoles: ['sale'],
+    expected: {
+      trpc: ['crm.opportunityList', 'crm.opportunityAdvance', 'crm.opportunityCreate'],
+      uiRoutes: ['/crm'],
+      models: ['Opportunity'],
+    },
+    // P2 rotting: seed stageChangedAt backdate → badge on board → advance clears clock.
+    journey: 'apps/e2e/tests/journeys/crm-rotting.journey.ui.spec.ts',
+  },
 
   // ─────────────────────────────── P2 — Vận hành lớp học ───────────────────────────────
   {

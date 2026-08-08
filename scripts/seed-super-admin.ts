@@ -17,7 +17,7 @@
 //                               sets mustChangePassword so the first real
 //                               login forces a rotation. Omit for SSO-only.
 
-import { PrismaClient, Role } from '@prisma/client';
+import { createPrivilegedPrismaClient, Role } from '@cmc/db';
 import { createHash } from 'node:crypto';
 import { hashPassword } from '../apps/api/src/lms-auth/password-hash.js';
 
@@ -37,7 +37,7 @@ async function main(): Promise<void> {
   const employeeCode = process.env['SUPER_ADMIN_EMPLOYEE_CODE'] ?? 'SA-001';
   const userId = process.env['SUPER_ADMIN_USER_ID'] ?? deterministicId(`super_admin:${email}`);
 
-  const db = new PrismaClient({ datasources: { db: { url: process.env['DATABASE_URL'] } } });
+  const db = createPrivilegedPrismaClient();
 
   try {
     // Upsert facility by name (idempotent).

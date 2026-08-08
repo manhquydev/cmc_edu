@@ -15,7 +15,7 @@
 //   LOCAL_SIM_SEED_ALLOW=1 DATABASE_URL=postgresql://postgres:…@127.0.0.1:5432/cmc_prod \
 //     npx tsx scripts/ensure-curriculum-units.ts
 
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClientWithUrl } from '@cmc/db';
 
 function resolveDatabaseUrl(): string {
   const raw =
@@ -48,7 +48,7 @@ function allowGate(): void {
 async function main(): Promise<void> {
   allowGate();
   const url = resolveDatabaseUrl();
-  const db = new PrismaClient({ datasources: { db: { url } } });
+  const db = createPrismaClientWithUrl(url);
   try {
     const existingCount = await db.curriculumUnit.count();
     if (existingCount > 0) {

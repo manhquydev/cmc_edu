@@ -2,21 +2,45 @@
 
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
-import pg from 'pg';
+import { withFacility } from '@cmc/db';
 
 import { mintStaffCookie } from '../../src/session-injection.js';
 import { randomVnPhone } from '../../src/random-vn-phone.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
+import { getDb } from '../../src/db.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
-const dbUrl = process.env.DATABASE_URL ?? process.env.E2E_DB_URL;
 
 function cookiePair(name: string, value: string) {
   return [
     { name, value, domain: '127.0.0.1', path: '/' },
     { name, value, domain: 'localhost', path: '/' },
   ];
+}
+
+async function backdateNextActionByName(name: string): Promise<void> {
+  await withFacility(
+    getDb(),
+    null,
+    async (tx) => {
+      const contact = await tx.contact.findFirst({
+        where: { facilityId, name },
+        select: { id: true },
+      });
+      if (!contact) {
+        throw new Error(`No contact found for name=${name}`);
+      }
+      const updated = await tx.opportunity.updateMany({
+        where: { facilityId, contactId: contact.id },
+        data: { nextActionAt: new Date(Date.now() - 60 * 60 * 1000) },
+      });
+      if (updated.count === 0) {
+        throw new Error(`No opportunity found to backdate nextAction for name=${name}`);
+      }
+    },
+    { bypass: true },
+  );
 }
 
 test.describe('P4 journey — nhắc việc theo cơ hội', () => {
@@ -28,8 +52,6 @@ test.describe('P4 journey — nhắc việc theo cơ hội', () => {
   const userId = `e2e-next-sale-${runId}`;
 
   test('sale sets next action; due shows on cockpit after backdate', async ({ browser }) => {
-    test.skip(!dbUrl, 'DATABASE_URL required to backdate nextActionAt for due list');
-
     const context = await browser.newContext({ baseURL: 'http://localhost:4173' });
     const page = await context.newPage();
     await context.addCookies(
@@ -50,7 +72,6 @@ test.describe('P4 journey — nhắc việc theo cơ hội', () => {
     await expect(page).toHaveURL(/\/crm\/opportunities\//);
     await expect(page.getByTestId('crm-next-action')).toBeVisible();
 
-    // DateField is type=date — fill tomorrow then backdate via SQL for due.
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const ymd = tomorrow.toISOString().slice(0, 10);
@@ -59,22 +80,7 @@ test.describe('P4 journey — nhắc việc theo cơ hội', () => {
     await page.getByRole('button', { name: 'Lưu việc tiếp theo' }).click();
     await expect(page.getByText(`Gọi lại ${runId}`)).toBeVisible({ timeout: 10_000 });
 
-    // Backdate nextActionAt so due list includes it (plan: seed lùi ngày).
-    const client = new pg.Client({ connectionString: dbUrl });
-    await client.connect();
-    try {
-      await client.query(
-        `UPDATE "Opportunity" o
-         SET "nextActionAt" = NOW() - INTERVAL '1 hour'
-         FROM "Contact" c
-         WHERE o."contactId" = c."id"
-           AND c."name" = $1
-           AND o."facilityId" = $2`,
-        [leadName, facilityId],
-      );
-    } finally {
-      await client.end();
-    }
+    await backdateNextActionByName(leadName);
 
     await page.goto('/cockpit');
     await expect(page.getByTestId('crm-due-followups')).toBeVisible();

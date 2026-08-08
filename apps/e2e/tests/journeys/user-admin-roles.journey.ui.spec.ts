@@ -71,6 +71,14 @@ test.describe('ADM-02 journey — quản trị nhân sự: tạo tài khoản + 
     // The create dialog closes on success — wait before searching the table.
     await expect(page.getByRole('button', { name: 'Tạo' })).toHaveCount(0);
 
+    // Narrow the list to this account before reading rows. user.list sorts
+    // createdAt:asc and the table paginates at 20/page starting on page 1, so a
+    // freshly-created account always lands on the LAST page — invisible to
+    // findInList (which only scans the rendered page) once the shared-facility
+    // roster exceeds 20 users. Driving the FilterBar's server-side search keeps
+    // this journey robust regardless of how many accounts other specs seed.
+    await page.getByPlaceholder('Tên, email, mã NV', { exact: false }).fill(staffName);
+
     // The new account appears in the list, carrying the role picked at create
     // time — not yet the target 'Giáo viên' role this journey exists to prove.
     // The Roles column renders the canonical `formatRole` label ('Sale'), not

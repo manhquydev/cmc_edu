@@ -50,7 +50,7 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 │  └──────────────────┬──────────────────────────────────┘  │
 │                     │                                      │
 │  ┌──────────────────▼──────────────────────────────────┐  │
-│  │ Prisma ORM + Postgres                              │  │
+│  │ Prisma 7 (driver adapter) + Postgres                │  │
 │  │ - 50 models (sales, identity, classes, HR, …)     │  │
 │  │ - Row-level security (37 tables)                   │  │
 │  │ - Append-only ledger (RefundRecord, AuditLog)      │  │
@@ -196,11 +196,22 @@ Minimal (P1) — mostly handles phone normalization.
 ---
 
 #### `@cmc/db` (Database Layer)
-Prisma schema + helper functions.
+Prisma 7 schema + helper functions. Prisma 7 removed `datasource.url` from
+`schema.prisma` and the `new PrismaClient({ datasources })` constructor
+override; connection selection now happens via a **driver adapter**
+(`@prisma/adapter-pg` over `pg`), built explicitly from a connection string.
+CLI operations (`migrate`/`generate`/`studio`) are configured separately in
+`packages/db/prisma.config.ts` (DATABASE_URL / schema-owner role only; loads
+the gitignored `prisma/.env` itself, since Prisma 7 stopped auto-loading
+`.env`). This split is CLI-vs-runtime only — it does not change RLS enforcement
+(see Facility Isolation below).
 
-**Key Exports:**
-- `PrismaClient` — configured with RLS  
-- `withFacility(db, facilityId, callback)` — wraps transaction + RLS context  
+**Key Exports (`packages/db/src/index.ts`):**
+- `createPrismaClient()` — app-role client (`APP_DATABASE_URL ?? DATABASE_URL`), used by request-serving code; this is the role RLS policies actually restrict
+- `createPrivilegedPrismaClient()` — schema-owner-role client (`DATABASE_URL` only, no fallback), for the handful of callers that need it (audit-log retention sweep, test-harness teardown of append-only ledgers)
+- `createPrismaClientWithUrl(connectionString)` — for scripts that resolve their own connection string
+- All three throw immediately if their URL is unset, rather than letting the underlying `pg.Pool` silently fall back to libpq `PG*` env vars
+- `withFacility(db, facilityId, callback)` — wraps transaction + RLS context (unchanged by the Prisma 7 migration)
 - RLS policy templates (shared across migrations)
 
 **RLS Setup:**
@@ -383,6 +394,14 @@ FOR SELECT USING (facilityId = current_setting('app.facility_id')::uuid)
 3. Postgres enforces policy at row level
 
 **Impact:** Out-of-facility record IDs are invisible (not "403 forbidden" — they're "not found").
+
+**Prisma 7 note (2026-08-08):** the connection Prisma opens for layer 2 now goes
+through the `@prisma/adapter-pg` driver adapter (`packages/db/src/index.ts`)
+instead of Prisma's built-in `datasources` override — this is a connection-
+plumbing change only. The app-role selection (`APP_DATABASE_URL` → `cmc_app`,
+never the schema-owner role) and the `withFacility()` `SET LOCAL`/
+`set_config(..., true)` per-transaction GUC pattern that RLS depends on are
+unchanged; see `docs/decisions/0042-rls-defense-in-depth.md` for the addendum.
 
 ### Data Integrity (Append-Only Ledgers)
 **Mechanism:** Postgres REVOKE on UPDATE/DELETE for sensitive tables.

@@ -89,3 +89,28 @@ be far costlier.
     steps' progress durable (ADR 0041 replay), and Postgres aborts an entire transaction on
     its first error, so a catch-and-refetch-on-P2002 must run in a fresh transaction, not the
     one that just failed.
+
+## Addendum (2026-08-08): Prisma 7 driver-adapter migration
+
+Prisma 7 removed `datasource.url` from `schema.prisma` and the
+`new PrismaClient({ datasources })` constructor override; RLS enforcement now
+runs through a connection built by the `@prisma/adapter-pg` driver adapter
+instead. This is a connection-plumbing change only — it does not alter the
+decision above:
+
+- The app-role selection (`APP_DATABASE_URL` → `cmc_app`, never the
+  schema-owner role) is unchanged: `createPrismaClient()`
+  (`packages/db/src/index.ts`) still resolves `APP_DATABASE_URL ?? DATABASE_URL`
+  and hands that connection string to the adapter.
+- The `withFacility()` transaction pattern — `set_config('app.current_facility_id'/
+  'app.bypass_rls', value, true)` (transaction-LOCAL, `SET LOCAL` semantics) — is
+  unchanged and verified working through the adapter.
+- New: a fail-loud guard on all three client factories
+  (`createPrismaClient`/`createPrivilegedPrismaClient`/`createPrismaClientWithUrl`)
+  throws when their URL is unset, instead of letting the underlying `pg.Pool`
+  silently fall back to libpq `PG*` environment variables — hardening against
+  exactly the silent-wrong-role failure mode this ADR's wave-1 notes warn about.
+- CLI operations (`migrate`/`generate`/`studio`) now read their connection
+  string from a separate `packages/db/prisma.config.ts` (schema-owner
+  `DATABASE_URL` only) — this file has no runtime effect and is not part of
+  the RLS enforcement path.

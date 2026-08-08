@@ -6,6 +6,58 @@
 
 ---
 
+## [2026-08-08] Prisma 6.19.3 → 7.9.1: driver-adapter migration
+
+**Context:** Prisma 7 removes `datasource.url` from `schema.prisma` and the
+`new PrismaClient({ datasources })` constructor override. Migrated `@cmc/db`
+to the `@prisma/adapter-pg` driver adapter to unblock the dependabot bump.
+
+**`@cmc/db` (`packages/db/src/index.ts`):**
+- `createPrismaClient()` still resolves `APP_DATABASE_URL ?? DATABASE_URL`
+  (app role `cmc_app`) and now builds a `PrismaPg` adapter from it — RLS
+  (ADR 0042) app-role precedence is unchanged.
+- Added `createPrivilegedPrismaClient()` (`DATABASE_URL` only, no fallback)
+  and `createPrismaClientWithUrl(connectionString)` to replace the removed
+  `datasources` override at the 5 call sites that used it (audit-log
+  retention sweep, api/e2e test-harness ledger teardown, standalone scripts).
+- All three factories fail loud on a missing URL instead of letting the
+  underlying `pg.Pool` silently fall back to libpq `PG*` env vars.
+- New `packages/db/prisma.config.ts`: CLI-only config for
+  `migrate`/`generate`/`studio` (schema-owner `DATABASE_URL`), loads the
+  gitignored `prisma/.env` itself (Prisma 7 stopped auto-loading `.env`).
+- `withFacility()`'s `SET LOCAL`/`set_config(..., true)` RLS GUC pattern is
+  unchanged and verified working through the adapter.
+
+**Proof:** typecheck 29/29; admin+lms build; `@cmc/api` 2144 tests on a real
+synthetic Postgres; RLS smoke (facility scoping both directions + bypass +
+fail-closed default). CI `typecheck-and-test` + `ui-e2e` SUCCESS on PR #90
+(merged to `develop`) and PR #91 (`develop` → `main` sync). Closes dependabot
+#84.
+
+**Docs:** `docs/system-architecture.md` (§4 Database, §`@cmc/db`, §Facility
+Isolation), `docs/18-tech-stack-va-chuan-ky-thuat.md`,
+`docs/decisions/0042-rls-defense-in-depth.md` (addendum).
+
+---
+
+## [2026-08-08] TypeScript 5.7 → 6.0.3
+
+**Context:** Dependabot bump (#83) tightened TS6's default lib/types; packages
+using Node/web globals (`process`, `fetch`, `console`, `node:*`) lost implicit
+types.
+
+**Fix (config-only, no runtime change):** added `@types/node ^22.10.0` +
+`"types": ["node"]` to the 6 packages that needed it — `db`, `links`, `llm`,
+`mcp-server`, `storage`, `ui`.
+
+**Proof:** `pnpm typecheck` 29/29; admin+lms build; `@cmc/ui` 143/143;
+`@cmc/db` tests pass. CI `typecheck-and-test` + `ui-e2e` SUCCESS on PR #88.
+Closes dependabot #83.
+
+**Docs:** `docs/codebase-summary.md`, `docs/18-tech-stack-va-chuan-ky-thuat.md`.
+
+---
+
 ## [2026-08-07] CMC Console design-system rebrand (admin)
 
 **Context:** Rebrand admin ERP UI language from Odoo-named identifiers to

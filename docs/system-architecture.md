@@ -51,10 +51,10 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 │                     │                                      │
 │  ┌──────────────────▼──────────────────────────────────┐  │
 │  │ Prisma 7 (driver adapter) + Postgres                │  │
-│  │ - 50 models (sales, identity, classes, HR, …)     │  │
+│  │ - 51 models (sales, identity, classes, HR, …)     │  │
 │  │ - Row-level security (37 tables)                   │  │
 │  │ - Append-only ledger (RefundRecord, AuditLog)      │  │
-│  │ - Migrations: 35 folders (P1 through P4 + fixes)   │  │
+│  │ - Migrations: 42 folders (P1 through P4 + fixes)   │  │
 │  └──────────────────────────────────────────────────────┘  │
 │                                                             │
 │ [LLM client: BUILT (tested) · MCP transport: SKELETON]     │
@@ -232,7 +232,7 @@ open-mode (0 active network and 0 active geofence), or IP matches an active
 ---
 
 ### 4. Database (Postgres)
-**Status:** P1–P4 schema complete; 35 migrations applied (P1 identity/enrollment through P4 after-sale, plus remediation fixes)
+**Status:** P1–P4 schema complete; 42 migrations applied (P1 identity/enrollment through P4 after-sale, plus remediation fixes; measured 2026-08-08)
 
 #### Core Entity Groups
 

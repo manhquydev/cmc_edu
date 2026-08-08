@@ -67,7 +67,7 @@ D:\project\vip\CMC
 │       └── tests/*.ui.spec.ts          # Real browser UI specs (admin-shell, lms-login; Phase 2 added, Phase 3 validated)
 ├── packages/
 │   ├── auth/            # RBAC registry (single source of truth for roles/permissions)
-│   ├── db/              # Prisma schema, migrations, seed — 48 models
+│   ├── db/              # Prisma schema, migrations, seed — 51 models (measured 2026-08-08, `schema.prisma`)
 │   ├── domain-finance/  # Finance domain logic (SO receipt codes, refund cap, phone dedup)
 │   ├── domain-identity/ # Identity domain logic (phone normalization)
 │   └── ui/              # Design system: Astryx barrel + dual chrome — admin CMC Console (`console.css`, ConsoleNavbar, KanbanBoard, `console-*` + ControlBar/FilterBar); LMS `lms-*` (`apps/lms/src/app.css`). Shared: LineIcon, MetricCard/Panel/TaskRow/FunnelBar, ListPage/DetailPage/FormPage. Inter + light-only. (design3 admin + FilterBar search wave 2026-08-07 — see docs/design-system-console.md)
@@ -449,9 +449,9 @@ scrub/sweep, terminal-row prune)
 
 ## Data Model (P1)
 
-**Prisma Schema:** `packages/db/prisma/schema.prisma` (393 lines)
+**Prisma Schema:** `packages/db/prisma/schema.prisma` (1672 lines, measured 2026-08-08 — this figure is current-repo, not P1-only; P1 shipped a much smaller file). Current schema has **51 models** and **22 enums** total, spanning P1–P4 (sales/identity/enrollment through class ops, HR/payroll, and redemption). The tables below are the **P1-era subset only**; for the full current set see `packages/db/prisma/schema.prisma` or `docs/system-architecture.md` (P1–P4 entity groups).
 
-### Core Tables (13 + 4 RLS-protected)
+### Core Tables (13 + 4 RLS-protected) — P1 subset
 
 | Table | Purpose | RLS | Notes |
 |-------|---------|-----|-------|
@@ -478,7 +478,9 @@ scrub/sweep, terminal-row prune)
 | `StudentLifecycle` | Enum (active, blocked_lms, withdrawn) |
 | `OpportunityStage` | Enum (O1_LEAD ... O5_ENROLLED) |
 
-### Migrations (5 total)
+### Migrations (5 P1 migrations shown; 42 migration folders total as of 2026-08-08)
+
+The 5 P1 migrations below are the historical starting point. P2–P4 and later remediation waves added the rest — see `packages/db/prisma/migrations/` for the full, current list.
 
 1. **20260706025956_p1_identity_enrollment** — Initial schema (Student, Guardian, Enrollment, Receipt, etc.)  
 2. **20260706054322_p1_remediation_wave1_schema_rls** — RLS policies (6 tables), `withFacility` trigger, GRANT refinement  
@@ -524,8 +526,7 @@ Single RBAC source of truth. Consulted by every mutation via `requirePermission(
 ## Security (RLS + Append-Only)
 
 ### Row-Level Security (RLS)
-6 tables enforce facility isolation via `facility_id` column:
-- Opportunity, Student, Enrollment, Receipt, RefundRecord, AuditLog
+**37 tables** enforce facility isolation via `facility_id` (measured 2026-08-08, `packages/db/prisma/migrations/`; grew from the 6 P1-era tables below as P2–P4 landed). P1 core set: Opportunity, Student, Enrollment, Receipt, RefundRecord, AuditLog. For the full current list see `packages/db/prisma/schema.prisma` or `docs/system-architecture.md` (P1–P4).
 
 **Pattern:** `CREATE POLICY "facility_isolation" ON table_name FOR SELECT USING (facilityId = current_setting('app.facility_id')::uuid)`
 

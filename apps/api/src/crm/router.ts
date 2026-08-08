@@ -13,6 +13,7 @@ import { isOpportunityLost } from './opportunity-lost.js';
 import { findOrCreateContact } from './find-or-create-contact.js';
 import { normalizeContactPhone, toContactPhoneSearchDigits } from './normalize-contact-phone.js';
 import { advanceOpportunityOneStep } from './advance-opportunity.js';
+import { confirmBulkImport, previewBulkImport } from './bulk-import-opportunities.js';
 
 /** Full OpportunityStage catalog (docs/10). */
 const STAGE_VALUES = [
@@ -46,6 +47,13 @@ const opportunityCreateInput = z.object({
   phone: contactPhoneInput,
   email: z.string().email().optional(),
   source: z.enum(SOURCE_VALUES).optional(),
+});
+
+const opportunityBulkImportInput = z.object({
+  /** Pasted text/CSV: name,phone[,email[,source]] per line. */
+  text: z.string().min(1).max(500_000),
+  /** Optional default source for rows without a source column. */
+  defaultSource: z.enum(SOURCE_VALUES).optional(),
 });
 
 const opportunityAssignInput = z.object({
@@ -433,6 +441,45 @@ export const crmRouter = router({
         }));
 
         return { items: itemsWithOwner, total, page: input.page, pageSize: input.pageSize, stageCounts, lostCount };
+      });
+    }),
+
+  /**
+   * P3 bulk import — preview classification (create / skip / error).
+   * No writes. Open-opportunity dedup is procedure-layer (not Contact-only).
+   */
+  opportunityBulkPreview: requirePermission('crm', 'opportunityCreate')
+    .input(opportunityBulkImportInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) =>
+        previewBulkImport(tx, facilityId, input.text, input.defaultSource ?? null),
+      );
+    }),
+
+  /**
+   * P3 bulk import — confirm write. Each create is its own withFacility
+   * transaction (commit-time re-check per row); errors never abort valid rows.
+   */
+  opportunityBulkConfirm: requirePermission('crm', 'opportunityCreate')
+    .input(opportunityBulkImportInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      let assignedToId: string | null = null;
+      if (ctx.subject.roles.includes('sale')) {
+        assignedToId = await withFacility(ctx.db, facilityId, async (tx) => {
+          const callerAppUser = await tx.appUser.findFirst({
+            where: { userId: ctx.subject.userId, facilityId },
+            select: { id: true },
+          });
+          return callerAppUser?.id ?? null;
+        });
+      }
+      return confirmBulkImport(ctx.db, {
+        facilityId,
+        text: input.text,
+        defaultSource: input.defaultSource ?? null,
+        assignedToId,
       });
     }),
 });

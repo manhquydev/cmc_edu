@@ -63,6 +63,13 @@ export const NAV_MODULES: NavModule[] = [
     children: [
       { id: 'receipts', label: 'Phiếu thu', path: '/finance', icon: 'receipt', permission: { module: 'finance', action: 'receiptList' } },
       { id: 'crm', label: 'CRM', path: '/crm', icon: 'target', permission: { module: 'crm', action: 'opportunityList' } },
+      {
+        id: 'crm-bulk-import',
+        label: 'Nhập lead hàng loạt',
+        path: '/crm/bulk-import',
+        icon: 'plus',
+        permission: { module: 'crm', action: 'opportunityCreate' },
+      },
       // Built entirely on `finance.receiptList`, which the ADR-B money gate
       // withholds from sale — the menu entry must not promise more than that.
       { id: 'revenue', label: 'Doanh thu', path: '/ops/revenue', icon: 'card', permission: { module: 'finance', action: 'receiptList' } },

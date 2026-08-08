@@ -9,8 +9,7 @@
   },
   "dependencies": {
     "@cmc/auth": "workspace:*",
-    "@cmc/db": "workspace:*",
-    "@prisma/client": "^6.1.0"
+    "@cmc/db": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

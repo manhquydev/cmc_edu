@@ -13,7 +13,7 @@
 // to see across facilities, same escape hatch a super_admin/director read uses.
 
 import { randomUUID } from 'node:crypto';
-import { createPrismaClient, PrismaClient, withFacility, type Prisma } from '@cmc/db';
+import { createPrismaClient, createPrivilegedPrismaClient, PrismaClient, withFacility, type Prisma } from '@cmc/db';
 import type { Role } from '@cmc/auth';
 import type { Context } from '../trpc.js';
 
@@ -66,9 +66,9 @@ let privilegedDbSingleton: PrismaClient | undefined;
  * teardown of the two now-restricted ledgers.
  */
 function privilegedDb(): PrismaClient {
-  privilegedDbSingleton ??= new PrismaClient({
-    datasources: { db: { url: process.env.DATABASE_URL } },
-  });
+  // Prisma 7: `new PrismaClient({ datasources: ... })` no longer exists —
+  // route through the shared privileged-role factory (DATABASE_URL only).
+  privilegedDbSingleton ??= createPrivilegedPrismaClient();
   return privilegedDbSingleton;
 }
 

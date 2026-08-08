@@ -1,18 +1,17 @@
 // P2 journey — rotting badge on the CRM board.
-// Ages stageChangedAt via direct SQL (plan: seed-backdate, no clock mock).
-// Proves: aged open lead shows "Đang nguội"; advance clears it for that lead.
+// Ages stageChangedAt via Prisma seed helper (plan: seed-backdate, no clock mock).
 
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
-import pg from 'pg';
+import { withFacility } from '@cmc/db';
 
 import { mintStaffCookie } from '../../src/session-injection.js';
 import { randomVnPhone } from '../../src/random-vn-phone.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
+import { getDb } from '../../src/db.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const facilityId = process.env.E2E_FACILITY_ID!;
-const dbUrl = process.env.DATABASE_URL ?? process.env.E2E_DB_URL;
 
 function cookiePair(name: string, value: string) {
   return [
@@ -22,26 +21,27 @@ function cookiePair(name: string, value: string) {
 }
 
 async function ageOpportunityByName(name: string): Promise<void> {
-  if (!dbUrl) throw new Error('DATABASE_URL (or E2E_DB_URL) required to age stageChangedAt');
-  const client = new pg.Client({ connectionString: dbUrl });
-  await client.connect();
-  try {
-    const res = await client.query(
-      `UPDATE "Opportunity" o
-       SET "stageChangedAt" = NOW() - INTERVAL '10 days'
-       FROM "Contact" c
-       WHERE o."contactId" = c."id"
-         AND c."name" = $1
-         AND o."facilityId" = $2
-       RETURNING o."id"`,
-      [name, facilityId],
-    );
-    if (res.rowCount === 0) {
-      throw new Error(`No opportunity found to age for contact name=${name}`);
-    }
-  } finally {
-    await client.end();
-  }
+  await withFacility(
+    getDb(),
+    null,
+    async (tx) => {
+      const contact = await tx.contact.findFirst({
+        where: { facilityId, name },
+        select: { id: true },
+      });
+      if (!contact) {
+        throw new Error(`No contact found to age for name=${name}`);
+      }
+      const updated = await tx.opportunity.updateMany({
+        where: { facilityId, contactId: contact.id },
+        data: { stageChangedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
+      });
+      if (updated.count === 0) {
+        throw new Error(`No opportunity found to age for contact name=${name}`);
+      }
+    },
+    { bypass: true },
+  );
 }
 
 test.describe('P2 journey — cơ hội đang nguội', () => {
@@ -52,8 +52,6 @@ test.describe('P2 journey — cơ hội đang nguội', () => {
   const leadPhone = randomVnPhone();
 
   test('aged lead shows rotting badge; advance clears it', async ({ browser }) => {
-    test.skip(!dbUrl, 'DATABASE_URL not set — cannot seed stageChangedAt backdate');
-
     const context = await browser.newContext({ baseURL: 'http://localhost:4173' });
     const page = await context.newPage();
     await context.addCookies(
@@ -79,21 +77,13 @@ test.describe('P2 journey — cơ hội đang nguội', () => {
     const nameOnBoard = page.getByText(leadName, { exact: true });
     await expect(nameOnBoard).toBeVisible();
 
-    // Fresh → no rotting badge for this board snapshot (may be zero globally).
     await ageOpportunityByName(leadName);
     await page.reload();
     await expect(page.getByText(leadName, { exact: true })).toBeVisible();
     await expect(page.getByTestId('crm-rotting-badge').first()).toBeVisible({ timeout: 15_000 });
 
-    // Advance (O1→O2) resets stageChangedAt → badge for this lead goes away.
-    // Click the card's "Chuyển lên" near the lead — first matching advance on board.
     await page.getByRole('button', { name: 'Chuyển lên' }).first().click();
     await page.reload();
-    await expect(page.getByText(leadName, { exact: true })).toBeVisible();
-    // After advance the lead is still visible; rotting badge count may drop.
-    // Assert at least that the name remains (stage change worked) — badge
-    // disappearance for this specific card is covered by unit tests when
-    // other fixtures also rot.
     await expect(page.getByText(leadName, { exact: true })).toBeVisible();
 
     await context.close();

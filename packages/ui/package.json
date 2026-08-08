@@ -27,7 +27,7 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@astryxdesign/core": "0.1.9",
+    "@astryxdesign/core": "0.2.0",
     "@stylexjs/stylex": "0.19.0",
     "react": "^18 || ^19",
     "react-router-dom": "^7"
@@ -36,14 +36,14 @@
     "@cmc/auth": "workspace:*"
   },
   "devDependencies": {
-    "@astryxdesign/core": "0.1.9",
-    "@astryxdesign/theme-neutral": "0.1.9",
+    "@astryxdesign/core": "0.2.0",
+    "@astryxdesign/theme-neutral": "0.2.0",
     "@stylexjs/stylex": "0.19.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-    "@types/react": "^19.0.0",
+    "@types/react": "^19.2.18",
     "@vitejs/plugin-react": "^6.0.5",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-router-dom": "^7.18.2",
     "typescript": "^5.7.0",

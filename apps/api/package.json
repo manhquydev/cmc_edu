@@ -20,7 +20,7 @@
     "worker:start": "node dist/worker/index.js"
   },
   "dependencies": {
-    "@azure/msal-node": "^5.4.3",
+    "@azure/msal-node": "^5.5.0",
     "@cmc/auth": "workspace:*",
     "@cmc/db": "workspace:*",
     "@cmc/domain-finance": "workspace:*",
@@ -36,7 +36,7 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^4.1.10",
-    "tsx": "^4.23.1",
+    "tsx": "^4.23.5",
     "typescript": "^5.7.0",
     "vitest": "^4.1.10"
   }

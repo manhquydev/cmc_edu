@@ -9,16 +9,17 @@
 // the guarantee that a bug or compromised app process cannot erase history.
 // Same pattern as the test harness's own `privilegedDb()` (test/db.ts).
 
-import { PrismaClient } from '@cmc/db';
+import { createPrivilegedPrismaClient, type PrismaClient } from '@cmc/db';
 
 const RETENTION_MONTHS = 12;
 
 let privilegedAuditDbSingleton: PrismaClient | undefined;
 
 function privilegedAuditDb(): PrismaClient {
-  privilegedAuditDbSingleton ??= new PrismaClient({
-    datasources: { db: { url: process.env.DATABASE_URL } },
-  });
+  // Prisma 7: `new PrismaClient({ datasources: ... })` no longer exists —
+  // route through the shared privileged-role factory (DATABASE_URL only)
+  // instead of constructing the adapter here.
+  privilegedAuditDbSingleton ??= createPrivilegedPrismaClient();
   return privilegedAuditDbSingleton;
 }
 

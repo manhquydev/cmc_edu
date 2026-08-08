@@ -8,9 +8,16 @@
 // Plain ESM `.mjs` (no build step, no `tsx` dependency): `@prisma/client` is
 // already a runtime dependency of this package, so this runs directly under
 // Node via `node prisma/seed.mjs`.
+//
+// Prisma 7 removed `datasource.url` from schema.prisma / the `new
+// PrismaClient()` implicit-connection default — a driver adapter is required.
+// Builds its own adapter inline (rather than importing the compiled
+// `@cmc/db` factory from `../dist/index.js`) so this script keeps working
+// with no prior `pnpm build` step, exactly like it always has.
 
 import { pathToFileURL } from 'node:url';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import {
   DEV_SEED_FACILITY_NAME,
   DEV_SEED_FACILITY_CODE,
@@ -34,7 +41,12 @@ async function upsertFacility(db, name, code) {
 }
 
 async function main() {
-  const db = new PrismaClient();
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('packages/db/prisma/seed.mjs: DATABASE_URL is not set.');
+  }
+  const adapter = new PrismaPg({ connectionString });
+  const db = new PrismaClient({ adapter });
   try {
     const facilityId = await upsertFacility(db, DEV_SEED_FACILITY_NAME, DEV_SEED_FACILITY_CODE);
 

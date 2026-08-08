@@ -9,6 +9,7 @@ export { PrismaClient, Role } from '@prisma/client';
 export type { Prisma } from '@prisma/client';
 
 import { PrismaClient, type Prisma } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 /**
  * Factory for a Prisma client. Callers own the lifecycle (connect/disconnect).
@@ -22,10 +23,70 @@ import { PrismaClient, type Prisma } from '@prisma/client';
  * (and its tests) must connect as a separate, unprivileged role
  * (`cmc_app` — see the `p1_remediation_wave1_schema_rls` migration) via
  * `APP_DATABASE_URL` for the policies to have any effect.
+ *
+ * Prisma 7 removed the `datasources` constructor override along with
+ * `datasource.url` in schema.prisma — connection selection now happens by
+ * building a driver adapter (`@prisma/adapter-pg`) from an explicit
+ * connection string and handing it to the client. See
+ * `createPrivilegedPrismaClient` below for the migration-owner-role
+ * counterpart of this factory (DATABASE_URL only, no fallback chain).
  */
 export function createPrismaClient(): PrismaClient {
   const url = process.env.APP_DATABASE_URL ?? process.env.DATABASE_URL;
-  return new PrismaClient(url ? { datasources: { db: { url } } } : undefined);
+  return buildPrismaClient(
+    url,
+    'createPrismaClient: neither APP_DATABASE_URL nor DATABASE_URL is set.',
+  );
+}
+
+/**
+ * Factory for the PRIVILEGED (schema/migration-owner role) Prisma client —
+ * connects via `DATABASE_URL` ONLY, deliberately with no `APP_DATABASE_URL`
+ * fallback. This is the escape hatch a handful of call sites use for
+ * operations the unprivileged `cmc_app` role has no grant for — audit-log
+ * retention (`apps/api/src/worker/audit-log-retention-sweep.ts`), and
+ * teardown of append-only ledgers in the api/e2e test harnesses
+ * (`apps/api/src/test/db.ts`, `apps/e2e/src/db.ts`). Each of those callers
+ * previously built this connection inline via
+ * `new PrismaClient({ datasources: { db: { url: process.env.DATABASE_URL } } })`,
+ * a construction Prisma 7 removed — they now call this factory instead.
+ *
+ * No fallback chain on purpose: if this silently fell back to
+ * `APP_DATABASE_URL` when `DATABASE_URL` were unset, a caller that needs the
+ * schema-owner role would instead get the unprivileged role, and fail later
+ * with a confusing permission error (or, worse for RLS-bypass callers,
+ * silently see fewer rows) instead of failing immediately and clearly here.
+ */
+export function createPrivilegedPrismaClient(): PrismaClient {
+  return buildPrismaClient(process.env.DATABASE_URL, 'createPrivilegedPrismaClient: DATABASE_URL is not set.');
+}
+
+/**
+ * Factory for scripts that resolve their own connection string (e.g. an env
+ * var chosen at the caller's discretion, or a rewritten host for
+ * container-vs-host reachability — see `scripts/ensure-curriculum-units.ts`).
+ * `connectionString` is REQUIRED (not optional): there is no fallback chain
+ * here, so a caller cannot accidentally end up on the wrong role by omitting
+ * it — that ambiguity is exactly what `createPrismaClient`/
+ * `createPrivilegedPrismaClient` above exist to avoid.
+ */
+export function createPrismaClientWithUrl(connectionString: string): PrismaClient {
+  return buildPrismaClient(connectionString, 'createPrismaClientWithUrl: connectionString must be non-empty.');
+}
+
+function buildPrismaClient(url: string | undefined, missingUrlMessage: string): PrismaClient {
+  if (!url) {
+    // Fail loud, matching the pre-Prisma-7 behavior where an unset
+    // `DATABASE_URL` made Prisma's own `env("DATABASE_URL")` resolution throw.
+    // `pg.Pool` (which the adapter wraps) falls back to libpq-style `PG*`
+    // environment variables / local defaults when `connectionString` is
+    // `undefined` — silently connecting to an unintended local Postgres
+    // instead of failing is exactly the failure mode ADR 0042 exists to rule
+    // out, so this must throw rather than pass `undefined` through.
+    throw new Error(missingUrlMessage);
+  }
+  const adapter = new PrismaPg({ connectionString: url });
+  return new PrismaClient({ adapter });
 }
 
 export interface WithFacilityOptions {

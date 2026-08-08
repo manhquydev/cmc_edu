@@ -19,7 +19,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
-import { createPrismaClient, withFacility, PrismaClient } from '@cmc/db';
+import { createPrismaClient, createPrivilegedPrismaClient, withFacility, PrismaClient } from '@cmc/db';
 import { addDaysToDateOnly, ictDateOnlyOf, ictToUtc, weekdayOf } from '@cmc/domain-time';
 import { normalizeLoginPhone } from '@cmc/domain-identity';
 import type { Role } from '@cmc/auth';
@@ -58,9 +58,9 @@ let privilegedDbSingleton: PrismaClient | undefined;
 function getPrivilegedDb(): PrismaClient {
   if (!privilegedDbSingleton) {
     assertNotProdDatabase(process.env.DATABASE_URL ?? '');
-    privilegedDbSingleton = new PrismaClient({
-      datasources: { db: { url: process.env.DATABASE_URL } },
-    });
+    // Prisma 7: `new PrismaClient({ datasources: ... })` no longer exists —
+    // route through the shared privileged-role factory (DATABASE_URL only).
+    privilegedDbSingleton = createPrivilegedPrismaClient();
   }
   return privilegedDbSingleton;
 }

@@ -22,15 +22,17 @@
     "db:generate": "prisma generate",
     "db:seed": "node prisma/seed.mjs"
   },
-  "prisma": {
-    "seed": "node prisma/seed.mjs"
-  },
   "dependencies": {
-    "@prisma/client": "^6.1.0"
+    "@prisma/adapter-pg": "^7.0.0",
+    "@prisma/client": "^7.0.0",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
+    "@prisma/config": "^7.0.0",
     "@types/node": "^22.10.0",
-    "prisma": "^6.1.0",
+    "@types/pg": "^8.21.0",
+    "dotenv": "^17.4.2",
+    "prisma": "^7.0.0",
     "typescript": "^6.0.0"
   }
 }

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, act } from '@testing-library/react';
+import { screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
@@ -96,7 +96,11 @@ vi.mock('../../lib/trpc.js', async () => {
 import ReceiptCreatePage from './receipt-create.js';
 
 async function selectClassBatch() {
-  const trigger = screen.getByLabelText(/^Lớp học/);
+  // S6 fix: class picker is now AsyncEntityCombobox, which renders a second
+  // labelled control — a "Lớp học — tìm kiếm" search TextInput alongside the
+  // "Lớp học ∙ Required" Selector. The negative lookahead excludes the
+  // search input so this only matches the actual dropdown trigger.
+  const trigger = screen.getByLabelText(/^Lớp học(?!\s*—)/);
   fireEvent.click(trigger);
   const option = await screen.findByRole('option', { name: /CB001/ });
   fireEvent.click(option);
@@ -152,9 +156,29 @@ describe('ReceiptCreatePage', () => {
     expect(screen.getByDisplayValue('a@example.com')).toBeInTheDocument();
   });
 
-  it('queries classBatch.list with the unchanged {pageSize: 100} input', () => {
+  it('queries classBatch.list with {page:1, pageSize:100} and no search when nothing is typed', () => {
     renderWithProviders(<ReceiptCreatePage />);
-    expect(classBatchSpy).toHaveBeenCalledWith({ pageSize: 100 });
+    expect(classBatchSpy).toHaveBeenCalledWith({ page: 1, pageSize: 100 });
+  });
+
+  // S6 fix: this money screen's class picker used to be a static
+  // pageSize:100 fetch with no search — class #101+ was unreachable when
+  // recording a fee payment. Prove typing re-queries with `search`.
+  it('debounces the class search box into classBatch.list({..., search})', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderWithProviders(<ReceiptCreatePage />);
+      classBatchSpy.mockClear();
+      fireEvent.change(screen.getByLabelText('Lớp học — tìm kiếm'), {
+        target: { value: 'CB001' },
+      });
+      await vi.advanceTimersByTimeAsync(350);
+      await waitFor(() => {
+        expect(classBatchSpy).toHaveBeenCalledWith({ page: 1, pageSize: 100, search: 'CB001' });
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not call finance.receiptCreate.mutate when required fields are missing', () => {

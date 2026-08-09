@@ -15,6 +15,7 @@ import { hrRoutes } from './hr.routes.js';
 import { opsRoutes } from './ops.routes.js';
 import { adminRoutes } from './admin.routes.js';
 import { goRoutes } from './go.routes.js';
+import { designRoutes } from './design.routes.js';
 import { useSession } from '../lib/session-context.js';
 import { shouldCaptureReturnTo } from '../lib/safe-return-to.js';
 
@@ -79,6 +80,8 @@ export const router = createBrowserRouter(
       { path: 'admin', children: adminRoutes },
       // Canonical deep-link resolver — before wildcard so /go/* is never ComingSoon.
       ...goRoutes,
+      // Design-system showcase lab (observation page; deletable after review).
+      ...designRoutes,
       // Footgun: bare /classes is not registered (list lives at /admin/classes).
       // Redirect before the catch-all ComingSoon so typed/bookmarked URLs work.
       { path: 'classes', element: <Navigate to="/admin/classes" replace /> },

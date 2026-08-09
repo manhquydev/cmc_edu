@@ -64,16 +64,14 @@ const { trpc } = (await import('../../lib/trpc.js')) as any;
 import SessionEvidencePage from './session-evidence.js';
 
 async function pickClassAndSession() {
-  // The class Selector's `label` and `placeholder` are both "Chọn lớp học"
-  // (unchanged from the pre-refactor component) — target the trigger button
-  // by role/name rather than getByLabelText to avoid the resulting ambiguous
-  // text match.
-  fireEvent.click(screen.getByRole('button', { name: 'Chọn lớp học' }));
+  // S6 fix: class picker is now AsyncEntityCombobox (server search +
+  // pin-selected, so record #101+ can't silently disappear behind a
+  // hardcoded pageSize:100). Its inner Selector doesn't set `hasSearch`
+  // (AsyncEntityCombobox owns its own search input instead), which is what
+  // gives it an explicit `role="combobox"` matching the session Selector.
+  fireEvent.click(screen.getByRole('combobox', { name: 'Chọn lớp học' }));
   fireEvent.click(await screen.findByRole('option', { name: /CB001/ }));
 
-  // The session Selector omits `hasSearch` — its trigger renders with an
-  // explicit `role="combobox"` (unlike the class Selector's `hasSearch`
-  // trigger, which keeps the implicit button role).
   fireEvent.click(await screen.findByRole('combobox', { name: 'Chọn buổi học' }));
   fireEvent.click(await screen.findByRole('option', { name: /scheduled/ }));
 }
@@ -87,9 +85,29 @@ describe('SessionEvidencePage', () => {
     publishMutateAsync.mockReset().mockResolvedValue(undefined);
   });
 
-  it('queries classBatch.list with the unchanged {page:1, pageSize:100} input', () => {
+  it('queries classBatch.list with {page:1, pageSize:100} and no search when nothing is typed', () => {
     renderWithProviders(<SessionEvidencePage />);
     expect(classBatchSpy).toHaveBeenCalledWith({ page: 1, pageSize: 100 });
+  });
+
+  // S6 fix: the class picker used to be a static pageSize:100 fetch with no
+  // search affordance at all — record #101+ was simply unreachable. Prove
+  // that typing now re-queries classBatch.list with a `search` param.
+  it('debounces the class search box into classBatch.list({..., search})', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderWithProviders(<SessionEvidencePage />);
+      classBatchSpy.mockClear();
+      fireEvent.change(screen.getByLabelText('Chọn lớp học — tìm kiếm'), {
+        target: { value: 'CB001' },
+      });
+      await vi.advanceTimersByTimeAsync(350);
+      await waitFor(() => {
+        expect(classBatchSpy).toHaveBeenCalledWith({ page: 1, pageSize: 100, search: 'CB001' });
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not query classSession.list until a class is selected', () => {
@@ -99,7 +117,7 @@ describe('SessionEvidencePage', () => {
 
   it('queries classSession.list({classBatchId}) once a class is selected', async () => {
     renderWithProviders(<SessionEvidencePage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Chọn lớp học' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Chọn lớp học' }));
     fireEvent.click(await screen.findByRole('option', { name: /CB001/ }));
     expect(classSessionSpy).toHaveBeenCalledWith({ classBatchId: CLASS_A.id }, true);
   });

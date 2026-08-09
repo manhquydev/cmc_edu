@@ -3,10 +3,11 @@
 
 import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Badge, Banner, Button, ConfirmDialog, FormPage, Grid, HStack, LineIcon, PageHeader, Selector, Skeleton, Stack, Text, TextArea, useToast } from '@cmc/ui';
+import { AsyncEntityCombobox, Badge, Banner, Button, ConfirmDialog, FormPage, Grid, HStack, LineIcon, PageHeader, Selector, Skeleton, Stack, Text, TextArea, useToast } from '@cmc/ui';
 import { UUID_RE, readUuidParam } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { useClassBatchOptions } from '../../lib/use-class-batch-options.js';
 
 const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').trim();
 
@@ -26,11 +27,6 @@ export default function SessionEvidencePage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const utils = trpc.useUtils();
-
-  // --- class list ---
-  const { data: classData, isLoading: classLoading } = trpc.classBatch.list.useQuery({
-    page: 1, pageSize: 100,
-  });
 
   // --- session list ---
   const { data: sessions, isLoading: sessionsLoading } = trpc.classSession.list.useQuery(
@@ -52,11 +48,6 @@ export default function SessionEvidencePage() {
   const [saved, setSaved] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const { success: toastSuccess } = useToast();
-
-  const classOptions = (classData?.items ?? []).map((c) => ({
-    value: c.id,
-    label: `${c.code} — ${c.program}`,
-  }));
 
   // TODO(astryx-review): per-option disabled state (cancelled sessions should
   // be unselectable) has no confirmed Astryx SelectorOption field — `isDisabled`
@@ -215,20 +206,15 @@ export default function SessionEvidencePage() {
               as empty string to avoid a duplicate visible label (same
               pattern applied to the session Selector and summary TextArea
               below). */}
-          {classLoading ? (
-            <Skeleton height={36} radius={1} />
-          ) : (
-            <Selector
-              label="Chọn lớp học"
-              isLabelHidden
-              placeholder="Chọn lớp học"
-              options={classOptions}
-              value={classBatchId ?? undefined}
-              onChange={(v) => selectClass(v ?? null)}
-              hasSearch
-              hasClear={false}
-            />
-          )}
+          <AsyncEntityCombobox
+            label="Chọn lớp học"
+            isLabelHidden
+            placeholder="Chọn lớp học"
+            value={classBatchId ?? null}
+            onChange={selectClass}
+            useOptions={useClassBatchOptions}
+            pinnedLabel={(id) => `Lớp đã chọn (${id.slice(0, 8)}…)`}
+          />
         </div>
 
         {/* Step 2: pick session */}

@@ -145,6 +145,12 @@ export { TimeField } from './components/time-field.js';
 export type { TimeFieldProps } from './components/time-field.js';
 export { DateTimeField } from './components/datetime-field.js';
 export type { DateTimeFieldProps } from './components/datetime-field.js';
+export { AsyncEntityCombobox } from './components/async-entity-combobox.js';
+export type {
+  AsyncEntityComboboxProps,
+  AsyncEntityOption,
+  UseAsyncEntityOptionsResult,
+} from './components/async-entity-combobox.js';
 
 export { MasterDetail } from './components/master-detail.js';
 export type { MasterDetailProps } from './components/master-detail.js';

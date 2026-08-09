@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import {
+  AsyncEntityCombobox,
   Badge,
   Banner,
   Button,
-  FilterBar,
   Grid,
   HStack,
   LineIcon,
@@ -15,19 +15,10 @@ import {
   Stack,
   Text,
 } from '@cmc/ui';
-import type { FilterDef } from '@cmc/ui';
 import { UUID_RE, readUuidParam } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
-
-const CLASS_SEARCH_FILTERS: FilterDef[] = [
-  {
-    key: 'q',
-    label: 'Tìm lớp',
-    type: 'text',
-    placeholder: 'Mã lớp, chương trình…',
-  },
-];
+import { useClassBatchOptions } from '../../lib/use-class-batch-options.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -175,19 +166,7 @@ export default function AttendancePage() {
   >({});
   const [saved, setSaved] = useState(false);
   const [saveValidationError, setSaveValidationError] = useState<string | null>(null);
-  const [classSearchInput, setClassSearchInput] = useState('');
-  const [debouncedClassSearch, setDebouncedClassSearch] = useState('');
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedClassSearch(classSearchInput.trim()), 300);
-    return () => clearTimeout(t);
-  }, [classSearchInput]);
-
-  const { data: classData, isLoading: classLoading } = trpc.classBatch.list.useQuery({
-    page: 1,
-    pageSize: 100,
-    ...(debouncedClassSearch ? { search: debouncedClassSearch } : {}),
-  });
   const { data: sessions, isLoading: sessionsLoading } = trpc.classSession.list.useQuery(
     { classBatchId: classBatchId! },
     { enabled: Boolean(classBatchId) },
@@ -257,20 +236,6 @@ export default function AttendancePage() {
     setSaveValidationError(null);
   }
 
-  const classOptions = (classData?.items ?? []).map((c) => ({
-    value: c.id,
-    label: `${c.code} — ${c.program}`,
-  }));
-  // Pin URL-selected class so FilterBar search cannot drop it from the Selector.
-  if (
-    classBatchId &&
-    !classOptions.some((o) => o.value === classBatchId)
-  ) {
-    classOptions.unshift({
-      value: classBatchId,
-      label: `Lớp đã chọn (${classBatchId.slice(0, 8)}…)`,
-    });
-  }
   const sessionOptions = (sessions ?? []).map((s) => ({
     value: s.id,
     label: `${new Date(s.sessionDate).toLocaleDateString('vi-VN')} | ${s.status}`,
@@ -354,13 +319,6 @@ export default function AttendancePage() {
           }
         />
       }
-      filters={
-        <FilterBar
-          filters={CLASS_SEARCH_FILTERS}
-          value={{ q: classSearchInput }}
-          onChange={(next) => setClassSearchInput(next.q ?? '')}
-        />
-      }
     >
       {/* Step 1+2: pick class -> session (same picker pattern as session-assessment.tsx) */}
       <div style={{ paddingInline: 16, paddingBlock: 16, borderBottom: '1px solid var(--cmc-border)' }}>
@@ -369,20 +327,16 @@ export default function AttendancePage() {
             <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
               1. Chọn lớp
             </Text>
-            {classLoading ? (
-              <Skeleton height={36} radius={1} />
-            ) : (
-              <Selector
-                label="Chọn lớp học"
-                isLabelHidden
-                placeholder="Chọn lớp học"
-                options={classOptions}
-                value={classBatchId ?? undefined}
-                onChange={(v) => selectClass(v ?? null)}
-                hasSearch
-                hasClear={false}
-              />
-            )}
+            <AsyncEntityCombobox
+              label="Chọn lớp học"
+              isLabelHidden
+              placeholder="Chọn lớp học"
+              searchPlaceholder="Mã lớp, chương trình…"
+              value={classBatchId ?? null}
+              onChange={selectClass}
+              useOptions={useClassBatchOptions}
+              pinnedLabel={(id) => `Lớp đã chọn (${id.slice(0, 8)}…)`}
+            />
           </div>
 
           {classBatchId && (

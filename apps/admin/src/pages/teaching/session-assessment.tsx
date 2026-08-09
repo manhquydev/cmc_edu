@@ -16,6 +16,7 @@
 
 import { useState } from 'react';
 import {
+  AsyncEntityCombobox,
   Badge,
   Banner,
   Button,
@@ -29,6 +30,7 @@ import {
   TextArea,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { useClassBatchOptions } from '../../lib/use-class-batch-options.js';
 
 interface RosterEntry {
   studentId: string;
@@ -42,10 +44,6 @@ export default function SessionAssessmentPage() {
   const [confirmAllError, setConfirmAllError] = useState<string | null>(null);
   const [confirmAllBusy, setConfirmAllBusy] = useState(false);
 
-  const { data: classData, isLoading: classLoading } = trpc.classBatch.list.useQuery({
-    page: 1,
-    pageSize: 100,
-  });
   const { data: sessions, isLoading: sessionsLoading } = trpc.classSession.list.useQuery(
     { classBatchId: classBatchId! },
     { enabled: Boolean(classBatchId) },
@@ -78,10 +76,6 @@ export default function SessionAssessmentPage() {
     onSuccess: () => void refetchAssessments(),
   });
 
-  const classOptions = (classData?.items ?? []).map((c) => ({
-    value: c.id,
-    label: `${c.code} — ${c.program}`,
-  }));
   const sessionOptions = (sessions ?? []).map((s) => ({
     value: s.id,
     label: `${new Date(s.sessionDate).toLocaleDateString('vi-VN')} | ${s.status}`,
@@ -170,20 +164,15 @@ export default function SessionAssessmentPage() {
           <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
             1. Chọn lớp
           </Text>
-          {classLoading ? (
-            <Skeleton height={36} radius={1} />
-          ) : (
-            <Selector
-              label="Chọn lớp học"
-              isLabelHidden
-              placeholder="Chọn lớp học"
-              options={classOptions}
-              value={classBatchId ?? undefined}
-              onChange={(v) => { setClassBatchId(v ?? null); resetSession(); }}
-              hasSearch
-              hasClear={false}
-            />
-          )}
+          <AsyncEntityCombobox
+            label="Chọn lớp học"
+            isLabelHidden
+            placeholder="Chọn lớp học"
+            value={classBatchId ?? null}
+            onChange={(v) => { setClassBatchId(v); resetSession(); }}
+            useOptions={useClassBatchOptions}
+            pinnedLabel={(id) => `Lớp đã chọn (${id.slice(0, 8)}…)`}
+          />
         </div>
 
         {/* Step 2: pick session */}

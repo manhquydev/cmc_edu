@@ -63,7 +63,10 @@ vi.mock('../../lib/trpc.js', async () => {
 import SessionAssessmentPage from './session-assessment.js';
 
 async function pickClassAndSession() {
-  fireEvent.click(screen.getByRole('button', { name: 'Chọn lớp học' }));
+  // S6 fix: class picker is now AsyncEntityCombobox — its inner Selector
+  // doesn't set `hasSearch` (the combobox owns its own search input), which
+  // gives it an explicit role="combobox" instead of the old implicit button role.
+  fireEvent.click(screen.getByRole('combobox', { name: 'Chọn lớp học' }));
   fireEvent.click(await screen.findByRole('option', { name: /CB001/ }));
   fireEvent.click(await screen.findByRole('combobox', { name: 'Chọn buổi học' }));
   fireEvent.click(await screen.findByRole('option', { name: /confirmed/ }));

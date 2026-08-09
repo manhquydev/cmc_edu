@@ -122,4 +122,44 @@ describe('AsyncEntityCombobox', () => {
     );
     expect(screen.getByText('Vui lòng chọn khoá học')).toBeInTheDocument();
   });
+
+  it('renders a built-in error banner when useOptions reports a fetch error', () => {
+    // Ported after comparing against an independently-built version of this
+    // same component (parallel worktree) — theirs rendered the fetch-error
+    // banner inside the component itself; this one originally made every
+    // caller duplicate that Banner locally (classes/index.tsx and
+    // receipt-create.tsx both did, verbatim).
+    const useOptions = vi.fn(() => ({
+      options: [],
+      isLoading: false,
+      error: 'Mất kết nối server',
+    }));
+    render(
+      <AsyncEntityCombobox
+        label="Khoá học"
+        value={null}
+        onChange={() => {}}
+        useOptions={useOptions}
+        pinnedLabel={(v) => v}
+      />,
+    );
+    expect(screen.getByText('Mất kết nối server')).toBeInTheDocument();
+  });
+
+  it('does not render an error banner when useOptions reports no error', () => {
+    // Astryx always renders a hidden, visually-empty aria-live="assertive"
+    // announcer element with role="alert" — that's global a11y plumbing,
+    // not a Banner. Assert on visible text, not the role in isolation.
+    const useOptions = vi.fn(() => ({ options: [], isLoading: false }));
+    render(
+      <AsyncEntityCombobox
+        label="Khoá học"
+        value={null}
+        onChange={() => {}}
+        useOptions={useOptions}
+        pinnedLabel={(v) => v}
+      />,
+    );
+    expect(screen.queryByText(/Không tải được/)).not.toBeInTheDocument();
+  });
 });

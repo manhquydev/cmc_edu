@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Selector, Stack, TextInput } from '../primitives.js';
-import type { SelectorStatus } from '@astryxdesign/core/Selector';
+import { Banner } from '@astryxdesign/core/Banner';
+import { Selector, type SelectorStatus } from '@astryxdesign/core/Selector';
+import { Stack } from '@astryxdesign/core/Stack';
+import { TextInput } from '@astryxdesign/core/TextInput';
 
 export interface AsyncEntityOption {
   value: string;
@@ -10,6 +12,13 @@ export interface AsyncEntityOption {
 export interface UseAsyncEntityOptionsResult {
   options: AsyncEntityOption[];
   isLoading: boolean;
+  /** Fetch-error message, if any — rendered as a warning Banner above the
+   * picker. Compared against an independently-built version of this same
+   * component (parallel worktree) that put this in the component instead of
+   * leaving every caller to duplicate a local Banner — 2 of this component's
+   * 5 original callers (classes/index.tsx, receipt-create.tsx) did exactly
+   * that before this was ported in. */
+  error?: string;
 }
 
 export interface AsyncEntityComboboxProps {
@@ -39,6 +48,8 @@ export interface AsyncEntityComboboxProps {
   isDisabled?: boolean;
   /** Forwarded to the inner Selector — validation error/warning display. */
   status?: SelectorStatus;
+  /** Forwarded to the inner Selector — shown as a tooltip when isDisabled. */
+  disabledMessage?: string;
 }
 
 /**
@@ -65,6 +76,7 @@ export function AsyncEntityCombobox({
   isLabelHidden,
   isDisabled,
   status,
+  disabledMessage,
 }: AsyncEntityComboboxProps) {
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -74,7 +86,7 @@ export function AsyncEntityCombobox({
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const { options: fetchedOptions, isLoading } = useOptions(debouncedSearch);
+  const { options: fetchedOptions, isLoading, error } = useOptions(debouncedSearch);
 
   const options = useMemo(() => {
     if (!value || fetchedOptions.some((o) => o.value === value)) return fetchedOptions;
@@ -83,6 +95,9 @@ export function AsyncEntityCombobox({
 
   return (
     <Stack gap={1}>
+      {error ? (
+        <Banner status="warning" title={`Không tải được ${label.toLowerCase()}`} description={error} />
+      ) : null}
       <TextInput
         label={`${label} — tìm kiếm`}
         isLabelHidden
@@ -95,14 +110,16 @@ export function AsyncEntityCombobox({
       <Selector
         label={label}
         isLabelHidden={isLabelHidden}
-        placeholder={isLoading ? 'Đang tải…' : placeholder ?? 'Chọn...'}
+        placeholder={placeholder ?? 'Chọn...'}
         options={options}
         value={value}
         onChange={onChange}
         hasClear
         size={size}
         isRequired={isRequired}
+        isLoading={isLoading}
         isDisabled={isDisabled}
+        disabledMessage={disabledMessage}
         status={status}
       />
     </Stack>

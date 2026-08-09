@@ -43,10 +43,15 @@
   --color-warning: var(--cmc-warning);
   --color-error: var(--cmc-danger);
 
-  /* Radius scale — nested harmony: inner 8 ≤ control 12 ≤ card 16 ≤ page 20.
-     Astryx TextInput/Selector/Button shells use --radius-element. */
+  /* Radius scale — nested harmony: control 12 ≤ card 16 ≤ page 20.
+     Astryx TextInput/Selector/Button shells use --radius-element.
+     --radius-inner intentionally left unset: it used to be hardcoded to
+     10px here with no token behind it (a magic number); CSS custom
+     properties cascade per-property, so simply not setting it here falls
+     through to Astryx's own considered default (4px, astryx.css:60) —
+     more correct than inventing a replacement CMC token with no design
+     mandate behind it either. */
   --radius-none: 0px;
-  --radius-inner: var(--cmc-radius-inner);
   --radius-element: var(--cmc-radius-control);
   --radius-container: var(--cmc-radius-md);
   --radius-page: var(--cmc-radius-lg);

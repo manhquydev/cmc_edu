@@ -220,9 +220,9 @@ function ClassListContent() {
   // Dropdowns instead of pasted UUIDs (spec requirement). S6 fix: search-aware
   // now (course.list already supports it) instead of a static pageSize:100
   // fetch — course #101+ was previously unreachable in the create dialog.
-  // Called here (fixed '', for the error banner below) and again inside
-  // AsyncEntityCombobox with the debounced search text; React Query dedupes
-  // the two while search is still ''.
+  // AsyncEntityCombobox renders the error banner itself (ported from an
+  // independently-built version of this same component — see its
+  // UseAsyncEntityOptionsResult['error'] doc comment).
   function useCourseOptions(search: string) {
     const { data, isLoading, error } = trpc.course.list.useQuery({
       page: 1,
@@ -233,9 +233,8 @@ function ClassListContent() {
       value: c.id,
       label: `${c.name} (${c.program})`,
     }));
-    return { options, isLoading, error };
+    return { options, isLoading, error: error?.message };
   }
-  const { error: courseError } = useCourseOptions('');
   const { data: teacherData, isLoading: teacherLoading, error: teacherError } =
     trpc.user.pickList.useQuery({ role: 'giao_vien' });
 
@@ -438,14 +437,6 @@ function ClassListContent() {
             </Stack>
           ) : (
             <>
-              {courseError && (
-                <Banner
-                  status="error"
-                  title="Không tải được danh sách khoá học"
-                  description={courseError.message}
-                />
-              )}
-
               <AsyncEntityCombobox
                 label="Khoá học"
                 placeholder="Chọn khoá học"

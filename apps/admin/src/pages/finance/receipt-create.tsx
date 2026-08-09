@@ -121,10 +121,9 @@ export default function ReceiptCreatePage() {
   );
 
   // S6 fix: search-aware now instead of a static pageSize:100 fetch — class
-  // #101+ was previously unreachable in this money-screen picker. Called
-  // here (fixed '', for the warning banner below) and again inside
-  // AsyncEntityCombobox with the debounced search text; React Query dedupes
-  // the two while search is still ''.
+  // #101+ was previously unreachable in this money-screen picker.
+  // AsyncEntityCombobox renders the error banner itself (ported from an
+  // independently-built version of this same component).
   function useClassBatchOptionsWithDate(search: string) {
     const { data, isLoading, error } = trpc.classBatch.list.useQuery({
       page: 1,
@@ -135,9 +134,8 @@ export default function ReceiptCreatePage() {
       value: b.id,
       label: `${b.code} — ${b.program} (${new Date(b.startDate).toLocaleDateString('vi-VN')})`,
     }));
-    return { options, isLoading, error };
+    return { options, isLoading, error: error?.message };
   }
-  const { error: classBatchError } = useClassBatchOptionsWithDate('');
 
   const createMutation = trpc.finance.receiptCreate.useMutation({
     onSuccess: (res) => {
@@ -350,10 +348,6 @@ export default function ReceiptCreatePage() {
             onChange={(v) => handleField('parentEmail', v)}
             status={errors.parentEmail ? { type: 'error', message: errors.parentEmail } : undefined}
           />
-
-          {classBatchError && (
-            <Banner status="warning" title="Không tải được danh sách lớp" description={classBatchError.message} />
-          )}
 
           <AsyncEntityCombobox
             label="Lớp học"

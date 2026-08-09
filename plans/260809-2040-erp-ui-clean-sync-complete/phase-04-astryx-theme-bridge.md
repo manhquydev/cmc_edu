@@ -102,7 +102,7 @@ Operator đã chọn **Lựa chọn 2 — giữ premium và phát biểu luật 
 
 ## Success Criteria
 
-- [x] `--radius-inner` không còn số ma; mọi biến radius trong bridge trỏ tới token (`--cmc-radius-inner: 8px`, mới thêm).
+- [x] `--radius-inner` không còn số ma. **Sửa lại sau đối sánh với phiên khác** (2026-08-10): thay vì thêm token mới `--cmc-radius-inner: 8px` (tự bịa, không có căn cứ thiết kế), bỏ hẳn dòng override — CSS custom property cascade theo từng thuộc tính, bỏ override rơi về default gốc của Astryx (4px, `astryx.css:60`) mà không cần token thay thế. Cách phiên kia làm, port lại.
 - [x] Bridge có map type (12 biến `--font-size-*` pin về thang CMC thật); `15px` do Astryx sở hữu → **0 lần** trên 13 route đo trực tiếp (kể cả sau khi mở rộng ra 8 route nữa).
 - [x] ~~Chỉ còn một giá trị pill~~ — **RÚT LẠI**: `999px`/`9999px` là nợ bảo trì (0 thay đổi pixel), chuyển sang Phase 6, không phải tiêu chí Phase 4.
 - [x] Quyết định thang radius được ghi thành văn bản — `design-system/cmc-edu/STYLING-BRIDGE.md` section "Radius zone rule", luật vùng phát biểu trong bảng 2 dòng + lý do không hợp nhất.

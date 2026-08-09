@@ -1245,8 +1245,16 @@ button.console-kanban-card {
 .o_web_client .console-list-body {
   gap: 0;
 }
-/* Chevron ProgressSteps (Odoo statusbar analogue) — horizontal arrow buttons */
+/* Chevron ProgressSteps (Odoo statusbar analogue) — horizontal arrow buttons.
+   Arrow width is pinned to a FIXED px here (the em default resolved to 14px
+   on the <li> — base 14px font — but 13px on the <button> — 13px font — so
+   the negative-margin overlap and the clip-path notch disagreed and left a
+   1px seam between every segment; live audit 2026-08-09. Same px on both
+   sides → chevrons interlock seamlessly). Taller 38px bar + 16px arrow for
+   roomier, more readable labels (layout decision 2026-08-09). */
 .o_web_client .console-steps {
+  --console-statusbar-arrow-width: 16px;
+  --console-statusbar-height: 38px;
   list-style: none;
   margin: 0 0 16px;
   padding: 0;
@@ -1254,64 +1262,77 @@ button.console-kanban-card {
   height: var(--console-statusbar-height, 33px);
   align-items: stretch;
   gap: 0;
-  overflow-x: auto;
 }
 .o_web_client .console-steps-item {
   position: relative;
   display: flex;
-  flex: 0 1 auto;
+  flex: 1 1 0;           /* equal segments — bar always filled, never overflows */
   min-width: 0;
-  margin-left: calc(var(--console-statusbar-arrow-width, 1em) * -1);
+  margin-left: calc(var(--console-statusbar-arrow-width) * -1);
 }
 .o_web_client .console-steps-item:first-child { margin-left: 0; }
 .o_web_client .console-steps-bridge { display: none; }
 .o_web_client .console-steps-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   height: 100%;
-  padding: 0 calc(var(--console-statusbar-arrow-width, 1em) * 1.25) 0 calc(var(--console-statusbar-arrow-width, 1em) * 2);
+  min-width: 0;
+  padding: 0 calc(var(--console-statusbar-arrow-width) * 1.5);
   border: 0;
-  background: var(--console-gray-200, #e9ecef);
+  background: var(--console-gray-200, #e9ecef);   /* todo — neutral, not started */
   color: var(--console-gray-900, #212529);
   font-size: var(--console-font-size-sm, 13px);
   font-family: inherit;
   cursor: default;
   clip-path: polygon(
-    0 0, calc(100% - var(--console-statusbar-arrow-width, 1em)) 0,
-    100% 50%, calc(100% - var(--console-statusbar-arrow-width, 1em)) 100%,
-    0 100%, var(--console-statusbar-arrow-width, 1em) 50%
+    0 0, calc(100% - var(--console-statusbar-arrow-width)) 0,
+    100% 50%, calc(100% - var(--console-statusbar-arrow-width)) 100%,
+    0 100%, var(--console-statusbar-arrow-width) 50%
   );
+  transition: background-color 150ms ease, color 150ms ease, filter 150ms ease;
 }
 .o_web_client .console-steps-item:first-child .console-steps-btn {
   clip-path: polygon(
-    0 0, calc(100% - var(--console-statusbar-arrow-width, 1em)) 0,
-    100% 50%, calc(100% - var(--console-statusbar-arrow-width, 1em)) 100%, 0 100%
+    0 0, calc(100% - var(--console-statusbar-arrow-width)) 0,
+    100% 50%, calc(100% - var(--console-statusbar-arrow-width)) 100%, 0 100%
   );
 }
 .o_web_client .console-steps-item:last-child .console-steps-btn {
-  padding-right: var(--console-statusbar-arrow-width, 1em);
   clip-path: polygon(
-    0 0, 100% 0, 100% 100%, 0 100%, var(--console-statusbar-arrow-width, 1em) 50%
+    0 0, 100% 0, 100% 100%, 0 100%, var(--console-statusbar-arrow-width) 50%
   );
 }
 .o_web_client .console-steps-btn:not(:disabled) { cursor: pointer; }
+.o_web_client .console-steps-btn:not(:disabled):hover { filter: brightness(0.94); }
+.o_web_client .console-steps-btn:not(:disabled):active { filter: brightness(0.86); }
+.o_web_client .console-steps-btn:focus-visible {
+  outline: 2px solid var(--console-brand-purple-dark, #5a4f7e);
+  outline-offset: -2px;
+  z-index: 2;
+}
+/* done — soft brand tint; current — brand fill; both clearly off neutral todo */
+.o_web_client .console-steps-item.is-done .console-steps-btn {
+  background: color-mix(in srgb, var(--console-brand-purple, #71639e) 16%, #fff);
+  color: var(--console-brand-purple-dark, #5a4f7e);
+}
 .o_web_client .console-steps-item.is-current .console-steps-btn {
-  background: var(--console-gray-900, #212529);
+  background: var(--console-brand-purple, #71639e);
   color: #fff;
   z-index: 1;
 }
-.o_web_client .console-steps-item.is-done .console-steps-btn {
-  background: var(--console-gray-300, #dee2e6);
-}
+.o_web_client .console-steps-item.is-current .console-steps-label { font-weight: 600; }
 .o_web_client .console-steps-num {
+  flex: 0 0 auto;
   width: auto; height: auto; border: 0; background: transparent;
-  font-size: 12px; font-weight: 700; color: inherit;
+  font-size: 13px; font-weight: 700; color: inherit;
   box-shadow: none;
 }
 .o_web_client .console-steps-label {
   font-size: inherit; font-weight: 500; max-width: none; color: inherit;
-  text-align: left;
+  text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .o_web_client .console-workflow-statusbar { padding: 0; min-width: 0; }
 /* Dense wrap under Odoo shell */

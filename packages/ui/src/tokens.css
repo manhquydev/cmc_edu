@@ -40,7 +40,8 @@
   --cmc-neutral-ink: #5c5c62;
 
   /* Radius / spacing — soft ops (controls 12, cards 16, large 20)
-     Nested harmony: control ≤ card ≤ dialog. */
+     Nested harmony: inner ≤ control ≤ card ≤ dialog, 4px steps. */
+  --cmc-radius-inner: 8px;    /* nested corner inside a control (Astryx --radius-inner) */
   --cmc-radius-xs: 12px;
   --cmc-radius-control: 12px; /* TextInput / Button / Selector / nav item */
   --cmc-radius-card: 16px;    /* alias md — Metric / Panel / PageHeader */

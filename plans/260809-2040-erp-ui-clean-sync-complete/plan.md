@@ -28,7 +28,7 @@ blockedBy: [260809-1100-cook-token-bugs-datetime-fields]
 ### Progress
 
 - [x] Operator chốt các quyết định thiết kế và phạm vi còn mở.
-- [x] Phase 1 — land pending work theo các slice độc lập (4 commit), không cuốn infra/UAT ngoài phạm vi vào UI diff. Typecheck+test xanh; 1/2 e2e xanh, 1/2 fail do dữ liệu DB dùng chung (không phải hồi quy code — xem báo cáo).
+- [x] Phase 1 — land pending work (6 commit, gồm 1 commit sửa lockfile do code review độc lập bắt được — xem `plans/reports/review-*`). `pnpm install --frozen-lockfile` xanh (mô phỏng CI thật). Typecheck+test xanh; 1/2 e2e xanh, 1/2 fail — nghi do dữ liệu DB dùng chung, **chưa root-cause dứt điểm**.
 - [ ] Phase 2 — delete dead UI assets.
 - [ ] Phase 3 — async entity combobox bằng TDD.
 - [ ] Phase 4 — ghi luật vùng + sửa magic values còn lại, không đảo quyết định theme Astryx hiện hữu.

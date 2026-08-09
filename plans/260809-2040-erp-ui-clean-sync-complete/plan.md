@@ -29,7 +29,7 @@ blockedBy: [260809-1100-cook-token-bugs-datetime-fields]
 
 - [x] Operator chốt các quyết định thiết kế và phạm vi còn mở.
 - [x] Phase 1 — land pending work (6 commit, gồm 1 commit sửa lockfile do code review độc lập bắt được — xem `plans/reports/review-*`). `pnpm install --frozen-lockfile` xanh (mô phỏng CI thật). Typecheck+test xanh; 1/2 e2e xanh, 1/2 fail — nghi do dữ liệu DB dùng chung, **chưa root-cause dứt điểm**.
-- [ ] Phase 2 — delete dead UI assets.
+- [x] Phase 2 — delete dead UI assets (2 commit: xoá + wire-up/doc-sync). 5 doc thật sự có tuyên bố sai đã sửa (llms.txt, design-system-console.md, VIEW-GRAMMAR.md, A11Y-BASELINE.md, CONSOLE-COMPONENT-MAP.md); 7 file khác cố ý không đụng (LMS-scope hoặc kiến trúc lỗi thời từ trước, ngoài phạm vi). typecheck 17/17 + test xanh (ui 41 file/139 test, giảm đúng 4/10 theo 4 test bị xoá). Bắt lỗi tự sửa: `git add` nhiều path bị 1 pathspec lỗi làm rớt hết — tách commit theo dõi bằng `git status`.
 - [ ] Phase 3 — async entity combobox bằng TDD.
 - [ ] Phase 4 — ghi luật vùng + sửa magic values còn lại, không đảo quyết định theme Astryx hiện hữu.
 - [ ] Phase 5 — re-baseline sau Phase 2 rồi chỉ sửa giá trị thật sự ngoài scale.

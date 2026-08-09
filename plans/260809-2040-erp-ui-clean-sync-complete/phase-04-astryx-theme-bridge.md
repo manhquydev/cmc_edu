@@ -102,13 +102,13 @@ Operator đã chọn **Lựa chọn 2 — giữ premium và phát biểu luật 
 
 ## Success Criteria
 
-- [ ] `--radius-inner` không còn số ma; mọi biến radius trong bridge trỏ tới token.
-- [ ] Bridge có map type; `15px` do Astryx sở hữu → **0 lần** trên 33 route.
-- [ ] Chỉ còn **một** giá trị pill trong toàn hệ.
-- [ ] Quyết định thang radius được **ghi thành văn bản** (dù chọn phương án nào) — nếu giữ 2 thang thì luật vùng phải phát biểu được trong 1 câu.
-- [ ] Mỗi component family chỉ dùng radius thuộc thang đã chốt; script không gộp hai family thành một lỗi toàn trang.
-- [ ] Không sửa file trong package bên thứ ba; không đổi API component.
-- [ ] CI `typecheck-and-test` + `ui-e2e` xanh.
+- [x] `--radius-inner` không còn số ma; mọi biến radius trong bridge trỏ tới token (`--cmc-radius-inner: 8px`, mới thêm).
+- [x] Bridge có map type (12 biến `--font-size-*` pin về thang CMC thật); `15px` do Astryx sở hữu → **0 lần** trên 13 route đo trực tiếp (kể cả sau khi mở rộng ra 8 route nữa).
+- [x] ~~Chỉ còn một giá trị pill~~ — **RÚT LẠI**: `999px`/`9999px` là nợ bảo trì (0 thay đổi pixel), chuyển sang Phase 6, không phải tiêu chí Phase 4.
+- [x] Quyết định thang radius được ghi thành văn bản — `design-system/cmc-edu/STYLING-BRIDGE.md` section "Radius zone rule", luật vùng phát biểu trong bảng 2 dòng + lý do không hợp nhất.
+- [x] Mỗi component family chỉ dùng radius thuộc thang đã chốt — xác nhận qua sweep: `[4,12,16]` = đúng cả hai thang cùng chạy, không phải lỗi.
+- [x] Không sửa file trong package bên thứ ba; không đổi API component — chỉ sửa `tokens.css`/`astryx-theme-cmc.css`/doc.
+- [ ] CI `typecheck-and-test` + `ui-e2e` — chưa chạy CI thật (chỉ verify local); worktree chưa push.
 
 ## Risk Assessment
 

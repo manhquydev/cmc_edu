@@ -24,13 +24,44 @@ Skill **ak-ui-styling** assumes shadcn + Tailwind. CMC EDU is **Astryx + CSS tok
 | `text-muted-foreground` | `var(--cmc-text-muted)` |
 | `bg-primary` / `text-primary-foreground` | `var(--cmc-brand)` / `#fff` |
 | `border` | `var(--cmc-border)` / `var(--cmc-border-subtle)` |
-| `rounded-md` | `var(--cmc-radius-md)` (12px) |
+| `rounded-md` | `var(--cmc-radius-md)` (16px — was documented as 12px here; corrected 2026-08-10, matches `tokens.css:79`) |
 | `rounded-full` | `var(--cmc-radius-pill)` |
 | `p-6` | `--cmc-pad-card` / space-4 |
 | `gap-4` | `--cmc-space-3` (16) |
 | `shadow-sm` | `--cmc-shadow-sm` (hover/float only) |
 | `transition` | `--cmc-transition` (140ms) |
 | `min-h-11` touch | `44px` (attendance TOUCH_MIN_HEIGHT) |
+
+---
+
+## Radius zone rule (operator decision, 2026-08-09)
+
+Admin runs **two deliberate radius scales**, not a bug:
+
+| Zone | Scale | Source | Applies to |
+|---|---|---|---|
+| Odoo console chrome | `--console-radius(-sm/-lg)` 3 / 4 / 6px | `console.css:46-48` | list/table surfaces, chevron statusbar, kanban — anything under `.o_web_client .console-*` that's a direct Odoo-source recreation |
+| Soft-ops / premium | `--cmc-radius-inner/control/card/dialog` 8 / 12 / 16 / 20px | `tokens.css:44-47,79-81` | Astryx primitives (Button/TextInput/Selector/Dialog) and premium composites (MetricCard/Panel/PageHeader) |
+
+**Why not unify:** the two zones serve different intents — console chrome is a
+source-grounded Odoo recreation (verified against `primary_variables.scss` in
+the pinned Odoo source: `$o-border-radius: 4px / -sm: 3px / -lg: 6px` — 3/4/6
+is the *faithful* value, not an approximation) where matching Odoo's own
+visual language is the point; soft-ops composites are CMC's own premium
+layer with no Odoo equivalent to match. Forcing one scale onto the other
+would either make Odoo chrome deviate from its own source of truth, or make
+every button/input/dialog needlessly boxy.
+
+**What "not a bug" does NOT license:** a `10px` (or any value outside both
+tables above) appearing anywhere is real drift, not a third zone — e.g. the
+Astryx bridge's `--radius-inner` was hardcoded to `10px` with no token behind
+it until 2026-08-10 (fixed: `--cmc-radius-inner: 8px`, continuing the
+existing 4px-step nested-harmony progression down from `control`).
+
+**Acceptance for future changes:** measure radius **per component family**,
+not as a raw count of distinct radii on a page — a page legitimately showing
+both zones (e.g. a console list row next to a premium dialog) is correct,
+not a defect. A defect is a value that belongs to *neither* table.
 
 ---
 

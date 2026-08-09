@@ -14,6 +14,12 @@ import { findOrCreateContact } from './find-or-create-contact.js';
 import { normalizeContactPhone, toContactPhoneSearchDigits } from './normalize-contact-phone.js';
 import { advanceOpportunityOneStep } from './advance-opportunity.js';
 import { confirmBulkImport, previewBulkImport } from './bulk-import-opportunities.js';
+import { isOpportunityRotting } from './rotting.js';
+import {
+  buildOpportunityReport,
+  LOST_WHERE,
+  NOT_LOST_WHERE,
+} from './opportunity-report.js';
 
 /** Full OpportunityStage catalog (docs/10). */
 const STAGE_VALUES = [
@@ -96,15 +102,17 @@ const opportunityListInput = z.object({
   pageSize: z.number().int().positive().max(100).default(20),
 });
 
-/** Prisma where-fragment for "not lost" — open (no closedAt) OR won (O5). */
-const NOT_LOST_WHERE: Prisma.OpportunityWhereInput = {
-  OR: [{ closedAt: null }, { stage: 'O5_ENROLLED' }],
-};
-/** Prisma where-fragment for "lost" — closed without enrolling. */
-const LOST_WHERE: Prisma.OpportunityWhereInput = {
-  closedAt: { not: null },
-  stage: { not: 'O5_ENROLLED' },
-};
+/** Inclusive ISO datetime range for the report period (client converts ICT dates). */
+const opportunityReportInput = z
+  .object({
+    from: z.string().datetime(),
+    to: z.string().datetime(),
+  })
+  .refine((v) => new Date(v.from).getTime() <= new Date(v.to).getTime(), {
+    message: 'from must be on or before to',
+  });
+
+// NOT_LOST_WHERE / LOST_WHERE: single source in opportunity-report.ts (list + report).
 
 export const crmRouter = router({
   opportunityCreate: requirePermission('crm', 'opportunityCreate')
@@ -225,9 +233,15 @@ export const crmRouter = router({
           if (!isOpportunityLost(opportunity)) {
             throw badRequest('Opportunity is not marked lost; nothing to reopen.');
           }
+          // Reopen is a CRM stage UPDATE → reset rotting clock (P2).
           return tx.opportunity.update({
             where: { id: opportunity.id },
-            data: { stage: 'O2_CONTACTED', lostReason: null, closedAt: null },
+            data: {
+              stage: 'O2_CONTACTED',
+              lostReason: null,
+              closedAt: null,
+              stageChangedAt: new Date(),
+            },
           });
         }
 
@@ -435,9 +449,17 @@ export const crmRouter = router({
           ? await tx.appUser.findMany({ where: { id: { in: ownerIds } }, select: { id: true, userId: true, fullName: true } })
           : [];
         const ownerById = new Map(owners.map((o) => [o.id, { userId: o.userId, fullName: o.fullName }]));
+        const now = new Date();
         const itemsWithOwner = items.map((i) => ({
           ...i,
           assignedTo: i.assignedToId ? ownerById.get(i.assignedToId) ?? null : null,
+          // Derived at read time (P2) — no flag table / worker.
+          isRotting: isOpportunityRotting({
+            stage: i.stage,
+            closedAt: i.closedAt,
+            stageChangedAt: i.stageChangedAt,
+            createdAt: i.createdAt,
+          }, now),
         }));
 
         return { items: itemsWithOwner, total, page: input.page, pageSize: input.pageSize, stageCounts, lostCount };
@@ -480,6 +502,46 @@ export const crmRouter = router({
         text: input.text,
         defaultSource: input.defaultSource ?? null,
         assignedToId,
+      });
+    }),
+
+  /**
+   * Read-only recruitment report: current funnel snapshot + createdAt cohort +
+   * closedAt outcomes. Sale callers see facility-wide funnel/source but only
+   * their own byAssignee KPI rows (procedure-layer own-only).
+   */
+  opportunityReport: requirePermission('crm', 'report')
+    .input(opportunityReportInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      const from = new Date(input.from);
+      const to = new Date(input.to);
+
+      // GĐKD (and super_admin via can()) see the full team KPI table; a pure
+      // sale is restricted to their own AppUser row for byAssignee only.
+      const isManager =
+        ctx.subject.roles.includes('giam_doc_kinh_doanh') ||
+        ctx.subject.roles.includes('super_admin');
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        let ownAssigneeId: string | null = null;
+        if (!isManager) {
+          const callerAppUser = await tx.appUser.findFirst({
+            where: { userId: ctx.subject.userId, facilityId },
+            select: { id: true },
+          });
+          // No AppUser row ⇒ empty byAssignee (never match a real owner id).
+          ownAssigneeId = callerAppUser?.id ?? '00000000-0000-0000-0000-000000000000';
+        }
+
+        // TransactionClient satisfies OpportunityReportDb at runtime; cast avoids
+        // Prisma groupBy generic variance fighting the helper's narrow surface.
+        return buildOpportunityReport(tx as never, {
+          facilityId,
+          from,
+          to,
+          ownAssigneeId,
+        });
       });
     }),
 });

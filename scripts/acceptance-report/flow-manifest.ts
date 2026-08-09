@@ -259,6 +259,33 @@ export const flows: FlowEntry[] = [
     },
     journey: 'apps/e2e/tests/journeys/crm-bulk-import.journey.ui.spec.ts',
   },
+  {
+    id: 'P1-11',
+    displayName: 'Cảnh báo cơ hội đang nguội',
+    cluster: 'P1',
+    actorRoles: ['sale'],
+    expected: {
+      trpc: ['crm.opportunityList', 'crm.opportunityAdvance', 'crm.opportunityCreate'],
+      uiRoutes: ['/crm'],
+      models: ['Opportunity'],
+    },
+    // P2 rotting: seed stageChangedAt backdate → badge on board → advance clears clock.
+    journey: 'apps/e2e/tests/journeys/crm-rotting.journey.ui.spec.ts',
+  },
+  {
+    id: 'P1-10',
+    displayName: 'Báo cáo tuyển sinh CRM',
+    cluster: 'P1',
+    actorRoles: ['giam_doc_kinh_doanh', 'sale'],
+    expected: {
+      trpc: ['crm.opportunityReport'],
+      uiRoutes: ['/crm/report'],
+      models: ['Opportunity'],
+    },
+    // Read-only report: sale opens /crm/report via real menu and sees the three
+    // time-labeled blocks (funnel snapshot / intake cohort / closed outcomes).
+    journey: 'apps/e2e/tests/journeys/crm-report.journey.ui.spec.ts',
+  },
 
   // ─────────────────────────────── P2 — Vận hành lớp học ───────────────────────────────
   {

@@ -89,6 +89,8 @@ interface OpportunityItem {
   contact: { id: string; name: string; phone: string };
   source?: string | null;
   assignedTo?: { userId: string; fullName: string } | null;
+  /** Derived server-side (P2) — open opp past rotting threshold. */
+  isRotting?: boolean;
 }
 
 // Owner-badge initials — first letter of the first word + first letter of
@@ -149,9 +151,16 @@ function OpportunityKanbanCard({
     >
       <KanbanCard
         title={
-          <HStack justify="between" align="start" gap={1}>
+          <HStack justify="between" align="start" gap={1} wrap="wrap">
             <span>{opp.contact.name}</span>
-            {lost ? <Badge label="Lost" variant="error" /> : null}
+            <HStack gap={1}>
+              {lost ? <Badge label="Lost" variant="error" /> : null}
+              {!lost && opp.isRotting ? (
+                <span data-testid="crm-rotting-badge">
+                  <Badge label="Đang nguội" variant="warning" />
+                </span>
+              ) : null}
+            </HStack>
           </HStack>
         }
         subtitle={formatContactPhone(opp.contact.phone)}
@@ -369,6 +378,18 @@ export default function CrmPipelinePage() {
           if (isLostOpp(row)) return 'Lost';
           return STAGE_LABEL[row.stage] ?? row.stage;
         },
+      },
+      {
+        key: 'isRotting',
+        label: 'Cảnh báo',
+        render: (_v, row) =>
+          !isLostOpp(row) && row.isRotting ? (
+            <span data-testid="crm-rotting-badge">
+              <Badge label="Đang nguội" variant="warning" />
+            </span>
+          ) : (
+            '—'
+          ),
       },
       {
         key: 'owner',

@@ -13,6 +13,7 @@ import { isOpportunityLost } from './opportunity-lost.js';
 import { findOrCreateContact } from './find-or-create-contact.js';
 import { normalizeContactPhone, toContactPhoneSearchDigits } from './normalize-contact-phone.js';
 import { advanceOpportunityOneStep } from './advance-opportunity.js';
+import { isOpportunityRotting } from './rotting.js';
 import {
   buildOpportunityReport,
   LOST_WHERE,
@@ -224,9 +225,15 @@ export const crmRouter = router({
           if (!isOpportunityLost(opportunity)) {
             throw badRequest('Opportunity is not marked lost; nothing to reopen.');
           }
+          // Reopen is a CRM stage UPDATE → reset rotting clock (P2).
           return tx.opportunity.update({
             where: { id: opportunity.id },
-            data: { stage: 'O2_CONTACTED', lostReason: null, closedAt: null },
+            data: {
+              stage: 'O2_CONTACTED',
+              lostReason: null,
+              closedAt: null,
+              stageChangedAt: new Date(),
+            },
           });
         }
 
@@ -434,9 +441,17 @@ export const crmRouter = router({
           ? await tx.appUser.findMany({ where: { id: { in: ownerIds } }, select: { id: true, userId: true, fullName: true } })
           : [];
         const ownerById = new Map(owners.map((o) => [o.id, { userId: o.userId, fullName: o.fullName }]));
+        const now = new Date();
         const itemsWithOwner = items.map((i) => ({
           ...i,
           assignedTo: i.assignedToId ? ownerById.get(i.assignedToId) ?? null : null,
+          // Derived at read time (P2) — no flag table / worker.
+          isRotting: isOpportunityRotting({
+            stage: i.stage,
+            closedAt: i.closedAt,
+            stageChangedAt: i.stageChangedAt,
+            createdAt: i.createdAt,
+          }, now),
         }));
 
         return { items: itemsWithOwner, total, page: input.page, pageSize: input.pageSize, stageCounts, lostCount };

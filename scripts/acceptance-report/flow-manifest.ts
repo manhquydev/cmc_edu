@@ -248,6 +248,19 @@ export const flows: FlowEntry[] = [
     journey: 'apps/e2e/tests/journeys/recon-exceeds-threshold.journey.ui.spec.ts',
   },
   {
+    id: 'P1-11',
+    displayName: 'Cảnh báo cơ hội đang nguội',
+    cluster: 'P1',
+    actorRoles: ['sale'],
+    expected: {
+      trpc: ['crm.opportunityList', 'crm.opportunityAdvance', 'crm.opportunityCreate'],
+      uiRoutes: ['/crm'],
+      models: ['Opportunity'],
+    },
+    // P2 rotting: seed stageChangedAt backdate → badge on board → advance clears clock.
+    journey: 'apps/e2e/tests/journeys/crm-rotting.journey.ui.spec.ts',
+  },
+  {
     id: 'P1-10',
     displayName: 'Báo cáo tuyển sinh CRM',
     cluster: 'P1',

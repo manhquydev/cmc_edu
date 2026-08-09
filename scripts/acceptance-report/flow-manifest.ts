@@ -248,6 +248,18 @@ export const flows: FlowEntry[] = [
     journey: 'apps/e2e/tests/journeys/recon-exceeds-threshold.journey.ui.spec.ts',
   },
   {
+    id: 'P1-12',
+    displayName: 'Nhập lead hàng loạt CRM',
+    cluster: 'P1',
+    actorRoles: ['sale'],
+    expected: {
+      trpc: ['crm.opportunityBulkPreview', 'crm.opportunityBulkConfirm'],
+      uiRoutes: ['/crm/bulk-import'],
+      models: ['Opportunity', 'Contact'],
+    },
+    journey: 'apps/e2e/tests/journeys/crm-bulk-import.journey.ui.spec.ts',
+  },
+  {
     id: 'P1-11',
     displayName: 'Cảnh báo cơ hội đang nguội',
     cluster: 'P1',

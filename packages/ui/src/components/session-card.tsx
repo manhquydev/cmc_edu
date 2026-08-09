@@ -169,3 +169,22 @@ export function SessionCard({
     </div>
   );
 }
+
+/** Map batch status string → SessionStatus. Moved from the now-deleted
+ * ScheduleMonth component (Phase 2 cleanup) — this mapper itself is a live
+ * utility used by teaching/schedule.tsx's KanbanView, not dead code. */
+export function batchStatusToSession(status: string, opts?: { attention?: boolean }): SessionStatus {
+  if (opts?.attention) return 'attention';
+  switch (status) {
+    case 'active':
+      return 'active';
+    case 'completed':
+      return 'done';
+    case 'cancelled':
+      return 'cancelled';
+    case 'planned':
+      return 'planned';
+    default:
+      return 'planned';
+  }
+}

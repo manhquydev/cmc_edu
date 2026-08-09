@@ -63,10 +63,9 @@ FilterBar types: `text` | `select` | `date`.
 | Settings | SettingsSection, SettingsRow |
 | Feedback | Toast, Banner, Callout, ConfirmDialog, EmptyState |
 | Identity | Avatar, MetaRow/MetaItem, CountBadge |
-| Activity | ActivityTimeline |
-| Schedule (edu) | SessionCard (P0 time/title/status/CTA, P1 program, P2 room/GV, P3 tooltip), WeekSchedule, ScheduleMonth |
+| Schedule (edu) | SessionCard (P0 time/title/status/CTA, P1 program, P2 room/GV, P3 tooltip) |
 | Status | StatusBadge appearance soft (default) \| solid |
-| Shell | AppFrame, SideNav, PageHeader, CommandPalette (⌘K) |
+| Shell | ConsoleNavbar, PageHeader, CommandPalette (⌘K) |
 | Settings | SettingsShell (rail), SettingsSection, SettingsRow |
 | Auth | TextField, PasswordInput |
 

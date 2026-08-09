@@ -89,8 +89,7 @@ export type { IconName } from './components/line-icon.js';
 
 // Premium composites (promoted from the cockpit pilot — presentational,
 // props-only; no session/tRPC coupling). MetricCard + TaskRow render
-// react-router `Link`s (a declared peer) so they need a Router ancestor;
-// AppFrame/SideNav below stay router-free via an onNavigate callback.
+// react-router `Link`s (a declared peer) so they need a Router ancestor.
 // Require `@cmc/ui/console.css` imported once at the app root.
 export type { Tone } from './components/tone.js';
 export { MetricCard } from './components/metric-card.js';
@@ -168,10 +167,6 @@ export type { ResultPanelProps, ResultStatus } from './components/result-panel.j
 // plans/260710-1730-premium-design-language-buildout/phase-03).
 export type { NavEntry, NavModule } from './components/nav-types.js';
 export { activeModuleId } from './lib/active-module.js';
-export { SideNav } from './components/side-nav.js';
-export type { SideNavProps } from './components/side-nav.js';
-export { AppFrame } from './components/app-frame.js';
-export type { AppFrameProps } from './components/app-frame.js';
 
 // CMC Console admin UI layer (design3) — requires `@cmc/ui/console.css` + `.o_web_client` scope.
 export { ConsoleNavbar } from './console/console-navbar.js';
@@ -245,13 +240,7 @@ export { MetaRow, MetaItem } from './components/meta-row.js';
 export type { MetaRowProps, MetaItemProps } from './components/meta-row.js';
 export { CountBadge } from './components/count-badge.js';
 export type { CountBadgeProps } from './components/count-badge.js';
-export { ActivityTimeline } from './components/activity-timeline.js';
-export type { ActivityTimelineProps, ActivityItem } from './components/activity-timeline.js';
 
 // Education schedule
-export { SessionCard } from './components/session-card.js';
+export { SessionCard, batchStatusToSession } from './components/session-card.js';
 export type { SessionCardProps, SessionStatus } from './components/session-card.js';
-export { WeekSchedule } from './components/week-schedule.js';
-export type { WeekScheduleProps, WeekDayColumn } from './components/week-schedule.js';
-export { ScheduleMonth, batchStatusToSession } from './components/schedule-month.js';
-export type { ScheduleMonthProps, ScheduleMonthGroup } from './components/schedule-month.js';

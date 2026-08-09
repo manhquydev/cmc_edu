@@ -1,9 +1,9 @@
 import type { Role } from '@cmc/auth';
 import type { IconName } from './line-icon.js';
 
-// Shared nav-tree shape for `SideNav` (promoted from apps/admin/src/shell —
-// P3 shell extraction). Data itself (NAV_MODULES) stays app-local; only the
-// types move here so SideNav can be typed without depending on the app.
+// Shared nav-tree shape for the admin shell nav (promoted from
+// apps/admin/src/shell — P3 shell extraction; consumed by ConsoleNavbar).
+// Data itself (NAV_MODULES) stays app-local; only the types move here.
 export interface NavEntry {
   id: string;
   label: string;

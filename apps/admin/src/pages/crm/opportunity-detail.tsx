@@ -4,6 +4,7 @@ import {
   Badge,
   Banner,
   Button,
+  DateField,
   DetailPage,
   EmptyState,
   EntityHeader,
@@ -18,6 +19,7 @@ import {
   Stack,
   StatActions,
   Text,
+  TextInput,
   WorkflowStatusbar,
 } from '@cmc/ui';
 import type { ComponentProps } from 'react';
@@ -96,8 +98,16 @@ function initialsFromName(name: string): string {
   return `${parts[0]![0] ?? ''}${parts[parts.length - 1]![0] ?? ''}`.toUpperCase();
 }
 
+function toIctEndIso(dateText: string): string | undefined {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) return undefined;
+  const d = new Date(`${dateText}T23:59:59.999+07:00`);
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+}
+
 export default function OpportunityDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [nextNote, setNextNote] = useState('');
+  const [nextDate, setNextDate] = useState('');
   const navigate = useNavigate();
   const [markLostOpen, setMarkLostOpen] = useState(false);
   const [scheduleTestOpen, setScheduleTestOpen] = useState(false);
@@ -121,7 +131,12 @@ export default function OpportunityDetailPage() {
   const advanceMutation = trpc.crm.opportunityAdvance.useMutation({
     onSuccess: () => void utils.crm.opportunityList.invalidate(),
   });
-  const { markLostMutation, assignMutation } = useOpportunityActions();
+  const {
+    markLostMutation,
+    assignMutation,
+    setNextActionMutation,
+    clearNextActionMutation,
+  } = useOpportunityActions();
   const { completeMutation, noShowMutation } = useTestAppointmentActions();
 
   // phase-10: owner assign control. `me` gates the two mutually-exclusive
@@ -416,6 +431,87 @@ export default function OpportunityDetailPage() {
 
           <div className="console-detail-split">
             <div className="console-detail-stack">
+              <SectionBlock
+                title="Việc cần làm tiếp theo"
+                description="Nhắc việc trong app (không gửi email). Đến hạn hiện ở màn đầu ca."
+              >
+                <div data-testid="crm-next-action">
+                  {opp.nextActionAt ? (
+                    <Stack gap={2}>
+                      <Text size="sm">
+                        Hẹn:{' '}
+                        <strong>
+                          {new Date(opp.nextActionAt).toLocaleDateString('vi-VN', {
+                            timeZone: 'Asia/Ho_Chi_Minh',
+                          })}
+                        </strong>
+                      </Text>
+                      <Text size="sm" type="supporting">
+                        {opp.nextActionNote ?? '—'}
+                      </Text>
+                      {!isLost && opp.stage !== 'O5_ENROLLED' && (
+                        <Button
+                          label="Đánh dấu xong"
+                          size="sm"
+                          variant="secondary"
+                          isLoading={clearNextActionMutation.isPending}
+                          onClick={() =>
+                            clearNextActionMutation.mutate({ opportunityId: opp.id })
+                          }
+                        />
+                      )}
+                    </Stack>
+                  ) : !isLost && opp.stage !== 'O5_ENROLLED' ? (
+                    <Stack gap={2}>
+                      <DateField
+                        label="Ngày hẹn"
+                        value={nextDate}
+                        onChange={setNextDate}
+                      />
+                      <TextInput
+                        label="Việc cần làm"
+                        value={nextNote}
+                        onChange={setNextNote}
+                        placeholder="VD: Gọi lại xác nhận lịch kiểm tra"
+                      />
+                      <Button
+                        label="Lưu việc tiếp theo"
+                        size="sm"
+                        variant="primary"
+                        isDisabled={!nextDate || !nextNote.trim()}
+                        isLoading={setNextActionMutation.isPending}
+                        onClick={() => {
+                          const iso = toIctEndIso(nextDate);
+                          if (!iso) return;
+                          setNextActionMutation.mutate(
+                            {
+                              opportunityId: opp.id,
+                              nextActionAt: iso,
+                              nextActionNote: nextNote.trim(),
+                            },
+                            {
+                              onSuccess: () => {
+                                setNextNote('');
+                                setNextDate('');
+                              },
+                            },
+                          );
+                        }}
+                      />
+                      {setNextActionMutation.error && (
+                        <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
+                          {setNextActionMutation.error.message}
+                        </span>
+                      )}
+                    </Stack>
+                  ) : (
+                    <Text type="supporting" size="sm">
+                      Không đặt việc trên cơ hội đã đóng.
+                    </Text>
+                  )}
+                </div>
+              </SectionBlock>
+
               <SectionBlock title="Phụ trách & nguồn" description="Giao việc và kênh lead.">
                 <KeyValueList
                   items={[

@@ -293,6 +293,10 @@ model Opportunity {
   // Intentionally NOT updated by finance receiptApprove (O4→O5) or receiptCancel
   // (O5→O4): O5 is never rotting; a just-cancelled receipt should look rotting.
   stageChangedAt DateTime? @db.Timestamptz(3)
+  // P4 next-action reminder (one open follow-up per opportunity). Due list
+  // filters on nextActionAt; clear = set both null. Not a general task system.
+  nextActionAt   DateTime? @db.Timestamptz(3)
+  nextActionNote String?
   createdAt  DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt  DateTime         @updatedAt @db.Timestamptz(3)
 
@@ -302,6 +306,7 @@ model Opportunity {
   @@index([facilityId])
   @@index([contactId])
   @@index([facilityId, assignedToId])
+  @@index([facilityId, assignedToId, nextActionAt])
 }
 
 /// One row per facility; `value` is the last-issued sequence number.

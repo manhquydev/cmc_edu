@@ -32,14 +32,17 @@ export function ProgressSteps({ steps, activeIndex, onStepClick }: ProgressSteps
               disabled={!clickable}
               onClick={() => onStepClick?.(i)}
               aria-current={state === 'current' ? 'step' : undefined}
+              title={step.label}
             >
               <span className="console-steps-num" aria-hidden>
                 {state === 'done' ? '✓' : i + 1}
               </span>
-              <span className="console-steps-status-sr" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
-                {state === 'done' ? 'Đã hoàn thành. ' : state === 'current' ? 'Đang thực hiện. ' : 'Chưa thực hiện. '}
-              </span>
-              <span className="console-steps-label" title={step.label}>{step.label}</span>
+              <span className="console-steps-label">{step.label}</span>
+              {state !== 'todo' ? (
+                <span className="console-sr-only">
+                  {state === 'done' ? 'Đã hoàn thành' : 'Đang thực hiện'}
+                </span>
+              ) : null}
             </button>
           </li>
         );

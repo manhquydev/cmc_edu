@@ -106,8 +106,8 @@ function SubmissionListItem({
         paddingBlock: 'var(--cmc-space-2)',
         borderBottom: '1px solid var(--cmc-border)',
         cursor: 'pointer',
-        background: selected ? 'var(--cmc-accent-subtle, #e8f4fd)' : 'var(--cmc-surface)',
-        borderLeft: selected ? '3px solid var(--cmc-accent, #228be6)' : '3px solid transparent',
+        background: selected ? 'var(--cmc-brand-muted)' : 'var(--cmc-surface)',
+        borderLeft: selected ? '3px solid var(--cmc-brand)' : '3px solid transparent',
       }}
     >
       <HStack justify="between" style={{ marginBottom: 2 }}>

@@ -25,9 +25,9 @@ interface RosterEntry {
 }
 
 const STATUS_CONFIG: Record<AttendanceStatus, { label: string; color: string; bg: string }> = {
-  present: { label: 'Có mặt', color: '#2f9e44', bg: '#ebfbee' },
-  absent: { label: 'Vắng', color: '#e03131', bg: '#fff5f5' },
-  late: { label: 'Muộn', color: '#e67700', bg: '#fff9db' },
+  present: { label: 'Có mặt', color: 'var(--cmc-success-ink)', bg: 'var(--cmc-success-soft)' },
+  absent: { label: 'Vắng', color: 'var(--cmc-danger-ink)', bg: 'var(--cmc-danger-soft)' },
+  late: { label: 'Muộn', color: 'var(--cmc-warning-ink)', bg: 'var(--cmc-warning-soft)' },
 };
 
 const UNMARKED_CONFIG = { label: 'Chưa điểm danh', color: '#868e96', bg: '#f1f3f5' };
@@ -213,9 +213,9 @@ export function AttendancePanel({ sessionId, classBatchId }: AttendancePanelProp
       >
         <Grid columns={{ minWidth: 140, max: 5 }} gap={2}>
           <CountTile label="Tổng" count={total} color="var(--cmc-text)" />
-          <CountTile label="Có mặt" count={presentCount} color="#2f9e44" />
-          <CountTile label="Vắng" count={absentCount} color="#e03131" />
-          <CountTile label="Muộn" count={lateCount} color="#e67700" />
+          <CountTile label="Có mặt" count={presentCount} color="var(--cmc-success-ink)" />
+          <CountTile label="Vắng" count={absentCount} color="var(--cmc-danger-ink)" />
+          <CountTile label="Muộn" count={lateCount} color="var(--cmc-warning-ink)" />
           <CountTile label="Chưa điểm danh" count={unmarkedCount} color="#868e96" />
         </Grid>
       </div>

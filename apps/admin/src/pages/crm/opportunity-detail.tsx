@@ -334,7 +334,7 @@ export default function OpportunityDetailPage() {
                 variant={isLost ? 'error' : stageVariant}
                 style={
                   !isLost && opp.stage !== 'O5_ENROLLED'
-                    ? { background: 'var(--cmc-brand)', color: '#fff' }
+                    ? { background: 'var(--cmc-brand)', color: 'var(--cmc-surface)' }
                     : undefined
                 }
               />

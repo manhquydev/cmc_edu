@@ -21,6 +21,7 @@ import {
   Stack,
   Text,
   TextInput,
+  TimeField,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
@@ -130,10 +131,10 @@ function NewTemplateForm({ groupId }: { groupId: string }) {
           <TextInput label="Tên mẫu ca" value={name} onChange={setName} size="sm" />
         </div>
         <div style={{ flex: '0 0 100px' }}>
-          <TextInput label="Bắt đầu (HH:mm)" placeholder="08:30" value={startTime} onChange={setStartTime} size="sm" />
+          <TimeField label="Bắt đầu (HH:mm)" value={startTime} onChange={setStartTime} size="sm" />
         </div>
         <div style={{ flex: '0 0 100px' }}>
-          <TextInput label="Kết thúc (HH:mm)" placeholder="18:00" value={endTime} onChange={setEndTime} size="sm" />
+          <TimeField label="Kết thúc (HH:mm)" value={endTime} onChange={setEndTime} size="sm" />
         </div>
         <Button
           label="+ Thêm mẫu ca"

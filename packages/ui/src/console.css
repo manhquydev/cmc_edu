@@ -730,7 +730,9 @@ button.console-kanban-card {
   border-radius: var(--cmc-raised-radius);
   box-sizing: border-box;
 }
-/* DateField — Odoo-like dense date control (native type=date) */
+/* Shared recipe for DateField/TimeField/DateTimeField — Odoo-like dense
+   date/time control (native type=date|time|datetime-local); not date-specific
+   despite the class name. */
 .console-date-field {
   display: flex;
   flex-direction: column;
@@ -777,7 +779,7 @@ button.console-kanban-card {
   cursor: not-allowed;
 }
 .console-date-field-input:focus {
-  outline: 2px solid var(--cmc-accent, #0071e3);
+  outline: 2px solid var(--cmc-brand);
   outline-offset: 1px;
 }
 /* WorkflowStatusbar wraps ProgressSteps with record-page spacing */

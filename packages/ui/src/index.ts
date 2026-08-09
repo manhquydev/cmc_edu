@@ -142,6 +142,10 @@ export type { FilterBarProps, FilterDef } from './components/filter-bar.js';
 
 export { DateField } from './components/date-field.js';
 export type { DateFieldProps } from './components/date-field.js';
+export { TimeField } from './components/time-field.js';
+export type { TimeFieldProps } from './components/time-field.js';
+export { DateTimeField } from './components/datetime-field.js';
+export type { DateTimeFieldProps } from './components/datetime-field.js';
 
 export { MasterDetail } from './components/master-detail.js';
 export type { MasterDetailProps } from './components/master-detail.js';

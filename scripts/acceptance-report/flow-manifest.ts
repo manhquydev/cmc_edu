@@ -247,6 +247,20 @@ export const flows: FlowEntry[] = [
     // phát-hiện→hiển-thị; action/dismiss chưa drive (H2 hợp lệ, phủ hẹp).
     journey: 'apps/e2e/tests/journeys/recon-exceeds-threshold.journey.ui.spec.ts',
   },
+  {
+    id: 'P1-10',
+    displayName: 'Báo cáo tuyển sinh CRM',
+    cluster: 'P1',
+    actorRoles: ['giam_doc_kinh_doanh', 'sale'],
+    expected: {
+      trpc: ['crm.opportunityReport'],
+      uiRoutes: ['/crm/report'],
+      models: ['Opportunity'],
+    },
+    // Read-only report: sale opens /crm/report via real menu and sees the three
+    // time-labeled blocks (funnel snapshot / intake cohort / closed outcomes).
+    journey: 'apps/e2e/tests/journeys/crm-report.journey.ui.spec.ts',
+  },
 
   // ─────────────────────────────── P2 — Vận hành lớp học ───────────────────────────────
   {

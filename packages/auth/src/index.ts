@@ -84,6 +84,9 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   // (a sale may claim ONLY their own unassigned/already-theirs leads; GĐ KD may
   // reassign anyone) is coded in the crm.opportunityAssign procedure.
   'crm.opportunityAssign': ['giam_doc_kinh_doanh', 'sale'],
+  // CRM recruitment report (read-only). Door opens for GĐKD + sale; sale
+  // own-only filtering for byAssignee KPI is procedure-layer (like opportunityAssign).
+  'crm.report': ['giam_doc_kinh_doanh', 'sale'],
   'finance.receiptCreate': ['giam_doc_kinh_doanh', 'sale'],
   // Money gate (ADR-B, docs/16): approver must differ from the drafting sale
   // rep for basic separation of duties — `sale` MUST NOT appear here.

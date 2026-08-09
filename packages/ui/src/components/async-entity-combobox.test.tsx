@@ -107,4 +107,19 @@ describe('AsyncEntityCombobox', () => {
     fireEvent.click(screen.getByText('Lớp ABC'));
     expect(onChange).toHaveBeenCalledWith('abc');
   });
+
+  it('forwards status (e.g. a validation error) to the inner Selector', () => {
+    const useOptions = vi.fn(() => ({ options: [], isLoading: false }));
+    render(
+      <AsyncEntityCombobox
+        label="Khoá học"
+        value={null}
+        onChange={() => {}}
+        useOptions={useOptions}
+        pinnedLabel={(v) => v}
+        status={{ type: 'error', message: 'Vui lòng chọn khoá học' }}
+      />,
+    );
+    expect(screen.getByText('Vui lòng chọn khoá học')).toBeInTheDocument();
+  });
 });

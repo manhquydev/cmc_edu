@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Selector, Stack, TextInput } from '../primitives.js';
+import type { SelectorStatus } from '@astryxdesign/core/Selector';
 
 export interface AsyncEntityOption {
   value: string;
@@ -36,6 +37,8 @@ export interface AsyncEntityComboboxProps {
   isRequired?: boolean;
   isLabelHidden?: boolean;
   isDisabled?: boolean;
+  /** Forwarded to the inner Selector — validation error/warning display. */
+  status?: SelectorStatus;
 }
 
 /**
@@ -61,6 +64,7 @@ export function AsyncEntityCombobox({
   isRequired,
   isLabelHidden,
   isDisabled,
+  status,
 }: AsyncEntityComboboxProps) {
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -99,6 +103,7 @@ export function AsyncEntityCombobox({
         size={size}
         isRequired={isRequired}
         isDisabled={isDisabled}
+        status={status}
       />
     </Stack>
   );

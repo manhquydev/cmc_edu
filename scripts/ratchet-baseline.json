@@ -1,18 +1,4 @@
 {
-  "_comment": "Per-file count of raw literal values in tokenizable inline-style properties (spacing/fontSize/radius/color) under apps/admin/src/pages, as measured by scripts/ui-ratchet.mjs. This is a frozen debt ceiling, not a target: existing counts are grandfathered, CI only fails when a file GOES UP. Lower a file's number by hand (re-run --write-baseline after fixing it) as it gets cleaned up — see plan Phase 7 (vertical module slices) and Phase 8 (close-out, target 0).",
-  "baseline": {
-    "apps/admin/src/pages/change-password.tsx": 1,
-    "apps/admin/src/pages/crm/bulk-import.tsx": 3,
-    "apps/admin/src/pages/crm/opportunity-detail.tsx": 1,
-    "apps/admin/src/pages/crm/pipeline.tsx": 1,
-    "apps/admin/src/pages/crm/report.tsx": 7,
-    "apps/admin/src/pages/finance/revenue-report.tsx": 1,
-    "apps/admin/src/pages/hr/my-hr.tsx": 2,
-    "apps/admin/src/pages/hr/payroll.tsx": 2,
-    "apps/admin/src/pages/login.tsx": 1,
-    "apps/admin/src/pages/teaching/attendance.tsx": 3,
-    "apps/admin/src/pages/teaching/grading.tsx": 1,
-    "apps/admin/src/pages/teaching/panels/attendance-panel.tsx": 1,
-    "apps/admin/src/pages/teaching/schedule.tsx": 1
-  }
+  "_comment": "Per-file count of raw literal values in tokenizable inline-style properties (spacing/fontSize/radius/color) under apps/admin/src/pages, as measured by scripts/ui-ratchet.mjs, AFTER excluding scripts/ratchet-exemptions.json entries. Phase 8 close-out reached 0 here (plans/260809-2040-erp-ui-clean-sync-complete/phase-08-close-out.md) — this is now zero-tolerance: any unexempted literal in a tokenizable property fails CI immediately, there is no grandfathered allowance left to raise. Genuine debt with no matching token lives in ratchet-exemptions.json instead, one entry per literal with a stated reason — add there (not here) only after confirming no token fits; do not use this file to silence new violations.",
+  "baseline": {}
 }

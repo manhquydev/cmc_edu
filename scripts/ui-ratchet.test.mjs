@@ -19,28 +19,67 @@ function run(args) {
 }
 
 describe('ui-ratchet.mjs', () => {
-  it('passes cleanly against the committed baseline', () => {
+  it('passes cleanly at zero violations (Phase 8 close-out: baseline is genuinely empty)', () => {
     const r = run(['--json']);
     assert.equal(r.status, 0, r.stderr || r.stdout);
     const report = JSON.parse(r.stdout);
     assert.ok(report.pageCount > 20);
     assert.equal(report.increased.length, 0);
+    assert.equal(report.totalViolations, 0);
+    assert.equal(report.filesWithViolations, 0);
+    const baseline = JSON.parse(
+      fs.readFileSync(path.join(root, 'scripts/ratchet-baseline.json'), 'utf8'),
+    );
+    assert.deepEqual(baseline.baseline, {}, 'baseline should be empty — zero-tolerance mode');
+  });
+
+  it('applies scripts/ratchet-exemptions.json entries by exact (file, property, value) match', () => {
+    const exemptions = JSON.parse(
+      fs.readFileSync(path.join(root, 'scripts/ratchet-exemptions.json'), 'utf8'),
+    ).exemptions;
+    assert.ok(exemptions.length >= 15, 'expected the Phase 8 exemption list to be populated');
+    // teaching/schedule.tsx's gap:12 is one of the listed exemptions — confirm it stays excluded.
+    const schedule = exemptions.find(
+      (e) => e.file === 'apps/admin/src/pages/teaching/schedule.tsx' && e.property === 'gap',
+    );
+    assert.ok(schedule, 'expected a gap exemption for teaching/schedule.tsx');
+    assert.equal(schedule.value, '12');
+    const r = run(['--json']);
+    const report = JSON.parse(r.stdout);
+    assert.equal(
+      report.perFile['apps/admin/src/pages/teaching/schedule.tsx'],
+      undefined,
+      'exempted file should not appear in perFile at all (count is 0)',
+    );
   });
 
   it('only counts literal values in tokenizable properties, exempting layout/typography/var()/%', () => {
-    const r = run(['--json']);
-    const report = JSON.parse(r.stdout);
-    const attendance = report.perFile['apps/admin/src/pages/teaching/attendance.tsx'];
-    assert.ok(attendance, 'teaching/attendance.tsx should have counted violations');
-    // { background:'var(...)', border:'...', borderRadius:4 } -> only borderRadius counts (no
-    // premium-scale token for 4px radius; that value belongs to the separate console.css scale)
-    // { marginTop:2 } and { padding:32 } -> spacing, neither has an exact token match
-    // { fontSize:'var(--cmc-fs-page)' } elsewhere in the file is already tokenized — exempt
-    assert.equal(attendance.total, 3);
-    assert.equal(attendance.spacing, 2); // marginTop:2 + padding:32
-    assert.equal(attendance.typography, 0); // fontSize already var()-based
-    assert.equal(attendance.radius, 1); // borderRadius:4, no exact token
-    assert.equal(attendance.color, 0);
+    const original = fs.readFileSync(targetFile, 'utf8');
+    try {
+      fs.writeFileSync(
+        targetFile,
+        // display/flex/width: layout+size exempt; borderRadius:'var(...)' already tokenized.
+        // padding:8 and fontSize:13 ARE literals with real token equivalents elsewhere in the
+        // codebase, but the script counts raw literals regardless of whether a token exists for
+        // that value — fixing vs. exempting is a human judgment made after the fact, not
+        // something the script infers. Neither has an exemption entry for THIS file, so both
+        // count (proves exemption matching is per file+property+value, not by value alone).
+        `const __ratchetTestSynthetic = (
+          <div style={{ display: 'flex', width: 320, borderRadius: 'var(--cmc-radius-card)', padding: 8, fontSize: 13 }} />
+        );\n${original}`,
+      );
+      const r = run(['--json']);
+      const report = JSON.parse(r.stdout);
+      const counts = report.perFile[path.relative(root, targetFile)];
+      assert.ok(counts, 'synthetic injected style block should be counted');
+      assert.equal(counts.total, 2);
+      assert.equal(counts.spacing, 1); // padding:8 (no exemption entry for this file/property)
+      assert.equal(counts.typography, 1); // fontSize:13
+      assert.equal(counts.radius, 0); // var() — already tokenized
+      assert.equal(counts.color, 0);
+    } finally {
+      fs.writeFileSync(targetFile, original);
+    }
   });
 
   it('fails when a file gains a new violation vs baseline, and is silent when restored', () => {

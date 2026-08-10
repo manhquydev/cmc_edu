@@ -33,6 +33,14 @@
  * Exit code (without --write-baseline): 0 if no file exceeds its baseline
  * count, 1 otherwise. --write-baseline never fails; it (re)writes
  * scripts/ratchet-baseline.json from the current count and exits 0.
+ *
+ * Explicit exemptions (Phase 8 close-out): scripts/ratchet-exemptions.json
+ * lists individually-justified (file, property, exact literal value) triples
+ * that have no matching CMC token — each one reviewed and reasoned, not a
+ * silent baseline number. These are subtracted before counting, so the
+ * baseline is genuinely {} (every file at 0) and the existing "fails if a
+ * file's count goes up" comparison becomes zero-tolerance for anything NOT
+ * on that explicit list — no separate "hard forbid" mode needed.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -41,9 +49,17 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pagesRoot = path.join(root, 'apps/admin/src/pages');
 const baselinePath = path.join(root, 'scripts/ratchet-baseline.json');
+const exemptionsPath = path.join(root, 'scripts/ratchet-exemptions.json');
 
 const asJson = process.argv.includes('--json');
 const writeBaseline = process.argv.includes('--write-baseline');
+
+const exemptionsData = fs.existsSync(exemptionsPath)
+  ? JSON.parse(fs.readFileSync(exemptionsPath, 'utf8'))
+  : { exemptions: [] };
+const EXEMPT_LITERALS = new Set(
+  (exemptionsData.exemptions ?? []).map((e) => `${e.file}|${e.property}|${e.value}`),
+);
 
 const LAYOUT_EXEMPT = new Set([
   'display', 'flex', 'flexWrap', 'flexDirection', 'flexShrink', 'flexGrow', 'flexBasis',
@@ -179,7 +195,7 @@ function isComputed(value) {
   return value.includes('var(') || value.includes('calc(') || value.includes('%');
 }
 
-function countFile(file) {
+function countFile(file, relPath) {
   const src = fs.readFileSync(file, 'utf8');
   const counts = { spacing: 0, typography: 0, radius: 0, color: 0 };
   let idx = 0;
@@ -198,6 +214,7 @@ function countFile(file) {
       const literal = literalValue(rawValue);
       if (literal === null) continue;
       if (isComputed(literal)) continue;
+      if (EXEMPT_LITERALS.has(`${relPath}|${key}|${literal}`)) continue;
       counts[family] += 1;
     }
     idx = close + 1;
@@ -210,7 +227,7 @@ const perFile = {};
 let totalViolations = 0;
 for (const file of files) {
   const rel = path.relative(root, file);
-  const counts = countFile(file);
+  const counts = countFile(file, rel);
   const total = counts.spacing + counts.typography + counts.radius + counts.color;
   if (total > 0) perFile[rel] = { total, ...counts };
   totalViolations += total;
@@ -225,10 +242,13 @@ if (writeBaseline) {
         _comment:
           'Per-file count of raw literal values in tokenizable inline-style properties ' +
           '(spacing/fontSize/radius/color) under apps/admin/src/pages, as measured by ' +
-          'scripts/ui-ratchet.mjs. This is a frozen debt ceiling, not a target: existing ' +
-          'counts are grandfathered, CI only fails when a file GOES UP. Lower a file\'s ' +
-          'number by hand (re-run --write-baseline after fixing it) as it gets cleaned up ' +
-          '— see plan Phase 7 (vertical module slices) and Phase 8 (close-out, target 0).',
+          'scripts/ui-ratchet.mjs, AFTER excluding scripts/ratchet-exemptions.json entries. ' +
+          'Phase 8 close-out reached 0 here (plans/260809-2040-erp-ui-clean-sync-complete/' +
+          'phase-08-close-out.md) — this is now zero-tolerance: any unexempted literal in a ' +
+          'tokenizable property fails CI immediately, there is no grandfathered allowance ' +
+          'left to raise. Genuine debt with no matching token lives in ratchet-exemptions.json ' +
+          'instead, one entry per literal with a stated reason — add there (not here) only ' +
+          'after confirming no token fits; do not use this file to silence new violations.',
         baseline,
       },
       null,

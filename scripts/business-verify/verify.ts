@@ -46,9 +46,9 @@ const MONEY_STATE_KEYWORDS = [
   'đối soát', 'reconcil', 'sao', 'star', 'quà', 'reward', 'kpi',
 ];
 
-type CorrectnessState = 'verified-correct' | 'reachable-only' | 'not-proven';
+export type CorrectnessState = 'verified-correct' | 'reachable-only' | 'not-proven';
 
-interface LedgerFlow {
+export interface LedgerFlow {
   flow: { id: string; displayName: string; cluster: string; journey?: string };
   evidence: { state: string; badge: string };
 }
@@ -59,7 +59,7 @@ interface LedgerFile {
   flows: LedgerFlow[];
 }
 
-interface FlowCorrectness {
+export interface FlowCorrectness {
   id: string;
   displayName: string;
   cluster: string;
@@ -71,7 +71,7 @@ interface FlowCorrectness {
   reason: string;
 }
 
-function isMoneyStateCritical(displayName: string): boolean {
+export function isMoneyStateCritical(displayName: string): boolean {
   const name = displayName.toLowerCase();
   return MONEY_STATE_KEYWORDS.some((kw) => name.includes(kw.toLowerCase()));
 }
@@ -92,7 +92,7 @@ function readRunFacts(): RunFacts | null {
   });
 }
 
-function composeFlow(ledgerFlow: LedgerFlow, facts: RunFacts | null): FlowCorrectness {
+export function composeFlow(ledgerFlow: LedgerFlow, facts: RunFacts | null): FlowCorrectness {
   const { id, displayName, cluster, journey } = ledgerFlow.flow;
   const ledgerState = ledgerFlow.evidence.state;
   const moneyStateCritical = isMoneyStateCritical(displayName);
@@ -130,6 +130,39 @@ function composeFlow(ledgerFlow: LedgerFlow, facts: RunFacts | null): FlowCorrec
   };
 }
 
+export interface StrictVerificationInput {
+  resultsPresent: boolean;
+  resultsSha: string | null;
+  ledgerCommit: string;
+  moneyStateVerifiedCorrect: number;
+  criticalReachableOnly: readonly Pick<FlowCorrectness, 'id'>[];
+}
+
+/** Returns the exact strict-gate failures without performing I/O or exiting. */
+export function collectStrictFailures(input: StrictVerificationInput): string[] {
+  const failures: string[] = [];
+  if (!input.resultsPresent) {
+    failures.push('không có journeys.json — không có bằng chứng chạy nào để xét (gate không pass rỗng).');
+  }
+  if (
+    input.resultsPresent &&
+    (input.resultsSha === null || !input.resultsSha.startsWith(input.ledgerCommit))
+  ) {
+    failures.push(`kết quả (sha ${input.resultsSha ?? 'null'}) không khớp ledger commit ${input.ledgerCommit}.`);
+  }
+  if (input.moneyStateVerifiedCorrect === 0) {
+    failures.push('không luồng money/state nào đạt verified-correct — gate từ chối pass rỗng.');
+  }
+  if (input.criticalReachableOnly.length > 0) {
+    failures.push(`${input.criticalReachableOnly.length} luồng money/state-critical mới ở mức smoke.`);
+  }
+  return failures;
+}
+
+export function shouldFailStrictGate(strict: boolean, failures: readonly string[]): boolean {
+  return strict && failures.length > 0;
+}
+
 function main(): void {
   const strict = process.argv.includes('--strict');
   const ledger = readLedger();
@@ -156,12 +189,6 @@ function main(): void {
   const moneyStateVerifiedCorrect = results.filter(
     (r) => r.moneyStateCritical && r.correctness === 'verified-correct',
   ).length;
-  // The ledger (static scan at HEAD) and the results (a Playwright run) must
-  // describe the SAME commit, or correctness labels pair a fresh scan with a
-  // stale run. `ledger.commit` is the short sha; `facts.sha` is the full one, so
-  // compare by prefix. A null sha is a run that never stamped its commit.
-  const shaMismatch = facts !== null && (facts.sha === null || !facts.sha.startsWith(ledger.commit));
-
   const output = {
     generatedAt: new Date().toISOString(),
     ledgerCommit: ledger.commit,
@@ -192,24 +219,20 @@ function main(): void {
   console.log(`\n  → ${path.relative(REPO_ROOT, OUTPUT_PATH)}\n`);
 
   if (strict) {
-    const failures: string[] = [];
-    if (!output.resultsPresent) {
-      failures.push('không có journeys.json — không có bằng chứng chạy nào để xét (gate không pass rỗng).');
-    }
-    if (shaMismatch) {
-      failures.push(`kết quả (sha ${facts?.sha ?? 'null'}) không khớp ledger commit ${ledger.commit}.`);
-    }
-    if (moneyStateVerifiedCorrect === 0) {
-      failures.push('không luồng money/state nào đạt verified-correct — gate từ chối pass rỗng.');
-    }
-    if (criticalReachableOnly.length > 0) {
-      failures.push(`${criticalReachableOnly.length} luồng money/state-critical mới ở mức smoke.`);
-    }
-    if (failures.length > 0) {
+    const failures = collectStrictFailures({
+      resultsPresent: output.resultsPresent,
+      resultsSha: facts?.sha ?? null,
+      ledgerCommit: ledger.commit,
+      moneyStateVerifiedCorrect,
+      criticalReachableOnly,
+    });
+    if (shouldFailStrictGate(strict, failures)) {
       for (const f of failures) console.error(`  STRICT: ${f}`);
       process.exit(1);
     }
   }
 }
 
-main();
+const invokedAsCli =
+  process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invokedAsCli) main();

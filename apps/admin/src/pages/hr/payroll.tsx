@@ -250,7 +250,7 @@ function PayslipDetail({
           {/* Header */}
           <div
             style={{
-              padding: '8px 16px',
+              padding: 'var(--cmc-space-2) var(--cmc-space-3)',
               background: 'var(--cmc-surface-2)',
               borderBottom: '1px solid var(--cmc-border)',
             }}
@@ -291,7 +291,7 @@ function PayslipDetail({
           {/* Attendance detail footer */}
           <div
             style={{
-              padding: '8px 16px',
+              padding: 'var(--cmc-space-2) var(--cmc-space-3)',
               borderTop: '1px solid var(--cmc-border)',
               background: 'var(--cmc-surface-2)',
             }}
@@ -357,7 +357,7 @@ function PenaltyRow({
             (primary/secondary/disabled/placeholder/accent/inherit) with no
             danger/red slot — kept as a plain <span style> per the documented
             fallback (same pattern as receipt-detail's pipeline labels). */}
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--cmc-danger)' }}>
+        <span style={{ fontSize: 'var(--cmc-font-size-data)', fontWeight: 600, color: 'var(--cmc-danger)' }}>
           Phạt khấu trừ
         </span>
         {hasDetail && (
@@ -375,7 +375,7 @@ function PenaltyRow({
       {/* TODO(astryx-review): same raw-color fallback as the label above. */}
       <span
         style={{
-          fontSize: 13,
+          fontSize: 'var(--cmc-font-size-data)',
           fontWeight: 600,
           color: 'var(--cmc-danger)',
           fontVariantNumeric: 'tabular-nums',
@@ -391,7 +391,7 @@ function NetRow({ value }: { value: string }) {
   return (
     <HStack
       justify="between"
-      style={{ background: 'var(--cmc-surface-2)', margin: '0 -16px', padding: '12px 16px' }}
+      style={{ background: 'var(--cmc-surface-2)', margin: '0 -16px', padding: '12px var(--cmc-space-3)' }}
     >
       <Text type="body" size="sm" weight="bold">
         Thực lĩnh
@@ -400,7 +400,7 @@ function NetRow({ value }: { value: string }) {
           slot — kept as a plain <span style> per the documented fallback. */}
       <span
         style={{
-          fontSize: 16,
+          fontSize: 'var(--cmc-fs-title)',
           fontWeight: 700,
           fontVariantNumeric: 'tabular-nums',
           color: 'var(--cmc-brand)',

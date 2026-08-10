@@ -505,9 +505,9 @@ function NetworkIpContent() {
             onChange={(v) => setCreateForm((f) => ({ ...f, label: v }))}
           />
           {createMut.error && (
-            <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>{createMut.error.message}</span>
+            <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>{createMut.error.message}</span>
           )}
-          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Button label="Hủy" variant="secondary" onClick={closeCreateModal} isDisabled={createMut.isPending} />
             <Button
               label="Tạo"
@@ -557,9 +557,9 @@ function NetworkIpContent() {
             onChange={(v) => setEditForm((f) => ({ ...f, label: v }))}
           />
           {updateMut.error && (
-            <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>{updateMut.error.message}</span>
+            <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>{updateMut.error.message}</span>
           )}
-          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Button label="Hủy" variant="secondary" onClick={() => setEditRow(null)} isDisabled={updateMut.isPending} />
             <Button
               label="Lưu"
@@ -642,9 +642,9 @@ function NetworkIpContent() {
             onChange={(v) => setGeoForm((f) => ({ ...f, label: v }))}
           />
           {geoCreateMut.error && (
-            <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>{geoCreateMut.error.message}</span>
+            <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>{geoCreateMut.error.message}</span>
           )}
-          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Button
               label="Hủy"
               variant="secondary"

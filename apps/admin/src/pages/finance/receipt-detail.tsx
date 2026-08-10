@@ -259,7 +259,7 @@ export default function ReceiptDetailPage() {
                 <Text size="sm">• Chuyển ghi danh sang trạng thái active</Text>
                 <Text size="sm">• Đưa cơ hội (nếu có) về O5_ENROLLED</Text>
                 <Text size="sm">• Gửi email thông báo cho phụ huynh</Text>
-                <Text type="supporting" size="xsm" style={{ marginTop: 4 }}>
+                <Text type="supporting" size="xsm" style={{ marginTop: 'var(--cmc-space-1)' }}>
                   Kiểm soát tiền: người tạo phiếu không được là người duyệt.
                 </Text>
               </Stack>

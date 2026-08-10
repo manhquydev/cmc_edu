@@ -171,7 +171,7 @@ DetailPage
 | Tabs | CmcTabs |
 | Filters (lite) | FilterBar |
 | Search OS (target) | FilterBar → SearchChrome (facets + presets; see above) |
-| Metrics | MetricCard / StatCard / InsightMetric |
+| Metrics | MetricCard / StatCard |
 
 ---
 

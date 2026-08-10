@@ -101,10 +101,6 @@ export type { TaskRowProps } from './components/task-row.js';
 // TaskRowProps re-exported for WorkInbox consumers in apps
 export { FunnelBar, funnelFillWidth } from './components/funnel-bar.js';
 export type { FunnelBarProps } from './components/funnel-bar.js';
-export { InsightMetric } from './components/insight-metric.js';
-export type { InsightMetricProps } from './components/insight-metric.js';
-export { FocusCard } from './components/focus-card.js';
-export type { FocusCardProps } from './components/focus-card.js';
 
 // Astryx theme scope provider — see astryx-theme-cmc.css for token values.
 export { AstryxCmcProvider } from './astryx-provider.js';

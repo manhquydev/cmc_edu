@@ -120,8 +120,8 @@ export type { TextFieldProps, PasswordInputProps } from './components/auth-input
 export { StatusBadge } from './components/status-badge.js';
 export type { StatusBadgeProps } from './components/status-badge.js';
 
-export { PageHeader } from './components/page-header.js';
-export type { PageHeaderProps, Breadcrumb } from './components/page-header.js';
+export { PageHeader, BreadcrumbHrefProvider } from './components/page-header.js';
+export type { PageHeaderProps, Breadcrumb, BreadcrumbHrefResolver } from './components/page-header.js';
 
 export { DataTable } from './components/data-table.js';
 export type { DataTableProps, TableColumn } from './components/data-table.js';

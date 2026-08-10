@@ -14,6 +14,8 @@
 // the worker crashes fast rather than silently failing to deliver emails.
 // ConsoleEmailTransport is refused in production.
 
+// MUST be first — see lib/instrument.ts. No-op when SENTRY_DSN is unset.
+import { Sentry } from '../lib/instrument.js';
 import { createServer } from 'node:http';
 import { createPrismaClient } from '@cmc/db';
 import { reconcileOrphanedReceipts, reconcileCancelledButProvisioned } from './reconcile-orphaned-receipts.js';
@@ -164,6 +166,17 @@ async function runForever(): Promise<never> {
         },
         'worker drain cycle failed',
       );
+      // Report to GlitchTip too, tagged so an agent sees how close the worker is
+      // to the unhealthy threshold (which flips the /health endpoint to 503).
+      Sentry.withScope((scope) => {
+        scope.setTag('service', 'worker');
+        scope.setContext('drain', {
+          consecutiveDrainFailures,
+          maxConsecutiveDrainFailures: MAX_CONSECUTIVE_DRAIN_FAILURES,
+          healthy: isWorkerHealthy(),
+        });
+        Sentry.captureException(error);
+      });
     }
     await sleep(pollIntervalMs);
   }

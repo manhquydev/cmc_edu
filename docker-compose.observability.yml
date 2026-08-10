@@ -30,6 +30,14 @@ x-logging: &default-logging
 networks:
   cmcv2-obs-net:
     driver: bridge
+  # Shared bridge so the APP stack (cmcv2-prod api/worker) can reach
+  # glitchtip-web by container name to send Sentry events — without exposing
+  # GlitchTip on the host LAN (the 127.0.0.1:8000 publish stays loopback-only
+  # for the operator + MCP). Declared external so both compose projects attach
+  # to the same pre-created network; create once with:
+  #   docker network create cmc-obs-bridge
+  cmc-obs-bridge:
+    external: true
 
 volumes:
   cmcv2-obs-pg-data:
@@ -61,6 +69,9 @@ services:
       GLITCHTIP_ENABLE_MCP: "true"
     networks:
       - cmcv2-obs-net
+      # Also on the shared bridge as `glitchtip-web` — the app's api/worker send
+      # events to http://glitchtip-web:8080 over this network.
+      - cmc-obs-bridge
     logging: *default-logging
 
   # ── GlitchTip background worker (celery: alerts, cleanup, uptime checks) ─────

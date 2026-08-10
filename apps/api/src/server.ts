@@ -5,11 +5,13 @@
 // `createHTTPServer`) returns just the request listener, so it can be
 // composed with the upload route inside one `http.createServer`.
 
-import { createServer } from 'node:http';
+import { createServer, type IncomingMessage } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { createHTTPHandler } from '@trpc/server/adapters/standalone';
 import { createPrismaClient } from '@cmc/db';
 import { appRouter } from './router.js';
 import { createContext } from './context.js';
+import { serviceLogger } from './lib/logger.js';
 import {
   EXERCISE_PDF_UPLOAD_PATH, handleExercisePdfUpload, handleExercisePdfGet,
   SESSION_PHOTO_UPLOAD_PATH, handleSessionPhotoUpload, handleSessionPhotoGet,
@@ -32,6 +34,18 @@ import {
 import { handleStaffPasswordLogin } from './auth/password-routes.js';
 
 const port = Number(process.env.PORT ?? 3000);
+const log = serviceLogger('api');
+
+// Per-request correlation id. Attached to the request object (not the tRPC
+// Context, which has ~14 construction sites) so both the raw-http error logs
+// below and the tRPC onError hook can stamp the SAME reqId — an agent can then
+// pull every log line for one failed request with `jq 'select(.reqId=="...")'`.
+// Symbol-keyed so it never collides with any header/property on IncomingMessage.
+const REQ_ID = Symbol('reqId');
+function reqIdOf(req: IncomingMessage): string {
+  const slot = req as IncomingMessage & { [REQ_ID]?: string };
+  return (slot[REQ_ID] ??= randomUUID());
+}
 
 // Two client conventions hit this handler and both must keep working:
 //   - Browser clients (apps/admin/src/lib/trpc.ts, apps/lms/src/lib/trpc.ts)
@@ -50,6 +64,25 @@ const port = Number(process.env.PORT ?? 3000);
 const trpcHandler = createHTTPHandler({
   router: appRouter,
   createContext: ({ req }) => createContext({ req }),
+  onError({ error, path, type, req }) {
+    // Expected client-side rejections (auth denied, bad input, not found) are
+    // normal traffic, not incidents — they log at debug so they don't drown the
+    // error stream. Everything else (INTERNAL_SERVER_ERROR, and any code not in
+    // the expected set) is a genuine server fault and logs at error. reqId
+    // matches the raw-http lines so one request's story is greppable end to end.
+    const EXPECTED_CLIENT_CODES = new Set([
+      'UNAUTHORIZED',
+      'FORBIDDEN',
+      'BAD_REQUEST',
+      'NOT_FOUND',
+      'CONFLICT',
+      'TOO_MANY_REQUESTS',
+      'PARSE_ERROR',
+    ]);
+    const line = { reqId: reqIdOf(req), path, type, code: error.code, err: error };
+    if (EXPECTED_CLIENT_CODES.has(error.code)) log.debug(line, 'tRPC procedure rejected');
+    else log.error(line, 'tRPC procedure error');
+  },
 });
 
 const SSO_ENABLED = process.env['SSO_ENABLED'] === 'true';
@@ -61,8 +94,7 @@ const server = createServer((req, res) => {
   // so staff can log in while the Entra tenant is unavailable.
   if (req.method === 'POST' && urlPath === '/auth/staff-login') {
     handleStaffPasswordLogin(req, res).catch((err: unknown) => {
-      // eslint-disable-next-line no-console
-      console.error('[api] staff password login failed:', err);
+      log.error({ reqId: reqIdOf(req), route: 'staff-login', err }, 'staff password login failed');
       if (!res.headersSent) res.writeHead(500).end('Login error');
     });
     return;
@@ -77,16 +109,14 @@ const server = createServer((req, res) => {
   if (SSO_ENABLED) {
     if (req.method === 'GET' && urlPath === '/auth/login') {
       handleSsoLogin(req, res).catch((err: unknown) => {
-        // eslint-disable-next-line no-console
-        console.error('[api] SSO login failed:', err);
+        log.error({ reqId: reqIdOf(req), route: 'sso-login', err }, 'SSO login failed');
         if (!res.headersSent) res.writeHead(500).end('SSO error');
       });
       return;
     }
     if (req.method === 'GET' && urlPath === '/auth/callback') {
       handleSsoCallback(req, res).catch((err: unknown) => {
-        // eslint-disable-next-line no-console
-        console.error('[api] SSO callback failed:', err);
+        log.error({ reqId: reqIdOf(req), route: 'sso-callback', err }, 'SSO callback failed');
         if (!res.headersSent) res.writeHead(500).end('SSO error');
       });
       return;
@@ -95,8 +125,7 @@ const server = createServer((req, res) => {
 
   if (req.method === 'POST' && urlPath === EXERCISE_PDF_UPLOAD_PATH) {
     handleExercisePdfUpload(req, res).catch((error: unknown) => {
-      // eslint-disable-next-line no-console
-      console.error('[api] exercise-pdf upload failed:', error);
+      log.error({ reqId: reqIdOf(req), route: 'exercise-pdf-upload', err: error }, 'exercise-pdf upload failed');
       if (!res.headersSent) {
         res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
       }
@@ -106,8 +135,7 @@ const server = createServer((req, res) => {
   }
   if (req.method === 'GET' && urlPath === EXERCISE_PDF_UPLOAD_PATH) {
     handleExercisePdfGet(req, res).catch((error: unknown) => {
-      // eslint-disable-next-line no-console
-      console.error('[api] exercise-pdf get failed:', error);
+      log.error({ reqId: reqIdOf(req), route: 'exercise-pdf-get', err: error }, 'exercise-pdf get failed');
       if (!res.headersSent) {
         res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
       }
@@ -117,7 +145,7 @@ const server = createServer((req, res) => {
   }
   if (req.method === 'POST' && urlPath === SESSION_PHOTO_UPLOAD_PATH) {
     handleSessionPhotoUpload(req, res).catch((error: unknown) => {
-      console.error('[api] session-photo upload failed:', error);
+      log.error({ reqId: reqIdOf(req), route: 'session-photo-upload', err: error }, 'session-photo upload failed');
       if (!res.headersSent) res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: 'Upload failed.' }));
     });
@@ -125,7 +153,7 @@ const server = createServer((req, res) => {
   }
   if (req.method === 'GET' && urlPath === SESSION_PHOTO_UPLOAD_PATH) {
     handleSessionPhotoGet(req, res).catch((error: unknown) => {
-      console.error('[api] session-photo get failed:', error);
+      log.error({ reqId: reqIdOf(req), route: 'session-photo-get', err: error }, 'session-photo get failed');
       if (!res.headersSent) res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: 'Fetch failed.' }));
     });
@@ -160,11 +188,9 @@ assertCmcAppNotSuperuser(bootDb)
   .then(() => assertForceRlsOnAllRlsTables(bootDb))
   .then(() => {
     server.listen(port);
-    // eslint-disable-next-line no-console
-    console.log(`[api] tRPC server listening on http://localhost:${port}`);
+    log.info({ port }, 'tRPC server listening');
   })
   .catch((err: unknown) => {
-    // eslint-disable-next-line no-console
-    console.error(err instanceof Error ? err.message : err);
+    log.fatal({ err }, 'boot check failed — refusing to start');
     process.exit(1);
   });

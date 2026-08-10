@@ -1,0 +1,238 @@
+/*
+ * Login screen — the one page allowed to break from Soft Ops' warm light
+ * canvas (TL12 §"no decorative gradients"). This is the pre-auth front door,
+ * not app chrome, so it gets a distinct dark/branded treatment like the
+ * login screens of Google Workspace / Microsoft 365 / Linear.
+ *
+ * Form controls are purpose-built for this page (not @cmc/ui TextField/
+ * PasswordInput/Button) so the visual can match the approved design exactly —
+ * Astryx's generic control chrome (its "Required" indicator, emoji toggle)
+ * can't be reskinned away via CSS vars alone. Card/Heading/Text/Stack (pure
+ * layout/typography, no baked-in chrome) are still reused from @cmc/ui.
+ */
+
+.login-page {
+  --color-background-surface: rgba(18, 24, 44, 0.72);
+  --color-background-card: rgba(18, 24, 44, 0.72);
+  --color-background-body: transparent;
+  --color-text-primary: #f5f7ff;
+  --color-text-secondary: #a9b3d6;
+  --color-border: rgba(255, 255, 255, 0.14);
+  --color-border-emphasized: rgba(255, 255, 255, 0.24);
+
+  --cmc-brand: #4f7dfb;
+  --cmc-text: #f5f7ff;
+  --cmc-text-muted: #a9b3d6;
+  --cmc-danger: #ff8a8a;
+  /* astryx-theme-cmc.css's global ":has(> input)" rule (soft form controls)
+     still matches .login-page__input-shell below and paints its background
+     from --cmc-surface-sunken/--cmc-surface-raised — override so that legacy
+     rule renders dark instead of falling back to the light theme default and
+     showing through our input's translucent background. */
+  --cmc-surface-sunken: rgba(255, 255, 255, 0.06);
+  --cmc-surface-raised: rgba(255, 255, 255, 0.1);
+  --cmc-border: rgba(255, 255, 255, 0.18);
+  --cmc-focus-halo: 0 0 0 3px rgba(79, 125, 251, 0.35);
+
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--cmc-space-4);
+  background:
+    radial-gradient(60% 50% at 15% 10%, rgba(79, 125, 251, 0.35), transparent 60%),
+    radial-gradient(50% 45% at 90% 90%, rgba(124, 92, 255, 0.28), transparent 60%),
+    linear-gradient(160deg, #0b1120 0%, #101a35 55%, #161f3d 100%);
+  overflow: hidden;
+}
+
+.login-page__card {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow:
+    0 24px 60px rgba(4, 8, 20, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.login-page__header {
+  text-align: center;
+}
+
+/* Text wordmark — the app has no logo asset; this mirrors the real navbar's
+   brand treatment (packages/ui/src/console.css .console-brand) instead of a
+   fabricated icon. */
+.login-page__wordmark {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.login-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.login-page__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cmc-text-muted);
+}
+
+.login-page__input-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.login-page__input {
+  width: 100%;
+  border-radius: var(--cmc-radius-control);
+  border: 1px solid var(--cmc-border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--cmc-text);
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  transition:
+    border-color var(--cmc-transition),
+    background-color var(--cmc-transition),
+    box-shadow var(--cmc-transition);
+}
+
+.login-page__input--with-toggle {
+  padding-inline-end: 44px;
+}
+
+.login-page__input::placeholder {
+  color: rgba(245, 247, 255, 0.32);
+}
+
+.login-page__input:hover:not(:focus) {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.login-page__input:focus {
+  outline: none;
+  border-color: var(--cmc-brand);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(79, 125, 251, 0.35);
+}
+
+.login-page__toggle {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cmc-text-muted);
+  cursor: pointer;
+}
+
+.login-page__toggle:hover {
+  color: var(--cmc-text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.login-page__toggle:focus-visible {
+  outline: 2px solid var(--cmc-brand);
+  outline-offset: 2px;
+}
+
+.login-page__error {
+  font-size: 13px;
+  color: var(--cmc-danger);
+}
+
+.login-page__submit {
+  width: 100%;
+  border: 0;
+  border-radius: var(--cmc-radius-control);
+  padding: 11px 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(90deg, #4f7dfb, #7c5cff);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 10px 24px rgba(79, 125, 251, 0.35);
+  transition:
+    opacity var(--cmc-transition),
+    box-shadow var(--cmc-transition),
+    transform var(--cmc-duration-fast) var(--cmc-ease);
+}
+
+.login-page__submit:hover:not(:disabled) {
+  opacity: 0.92;
+  box-shadow: 0 14px 30px rgba(79, 125, 251, 0.45);
+}
+
+.login-page__submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.login-page__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.login-page__submit:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.login-page__secondary {
+  width: 100%;
+  border: 1px solid var(--cmc-border);
+  border-radius: var(--cmc-radius-control);
+  padding: 11px 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cmc-text);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: background-color var(--cmc-transition);
+}
+
+.login-page__secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.login-page__secondary:focus-visible {
+  outline: 2px solid var(--cmc-brand);
+  outline-offset: 2px;
+}
+
+.login-page__spinner {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  animation: login-page-spin 0.7s linear infinite;
+}
+
+@keyframes login-page-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

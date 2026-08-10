@@ -183,9 +183,13 @@ export async function scanFacility(
 
     // -----------------------------------------------------------------
     // Rule 4: missing_provisioning — approved receipt with no Student
-    // provisioned after 1 hour.
-    // `approvedAt` does not exist on Receipt; use `updatedAt` as proxy
-    // (it is the last mutation, which for an approved receipt is approval).
+    // provisioned after 1 hour. `approvedAt` (HR remediation phase 1,
+    // finance/router.ts) is the real approval instant; `updatedAt` is wrong
+    // here — any later touch to an already-approved receipt (e.g. the
+    // opportunity-link write in finance.receiptApprove) shifts it forward,
+    // pushing the SLA cutoff later and letting a genuinely stuck receipt
+    // evade the flag. `not: null` is defensive: the column is nullable for
+    // pre-existing rows the backfill migration didn't reach.
     // No separate Provisioning model — check Student.createdByReceiptId.
     // -----------------------------------------------------------------
     const cutoff = new Date(Date.now() - ONE_HOUR_MS);
@@ -193,9 +197,9 @@ export async function scanFacility(
       where: {
         facilityId,
         status: 'approved',
-        updatedAt: { lt: cutoff },
+        approvedAt: { not: null, lt: cutoff },
       },
-      select: { id: true, updatedAt: true, netAmount: true, studentId: true },
+      select: { id: true, approvedAt: true, netAmount: true, studentId: true },
     });
 
     for (const r of oldApproved) {
@@ -213,7 +217,8 @@ export async function scanFacility(
           facilityId,
           receiptId: r.id,
           kind: 'missing_provisioning',
-          detail: { netAmount: r.netAmount.toNumber(), approvedAt: r.updatedAt.toISOString() },
+          // Non-null: the query's `approvedAt: { not: null }` guard guarantees it.
+          detail: { netAmount: r.netAmount.toNumber(), approvedAt: r.approvedAt!.toISOString() },
           deepLink: `/finance/receipts/${r.id}?flag=missing_provisioning`,
         });
         if (created) flagsCreated++;

@@ -1,12 +1,13 @@
 // Teacher: write class summary, upload photos, publish to parents.
 // Flow: pick lớp → pick buổi → upsert evidence → add photos → publish.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Badge, Banner, Button, ConfirmDialog, FormPage, Grid, HStack, LineIcon, PageHeader, Selector, Skeleton, Stack, Text, TextArea, useToast } from '@cmc/ui';
+import { AsyncEntityCombobox, Badge, Banner, Button, ConfirmDialog, FormPage, Grid, HStack, LineIcon, PageHeader, Selector, Skeleton, Stack, Text, TextArea, useToast } from '@cmc/ui';
 import { UUID_RE, readUuidParam } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { useClassBatchOptions } from '../../lib/use-class-batch-options.js';
 
 const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').trim();
 
@@ -27,11 +28,6 @@ export default function SessionEvidencePage() {
 
   const utils = trpc.useUtils();
 
-  // --- class list ---
-  const { data: classData, isLoading: classLoading } = trpc.classBatch.list.useQuery({
-    page: 1, pageSize: 100,
-  });
-
   // --- session list ---
   const { data: sessions, isLoading: sessionsLoading } = trpc.classSession.list.useQuery(
     { classBatchId: classBatchId! },
@@ -43,8 +39,13 @@ export default function SessionEvidencePage() {
   const addPhotoMut = trpc.sessionEvidence.addPhoto.useMutation();
   const publishMut = trpc.sessionEvidence.publish.useMutation();
 
-  // Load existing evidence: use a raw query via separate component or inline hack.
-  // Simplified: we upsert on save (idempotent).
+  // Load existing evidence for the selected session (a session may already have
+  // published evidence from a prior visit) — without this, reopening one shows a
+  // blank unpublished form and re-saving risks overwriting the published summary.
+  const existingEvidenceQuery = trpc.sessionEvidence.getBySession.useQuery(
+    { classSessionId: sessionId! },
+    { enabled: Boolean(sessionId) },
+  );
 
   const [evidenceId, setEvidenceId] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Array<{ id: string; blobRef: string }>>([]);
@@ -53,10 +54,14 @@ export default function SessionEvidencePage() {
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const { success: toastSuccess } = useToast();
 
-  const classOptions = (classData?.items ?? []).map((c) => ({
-    value: c.id,
-    label: `${c.code} — ${c.program}`,
-  }));
+  useEffect(() => {
+    if (sessionId && existingEvidenceQuery.data) {
+      setEvidenceId(existingEvidenceQuery.data.id);
+      setSummary(existingEvidenceQuery.data.summary);
+      setPhotos(existingEvidenceQuery.data.photos);
+      setPublished(existingEvidenceQuery.data.status === 'published');
+    }
+  }, [sessionId, existingEvidenceQuery.data]);
 
   // TODO(astryx-review): per-option disabled state (cancelled sessions should
   // be unselectable) has no confirmed Astryx SelectorOption field — `isDisabled`
@@ -209,32 +214,27 @@ export default function SessionEvidencePage() {
       <Stack gap={4} style={{ maxWidth: 680 }}>
         {/* Step 1: pick class */}
         <div>
-          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>1. Chọn lớp</Text>
+          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>1. Chọn lớp</Text>
           {/* TODO(astryx-review): `label` is required by Selector's props
               but the step heading above already names the field — passed
               as empty string to avoid a duplicate visible label (same
               pattern applied to the session Selector and summary TextArea
               below). */}
-          {classLoading ? (
-            <Skeleton height={36} radius={1} />
-          ) : (
-            <Selector
-              label="Chọn lớp học"
-              isLabelHidden
-              placeholder="Chọn lớp học"
-              options={classOptions}
-              value={classBatchId ?? undefined}
-              onChange={(v) => selectClass(v ?? null)}
-              hasSearch
-              hasClear={false}
-            />
-          )}
+          <AsyncEntityCombobox
+            label="Chọn lớp học"
+            isLabelHidden
+            placeholder="Chọn lớp học"
+            value={classBatchId ?? null}
+            onChange={selectClass}
+            useOptions={useClassBatchOptions}
+            pinnedLabel={(id) => `Lớp đã chọn (${id.slice(0, 8)}…)`}
+          />
         </div>
 
         {/* Step 2: pick session */}
         {classBatchId && (
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>2. Chọn buổi học</Text>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>2. Chọn buổi học</Text>
             {sessionsLoading ? (
               <Skeleton height={36} radius={1} />
             ) : (
@@ -254,7 +254,7 @@ export default function SessionEvidencePage() {
         {/* Step 3: write summary */}
         {sessionId && (
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>3. Tóm tắt buổi học</Text>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>3. Tóm tắt buổi học</Text>
             <TextArea
               label="Tóm tắt buổi học"
               isLabelHidden
@@ -265,7 +265,7 @@ export default function SessionEvidencePage() {
               isDisabled={published}
             />
             {saved && !published && (
-              <HStack gap={1} align="center" style={{ marginTop: 4 }}>
+              <HStack gap={1} align="center" style={{ marginTop: 'var(--cmc-space-1)' }}>
                 <LineIcon name="check-circle" size={14} />
                 <Text size="xsm" color="accent">Đã lưu</Text>
               </HStack>
@@ -276,9 +276,9 @@ export default function SessionEvidencePage() {
         {/* Step 4: upload photos */}
         {evidenceId && !published && (
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>4. Upload ảnh buổi học</Text>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>4. Upload ảnh buổi học</Text>
             {uploadError && (
-              <div style={{ marginBottom: 8 }}>
+              <div style={{ marginBottom: 'var(--cmc-space-2)' }}>
                 <Banner status="error" title="Lỗi upload ảnh" description={uploadError} />
               </div>
             )}
@@ -311,7 +311,7 @@ export default function SessionEvidencePage() {
         {/* Photo grid */}
         {photos.length > 0 && (
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>Ảnh đã upload ({photos.length})</Text>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>Ảnh đã upload ({photos.length})</Text>
             <Grid columns={4} gap={1}>
               {photos.map((p) => (
                 <img

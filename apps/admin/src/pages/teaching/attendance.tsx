@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import {
+  AsyncEntityCombobox,
   Badge,
   Banner,
   Button,
-  FilterBar,
   Grid,
   HStack,
   LineIcon,
@@ -15,19 +15,10 @@ import {
   Stack,
   Text,
 } from '@cmc/ui';
-import type { FilterDef } from '@cmc/ui';
 import { UUID_RE, readUuidParam } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
-
-const CLASS_SEARCH_FILTERS: FilterDef[] = [
-  {
-    key: 'q',
-    label: 'Tìm lớp',
-    type: 'text',
-    placeholder: 'Mã lớp, chương trình…',
-  },
-];
+import { useClassBatchOptions } from '../../lib/use-class-batch-options.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,9 +43,9 @@ const STATUS_CONFIG: Record<
   AttendanceStatus,
   { label: string; color: string; bg: string }
 > = {
-  present: { label: 'Có mặt', color: '#2f9e44', bg: '#ebfbee' },
-  absent: { label: 'Vắng', color: '#e03131', bg: '#fff5f5' },
-  late: { label: 'Muộn', color: '#e67700', bg: '#fff9db' },
+  present: { label: 'Có mặt', color: 'var(--cmc-success-ink)', bg: 'var(--cmc-success-soft)' },
+  absent: { label: 'Vắng', color: 'var(--cmc-danger-ink)', bg: 'var(--cmc-danger-soft)' },
+  late: { label: 'Muộn', color: 'var(--cmc-warning-ink)', bg: 'var(--cmc-warning-soft)' },
 };
 
 /** Shown for a roster row that has not been toggled yet (and had no prior
@@ -86,7 +77,7 @@ function CountTile({
         background: 'var(--cmc-surface)',
         border: '1px solid var(--cmc-border)',
         borderRadius: 4,
-        padding: '12px 16px',
+        padding: '12px var(--cmc-space-3)',
         textAlign: 'center',
       }}
     >
@@ -94,7 +85,7 @@ function CountTile({
           semantic red/green/orange from STATUS_CONFIG, not Text's fixed color
           enum) — kept as plain <span style> per the documented fallback for
           arbitrary-color text (same pattern as StatCard's value line). */}
-      <span style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.2, color }}>
+      <span style={{ fontSize: 'var(--cmc-fs-page)', fontWeight: 700, lineHeight: 1.2, color }}>
         {count}
       </span>
       <Text type="supporting" size="xsm" style={{ marginTop: 2 }}>
@@ -121,8 +112,8 @@ function StudentRow({
     <HStack
       justify="between"
       style={{
-        paddingInline: 16,
-        paddingBlock: 8,
+        paddingInline: 'var(--cmc-space-3)',
+        paddingBlock: 'var(--cmc-space-2)',
         borderBottom: '1px solid var(--cmc-border)',
         minHeight: TOUCH_MIN_HEIGHT,
         background: 'var(--cmc-surface)',
@@ -175,19 +166,7 @@ export default function AttendancePage() {
   >({});
   const [saved, setSaved] = useState(false);
   const [saveValidationError, setSaveValidationError] = useState<string | null>(null);
-  const [classSearchInput, setClassSearchInput] = useState('');
-  const [debouncedClassSearch, setDebouncedClassSearch] = useState('');
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedClassSearch(classSearchInput.trim()), 300);
-    return () => clearTimeout(t);
-  }, [classSearchInput]);
-
-  const { data: classData, isLoading: classLoading } = trpc.classBatch.list.useQuery({
-    page: 1,
-    pageSize: 100,
-    ...(debouncedClassSearch ? { search: debouncedClassSearch } : {}),
-  });
   const { data: sessions, isLoading: sessionsLoading } = trpc.classSession.list.useQuery(
     { classBatchId: classBatchId! },
     { enabled: Boolean(classBatchId) },
@@ -257,20 +236,6 @@ export default function AttendancePage() {
     setSaveValidationError(null);
   }
 
-  const classOptions = (classData?.items ?? []).map((c) => ({
-    value: c.id,
-    label: `${c.code} — ${c.program}`,
-  }));
-  // Pin URL-selected class so FilterBar search cannot drop it from the Selector.
-  if (
-    classBatchId &&
-    !classOptions.some((o) => o.value === classBatchId)
-  ) {
-    classOptions.unshift({
-      value: classBatchId,
-      label: `Lớp đã chọn (${classBatchId.slice(0, 8)}…)`,
-    });
-  }
   const sessionOptions = (sessions ?? []).map((s) => ({
     value: s.id,
     label: `${new Date(s.sessionDate).toLocaleDateString('vi-VN')} | ${s.status}`,
@@ -354,40 +319,29 @@ export default function AttendancePage() {
           }
         />
       }
-      filters={
-        <FilterBar
-          filters={CLASS_SEARCH_FILTERS}
-          value={{ q: classSearchInput }}
-          onChange={(next) => setClassSearchInput(next.q ?? '')}
-        />
-      }
     >
       {/* Step 1+2: pick class -> session (same picker pattern as session-assessment.tsx) */}
-      <div style={{ paddingInline: 16, paddingBlock: 16, borderBottom: '1px solid var(--cmc-border)' }}>
+      <div style={{ paddingInline: 'var(--cmc-space-3)', paddingBlock: 'var(--cmc-space-3)', borderBottom: '1px solid var(--cmc-border)' }}>
         <Stack gap={3}>
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>
               1. Chọn lớp
             </Text>
-            {classLoading ? (
-              <Skeleton height={36} radius={1} />
-            ) : (
-              <Selector
-                label="Chọn lớp học"
-                isLabelHidden
-                placeholder="Chọn lớp học"
-                options={classOptions}
-                value={classBatchId ?? undefined}
-                onChange={(v) => selectClass(v ?? null)}
-                hasSearch
-                hasClear={false}
-              />
-            )}
+            <AsyncEntityCombobox
+              label="Chọn lớp học"
+              isLabelHidden
+              placeholder="Chọn lớp học"
+              searchPlaceholder="Mã lớp, chương trình…"
+              value={classBatchId ?? null}
+              onChange={selectClass}
+              useOptions={useClassBatchOptions}
+              pinnedLabel={(id) => `Lớp đã chọn (${id.slice(0, 8)}…)`}
+            />
           </div>
 
           {classBatchId && (
             <div>
-              <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
+              <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>
                 2. Chọn buổi học
               </Text>
               {sessionsLoading ? (
@@ -413,34 +367,34 @@ export default function AttendancePage() {
           {/* Count tiles */}
           <div
             style={{
-              paddingInline: 16,
-              paddingBlock: 8,
+              paddingInline: 'var(--cmc-space-3)',
+              paddingBlock: 'var(--cmc-space-2)',
               background: 'var(--cmc-surface-2)',
               borderBottom: '1px solid var(--cmc-border)',
             }}
           >
             <Grid columns={{ minWidth: 140, max: 5 }} gap={2}>
               <CountTile label="Tổng" count={total} color="var(--cmc-text)" />
-              <CountTile label="Có mặt" count={presentCount} color="#2f9e44" />
-              <CountTile label="Vắng" count={absentCount} color="#e03131" />
-              <CountTile label="Muộn" count={lateCount} color="#e67700" />
+              <CountTile label="Có mặt" count={presentCount} color="var(--cmc-success-ink)" />
+              <CountTile label="Vắng" count={absentCount} color="var(--cmc-danger-ink)" />
+              <CountTile label="Muộn" count={lateCount} color="var(--cmc-warning-ink)" />
               <CountTile label="Chưa điểm danh" count={unmarkedCount} color="#868e96" />
             </Grid>
           </div>
 
           {/* Error states */}
           {listError && (
-            <div style={{ padding: 16 }}>
+            <div style={{ padding: 'var(--cmc-space-3)' }}>
               <Banner status="error" title="Lỗi tải danh sách" description={listError.message} />
             </div>
           )}
           {markAll.error && (
-            <div style={{ paddingInline: 16, paddingTop: 8 }}>
+            <div style={{ paddingInline: 'var(--cmc-space-3)', paddingTop: 'var(--cmc-space-2)' }}>
               <Banner status="error" title="Lưu thất bại" description={markAll.error.message} />
             </div>
           )}
           {saveValidationError && (
-            <div style={{ paddingInline: 16, paddingTop: 8 }}>
+            <div style={{ paddingInline: 'var(--cmc-space-3)', paddingTop: 'var(--cmc-space-2)' }}>
               <Banner status="warning" title="Chưa thể lưu" description={saveValidationError} />
             </div>
           )}
@@ -453,8 +407,8 @@ export default function AttendancePage() {
                   <div
                     key={i}
                     style={{
-                      paddingInline: 16,
-                      paddingBlock: 8,
+                      paddingInline: 'var(--cmc-space-3)',
+                      paddingBlock: 'var(--cmc-space-2)',
                       borderBottom: '1px solid var(--cmc-border)',
                       minHeight: TOUCH_MIN_HEIGHT,
                     }}
@@ -483,7 +437,7 @@ export default function AttendancePage() {
 
           {/* Session summary */}
           {saved && (
-            <div style={{ paddingInline: 16, paddingBlock: 8 }}>
+            <div style={{ paddingInline: 'var(--cmc-space-3)', paddingBlock: 'var(--cmc-space-2)' }}>
               <Badge
                 label={`Điểm danh đã được lưu — ${presentCount} có mặt / ${lateCount} muộn / ${absentCount} vắng`}
                 variant="success"

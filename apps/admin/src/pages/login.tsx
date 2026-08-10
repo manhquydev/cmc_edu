@@ -1,12 +1,31 @@
-import { Button, Card, Divider, Heading, PasswordInput, Stack, Text, TextField } from '@cmc/ui';
+import { Card, Stack, Text } from '@cmc/ui';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { trpc } from '../lib/trpc.js';
 import { safeReturnTo } from '../lib/safe-return-to.js';
+import './login.css';
 
 // Same-origin by default so Vite /auth proxy works (API has no CORS).
 // Absolute VITE_API_URL only when intentionally set (rare).
 const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').trim();
+
+function EyeIcon({ crossedOut }: { crossedOut: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+      {crossedOut && (
+        <path d="M3 3l18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      )}
+    </svg>
+  );
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -14,6 +33,7 @@ export function LoginPage() {
   const utils = trpc.useUtils();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -68,50 +88,80 @@ export function LoginPage() {
   const canSubmit = email.trim().length > 0 && password.length > 0 && !pending;
 
   return (
-    <div style={{ maxWidth: 400, margin: '80px auto 0', paddingInline: 'var(--cmc-space-3)' }}>
-      <Card padding={5}>
-        <Stack gap={2}>
-          <Heading level={2} style={{ color: 'var(--cmc-brand)' }}>
-            CMC EDU
-          </Heading>
-          <Text type="supporting" size="sm">
-            Hệ thống quản trị nội bộ
-          </Text>
-          <Divider />
-          <TextField
-            label="Email"
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={setEmail}
-            isRequired
-          />
-          <PasswordInput
-            label="Mật khẩu"
-            autoComplete="current-password"
-            value={password}
-            onChange={setPassword}
-            isRequired
-          />
-          {error && (
-            // Text color enum has no error/danger slot — plain <span> with CSS
-            // var, same convention as the admin form modals.
-            <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>{error}</span>
-          )}
-          <Button
-            label="Đăng nhập"
-            variant="primary"
-            onClick={() => void loginWithPassword()}
-            isLoading={pending}
-            isDisabled={!canSubmit}
-          />
-          {import.meta.env.VITE_SSO_ENABLED === 'true' && (
-            <Button
-              label="Đăng nhập Microsoft (Entra SSO)"
-              variant="secondary"
-              onClick={() => window.location.assign(ssoUrl)}
-            />
-          )}
+    <div className="login-page">
+      <Card padding={6} className="login-page__card">
+        <Stack gap={5}>
+          <div className="login-page__header">
+            <Stack gap={1}>
+              <span className="login-page__wordmark">CMC EDU</span>
+              <Text type="supporting" size="sm">
+                Hệ thống quản trị nội bộ
+              </Text>
+            </Stack>
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void loginWithPassword();
+            }}
+          >
+            <Stack gap={4}>
+              <div className="login-page__field">
+                <label className="login-page__label" htmlFor="login-email">
+                  Email
+                </label>
+                <div className="login-page__input-shell">
+                  <input
+                    id="login-email"
+                    className="login-page__input"
+                    type="email"
+                    autoComplete="username"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="login-page__field">
+                <label className="login-page__label" htmlFor="login-password">
+                  Mật khẩu
+                </label>
+                <div className="login-page__input-shell">
+                  <input
+                    id="login-password"
+                    className="login-page__input login-page__input--with-toggle"
+                    type={passwordVisible ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="login-page__toggle"
+                    aria-label={passwordVisible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    onClick={() => setPasswordVisible((v) => !v)}
+                  >
+                    <EyeIcon crossedOut={passwordVisible} />
+                  </button>
+                </div>
+              </div>
+              {error && <span className="login-page__error">{error}</span>}
+              <button type="submit" className="login-page__submit" disabled={!canSubmit}>
+                {pending && <span className="login-page__spinner" aria-hidden="true" />}
+                Đăng nhập
+              </button>
+              {import.meta.env.VITE_SSO_ENABLED === 'true' && (
+                <button
+                  type="button"
+                  className="login-page__secondary"
+                  onClick={() => window.location.assign(ssoUrl)}
+                >
+                  Đăng nhập Microsoft (Entra SSO)
+                </button>
+              )}
+            </Stack>
+          </form>
         </Stack>
       </Card>
     </div>

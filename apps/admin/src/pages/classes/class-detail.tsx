@@ -8,6 +8,7 @@ import {
   CmcTabs,
   ConfirmDialog,
   DataTable,
+  DateField,
   DetailPage,
   Dialog,
   DialogHeader,
@@ -24,7 +25,7 @@ import {
   Stack,
   StatusBadge,
   Text,
-  TextInput,
+  TimeField,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
@@ -407,28 +408,22 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
           }}
         />
         <Stack gap={2} padding={4}>
-          <TextInput
+          <DateField
             label="Ngày (YYYY-MM-DD)"
-            placeholder="2026-08-15"
-            isRequired
             value={makeupForm.sessionDate}
             onChange={(v) => setMakeupForm((f) => ({ ...f, sessionDate: v }))}
           />
           <HStack gap={1}>
             <div style={{ flex: 1 }}>
-              <TextInput
+              <TimeField
                 label="Giờ bắt đầu (HH:mm)"
-                placeholder="18:00"
-                isRequired
                 value={makeupForm.startTime}
                 onChange={(v) => setMakeupForm((f) => ({ ...f, startTime: v }))}
               />
             </div>
             <div style={{ flex: 1 }}>
-              <TextInput
+              <TimeField
                 label="Giờ kết thúc (HH:mm)"
-                placeholder="19:30"
-                isRequired
                 value={makeupForm.endTime}
                 onChange={(v) => setMakeupForm((f) => ({ ...f, endTime: v }))}
               />
@@ -437,7 +432,7 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
           {addMakeupMut.error && (
             <Banner status="error" title="Lỗi thêm buổi bù" description={addMakeupMut.error.message} />
           )}
-          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Button
               label="Hủy"
               variant="secondary"

@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { links } from '@cmc/links';
 import {
+  AsyncEntityCombobox,
   Banner,
   Button,
   FormPage,
   HStack,
   NumberInput,
   PageHeader,
-  Selector,
   Spinner,
   Stack,
   Text,
@@ -120,8 +120,22 @@ export default function ReceiptCreatePage() {
     { enabled: phoneForDedup.length >= 8 },
   );
 
-  const { data: classBatchData, isLoading: classBatchLoading, error: classBatchError } =
-    trpc.classBatch.list.useQuery({ pageSize: 100 });
+  // S6 fix: search-aware now instead of a static pageSize:100 fetch — class
+  // #101+ was previously unreachable in this money-screen picker.
+  // AsyncEntityCombobox renders the error banner itself (ported from an
+  // independently-built version of this same component).
+  function useClassBatchOptionsWithDate(search: string) {
+    const { data, isLoading, error } = trpc.classBatch.list.useQuery({
+      page: 1,
+      pageSize: 100,
+      ...(search ? { search } : {}),
+    });
+    const options = (data?.items ?? []).map((b) => ({
+      value: b.id,
+      label: `${b.code} — ${b.program} (${new Date(b.startDate).toLocaleDateString('vi-VN')})`,
+    }));
+    return { options, isLoading, error: error?.message };
+  }
 
   const createMutation = trpc.finance.receiptCreate.useMutation({
     onSuccess: (res) => {
@@ -165,10 +179,6 @@ export default function ReceiptCreatePage() {
     });
   }
 
-  const classBatchOptions = (classBatchData?.items ?? []).map((b) => ({
-    value: b.id,
-    label: `${b.code} — ${b.program} (${new Date(b.startDate).toLocaleDateString('vi-VN')})`,
-  }));
 
   function handleField<K extends keyof FormState>(key: K, value: FormState[K]) {
     const next = { ...form, [key]: value };
@@ -339,23 +349,14 @@ export default function ReceiptCreatePage() {
             status={errors.parentEmail ? { type: 'error', message: errors.parentEmail } : undefined}
           />
 
-          {classBatchError && (
-            <Banner status="warning" title="Không tải được danh sách lớp" description={classBatchError.message} />
-          )}
-
-          {/* TODO(astryx-review): Astryx Selector has no `nothingFoundMessage`
-              equivalent (empty search results use its own built-in "no
-              results" UI) — the prior custom message is dropped. */}
-          <Selector
+          <AsyncEntityCombobox
             label="Lớp học"
-            placeholder={classBatchLoading ? 'Đang tải danh sách lớp...' : 'Chọn lớp học'}
+            placeholder="Chọn lớp học"
             isRequired
-            options={classBatchOptions}
             value={form.classBatchId || null}
             onChange={(v) => handleField('classBatchId', v ?? '')}
-            hasSearch
-            hasClear
-            isDisabled={classBatchLoading}
+            useOptions={useClassBatchOptionsWithDate}
+            pinnedLabel={(id) => `Lớp đã chọn (${id.slice(0, 8)}…)`}
             status={errors.classBatchId ? { type: 'error', message: errors.classBatchId } : undefined}
           />
 

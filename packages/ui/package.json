@@ -28,6 +28,7 @@
   },
   "peerDependencies": {
     "@astryxdesign/core": "0.2.0",
+    "@astryxdesign/theme-neutral": "0.2.0",
     "@stylexjs/stylex": "0.19.0",
     "react": "^18 || ^19",
     "react-router-dom": "^7"

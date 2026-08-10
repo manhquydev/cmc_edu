@@ -58,7 +58,7 @@ export function StudentPicker({ value, onChange, label = 'Học viên' }: Studen
           justify="between"
           align="center"
           style={{
-            padding: '8px 12px',
+            padding: 'var(--cmc-space-2) 12px',
             border: '1px solid var(--cmc-border)',
             borderRadius: 'var(--cmc-radius-xs)',
           }}
@@ -70,7 +70,7 @@ export function StudentPicker({ value, onChange, label = 'Học viên' }: Studen
               plain <span> with brand color per the documented raw-color
               fallback (see class-placement.tsx's "tạo phiếu thu mới" link). */}
           <span
-            style={{ fontSize: 12, color: 'var(--cmc-brand)', cursor: 'pointer' }}
+            style={{ fontSize: 'var(--cmc-fs-meta)', color: 'var(--cmc-brand)', cursor: 'pointer' }}
             onClick={() => {
               onChange(null);
               setTerm('');
@@ -112,7 +112,7 @@ export function StudentPicker({ value, onChange, label = 'Học viên' }: Studen
               key={s.id}
               onClick={() => onChange({ id: s.id, fullName: s.fullName })}
               style={{
-                padding: '8px 12px',
+                padding: 'var(--cmc-space-2) 12px',
                 border: '1px solid var(--cmc-border)',
                 borderRadius: 'var(--cmc-radius-xs)',
                 cursor: 'pointer',

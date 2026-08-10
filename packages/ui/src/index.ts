@@ -89,8 +89,7 @@ export type { IconName } from './components/line-icon.js';
 
 // Premium composites (promoted from the cockpit pilot — presentational,
 // props-only; no session/tRPC coupling). MetricCard + TaskRow render
-// react-router `Link`s (a declared peer) so they need a Router ancestor;
-// AppFrame/SideNav below stay router-free via an onNavigate callback.
+// react-router `Link`s (a declared peer) so they need a Router ancestor.
 // Require `@cmc/ui/console.css` imported once at the app root.
 export type { Tone } from './components/tone.js';
 export { MetricCard } from './components/metric-card.js';
@@ -102,10 +101,6 @@ export type { TaskRowProps } from './components/task-row.js';
 // TaskRowProps re-exported for WorkInbox consumers in apps
 export { FunnelBar, funnelFillWidth } from './components/funnel-bar.js';
 export type { FunnelBarProps } from './components/funnel-bar.js';
-export { InsightMetric } from './components/insight-metric.js';
-export type { InsightMetricProps } from './components/insight-metric.js';
-export { FocusCard } from './components/focus-card.js';
-export type { FocusCardProps } from './components/focus-card.js';
 
 // Astryx theme scope provider — see astryx-theme-cmc.css for token values.
 export { AstryxCmcProvider } from './astryx-provider.js';
@@ -142,6 +137,16 @@ export type { FilterBarProps, FilterDef } from './components/filter-bar.js';
 
 export { DateField } from './components/date-field.js';
 export type { DateFieldProps } from './components/date-field.js';
+export { TimeField } from './components/time-field.js';
+export type { TimeFieldProps } from './components/time-field.js';
+export { DateTimeField } from './components/datetime-field.js';
+export type { DateTimeFieldProps } from './components/datetime-field.js';
+export { AsyncEntityCombobox } from './components/async-entity-combobox.js';
+export type {
+  AsyncEntityComboboxProps,
+  AsyncEntityOption,
+  UseAsyncEntityOptionsResult,
+} from './components/async-entity-combobox.js';
 
 export { MasterDetail } from './components/master-detail.js';
 export type { MasterDetailProps } from './components/master-detail.js';
@@ -164,10 +169,6 @@ export type { ResultPanelProps, ResultStatus } from './components/result-panel.j
 // plans/260710-1730-premium-design-language-buildout/phase-03).
 export type { NavEntry, NavModule } from './components/nav-types.js';
 export { activeModuleId } from './lib/active-module.js';
-export { SideNav } from './components/side-nav.js';
-export type { SideNavProps } from './components/side-nav.js';
-export { AppFrame } from './components/app-frame.js';
-export type { AppFrameProps } from './components/app-frame.js';
 
 // CMC Console admin UI layer (design3) — requires `@cmc/ui/console.css` + `.o_web_client` scope.
 export { ConsoleNavbar } from './console/console-navbar.js';
@@ -241,13 +242,7 @@ export { MetaRow, MetaItem } from './components/meta-row.js';
 export type { MetaRowProps, MetaItemProps } from './components/meta-row.js';
 export { CountBadge } from './components/count-badge.js';
 export type { CountBadgeProps } from './components/count-badge.js';
-export { ActivityTimeline } from './components/activity-timeline.js';
-export type { ActivityTimelineProps, ActivityItem } from './components/activity-timeline.js';
 
 // Education schedule
-export { SessionCard } from './components/session-card.js';
+export { SessionCard, batchStatusToSession } from './components/session-card.js';
 export type { SessionCardProps, SessionStatus } from './components/session-card.js';
-export { WeekSchedule } from './components/week-schedule.js';
-export type { WeekScheduleProps, WeekDayColumn } from './components/week-schedule.js';
-export { ScheduleMonth, batchStatusToSession } from './components/schedule-month.js';
-export type { ScheduleMonthProps, ScheduleMonthGroup } from './components/schedule-month.js';

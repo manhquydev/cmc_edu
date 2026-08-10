@@ -83,7 +83,7 @@ test.describe('P1-05 journey — kích hoạt ghi danh, rồi xếp thêm lớp 
     // Required by receipt-create.tsx's validate() — the parent's LMS OTP
     // login credential, without it the real submit stays client-side blocked.
     await salePage1.getByLabel('Email phụ huynh').fill(`e2e-p105-parent-${randomUUID().slice(0, 8)}@e2e.cmc`);
-    await salePage1.getByRole('button', { name: /^Lớp học/ }).click();
+    await salePage1.getByRole('combobox', { name: /^Lớp học/ }).click();
     await salePage1.getByRole('option', { name: new RegExp(classA.code) }).click();
     await salePage1.getByRole('spinbutton', { name: /^Học phí/ }).fill('5000001');
     await salePage1.getByRole('button', { name: 'Tạo phiếu thu' }).click();
@@ -136,7 +136,7 @@ test.describe('P1-05 journey — kích hoạt ghi danh, rồi xếp thêm lớp 
     await expect(salePage2.getByText(studentName)).toBeVisible();
     await salePage2.getByText(studentName).click();
 
-    await salePage2.getByRole('button', { name: /^Lớp học/ }).click();
+    await salePage2.getByRole('combobox', { name: /^Lớp học/ }).click();
     await salePage2.getByRole('option', { name: new RegExp(classB.code) }).click();
     // "Xác nhận xếp lớp" now opens a ConfirmDialog (UI-cohesion refactor) — the
     // real enrollment.enroll click only fires from the dialog's "Xếp lớp" button.

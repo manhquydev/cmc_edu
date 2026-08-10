@@ -60,9 +60,9 @@ anchor history.
 label** (e.g. cockpit → “Tổng quan”).
 
 **Class prefix:** our template classes are **`.console-*`** (not `.o-*`).
-Legacy `ck-*` / `tpl-*` retired (Phase 2). **13 `sh-*`** classes remain for
-exported `SideNav` / `AppFrame` only (public barrel; not used by admin or LMS
-pages today).
+Legacy `ck-*` / `tpl-*` retired (Phase 2). `sh-*` classes and the `SideNav` /
+`AppFrame` components they styled were removed (2026-08-10) — 0 real
+consumers in admin or LMS, superseded by `ConsoleNavbar`.
 
 ---
 
@@ -113,7 +113,6 @@ uses flat band + `padding: 8px` — locked by `console-cp-sheet.test.ts`.
 - LMS `lms-*` redesign
 - Renaming `.o_web_client`
 - Renaming `FilterBar` (locked by `scripts/check-ui-frames.mjs`)
-- Removing public `SideNav` / `AppFrame` exports
 - Full Odoo Search OS (facets / GroupBy / Favorites) — parked
 - Automated visual-regression CI (screenshot policy gated; Phase 4 is ephemeral)
 

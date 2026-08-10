@@ -145,7 +145,7 @@ test.describe('P1-02 journey — tạo phiếu học phí từ cơ hội (CRM �
     // filled here or the real submit stays silently blocked client-side.
     await page.getByLabel('Email phụ huynh').fill(`e2e-p102-parent-${randomUUID().slice(0, 8)}@e2e.cmc`);
 
-    await page.getByRole('button', { name: /^Lớp học/ }).click();
+    await page.getByRole('combobox', { name: /^Lớp học/ }).click();
     await page.getByRole('option', { name: new RegExp(seeded.code) }).click();
     // Same HTML5 step-mismatch diagnosis as finance-receipt.journey.ui.spec.ts:
     // the native `min={1} step={100000}` spinbutton silently blocks submission

@@ -21,4 +21,26 @@ describe('ProgressSteps', () => {
     fireEvent.click(screen.getByText('A'));
     expect(onStepClick).toHaveBeenCalledWith(0);
   });
+
+  it('exposes full label and state to assistive technology, incl. truncated labels', () => {
+    render(
+      <ProgressSteps
+        activeIndex={1}
+        steps={[
+          { id: 'a', label: 'Thông tin tuyển sinh rất dài' },
+          { id: 'b', label: 'Xác nhận' },
+          { id: 'c', label: 'Xử lý' },
+        ]}
+      />,
+    );
+    const doneStep = screen.getByRole('button', {
+      name: /thông tin tuyển sinh rất dài.*đã hoàn thành/i,
+    });
+    expect(doneStep).toHaveAttribute('title', 'Thông tin tuyển sinh rất dài');
+    const currentStep = screen.getByRole('button', { name: /xác nhận.*đang thực hiện/i });
+    expect(currentStep).toHaveAttribute('aria-current', 'step');
+    // todo state: no extra SR announcement beyond the visible label
+    const todoStep = screen.getByRole('button', { name: 'Xử lý' });
+    expect(todoStep).not.toHaveAttribute('aria-current');
+  });
 });

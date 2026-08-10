@@ -129,10 +129,10 @@ function SimpleTable({
                 key={h}
                 style={{
                   textAlign: 'left',
-                  padding: '8px 10px',
+                  padding: 'var(--cmc-space-2) 10px',
                   borderBottom: '1px solid var(--cmc-border)',
                   fontWeight: 600,
-                  fontSize: 12,
+                  fontSize: 'var(--cmc-fs-meta)',
                   color: 'var(--cmc-text-supporting)',
                 }}
               >
@@ -148,9 +148,9 @@ function SimpleTable({
                 <td
                   key={j}
                   style={{
-                    padding: '8px 10px',
+                    padding: 'var(--cmc-space-2) 10px',
                     borderBottom: '1px solid var(--cmc-border-subtle, var(--cmc-border))',
-                    fontSize: 13,
+                    fontSize: 'var(--cmc-font-size-data)',
                   }}
                 >
                   {cell}

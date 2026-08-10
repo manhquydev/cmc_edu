@@ -42,7 +42,6 @@ claiming anything beyond **partial**.
 | SettingsShell rail | `<aside aria-label={title}>` · `aria-current="page"` on active | `packages/ui/src/components/settings-shell.tsx` | Settings tier |
 | CommandPalette | `role="dialog"` · `aria-modal="true"` · listbox / option / `aria-selected` | `packages/ui/src/components/command-palette.tsx` | ⌘K overlay |
 | Toast | container `aria-live="polite"` · item `role="status"` or `role="alert"` | `packages/ui/src/components/toast.tsx` | Live region feedback |
-| SideNav | semantic `<nav className="sh-nav">` | `packages/ui/src/components/side-nav.tsx` | **Gap:** no `aria-label` / `aria-current` on items — see Gaps |
 | EntityHeader | decorative avatar `aria-hidden` | `packages/ui/src/components/entity-header.tsx` | Identity chrome; not a landmark |
 | PasswordInput | show/hide `IconButton` has `label` | `packages/ui/src/components/auth-inputs.tsx` | Login path |
 
@@ -57,7 +56,6 @@ What this baseline **does not** claim or automate:
 | **No WCAG certification** | No AA/AAA claim. No full audit against WCAG 2.x success criteria. |
 | **No axe / pa11y CI** | Explicit non-goal of Soft Ops cycle 4. Role smoke ≠ accessibility tree validation. |
 | **No human keyboard pass log** | Paths above are checklists only until a maintainer logs a pass. Status stays **partial**. |
-| **SideNav incomplete** | Has `<nav>` but no `aria-label` on the landmark; module/child buttons lack `aria-current` for the active route. Keyboard works (native buttons) but SR orientation is weaker than SettingsShell. |
 | **Login auto-focus** | Email field is not auto-focused on mount; first Tab may need to enter the card. |
 | **Focus trap coverage** | CommandPalette / ConfirmDialog traps depend on Astryx Dialog behavior — not re-asserted by the role smoke script. |
 | **Table action cells** | Row action buttons vary by product page; no global “actions column” a11y contract beyond DataTable selection checkboxes. |

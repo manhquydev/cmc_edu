@@ -138,7 +138,7 @@ test.describe('F2 journey — session roster (Nhận xét buổi học)', () => 
     // Required by receipt-create.tsx's validate() — the parent's LMS OTP
     // login credential, without it the real submit stays client-side blocked.
     await salePage.getByLabel('Email phụ huynh').fill(`e2e-f2-parent-${randomUUID().slice(0, 8)}@e2e.cmc`);
-    await salePage.getByRole('button', { name: /^Lớp học/ }).click();
+    await salePage.getByRole('combobox', { name: /^Lớp học/ }).click();
     await salePage.getByRole('option', { name: new RegExp(seeded.code) }).click();
     // NumberInput renders a native `min={1} step={100000}` spinbutton — the
     // browser's HTML5 step-mismatch constraint silently blocks submission for
@@ -214,7 +214,7 @@ test.describe('F2 journey — session roster (Nhận xét buổi học)', () => 
     await menuNav(teacherPage, 'Giảng dạy', 'Nhận xét buổi học', { role: 'giao_vien' });
     await expect(teacherPage).toHaveURL(/\/teaching\/session-assessment/);
 
-    await teacherPage.getByRole('button', { name: 'Chọn lớp học' }).click();
+    await teacherPage.getByRole('combobox', { name: 'Chọn lớp học' }).click();
     await teacherPage.getByRole('option', { name: new RegExp(seeded.code) }).click();
 
     await teacherPage.getByRole('combobox', { name: 'Chọn buổi học' }).click();

@@ -109,7 +109,7 @@ export default function CrmBulkImportPage() {
           />
         }
       >
-        <Stack gap={4} style={{ padding: '0 0 24px' }}>
+        <Stack gap={4} style={{ padding: '0 0 var(--cmc-space-4)' }}>
           <Panel title="Dán danh sách" icon="users">
             <div style={{ padding: '0 22px 20px' }}>
               <Stack gap={3}>
@@ -269,7 +269,7 @@ function PreviewTable({ rows }: { rows: Array<Array<string | number>> }) {
   }
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--cmc-font-size-data)' }}>
         <thead>
           <tr>
             {['Dòng', 'Họ tên', 'SĐT', 'Trạng thái', 'Chi tiết'].map((h) => (
@@ -277,7 +277,7 @@ function PreviewTable({ rows }: { rows: Array<Array<string | number>> }) {
                 key={h}
                 style={{
                   textAlign: 'left',
-                  padding: '8px 10px',
+                  padding: 'var(--cmc-space-2) 10px',
                   borderBottom: '1px solid var(--cmc-border)',
                 }}
               >
@@ -293,7 +293,7 @@ function PreviewTable({ rows }: { rows: Array<Array<string | number>> }) {
                 <td
                   key={j}
                   style={{
-                    padding: '8px 10px',
+                    padding: 'var(--cmc-space-2) 10px',
                     borderBottom: '1px solid var(--cmc-border)',
                   }}
                 >

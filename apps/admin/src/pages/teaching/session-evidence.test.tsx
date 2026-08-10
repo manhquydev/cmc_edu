@@ -23,9 +23,13 @@ const SESSION_A = {
 
 const classBatchSpy = vi.fn();
 const classSessionSpy = vi.fn();
+const getBySessionSpy = vi.fn();
 const upsertMutateAsync = vi.fn();
 const addPhotoMutateAsync = vi.fn();
 const publishMutateAsync = vi.fn();
+
+/** Mutated per-test to simulate an existing (or absent) evidence record. */
+let existingEvidence: { id: string; summary: string; status: string; photos: Array<{ id: string; blobRef: string; createdAt: string }> } | null = null;
 
 vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
@@ -46,6 +50,11 @@ vi.mock('../../lib/trpc.js', async () => {
         if (!opts?.enabled) return queryResult(undefined);
         return queryResult([SESSION_A]);
       },
+      'sessionEvidence.getBySession.useQuery': (input: unknown, opts: { enabled?: boolean } | undefined) => {
+        getBySessionSpy(input, opts?.enabled);
+        if (!opts?.enabled) return queryResult(undefined);
+        return queryResult(existingEvidence);
+      },
       'sessionEvidence.upsert.useMutation': () =>
         mutationResult({ mutateAsync: upsertMutateAsync, isPending: false }),
       'sessionEvidence.addPhoto.useMutation': () =>
@@ -64,16 +73,14 @@ const { trpc } = (await import('../../lib/trpc.js')) as any;
 import SessionEvidencePage from './session-evidence.js';
 
 async function pickClassAndSession() {
-  // The class Selector's `label` and `placeholder` are both "Chọn lớp học"
-  // (unchanged from the pre-refactor component) — target the trigger button
-  // by role/name rather than getByLabelText to avoid the resulting ambiguous
-  // text match.
-  fireEvent.click(screen.getByRole('button', { name: 'Chọn lớp học' }));
+  // S6 fix: class picker is now AsyncEntityCombobox (server search +
+  // pin-selected, so record #101+ can't silently disappear behind a
+  // hardcoded pageSize:100). Its inner Selector doesn't set `hasSearch`
+  // (AsyncEntityCombobox owns its own search input instead), which is what
+  // gives it an explicit `role="combobox"` matching the session Selector.
+  fireEvent.click(screen.getByRole('combobox', { name: 'Chọn lớp học' }));
   fireEvent.click(await screen.findByRole('option', { name: /CB001/ }));
 
-  // The session Selector omits `hasSearch` — its trigger renders with an
-  // explicit `role="combobox"` (unlike the class Selector's `hasSearch`
-  // trigger, which keeps the implicit button role).
   fireEvent.click(await screen.findByRole('combobox', { name: 'Chọn buổi học' }));
   fireEvent.click(await screen.findByRole('option', { name: /scheduled/ }));
 }
@@ -82,14 +89,36 @@ describe('SessionEvidencePage', () => {
   beforeEach(() => {
     classBatchSpy.mockClear();
     classSessionSpy.mockClear();
+    getBySessionSpy.mockClear();
+    existingEvidence = null;
     upsertMutateAsync.mockReset().mockResolvedValue({ id: 'ev-1', photos: [], status: 'draft' });
     addPhotoMutateAsync.mockReset().mockResolvedValue({ id: 'photo-1', blobRef: 'session-photo/abc123' });
     publishMutateAsync.mockReset().mockResolvedValue(undefined);
   });
 
-  it('queries classBatch.list with the unchanged {page:1, pageSize:100} input', () => {
+  it('queries classBatch.list with {page:1, pageSize:100} and no search when nothing is typed', () => {
     renderWithProviders(<SessionEvidencePage />);
     expect(classBatchSpy).toHaveBeenCalledWith({ page: 1, pageSize: 100 });
+  });
+
+  // S6 fix: the class picker used to be a static pageSize:100 fetch with no
+  // search affordance at all — record #101+ was simply unreachable. Prove
+  // that typing now re-queries classBatch.list with a `search` param.
+  it('debounces the class search box into classBatch.list({..., search})', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderWithProviders(<SessionEvidencePage />);
+      classBatchSpy.mockClear();
+      fireEvent.change(screen.getByLabelText('Chọn lớp học — tìm kiếm'), {
+        target: { value: 'CB001' },
+      });
+      await vi.advanceTimersByTimeAsync(350);
+      await waitFor(() => {
+        expect(classBatchSpy).toHaveBeenCalledWith({ page: 1, pageSize: 100, search: 'CB001' });
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not query classSession.list until a class is selected', () => {
@@ -99,7 +128,7 @@ describe('SessionEvidencePage', () => {
 
   it('queries classSession.list({classBatchId}) once a class is selected', async () => {
     renderWithProviders(<SessionEvidencePage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Chọn lớp học' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Chọn lớp học' }));
     fireEvent.click(await screen.findByRole('option', { name: /CB001/ }));
     expect(classSessionSpy).toHaveBeenCalledWith({ classBatchId: CLASS_A.id }, true);
   });
@@ -110,6 +139,35 @@ describe('SessionEvidencePage', () => {
     });
     expect(classSessionSpy).toHaveBeenCalledWith({ classBatchId: CLASS_A.id }, true);
     expect(screen.getByLabelText('Tóm tắt buổi học')).toBeInTheDocument();
+  });
+
+  it('loads existing evidence for a session that already has a draft summary + photo (regression: page used to reset to blank)', () => {
+    existingEvidence = {
+      id: 'ev-existing-1',
+      summary: 'Đã viết từ buổi trước.',
+      status: 'draft',
+      photos: [{ id: 'photo-existing-1', blobRef: 'session-photo/existing.jpg', createdAt: '2026-07-10T00:00:00.000Z' }],
+    };
+    renderWithProviders(<SessionEvidencePage />, {
+      route: `/teaching/session-evidence?classBatchId=${CLASS_A.id}&sessionId=${SESSION_A.id}`,
+    });
+    expect(getBySessionSpy).toHaveBeenCalledWith({ classSessionId: SESSION_A.id }, true);
+    expect(screen.getByLabelText('Tóm tắt buổi học')).toHaveValue('Đã viết từ buổi trước.');
+    // evidenceId hydrated from the query → publish action becomes available.
+    expect(screen.getByRole('button', { name: 'Công bố cho phụ huynh' })).toBeInTheDocument();
+  });
+
+  it('shows the published banner when existing evidence is already published', () => {
+    existingEvidence = {
+      id: 'ev-existing-2',
+      summary: 'Đã công bố.',
+      status: 'published',
+      photos: [],
+    };
+    renderWithProviders(<SessionEvidencePage />, {
+      route: `/teaching/session-evidence?classBatchId=${CLASS_A.id}&sessionId=${SESSION_A.id}`,
+    });
+    expect(screen.getAllByText('Đã công bố').length).toBeGreaterThan(0);
   });
 
   it('treats non-UUID query params as unset', () => {

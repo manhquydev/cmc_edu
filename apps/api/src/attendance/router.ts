@@ -195,14 +195,36 @@ export const attendanceRouter = router({
         const session = await loadGatedSession(tx, facilityId, input.sessionId);
         await assertTeacherOwnsClass(tx, facilityId, ctx.subject, session.classBatchId);
 
+        // Gates 2-3, batched: one `findMany` for the whole roster instead of
+        // an N-round-trip `loadGatedEnrollment` per entry (up to 200 entries
+        // per call). Same per-entry checks, same error on the first invalid
+        // entry in array order — just data-fetched upfront.
+        const enrollmentIds = input.entries.map((e) => e.enrollmentId);
+        const enrollments = await tx.enrollment.findMany({
+          where: { id: { in: enrollmentIds }, facilityId },
+        });
+        const enrollmentById = new Map(enrollments.map((e) => [e.id, e]));
+        const gatedEntries = input.entries.map((entry) => {
+          const enrollment = enrollmentById.get(entry.enrollmentId);
+          if (!enrollment) {
+            throw badRequest('Enrollment not found.');
+          }
+          if (enrollment.classBatchId !== session.classBatchId) {
+            throw badRequest("Enrollment does not belong to this session's class.");
+          }
+          if (enrollment.status !== 'active') {
+            throw badRequest('Enrollment is not active.');
+          }
+          return { entry, enrollment };
+        });
+
         const items: AttendanceDto[] = [];
         // Metric & Data Integrity remediation (scenario audit): every entry
         // in one markAll call shares the same session, so the same
         // period — dedupe by studentId and recompute FinalGrade once per
         // student, not once per entry.
         const studentIdsToRecompute = new Set<string>();
-        for (const entry of input.entries) {
-          const enrollment = await loadGatedEnrollment(tx, facilityId, entry.enrollmentId, session);
+        for (const { entry, enrollment } of gatedEntries) {
           studentIdsToRecompute.add(enrollment.studentId);
           const markedAt = new Date();
           const attendance = await tx.attendance.upsert({

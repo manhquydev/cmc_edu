@@ -4,7 +4,7 @@
 // `compensationPolicy.upsert` (per-facility penalty rates). Replaces the
 // premium-plan coming-soon EmptyState — super_admin only (nav-registry).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Banner,
   Button,
@@ -21,6 +21,7 @@ import {
   Stack,
   Text,
   TextInput,
+  TimeField,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
@@ -130,10 +131,10 @@ function NewTemplateForm({ groupId }: { groupId: string }) {
           <TextInput label="Tên mẫu ca" value={name} onChange={setName} size="sm" />
         </div>
         <div style={{ flex: '0 0 100px' }}>
-          <TextInput label="Bắt đầu (HH:mm)" placeholder="08:30" value={startTime} onChange={setStartTime} size="sm" />
+          <TimeField label="Bắt đầu (HH:mm)" value={startTime} onChange={setStartTime} size="sm" />
         </div>
         <div style={{ flex: '0 0 100px' }}>
-          <TextInput label="Kết thúc (HH:mm)" placeholder="18:00" value={endTime} onChange={setEndTime} size="sm" />
+          <TimeField label="Kết thúc (HH:mm)" value={endTime} onChange={setEndTime} size="sm" />
         </div>
         <Button
           label="+ Thêm mẫu ca"
@@ -202,14 +203,21 @@ function GroupsTab() {
 // ---------------------------------------------------------------------------
 // CompensationPolicy tab
 // ---------------------------------------------------------------------------
-function PolicyTab() {
+export function PolicyTab() {
   const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.compensationPolicy.get.useQuery();
   const [lateRate, setLateRate] = useState<number | undefined>(undefined);
   const [earlyRate, setEarlyRate] = useState<number | undefined>(undefined);
+  // Seed the fields from the fetched policy exactly once. Without this guard,
+  // a background refetch (react-query's default refetch-on-window-focus)
+  // resolves with a NEW `data` object — same values, different reference —
+  // which re-fires this effect and silently discards whatever the admin was
+  // mid-typing before clicking Save.
+  const seededRef = useRef(false);
 
   useEffect(() => {
-    if (data) {
+    if (data && !seededRef.current) {
+      seededRef.current = true;
       setLateRate(Number(data.penaltyRatePerLateMinute));
       setEarlyRate(Number(data.penaltyRatePerEarlyMinute));
     }

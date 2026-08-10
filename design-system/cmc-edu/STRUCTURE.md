@@ -69,7 +69,7 @@ Utilities: `.ck-keyline`, `.ck-truncate`, `.ck-label-upper`, `.ck-title-1line`, 
 |------|------------|
 | Chrome | AppFrame, SideNav, PageHeader |
 | Control | TextInput, Button, FilterBar, chips |
-| Raised content | MetricCard, InsightMetric, Panel, WorkInbox, Table shell, WeekSchedule |
+| Raised content | MetricCard, Panel, WorkInbox, Table shell, WeekSchedule |
 | List atom | TaskRow, SessionCard, FunnelBar row |
 | Float feedback | Toast, ConfirmDialog, Callout |
 | Structure | SectionBlock, SettingsSection, EntityHeader |

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { links } from '@cmc/links';
 import {
+  AsyncEntityCombobox,
   Banner,
   Button,
   DataTable,
@@ -216,10 +217,24 @@ function ClassListContent() {
     sessionsCreated: number;
   } | null>(null);
 
-  // Dropdowns instead of pasted UUIDs (spec requirement) — full course catalog
-  // for create dialog (unfiltered), same role gate as class.create.
-  const { data: courseData, isLoading: courseLoading, error: courseError } =
-    trpc.course.list.useQuery({ pageSize: 100 });
+  // Dropdowns instead of pasted UUIDs (spec requirement). S6 fix: search-aware
+  // now (course.list already supports it) instead of a static pageSize:100
+  // fetch — course #101+ was previously unreachable in the create dialog.
+  // AsyncEntityCombobox renders the error banner itself (ported from an
+  // independently-built version of this same component — see its
+  // UseAsyncEntityOptionsResult['error'] doc comment).
+  function useCourseOptions(search: string) {
+    const { data, isLoading, error } = trpc.course.list.useQuery({
+      page: 1,
+      pageSize: 100,
+      ...(search ? { search } : {}),
+    });
+    const options = (data?.items ?? []).map((c) => ({
+      value: c.id,
+      label: `${c.name} (${c.program})`,
+    }));
+    return { options, isLoading, error: error?.message };
+  }
   const { data: teacherData, isLoading: teacherLoading, error: teacherError } =
     trpc.user.pickList.useQuery({ role: 'giao_vien' });
 
@@ -235,10 +250,6 @@ function ClassListContent() {
     },
   });
 
-  const courseOptions = (courseData?.items ?? []).map((c) => ({
-    value: c.id,
-    label: `${c.name} (${c.program})`,
-  }));
   const teacherOptions = ((teacherData?.items ?? []) as Array<{ id: string; fullName: string }>).map(
     (t) => ({ value: t.id, label: t.fullName }),
   );
@@ -342,7 +353,7 @@ function ClassListContent() {
           />
         }
         controlFooter={
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cmc-space-2)', width: '100%' }}>
             <BulkActionBar
               selectionCount={selectedIds.length}
               onClear={() => setSelectedIds([])}
@@ -426,24 +437,14 @@ function ClassListContent() {
             </Stack>
           ) : (
             <>
-              {courseError && (
-                <Banner
-                  status="error"
-                  title="Không tải được danh sách khoá học"
-                  description={courseError.message}
-                />
-              )}
-
-              <Selector
+              <AsyncEntityCombobox
                 label="Khoá học"
-                placeholder={courseLoading ? 'Đang tải…' : 'Chọn khoá học'}
+                placeholder="Chọn khoá học"
                 isRequired
-                options={courseOptions}
-                value={form.courseId || undefined}
+                value={form.courseId || null}
                 onChange={(v) => setField('courseId')(v ?? '')}
-                hasSearch
-                hasClear={false}
-                isDisabled={courseLoading}
+                useOptions={useCourseOptions}
+                pinnedLabel={(id) => `Khoá đã chọn (${id.slice(0, 8)}…)`}
                 status={errors.courseId ? { type: 'error', message: errors.courseId } : undefined}
               />
 
@@ -547,7 +548,7 @@ function ClassListContent() {
                 <Banner status="error" title="Lỗi tạo lớp" description={createMut.error.message} />
               )}
 
-              <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+              <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
                 <Button
                   label="Hủy"
                   variant="secondary"

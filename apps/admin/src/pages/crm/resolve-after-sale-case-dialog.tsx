@@ -49,11 +49,11 @@ export function ResolveAfterSaleCaseDialog({ caseId, onClose }: { caseId: string
         {resolveMutation.error && (
           // TODO(astryx-review): Text color enum has no error/danger slot —
           // plain <span> with CSS var per migration flag rule (see users.tsx).
-          <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
+          <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>
             {resolveMutation.error.message}
           </span>
         )}
-        <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+        <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
           <Button label="Hủy" variant="secondary" onClick={close} isDisabled={resolveMutation.isPending} />
           <Button
             label="Xác nhận"

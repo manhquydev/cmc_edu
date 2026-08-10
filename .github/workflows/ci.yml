@@ -112,6 +112,12 @@ jobs:
       - name: UI frame adoption (Soft Ops bulk gate)
         run: pnpm check:ui-frames && pnpm test:ui-frames
 
+      # Inline-style debt ratchet: fails only when a page file's raw-literal
+      # count (spacing/fontSize/radius/color) goes UP vs scripts/ratchet-baseline.json.
+      # Existing debt is grandfathered; new drift is not. Script: scripts/ui-ratchet.mjs.
+      - name: UI inline-style ratchet
+        run: pnpm check:ui-ratchet && pnpm test:ui-ratchet
+
       - name: Test
         run: pnpm test
 

@@ -44,9 +44,14 @@
   --color-error: var(--cmc-danger);
 
   /* Radius scale — nested harmony: control 12 ≤ card 16 ≤ page 20.
-     Astryx TextInput/Selector/Button shells use --radius-element. */
+     Astryx TextInput/Selector/Button shells use --radius-element.
+     --radius-inner intentionally left unset: it used to be hardcoded to
+     10px here with no token behind it (a magic number); CSS custom
+     properties cascade per-property, so simply not setting it here falls
+     through to Astryx's own considered default (4px, astryx.css:60) —
+     more correct than inventing a replacement CMC token with no design
+     mandate behind it either. */
   --radius-none: 0px;
-  --radius-inner: 10px;
   --radius-element: var(--cmc-radius-control);
   --radius-container: var(--cmc-radius-md);
   --radius-page: var(--cmc-radius-lg);
@@ -54,6 +59,26 @@
   /* Typography */
   --font-family-body: var(--cmc-font-sans);
   --font-family-heading: var(--cmc-font-sans);
+
+  /* Font-size scale — Astryx's own --font-size-* vars share their exact
+     name with console.css's Odoo-scoped equivalents (e.g. --font-size-lg).
+     Left unmapped, an Astryx heading rendered inside .o_web_client silently
+     inherits console.css's Odoo value (15px) instead of a CMC one — not
+     deliberate theming, a name collision. Pin every step explicitly to the
+     nearest real CMC type-scale token (11/12/13/14/16/18/24/32) so Astryx
+     text always renders on-scale regardless of console.css's own values. */
+  --font-size-4xs: var(--cmc-font-size-column);  /* 11px */
+  --font-size-3xs: var(--cmc-font-size-column);  /* 11px */
+  --font-size-2xs: 12px;
+  --font-size-xs: 12px;
+  --font-size-sm: var(--cmc-font-size-data);     /* 13px */
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 24px;
+  --font-size-4xl: 32px;
+  --font-size-5xl: 32px;
 
   color-scheme: light;
 }

@@ -315,4 +315,46 @@ describe('gift catalog + rewards lifecycle (P4)', () => {
     const updatedGift = await testDbBypass((tx) => tx.gift.findUniqueOrThrow({ where: { id: gift.id } }));
     expect(updatedGift.stock).toBe(-1);
   });
+
+  it('rewards.deliver: a stock=1 gift redeemed twice does not go negative on the second delivery', async () => {
+    // redeem() only rejects stock === 0 — it does NOT decrement at redeem
+    // time (comment above, invariant #3) — so two different students can
+    // both redeem the same stock=1 gift before either is delivered. Once the
+    // first delivery takes stock 1 -> 0, the second delivery must not push it
+    // to -1 (the schema's "unlimited" sentinel) — regression for the
+    // `stock >= 0` -> `stock > 0` fix.
+    const phone2 = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
+    phonesToClean.push(phone2);
+    const parentAccount2 = await seedParentAccount(phone2);
+    const classBatch = await seedClassBatch({ facilityId: facility.id });
+    const enrollment2 = await seedActiveEnrollment({ facilityId: facility.id, classBatchId: classBatch.id });
+    const student2 = { id: enrollment2.studentId };
+    await seedGuardianLink({
+      facilityId: facility.id,
+      parentAccountId: parentAccount2.id,
+      studentId: student2.id,
+      status: 'approved',
+    });
+    await seedStudentAccount(student2.id, parentAccount2.id);
+    const studentCaller2 = appRouter.createCaller(
+      buildLmsContext({ parentAccountId: parentAccount2.id, studentId: student2.id, kind: 'student' }),
+    );
+
+    await giveStars(student.id, 20);
+    await giveStars(student2.id, 20);
+    const gift = await gdkd.gift.upsert({ name: 'Down To The Wire', starsRequired: 5, stock: 1 });
+
+    const { reward: rewardA } = await studentCaller.rewards.redeem({ giftId: gift.id });
+    const { reward: rewardB } = await studentCaller2.rewards.redeem({ giftId: gift.id });
+    await gdkd.rewards.approve({ rewardId: rewardA.id });
+    await gdkd.rewards.approve({ rewardId: rewardB.id });
+
+    await gdkd.rewards.deliver({ rewardId: rewardA.id });
+    const afterFirst = await testDbBypass((tx) => tx.gift.findUniqueOrThrow({ where: { id: gift.id } }));
+    expect(afterFirst.stock).toBe(0);
+
+    await gdkd.rewards.deliver({ rewardId: rewardB.id });
+    const afterSecond = await testDbBypass((tx) => tx.gift.findUniqueOrThrow({ where: { id: gift.id } }));
+    expect(afterSecond.stock).toBe(0);
+  });
 });

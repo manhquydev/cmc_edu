@@ -310,7 +310,7 @@ function UsersContent() {
           />
         }
         controlFooter={
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cmc-space-2)', width: '100%' }}>
             <BulkActionBar
               selectionCount={selectedIds.length}
               onClear={() => setSelectedIds([])}
@@ -428,11 +428,11 @@ function UsersContent() {
           {createMut.error && (
             // TODO(astryx-review): Text color enum has no error/danger slot —
             // plain <span> with CSS var per migration flag rule.
-            <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
+            <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>
               {createMut.error.message}
             </span>
           )}
-          <HStack justify="end" gap={1} style={{ marginTop: 8, flexWrap: 'wrap' }}>
+          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)', flexWrap: 'wrap' }}>
             <Button
               label="Hủy"
               variant="secondary"
@@ -482,11 +482,11 @@ function UsersContent() {
           {updateRolesMut.error && (
             // TODO(astryx-review): Text color enum has no error/danger slot —
             // plain <span> with CSS var per migration flag rule.
-            <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
+            <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>
               {updateRolesMut.error.message}
             </span>
           )}
-          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Button
               label="Hủy"
               variant="secondary"
@@ -528,7 +528,7 @@ function UsersContent() {
                 Đã đặt mật khẩu tạm. Hãy chuyển mật khẩu này cho nhân viên — họ sẽ bị yêu cầu đổi
                 ngay ở lần đăng nhập kế tiếp.
               </Text>
-              <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+              <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
                 <Button label="Đóng" variant="primary" onClick={closeResetModal} />
               </HStack>
             </>
@@ -544,11 +544,11 @@ function UsersContent() {
               {resetPasswordMut.error && (
                 // Text color enum has no error/danger slot — plain <span> with
                 // CSS var per migration flag rule.
-                <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
+                <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>
                   {resetPasswordMut.error.message}
                 </span>
               )}
-              <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+              <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
                 <Button
                   label="Hủy"
                   variant="secondary"

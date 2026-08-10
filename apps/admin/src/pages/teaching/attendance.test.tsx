@@ -97,7 +97,12 @@ vi.mock('../../lib/trpc.js', async () => {
 import AttendancePage from './attendance.js';
 
 async function pickClassAndSession() {
-  fireEvent.click(screen.getByRole('button', { name: 'Chọn lớp học' }));
+  // S6 fix: the class picker is now AsyncEntityCombobox (server search +
+  // pin-selected, so record #101+ can't silently disappear) — its inner
+  // Selector no longer sets `hasSearch` (AsyncEntityCombobox owns its own
+  // search input instead), which is what flips Astryx's accessible role
+  // from "button" to "combobox", matching the session picker beside it.
+  fireEvent.click(screen.getByRole('combobox', { name: 'Chọn lớp học' }));
   fireEvent.click(await screen.findByRole('option', { name: /CB001/ }));
   fireEvent.click(await screen.findByRole('combobox', { name: 'Chọn buổi học' }));
   fireEvent.click(await screen.findByRole('option', { name: /confirmed/ }));

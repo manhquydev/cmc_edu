@@ -215,7 +215,7 @@ function MyPayslipTab({ period }: { period: string }) {
         <Card padding={0} style={{ overflow: 'hidden' }}>
           <div
             style={{
-              padding: '8px 16px',
+              padding: 'var(--cmc-space-2) var(--cmc-space-3)',
               background: 'var(--cmc-surface-2)',
               borderBottom: '1px solid var(--cmc-border)',
             }}
@@ -248,14 +248,14 @@ function MyPayslipTab({ period }: { period: string }) {
                 background: 'color-mix(in srgb, var(--cmc-danger) 7%, transparent)',
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--cmc-danger)' }}>Phạt khấu trừ</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--cmc-danger)', fontVariantNumeric: 'tabular-nums' }}>
+              <span style={{ fontSize: 'var(--cmc-font-size-data)', fontWeight: 600, color: 'var(--cmc-danger)' }}>Phạt khấu trừ</span>
+              <span style={{ fontSize: 'var(--cmc-font-size-data)', fontWeight: 600, color: 'var(--cmc-danger)', fontVariantNumeric: 'tabular-nums' }}>
                 − {fmtVND(data.penaltyAmount)}
               </span>
             </HStack>
-            <HStack justify="between" style={{ background: 'var(--cmc-surface-2)', margin: '0 -16px', padding: '12px 16px' }}>
+            <HStack justify="between" style={{ background: 'var(--cmc-surface-2)', margin: '0 -16px', padding: '12px var(--cmc-space-3)' }}>
               <Text type="body" size="sm" weight="bold">Thực lĩnh</Text>
-              <span style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--cmc-brand)' }}>
+              <span style={{ fontSize: 'var(--cmc-fs-title)', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: 'var(--cmc-brand)' }}>
                 {fmtVND(data.totalNet)}
               </span>
             </HStack>

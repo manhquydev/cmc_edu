@@ -11,8 +11,8 @@ import {
   ListPage,
   PageHeader,
   SessionCard,
+  Skeleton,
   StatusBadge,
-  WeekSchedule,
   batchStatusToSession,
   type FilterDef,
   type IconName,
@@ -223,7 +223,7 @@ function FullCalendarSessionView({
 
 function KanbanView({ rows, loading }: { rows: ClassBatchRow[]; loading: boolean }) {
   if (loading) {
-    return <WeekSchedule days={[]} loading />;
+    return <Skeleton height={200} radius={0} />;
   }
 
   const byStatus = new Map<string, ClassBatchRow[]>();

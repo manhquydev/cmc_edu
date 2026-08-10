@@ -141,7 +141,7 @@ export const rewardRouter = router({
 
   /**
    * Staff: move reward from approved → delivered.
-   * Decrements gift stock by 1 if stock >= 0; -1 (unlimited) is unchanged.
+   * Decrements gift stock by 1 if stock > 0; -1 (unlimited) is unchanged.
    */
   deliver: requirePermission('rewards', 'manage')
     .input(deliverInput)
@@ -167,11 +167,17 @@ export const rewardRouter = router({
         });
 
         // Atomically decrement stock for finite-stock gifts; -1 (unlimited) unchanged.
-        // Using Prisma's { decrement } so concurrent deliver calls cannot race
-        // on a stale JS-computed value.
-        if (reward.gift.stock >= 0) {
-          await tx.gift.update({
-            where: { id: reward.gift.id },
+        // `stock > 0` (not `>= 0`): a gift that has already reached exactly 0
+        // must not decrement further — `stock >= 0` let a second delivery on
+        // an already-exhausted gift push it to -1, which collides with -1's
+        // meaning as the "unlimited stock" sentinel, permanently disabling
+        // this gift's out-of-stock check. `updateMany` with a `stock: { gt: 0 }`
+        // guard (not a plain `update` gated by the stale in-memory read above)
+        // makes the check itself atomic, so two concurrent deliveries on a
+        // stock=1 gift can't both pass a stale read and double-decrement.
+        if (reward.gift.stock > 0) {
+          await tx.gift.updateMany({
+            where: { id: reward.gift.id, stock: { gt: 0 } },
             data: { stock: { decrement: 1 } },
           });
         }

@@ -247,7 +247,7 @@ export default function ExercisesPage() {
       }
       controlFooter={
         !isLoading && !error ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cmc-space-2)', width: '100%' }}>
             <BulkActionBar
               selectionCount={selectedIds.length}
               onClear={() => setSelectedIds([])}
@@ -277,12 +277,12 @@ export default function ExercisesPage() {
       }
     >
       {isLoading && (
-        <div style={{ margin: 16 }}>
+        <div style={{ margin: 'var(--cmc-space-3)' }}>
           <Skeleton height={200} radius={1} />
         </div>
       )}
       {error && (
-        <div style={{ margin: 16 }}>
+        <div style={{ margin: 'var(--cmc-space-3)' }}>
           <Banner status="error" title={error.message} />
         </div>
       )}
@@ -334,11 +334,11 @@ export default function ExercisesPage() {
 
           {/* PDF upload — required */}
           <div>
-            <Text type="body" size="sm" weight="medium" style={{ marginBottom: 4 }}>
+            <Text type="body" size="sm" weight="medium" style={{ marginBottom: 'var(--cmc-space-1)' }}>
               File PDF bài tập (bắt buộc)
             </Text>
             {pdfError && (
-              <div style={{ marginBottom: 8 }}>
+              <div style={{ marginBottom: 'var(--cmc-space-2)' }}>
                 <Banner status="error" title={pdfError} />
               </div>
             )}

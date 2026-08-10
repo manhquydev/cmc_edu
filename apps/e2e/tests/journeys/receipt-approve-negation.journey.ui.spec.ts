@@ -81,7 +81,7 @@ test.describe('P1-03 journey — duyệt phiếu kích hoạt học viên, sale 
     // Required by receipt-create.tsx's validate() — the parent's LMS OTP
     // login credential, without it the real submit stays client-side blocked.
     await salePage.getByLabel('Email phụ huynh').fill(`e2e-p103-parent-${randomUUID().slice(0, 8)}@e2e.cmc`);
-    await salePage.getByRole('button', { name: /^Lớp học/ }).click();
+    await salePage.getByRole('combobox', { name: /^Lớp học/ }).click();
     await salePage.getByRole('option', { name: new RegExp(seeded.code) }).click();
     await salePage.getByRole('spinbutton', { name: /^Học phí/ }).fill('5000001');
     await salePage.getByRole('button', { name: 'Tạo phiếu thu' }).click();

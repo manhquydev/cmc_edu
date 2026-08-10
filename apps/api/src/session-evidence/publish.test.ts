@@ -156,6 +156,8 @@ describe('sessionEvidence (T3 US-019)', () => {
 
     const result = await teacher.sessionEvidence.getBySession({ classSessionId: session.id });
     expect(result?.status).toBe('draft');
+    expect(result?.id).toBe(evidence.id);
+    expect(result?.summary).toBe('Buổi học vui.');
     expect(result?.photos).toHaveLength(1);
     expect(result?.photos[0]?.blobRef).toBe('photos/get-by-session.jpg');
   });

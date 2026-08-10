@@ -141,8 +141,16 @@ test.describe('P4-04 journey — test đầu vào: đặt lịch → vắng mặ
     // once the list is on screen.
     await expect(page.getByText(rowNoShow)).toBeVisible();
     await expect(page.getByText(rowDone)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Hoàn thành' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Vắng mặt' })).toHaveCount(0);
+    // exact: true — WorkflowStatusbar's ProgressSteps stepper (packages/ui/src/
+    // components/progress-steps.tsx) gives each done/current step an sr-only
+    // accessible-name suffix ("<label> Đã hoàn thành"). Playwright's default
+    // getByRole name match is substring + case-insensitive, so an untargeted
+    // locator also picks up every completed stepper step (O1/O2/O3 are all done
+    // once the opportunity reaches O4_TESTED) — 3 stepper buttons, not the row
+    // actions this assertion means to check. exact restricts it to the literal
+    // row-action label so only real appointment buttons count.
+    await expect(page.getByRole('button', { name: 'Hoàn thành', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Vắng mặt', exact: true })).toHaveCount(0);
     await expect(appointmentRowStatus(page, rowNoShow, 'Vắng mặt')).toBeVisible();
     await expect(appointmentRowStatus(page, rowDone, 'Hoàn thành')).toBeVisible();
     await expect(page.getByText('Giai đoạn · Đã kiểm tra')).toBeVisible();

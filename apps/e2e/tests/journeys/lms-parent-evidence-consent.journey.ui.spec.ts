@@ -86,7 +86,7 @@ test.describe('P2-08 journey (nửa PH) — GV công bố ảnh buổi học →
     await teacherPage.goto('/cockpit');
     await menuNav(teacherPage, 'Giảng dạy', 'Nhật ký buổi học', { role: 'giao_vien' });
 
-    await teacherPage.getByRole('button', { name: /Chọn lớp học/ }).click();
+    await teacherPage.getByRole('combobox', { name: /Chọn lớp học/ }).click();
     await teacherPage.getByRole('option', { name: new RegExp(batch.code) }).click();
     await teacherPage.getByRole('combobox', { name: /Chọn buổi học/ }).click();
     await teacherPage.getByRole('option').first().click();

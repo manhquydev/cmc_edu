@@ -38,7 +38,7 @@ MainComponentsContainer           Toast + CommandPalette (+ dialogs)
 | form (read) | **DetailPage** | PageHeader · `.console-form-sheet-bg` / `.console-form-sheet` · EntityHeader? · statusbar? · tabs · sections |
 | form (edit) | **FormPage** | same sheet dual-layer · fields · sticky `.console-actions` |
 | kanban | **ListPage** body **or** KanbanBoard | CRM: list↔kanban + `?view=` |
-| calendar | SoftOps FullCalendar / WeekSchedule | not Odoo grid-shell |
+| calendar | SoftOps FullCalendar | Odoo calendar is itself a themed FullCalendar wrapper (shared engine); `WeekSchedule`/`ScheduleMonth` removed 2026-08-10, 0 real consumers |
 | settings | **SettingsShell** | SettingsSection rows |
 | dashboard / graph | **DashboardPage** | MetricCard · Panel |
 
@@ -171,7 +171,7 @@ DetailPage
 | Tabs | CmcTabs |
 | Filters (lite) | FilterBar |
 | Search OS (target) | FilterBar → SearchChrome (facets + presets; see above) |
-| Metrics | MetricCard / StatCard / InsightMetric |
+| Metrics | MetricCard / StatCard |
 
 ---
 

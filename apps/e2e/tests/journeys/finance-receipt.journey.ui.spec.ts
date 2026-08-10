@@ -95,7 +95,7 @@ test.describe('F1 journey — finance receipt (Phiếu thu)', () => {
       // what makes the outbox assertion below meaningful rather than vacuous.
       await salePage.getByLabel('Email phụ huynh').fill(parentEmail);
 
-      await salePage.getByRole('button', { name: /^Lớp học/ }).click();
+      await salePage.getByRole('combobox', { name: /^Lớp học/ }).click();
       await salePage.getByRole('option', { name: new RegExp(seeded.code) }).click();
 
       // NumberInput renders a native `min={1} step={100000}` spinbutton —

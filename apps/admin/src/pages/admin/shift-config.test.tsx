@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, within } from '@testing-library/react';
+import { screen, fireEvent, within, render } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // HR remediation phase 5 (R3-10): real build replacing the premium-plan
@@ -52,7 +52,7 @@ vi.mock('../../lib/trpc.js', async () => {
   };
 });
 
-import ShiftConfigPage from './shift-config.js';
+import ShiftConfigPage, { PolicyTab } from './shift-config.js';
 
 describe('ShiftConfigPage', () => {
   beforeEach(() => {
@@ -135,5 +135,38 @@ describe('ShiftConfigPage', () => {
     renderWithProviders(<ShiftConfigPage />);
     fireEvent.click(screen.getByRole('button', { name: /Chính sách phạt/ }));
     expect(screen.getByText('Chưa cấu hình chính sách phạt')).toBeInTheDocument();
+  });
+});
+
+describe('PolicyTab — does not clobber an in-progress edit on refetch', () => {
+  beforeEach(() => {
+    policyData = { penaltyRatePerLateMinute: 500, penaltyRatePerEarlyMinute: 1000 };
+    policyUpsertMutate.mockClear();
+  });
+
+  it('saves the just-typed value, not a stale-refetch reset, after compensationPolicy.get resolves again with a new (but same-valued) data object', () => {
+    // Standalone render (no router/session needed — PolicyTab only reads
+    // the mocked trpc client). Reassigning `policyData` to a fresh object
+    // with the SAME field values before `rerender` simulates a real
+    // react-query background refetch (e.g. window-focus): the server
+    // returns identical numbers, but every fetch deserializes a NEW `data`
+    // object. Before the `seededRef` fix, that reference change alone was
+    // enough for the seeding effect to re-fire and reset the `lateRate`
+    // state back to 500 — invisibly, since NumberInput keeps showing the
+    // typed "600" on screen even after its backing state reverts. Asserting
+    // on the DOM value alone would miss the bug; asserting on what
+    // "Lưu chính sách" actually submits (reads `lateRate` state directly)
+    // catches it.
+    const { rerender } = render(<PolicyTab />);
+    fireEvent.change(screen.getByLabelText('Phạt mỗi phút đi muộn (VND)'), { target: { value: '600' } });
+
+    policyData = { penaltyRatePerLateMinute: 500, penaltyRatePerEarlyMinute: 1000 };
+    rerender(<PolicyTab />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu chính sách' }));
+    expect(policyUpsertMutate).toHaveBeenCalledWith({
+      penaltyRatePerLateMinute: 600,
+      penaltyRatePerEarlyMinute: 1000,
+    });
   });
 });

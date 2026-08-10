@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  AsyncEntityCombobox,
   Banner,
   Button,
   ConfirmDialog,
@@ -9,7 +10,6 @@ import {
   ListPage,
   PageHeader,
   ResultPanel,
-  Selector,
   Spinner,
   Stack,
   Text,
@@ -17,6 +17,22 @@ import {
   useToast,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+
+/** Same S6 search-and-pin fix as apps/admin/src/lib/use-class-batch-options.ts,
+ * but this page's label includes the start date — kept local rather than
+ * adding a label-formatter param to the shared hook for one caller. */
+function useClassBatchOptionsWithDate(search: string) {
+  const { data, isLoading } = trpc.classBatch.list.useQuery({
+    page: 1,
+    pageSize: 100,
+    ...(search ? { search } : {}),
+  });
+  const options = (data?.items ?? []).map((b) => ({
+    value: b.id,
+    label: `${b.code} — ${b.program} (${new Date(b.startDate).toLocaleDateString('vi-VN')})`,
+  }));
+  return { options, isLoading };
+}
 
 type LookupBy = 'phone' | 'name';
 
@@ -53,9 +69,6 @@ export default function ClassPlacementPage() {
     { enabled: lookupInput !== null },
   );
 
-  const { data: classBatchData, isLoading: classBatchLoading } =
-    trpc.classBatch.list.useQuery({ pageSize: 100 });
-
   const enrollMutation = trpc.enrollment.enroll.useMutation({
     onSuccess: (res) => {
       setEnrollConfirmOpen(false);
@@ -67,13 +80,13 @@ export default function ClassPlacementPage() {
     },
   });
 
-  const classBatchOptions = (classBatchData?.items ?? []).map((b) => ({
-    value: b.id,
-    label: `${b.code} — ${b.program} (${new Date(b.startDate).toLocaleDateString('vi-VN')})`,
-  }));
-
-  const selectedClassCode =
-    (classBatchData?.items ?? []).find((b) => b.id === classBatchId)?.code ?? classBatchId;
+  // Resolve by id rather than scanning a pageSize:100 list — the picker's own
+  // search-scoped page may not contain the selected row (S6 fix).
+  const { data: selectedClassBatch } = trpc.classBatch.get.useQuery(
+    { classBatchId },
+    { enabled: Boolean(classBatchId) },
+  );
+  const selectedClassCode = selectedClassBatch?.code ?? classBatchId;
 
   function handleLookup(e: React.FormEvent) {
     e.preventDefault();
@@ -165,7 +178,7 @@ export default function ClassPlacementPage() {
                 >
                   <div
                     style={{
-                      padding: '8px 16px',
+                      padding: 'var(--cmc-space-2) var(--cmc-space-3)',
                       background: 'var(--cmc-surface-2)',
                       borderBottom: '1px solid var(--cmc-border)',
                     }}
@@ -187,7 +200,7 @@ export default function ClassPlacementPage() {
                               darker brand-ink shade, not the same hex), so this stays a plain
                               <span style> per the documented fallback. */}
                           <span
-                            style={{ fontSize: 12, color: 'var(--cmc-brand)', cursor: 'pointer', textDecoration: 'underline' }}
+                            style={{ fontSize: 'var(--cmc-fs-meta)', color: 'var(--cmc-brand)', cursor: 'pointer', textDecoration: 'underline' }}
                             onClick={() => void navigate('/finance/new')}
                           >
                             tạo phiếu thu mới
@@ -197,7 +210,7 @@ export default function ClassPlacementPage() {
                       }
                     />
 
-                    <div style={{ marginTop: 16 }}>
+                    <div style={{ marginTop: 'var(--cmc-space-3)' }}>
                       <form onSubmit={handleLookup}>
                         <Stack gap={2}>
                           {/* Lookup-by toggle */}
@@ -237,33 +250,33 @@ export default function ClassPlacementPage() {
                       </form>
 
                       {lookupFetchError && (
-                        <div style={{ marginTop: 8 }}>
+                        <div style={{ marginTop: 'var(--cmc-space-2)' }}>
                           <Banner status="error" title={lookupFetchError.message} />
                         </div>
                       )}
 
                       {lookupLoading && (
-                        <HStack gap={1} style={{ marginTop: 8 }}>
+                        <HStack gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
                           <Spinner size="sm" />
                           <Text type="supporting" size="2xs">Đang tìm...</Text>
                         </HStack>
                       )}
 
                       {!lookupLoading && lookupData && lookupData.length === 0 && (
-                        <Text type="supporting" size="sm" style={{ marginTop: 8 }}>
+                        <Text type="supporting" size="sm" style={{ marginTop: 'var(--cmc-space-2)' }}>
                           Không tìm thấy học viên. Kiểm tra lại SĐT/tên, hoặc tạo phiếu thu mới.
                         </Text>
                       )}
 
                       {!lookupLoading && lookupData && lookupData.length > 0 && (
-                        <Stack gap={1} style={{ marginTop: 8 }}>
+                        <Stack gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
                           <Text type="supporting" size="2xs">Chọn học viên:</Text>
                           {lookupData.map((s) => (
                             <div
                               key={s.id}
                               onClick={() => setSelectedStudent(s)}
                               style={{
-                                padding: '8px 12px',
+                                padding: 'var(--cmc-space-2) 12px',
                                 border: `1px solid ${
                                   selectedStudent?.id === s.id ? 'var(--cmc-brand)' : 'var(--cmc-border)'
                                 }`,
@@ -282,7 +295,7 @@ export default function ClassPlacementPage() {
                                 {/* TODO(astryx-review): same raw-color fallback as the
                                     lifecycle badge above — 3-way status color, no Text
                                     enum slot. */}
-                                <span style={{ fontSize: 12, fontWeight: 600, color: lifecycleColor[s.lifecycle] ?? 'inherit' }}>
+                                <span style={{ fontSize: 'var(--cmc-fs-meta)', fontWeight: 600, color: lifecycleColor[s.lifecycle] ?? 'inherit' }}>
                                   {s.lifecycle}
                                 </span>
                               </HStack>
@@ -307,7 +320,7 @@ export default function ClassPlacementPage() {
                     >
                       <div
                         style={{
-                          padding: '8px 16px',
+                          padding: 'var(--cmc-space-2) var(--cmc-space-3)',
                           background: 'var(--cmc-surface-2)',
                           borderBottom: '1px solid var(--cmc-border)',
                         }}
@@ -323,20 +336,14 @@ export default function ClassPlacementPage() {
                       </div>
                       <div style={{ padding: 'var(--cmc-space-3)' }}>
                         <Stack gap={3}>
-                          {/* TODO(astryx-review): Astryx Selector has no
-                              `nothingFoundMessage` equivalent (empty search results use
-                              its own built-in "no results" UI) — the prior custom
-                              message is dropped (same flag as receipt-create's class
-                              selector). */}
-                          <Selector
+                          <AsyncEntityCombobox
                             label="Lớp học"
-                            placeholder={classBatchLoading ? 'Đang tải danh sách lớp...' : 'Chọn lớp học'}
+                            placeholder="Chọn lớp học"
                             isRequired
-                            options={classBatchOptions}
-                            value={classBatchId || undefined}
-                            onChange={(v) => setClassBatchId(v)}
-                            hasSearch
-                            isDisabled={classBatchLoading}
+                            value={classBatchId || null}
+                            onChange={(v) => setClassBatchId(v ?? '')}
+                            useOptions={useClassBatchOptionsWithDate}
+                            pinnedLabel={(id) => `Lớp đã chọn (${id.slice(0, 8)}…)`}
                           />
 
                           {enrollMutation.error && (

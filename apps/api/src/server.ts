@@ -78,24 +78,33 @@ function reportRouteError(req: IncomingMessage, route: string, err: unknown): vo
 // strips only the leading slash — matches the bare-path e2e convention) and
 // normalize the browser convention down to it below, only for requests that
 // actually start with `/trpc/`.
+// tRPC error codes that are normal client-side rejections, not server
+// incidents — logged at debug and never pushed to GlitchTip so they don't
+// drown the error stream. Everything else (INTERNAL_SERVER_ERROR, or any code
+// not listed) is treated as a genuine server fault. Defined once at module
+// scope (not rebuilt per onError call).
+const EXPECTED_CLIENT_CODES = new Set([
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'BAD_REQUEST',
+  'NOT_FOUND',
+  'CONFLICT',
+  'TOO_MANY_REQUESTS',
+  'PARSE_ERROR',
+  'TIMEOUT',
+  'CLIENT_CLOSED_REQUEST',
+  'PAYLOAD_TOO_LARGE',
+  'UNPROCESSABLE_CONTENT',
+  'METHOD_NOT_SUPPORTED',
+  'UNSUPPORTED_MEDIA_TYPE',
+]);
+
 const trpcHandler = createHTTPHandler({
   router: appRouter,
   createContext: ({ req }) => createContext({ req }),
   onError({ error, path, type, req }) {
-    // Expected client-side rejections (auth denied, bad input, not found) are
-    // normal traffic, not incidents — they log at debug so they don't drown the
-    // error stream. Everything else (INTERNAL_SERVER_ERROR, and any code not in
-    // the expected set) is a genuine server fault and logs at error. reqId
-    // matches the raw-http lines so one request's story is greppable end to end.
-    const EXPECTED_CLIENT_CODES = new Set([
-      'UNAUTHORIZED',
-      'FORBIDDEN',
-      'BAD_REQUEST',
-      'NOT_FOUND',
-      'CONFLICT',
-      'TOO_MANY_REQUESTS',
-      'PARSE_ERROR',
-    ]);
+    // reqId matches the raw-http lines so one request's story is greppable
+    // end to end across pino and GlitchTip.
     const reqId = reqIdOf(req);
     const line = { reqId, path, type, code: error.code, err: error };
     if (EXPECTED_CLIENT_CODES.has(error.code)) {

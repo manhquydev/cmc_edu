@@ -60,7 +60,7 @@ test.describe('P2-08 journey (nửa GV) — gửi ảnh & tóm tắt buổi, cô
     await expect(page).toHaveURL(/\/teaching\/session-evidence/);
 
     // 1. Pick the class (searchable Selector renders as a button) by its code.
-    await page.getByRole('button', { name: /Chọn lớp học/ }).click();
+    await page.getByRole('combobox', { name: /Chọn lớp học/ }).click();
     await page.getByRole('option', { name: new RegExp(classCode) }).click();
 
     // 2. Pick a session (non-search Selector renders as a combobox). Only this

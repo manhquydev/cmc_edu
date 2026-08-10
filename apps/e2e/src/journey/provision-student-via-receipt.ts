@@ -88,7 +88,7 @@ export async function provisionStudentViaReceipt(
   await salePage.getByLabel('Họ tên học viên').fill(options.studentName);
   await salePage.getByLabel('SĐT phụ huynh').fill(options.parentPhone);
   await salePage.getByLabel('Email phụ huynh').fill(parentEmail);
-  await salePage.getByRole('button', { name: /^Lớp học/ }).click();
+  await salePage.getByRole('combobox', { name: /^Lớp học/ }).click();
   await salePage.getByRole('option', { name: classCode }).click();
   // The trailing 1 is load-bearing. The fee input is min={1} step={100000}, so
   // the browser only accepts 1 + n×100000 — a round 3000000 is a step mismatch

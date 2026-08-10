@@ -62,7 +62,42 @@ that happens after all tiers land, or on request.
   returns structured error objects; a forced error shows the same reqId across
   the http log line and the tRPC error line. Commit.
 
-## Tier 1 — GlitchTip error tracking + MCP (on the laptop)
+## Tier 1 — GlitchTip error tracking + MCP — ✅ CODE DONE (2026-08-10), 1 manual bootstrap left
+Implemented:
+- `docker-compose.observability.yml` (separate project `cmcv2-obs`, own network/
+  volumes — tears down independently of the app). 4 services: glitchtip-web
+  (port 127.0.0.1:8000→8080, default `./bin/start.sh` runs migrate+web),
+  glitchtip-worker (`./bin/run-worker.sh`), its own postgres:16, valkey:8.
+  `GLITCHTIP_ENABLE_MCP=true`. Verified against the official image
+  (docker inspect: default CMD `./bin/start.sh`; scripts live in /code/bin).
+  Two false starts corrected: the app-sre `run-migrate-and-runserver.sh` command
+  doesn't exist in the published image (removed the override), and the worker's
+  first-boot `relation "uptime_monitor" does not exist` is a benign migrate race
+  that `restart: unless-stopped` recovers. **Stack is UP and web returns 200.**
+- `.env.obs` (gitignored, 600) with generated SECRET_KEY + postgres pw.
+- `@sentry/node` v10 added to @cmc/api. New `apps/api/src/lib/instrument.ts` —
+  imported FIRST in server.ts + worker/index.ts (v10 needs early init). FAIL-OPEN:
+  empty SENTRY_DSN → all Sentry.* are no-ops, app never crashes on a down tracker
+  (smoke-tested). `beforeSend` scrubs PII (cookies, auth headers, request body/
+  query, user email/username/ip) — load-bearing for the on-laptop-student-data
+  choice; correlation survives via the reqId tag.
+- Error sites wired: a `reportRouteError()` helper logs (pino) AND captures
+  (Sentry) with the same reqId tag at all 7 raw-http routes; the tRPC onError
+  hook captures server faults tagged with reqId + trpcPath; the worker drain-
+  failure catch captures with drain context. reqId is the single pivot key
+  across pino ↔ GlitchTip.
+- `SENTRY_DSN=` (empty) added to `.env.prod` + documented in `.env.prod.example`.
+  api/worker inherit it via their existing `env_file: .env.prod` — no compose edit.
+- Verified: typecheck clean; fail-open smoke passed; DB-less tests green (29).
+
+**MANUAL BOOTSTRAP LEFT (needs the operator — can't be fully automated):** open
+http://127.0.0.1:8000/register, create the first user + org + a project, copy
+its DSN into `.env.prod` `SENTRY_DSN=`, then `claude mcp add --transport http
+glitchtip http://127.0.0.1:8000/mcp`. After that: rebuild+redeploy api/worker,
+throw a test error, confirm the GlitchTip issue appears and the agent can read it
+over MCP (smoke-test the 17 tools before relying on them).
+
+### Tier 1 — original spec
 **Files:** `docker-compose.prod.yml` (or a separate `docker-compose.observability.yml`
 overlay), `apps/api/package.json` (+@sentry/node), `logger.ts`/`server.ts`/`worker`
 Sentry init, `.env.prod` (+GlitchTip DSN + secrets), `.env.prod.example`.
@@ -86,6 +121,29 @@ Sentry init, `.env.prod` (+GlitchTip DSN + secrets), `.env.prod.example`.
   sleep does NOT alert, but an unexpected multi-hour gap does.
 - **Gate:** stopping the worker triggers the check to go down after grace; the
   agent can read check state via the healthchecks REST API. Commit.
+
+## Tier 3 — Full-context capture (added 2026-08-10, from research-260810-1615)
+Scope grew: operator wants to capture ALL user actions + debug with full
+situational context (user did X → frontend → API → backend error), not just
+backend signal. Research verdict (`plans/reports/research-260810-1615-full-context-capture-agent-debug.md`):
+- **Session replay = OpenReplay self-hosted** (NOT PostHog — PostHog self-host
+  replay is officially unsupported/hobby-scale, conflicts with the PII-self-host
+  requirement). OpenReplay is self-host-first, official MCP works with self-host,
+  input-masking default-on. Operator chose **full capture with careful masking**.
+- **Correlation backbone = a `sessionId` header** from the React/@trpc client,
+  propagated into pino logs + GlitchTip tag + OpenReplay event. NOT OpenTelemetry
+  (overkill for a one-host monolith — a header string achieves the same agent-pivot).
+  Builds directly on the Tier 0 `reqId`.
+- **AuditLog gap**: add ONE nullable `reqId` column (schema migration) so the 56
+  captured business actions join to errors/sessions. Do NOT add ip/userAgent
+  (avoid widening PII surface on the compliance table — reqId join is enough).
+- **PII / minors**: session replay records real students. Masking default-on, but
+  PII-dense screens (grading, attendance, CRM) need manual block-selector rules.
+  Operator accepted this with careful masking.
+- **Agent debug loop**: GlitchTip MCP (error+stack) + OpenReplay MCP (replay) +
+  `jq` pino by reqId + AuditLog by reqId — four sources, one join key.
+- Order: finish Tier 1 (GlitchTip) first, then Tier 3 (OpenReplay + sessionId +
+  AuditLog.reqId), then Tier 2 (uptime).
 
 ## Deliberately NOT building (report §7 — over-engineering for a solo UAT)
 Prometheus + Grafana metrics stack, Loki, full Sentry self-host, Uptime Kuma

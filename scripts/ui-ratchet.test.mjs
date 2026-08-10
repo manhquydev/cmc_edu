@@ -30,15 +30,17 @@ describe('ui-ratchet.mjs', () => {
   it('only counts literal values in tokenizable properties, exempting layout/typography/var()/%', () => {
     const r = run(['--json']);
     const report = JSON.parse(r.stdout);
-    const facilities = report.perFile['apps/admin/src/pages/admin/facilities.tsx'];
-    assert.ok(facilities, 'facilities.tsx should have counted violations');
-    // { display:'flex', flexDirection:'column', gap:8, width:'100%' } -> only gap counts
-    // { fontSize:13, color:'var(--cmc-danger)' } x2 -> only fontSize counts (var() exempt)
-    // { marginTop:8 } x2 -> counts
-    assert.equal(facilities.total, 5);
-    assert.equal(facilities.spacing, 3); // gap + 2x marginTop
-    assert.equal(facilities.typography, 2); // 2x fontSize
-    assert.equal(facilities.color, 0); // both colors are var() — exempt
+    const attendance = report.perFile['apps/admin/src/pages/teaching/attendance.tsx'];
+    assert.ok(attendance, 'teaching/attendance.tsx should have counted violations');
+    // { background:'var(...)', border:'...', borderRadius:4 } -> only borderRadius counts (no
+    // premium-scale token for 4px radius; that value belongs to the separate console.css scale)
+    // { marginTop:2 } and { padding:32 } -> spacing, neither has an exact token match
+    // { fontSize:'var(--cmc-fs-page)' } elsewhere in the file is already tokenized — exempt
+    assert.equal(attendance.total, 3);
+    assert.equal(attendance.spacing, 2); // marginTop:2 + padding:32
+    assert.equal(attendance.typography, 0); // fontSize already var()-based
+    assert.equal(attendance.radius, 1); // borderRadius:4, no exact token
+    assert.equal(attendance.color, 0);
   });
 
   it('fails when a file gains a new violation vs baseline, and is silent when restored', () => {

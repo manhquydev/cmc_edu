@@ -45,7 +45,7 @@ function CountTile({ label, count, color }: { label: string; count: number; colo
         textAlign: 'center',
       }}
     >
-      <span style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.2, color }}>{count}</span>
+      <span style={{ fontSize: 'var(--cmc-fs-page)', fontWeight: 700, lineHeight: 1.2, color }}>{count}</span>
       <Text type="supporting" size="xsm" style={{ marginTop: 2 }}>
         {label}
       </Text>

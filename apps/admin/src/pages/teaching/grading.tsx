@@ -207,7 +207,7 @@ function DetailPane({
           borderRadius: 'var(--cmc-radius-control)',
         }}
       >
-        <Text type="supporting" size="xsm" weight="semibold" style={{ marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <Text type="supporting" size="xsm" weight="semibold" style={{ marginBottom: 'var(--cmc-space-2)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           Chấm điểm
         </Text>
         <HStack gap={2} align="end">
@@ -236,7 +236,7 @@ function DetailPane({
           />
         </HStack>
         {grade.error && (
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Banner status="error" title={grade.error.message} />
           </div>
         )}
@@ -245,7 +245,7 @@ function DetailPane({
 
       {/* PDF viewer */}
       <div>
-        <Text type="supporting" size="xsm" weight="semibold" style={{ marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <Text type="supporting" size="xsm" weight="semibold" style={{ marginBottom: 'var(--cmc-space-2)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           Bài làm PDF
         </Text>
         <div
@@ -273,7 +273,7 @@ function DetailPane({
 
       {/* Annotation layers */}
       <div>
-        <Text type="supporting" size="xsm" weight="semibold" style={{ marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <Text type="supporting" size="xsm" weight="semibold" style={{ marginBottom: 'var(--cmc-space-2)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           Lớp chú thích PDF
         </Text>
         <PdfAnnotator
@@ -362,7 +362,7 @@ export default function GradingPage() {
           <Stack gap={0}>
             {Array.from({ length: 5 }, (_, i) => (
               <div key={i} style={{ paddingInline: 'var(--cmc-space-3)', paddingBlock: 'var(--cmc-space-2)', borderBottom: '1px solid var(--cmc-border)' }}>
-                <Skeleton height={14} radius={1} style={{ marginBottom: 4 }} />
+                <Skeleton height={14} radius={1} style={{ marginBottom: 'var(--cmc-space-1)' }} />
                 <Skeleton height={11} width="60%" radius={1} />
               </div>
             ))}

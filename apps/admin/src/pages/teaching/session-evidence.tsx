@@ -200,7 +200,7 @@ export default function SessionEvidencePage() {
       <Stack gap={4} style={{ maxWidth: 680 }}>
         {/* Step 1: pick class */}
         <div>
-          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>1. Chọn lớp</Text>
+          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>1. Chọn lớp</Text>
           {/* TODO(astryx-review): `label` is required by Selector's props
               but the step heading above already names the field — passed
               as empty string to avoid a duplicate visible label (same
@@ -220,7 +220,7 @@ export default function SessionEvidencePage() {
         {/* Step 2: pick session */}
         {classBatchId && (
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>2. Chọn buổi học</Text>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>2. Chọn buổi học</Text>
             {sessionsLoading ? (
               <Skeleton height={36} radius={1} />
             ) : (
@@ -240,7 +240,7 @@ export default function SessionEvidencePage() {
         {/* Step 3: write summary */}
         {sessionId && (
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>3. Tóm tắt buổi học</Text>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>3. Tóm tắt buổi học</Text>
             <TextArea
               label="Tóm tắt buổi học"
               isLabelHidden
@@ -251,7 +251,7 @@ export default function SessionEvidencePage() {
               isDisabled={published}
             />
             {saved && !published && (
-              <HStack gap={1} align="center" style={{ marginTop: 4 }}>
+              <HStack gap={1} align="center" style={{ marginTop: 'var(--cmc-space-1)' }}>
                 <LineIcon name="check-circle" size={14} />
                 <Text size="xsm" color="accent">Đã lưu</Text>
               </HStack>
@@ -262,9 +262,9 @@ export default function SessionEvidencePage() {
         {/* Step 4: upload photos */}
         {evidenceId && !published && (
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>4. Upload ảnh buổi học</Text>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>4. Upload ảnh buổi học</Text>
             {uploadError && (
-              <div style={{ marginBottom: 8 }}>
+              <div style={{ marginBottom: 'var(--cmc-space-2)' }}>
                 <Banner status="error" title="Lỗi upload ảnh" description={uploadError} />
               </div>
             )}
@@ -297,7 +297,7 @@ export default function SessionEvidencePage() {
         {/* Photo grid */}
         {photos.length > 0 && (
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>Ảnh đã upload ({photos.length})</Text>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>Ảnh đã upload ({photos.length})</Text>
             <Grid columns={4} gap={1}>
               {photos.map((p) => (
                 <img

@@ -117,8 +117,8 @@ export function PdfAnnotator({
   return (
     <Card padding={3}>
       {/* Student layer — read-only display */}
-      <div style={{ marginBottom: 16 }}>
-        <HStack gap={1} style={{ marginBottom: 4 }}>
+      <div style={{ marginBottom: 'var(--cmc-space-3)' }}>
+        <HStack gap={1} style={{ marginBottom: 'var(--cmc-space-1)' }}>
           <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Lớp vẽ của học sinh
           </Text>
@@ -144,7 +144,7 @@ export function PdfAnnotator({
 
       {/* Teacher layer — editable textarea */}
       <div>
-        <HStack gap={1} style={{ marginBottom: 4 }}>
+        <HStack gap={1} style={{ marginBottom: 'var(--cmc-space-1)' }}>
           <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Chú thích của giáo viên
           </Text>
@@ -169,24 +169,24 @@ export function PdfAnnotator({
           }}
           placeholder='{"notes": "Bài làm tốt, cần chú ý…"}'
           rows={6}
-          style={{ fontFamily: 'monospace', fontSize: 12 }}
+          style={{ fontFamily: 'monospace', fontSize: 'var(--cmc-fs-meta)' }}
         />
         {parseError && (
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Banner status="error" title={parseError} />
           </div>
         )}
         {saveAnnotation.error && (
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Banner status="error" title={saveAnnotation.error.message} />
           </div>
         )}
         {saveAnnotation.isSuccess && (
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Banner status="success" title="Đã lưu chú thích giáo viên." />
           </div>
         )}
-        <HStack justify="end" style={{ marginTop: 8 }}>
+        <HStack justify="end" style={{ marginTop: 'var(--cmc-space-2)' }}>
           <Button
             label="Lưu chú thích"
             size="sm"

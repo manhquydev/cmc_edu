@@ -77,7 +77,7 @@ function CountTile({
         background: 'var(--cmc-surface)',
         border: '1px solid var(--cmc-border)',
         borderRadius: 4,
-        padding: '12px 16px',
+        padding: '12px var(--cmc-space-3)',
         textAlign: 'center',
       }}
     >
@@ -85,7 +85,7 @@ function CountTile({
           semantic red/green/orange from STATUS_CONFIG, not Text's fixed color
           enum) — kept as plain <span style> per the documented fallback for
           arbitrary-color text (same pattern as StatCard's value line). */}
-      <span style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.2, color }}>
+      <span style={{ fontSize: 'var(--cmc-fs-page)', fontWeight: 700, lineHeight: 1.2, color }}>
         {count}
       </span>
       <Text type="supporting" size="xsm" style={{ marginTop: 2 }}>
@@ -112,8 +112,8 @@ function StudentRow({
     <HStack
       justify="between"
       style={{
-        paddingInline: 16,
-        paddingBlock: 8,
+        paddingInline: 'var(--cmc-space-3)',
+        paddingBlock: 'var(--cmc-space-2)',
         borderBottom: '1px solid var(--cmc-border)',
         minHeight: TOUCH_MIN_HEIGHT,
         background: 'var(--cmc-surface)',
@@ -321,10 +321,10 @@ export default function AttendancePage() {
       }
     >
       {/* Step 1+2: pick class -> session (same picker pattern as session-assessment.tsx) */}
-      <div style={{ paddingInline: 16, paddingBlock: 16, borderBottom: '1px solid var(--cmc-border)' }}>
+      <div style={{ paddingInline: 'var(--cmc-space-3)', paddingBlock: 'var(--cmc-space-3)', borderBottom: '1px solid var(--cmc-border)' }}>
         <Stack gap={3}>
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>
               1. Chọn lớp
             </Text>
             <AsyncEntityCombobox
@@ -341,7 +341,7 @@ export default function AttendancePage() {
 
           {classBatchId && (
             <div>
-              <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
+              <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>
                 2. Chọn buổi học
               </Text>
               {sessionsLoading ? (
@@ -367,8 +367,8 @@ export default function AttendancePage() {
           {/* Count tiles */}
           <div
             style={{
-              paddingInline: 16,
-              paddingBlock: 8,
+              paddingInline: 'var(--cmc-space-3)',
+              paddingBlock: 'var(--cmc-space-2)',
               background: 'var(--cmc-surface-2)',
               borderBottom: '1px solid var(--cmc-border)',
             }}
@@ -384,17 +384,17 @@ export default function AttendancePage() {
 
           {/* Error states */}
           {listError && (
-            <div style={{ padding: 16 }}>
+            <div style={{ padding: 'var(--cmc-space-3)' }}>
               <Banner status="error" title="Lỗi tải danh sách" description={listError.message} />
             </div>
           )}
           {markAll.error && (
-            <div style={{ paddingInline: 16, paddingTop: 8 }}>
+            <div style={{ paddingInline: 'var(--cmc-space-3)', paddingTop: 'var(--cmc-space-2)' }}>
               <Banner status="error" title="Lưu thất bại" description={markAll.error.message} />
             </div>
           )}
           {saveValidationError && (
-            <div style={{ paddingInline: 16, paddingTop: 8 }}>
+            <div style={{ paddingInline: 'var(--cmc-space-3)', paddingTop: 'var(--cmc-space-2)' }}>
               <Banner status="warning" title="Chưa thể lưu" description={saveValidationError} />
             </div>
           )}
@@ -407,8 +407,8 @@ export default function AttendancePage() {
                   <div
                     key={i}
                     style={{
-                      paddingInline: 16,
-                      paddingBlock: 8,
+                      paddingInline: 'var(--cmc-space-3)',
+                      paddingBlock: 'var(--cmc-space-2)',
                       borderBottom: '1px solid var(--cmc-border)',
                       minHeight: TOUCH_MIN_HEIGHT,
                     }}
@@ -437,7 +437,7 @@ export default function AttendancePage() {
 
           {/* Session summary */}
           {saved && (
-            <div style={{ paddingInline: 16, paddingBlock: 8 }}>
+            <div style={{ paddingInline: 'var(--cmc-space-3)', paddingBlock: 'var(--cmc-space-2)' }}>
               <Badge
                 label={`Điểm danh đã được lưu — ${presentCount} có mặt / ${lateCount} muộn / ${absentCount} vắng`}
                 variant="success"

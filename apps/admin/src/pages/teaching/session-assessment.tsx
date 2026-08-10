@@ -161,7 +161,7 @@ export default function SessionAssessmentPage() {
       <Stack gap={4} style={{ maxWidth: 720 }}>
         {/* Step 1: pick class */}
         <div>
-          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
+          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>
             1. Chọn lớp
           </Text>
           <AsyncEntityCombobox
@@ -178,7 +178,7 @@ export default function SessionAssessmentPage() {
         {/* Step 2: pick session */}
         {classBatchId && (
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>
               2. Chọn buổi học
             </Text>
             {sessionsLoading ? (
@@ -200,12 +200,12 @@ export default function SessionAssessmentPage() {
         {/* Step 3: roster + per-student assessment */}
         {sessionId && (
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>
               3. Nhận xét học sinh có mặt
             </Text>
 
             {!rosterLoading && !assessLoading && !evidenceLoading && (
-              <HStack gap={1} align="center" style={{ marginBottom: 8, flexWrap: 'wrap' }}>
+              <HStack gap={1} align="center" style={{ marginBottom: 'var(--cmc-space-2)', flexWrap: 'wrap' }}>
                 <Badge
                   label={hasPresentAttendance ? 'Điểm danh ✓' : 'Điểm danh ✗'}
                   variant={hasPresentAttendance ? 'success' : 'neutral'}

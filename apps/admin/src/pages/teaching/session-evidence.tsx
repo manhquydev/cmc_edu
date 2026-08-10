@@ -1,7 +1,7 @@
 // Teacher: write class summary, upload photos, publish to parents.
 // Flow: pick lớp → pick buổi → upsert evidence → add photos → publish.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AsyncEntityCombobox, Badge, Banner, Button, ConfirmDialog, FormPage, Grid, HStack, LineIcon, PageHeader, Selector, Skeleton, Stack, Text, TextArea, useToast } from '@cmc/ui';
 import { UUID_RE, readUuidParam } from '@cmc/links';
@@ -39,8 +39,13 @@ export default function SessionEvidencePage() {
   const addPhotoMut = trpc.sessionEvidence.addPhoto.useMutation();
   const publishMut = trpc.sessionEvidence.publish.useMutation();
 
-  // Load existing evidence: use a raw query via separate component or inline hack.
-  // Simplified: we upsert on save (idempotent).
+  // Load existing evidence for the selected session (a session may already have
+  // published evidence from a prior visit) — without this, reopening one shows a
+  // blank unpublished form and re-saving risks overwriting the published summary.
+  const existingEvidenceQuery = trpc.sessionEvidence.getBySession.useQuery(
+    { classSessionId: sessionId! },
+    { enabled: Boolean(sessionId) },
+  );
 
   const [evidenceId, setEvidenceId] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Array<{ id: string; blobRef: string }>>([]);
@@ -48,6 +53,15 @@ export default function SessionEvidencePage() {
   const [saved, setSaved] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const { success: toastSuccess } = useToast();
+
+  useEffect(() => {
+    if (sessionId && existingEvidenceQuery.data) {
+      setEvidenceId(existingEvidenceQuery.data.id);
+      setSummary(existingEvidenceQuery.data.summary);
+      setPhotos(existingEvidenceQuery.data.photos);
+      setPublished(existingEvidenceQuery.data.status === 'published');
+    }
+  }, [sessionId, existingEvidenceQuery.data]);
 
   // TODO(astryx-review): per-option disabled state (cancelled sessions should
   // be unselectable) has no confirmed Astryx SelectorOption field — `isDisabled`

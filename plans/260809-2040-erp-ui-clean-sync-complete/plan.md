@@ -1,11 +1,11 @@
 ---
 title: "ERP admin UI — đầy đủ, đồng bộ, sạch"
-status: in_progress
+status: implemented_local_unpushed
 priority: P1
 effort: "L — nhiều phiên, 8 phase"
 tags: [design-system, console, cleanup, tokens, erp]
 created: 2026-08-09
-revised: 2026-08-09 22:10 (scout ×4 + brainstorm ×2 + quét DOM 33 route — đổi chẩn đoán gốc & thứ tự phase)
+revised: 2026-08-10 09:35 (8/8 phase implement xong local; CI thật + e2e ≥101-record + ảnh trước/sau vẫn treo — xem Acceptance criteria)
 blockedBy: [260809-1100-cook-token-bugs-datetime-fields]
 ---
 
@@ -35,7 +35,7 @@ blockedBy: [260809-1100-cook-token-bugs-datetime-fields]
 - [x] Phase 5 — re-baseline sau Phase 2: 18 chỗ lệch thang thật còn lại (`12.5px`×11, `13.5px`×7 — giảm từ 20/8 gốc; `24.5px` đã tự biến mất, 0 chỗ). "Bước 0" (thang type chưa thành token) **bị bác bỏ giống Phase 4**: cả 2 vùng đã có token thật từ trước (`console.css:373-384` cho Console, `tokens.css:98-105` cho Premium) — không cần sửa `tokens.css`. Phép thử Odoo (grep literal + hệ số `$o-label-font-size-factor:0.8` + xác nhận mọi base Odoo là số nguyên) không tìm được căn cứ cho 12.5/13.5px ⇒ trôi dạt, snap về `12px`/`13px` (đúng `--font-size-xs`/`--font-size-sm` đã khai báo), viết literal khớp quy ước file. 1 PR duy nhất (không tách theo họ — cùng một phép biến đổi cho mọi chỗ). `pnpm turbo run typecheck test --filter=@cmc/ui`: 43 file/149 test xanh. Sweep sống 4 route xác nhận 0 off-scale còn lại; 2 route rơi vào ComingSoon, DB dev chung không có seed data cho detail/list page thật (`ClassBatch`/`Enrollment` = 0 dòng) nên không chụp ảnh trước/sau theo route — không seed thêm vì đó là state chung, ngoài phạm vi một bản sửa 0.5px. CI thật chưa chạy (worktree chưa push).
 - [x] Phase 6 — 6a xong: `scripts/ui-ratchet.mjs` + test (bracket-matched parse, bắt 1 bug lệch chỉ số thật trước khi seed), baseline `scripts/ratchet-baseline.json` (41 file/178 vi phạm trên 58 trang, sinh từ trạng thái sau Phase 5), nối CI job `typecheck-and-test`. Verify: HEAD sạch → 0 false positive; tiêm 1 vi phạm giả → fail đúng file đúng số; phục hồi → sạch lại; 4/4 test xanh. 6b (stylelint) **hoãn có chủ đích** đúng fallback đã ghi trong phase-06 — điều kiện "thang type chưa thành token" đã đạt (Phase 5) nhưng điều kiện "stylelint chưa cài" vẫn đúng (0 khớp trong mọi `package.json`), là toolchain mới thật, không phải premise sai; không chặn Phase 7/8.
 - [x] Phase 7 — 2 file dùng chung + 5 slice module (teaching→CRM→finance→hr/admin→còn lại), chạy song song 5 subagent (tập file rời nhau). Token hoá theo khớp giá trị tuyệt đối (không suy diễn/xấp xỉ): 178→25 vi phạm ratchet (giảm 86%, 0 file tăng). Verify tập trung: diff toàn batch 149 dòng thêm/149 xoá đối xứng, 0 dòng ngoài từ khoá style; typecheck+test xanh (560/560); lint sạch. `detect_changes` báo critical do **độ rộng** (44 hàm/51 luồng "touched") — đã xác minh bằng grep+diff đây không phải rủi ro hành vi, cảnh báo operator theo luật CLAUDE.md. Phủ component (CountBadge/MetaRow/Avatar) **hoãn có chủ đích** — không có DB dev/ảnh để kiểm chứng thay markup an toàn; xem Phase 8. Ảnh trước/sau theo route chưa chụp (DB dev chung rỗng). 6 commit riêng.
-- [ ] Phase 8 — đang triển khai.
+- [x] Phase 8 — rà 5 component "chưa phủ" bằng grep upstream + `impact()`: `InsightMetric`/`FocusCard` 0 consumer VÀ 0 candidate site (xoá, ~115 dòng CSS + export + test) — `CountBadge`/`MetaRow`/`Avatar` 0 consumer NHƯNG có candidate site thật chưa dùng (giữ, nợ chờ áp dụng, không xoá sớm). Baseline ratchet → thật sự 0 qua `scripts/ratchet-exemptions.json` (16 entry, mỗi entry 1 lý do cụ thể tại sao không có token khớp) — so sánh "fail khi tăng" hiện có tự động thành cấm tuyệt đối, không cần thêm mode riêng. Sweep sống lần cuối 30 route (26 đo được thật, DB chung rỗng ngoài 1 Facility): 0 cỡ chữ lệch thang CMC-owned; 1 lần duy nhất là `h2.fc-toolbar-title` (FullCalendar bên thứ ba) — đóng dứt điểm bí ẩn "24.5px" treo từ Phase 5 bằng bằng chứng `offScaleOwners`, đúng ngoại lệ plan đã ghi trước. Sự cố phụ: password role `cmc_app` bị phiên khác đổi giữa chừng (rủi ro tài nguyên chung đã được operator chấp nhận trước) — tự phát hiện qua lỗi 28P01, reset lại, xác nhận bằng kết nối trực tiếp trước khi dùng lại.
 
 # ERP admin UI — đầy đủ, đồng bộ, sạch
 
@@ -194,13 +194,13 @@ thể hoãn vô hạn. Nếu UAT bắt đầu, dừng ở đây là hợp lý nh
 
 ## Acceptance criteria
 
-- [ ] `public/design2*` không còn; 5 component + CSS đã xoá; doc đã cập nhật; `pnpm --filter @cmc/ui test` xanh.
-- [ ] Không còn dropdown FK nào nuôi bằng `pageSize: 100`; e2e chứng minh chọn được bản ghi thứ 101 trên `receipt-create`.
-- [ ] Mỗi component family (Astryx soft-ops vs Odoo console) chỉ dùng radius thuộc thang đã chốt của family đó.
-- [ ] Thang type có token thật trong `tokens.css` trước khi Phase 6 dùng nó.
-- [ ] Ratchet chạy trong CI, fail khi file nào tăng vi phạm; stylelint chặn px lệch thang mới trong `console.css`.
-- [ ] Mỗi PR đụng thị giác có ảnh trước/sau đính kèm.
-- [ ] Mọi phase: CI `typecheck-and-test` **và** `ui-e2e` xanh trước khi gọi là done.
+- [x] `public/design2*` không còn (verify: `find` 0 kết quả); 5 component + CSS đã xoá (Phase 2); doc đã cập nhật; `pnpm --filter @cmc/ui test` xanh (41 file/147 test sau Phase 8, giảm đúng 2 file do xoá InsightMetric/FocusCard).
+- [~] Không còn dropdown FK nào nuôi bằng `pageSize: 100` — **đúng**, `grep pageSize:100 apps/admin/src/pages` = 0 (Phase 3). E2e chứng minh chọn được bản ghi thứ 101 — **chưa**: chỉ chứng minh bằng unit test debounce+search, không có e2e với ≥101 bản ghi thật (DB dev chung không có seed data ở quy mô này).
+- [x] Mỗi component family (Astryx soft-ops vs Odoo console) chỉ dùng radius thuộc thang đã chốt — xác nhận lại bằng sweep sống Phase 8 (26 route: chỉ 2 thang 3/4/6 + 12/16/20/9999, ngoại lệ FullCalendar đã ghi rõ).
+- [x] Thang type có token thật trong `tokens.css` — đã có từ trước Phase 5 (không phải việc mới), xác nhận bằng đọc trực tiếp file.
+- [~] Ratchet chạy trong CI, fail khi file nào tăng vi phạm — **xong** (Phase 6a/8, baseline={} + exemption list = cấm tuyệt đối). Stylelint chặn px lệch thang mới trong `console.css` — **hoãn có chủ đích** (6b, toolchain mới, chưa cài).
+- [ ] Mỗi PR đụng thị giác có ảnh trước/sau đính kèm — **chưa làm** xuyên suốt Phase 5-8, lý do nhất quán: DB dev chung rỗng (`ClassBatch`/`Enrollment` = 0 dòng), không seed thêm vì đó là state chung ngoài phạm vi các bản sửa giá trị CSS. Bù lại bằng: diff review trực tiếp + sweep sống đo được trên các route không cần seed data + `detect_changes`/`impact()` mỗi bước.
+- [ ] Mọi phase: CI `typecheck-and-test` **và** `ui-e2e` xanh — **chỉ verify local** (typecheck+test+lint xanh mọi bước, xem log từng phase); CI thật trên GitHub Actions chưa chạy vì worktree chưa push lên remote.
 
 ## Rủi ro
 

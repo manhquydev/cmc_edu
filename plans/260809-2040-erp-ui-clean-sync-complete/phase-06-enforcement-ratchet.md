@@ -1,7 +1,7 @@
 ---
 phase: 6
 title: "Enforcement ratchet"
-status: pending
+status: completed
 priority: P1
 effort: "1d"
 dependencies: [5]
@@ -66,14 +66,35 @@ chặn giá trị lệch **mới**, không ép dọn giá trị cũ nhất quán
 4. Thêm vào CI.
 5. Cài stylelint (toolchain mới); cấu hình cho `console.css` + baseline đóng băng.
 
+## Kết quả (2026-08-10)
+
+**6a — xong.** `scripts/ui-ratchet.mjs` + `.test.mjs` viết theo đúng pattern `check-ui-frames.mjs`
+(bracket-matched parse, không regex dòng đơn — bug thật đã bắt: lệch 1 chỉ số khi bóc nội dung
+object literal khỏi `style={{ … }}` hai dấu ngoặc, sửa trước khi seed baseline). Baseline sinh
+từ trạng thái hiện tại (sau Phase 5): **41 file, 178 vi phạm** trên 58 trang quét
+(`apps/admin/src/pages`). Verify: chạy trên HEAD sạch → 0 false positive; tiêm 1 vi phạm giả vào
+`classes/index.tsx` (`padding: 7` literal) → fail đúng file, đúng chỉ số (2→3); phục hồi → sạch
+lại. 4/4 test `node --test` xanh, gồm 1 test khẳng định chính xác cách phân loại
+spacing/typography/radius/color và loại trừ `var()`/layout/width-height bằng số đếm cụ thể
+(facilities.tsx: 5 tổng, đúng 3 spacing + 2 typography + 0 color vì cả hai màu đều `var()`).
+Nối CI: bước "UI inline-style ratchet" trong job `typecheck-and-test` (`.github/workflows/ci.yml`),
+chạy `pnpm check:ui-ratchet && pnpm test:ui-ratchet`, ngay sau bước frame-adoption có sẵn.
+
+**6b — hoãn có chủ đích, đúng fallback đã ghi trong phase này.** Điều kiện #2 (thang type phải
+đã thành token) **đã đạt** — xem Phase 5, cả 2 vùng (Console/Premium) đã có token thật từ trước.
+Điều kiện #1 (stylelint chưa cài) **vẫn đúng**: `grep -rl stylelint package.json apps/*/package.json
+packages/*/package.json` = 0 khớp — đây là toolchain mới thật, không phải premise sai như 6b's
+điều kiện #2. Theo đúng câu fallback của phase này ("làm 6a trước, hoãn 6b — 6a độc lập hoàn
+toàn"), 6b để lại cho một slice riêng khi cần — không chặn Phase 7/8.
+
 ## Success Criteria
 
-- [ ] Ratchet chạy trong CI, fail khi bất kỳ file nào tăng vi phạm.
-- [ ] Chạy trên HEAD sạch → **0 false positive** (kiểm chứng bằng cách chạy thật).
-- [ ] Thêm vi phạm giả → CI fail (kiểm chứng bằng commit thử).
-- [ ] Stylelint chặn px lệch thang **mới** trong `console.css`; giá trị cũ không bị ép sửa.
-- [ ] Baseline commit vào repo, có comment giải thích cách hạ.
-- [ ] Width/height xác nhận **miễn trừ** trong code rule, không phải bỏ sót.
+- [x] Ratchet chạy trong CI, fail khi bất kỳ file nào tăng vi phạm.
+- [x] Chạy trên HEAD sạch → **0 false positive** (kiểm chứng bằng cách chạy thật).
+- [x] Thêm vi phạm giả → CI fail (kiểm chứng bằng cách sửa file thật, chạy script, phục hồi).
+- [ ] Stylelint chặn px lệch thang **mới** trong `console.css` — **hoãn có chủ đích** (6b, xem trên); giá trị cũ không bị ép sửa vẫn đúng vì không có gì bị sửa.
+- [x] Baseline commit vào repo, có comment giải thích cách hạ (`scripts/ratchet-baseline.json:_comment`).
+- [x] Width/height xác nhận **miễn trừ** trong code rule — `SIZE_EXEMPT` liệt tên tường minh trong `ui-ratchet.mjs` (không chỉ "không nằm trong FAMILY nào"), nên đây là quyết định có ghi lại, không phải bỏ sót; test `facilities.tsx` xác nhận gián tiếp: `width:'100%'` có mặt trong style object đó nhưng tổng đếm ra đúng 5 (khớp 5 property còn lại), không phải 6.
 
 ## Risk Assessment
 

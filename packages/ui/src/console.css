@@ -1015,7 +1015,7 @@ button.console-kanban-card {
   background: var(--cmc-brand-muted);
   color: var(--cmc-brand-ink);
 }
-.console-settings-nav-label { display: block; font-size: 13.5px; font-weight: 600; }
+.console-settings-nav-label { display: block; font-size: 13px; font-weight: 600; }
 .console-settings-nav-desc { display: block; margin-top: 2px; font-size: 12px; color: var(--cmc-text-muted); line-height: 1.35; }
 .console-settings-nav-item.is-active .console-settings-nav-desc { color: var(--cmc-brand-ink); opacity: 0.85; }
 .console-settings-main { min-width: 0; display: flex; flex-direction: column; gap: var(--cmc-gap-cluster); }
@@ -1030,7 +1030,7 @@ button.console-kanban-card {
 }
 .console-eh-back {
   display: inline-flex; align-items: center; gap: 2px;
-  font-size: 12.5px; font-weight: 500; color: var(--cmc-text-muted);
+  font-size: 12px; font-weight: 500; color: var(--cmc-text-muted);
   text-decoration: none; width: fit-content;
 }
 .console-eh-back svg { transform: rotate(180deg); }
@@ -1055,7 +1055,7 @@ button.console-kanban-card {
 }
 .console-eh-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .console-eh-sub {
-  margin: 4px 0 0; font-size: 13.5px; color: var(--cmc-text-muted); line-height: 1.4;
+  margin: 4px 0 0; font-size: 13px; color: var(--cmc-text-muted); line-height: 1.4;
 }
 .console-eh-meta {
   margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px 14px;
@@ -1091,7 +1091,7 @@ button.console-kanban-card {
 .console-callout--warning .console-callout-icon { color: var(--cmc-warning); }
 .console-callout-body { flex: 1; min-width: 0; }
 .console-callout-title {
-  font-size: 13.5px; font-weight: 600; color: var(--cmc-text);
+  font-size: 13px; font-weight: 600; color: var(--cmc-text);
   letter-spacing: -0.01em; margin-bottom: 2px;
 }
 .console-callout-text {
@@ -1114,7 +1114,7 @@ button.console-kanban-card {
 /* Meta row (GitHub dense) */
 .console-meta-row {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
-  font-size: 12.5px; color: var(--cmc-text-muted);
+  font-size: 12px; color: var(--cmc-text-muted);
 }
 .console-meta-item {
   display: inline-flex; align-items: center; gap: 6px;
@@ -1664,7 +1664,7 @@ hover lift.
   display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px 12px;
 }
 .o_web_client .console-cstrip-legend-item {
-  display: flex; align-items: center; gap: 8px; font-size: 12.5px;
+  display: flex; align-items: center; gap: 8px; font-size: 12px;
 }
 .o_web_client .console-cstrip-legend-item.is-muted { opacity: 0.4; }
 .o_web_client .console-cstrip-swatch {
@@ -1734,7 +1734,7 @@ hover lift.
 }
 .o_web_client .console-im-ctx {
   margin-top: auto; display: flex; align-items: center; gap: 2px;
-  font-size: 12.5px; color: var(--cmc-text-muted);
+  font-size: 12px; color: var(--cmc-text-muted);
   transition: color var(--cmc-transition);
 }
 .o_web_client a.console-im:hover .console-im-ctx { color: var(--cmc-brand); }
@@ -1830,8 +1830,8 @@ below .console-cmd (1200). Odoo notifications ≈1055. */
   box-shadow: var(--cmc-shadow-lg);
 }
 .console-toast-body { flex: 1; min-width: 0; }
-.console-toast-title { font-size: 13.5px; font-weight: 600; color: var(--cmc-text); line-height: 1.3; }
-.console-toast-desc { margin-top: 3px; font-size: 12.5px; color: var(--cmc-text-muted); line-height: 1.4; }
+.console-toast-title { font-size: 13px; font-weight: 600; color: var(--cmc-text); line-height: 1.3; }
+.console-toast-desc { margin-top: 3px; font-size: 12px; color: var(--cmc-text-muted); line-height: 1.4; }
 .console-toast-dismiss {
   flex-shrink: 0; width: 28px; height: 28px; border: none; border-radius: var(--cmc-radius-control);
   background: transparent; color: var(--cmc-text-muted); cursor: pointer;
@@ -2013,7 +2013,7 @@ Linear steppers.
   letter-spacing: 0.01em;
 }
 .o_web_client .console-kv-value {
-  margin: 0; font-size: 13.5px; color: var(--cmc-text); font-variant-numeric: tabular-nums;
+  margin: 0; font-size: 13px; color: var(--cmc-text); font-variant-numeric: tabular-nums;
   line-height: 1.4; word-break: break-word;
 }
 @media (max-width: 640px) {.o_web_client .console-kv--2 { grid-template-columns: 1fr; }
@@ -2037,7 +2037,7 @@ Linear steppers.
 .o_web_client .console-bulk-label { font-weight: 500; color: var(--cmc-brand-ink); }
 .o_web_client .console-bulk-clear {
   border: none; background: transparent; color: var(--cmc-brand);
-  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 4px 6px;
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 6px;
   border-radius: 6px;
 }
 .o_web_client .console-bulk-clear:hover { background: var(--cmc-surface-raised); }
@@ -2048,7 +2048,7 @@ Linear steppers.
   padding: 10px var(--cmc-pad-card-x);
   background: var(--cmc-surface-raised);
   border-top: 1px solid var(--cmc-border-subtle);
-  font-size: 12.5px; color: var(--cmc-text-muted);
+  font-size: 12px; color: var(--cmc-text-muted);
 }
 .o_web_client .console-page-range { margin-right: auto; color: var(--cmc-text-2); }
 .o_web_client .console-page-range strong { color: var(--cmc-text); font-variant-numeric: tabular-nums; }
@@ -2073,7 +2073,7 @@ Linear steppers.
 .o_web_client .console-page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .o_web_client .console-page-indicator {
   min-width: 52px; text-align: center; font-weight: 600; color: var(--cmc-text);
-  font-variant-numeric: tabular-nums; font-size: 12.5px;
+  font-variant-numeric: tabular-nums; font-size: 12px;
 }
 /* Progress steps */
 
@@ -2104,7 +2104,7 @@ Linear steppers.
 .o_web_client .console-set-row:first-child { border-top: none; }
 .o_web_client .console-set-copy { min-width: 0; flex: 1; }
 .o_web_client .console-set-label { font-size: 14px; font-weight: 500; color: var(--cmc-text); }
-.o_web_client .console-set-desc { margin-top: 2px; font-size: 12.5px; color: var(--cmc-text-muted); line-height: 1.4; }
+.o_web_client .console-set-desc { margin-top: 2px; font-size: 12px; color: var(--cmc-text-muted); line-height: 1.4; }
 .o_web_client .console-set-control { flex-shrink: 0; }
 /* SettingsShell — left rail + main (Polaris / Odoo settings) */
 @media (max-width: 860px) {
@@ -2208,7 +2208,7 @@ Linear steppers.
 .o_web_client .console-callout--warning .console-callout-icon { color: var(--cmc-warning); }
 .o_web_client .console-callout-body { flex: 1; min-width: 0; }
 .o_web_client .console-callout-title {
-  font-size: 13.5px; font-weight: 600; color: var(--cmc-text);
+  font-size: 13px; font-weight: 600; color: var(--cmc-text);
   letter-spacing: -0.01em; margin-bottom: 2px;
 }
 .o_web_client .console-callout-text {
@@ -2231,7 +2231,7 @@ Linear steppers.
 /* Meta row (GitHub dense) */
 .o_web_client .console-meta-row {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
-  font-size: 12.5px; color: var(--cmc-text-muted);
+  font-size: 12px; color: var(--cmc-text-muted);
 }
 .o_web_client .console-meta-item {
   display: inline-flex; align-items: center; gap: 6px;
@@ -2393,7 +2393,7 @@ never reflows rows.
   min-height: var(--console-sc-title-h);
   max-height: var(--console-sc-title-h);
   flex-shrink: 0;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 650;
   letter-spacing: -0.025em;
   color: var(--cmc-text);
@@ -2403,7 +2403,7 @@ never reflows rows.
   text-overflow: ellipsis;
   min-width: 0;
 }
-.o_web_client .console-sc.is-compact .console-sc-title { font-size: 12.5px; }
+.o_web_client .console-sc.is-compact .console-sc-title { font-size: 12px; }
 /* P1/P2 secondary block */
 .o_web_client .console-sc-secondary {
   height: var(--console-sc-sec-h);

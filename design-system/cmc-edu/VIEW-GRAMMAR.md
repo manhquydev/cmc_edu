@@ -11,7 +11,7 @@
 > `addons/web/static/src/webclient/` · `search/control_panel/` · `views/{list,form,kanban}/`
 
 > **Admin shell (design3, 2026-08):** production chrome is **ConsoleNavbar + `.o_web_client` + `main.console-main`**.  
-> `AppFrame` / `SideNav` remain **public barrel exports** (unused by admin and LMS pages today; LMS chrome is `lms-*` in app.css) — do not reintroduce as admin shell.
+> `AppFrame` / `SideNav` were removed (2026-08-10, 0 real consumers in admin or LMS) — do not reintroduce as admin shell; LMS chrome is `lms-*` in app.css.
 
 ---
 
@@ -36,7 +36,7 @@ Modules change **data, permissions, tabs** — never invent full-page chrome.
 | form (read) | **DetailPage** | Entity identity + sections |
 | form (edit/create) | **FormPage** | Sticky actions |
 | kanban | ListPage body **or** `KanbanBoard` | CRM pipeline: list↔kanban + `?view=`; generic board in `@cmc/ui` |
-| calendar | ListPage + SoftOpsFullCalendar (FullCalendar dayGrid) **or** WeekSchedule | Teaching: week/month = FC Soft Ops B-lite; batch all-day v1; list/kanban Soft Ops |
+| calendar | ListPage + SoftOpsFullCalendar (FullCalendar dayGrid) | Teaching: week/month = FC Soft Ops B-lite; batch all-day v1; list/kanban Soft Ops. `WeekSchedule`/`ScheduleMonth` removed (2026-08-10, 0 real consumers — actual rendering is FullCalendar) |
 | graph/pivot | DashboardPage / report panels | Revenue report etc. |
 | settings | FormPage + SettingsSection | Or ListPage + tabs |
 
@@ -109,7 +109,7 @@ PageHeader with EntityHeader → omit `title` (breadcrumbs + optional actions on
 | sheet + group | SectionBlock + KeyValueList |
 | notebook | CmcTabs |
 | related lists | tab + table / “Xem tất cả” |
-| chatter | ActivityTimeline tab (optional) |
+| chatter | SKIP-by-decision, catalogued only — `ActivityTimeline` (read-only analogue) removed 2026-08-10, 0 real consumers |
 
 ### ControlBar surface
 

@@ -313,7 +313,7 @@ function MyTicketsSection() {
         type="supporting"
         size="xsm"
         weight="semibold"
-        style={{ textTransform: 'uppercase', marginBottom: 4 }}
+        style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}
       >
         Phiếu của tôi
       </Text>
@@ -463,7 +463,7 @@ function ApproveTicketsTab() {
         empty="Không có yêu cầu chờ duyệt."
       />
 
-      <Stack gap={1} style={{ marginTop: 16 }}>
+      <Stack gap={1} style={{ marginTop: 'var(--cmc-space-3)' }}>
         <Text type="body" size="sm" weight="semibold">
           Chấm công GPS gần đây
         </Text>
@@ -508,13 +508,13 @@ function ApproveTicketsTab() {
               Không có punch trong ngày.
             </Text>
           ) : (
-            <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', fontSize: 'var(--cmc-font-size-data)', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: 'left', padding: '4px 0' }}>Giờ</th>
-                  <th style={{ textAlign: 'left', padding: '4px 0' }}>Nhãn</th>
-                  <th style={{ textAlign: 'left', padding: '4px 0' }}>Sai số</th>
-                  <th style={{ textAlign: 'left', padding: '4px 0' }}>Khoảng cách</th>
+                  <th style={{ textAlign: 'left', padding: 'var(--cmc-space-1) 0' }}>Giờ</th>
+                  <th style={{ textAlign: 'left', padding: 'var(--cmc-space-1) 0' }}>Nhãn</th>
+                  <th style={{ textAlign: 'left', padding: 'var(--cmc-space-1) 0' }}>Sai số</th>
+                  <th style={{ textAlign: 'left', padding: 'var(--cmc-space-1) 0' }}>Khoảng cách</th>
                 </tr>
               </thead>
               <tbody>
@@ -526,21 +526,21 @@ function ApproveTicketsTab() {
                       : '—';
                   return (
                     <tr key={i}>
-                      <td style={{ padding: '4px 0' }}>{fmtTime(p.punchAt)}</td>
-                      <td style={{ padding: '4px 0' }}>
+                      <td style={{ padding: 'var(--cmc-space-1) 0' }}>{fmtTime(p.punchAt)}</td>
+                      <td style={{ padding: 'var(--cmc-space-1) 0' }}>
                         <Badge label={badge.label} variant={badge.variant} />
                       </td>
-                      <td style={{ padding: '4px 0' }}>
+                      <td style={{ padding: 'var(--cmc-space-1) 0' }}>
                         {p.accuracyM != null ? `±${Math.round(p.accuracyM)}m` : '—'}
                       </td>
-                      <td style={{ padding: '4px 0' }}>{dist}</td>
+                      <td style={{ padding: 'var(--cmc-space-1) 0' }}>{dist}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           )}
-          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Button label="Đóng" variant="secondary" size="sm" onClick={() => setDetailTicket(null)} />
             <Button
               label="Từ chối"

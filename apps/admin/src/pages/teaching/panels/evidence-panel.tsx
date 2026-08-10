@@ -169,7 +169,7 @@ export function EvidencePanel({ sessionId }: EvidencePanelProps) {
             type="supporting"
             size="xsm"
             weight="semibold"
-            style={{ textTransform: 'uppercase', marginBottom: 4 }}
+            style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}
           >
             Tóm tắt buổi học
           </Text>
@@ -183,7 +183,7 @@ export function EvidencePanel({ sessionId }: EvidencePanelProps) {
             isDisabled={published}
           />
           {saved && !published ? (
-            <HStack gap={1} align="center" style={{ marginTop: 4 }}>
+            <HStack gap={1} align="center" style={{ marginTop: 'var(--cmc-space-1)' }}>
               <LineIcon name="check-circle" size={14} />
               <Text size="xsm" color="accent">
                 Đã lưu
@@ -198,12 +198,12 @@ export function EvidencePanel({ sessionId }: EvidencePanelProps) {
               type="supporting"
               size="xsm"
               weight="semibold"
-              style={{ textTransform: 'uppercase', marginBottom: 4 }}
+              style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}
             >
               Upload ảnh buổi học
             </Text>
             {uploadError ? (
-              <div style={{ marginBottom: 8 }}>
+              <div style={{ marginBottom: 'var(--cmc-space-2)' }}>
                 <Banner status="error" title="Lỗi upload ảnh" description={uploadError} />
               </div>
             ) : null}
@@ -236,7 +236,7 @@ export function EvidencePanel({ sessionId }: EvidencePanelProps) {
               type="supporting"
               size="xsm"
               weight="semibold"
-              style={{ textTransform: 'uppercase', marginBottom: 4 }}
+              style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}
             >
               Ảnh đã upload ({photos.length})
             </Text>

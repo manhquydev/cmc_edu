@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Banner, Button, Dialog, DialogHeader, HStack, Stack } from '@cmc/ui';
+import { Banner, Button, DateTimeField, Dialog, DialogHeader, HStack, Stack } from '@cmc/ui';
 import { StudentPicker } from '../../lib/student-picker.js';
 import type { PickedStudent } from '../../lib/student-picker.js';
 import { useParentMeetingActions } from './use-parent-meeting-actions.js';
@@ -61,40 +61,17 @@ export function ScheduleParentMeetingDialog({ opened, onClose }: { opened: boole
         {!scheduled && (
           <>
             <StudentPicker value={student} onChange={setStudent} />
-            <Stack gap={0.5}>
-              {/* Plain <label>, not Astryx `Text` — same fallback as
-                  schedule-test-dialog.tsx's datetime label. */}
-              <label htmlFor="meeting-datetime" style={{ fontSize: 13, fontWeight: 500, color: 'var(--cmc-text)' }}>
-                Thời gian họp
-              </label>
-              {/* @cmc/ui has no date/time picker primitive — native
-                  `datetime-local` input, same as schedule-test-dialog.tsx. */}
-              <input
-                id="meeting-datetime"
-                type="datetime-local"
-                value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                style={{
-                  padding: 'var(--cmc-space-2) 10px',
-                  border: '1px solid var(--cmc-border)',
-                  borderRadius: 'var(--cmc-radius-control)',
-                  fontSize: 14,
-                  fontFamily: 'inherit',
-                  color: 'var(--cmc-text)',
-                  background: 'var(--cmc-surface)',
-                }}
-              />
-            </Stack>
+            <DateTimeField label="Thời gian họp" value={scheduledAt} onChange={setScheduledAt} />
             {scheduleMutation.error && (
               // TODO(astryx-review): Text color enum has no error/danger slot —
               // plain <span> with CSS var per migration flag rule (see users.tsx).
-              <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
+              <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>
                 {scheduleMutation.error.message}
               </span>
             )}
           </>
         )}
-        <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+        <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
           {scheduled ? (
             <Button label="Đóng" variant="primary" onClick={close} />
           ) : (

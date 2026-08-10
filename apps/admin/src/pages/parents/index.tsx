@@ -291,11 +291,11 @@ function LinkRequestsTab({
             {approveMut.error && (
               // TODO(astryx-review): Text color enum has no error/danger slot —
               // plain <span> with CSS var per migration flag rule.
-              <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
+              <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>
                 {approveMut.error.message}
               </span>
             )}
-            <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+            <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
               <Button
                 label="Hủy"
                 variant="secondary"
@@ -611,11 +611,11 @@ export default function ParentListPage() {
             {updateEmailMut.error && (
               // TODO(astryx-review): Text color enum has no error/danger slot —
               // plain <span> with CSS var per migration flag rule.
-              <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
+              <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>
                 {updateEmailMut.error.message}
               </span>
             )}
-            <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+            <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
               <Button
                 label="Hủy"
                 variant="secondary"

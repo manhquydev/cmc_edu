@@ -55,22 +55,6 @@ function validate(values: FormState): FormErrors {
   return errors;
 }
 
-function useReceiptClassOptions(search: string) {
-  const { data, isLoading, error } = trpc.classBatch.list.useQuery({
-    page: 1,
-    pageSize: 100,
-    ...(search ? { search } : {}),
-  });
-  return {
-    options: (data?.items ?? []).map((batch) => ({
-      value: batch.id,
-      label: `${batch.code} — ${batch.program} (${new Date(batch.startDate).toLocaleDateString('vi-VN')})`,
-    })),
-    isLoading,
-    error: error?.message,
-  };
-}
-
 export default function ReceiptCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -136,6 +120,22 @@ export default function ReceiptCreatePage() {
     { enabled: phoneForDedup.length >= 8 },
   );
 
+  // S6 fix: search-aware now instead of a static pageSize:100 fetch — class
+  // #101+ was previously unreachable in this money-screen picker.
+  // AsyncEntityCombobox renders the error banner itself (ported from an
+  // independently-built version of this same component).
+  function useClassBatchOptionsWithDate(search: string) {
+    const { data, isLoading, error } = trpc.classBatch.list.useQuery({
+      page: 1,
+      pageSize: 100,
+      ...(search ? { search } : {}),
+    });
+    const options = (data?.items ?? []).map((b) => ({
+      value: b.id,
+      label: `${b.code} — ${b.program} (${new Date(b.startDate).toLocaleDateString('vi-VN')})`,
+    }));
+    return { options, isLoading, error: error?.message };
+  }
 
   const createMutation = trpc.finance.receiptCreate.useMutation({
     onSuccess: (res) => {
@@ -353,9 +353,10 @@ export default function ReceiptCreatePage() {
             label="Lớp học"
             placeholder="Chọn lớp học"
             isRequired
-            value={form.classBatchId || undefined}
+            value={form.classBatchId || null}
             onChange={(v) => handleField('classBatchId', v ?? '')}
-            useOptions={useReceiptClassOptions}
+            useOptions={useClassBatchOptionsWithDate}
+            pinnedLabel={(id) => `Lớp đã chọn (${id.slice(0, 8)}…)`}
             status={errors.classBatchId ? { type: 'error', message: errors.classBatchId } : undefined}
           />
 

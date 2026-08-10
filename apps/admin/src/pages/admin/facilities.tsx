@@ -135,7 +135,7 @@ function FacilitiesContent() {
           />
         }
         controlFooter={
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cmc-space-2)', width: '100%' }}>
             <BulkActionBar
               selectionCount={selectedIds.length}
               onClear={() => setSelectedIds([])}
@@ -208,9 +208,9 @@ function FacilitiesContent() {
             isRequired
           />
           {createMut.error && (
-            <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>{createMut.error.message}</span>
+            <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>{createMut.error.message}</span>
           )}
-          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Button
               label="Hủy"
               variant="secondary"
@@ -249,9 +249,9 @@ function FacilitiesContent() {
         <Stack gap={2} padding={4}>
           <TextInput label="Tên cơ sở" value={editName} onChange={setEditName} isRequired />
           {updateMut.error && (
-            <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>{updateMut.error.message}</span>
+            <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>{updateMut.error.message}</span>
           )}
-          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Button
               label="Hủy"
               variant="secondary"

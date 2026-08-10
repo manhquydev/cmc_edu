@@ -334,7 +334,7 @@ export default function OpportunityDetailPage() {
                 variant={isLost ? 'error' : stageVariant}
                 style={
                   !isLost && opp.stage !== 'O5_ENROLLED'
-                    ? { background: 'var(--cmc-brand)', color: '#fff' }
+                    ? { background: 'var(--cmc-brand)', color: 'var(--cmc-surface)' }
                     : undefined
                 }
               />
@@ -499,7 +499,7 @@ export default function OpportunityDetailPage() {
                         }}
                       />
                       {setNextActionMutation.error && (
-                        <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
+                        <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>
                           {setNextActionMutation.error.message}
                         </span>
                       )}
@@ -565,10 +565,10 @@ export default function OpportunityDetailPage() {
                       // plain <span> with CSS var per migration flag rule (see users.tsx).
                       <span
                         style={{
-                          fontSize: 13,
+                          fontSize: 'var(--cmc-font-size-data)',
                           color: 'var(--cmc-danger)',
                           display: 'block',
-                          marginTop: 8,
+                          marginTop: 'var(--cmc-space-2)',
                         }}
                       >
                         {assignMutation.error.message}
@@ -692,7 +692,7 @@ export default function OpportunityDetailPage() {
                         }}
                       />
                       <span
-                        style={{ fontSize: 14, fontWeight: isCurrent ? 600 : 400, color: stepColor }}
+                        style={{ fontSize: 'var(--cmc-fs-body)', fontWeight: isCurrent ? 600 : 400, color: stepColor }}
                       >
                         {STAGE_LABELS[stage]}
                       </span>
@@ -710,7 +710,7 @@ export default function OpportunityDetailPage() {
                         flexShrink: 0,
                       }}
                     />
-                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--cmc-danger)' }}>
+                    <span style={{ fontSize: 'var(--cmc-fs-body)', fontWeight: 600, color: 'var(--cmc-danger)' }}>
                       Đã đóng (Lost)
                     </span>
                   </HStack>

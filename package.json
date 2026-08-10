@@ -23,6 +23,8 @@
     "test:ui-frames": "node --test scripts/check-ui-frames.test.mjs",
     "check:ui-a11y-roles": "node scripts/check-ui-a11y-roles.mjs",
     "test:ui-a11y-roles": "node --test scripts/check-ui-a11y-roles.test.mjs",
+    "check:ui-ratchet": "node scripts/ui-ratchet.mjs",
+    "test:ui-ratchet": "node --test scripts/ui-ratchet.test.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

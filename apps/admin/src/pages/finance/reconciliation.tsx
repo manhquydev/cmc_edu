@@ -143,14 +143,14 @@ function FlagCard({ flag, canReview, onDismiss, onAction, isMutating }: FlagCard
                 the prior anchor's full-page-navigation behavior exactly. */}
             <a
               href={`/finance/${flag.receiptId}?flag=${flag.id}`}
-              style={{ fontSize: 12, color: 'var(--cmc-brand)' }}
+              style={{ fontSize: 'var(--cmc-fs-meta)', color: 'var(--cmc-brand)' }}
             >
               …{flag.receiptId.slice(-8)}
             </a>
           </HStack>
         )}
 
-        <div style={{ marginTop: 4 }}>
+        <div style={{ marginTop: 'var(--cmc-space-1)' }}>
           {canReview ? (
             <HStack gap={2} justify="end">
               <Button

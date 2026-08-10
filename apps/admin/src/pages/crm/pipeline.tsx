@@ -167,7 +167,7 @@ function OpportunityKanbanCard({
         footer={opp.assignedTo ? opp.assignedTo.fullName : 'Chưa giao'}
         colorIndex={colorIndex}
       >
-        <Stack gap={1} style={{ marginTop: 8 }}>
+        <Stack gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
           {opp.assignedTo ? (
             <div
               title={opp.assignedTo.fullName}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Dialog, DialogHeader, HStack, Stack } from '@cmc/ui';
+import { Button, DateTimeField, Dialog, DialogHeader, HStack, Stack } from '@cmc/ui';
 import { useTestAppointmentActions } from './use-test-appointment-actions.js';
 
 /**
@@ -56,44 +56,15 @@ export function ScheduleTestDialog({
         }}
       />
       <Stack gap={2} padding={4}>
-        <Stack gap={0.5}>
-          {/* Plain <label>, not Astryx `Text` — Text has no verified
-              `as`/`htmlFor` prop surface for label semantics, so a native
-              element is used here (same class of fallback as the TODO'd
-              plain `<span>` error text below). */}
-          <label htmlFor="schedule-test-datetime" style={{ fontSize: 13, fontWeight: 500, color: 'var(--cmc-text)' }}>
-            Thời gian test
-          </label>
-          {/*
-            @cmc/ui has no date/time picker primitive (checked packages/ui's
-            index.ts + primitives.ts barrel — only NumberInput/TextInput exist
-            among inputs) — a native `datetime-local` input is used instead,
-            styled minimally to match the surrounding form fields.
-          */}
-          <input
-            id="schedule-test-datetime"
-            type="datetime-local"
-            value={scheduledAt}
-            onChange={(e) => setScheduledAt(e.target.value)}
-            style={{
-              padding: 'var(--cmc-space-2) 10px',
-              border: '1px solid var(--cmc-border)',
-              borderRadius: 'var(--cmc-radius-control)',
-              fontSize: 14,
-              fontFamily: 'inherit',
-              color: 'var(--cmc-text)',
-              background: 'var(--cmc-surface)',
-            }}
-          />
-        </Stack>
+        <DateTimeField label="Thời gian test" value={scheduledAt} onChange={setScheduledAt} />
         {scheduleMutation.error && (
           // TODO(astryx-review): Text color enum has no error/danger slot —
           // plain <span> with CSS var per migration flag rule (see users.tsx).
-          <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
+          <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>
             {scheduleMutation.error.message}
           </span>
         )}
-        <HStack justify="end" gap={1} style={{ marginTop: 8, flexWrap: 'wrap' }}>
+        <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)', flexWrap: 'wrap' }}>
           <Button label="Hủy" variant="secondary" onClick={close} isDisabled={scheduleMutation.isPending} />
           <Button
             label="Đặt lịch"

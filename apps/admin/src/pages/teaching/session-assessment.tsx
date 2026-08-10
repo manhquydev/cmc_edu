@@ -16,6 +16,7 @@
 
 import { useState } from 'react';
 import {
+  AsyncEntityCombobox,
   Badge,
   Banner,
   Button,
@@ -29,6 +30,7 @@ import {
   TextArea,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { useClassBatchOptions } from '../../lib/use-class-batch-options.js';
 
 interface RosterEntry {
   studentId: string;
@@ -42,10 +44,6 @@ export default function SessionAssessmentPage() {
   const [confirmAllError, setConfirmAllError] = useState<string | null>(null);
   const [confirmAllBusy, setConfirmAllBusy] = useState(false);
 
-  const { data: classData, isLoading: classLoading } = trpc.classBatch.list.useQuery({
-    page: 1,
-    pageSize: 100,
-  });
   const { data: sessions, isLoading: sessionsLoading } = trpc.classSession.list.useQuery(
     { classBatchId: classBatchId! },
     { enabled: Boolean(classBatchId) },
@@ -78,10 +76,6 @@ export default function SessionAssessmentPage() {
     onSuccess: () => void refetchAssessments(),
   });
 
-  const classOptions = (classData?.items ?? []).map((c) => ({
-    value: c.id,
-    label: `${c.code} — ${c.program}`,
-  }));
   const sessionOptions = (sessions ?? []).map((s) => ({
     value: s.id,
     label: `${new Date(s.sessionDate).toLocaleDateString('vi-VN')} | ${s.status}`,
@@ -167,29 +161,24 @@ export default function SessionAssessmentPage() {
       <Stack gap={4} style={{ maxWidth: 720 }}>
         {/* Step 1: pick class */}
         <div>
-          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
+          <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>
             1. Chọn lớp
           </Text>
-          {classLoading ? (
-            <Skeleton height={36} radius={1} />
-          ) : (
-            <Selector
-              label="Chọn lớp học"
-              isLabelHidden
-              placeholder="Chọn lớp học"
-              options={classOptions}
-              value={classBatchId ?? undefined}
-              onChange={(v) => { setClassBatchId(v ?? null); resetSession(); }}
-              hasSearch
-              hasClear={false}
-            />
-          )}
+          <AsyncEntityCombobox
+            label="Chọn lớp học"
+            isLabelHidden
+            placeholder="Chọn lớp học"
+            value={classBatchId ?? null}
+            onChange={(v) => { setClassBatchId(v); resetSession(); }}
+            useOptions={useClassBatchOptions}
+            pinnedLabel={(id) => `Lớp đã chọn (${id.slice(0, 8)}…)`}
+          />
         </div>
 
         {/* Step 2: pick session */}
         {classBatchId && (
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>
               2. Chọn buổi học
             </Text>
             {sessionsLoading ? (
@@ -211,12 +200,12 @@ export default function SessionAssessmentPage() {
         {/* Step 3: roster + per-student assessment */}
         {sessionId && (
           <div>
-            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>
+            <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 'var(--cmc-space-1)' }}>
               3. Nhận xét học sinh có mặt
             </Text>
 
             {!rosterLoading && !assessLoading && !evidenceLoading && (
-              <HStack gap={1} align="center" style={{ marginBottom: 8, flexWrap: 'wrap' }}>
+              <HStack gap={1} align="center" style={{ marginBottom: 'var(--cmc-space-2)', flexWrap: 'wrap' }}>
                 <Badge
                   label={hasPresentAttendance ? 'Điểm danh ✓' : 'Điểm danh ✗'}
                   variant={hasPresentAttendance ? 'success' : 'neutral'}

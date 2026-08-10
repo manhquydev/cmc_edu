@@ -22,7 +22,7 @@ describe('console.css scope + token surface', () => {
   it('exposes remapped class names (console- prefix, not odoo-lab-)', () => {
     expect(css.includes('.console-navbar')).toBe(true);
     expect(css.includes('.console-kanban-board')).toBe(true);
-    expect(css.includes('.console-statusbar-step')).toBe(true);
+    expect(css.includes('.console-steps-btn')).toBe(true);
     expect(css.includes('.odoo-lab-')).toBe(false);
   });
 

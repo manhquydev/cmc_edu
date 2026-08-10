@@ -94,9 +94,14 @@ async function selectFromDropdown(label: string | RegExp, optionName: string | R
 // finance/receipt-create.test.tsx's `/^Họ tên học viên/` pattern. The weekday
 // Selector and slot time TextInputs are NOT marked isRequired, so those keep
 // exact-string matches.
+//
+// S6 fix: the course picker is now AsyncEntityCombobox, which renders a
+// second labelled control — a "Khoá học — tìm kiếm" search TextInput
+// alongside the "Khoá học ∙ Required" Selector. A bare `/^Khoá học/` prefix
+// matches both; the negative lookahead excludes the search input specifically.
 async function fillValidForm() {
   await openCreateDialog();
-  await selectFromDropdown(/^Khoá học/, /UCREA Cấp 1/);
+  await selectFromDropdown(/^Khoá học(?!\s*—)/, /UCREA Cấp 1/);
   fireEvent.change(screen.getByLabelText(/^Ngày bắt đầu \(YYYY-MM-DD\)/), { target: { value: '2026-08-01' } });
   fireEvent.change(screen.getByLabelText(/^Ngày kết thúc \(YYYY-MM-DD\)/), { target: { value: '2026-12-01' } });
   await selectFromDropdown('Thứ', 'Thứ 2');
@@ -132,13 +137,33 @@ describe('ClassListPage — Tạo lớp', () => {
     });
   });
 
-  it('queries course.list and user.pickList({role: "giao_vien"}) to populate dropdowns instead of accepting a pasted UUID', async () => {
+  it('queries course.list({page:1, pageSize:100}) and user.pickList({role: "giao_vien"}) to populate dropdowns instead of accepting a pasted UUID', async () => {
     renderListPage();
     await openCreateDialog();
-    expect(courseListSpy).toHaveBeenCalledWith({ pageSize: 100 });
+    expect(courseListSpy).toHaveBeenCalledWith({ page: 1, pageSize: 100 });
     expect(pickListSpy).toHaveBeenCalledWith({ role: 'giao_vien' });
     // No free-text UUID field for course/teacher — only comboboxes.
     expect(screen.queryByLabelText(/Course ID|courseId/i)).not.toBeInTheDocument();
+  });
+
+  // S6 fix: course.list used to be a static pageSize:100 fetch with no search
+  // affordance — course #101+ was unreachable in this create dialog.
+  it('debounces the course search box into course.list({..., search})', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderListPage();
+      await openCreateDialog();
+      courseListSpy.mockClear();
+      fireEvent.change(screen.getByLabelText('Khoá học — tìm kiếm'), {
+        target: { value: 'UCREA' },
+      });
+      await vi.advanceTimersByTimeAsync(350);
+      await waitFor(() => {
+        expect(courseListSpy).toHaveBeenCalledWith({ page: 1, pageSize: 100, search: 'UCREA' });
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('keeps "Tạo lớp" disabled until course, dates and a valid weekly slot are filled', async () => {

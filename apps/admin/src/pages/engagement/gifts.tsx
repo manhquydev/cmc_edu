@@ -155,7 +155,7 @@ export default function GiftsPage() {
           />
         }
         controlFooter={
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cmc-space-2)', width: '100%' }}>
             <BulkActionBar
               selectionCount={selectedIds.length}
               onClear={() => setSelectedIds([])}
@@ -246,7 +246,7 @@ export default function GiftsPage() {
             onChange={(v) => setForm((f) => ({ ...f, stock: v }))}
           />
           {upsertMut.error && <Banner status="error" title={upsertMut.error.message} />}
-          <HStack justify="end" gap={1} style={{ marginTop: 4 }}>
+          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-1)' }}>
             <Button
               label="Hủy"
               variant="secondary"

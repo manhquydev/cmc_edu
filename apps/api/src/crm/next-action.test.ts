@@ -197,4 +197,22 @@ describe('crm next-action (P4)', () => {
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
+
+  it('rejects clearing next action on a lost opportunity (mirrors setNextAction guard)', async () => {
+    const opp = await sale.crm.opportunityCreate({
+      contactName: 'Clear On Lost',
+      phone: nextPhone(),
+    });
+    await sale.crm.opportunitySetNextAction({
+      opportunityId: opp.id,
+      nextActionAt: new Date(Date.now() + 60_000).toISOString(),
+      nextActionNote: 'Before lost',
+    });
+    await sale.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O2_CONTACTED' });
+    await sale.crm.opportunityMarkLost({ opportunityId: opp.id, lostReason: 'other' });
+
+    await expect(
+      sale.crm.opportunityClearNextAction({ opportunityId: opp.id }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
 });

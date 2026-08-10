@@ -194,6 +194,31 @@ export const crmRouter = router({
           throw badRequest('O5_ENROLLED can only be reached via finance.receiptApprove, not opportunityAdvance.');
         }
 
+        // Row-level rule (mirrors opportunityAssign, ~line 313): a non-manager
+        // `sale` may only advance an opportunity that is unassigned or already
+        // theirs — the registry can() check above is role-only and would
+        // otherwise let any sale rep advance a colleague's assigned lead.
+        // Not folded into `advanceOpportunityOneStep`: that helper is shared
+        // with the entrance-test appointment lifecycle door, which has no
+        // per-caller ownership notion.
+        const isManager = ctx.subject.roles.includes('giam_doc_kinh_doanh');
+        if (!isManager) {
+          const opp = await tx.opportunity.findFirst({
+            where: { id: input.opportunityId, facilityId },
+            select: { assignedToId: true },
+          });
+          if (!opp) throw notFound('Opportunity not found.');
+          if (opp.assignedToId !== null) {
+            const self = await tx.appUser.findFirst({
+              where: { userId: ctx.subject.userId, facilityId },
+              select: { id: true },
+            });
+            if (opp.assignedToId !== (self?.id ?? null)) {
+              throw forbidden('Cơ hội này đã thuộc về người khác.');
+            }
+          }
+        }
+
         // Shared one-step advance (locks FOR UPDATE, rejects lost + non-adjacent
         // targets). The tRPC audit middleware records this call automatically.
         const { opportunity } = await advanceOpportunityOneStep(
@@ -218,8 +243,10 @@ export const crmRouter = router({
         // markLost could read a pre-O5 snapshot and stamp lostReason+closedAt
         // onto a row that approve just enrolled, producing a corrupt
         // "O5 + lostReason" record.
-        const lockedRows = await tx.$queryRaw<{ id: string; stage: string; closedAt: Date | null }[]>`
-          SELECT "id", "stage", "closedAt" FROM "Opportunity"
+        const lockedRows = await tx.$queryRaw<
+          { id: string; stage: string; closedAt: Date | null; assignedToId: string | null }[]
+        >`
+          SELECT "id", "stage", "closedAt", "assignedToId" FROM "Opportunity"
           WHERE "id" = ${input.opportunityId} AND "facilityId" = ${facilityId}
           FOR UPDATE
         `;
@@ -227,6 +254,20 @@ export const crmRouter = router({
         // Out-of-facility ids look identical to non-existent ones (RLS — TL11 §2).
         if (!opportunity) {
           throw notFound('Opportunity not found.');
+        }
+
+        // Row-level rule (mirrors opportunityAssign, ~line 313 / opportunityAdvance
+        // above): a non-manager `sale` may only mark lost an opportunity that
+        // is unassigned or already theirs.
+        const isManager = ctx.subject.roles.includes('giam_doc_kinh_doanh');
+        if (!isManager && opportunity.assignedToId !== null) {
+          const self = await tx.appUser.findFirst({
+            where: { userId: ctx.subject.userId, facilityId },
+            select: { id: true },
+          });
+          if (opportunity.assignedToId !== (self?.id ?? null)) {
+            throw forbidden('Cơ hội này đã thuộc về người khác.');
+          }
         }
 
         if (input.reopen) {
@@ -519,9 +560,14 @@ export const crmRouter = router({
       return withFacility(ctx.db, facilityId, async (tx) => {
         const opp = await tx.opportunity.findFirst({
           where: { id: input.opportunityId, facilityId },
-          select: { id: true },
+          select: { id: true, stage: true, closedAt: true },
         });
         if (!opp) throw notFound('Opportunity not found.');
+        // Mirrors the sibling opportunitySetNextAction guard: an enrolled or
+        // lost opportunity has no active follow-up to clear.
+        if (opp.stage === 'O5_ENROLLED' || isOpportunityLost(opp)) {
+          throw badRequest('Không đặt việc trên cơ hội đã nhập học hoặc đã mất.');
+        }
         return tx.opportunity.update({
           where: { id: opp.id },
           data: { nextActionAt: null, nextActionNote: null },

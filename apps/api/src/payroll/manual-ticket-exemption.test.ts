@@ -127,7 +127,11 @@ beforeEach(async () => {
   );
   templateId = template.id;
 
-  const tier = await directorCaller().salaryTier.create({
+  // Created via super_admin (bypasses the caller-vs-tier branch-scope check,
+  // R2-6 post-audit fix) — directorCaller is giam_doc_kinh_doanh and would be
+  // out-of-branch for this GIAO_VIEN tier; this fixture isn't exercising that
+  // boundary.
+  const tier = await superAdminCaller().salaryTier.create({
     name: 'Bậc GV Test',
     type: 'GIAO_VIEN',
     baseSalary: 10_000_000,

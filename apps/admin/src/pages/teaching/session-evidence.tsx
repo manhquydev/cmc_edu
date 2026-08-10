@@ -1,14 +1,27 @@
 // Teacher: write class summary, upload photos, publish to parents.
 // Flow: pick lớp → pick buổi → upsert evidence → add photos → publish.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Badge, Banner, Button, ConfirmDialog, FormPage, Grid, HStack, LineIcon, PageHeader, Selector, Skeleton, Stack, Text, TextArea, useToast } from '@cmc/ui';
+import { AsyncEntityCombobox, Badge, Banner, Button, ConfirmDialog, FormPage, Grid, HStack, LineIcon, PageHeader, Selector, Skeleton, Stack, Text, TextArea, useToast } from '@cmc/ui';
 import { UUID_RE, readUuidParam } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
 
 const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').trim();
+
+function useEvidenceClassOptions(search: string) {
+  const { data, isLoading, error } = trpc.classBatch.list.useQuery({
+    page: 1,
+    pageSize: 100,
+    ...(search ? { search } : {}),
+  });
+  return {
+    options: (data?.items ?? []).map((batch) => ({ value: batch.id, label: `${batch.code} — ${batch.program}` })),
+    isLoading,
+    error: error?.message,
+  };
+}
 
 function photoUrl(blobRef: string): string {
   if (blobRef.startsWith('http')) return blobRef;
@@ -28,9 +41,6 @@ export default function SessionEvidencePage() {
   const utils = trpc.useUtils();
 
   // --- class list ---
-  const { data: classData, isLoading: classLoading } = trpc.classBatch.list.useQuery({
-    page: 1, pageSize: 100,
-  });
 
   // --- session list ---
   const { data: sessions, isLoading: sessionsLoading } = trpc.classSession.list.useQuery(
@@ -43,9 +53,6 @@ export default function SessionEvidencePage() {
   const addPhotoMut = trpc.sessionEvidence.addPhoto.useMutation();
   const publishMut = trpc.sessionEvidence.publish.useMutation();
 
-  // Load existing evidence: use a raw query via separate component or inline hack.
-  // Simplified: we upsert on save (idempotent).
-
   const [evidenceId, setEvidenceId] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Array<{ id: string; blobRef: string }>>([]);
   const [published, setPublished] = useState(false);
@@ -53,10 +60,23 @@ export default function SessionEvidencePage() {
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const { success: toastSuccess } = useToast();
 
-  const classOptions = (classData?.items ?? []).map((c) => ({
-    value: c.id,
-    label: `${c.code} — ${c.program}`,
-  }));
+  // Load existing evidence for the selected session (a session may already
+  // have published evidence from a prior visit) — without this, reopening
+  // one showed a blank unpublished form and re-saving risked overwriting the
+  // published summary/photos.
+  const existingEvidenceQuery = trpc.sessionEvidence.getBySession.useQuery(
+    { classSessionId: sessionId! },
+    { enabled: Boolean(sessionId) },
+  );
+  useEffect(() => {
+    if (sessionId && existingEvidenceQuery.data) {
+      setEvidenceId(existingEvidenceQuery.data.id);
+      setSummary(existingEvidenceQuery.data.summary);
+      setPhotos(existingEvidenceQuery.data.photos);
+      setPublished(existingEvidenceQuery.data.status === 'published');
+    }
+  }, [sessionId, existingEvidenceQuery.data]);
+
 
   // TODO(astryx-review): per-option disabled state (cancelled sessions should
   // be unselectable) has no confirmed Astryx SelectorOption field — `isDisabled`
@@ -210,25 +230,14 @@ export default function SessionEvidencePage() {
         {/* Step 1: pick class */}
         <div>
           <Text type="supporting" size="xsm" weight="semibold" style={{ textTransform: 'uppercase', marginBottom: 4 }}>1. Chọn lớp</Text>
-          {/* TODO(astryx-review): `label` is required by Selector's props
-              but the step heading above already names the field — passed
-              as empty string to avoid a duplicate visible label (same
-              pattern applied to the session Selector and summary TextArea
-              below). */}
-          {classLoading ? (
-            <Skeleton height={36} radius={1} />
-          ) : (
-            <Selector
-              label="Chọn lớp học"
-              isLabelHidden
-              placeholder="Chọn lớp học"
-              options={classOptions}
-              value={classBatchId ?? undefined}
-              onChange={(v) => selectClass(v ?? null)}
-              hasSearch
-              hasClear={false}
-            />
-          )}
+          <AsyncEntityCombobox
+            label="Chọn lớp học"
+            isLabelHidden
+            placeholder="Chọn lớp học"
+            value={classBatchId ?? undefined}
+            onChange={(v) => selectClass(v ?? null)}
+            useOptions={useEvidenceClassOptions}
+          />
         </div>
 
         {/* Step 2: pick session */}

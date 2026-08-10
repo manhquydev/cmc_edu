@@ -216,35 +216,44 @@ export const sessionEvidenceRouter = router({
   // -------------------------------------------------------------------------
   getBySession: requirePermission('sessionEvidence', 'upsert')
     .input(getBySessionInput)
-    .query(async ({ ctx, input }): Promise<{ status: string; photos: EvidencePhotoDto[] } | null> => {
-      const { facilityId } = scoped(ctx);
+    .query(
+      async ({
+        ctx,
+        input,
+      }): Promise<{ id: string; summary: string; status: string; photos: EvidencePhotoDto[] } | null> => {
+        const { facilityId } = scoped(ctx);
 
-      return withFacility(ctx.db, facilityId, async (tx) => {
-        const session = await tx.classSession.findFirst({
-          where: { id: input.classSessionId, facilityId },
-          select: { id: true },
+        return withFacility(ctx.db, facilityId, async (tx) => {
+          const session = await tx.classSession.findFirst({
+            where: { id: input.classSessionId, facilityId },
+            select: { id: true },
+          });
+          if (!session) {
+            throw notFound('ClassSession not found in this facility.');
+          }
+          // Post-implementation hardening (M1): this read had no ownership
+          // check — a teacher could read any other teacher's session evidence
+          // (photos + status). Every sibling mutation (upsert/addPhoto/publish)
+          // already calls this same guard.
+          await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, input.classSessionId);
+
+          const evidence = await tx.sessionEvidence.findUnique({
+            where: { classSessionId: input.classSessionId },
+            include: { photos: { orderBy: { createdAt: 'asc' } } },
+          });
+          if (!evidence) return null;
+
+          return {
+            id: evidence.id,
+            // Not internalNote: this is the same permission gate as upsert,
+            // but the frontend only needs summary to re-hydrate its edit form.
+            summary: evidence.summary,
+            status: evidence.status,
+            photos: evidence.photos.map((p) => ({ id: p.id, blobRef: p.blobRef, createdAt: p.createdAt })),
+          };
         });
-        if (!session) {
-          throw notFound('ClassSession not found in this facility.');
-        }
-        // Post-implementation hardening (M1): this read had no ownership
-        // check — a teacher could read any other teacher's session evidence
-        // (photos + status). Every sibling mutation (upsert/addPhoto/publish)
-        // already calls this same guard.
-        await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, input.classSessionId);
-
-        const evidence = await tx.sessionEvidence.findUnique({
-          where: { classSessionId: input.classSessionId },
-          include: { photos: { orderBy: { createdAt: 'asc' } } },
-        });
-        if (!evidence) return null;
-
-        return {
-          status: evidence.status,
-          photos: evidence.photos.map((p) => ({ id: p.id, blobRef: p.blobRef, createdAt: p.createdAt })),
-        };
-      });
-    }),
+      },
+    ),
 
   // -------------------------------------------------------------------------
   // sessionEvidence.addPhoto — giao_vien

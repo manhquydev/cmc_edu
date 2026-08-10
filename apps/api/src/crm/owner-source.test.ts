@@ -98,6 +98,45 @@ describe('crm opportunity owner + source (phase-10)', () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
+  it('a sale CANNOT advance a colleague-owned opportunity', async () => {
+    const opp = await saleOther.crm.opportunityCreate({ contactName: 'Advance Steal', phone: nextPhone() });
+    await expect(
+      saleOwner.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O2_CONTACTED' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('a sale CAN advance their own opportunity', async () => {
+    const opp = await saleOwner.crm.opportunityCreate({ contactName: 'Advance Own', phone: nextPhone() });
+    const advanced = await saleOwner.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O2_CONTACTED' });
+    expect(advanced.stage).toBe('O2_CONTACTED');
+  });
+
+  it('a sale CAN advance an unassigned opportunity', async () => {
+    const opp = await manager.crm.opportunityCreate({ contactName: 'Advance Unassigned', phone: nextPhone() });
+    const advanced = await saleOwner.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O2_CONTACTED' });
+    expect(advanced.stage).toBe('O2_CONTACTED');
+  });
+
+  it('a GĐ KD can advance any opportunity regardless of owner', async () => {
+    const opp = await saleOther.crm.opportunityCreate({ contactName: 'Advance Manager', phone: nextPhone() });
+    const advanced = await manager.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O2_CONTACTED' });
+    expect(advanced.stage).toBe('O2_CONTACTED');
+  });
+
+  it('a sale CANNOT mark lost a colleague-owned opportunity', async () => {
+    const opp = await saleOther.crm.opportunityCreate({ contactName: 'MarkLost Steal', phone: nextPhone() });
+    await expect(
+      saleOwner.crm.opportunityMarkLost({ opportunityId: opp.id, lostReason: 'no_response' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('a sale CAN mark lost their own opportunity', async () => {
+    const opp = await saleOwner.crm.opportunityCreate({ contactName: 'MarkLost Own', phone: nextPhone() });
+    await expect(
+      saleOwner.crm.opportunityMarkLost({ opportunityId: opp.id, lostReason: 'no_response' }),
+    ).resolves.toMatchObject({ lostReason: 'no_response' });
+  });
+
   it('a GĐ KD can (re)assign a lead to any sale, and can unassign', async () => {
     const opp = await saleOwner.crm.opportunityCreate({ contactName: 'Reassign Me', phone: nextPhone() });
     const reassigned = await manager.crm.opportunityAssign({ opportunityId: opp.id, assigneeUserId: 'sale-other' });

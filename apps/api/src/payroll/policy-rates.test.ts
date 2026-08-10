@@ -94,7 +94,10 @@ beforeEach(async () => {
     }),
   );
 
-  const tier = await caller(gdkdACtx()).salaryTier.create({
+  // Created + assigned via super_admin (bypasses the caller-vs-tier
+  // branch-scope check, R2-6 post-audit fix) — gdkdACtx is giam_doc_kinh_doanh
+  // and would be out-of-branch for a GIAO_VIEN tier.
+  const tier = await caller(superAdminACtx()).salaryTier.create({
     name: 'Bậc GV Test',
     type: 'GIAO_VIEN',
     baseSalary: 10_000_000,
@@ -102,9 +105,6 @@ beforeEach(async () => {
     requiredShifts: 20,
     requiredMetric: 120,
   });
-  // GIAO_VIEN tier assigned via super_admin (bypasses the caller-vs-tier
-  // branch-scope check, R2-6 post-audit fix) — gdkdACtx is giam_doc_kinh_doanh
-  // and would be out-of-branch for a GIAO_VIEN tier.
   await caller(superAdminACtx()).compensation.assignTier({ appUserId: employeeAppUserId, tierId: tier.id });
 });
 

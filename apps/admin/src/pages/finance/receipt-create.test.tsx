@@ -152,15 +152,29 @@ describe('ReceiptCreatePage', () => {
     expect(screen.getByDisplayValue('a@example.com')).toBeInTheDocument();
   });
 
-  it('queries classBatch.list with the unchanged {pageSize: 100} input', () => {
+  it('queries classBatch.list with a searchable first page for the class picker', () => {
     renderWithProviders(<ReceiptCreatePage />);
-    expect(classBatchSpy).toHaveBeenCalledWith({ pageSize: 100 });
+    expect(classBatchSpy).toHaveBeenCalledWith({ page: 1, pageSize: 100 });
   });
 
   it('does not call finance.receiptCreate.mutate when required fields are missing', () => {
     renderWithProviders(<ReceiptCreatePage />);
     submitForm();
     expect(createMutate).not.toHaveBeenCalled();
+  });
+
+  it('shows the classBatchId validation error when submitting without a class batch (finding: missing status prop)', () => {
+    renderWithProviders(<ReceiptCreatePage />);
+    fireEvent.change(screen.getByLabelText(/^Họ tên học viên/), { target: { value: 'Trần Thị B' } });
+    fireEvent.change(screen.getByLabelText(/^SĐT phụ huynh/), { target: { value: '0987654321' } });
+    fireEvent.change(screen.getByLabelText(/^Email phụ huynh/), { target: { value: 'ph@example.com' } });
+    fireEvent.change(screen.getByLabelText(/^Học phí/), { target: { value: '5000000' } });
+    // Deliberately skip selectClassBatch() — classBatchId stays empty.
+
+    submitForm();
+
+    expect(createMutate).not.toHaveBeenCalled();
+    expect(screen.getByText('Vui lòng chọn lớp học')).toBeInTheDocument();
   });
 
   it('submits finance.receiptCreate.mutate with a byte-identical payload (no opportunityId)', async () => {

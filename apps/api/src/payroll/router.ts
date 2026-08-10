@@ -131,6 +131,22 @@ const myInput = z.object({
 // Compensation sub-router — tier assignment (upsertRate REMOVED, R3-4)
 // ---------------------------------------------------------------------------
 
+/**
+ * Branch-scope (R2-6): a director may only touch salary tiers matching their
+ * own branch — GĐKD↔KINH_DOANH, GĐĐT↔GIAO_VIEN; super_admin bypasses (any
+ * tier). Shared by assignTier and salaryTierRouter.create/update so the rule
+ * can't drift between the three doors that write a tier's `type`.
+ */
+function assertSalaryTierBranchScope(roles: readonly string[], tierType: string, action: string): void {
+  if (roles.includes('super_admin')) return;
+  const isGdkd = roles.includes('giam_doc_kinh_doanh');
+  const isGddt = roles.includes('giam_doc_dao_tao');
+  const allowed = (isGdkd && tierType === 'KINH_DOANH') || (isGddt && tierType === 'GIAO_VIEN');
+  if (!allowed) {
+    throw forbidden(`Director branch scope: cannot ${action} a ${tierType} salary tier outside your scope.`);
+  }
+}
+
 export const compensationRouter = router({
   assignTier: requirePermission('salaryTier', 'manage')
     .input(assignTierInput)
@@ -150,20 +166,7 @@ export const compensationRouter = router({
         });
         if (!tier) throw notFound('SalaryTier not found in this facility.');
 
-        // Branch-scope (R2-6): caller's director ROLE must match the
-        // tier's `type` — GĐKD may only assign KINH_DOANH tiers, GĐĐT only
-        // GIAO_VIEN tiers; super_admin bypasses (any tier).
-        if (!ctx.subject!.roles.includes('super_admin')) {
-          const isGdkd = ctx.subject!.roles.includes('giam_doc_kinh_doanh');
-          const isGddt = ctx.subject!.roles.includes('giam_doc_dao_tao');
-          const allowed =
-            (isGdkd && tier.type === 'KINH_DOANH') || (isGddt && tier.type === 'GIAO_VIEN');
-          if (!allowed) {
-            throw forbidden(
-              `Director branch scope: cannot assign a ${tier.type} salary tier outside your scope.`,
-            );
-          }
-        }
+        assertSalaryTierBranchScope(ctx.subject!.roles, tier.type, 'assign');
 
         // Defense-in-depth: tier.type must still match the target's own
         // role (kept even though the branch-scope check above already
@@ -244,6 +247,8 @@ export const salaryTierRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
       return withFacility(ctx.db, facilityId, async (tx) => {
+        assertSalaryTierBranchScope(ctx.subject!.roles, input.type, 'create');
+
         const caller = await tx.appUser.findFirst({
           where: { userId: ctx.subject!.userId, facilityId },
         });
@@ -271,6 +276,10 @@ export const salaryTierRouter = router({
           where: { id: input.id, facilityId },
         });
         if (!existing) throw notFound('SalaryTier not found in this facility.');
+
+        // Effective type post-update: guards both "editing a tier outside my
+        // branch" and "moving a tier I do own into the other branch's type".
+        assertSalaryTierBranchScope(ctx.subject!.roles, input.type ?? existing.type, 'update');
 
         const caller = await tx.appUser.findFirst({
           where: { userId: ctx.subject!.userId, facilityId },

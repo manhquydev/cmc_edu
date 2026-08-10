@@ -28,8 +28,8 @@ async function seedApprovedReceipt(opts: {
   netAmount?: number;
   createdById?: string;
   approvedById?: string;
-  /** If true, backtracks updatedAt by 2 hours (simulates old approval). */
-  backdateUpdatedAt?: boolean;
+  /** If true, backdates approvedAt by 2 hours (simulates an old approval). */
+  backdateApprovedAt?: boolean;
 }): Promise<{ id: string }> {
   const code = `TST-${randomUUID().replace(/-/g, '').slice(0, 10)}`;
   const receipt = await testDbBypass((tx) =>
@@ -39,6 +39,7 @@ async function seedApprovedReceipt(opts: {
         code,
         netAmount: opts.netAmount ?? 5_000_000,
         status: 'approved',
+        approvedAt: new Date(),
         parentPhone: `0${Math.floor(Math.random() * 900_000_000 + 100_000_000)}`,
         studentName: `Test Student ${code}`,
         createdById: opts.createdById ?? 'creator-1',
@@ -48,13 +49,13 @@ async function seedApprovedReceipt(opts: {
     }),
   );
 
-  if (opts.backdateUpdatedAt) {
-    // `@updatedAt` is Prisma-managed — backdate via raw SQL for the
-    // missing_provisioning rule test (which uses `updatedAt < cutoff`).
+  if (opts.backdateApprovedAt) {
+    // Backdate via raw SQL for the missing_provisioning rule test (which
+    // uses `approvedAt < cutoff`).
     await testDbBypass(async (tx) => {
       await tx.$executeRaw`
         UPDATE "Receipt"
-        SET "updatedAt" = now() - interval '2 hours'
+        SET "approvedAt" = now() - interval '2 hours'
         WHERE "id" = ${receipt.id}
       `;
     });
@@ -260,7 +261,7 @@ describe('reconcile-finance-flags worker', () => {
         netAmount: 5_000_000,
         createdById: 'creator-4',
         approvedById: 'approver-4',
-        backdateUpdatedAt: true,
+        backdateApprovedAt: true,
       });
       // No Student.createdByReceiptId = receipt.id is seeded → should flag.
 
@@ -277,7 +278,7 @@ describe('reconcile-finance-flags worker', () => {
         netAmount: 5_000_000,
         createdById: 'creator-4b',
         approvedById: 'approver-4b',
-        backdateUpdatedAt: true,
+        backdateApprovedAt: true,
       });
       // Seed a Student whose createdByReceiptId points at this receipt.
       await testDbBypass((tx) =>
@@ -297,20 +298,45 @@ describe('reconcile-finance-flags worker', () => {
       expect(count).toBe(0);
     });
 
-    it('does NOT flag a recently-approved receipt (updatedAt < 1h ago)', async () => {
-      // No backdateUpdatedAt — receipt was just created, updatedAt is now.
+    it('does NOT flag a recently-approved receipt (approvedAt < 1h ago)', async () => {
+      // No backdateApprovedAt — receipt was just created, approvedAt is now.
       const receipt = await seedApprovedReceipt({
         facilityId: facilityA.id,
         netAmount: 5_000_000,
         createdById: 'creator-4c',
         approvedById: 'approver-4c',
-        backdateUpdatedAt: false,
+        backdateApprovedAt: false,
       });
 
       await scanFacility(testDb(), facilityA.id);
 
       const count = await countOpenFlags(facilityA.id, receipt.id, 'missing_provisioning');
       expect(count).toBe(0);
+    });
+
+    it('still flags a stuck receipt after a later, unrelated touch bumps updatedAt', async () => {
+      // Regression for the updatedAt -> approvedAt fix: a second write to an
+      // already-approved receipt (e.g. finance.receiptApprove's own
+      // opportunity-link write) must not push the SLA cutoff later just
+      // because @updatedAt advanced.
+      const receipt = await seedApprovedReceipt({
+        facilityId: facilityA.id,
+        netAmount: 5_000_000,
+        createdById: 'creator-4d',
+        approvedById: 'approver-4d',
+        backdateApprovedAt: true,
+      });
+      // Unrelated later touch — advances @updatedAt to "now" while approvedAt
+      // stays 2 hours in the past.
+      await testDbBypass((tx) =>
+        tx.receipt.update({ where: { id: receipt.id }, data: { studentName: 'Edited Later' } }),
+      );
+
+      const result = await scanFacility(testDb(), facilityA.id);
+      expect(result.flagsCreated).toBeGreaterThanOrEqual(1);
+
+      const count = await countOpenFlags(facilityA.id, receipt.id, 'missing_provisioning');
+      expect(count).toBe(1);
     });
   });
 

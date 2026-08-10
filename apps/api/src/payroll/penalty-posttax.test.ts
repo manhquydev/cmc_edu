@@ -161,8 +161,11 @@ beforeEach(async () => {
     }),
   );
 
-  // Seed SalaryTier + assignTier (R3-4 — upsertRate is gone)
-  const tier = await directorCaller().salaryTier.create({
+  // Seed SalaryTier + assignTier (R3-4 — upsertRate is gone). Created via
+  // super_admin (bypasses the caller-vs-tier branch-scope check, R2-6
+  // post-audit fix) — directorCaller is giam_doc_kinh_doanh and would be
+  // out-of-branch for this GIAO_VIEN tier.
+  const tier = await superAdminCaller().salaryTier.create({
     name: 'Bậc GV Test',
     type: 'GIAO_VIEN',
     baseSalary: TIER_BASE_SALARY,
@@ -397,7 +400,7 @@ describe('payslip.assemble', () => {
       period: TEST_PERIOD,
     });
 
-    const biggerTier = await directorCaller().salaryTier.create({
+    const biggerTier = await superAdminCaller().salaryTier.create({
       name: 'Bậc GV Lớn',
       type: 'GIAO_VIEN',
       baseSalary: 20_000_000,

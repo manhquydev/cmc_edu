@@ -23,9 +23,13 @@ const SESSION_A = {
 
 const classBatchSpy = vi.fn();
 const classSessionSpy = vi.fn();
+const getBySessionSpy = vi.fn();
 const upsertMutateAsync = vi.fn();
 const addPhotoMutateAsync = vi.fn();
 const publishMutateAsync = vi.fn();
+
+/** Mutated per-test to simulate an existing (or absent) evidence record. */
+let existingEvidence: { id: string; summary: string; status: string; photos: Array<{ id: string; blobRef: string; createdAt: string }> } | null = null;
 
 vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
@@ -45,6 +49,11 @@ vi.mock('../../lib/trpc.js', async () => {
         classSessionSpy(input, opts?.enabled);
         if (!opts?.enabled) return queryResult(undefined);
         return queryResult([SESSION_A]);
+      },
+      'sessionEvidence.getBySession.useQuery': (input: unknown, opts: { enabled?: boolean } | undefined) => {
+        getBySessionSpy(input, opts?.enabled);
+        if (!opts?.enabled) return queryResult(undefined);
+        return queryResult(existingEvidence);
       },
       'sessionEvidence.upsert.useMutation': () =>
         mutationResult({ mutateAsync: upsertMutateAsync, isPending: false }),
@@ -68,7 +77,7 @@ async function pickClassAndSession() {
   // (unchanged from the pre-refactor component) — target the trigger button
   // by role/name rather than getByLabelText to avoid the resulting ambiguous
   // text match.
-  fireEvent.click(screen.getByRole('button', { name: 'Chọn lớp học' }));
+  fireEvent.click(screen.getByRole('combobox', { name: 'Chọn lớp học' }));
   fireEvent.click(await screen.findByRole('option', { name: /CB001/ }));
 
   // The session Selector omits `hasSearch` — its trigger renders with an
@@ -82,6 +91,8 @@ describe('SessionEvidencePage', () => {
   beforeEach(() => {
     classBatchSpy.mockClear();
     classSessionSpy.mockClear();
+    getBySessionSpy.mockClear();
+    existingEvidence = null;
     upsertMutateAsync.mockReset().mockResolvedValue({ id: 'ev-1', photos: [], status: 'draft' });
     addPhotoMutateAsync.mockReset().mockResolvedValue({ id: 'photo-1', blobRef: 'session-photo/abc123' });
     publishMutateAsync.mockReset().mockResolvedValue(undefined);
@@ -99,7 +110,7 @@ describe('SessionEvidencePage', () => {
 
   it('queries classSession.list({classBatchId}) once a class is selected', async () => {
     renderWithProviders(<SessionEvidencePage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Chọn lớp học' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Chọn lớp học' }));
     fireEvent.click(await screen.findByRole('option', { name: /CB001/ }));
     expect(classSessionSpy).toHaveBeenCalledWith({ classBatchId: CLASS_A.id }, true);
   });
@@ -110,6 +121,35 @@ describe('SessionEvidencePage', () => {
     });
     expect(classSessionSpy).toHaveBeenCalledWith({ classBatchId: CLASS_A.id }, true);
     expect(screen.getByLabelText('Tóm tắt buổi học')).toBeInTheDocument();
+  });
+
+  it('loads existing evidence for a session that already has a draft summary + photo (regression: page used to reset to blank)', () => {
+    existingEvidence = {
+      id: 'ev-existing-1',
+      summary: 'Đã viết từ buổi trước.',
+      status: 'draft',
+      photos: [{ id: 'photo-existing-1', blobRef: 'session-photo/existing.jpg', createdAt: '2026-07-10T00:00:00.000Z' }],
+    };
+    renderWithProviders(<SessionEvidencePage />, {
+      route: `/teaching/session-evidence?classBatchId=${CLASS_A.id}&sessionId=${SESSION_A.id}`,
+    });
+    expect(getBySessionSpy).toHaveBeenCalledWith({ classSessionId: SESSION_A.id }, true);
+    expect(screen.getByLabelText('Tóm tắt buổi học')).toHaveValue('Đã viết từ buổi trước.');
+    // evidenceId hydrated from the query → publish action becomes available.
+    expect(screen.getByRole('button', { name: 'Công bố cho phụ huynh' })).toBeInTheDocument();
+  });
+
+  it('shows the published banner when existing evidence is already published', () => {
+    existingEvidence = {
+      id: 'ev-existing-2',
+      summary: 'Đã công bố.',
+      status: 'published',
+      photos: [],
+    };
+    renderWithProviders(<SessionEvidencePage />, {
+      route: `/teaching/session-evidence?classBatchId=${CLASS_A.id}&sessionId=${SESSION_A.id}`,
+    });
+    expect(screen.getAllByText('Đã công bố').length).toBeGreaterThan(0);
   });
 
   it('treats non-UUID query params as unset', () => {

@@ -34,6 +34,11 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 FROM deps AS build
 COPY packages/ packages/
 COPY apps/api/ apps/api/
+# prisma.config.ts loads packages/db/prisma/.env and requires DATABASE_URL to
+# resolve (Prisma 7 config validation) — `generate` never opens a connection,
+# so a build-time-only placeholder is enough (mirrors CI's ui-e2e.yml, which
+# writes the real value; here any syntactically valid postgres URL works).
+RUN printf 'DATABASE_URL=postgresql://build:build@localhost:5432/build\n' > packages/db/prisma/.env
 RUN pnpm --filter @cmc/db exec prisma generate
 RUN pnpm --filter @cmc/api... run build
 

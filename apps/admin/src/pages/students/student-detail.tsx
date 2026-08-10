@@ -162,7 +162,7 @@ export default function StudentDetailPage() {
                   />
                 </HStack>
                 {setLifecycleMut.error ? (
-                  <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
+                  <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>
                     {setLifecycleMut.error.message}
                   </span>
                 ) : null}

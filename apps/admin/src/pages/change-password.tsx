@@ -82,7 +82,7 @@ export default function ChangePasswordPage() {
           {errorMessage && (
             // Text color enum has no error/danger slot — plain <span> with CSS
             // var, same convention as the admin form modals.
-            <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>{errorMessage}</span>
+            <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>{errorMessage}</span>
           )}
           <Button
             label="Đổi mật khẩu"

@@ -193,7 +193,7 @@ export default function CourseListPage() {
           {createMut.error && (
             <Banner status="error" title="Không tạo được khoá" description={createMut.error.message} />
           )}
-          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Button label="Hủy" variant="secondary" onClick={closeCreate} isDisabled={createMut.isPending} />
             <Button
               label="Tạo"

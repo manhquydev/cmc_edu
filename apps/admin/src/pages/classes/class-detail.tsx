@@ -432,7 +432,7 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
           {addMakeupMut.error && (
             <Banner status="error" title="Lỗi thêm buổi bù" description={addMakeupMut.error.message} />
           )}
-          <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
             <Button
               label="Hủy"
               variant="secondary"

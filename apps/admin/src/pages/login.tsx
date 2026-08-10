@@ -96,7 +96,7 @@ export function LoginPage() {
           {error && (
             // Text color enum has no error/danger slot — plain <span> with CSS
             // var, same convention as the admin form modals.
-            <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>{error}</span>
+            <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>{error}</span>
           )}
           <Button
             label="Đăng nhập"

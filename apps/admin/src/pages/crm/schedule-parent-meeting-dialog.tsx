@@ -65,13 +65,13 @@ export function ScheduleParentMeetingDialog({ opened, onClose }: { opened: boole
             {scheduleMutation.error && (
               // TODO(astryx-review): Text color enum has no error/danger slot —
               // plain <span> with CSS var per migration flag rule (see users.tsx).
-              <span style={{ fontSize: 13, color: 'var(--cmc-danger)' }}>
+              <span style={{ fontSize: 'var(--cmc-font-size-data)', color: 'var(--cmc-danger)' }}>
                 {scheduleMutation.error.message}
               </span>
             )}
           </>
         )}
-        <HStack justify="end" gap={1} style={{ marginTop: 8 }}>
+        <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
           {scheduled ? (
             <Button label="Đóng" variant="primary" onClick={close} />
           ) : (

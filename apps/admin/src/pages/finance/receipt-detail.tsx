@@ -345,7 +345,7 @@ export default function ReceiptDetailPage() {
                   type="checkbox"
                   checked={cancelVoid}
                   onChange={(e) => setCancelVoid(e.target.checked)}
-                  style={{ marginTop: 4 }}
+                  style={{ marginTop: 'var(--cmc-space-1)' }}
                 />
                 <Stack gap={0.5}>
                   <Text size="sm" weight="semibold">

@@ -339,7 +339,7 @@ export default function SessionDetailPage() {
           subtitle={`${session.program ? `${session.program} · ` : ''}${timeRange}`}
           initials={title.slice(0, 2).toUpperCase()}
           badges={<StatusBadge status={session.status} label={session.status} />}
-          meta={<span style={{ fontSize: 12 }}>{progressLabel}</span>}
+          meta={<span style={{ fontSize: 'var(--cmc-font-size-data)' }}>{progressLabel}</span>}
           actions={
             <HStack gap={1} wrap="wrap">
               <Button

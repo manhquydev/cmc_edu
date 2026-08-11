@@ -702,7 +702,7 @@ function CheckInTab() {
 
   return (
     <FormPage header={null} actions={null} result={resultContent}>
-      <Stack gap={4} style={{ maxWidth: 640, marginInline: 'auto' }}>
+      <Stack gap={4} style={{ maxWidth: 640, marginInline: 'auto' /* layout center; not a spacing token */ }}>
         {/* Primary punch surface — large single CTA (Odoo/TEKY grammar, CMC Console chrome). */}
         <Card
           padding={6}
@@ -729,7 +729,6 @@ function CheckInTab() {
               style={{
                 minWidth: 220,
                 minHeight: 52,
-                fontSize: '1.05rem',
                 fontWeight: 600,
               }}
             />

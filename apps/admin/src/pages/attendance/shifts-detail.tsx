@@ -407,7 +407,7 @@ export default function ShiftsDetailPage() {
                   {templates.map((t) => (
                     <th key={t.id}>
                       {t.name}
-                      <div style={{ fontWeight: 400, fontSize: 11, opacity: 0.75 }}>
+                      <div style={{ fontWeight: 400, fontSize: 'var(--cmc-font-size-column)', opacity: 0.75 }}>
                         {t.startTime}–{t.endTime}
                       </div>
                     </th>

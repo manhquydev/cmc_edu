@@ -64,23 +64,25 @@ test.describe('P4-05 journey — chăm sóc sau bán: tạo → tiếp nhận �
     await expect(page).toHaveURL(/\/crm\/aftersale\/[0-9a-f-]{36}/i);
 
     // --- take it up (advance → "Đang xử lý") on form ---
-    await page.getByRole('button', { name: 'Tiếp nhận' }).click();
-    await expect(page.getByText('Đang xử lý', { exact: true }).first()).toBeVisible({
+    // exact:true — WorkflowStatusbar step labels also include these substrings.
+    await page.getByRole('button', { name: 'Tiếp nhận', exact: true }).click();
+    await expect(page.getByText('Đã tiếp nhận', { exact: false })).toBeVisible({
       timeout: 15_000,
     });
+    await expect(page.getByRole('button', { name: 'Tiếp nhận', exact: true })).toHaveCount(0);
 
     // --- resolve it with an outcome (→ "Đã giải quyết") ---
-    await page.getByRole('button', { name: 'Giải quyết' }).click();
+    await page.getByRole('button', { name: 'Giải quyết', exact: true }).click();
     const resolveDialog = page.getByRole('dialog');
     await resolveDialog.getByLabel(/Kết quả xử lý/).fill('Đã gặp PH, đổi lớp phù hợp — E2E');
-    await resolveDialog.getByRole('button', { name: 'Xác nhận' }).click();
-    await expect(page.getByText('Đã giải quyết', { exact: true }).first()).toBeVisible({
+    await resolveDialog.getByRole('button', { name: 'Xác nhận', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Đóng', exact: true })).toBeVisible({
       timeout: 15_000,
     });
 
     // --- close it (→ "Đã đóng") ---
-    await page.getByRole('button', { name: 'Đóng' }).click();
-    await expect(page.getByText('Đã đóng', { exact: true }).first()).toBeVisible({
+    await page.getByRole('button', { name: 'Đóng', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Đóng', exact: true })).toHaveCount(0, {
       timeout: 15_000,
     });
 

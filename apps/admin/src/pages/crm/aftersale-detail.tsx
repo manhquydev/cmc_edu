@@ -189,8 +189,11 @@ export default function AfterSaleDetailPage() {
                       advanceMutation.mutate(
                         { caseId },
                         {
-                          onSuccess: () =>
-                            setFlash({ ok: true, text: 'Đã tiếp nhận (in_progress).' }),
+                          onSuccess: () => {
+                            setFlash({ ok: true, text: 'Đã tiếp nhận (in_progress).' });
+                            void refetch();
+                            void utils.afterSale.list.invalidate();
+                          },
                           onError: (e) => setFlash({ ok: false, text: e.message }),
                         },
                       )
@@ -215,7 +218,11 @@ export default function AfterSaleDetailPage() {
                       closeMutation.mutate(
                         { caseId },
                         {
-                          onSuccess: () => setFlash({ ok: true, text: 'Đã đóng case.' }),
+                          onSuccess: () => {
+                            setFlash({ ok: true, text: 'Đã đóng case.' });
+                            void refetch();
+                            void utils.afterSale.list.invalidate();
+                          },
                           onError: (e) => setFlash({ ok: false, text: e.message }),
                         },
                       )
@@ -266,11 +273,11 @@ export default function AfterSaleDetailPage() {
                 },
               ]}
             />
-            <Text type="body" size="sm" style={{ marginTop: 12 }}>
+            <Text type="body" size="sm" style={{ marginTop: 'var(--cmc-space-3)' }}>
               {data.description}
             </Text>
             {data.resolution ? (
-              <Text type="body" size="xsm" color="secondary" style={{ marginTop: 8 }}>
+              <Text type="body" size="xsm" color="secondary" style={{ marginTop: 'var(--cmc-space-2)' }}>
                 Giải pháp: {data.resolution}
               </Text>
             ) : null}

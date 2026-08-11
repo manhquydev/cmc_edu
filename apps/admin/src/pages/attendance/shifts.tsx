@@ -724,21 +724,21 @@ export function SubmitTab({ onSubmittedId }: { onSubmittedId?: (id: string) => v
             </div>
             <div className="ws-notebook-body">
               {!selectedGroup ? (
-                <div style={{ padding: 16 }}>
+                <div style={{ padding: 'var(--cmc-space-3)' }}>
                   <EmptyState
                     title="Chọn nhóm ca"
                     description={`Chỉ hiện nhóm track ${trackLabel} khớp role của bạn.`}
                   />
                 </div>
               ) : dates.length === 0 ? (
-                <div style={{ padding: 16 }}>
+                <div style={{ padding: 'var(--cmc-space-3)' }}>
                   <EmptyState
                     title="Chọn Từ ngày / Tới ngày"
                     description="Khoảng ngày tương lai (ICT) tạo các hàng trên lưới 3 ca."
                   />
                 </div>
               ) : templates.length === 0 ? (
-                <div style={{ padding: 16 }}>
+                <div style={{ padding: 'var(--cmc-space-3)' }}>
                   <EmptyState title="Nhóm chưa có mẫu ca" description="GĐ cấu hình tại Ca làm việc." />
                 </div>
               ) : (
@@ -751,7 +751,7 @@ export function SubmitTab({ onSubmittedId }: { onSubmittedId?: (id: string) => v
                           <Fragment key={t.id}>
                             <th>
                               {t.name}
-                              <div style={{ fontWeight: 400, fontSize: 11, opacity: 0.75 }}>
+                              <div style={{ fontWeight: 400, fontSize: 'var(--cmc-font-size-column)', opacity: 0.75 }}>
                                 {t.startTime}–{t.endTime}
                               </div>
                             </th>

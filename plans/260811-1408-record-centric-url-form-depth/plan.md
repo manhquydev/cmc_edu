@@ -1,7 +1,7 @@
 # Plan: Record-centric URL + form depth (Odoo-like UX, CMC path grammar)
 
 **ID:** `260811-1408-record-centric-url-form-depth`  
-**Status:** ACTIVE — phases 0–3 implemented & unit-verified (2026-08-11); 4–5 remaining  
+**Status:** ACTIVE — phases 0–3 committed (`0573c95`); phase 04 e2e gate next; phase 05 matrix drafted  
 **Mode:** careful multi-phase; **pilot Work Schedule first**, then system roll-out  
 **Do not:** clone Odoo hash (`#action=&model=`); big-bang rewrite all modules at once  
 
@@ -82,4 +82,6 @@ See **[decisions.md](./decisions.md)**. Short form:
 
 ## Next action
 
-Execute **phase 0** (doc/contract only) then **phase 1** (links + API) before any large UI split.
+1. **Phase 04:** prove Playwright deep-link + `/go/shiftRegistration` + UAT paths (do not open P2 modules until green).  
+2. **Phase 05:** matrix drafted — owner confirms next module (recommend KPI).  
+3. Review: `plans/reports/review-260811-record-centric-shift-pilot.md`.

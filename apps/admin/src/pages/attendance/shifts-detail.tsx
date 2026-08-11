@@ -21,6 +21,7 @@ import {
   TextArea,
 } from '@cmc/ui';
 import { shiftRegistrationsPath, UUID_RE } from '@cmc/links';
+import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
 
@@ -295,6 +296,9 @@ export default function ShiftsDetailPage() {
           ]}
           actions={
             <HStack gap={1} wrap="wrap">
+              {idOk ? (
+                <CopyLinkButton mode="go" entity="shiftRegistration" id={registrationId} />
+              ) : null}
               {canCancel ? (
                 <Button label="Hủy phiếu" size="sm" variant="ghost" onClick={() => setCancelOpen(true)} />
               ) : null}

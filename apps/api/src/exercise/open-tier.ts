@@ -70,6 +70,22 @@ export async function loadLmsStudent(
   return student;
 }
 
+/**
+ * Kill-switch for ADR 0038 open-tier (Plan 2 teaching spine).
+ * - unset / "1" / "true" → open-tier ON (legacy default)
+ * - "0" / "false" / "off" → open-tier OFF (empty open set)
+ */
+export function isOpenTierEnabled(): boolean {
+  const v = (process.env.LMS_OPEN_TIER_ENABLED ?? '1').toLowerCase();
+  return v !== '0' && v !== 'false' && v !== 'off';
+}
+
+/** When on, open units must also be covered by EnrollmentUnitRange (dual-gate homework). */
+export function isEntitlementGateOnOpenTier(): boolean {
+  const v = (process.env.LMS_ENTITLEMENT_GATE ?? '0').toLowerCase();
+  return v === '1' || v === 'true' || v === 'on';
+}
+
 /** ADR 0038 Tier A + Tier B, resolved to the set of `curriculumUnitId`s open
  * for `studentId` right now. Empty set for a `blocked_lms` student (the base
  * condition) without running either tier's query. */
@@ -80,10 +96,16 @@ async function resolveOpenCurriculumUnitIds(
   if (student.lifecycle === 'blocked_lms') {
     return new Set();
   }
+  if (!isOpenTierEnabled()) {
+    return new Set();
+  }
 
   const activeEnrollments = await tx.enrollment.findMany({
     where: { studentId: student.id, status: 'active' },
-    select: { classBatchId: true },
+    select: {
+      classBatchId: true,
+      unitRanges: { select: { fromOrderGlobal: true, toOrderGlobal: true } },
+    },
   });
   const classBatchIds = activeEnrollments.map((e) => e.classBatchId);
 
@@ -133,7 +155,22 @@ async function resolveOpenCurriculumUnitIds(
     if (unitId) openUnitIds.add(unitId);
   }
 
-  return openUnitIds;
+  if (!isEntitlementGateOnOpenTier() || openUnitIds.size === 0) {
+    return openUnitIds;
+  }
+
+  // Intersect open units with sold/granted ranges across active enrollments.
+  const { isEntitled } = await import('@cmc/domain-lms');
+  const units = await tx.curriculumUnit.findMany({
+    where: { id: { in: [...openUnitIds] } },
+    select: { id: true, orderGlobal: true },
+  });
+  const allRanges = activeEnrollments.flatMap((e) => e.unitRanges);
+  const filtered = new Set<string>();
+  for (const u of units) {
+    if (isEntitled(allRanges, u.orderGlobal)) filtered.add(u.id);
+  }
+  return filtered;
 }
 
 /** The set of `curriculumUnitId`s currently open for `student` (ADR 0038). */

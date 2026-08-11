@@ -373,4 +373,245 @@ export const lmsOpsRouter = router({
         };
       });
     }),
+
+  /** Cancel session then restamp future units for the batch (no makeup). */
+  cancelSessionAndRestamp: requirePermission('schedule', 'generate')
+    .input(z.object({ classSessionId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const session = await tx.classSession.findFirst({
+          where: { id: input.classSessionId, facilityId },
+          include: {
+            classBatch: {
+              select: {
+                id: true,
+                program: true,
+                currentUnitId: true,
+                currentUnitAnchor: true,
+                startUnitId: true,
+              },
+            },
+          },
+        });
+        if (!session) throw notFound('ClassSession not found.');
+        if (session.status === 'cancelled') throw badRequest('Session is already cancelled.');
+        if (session.status === 'done') throw badRequest('A done session cannot be cancelled.');
+
+        await tx.classSession.update({
+          where: { id: session.id },
+          data: { status: 'cancelled' },
+        });
+
+        let stamped = 0;
+        const batch = session.classBatch;
+        const unitId = batch.currentUnitId ?? batch.startUnitId;
+        if (unitId) {
+          const unit = await tx.curriculumUnit.findUnique({
+            where: { id: unitId },
+            select: { orderGlobal: true },
+          });
+          if (unit) {
+            const anchor = batch.currentUnitAnchor ?? new Date(0);
+            stamped = await restampBatchSessions(tx, {
+              classBatchId: batch.id,
+              program: batch.program,
+              anchorOrderGlobal: unit.orderGlobal,
+              anchorDate: anchor,
+            });
+          }
+        }
+
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'lmsOps.cancelSessionAndRestamp',
+            entity: 'ClassSession',
+            entityId: session.id,
+            data: { facilityId, restamped: stamped },
+          },
+        });
+
+        return { classSessionId: session.id, restamped: stamped };
+      });
+    }),
+
+  /**
+   * grantPast: allow ranges starting before current unit (admin backfill).
+   * Still blocks inverted ranges and out-of-program orders.
+   */
+  grantPast: requirePermission('enrollment', 'grantUnits')
+    .input(addWithUnitsInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      const range = {
+        fromOrderGlobal: input.fromOrderGlobal,
+        toOrderGlobal: input.toOrderGlobal,
+      };
+      if (range.fromOrderGlobal > range.toOrderGlobal) {
+        throw badRequest('fromOrderGlobal must be <= toOrderGlobal.');
+      }
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const enrollment = await tx.enrollment.findFirst({
+          where: { id: input.enrollmentId, facilityId },
+          include: {
+            classBatch: { select: { program: true } },
+            unitRanges: true,
+          },
+        });
+        if (!enrollment) throw notFound('Enrollment not found.');
+        if (enrollment.status !== 'active') {
+          throw badRequest('Enrollment must be active before granting unit ranges.');
+        }
+        if (enrollment.archivedAt) {
+          throw badRequest('Cannot grant units on an archived enrollment.');
+        }
+
+        await tx.$queryRawUnsafe(
+          `SELECT id FROM "Enrollment" WHERE id = $1 AND "facilityId" = $2 FOR UPDATE`,
+          enrollment.id,
+          facilityId,
+        );
+
+        const unitOrders = await loadProgramUnitOrders(tx, enrollment.classBatch.program);
+        for (let o = range.fromOrderGlobal; o <= range.toOrderGlobal; o++) {
+          if (!unitOrders.has(o)) {
+            throw badRequest(`orderGlobal ${o} is not in program ${enrollment.classBatch.program}.`);
+          }
+        }
+        for (const existing of enrollment.unitRanges) {
+          if (rangesOverlap(range, existing)) {
+            throw badRequest('Range overlaps an existing unit range for this enrollment.');
+          }
+        }
+
+        const created = await tx.enrollmentUnitRange.create({
+          data: {
+            facilityId,
+            enrollmentId: enrollment.id,
+            fromOrderGlobal: range.fromOrderGlobal,
+            toOrderGlobal: range.toOrderGlobal,
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'enrollment.grantPast',
+            entity: 'EnrollmentUnitRange',
+            entityId: created.id,
+            data: { enrollmentId: enrollment.id, ...range, facilityId },
+          },
+        });
+        return {
+          id: created.id,
+          enrollmentId: enrollment.id,
+          fromOrderGlobal: created.fromOrderGlobal,
+          toOrderGlobal: created.toOrderGlobal,
+        };
+      });
+    }),
+
+  /** Cut future units from fromOrderGlobal onward (past cannot be subtracted). */
+  revokeFromNext: requirePermission('enrollment', 'grantUnits')
+    .input(z.object({ enrollmentId: z.string().uuid(), fromOrderGlobal: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const enrollment = await tx.enrollment.findFirst({
+          where: { id: input.enrollmentId, facilityId },
+          include: { unitRanges: true },
+        });
+        if (!enrollment) throw notFound('Enrollment not found.');
+
+        await tx.$queryRawUnsafe(
+          `SELECT id FROM "Enrollment" WHERE id = $1 AND "facilityId" = $2 FOR UPDATE`,
+          enrollment.id,
+          facilityId,
+        );
+
+        let touched = 0;
+        for (const r of enrollment.unitRanges) {
+          if (r.toOrderGlobal < input.fromOrderGlobal) continue;
+          if (r.fromOrderGlobal >= input.fromOrderGlobal) {
+            await tx.enrollmentUnitRange.delete({ where: { id: r.id } });
+            touched += 1;
+            continue;
+          }
+          // Truncate: keep [from, fromOrderGlobal-1]
+          await tx.enrollmentUnitRange.update({
+            where: { id: r.id },
+            data: { toOrderGlobal: input.fromOrderGlobal - 1 },
+          });
+          touched += 1;
+        }
+
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'enrollment.revokeFromNext',
+            entity: 'Enrollment',
+            entityId: enrollment.id,
+            data: { fromOrderGlobal: input.fromOrderGlobal, rangesTouched: touched, facilityId },
+          },
+        });
+        return { enrollmentId: enrollment.id, rangesTouched: touched };
+      });
+    }),
+
+  archiveEnrollment: requirePermission('enrollment', 'grantUnits')
+    .input(z.object({ enrollmentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const enrollment = await tx.enrollment.findFirst({
+          where: { id: input.enrollmentId, facilityId },
+        });
+        if (!enrollment) throw notFound('Enrollment not found.');
+        if (enrollment.archivedAt) {
+          return { enrollmentId: enrollment.id, archivedAt: enrollment.archivedAt };
+        }
+        const archivedAt = new Date();
+        await tx.enrollment.update({
+          where: { id: enrollment.id },
+          data: { archivedAt },
+        });
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'enrollment.archive',
+            entity: 'Enrollment',
+            entityId: enrollment.id,
+            data: { facilityId, archivedAt: archivedAt.toISOString() },
+          },
+        });
+        return { enrollmentId: enrollment.id, archivedAt };
+      });
+    }),
+
+  unarchiveEnrollment: requirePermission('enrollment', 'grantUnits')
+    .input(z.object({ enrollmentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const enrollment = await tx.enrollment.findFirst({
+          where: { id: input.enrollmentId, facilityId },
+        });
+        if (!enrollment) throw notFound('Enrollment not found.');
+        await tx.enrollment.update({
+          where: { id: enrollment.id },
+          data: { archivedAt: null },
+        });
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'enrollment.unarchive',
+            entity: 'Enrollment',
+            entityId: enrollment.id,
+            data: { facilityId },
+          },
+        });
+        return { enrollmentId: enrollment.id, archivedAt: null as null };
+      });
+    }),
 });

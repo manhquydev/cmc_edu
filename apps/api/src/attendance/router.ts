@@ -21,6 +21,7 @@ import { withFacility, type Prisma } from '@cmc/db';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { lmsProcedure, requireLmsParent, requirePermission, router, scoped } from '../trpc.js';
 import { auditChildDataAccess, getApprovedChildren } from '../guardian/approved-children.js';
+import { onRoster } from '../lms-ops/on-roster.js';
 import { recomputeFinalGrade } from '../submission/router.js';
 import { assertTeacherOwnsClass } from './assert-teacher-owns-class.js';
 
@@ -145,7 +146,13 @@ async function loadGatedEnrollment(
   enrollmentId: string,
   session: { classBatchId: string },
 ) {
-  const enrollment = await tx.enrollment.findFirst({ where: { id: enrollmentId, facilityId } });
+  const enrollment = await tx.enrollment.findFirst({
+    where: { id: enrollmentId, facilityId },
+    include: {
+      student: { select: { lifecycle: true } },
+      unitRanges: { select: { fromOrderGlobal: true, toOrderGlobal: true } },
+    },
+  });
   if (!enrollment) {
     throw badRequest('Enrollment not found.');
   }
@@ -156,6 +163,40 @@ async function loadGatedEnrollment(
     throw badRequest('Enrollment is not active.');
   }
   return enrollment;
+}
+
+/**
+ * Plan 2 dual-gate write path: unit-stamped sessions only accept students
+ * on roster (active ∩ range cover). Unstamped sessions keep legacy
+ * active-only gate so pre-unit classes still mark attendance.
+ */
+async function assertDualGateForMark(
+  tx: Prisma.TransactionClient,
+  session: { curriculumUnitId: string | null; sessionDate: Date },
+  enrollment: {
+    status: string;
+    archivedAt: Date | null;
+    student: { lifecycle: string };
+    unitRanges: { fromOrderGlobal: number; toOrderGlobal: number }[];
+  },
+): Promise<void> {
+  if (!session.curriculumUnitId) return;
+
+  const unit = await tx.curriculumUnit.findUnique({
+    where: { id: session.curriculumUnitId },
+    select: { orderGlobal: true },
+  });
+  const ok = onRoster({
+    enrollmentStatus: enrollment.status,
+    studentLifecycle: enrollment.student.lifecycle,
+    archivedDayUtc: enrollment.archivedAt,
+    sessionDate: session.sessionDate,
+    sessionOrderGlobal: unit?.orderGlobal ?? null,
+    ranges: enrollment.unitRanges,
+  });
+  if (!ok) {
+    throw badRequest('Student is not entitled for this session unit (dual-gate roster).');
+  }
 }
 
 export const attendanceRouter = router({
@@ -170,6 +211,7 @@ export const attendanceRouter = router({
         await assertTeacherOwnsClass(tx, facilityId, ctx.subject, session.classBatchId);
         assertAttendanceWindow(session, ctx.subject);
         const enrollment = await loadGatedEnrollment(tx, facilityId, input.enrollmentId, session);
+        await assertDualGateForMark(tx, session, enrollment);
 
         const markedAt = new Date();
         const attendance = await tx.attendance.upsert({
@@ -240,8 +282,21 @@ export const attendanceRouter = router({
         const enrollmentIds = input.entries.map((e) => e.enrollmentId);
         const enrollments = await tx.enrollment.findMany({
           where: { id: { in: enrollmentIds }, facilityId },
+          include: {
+            student: { select: { lifecycle: true } },
+            unitRanges: { select: { fromOrderGlobal: true, toOrderGlobal: true } },
+          },
         });
         const enrollmentById = new Map(enrollments.map((e) => [e.id, e]));
+        // Preload session unit once for dual-gate (unit-stamped sessions only).
+        let sessionOrderGlobal: number | null = null;
+        if (session.curriculumUnitId) {
+          const unit = await tx.curriculumUnit.findUnique({
+            where: { id: session.curriculumUnitId },
+            select: { orderGlobal: true },
+          });
+          sessionOrderGlobal = unit?.orderGlobal ?? null;
+        }
         const gatedEntries = input.entries.map((entry) => {
           const enrollment = enrollmentById.get(entry.enrollmentId);
           if (!enrollment) {
@@ -252,6 +307,19 @@ export const attendanceRouter = router({
           }
           if (enrollment.status !== 'active') {
             throw badRequest('Enrollment is not active.');
+          }
+          if (session.curriculumUnitId) {
+            const ok = onRoster({
+              enrollmentStatus: enrollment.status,
+              studentLifecycle: enrollment.student.lifecycle,
+              archivedDayUtc: enrollment.archivedAt,
+              sessionDate: session.sessionDate,
+              sessionOrderGlobal,
+              ranges: enrollment.unitRanges,
+            });
+            if (!ok) {
+              throw badRequest('Student is not entitled for this session unit (dual-gate roster).');
+            }
           }
           return { entry, enrollment };
         });

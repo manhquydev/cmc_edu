@@ -2,7 +2,7 @@
  * Teacher Session Detail hub — ClassSession as work object (RCWS).
  * /teaching/sessions/:sessionId?tab=overview|attendance|assessment|evidence
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Badge,
@@ -18,6 +18,7 @@ import {
   Text,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { useSession } from '../../lib/session-context.js';
 import { AttendancePanel } from './panels/attendance-panel.js';
 import { AssessmentPanel } from './panels/assessment-panel.js';
 import { EvidencePanel } from './panels/evidence-panel.js';
@@ -49,6 +50,8 @@ export default function SessionDetailPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { canDo } = useSession();
+  const canCancelRestamp = canDo('schedule', 'generate');
 
   const rawTab = searchParams.get('tab');
   const activeTab: TabId = isTab(rawTab) ? rawTab : 'attendance';
@@ -73,8 +76,13 @@ export default function SessionDetailPage() {
       await utils.classSession.get.invalidate({ sessionId: sessionId ?? '' });
       await utils.classSession.doneProgress.invalidate({ sessionId: sessionId ?? '' });
       await utils.lmsOps.rosterForSession.invalidate({ classSessionId: sessionId ?? '' });
+      await utils.attendance.listBySession.invalidate({ sessionId: sessionId ?? '' });
     },
   });
+
+  useEffect(() => {
+    cancelRestamp.reset();
+  }, [sessionId]);
 
   function setTab(id: string) {
     const next = new URLSearchParams(searchParams);
@@ -209,13 +217,13 @@ export default function SessionDetailPage() {
           variant="secondary"
           onClick={() => navigate(`/admin/classes/${session.classBatchId}`)}
         />
-        {session.status !== 'cancelled' && session.status !== 'done' ? (
+        {canCancelRestamp && session.status !== 'cancelled' && session.status !== 'done' ? (
           <Button
             label={cancelRestamp.isPending ? 'Đang hủy…' : 'Hủy buổi + restamp unit'}
             size="sm"
             variant="secondary"
             isLoading={cancelRestamp.isPending}
-            isDisabled={cancelRestamp.isSuccess}
+            isDisabled={cancelRestamp.isPending}
             onClick={() => {
               if (
                 !window.confirm(

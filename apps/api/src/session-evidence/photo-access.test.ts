@@ -51,7 +51,10 @@ function makeDb(o: MockOpts): PrismaClient {
 }
 const publishedPhoto = {
   facilityId: 'f-1',
-  sessionEvidence: { status: 'published', classSession: { classBatchId: 'cb-1' } },
+  sessionEvidence: {
+    status: 'published',
+    classSession: { classBatchId: 'cb-1', status: 'planned' },
+  },
 };
 
 describe('canAccessSessionPhoto (RT-3)', () => {
@@ -68,6 +71,24 @@ describe('canAccessSessionPhoto (RT-3)', () => {
     vi.mocked(getApprovedChildren).mockResolvedValue([{ studentId: 's-1', fullName: 'A' }]);
     const draft = { ...publishedPhoto, sessionEvidence: { ...publishedPhoto.sessionEvidence, status: 'draft' } };
     expect(await canAccessSessionPhoto(makeDb({ photo: draft }), PARENT, REF)).toBe(false);
+  });
+
+  it('denies when the class session is cancelled (family journal hide)', async () => {
+    vi.mocked(getApprovedChildren).mockResolvedValue([{ studentId: 's-1', fullName: 'A' }]);
+    const cancelled = {
+      facilityId: 'f-1',
+      sessionEvidence: {
+        status: 'published',
+        classSession: { classBatchId: 'cb-1', status: 'cancelled' },
+      },
+    };
+    expect(
+      await canAccessSessionPhoto(
+        makeDb({ photo: cancelled, enrolledStudentIds: ['s-1'], consentStudentIds: ['s-1'] }),
+        PARENT,
+        REF,
+      ),
+    ).toBe(false);
   });
 
   it('denies when the subject has no approved children', async () => {

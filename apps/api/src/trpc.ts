@@ -110,6 +110,7 @@ const AUDIT_EXCLUDED_PATHS = new Set<string>([
   'lmsAuth.requestOtpEmail',
   'lmsAuth.loginStudent',
   'lmsAuth.resetChildPassword',
+  'parentAccount.setActive',
   // Post-review fix: these two already audit via a SHARED helper
   // (auditChildDataAccess → action 'guardian.childDataRead'), not an inline
   // `auditLog.create` literal matching their own path name — a path-by-path
@@ -245,22 +246,12 @@ const requireValidFacility = t.middleware(async ({ ctx, next }) => {
 export const protectedProcedure = basedProcedure.use(requireSession).use(requireValidFacility);
 
 const requireLmsSession = t.middleware(async ({ ctx, next }) => {
-  if (!ctx.lmsSubject) {
+  const { assertLiveLmsSession } = await import('./lms-auth/assert-live-session.js');
+  const live = await assertLiveLmsSession(ctx.db, ctx.lmsSubject);
+  if (!live.ok) {
     throw unauthorized('LMS session required.');
   }
-  // Soft-disable + forced re-login (ParentAccount.isActive / tokenVersion).
-  const account = await ctx.db.parentAccount.findUnique({
-    where: { id: ctx.lmsSubject.parentAccountId },
-    select: { isActive: true, tokenVersion: true },
-  });
-  if (!account || !account.isActive) {
-    throw unauthorized('LMS session required.');
-  }
-  const claimTv = ctx.lmsSubject.tokenVersion ?? 0;
-  if (claimTv !== account.tokenVersion) {
-    throw unauthorized('LMS session required.');
-  }
-  return next({ ctx: { ...ctx, lmsSubject: ctx.lmsSubject } });
+  return next({ ctx: { ...ctx, lmsSubject: ctx.lmsSubject! } });
 });
 
 /**

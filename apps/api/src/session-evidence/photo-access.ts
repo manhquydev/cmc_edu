@@ -31,7 +31,10 @@ export async function canAccessSessionPhoto(
         select: {
           facilityId: true,
           sessionEvidence: {
-            select: { status: true, classSession: { select: { classBatchId: true } } },
+            select: {
+              status: true,
+              classSession: { select: { classBatchId: true, status: true } },
+            },
           },
         },
       }),
@@ -39,6 +42,8 @@ export async function canAccessSessionPhoto(
   );
   if (!photo) return false;
   if (photo.sessionEvidence.status !== 'published') return false;
+  // Cancelled sessions never ran — same family rule as listForChild (phase 5).
+  if (photo.sessionEvidence.classSession.status === 'cancelled') return false;
   const { facilityId } = photo;
   const classBatchId = photo.sessionEvidence.classSession.classBatchId;
 

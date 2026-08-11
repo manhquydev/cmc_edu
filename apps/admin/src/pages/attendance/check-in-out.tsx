@@ -12,9 +12,10 @@
 //   phase 4 — ADR 0043 §10).
 // - "Phiếu của tôi" hiện Giờ vào/Giờ ra (checkInAt/checkOutAt); phiếu `rejected`
 //   có nút "Gửi lại" → manualPunch.resubmit.mutate({ticketId, reason}).
-// - Tab "Duyệt chấm công" chỉ hiện khi canDo('manualPunch','approve') — inbox
+// - Tab "Hàng chờ phiếu" chỉ hiện khi canDo('manualPunch','approve') — inbox
 //   GĐ theo track (manualPunch.list({scope:'inbox'})), duyệt/từ chối qua
 //   ConfirmDialog/Dialog (không tự gọi mutation khi chỉ bấm trigger).
+//   Tên tab resource-centric (phiếu), không product "Duyệt chấm công".
 
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -338,7 +339,7 @@ function MyTicketsSection() {
 }
 
 // ---------------------------------------------------------------------------
-// Duyệt chấm công — inbox GĐ theo track (manualPunch.list scope=inbox)
+// Hàng chờ phiếu — inbox GĐ theo track (manualPunch.list scope=inbox)
 // ---------------------------------------------------------------------------
 interface InboxTicketRow {
   id: string;
@@ -693,36 +694,48 @@ function CheckInTab() {
     ) : undefined;
 
   const busy = punchMut.isPending || capturing;
+  const punchLabel = recorded
+    ? 'Đã chấm công ✓'
+    : capturing
+      ? 'Đang lấy vị trí…'
+      : 'Chấm công';
 
   return (
-    <FormPage
-      header={null}
-      result={resultContent}
-      actions={
-        <Stack gap={1} hAlign="center">
-          <Button
-            label={
-              recorded
-                ? 'Đã chấm công ✓'
-                : capturing
-                  ? 'Đang lấy vị trí…'
-                  : 'Chấm công'
-            }
-            size="lg"
-            isLoading={busy && !recorded}
-            isDisabled={recorded}
-            onClick={() => void handlePunch()}
-          />
-          <Text type="supporting" size="2xs">
-            Trình duyệt có thể hỏi quyền vị trí — từ chối vẫn chấm được (cần lý do nếu ngoài mạng).
-          </Text>
-        </Stack>
-      }
-    >
-      <Stack gap={3} style={{ maxWidth: 560 }}>
-        <Card padding={6}>
+    <FormPage header={null} result={resultContent}>
+      <Stack gap={4} style={{ maxWidth: 640, marginInline: 'auto' }}>
+        {/* Primary punch surface — large single CTA (Odoo/TEKY grammar, CMC Console chrome). */}
+        <Card
+          padding={6}
+          data-testid="check-in-punch-card"
+          style={{
+            border: '1px solid var(--cmc-border)',
+            boxShadow: 'var(--cmc-shadow-sm, 0 1px 3px rgba(0,0,0,.08))',
+          }}
+        >
           <Stack hAlign="center" gap={4}>
+            <Text type="body" size="lg" weight="semibold" style={{ textAlign: 'center' }}>
+              Chấm vào / chấm ra
+            </Text>
+            <Text type="supporting" size="sm" style={{ textAlign: 'center', maxWidth: 360 }}>
+              Bấm một lần để ghi nhận. Ngoài mạng cơ sở hệ thống sẽ yêu cầu lý do — không tạo phiếu bù ngày quá khứ.
+            </Text>
             <IctClock />
+            <Button
+              label={punchLabel}
+              size="lg"
+              isLoading={busy && !recorded}
+              isDisabled={recorded}
+              onClick={() => void handlePunch()}
+              style={{
+                minWidth: 220,
+                minHeight: 52,
+                fontSize: '1.05rem',
+                fontWeight: 600,
+              }}
+            />
+            <Text type="supporting" size="2xs" style={{ textAlign: 'center' }}>
+              Trình duyệt có thể hỏi quyền vị trí — từ chối vẫn chấm được (cần lý do nếu ngoài mạng).
+            </Text>
           </Stack>
         </Card>
 
@@ -767,9 +780,10 @@ export default function CheckInOutPage() {
   const [activeTab, setActiveTab] = useState('checkin');
 
   const tabs = [
-    { id: 'checkin', label: 'Tự chấm công', content: <CheckInTab /> },
+    // Tab label ≠ punch button label ("Chấm công") so a11y roles stay unique.
+    { id: 'checkin', label: 'Tự chấm', content: <CheckInTab /> },
     ...(canDo('manualPunch', 'approve')
-      ? [{ id: 'approve', label: 'Duyệt chấm công', content: <ApproveTicketsTab /> }]
+      ? [{ id: 'approve', label: 'Hàng chờ phiếu', content: <ApproveTicketsTab /> }]
       : []),
   ];
 

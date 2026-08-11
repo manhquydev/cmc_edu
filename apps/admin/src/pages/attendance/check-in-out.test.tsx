@@ -261,18 +261,29 @@ describe('CheckInOutPage', () => {
     expect(screen.getByText('Chưa có yêu cầu chấm công thủ công nào.')).toBeInTheDocument();
   });
 
-  it('"Duyệt chấm công" tab is absent for a role without manualPunch.approve', () => {
+  it('inbox tab "Hàng chờ phiếu" is absent for a role without manualPunch.approve', () => {
     sessionRoles = ['sale'];
     renderWithProviders(<CheckInOutPage />);
+    expect(screen.queryByRole('button', { name: 'Hàng chờ phiếu' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Duyệt chấm công' })).toBeNull();
   });
 
-  it('"Duyệt chấm công" tab renders and queries scope=inbox for giam_doc_kinh_doanh', () => {
+  it('inbox tab "Hàng chờ phiếu" queries scope=inbox for giam_doc_kinh_doanh', () => {
     sessionRoles = ['giam_doc_kinh_doanh'];
     renderWithProviders(<CheckInOutPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Duyệt chấm công' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hàng chờ phiếu' }));
     expect(inboxSpy).toHaveBeenCalledWith({ scope: 'inbox' });
     expect(geoSummarySpy).toHaveBeenCalledWith({ days: 30 });
+  });
+
+  it('primary punch surface is a single large CTA card (resource check-in, not dual apps)', () => {
+    renderWithProviders(<CheckInOutPage />);
+    expect(screen.getByTestId('check-in-punch-card')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Chấm công' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Chấm công' })).toBeInTheDocument();
+    // Tab hierarchy under one resource page — not a separate "Duyệt chấm công" product.
+    expect(screen.getByRole('button', { name: 'Tự chấm' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Duyệt chấm công' })).toBeNull();
   });
 
   it('approve detail dialog shows verification badges and distance snapshot, not coords', () => {
@@ -305,7 +316,7 @@ describe('CheckInOutPage', () => {
       },
     ];
     renderWithProviders(<CheckInOutPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Duyệt chấm công' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hàng chờ phiếu' }));
     fireEvent.click(screen.getByRole('button', { name: 'Duyệt' }));
     expect(screen.getByText('GPS')).toBeInTheDocument();
     expect(screen.getByText('Offsite')).toBeInTheDocument();
@@ -318,7 +329,7 @@ describe('CheckInOutPage', () => {
     sessionRoles = ['giam_doc_kinh_doanh'];
     geoSummary = [];
     renderWithProviders(<CheckInOutPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Duyệt chấm công' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hàng chờ phiếu' }));
     expect(screen.getByText('Không có punch GPS 30 ngày qua.')).toBeInTheDocument();
   });
 });

@@ -11,6 +11,7 @@ import {
   sessionEvidencePath,
   shiftRegistrationNewPath,
   shiftRegistrationsPath,
+  kpiScoresPath,
 } from './index.js';
 
 const UUID = '550e8400-e29b-41d4-a716-446655440000';
@@ -22,12 +23,14 @@ describe('links builders', () => {
     expect(links.student(UUID)).toBe(`/admin/students/${UUID}`);
     expect(links.classBatch(UUID)).toBe(`/admin/classes/${UUID}`);
     expect(links.shiftRegistration(UUID)).toBe(`/hr/shifts/${UUID}`);
+    expect(links.kpiScore(UUID)).toBe(`/hr/kpi/${UUID}`);
   });
 
   it('builds go paths', () => {
     expect(goPath('opportunity', UUID)).toBe(`/go/opportunity/${UUID}`);
     expect(goPath('receipt', UUID)).toBe(`/go/receipt/${UUID}`);
     expect(goPath('shiftRegistration', UUID)).toBe(`/go/shiftRegistration/${UUID}`);
+    expect(goPath('kpiScore', UUID)).toBe(`/go/kpiScore/${UUID}`);
   });
 });
 
@@ -50,6 +53,7 @@ describe('resolveGo', () => {
     expect(resolveGo('student', UUID)).toBe(`/admin/students/${UUID}`);
     expect(resolveGo('classBatch', UUID)).toBe(`/admin/classes/${UUID}`);
     expect(resolveGo('shiftRegistration', UUID)).toBe(`/hr/shifts/${UUID}`);
+    expect(resolveGo('kpiScore', UUID)).toBe(`/hr/kpi/${UUID}`);
   });
 
   it('returns null for unknown entity keys', () => {
@@ -112,5 +116,14 @@ describe('workspace builders + readUuidParam', () => {
     expect(shiftRegistrationsPath({ scope: 'mine' })).toBe('/hr/shifts?scope=mine');
     expect(shiftRegistrationsPath({ scope: 'inbox' })).toBe('/hr/shifts?scope=inbox');
     expect(shiftRegistrationNewPath()).toBe('/hr/shifts/new');
+  });
+
+  it('kpiScoresPath builds board query filters', () => {
+    expect(kpiScoresPath()).toBe('/hr/kpi');
+    expect(kpiScoresPath({ period: '2026-08' })).toBe('/hr/kpi?period=2026-08');
+    expect(kpiScoresPath({ period: '2026-08', status: 'submitted' })).toBe(
+      '/hr/kpi?period=2026-08&status=submitted',
+    );
+    expect(kpiScoresPath({ period: 'bad' })).toBe('/hr/kpi');
   });
 });

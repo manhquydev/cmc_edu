@@ -597,9 +597,11 @@ describe('kpi lifecycle (HR remediation phase 3)', () => {
       expect(result).toHaveLength(2);
     });
 
-    it('a non-director cannot list → FORBIDDEN', async () => {
+    it('a non-director lists self-only rows (shared board)', async () => {
       const gv = callerFor(facilityId, 'kpi-lc-list-gv-001', ['giao_vien']);
-      await expect(gv.kpi.list({ period: PERIOD })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      const result = await gv.kpi.list({ period: PERIOD });
+      expect(result).toHaveLength(1);
+      expect(result[0]!.appUserId).toBe(gvAppUserId);
     });
   });
 });

@@ -129,7 +129,7 @@ test.describe('P3-06/P3-08 journey — phiếu KPI: nộp → xác nhận → t�
     // "Payslip for this period is finalized — reopen it before confirming", while
     // `kpi.bulkApprove` skips any score whose payslip is NOT finalized. So the one
     // workable sequence is confirm → finalize payroll → settle.
-    await menuNav(gdPage, 'Nhân sự', 'Duyệt KPI', { role: 'giam_doc_kinh_doanh' });
+    await menuNav(gdPage, 'Nhân sự', 'KPI', { role: 'giam_doc_kinh_doanh' });
     await gdPage.getByLabel('Kỳ (YYYY-MM)').fill(PERIOD);
     const kpiRow = gdPage.getByRole('row', { name: new RegExp(saleName) });
     await expect(kpiRow).toBeVisible();
@@ -177,7 +177,7 @@ test.describe('P3-06/P3-08 journey — phiếu KPI: nộp → xác nhận → t�
     await expect(gdPage.getByText('Đã chốt', { exact: true })).toBeVisible();
 
     // --- settle the whole period (P3-08) ---
-    await menuNav(gdPage, 'Nhân sự', 'Duyệt KPI', { role: 'giam_doc_kinh_doanh' });
+    await menuNav(gdPage, 'Nhân sự', 'KPI', { role: 'giam_doc_kinh_doanh' });
     await gdPage.getByLabel('Kỳ (YYYY-MM)').fill(PERIOD);
     await gdPage.getByRole('button', { name: `Đã trả lương kỳ ${PERIOD}` }).click();
     const bulkDialog = gdPage.getByRole('alertdialog');

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, within, act } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
-// Locks "Duyệt KPI" (HR remediation phase 5, red-team #24 — migrated
+// Locks "KPI" (HR remediation phase 5, red-team #24 — migrated
 // inventory: getForUser→list, single-score approve→bulkApprove, confirm
 // kept). `kpi.list({period,status})` inbox is already branch-scoped
 // server-side — this screen does NOT re-filter by role. `kpi.confirm`,

@@ -65,24 +65,22 @@ describe('visibleModulesFor', () => {
     expect(childIds).toContain('my');
   });
 
-  // Per-item nav visibility (module.children entries) is filtered downstream
-  // by `shell.tsx`'s `isChildVisible={(c) => c.permission ? canDo(...) : true}`
-  // — `visibleModulesFor` only decides module-row visibility. Assert the
-  // metadata this depends on is correct: Duyệt KPI / Chốt lương / Bậc lương
-  // carry the 2-GĐ+super_admin permission keys already in the registry.
-  it('tags Duyệt KPI / Chốt lương / Bậc lương with the 2-GĐ+super_admin permission keys', () => {
+  // Per-item nav visibility is filtered by permission when set. Shared
+  // workspaces (KPI, checkin, shifts, my) omit the gate; server scopes rows.
+  it('tags Chốt lương / Bậc lương with director permission keys; KPI is ungated shared board', () => {
     const hr = NAV_MODULES.find((m) => m.id === 'hr');
     const kpiChild = hr?.children?.find((c) => c.id === 'kpi');
     const payrollChild = hr?.children?.find((c) => c.id === 'payroll');
     const tierChild = hr?.children?.find((c) => c.id === 'salary-tiers');
-    expect(kpiChild?.permission).toEqual({ module: 'kpi', action: 'confirm' });
+    expect(kpiChild?.label).toBe('KPI');
+    expect(kpiChild?.permission).toBeUndefined();
     expect(payrollChild?.permission).toEqual({ module: 'payslip', action: 'assemble' });
     expect(tierChild?.permission).toEqual({ module: 'salaryTier', action: 'manage' });
   });
 
-  it('leaves Chấm công / Đăng ký ca / Của tôi without a permission gate', () => {
+  it('leaves Chấm công / Đăng ký ca / Của tôi / KPI without a permission gate', () => {
     const hr = NAV_MODULES.find((m) => m.id === 'hr');
-    for (const id of ['checkin', 'shifts', 'my']) {
+    for (const id of ['checkin', 'shifts', 'my', 'kpi']) {
       expect(hr?.children?.find((c) => c.id === id)?.permission).toBeUndefined();
     }
   });

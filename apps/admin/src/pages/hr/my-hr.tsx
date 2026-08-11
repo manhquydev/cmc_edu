@@ -3,7 +3,9 @@
 // chỉ dành cho sale/giao_vien (validate s4 — lương 2 GĐ/super_admin ngoài
 // hệ thống) — cả hai tab render EmptyState cho vai trò GĐ/super_admin.
 
+import { links } from '@cmc/links';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Banner,
   Button,
@@ -91,6 +93,11 @@ function MyKpiTab({ period }: { period: string }) {
           isDisabled={!canSubmit}
           onClick={() => submitMut.mutate({ period })}
         />
+        {data?.id ? (
+          <Link to={links.kpiScore(data.id)}>
+            <Button label="Mở phiếu" size="sm" variant="ghost" />
+          </Link>
+        ) : null}
       </HStack>
 
       {!slipOpen && (

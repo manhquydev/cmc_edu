@@ -11,6 +11,7 @@ const ShiftsNewPage = lazy(() => import('../pages/attendance/shifts-new.js'));
 const ShiftsDetailPage = lazy(() => import('../pages/attendance/shifts-detail.js'));
 const PayrollPage = lazy(() => import('../pages/hr/payroll.js'));
 const KpiPage = lazy(() => import('../pages/hr/kpi.js'));
+const KpiDetailPage = lazy(() => import('../pages/hr/kpi-detail.js'));
 const MyHrPage = lazy(() => import('../pages/hr/my-hr.js'));
 const SalaryTiersPage = lazy(() => import('../pages/hr/salary-tiers.js'));
 
@@ -20,7 +21,7 @@ function Fallback() {
 
 // `/hr` itself has no screen of its own — the module mixes screens open to
 // every active role (Chấm công/Đăng ký ca/Của tôi, no permission key) with
-// director-only ones (Duyệt KPI/Chốt lương/Bậc lương). Land on the first
+// director-gated ones (Chốt lương/Bậc lương; KPI is shared board). Land on the first
 // child the current role can actually open, reusing the same nav-registry
 // order and gate the sidebar already renders, instead of a ComingSoon dead
 // end nobody assigned this role can walk past.
@@ -79,6 +80,14 @@ export const hrRoutes: RouteObject[] = [
     element: (
       <Suspense fallback={<Fallback />}>
         <KpiPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'kpi/:scoreId',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <KpiDetailPage />
       </Suspense>
     ),
   },

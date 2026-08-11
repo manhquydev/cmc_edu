@@ -126,9 +126,8 @@ export const NAV_MODULES: NavModule[] = [
     // HR remediation phase 5 (R3-10, red-team #22): 5-role nav matrix.
     // Chấm công / Đăng ký ca / Của tôi carry no `permission` gate — visible to
     // every active role (self-scoped procedures, no dedicated permission key).
-    // Duyệt KPI / Chốt lương / Bậc lương gate on the 2-GĐ+super_admin
-    // permission keys already in the registry (kpi.confirm, payslip.assemble,
-    // salaryTier.manage) — no new permission keys invented here.
+    // KPI = shared resource board (all active roles; server scopes rows).
+    // Chốt lương / Bậc lương gate on payslip.assemble / salaryTier.manage.
     id: 'hr',
     label: 'Nhân sự',
     icon: 'users',
@@ -137,7 +136,7 @@ export const NAV_MODULES: NavModule[] = [
       { id: 'checkin', label: 'Chấm công', path: '/hr/checkin', icon: 'clock' },
       { id: 'shifts', label: 'Đăng ký ca', path: '/hr/shifts', icon: 'calendar' },
       { id: 'my', label: 'Của tôi', path: '/hr/my', icon: 'user' },
-      { id: 'kpi', label: 'Duyệt KPI', path: '/hr/kpi', icon: 'target', permission: { module: 'kpi', action: 'confirm' } },
+      { id: 'kpi', label: 'KPI', path: '/hr/kpi', icon: 'target' }, // shared workspace; row scope server-side
       { id: 'payroll', label: 'Chốt lương', path: '/hr/payroll', icon: 'dollar', permission: { module: 'payslip', action: 'assemble' } },
       { id: 'salary-tiers', label: 'Bậc lương', path: '/hr/salary-tiers', icon: 'layers', permission: { module: 'salaryTier', action: 'manage' } },
       // Lives here rather than under Quản trị: configuring shift groups and

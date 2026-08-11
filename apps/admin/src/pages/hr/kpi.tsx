@@ -1,17 +1,12 @@
-// Duyệt KPI — HR remediation phase 5 (R3-10, red-team #24). Rebuilt on the
-// auto-score lifecycle procedures added in phase 3:
-//   kpi.list         — GĐ/super_admin inbox, already branch-scoped server-side.
+// KPI shared board — resource-centric (docs/ux-resource-centric-structure.md).
+//   kpi.list         — directors: branch-scoped; staff: self-only.
 //   kpi.confirm      — direct manager confirms a submitted slip (no reason).
 //   kpi.override     — director sets `value` directly (reason required).
 //   kpi.bulkApprove  — "Đã trả lương kỳ X" tất toán action (period-level).
-//
-// Migrated inventory (red-team #24 — the OLD getForUser/approve callers this
-// file used to have are GONE from the API): getForUser → list (client no
-// longer filters to one employee — this IS the inbox), single-score approve →
-// bulkApprove (period-level, no per-score procedure exists), confirm kept
-// as-is.
+// Form depth: /hr/kpi/:scoreId via links.kpiScore.
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Banner,
   Button,
@@ -30,6 +25,7 @@ import {
   useToast,
 } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
+import { links } from '@cmc/links';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
 
@@ -156,6 +152,7 @@ function OverrideModal({
 // Page root
 // ---------------------------------------------------------------------------
 export default function KpiPage() {
+  const navigate = useNavigate();
   const { canDo } = useSession();
   const utils = trpc.useUtils();
   const { success: toastSuccess } = useToast();
@@ -242,9 +239,15 @@ export default function KpiPage() {
     {
       key: '_actions',
       label: '',
-      width: 200,
+      width: 260,
       render: (_v, row) => (
         <HStack gap={1}>
+          <Button
+            label="Mở phiếu"
+            size="sm"
+            variant="ghost"
+            onClick={() => navigate(links.kpiScore(row.id))}
+          />
           {row.status === 'submitted' && canDo('kpi', 'confirm') && (
             <Button label="Xác nhận" size="sm" variant="primary" onClick={() => setConfirmTarget(row)} />
           )}
@@ -262,8 +265,9 @@ export default function KpiPage() {
         density="ops"
         header={
           <PageHeader
-            title="Duyệt KPI"
-            breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Duyệt KPI' }]}
+            title="KPI"
+            subtitle="Phiếu KPI · mở form /hr/kpi/:id để xem chi tiết"
+            breadcrumbs={[{ label: 'Nhân sự' }, { label: 'KPI' }]}
             actions={
               canDo('kpi', 'bulkApprove') ? (
                 <Button

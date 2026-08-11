@@ -154,7 +154,7 @@ test.describe('P3-03/04/07 journey — đăng ký ca: từ chối → nộp lạ
     await expect(
       gdPage.getByRole('heading', { name: new RegExp(`Work Schedule / ${saleName}`) }),
     ).toBeVisible({ timeout: 15_000 });
-    // exact: true — nav has "Duyệt KPI" which substring-matches name 'Duyệt'.
+    // exact: true — nav may have other Duyệt* which substring-matches name 'Duyệt'.
     await gdPage.getByRole('button', { name: 'Duyệt', exact: true }).click();
     // "Duyệt" opens a ConfirmDialog whose own confirm is also labelled "Duyệt".
     const approveDialog = gdPage.getByRole('alertdialog');

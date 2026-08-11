@@ -20,6 +20,8 @@ export const links = {
   classBatch: (id: string) => `/admin/classes/${id}`,
   /** ShiftRegistration form (Work Schedule) — UUID. */
   shiftRegistration: (id: string) => `/hr/shifts/${id}`,
+  /** KpiScore form (shared KPI workspace) — UUID. */
+  kpiScore: (id: string) => `/hr/kpi/${id}`,
 } as const;
 
 export type LinkEntity = keyof typeof links;
@@ -57,6 +59,21 @@ export function shiftRegistrationsPath(q?: {
 
 export function shiftRegistrationNewPath(): string {
   return '/hr/shifts/new';
+}
+
+/** KPI board (list) — period/status query filters. */
+export function kpiScoresPath(q?: {
+  period?: string;
+  status?: 'draft' | 'submitted' | 'confirmed' | 'approved';
+}): string {
+  const params = new URLSearchParams();
+  if (q?.period && /^\d{4}-\d{2}$/.test(q.period)) {
+    params.set('period', q.period);
+  }
+  if (q?.status) {
+    params.set('status', q.status);
+  }
+  return withQuery('/hr/kpi', params);
 }
 
 /** Workspace deep-link builders (query params — not routed through /go). */

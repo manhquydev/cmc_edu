@@ -121,3 +121,5 @@ Tài liệu Harness của dự án (không do core quản lý): `HARNESS.md`,
 
 > Bộ tài liệu này là "bản đồ port quyết định" cho bản viết lại — đọc ADR/rule/workflow của một mảng
 > **trước khi** code mảng đó.
+
+- `docs/ux-resource-centric-structure.md` — **LOCKED** resource-centric UX structure (anti-bloat, list/form, scope axes)

@@ -234,10 +234,12 @@ test.describe('P3-02 journey — duyệt phiếu chấm công offsite theo track
     // ConfirmDialog Duyệt on the form (not list-row HITL).
     await ticketRow.getByRole('button', { name: 'Mở phiếu' }).click();
     await expect(gdkdPage).toHaveURL(/\/hr\/checkin\/[0-9a-f-]{36}/i);
-    await gdkdPage.getByRole('button', { name: 'Duyệt' }).click();
+    // exact: true — statusbar steps "Chờ duyệt"/"Đã duyệt" are also <button>s
+    // (ProgressSteps); substring "Duyệt" matches 3 controls without exact.
+    await gdkdPage.getByRole('button', { name: 'Duyệt', exact: true }).click();
     const confirm = gdkdPage.getByRole('alertdialog');
     await expect(confirm).toBeVisible();
-    await confirm.getByRole('button', { name: 'Duyệt' }).click();
+    await confirm.getByRole('button', { name: 'Duyệt', exact: true }).click();
     await expect(gdkdPage.getByText(/Đã duyệt yêu cầu chấm công/)).toBeVisible();
 
     // ── business invariant ──

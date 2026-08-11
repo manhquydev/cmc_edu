@@ -1,6 +1,7 @@
 # Live authority index — 2026-08-12
 
-**Role:** Pointer only. Historical `plans/*` and old reports stay; do **not** mass-delete.
+**Role:** Pointer only. Historical `plans/*` and old reports stay; do **not** mass-delete.  
+**Residual truth (scout):** [`scout-260812-ui-workspace-residual-matrix.md`](./scout-260812-ui-workspace-residual-matrix.md) — prefer this over older coord tables.
 
 ---
 
@@ -15,7 +16,18 @@
 | [`docs/WORKSPACE-LEAN.md`](../../docs/WORKSPACE-LEAN.md) | Agent workspace entry (plans path, reports, CI, PR) |
 | [`docs/README.md`](../../docs/README.md) | Design corpus index (TL00–TL31) |
 
-Coord session brief: [`brainstorm-advise-260812-herdr-ui-workspace-coord.md`](./brainstorm-advise-260812-herdr-ui-workspace-coord.md)
+Session brief (pre-scout): [`brainstorm-advise-260812-herdr-ui-workspace-coord.md`](./brainstorm-advise-260812-herdr-ui-workspace-coord.md)  
+Retire candidates (read-only): [`proposal-260812-docs-retire-list.md`](./proposal-260812-docs-retire-list.md)
+
+---
+
+## Wave commits (2026-08-12)
+
+| Commit | What |
+|--------|------|
+| `4267eb5` | docs(workspace): lean agent entry + live authority index (ui-lean slice B) |
+| `2947d6a` | fix(admin): map shifts WS_CSS teal → CMC brand tokens (ui-console; TEKY teal gone) |
+| `8ce3a24` | docs(plans): residual UI dual-HITL matrix from scout-pi |
 
 ---
 
@@ -25,42 +37,41 @@ Coord session brief: [`brainstorm-advise-260812-herdr-ui-workspace-coord.md`](./
 |-------|--------|
 | PR | [#110](https://github.com/manhquydev/cmc_edu/pull/110) — resource-centric form depth + console densify |
 | Branch | `feat/lms-foundation-unit-range-spike` |
-| State (2026-08-12 scout) | **OPEN** · **MERGEABLE** · required CI green (`typecheck-and-test`, `ui-e2e`) |
+| State (scout @ `2947d6a` / matrix @ `8ce3a24`) | **OPEN** · required CI green when last checked |
 | Merge | **Human OK only** — agents do not merge |
 
-**Landed in wave (summary):** form-depth (shifts, KPI, aftersale, receipt refund/cancel, parents directory, sessions share); demote dual-HITL on aftersale + KPI lists; console densify; ui-ratchet 0; API unit-axis / CI harness harden.
+**Landed in wave (summary):** form-depth (shifts, KPI, aftersale, receipt refund/cancel, parents directory, sessions share); demote dual-HITL on aftersale + KPI lists; console densify; ui-ratchet 0; shifts teal tokenized; workspace lean index; residual matrix scout.
 
 ---
 
-## Residual dual-HITL matrix (pointer)
+## Residual dual-HITL matrix
 
-Source of truth for residual inventory (orchestrator table):
-
-→ [`brainstorm-advise-260812-herdr-ui-workspace-coord.md`](./brainstorm-advise-260812-herdr-ui-workspace-coord.md) § *Residual dual-HITL / inbox*
-
-Expected full scout (when PI lands): `plans/reports/scout-260812-ui-workspace-residual-matrix.md`
+**Source of residual truth:** [`scout-260812-ui-workspace-residual-matrix.md`](./scout-260812-ui-workspace-residual-matrix.md) §1–2, §6.
 
 | Surface | Verdict (live) | Next |
 |---------|----------------|------|
-| aftersale list | **DONE** demote | — |
-| KPI list + bulk period | **DONE** demote; bulk **KEEP** | — |
+| aftersale list | **DONE** demote (list opens compose only) | — |
+| KPI list + bulk period | **DONE** demote rows; bulk **KEEP** (owner lock) | — |
 | shifts | **OK** index + form Duyệt | optional FilterBar later |
 | parents link-request | **KEEP** list Duyệt (owner lock) | — |
-| check-in `manualPunch` | **GAP** row Duyệt dialog; no UUID form | form-depth or keep dialog-as-form (product) |
-| engagement rewards | **GAP** (scout-only below) | next wave — **not** this slice |
-| `resolve-after-sale-case-dialog` | **DEAD?** | verify imports / remove if unused |
+| `resolve-after-sale-case-dialog` | **KEEP** form-owned (used by `aftersale-detail` only; **not** dead) | stale comments only |
+| check-in `manualPunch` | **GAP #1** — row Duyệt/dialog on list; no UUID form | **S1** form-depth (+ `manualPunch.get`) |
+| engagement rewards | **GAP #2** — list Duyệt/Giao/Từ chối; no `/:uuid`; no API `get` | **S2** demote after `rewards.get` |
+| teaching exercises | **GAP #3** — list `Công bố`/`Đóng`; no detail form | schedule later (not S1/S2) |
 
-### Scout-only: engagement rewards
+### Notes (scout)
 
-- List: `apps/admin/src/pages/engagement/rewards.tsx` — row **Duyệt** / **Từ chối** / Giao quà; mutations on list.
-- Route: `engagement/rewards` only — **no** `/:uuid` form URL.
-- Pattern matches dual-HITL residual; demote/form-depth is **next wave**, not ui-lean this slice.
+- **GAP #1** `apps/admin/src/pages/attendance/check-in-out.tsx` — ApproveTicketsTab + dialogs; route `/hr/checkin` only.
+- **GAP #2** `apps/admin/src/pages/engagement/rewards.tsx` — list mutations only; needs API `get` before form URL.
+- **GAP #3** `apps/admin/src/pages/teaching/exercises.tsx` — publish/close on list; logged residual, not yet scheduled.
+- TEKY `#00a09d` **gone** after `2947d6a`; raw gray neutrals in WS_CSS are micro hygiene only.
 
 ---
 
-## Residual next steps (ordered)
+## Residual next steps (ordered; from scout §6)
 
-1. Residual cook (ui-console): dead aftersale dialog path · shifts TEKY `#00a09d` → Console tokens · optional check-in punch form-depth if product allows.
-2. Rewards demote/form UUID — **next wave** (after form route + authority).
-3. Merge #110 only with human approval; then residual PR if needed.
-4. Keep historical `plans/<timestamp>-*/` and old reports; refresh this INDEX date when residual matrix moves.
+1. **S1** ui-console: check-in `manualPunch` form-depth (GAP #1).
+2. **S2** ui-console: rewards demote + `rewards.get` + UUID form (GAP #2).
+3. **S3** ui-lean: this INDEX refresh + retire proposal (docs-only) — in flight / landing.
+4. Later: exercises GAP #3; optional console grammar on payroll / report-cards; human merge #110.
+5. Keep historical `plans/<timestamp>-*/` and old reports; never mass-delete.

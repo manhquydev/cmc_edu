@@ -15,6 +15,7 @@ Short operating map for agents on CMC EDU v2. Product authority stays in locked 
 | `docs/` | Design corpus + locked UX/architecture |
 
 **Live authority pointer:** [`plans/reports/INDEX-live-260812.md`](../plans/reports/INDEX-live-260812.md)  
+**Residual dual-HITL matrix (scout truth):** [`plans/reports/scout-260812-ui-workspace-residual-matrix.md`](../plans/reports/scout-260812-ui-workspace-residual-matrix.md)  
 **UX structure (LOCKED):** [`docs/ux-resource-centric-structure.md`](./ux-resource-centric-structure.md)  
 **Console chrome:** [`docs/design-system-console.md`](./design-system-console.md)  
 **As-built:** [`docs/system-architecture.md`](./system-architecture.md)  

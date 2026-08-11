@@ -278,17 +278,17 @@ describe('ShiftsPage — list / inbox', () => {
     expect(screen.getAllByRole('button', { name: 'Mở phiếu' }).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows the Duyệt / Từ chối tab for a role with shift.approve permission', () => {
+  it('shows the Hàng chờ tab for a role with shift.approve permission', () => {
     renderWithProviders(<ShiftsPage />);
-    expect(tabButton('Duyệt / Từ chối')).toBeInTheDocument();
+    expect(tabButton('Hàng chờ')).toBeInTheDocument();
   });
 
-  it('hides the Duyệt / Từ chối tab for a role without shift.approve permission', () => {
+  it('hides the Hàng chờ tab for a role without shift.approve permission', () => {
     sessionRoles = ['sale'];
     renderWithProviders(<ShiftsPage />);
     expect(
       within(screen.getByRole('navigation', { name: 'Tabs' })).queryByRole('button', {
-        name: 'Duyệt / Từ chối',
+        name: 'Hàng chờ',
       }),
     ).toBeNull();
     expect(screen.getAllByText(/Work Schedule/).length).toBeGreaterThanOrEqual(1);
@@ -308,11 +308,16 @@ describe('ShiftsPage — list / inbox', () => {
 
   it('inbox is index-only: no list-row Duyệt/Từ chối (form is HITL surface)', () => {
     renderWithProviders(<ShiftsPage />);
-    expect(screen.getByText(/Hàng chờ/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Hàng chờ/).length).toBeGreaterThanOrEqual(1);
     // Only status badge "Từ chối" may appear on mine tab; inbox has no reject button.
     expect(screen.queryByRole('button', { name: 'Duyệt', exact: true })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Từ chối', exact: true })).toBeNull();
     expect(approveMutate).not.toHaveBeenCalled();
     expect(rejectMutate).not.toHaveBeenCalled();
+  });
+
+  it('uses Console ListPage shell (ops density)', () => {
+    renderWithProviders(<ShiftsPage />);
+    expect(document.querySelector('.console-wrap--ops')).toBeTruthy();
   });
 });

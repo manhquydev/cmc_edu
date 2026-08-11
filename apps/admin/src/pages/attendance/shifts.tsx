@@ -23,6 +23,7 @@ import {
   DateField,
   EmptyState,
   HStack,
+  ListPage,
   PageHeader,
   Selector,
   Stack,
@@ -1088,37 +1089,41 @@ export default function ShiftsPage() {
       ),
     },
     ...(canApprove
-      ? [{ id: 'approve', label: 'Duyệt / Từ chối', content: <ApproveTab /> }]
+      ? [{ id: 'approve', label: 'Hàng chờ', content: <ApproveTab /> }]
       : []),
   ];
 
   return (
-    <>
-      <PageHeader
-        title="Work Schedule"
-        subtitle={
-          canApprove
-            ? 'List phiếu · mở form /hr/shifts/:id để duyệt chi tiết'
-            : `Track ${track === 'GIAO_VIEN' ? 'Giáo viên (MULTIPLE · 3 ca)' : 'Kinh doanh (SINGLE · 3 ca)'}`
-        }
-        breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Work Schedule' }]}
-        actions={
-          <HStack gap={1} align="center">
-            {canApprove && pendingCount > 0 ? (
-              <>
-                <Text type="body" size="sm">
-                  Chờ duyệt
-                </Text>
-                <CountBadge count={pendingCount} emphasize />
-              </>
-            ) : null}
-            <Link to={shiftRegistrationNewPath()}>
-              <Button label="Soạn phiếu mới" size="sm" variant="primary" />
-            </Link>
-          </HStack>
-        }
-      />
+    <ListPage
+      density="ops"
+      header={
+        <PageHeader
+          title="Work Schedule"
+          subtitle={
+            canApprove
+              ? 'Danh sách phiếu · mở form để duyệt/từ chối (không duyệt trên list)'
+              : `Track ${track === 'GIAO_VIEN' ? 'Giáo viên (MULTIPLE · 3 ca)' : 'Kinh doanh (SINGLE · 3 ca)'}`
+          }
+          breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Work Schedule' }]}
+          actions={
+            <HStack gap={1} align="center">
+              {canApprove && pendingCount > 0 ? (
+                <>
+                  <Text type="body" size="sm">
+                    Chờ duyệt
+                  </Text>
+                  <CountBadge count={pendingCount} emphasize />
+                </>
+              ) : null}
+              <Link to={shiftRegistrationNewPath()}>
+                <Button label="Soạn phiếu mới" size="sm" variant="primary" />
+              </Link>
+            </HStack>
+          }
+        />
+      }
+    >
       <CmcTabs activeTab={activeTab} onTabChange={onTabChange} tabs={tabs} />
-    </>
+    </ListPage>
   );
 }

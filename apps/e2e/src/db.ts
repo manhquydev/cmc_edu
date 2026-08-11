@@ -820,19 +820,13 @@ export async function seedPublishedExercise(opts?: {
   maxScore?: number;
   starReward?: number;
 }): Promise<{ unitId: string; exerciseId: string }> {
-  const db = getDb();
-  const unit = await db.curriculumUnit.create({
+  // orderGlobal required (LMS unit-range) — same sequence as seedCurriculumUnit.
+  const { unitId } = await seedCurriculumUnit(
+    `E2E Unit ${randomUUID().slice(0, 8)}`,
+  );
+  const exercise = await getDb().exercise.create({
     data: {
-      program: 'UCREA',
-      level: 1,
-      monthIndex: 1,
-      unitType: 'LESSON',
-      title: `E2E Unit ${randomUUID().slice(0, 8)}`,
-    },
-  });
-  const exercise = await db.exercise.create({
-    data: {
-      curriculumUnitId: unit.id,
+      curriculumUnitId: unitId,
       type: 'homework',
       basePdfRef: 'e2e/test.pdf',
       maxScore: opts?.maxScore ?? 10,
@@ -841,7 +835,7 @@ export async function seedPublishedExercise(opts?: {
       createdById: 'e2e-seed',
     },
   });
-  return { unitId: unit.id, exerciseId: exercise.id };
+  return { unitId, exerciseId: exercise.id };
 }
 
 /** Seeds a Submission in 'submitted' state directly in the DB (bypassing the

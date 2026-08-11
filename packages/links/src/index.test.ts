@@ -25,6 +25,8 @@ describe('links builders', () => {
     expect(links.shiftRegistration(UUID)).toBe(`/hr/shifts/${UUID}`);
     expect(links.kpiScore(UUID)).toBe(`/hr/kpi/${UUID}`);
     expect(links.afterSaleCase(UUID)).toBe(`/crm/aftersale/${UUID}`);
+    expect(links.parentAccount(UUID)).toBe(`/admin/parents/${UUID}`);
+    expect(links.classSession(UUID)).toBe(`/teaching/sessions/${UUID}`);
   });
 
   it('builds go paths', () => {
@@ -33,6 +35,8 @@ describe('links builders', () => {
     expect(goPath('shiftRegistration', UUID)).toBe(`/go/shiftRegistration/${UUID}`);
     expect(goPath('kpiScore', UUID)).toBe(`/go/kpiScore/${UUID}`);
     expect(goPath('afterSaleCase', UUID)).toBe(`/go/afterSaleCase/${UUID}`);
+    expect(goPath('parentAccount', UUID)).toBe(`/go/parentAccount/${UUID}`);
+    expect(goPath('classSession', UUID)).toBe(`/go/classSession/${UUID}`);
   });
 });
 
@@ -57,6 +61,8 @@ describe('resolveGo', () => {
     expect(resolveGo('shiftRegistration', UUID)).toBe(`/hr/shifts/${UUID}`);
     expect(resolveGo('kpiScore', UUID)).toBe(`/hr/kpi/${UUID}`);
     expect(resolveGo('afterSaleCase', UUID)).toBe(`/crm/aftersale/${UUID}`);
+    expect(resolveGo('parentAccount', UUID)).toBe(`/admin/parents/${UUID}`);
+    expect(resolveGo('classSession', UUID)).toBe(`/teaching/sessions/${UUID}`);
   });
 
   it('returns null for unknown entity keys', () => {

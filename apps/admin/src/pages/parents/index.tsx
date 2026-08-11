@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Badge,
   Button,
@@ -19,6 +20,7 @@ import {
   useToast,
 } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
+import { links } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -349,6 +351,7 @@ function AllParentsTab({
   debouncedSearch: string;
   emailFilter: EmailFilter;
 }) {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
 
   // Narrowing/widening the result set can strand the user on a now
@@ -386,9 +389,15 @@ function AllParentsTab({
     {
       key: '_actions',
       label: 'Thao tác',
-      width: 160,
+      width: 240,
       render: (_v, row) => (
         <HStack gap={1} onClick={(e) => e.stopPropagation()}>
+          <Button
+            label="Mở phiếu"
+            size="sm"
+            variant="ghost"
+            onClick={() => navigate(links.parentAccount(row.id))}
+          />
           <Button
             label="Cập nhật email"
             size="sm"

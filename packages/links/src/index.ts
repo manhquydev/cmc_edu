@@ -24,6 +24,10 @@ export const links = {
   kpiScore: (id: string) => `/hr/kpi/${id}`,
   /** AfterSaleCase form — UUID. */
   afterSaleCase: (id: string) => `/crm/aftersale/${id}`,
+  /** ParentAccount form — UUID. */
+  parentAccount: (id: string) => `/admin/parents/${id}`,
+  /** ClassSession form — UUID. */
+  classSession: (id: string) => `/teaching/sessions/${id}`,
 } as const;
 
 export type LinkEntity = keyof typeof links;

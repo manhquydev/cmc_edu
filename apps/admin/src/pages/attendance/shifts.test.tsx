@@ -3,12 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, within, act } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
-// Locks shift submit/cancel/approve/reject BEFORE the phase-05 rebuild
-// (HR remediation phase 5, R3-10): the group/template UUID text inputs are
-// GONE — dropdowns sourced from `shift.listGroups`. `shift.submit.mutate`
-// payload MUST stay byte-identical. Approve/reject/cancel are audit-sensitive
-// — each MUST only fire after its confirm/reject-modal click (never on the
-// trigger click alone).
+// Locks the schedule UI to the existing shift API contract. The date × shift
+// matrix must serialize the same payload as the prior one-row-at-a-time form.
 const GROUP_ID = '11111111-1111-4111-8111-111111111111';
 const TEMPLATE_ID = '22222222-2222-4222-8222-222222222222';
 const REG_ID = '33333333-3333-4333-8333-333333333333';
@@ -19,8 +15,20 @@ const { GROUPS, MY_REGS, PENDING } = vi.hoisted(() => ({
       id: '11111111-1111-4111-8111-111111111111',
       name: 'Sale ca ngày',
       type: 'KINH_DOANH',
+      selectionMode: 'SINGLE',
       templates: [
         { id: '22222222-2222-4222-8222-222222222222', name: 'Ca 1', startTime: '08:30', endTime: '18:00' },
+        { id: '44444444-4444-4444-8444-444444444444', name: 'Ca 2', startTime: '13:00', endTime: '21:00' },
+      ],
+    },
+    {
+      id: '55555555-5555-4555-8555-555555555555',
+      name: 'Sale ca linh hoạt',
+      type: 'KINH_DOANH',
+      selectionMode: 'MULTIPLE',
+      templates: [
+        { id: '66666666-6666-4666-8666-666666666666', name: 'Ca sáng', startTime: '08:00', endTime: '12:00' },
+        { id: '77777777-7777-4777-8777-777777777777', name: 'Ca tối', startTime: '18:00', endTime: '22:00' },
       ],
     },
   ],
@@ -47,6 +55,7 @@ const { GROUPS, MY_REGS, PENDING } = vi.hoisted(() => ({
 }));
 
 let sessionRoles: string[] = ['giam_doc_kinh_doanh'];
+let myRegistrations = MY_REGS;
 
 let submitOnSuccess: (() => void) | undefined;
 let submitOnError: ((err: { message: string }) => void) | undefined;
@@ -68,7 +77,7 @@ vi.mock('../../lib/trpc.js', async () => {
           config: { approvalSecondEyeThreshold: 20_000_000 },
         }),
       'shift.listGroups.useQuery': queryResult(GROUPS),
-      'shift.myRegistrations.useQuery': queryResult(MY_REGS),
+      'shift.myRegistrations.useQuery': () => queryResult(myRegistrations),
       'shift.pendingForApproval.useQuery': queryResult(PENDING),
       'shift.submit.useMutation': (options: {
         onSuccess?: () => void;
@@ -96,11 +105,9 @@ import ShiftsPage from './shifts.js';
 async function fillSubmitForm() {
   fireEvent.click(screen.getByRole('combobox', { name: 'Nhóm ca' }));
   fireEvent.click(await screen.findByRole('option', { name: /Sale ca ngày/ }));
-  fireEvent.change(screen.getByLabelText('Từ ngày (YYYY-MM-DD)'), { target: { value: '2099-01-01' } });
-  fireEvent.change(screen.getByLabelText('Đến ngày (YYYY-MM-DD)'), { target: { value: '2099-01-31' } });
-  fireEvent.change(screen.getByLabelText('Ngày (YYYY-MM-DD)'), { target: { value: '2099-01-05' } });
-  fireEvent.click(screen.getByRole('combobox', { name: 'Mẫu ca' }));
-  fireEvent.click(await screen.findByRole('option', { name: /Ca 1/ }));
+  fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2099-01-05' } });
+  fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2099-01-05' } });
+  fireEvent.click(screen.getByRole('radio', { name: /Ca 1/ }));
 }
 
 function submitForm() {
@@ -110,13 +117,14 @@ function submitForm() {
 describe('ShiftsPage', () => {
   beforeEach(() => {
     sessionRoles = ['giam_doc_kinh_doanh'];
+    myRegistrations = MY_REGS;
     submitMutate.mockClear();
     cancelMutate.mockClear();
     approveMutate.mockClear();
     rejectMutate.mockClear();
   });
 
-  it('renders the submit tab by default with the Nhóm ca dropdown (no UUID text input)', () => {
+  it('renders the submit tab by default with the Nhóm ca selector', () => {
     renderWithProviders(<ShiftsPage />);
     expect(screen.getByRole('combobox', { name: 'Nhóm ca' })).toBeInTheDocument();
   });
@@ -127,16 +135,66 @@ describe('ShiftsPage', () => {
     expect(submitMutate).not.toHaveBeenCalled();
   });
 
-  it('submits shift.submit.mutate with a byte-identical payload after picking group + template from dropdowns', async () => {
+  it('submits shift.submit.mutate with a byte-identical payload from a selected single-mode schedule cell', async () => {
     renderWithProviders(<ShiftsPage />);
     await fillSubmitForm();
     submitForm();
     expect(submitMutate).toHaveBeenCalledWith({
       shiftGroupId: GROUP_ID,
-      fromDate: '2099-01-01',
-      toDate: '2099-01-31',
+      fromDate: '2099-01-05',
+      toDate: '2099-01-05',
       entries: [{ date: '2099-01-05', shiftTemplateId: TEMPLATE_ID }],
     });
+  });
+
+  it('keeps only one selected template per date for SINGLE groups', async () => {
+    renderWithProviders(<ShiftsPage />);
+    await fillSubmitForm();
+    fireEvent.click(screen.getByRole('radio', { name: /Ca 2/ }));
+    submitForm();
+    expect(submitMutate).toHaveBeenCalledWith({
+      shiftGroupId: GROUP_ID,
+      fromDate: '2099-01-05',
+      toDate: '2099-01-05',
+      entries: [{ date: '2099-01-05', shiftTemplateId: '44444444-4444-4444-8444-444444444444' }],
+    });
+  });
+
+  it('allows distinct template selections per date for MULTIPLE groups', async () => {
+    renderWithProviders(<ShiftsPage />);
+    fireEvent.click(screen.getByRole('combobox', { name: 'Nhóm ca' }));
+    fireEvent.click(await screen.findByRole('option', { name: /Sale ca linh hoạt/ }));
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2099-01-05' } });
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2099-01-05' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Ca sáng/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Ca tối/ }));
+    submitForm();
+    expect(submitMutate).toHaveBeenCalledWith({
+      shiftGroupId: '55555555-5555-4555-8555-555555555555',
+      fromDate: '2099-01-05',
+      toDate: '2099-01-05',
+      entries: [
+        { date: '2099-01-05', shiftTemplateId: '66666666-6666-4666-8666-666666666666' },
+        { date: '2099-01-05', shiftTemplateId: '77777777-7777-4777-8777-777777777777' },
+      ],
+    });
+  });
+
+  it('shows an inline error and blocks submit when the period ends before it starts', async () => {
+    renderWithProviders(<ShiftsPage />);
+    fireEvent.click(screen.getByRole('combobox', { name: 'Nhóm ca' }));
+    fireEvent.click(await screen.findByRole('option', { name: /Sale ca ngày/ }));
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2099-01-10' } });
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2099-01-05' } });
+    submitForm();
+    expect(screen.getByText('Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.')).toBeInTheDocument();
+    expect(submitMutate).not.toHaveBeenCalled();
+  });
+
+  it('warns before submit when there is an existing submitted registration', () => {
+    myRegistrations = [{ ...MY_REGS[0], status: 'submitted', rejectReason: null }];
+    renderWithProviders(<ShiftsPage />);
+    expect(screen.getByText('Bạn đang có một đăng ký chờ duyệt')).toBeInTheDocument();
   });
 
   it('renders an always-visible success banner after shift.submit succeeds', async () => {
@@ -155,6 +213,14 @@ describe('ShiftsPage', () => {
     expect(submitOnError).toBeDefined();
     act(() => submitOnError?.({ message: 'Đã có đăng ký chờ duyệt' }));
     expect(screen.getByText('Đã có đăng ký chờ duyệt')).toBeInTheDocument();
+  });
+
+  it('preserves the selected schedule cell when shift.submit fails', async () => {
+    renderWithProviders(<ShiftsPage />);
+    await fillSubmitForm();
+    submitForm();
+    act(() => submitOnError?.({ message: 'Đã có đăng ký chờ duyệt' }));
+    expect(screen.getByRole('radio', { name: /Ca 1/ })).toBeChecked();
   });
 
   it('shows "Đăng ký của tôi" with rejectReason for a rejected registration', () => {

@@ -270,6 +270,34 @@ export async function grantUnitsFromReceipt(
       };
     }
 
+    // Serialize concurrent package grants on the same enrollment (two receipts
+    // for one student race). Lock first, then recompute the package range from
+    // fresh unitRanges so the second grant extends after the first instead of
+    // overlapping on a pre-lock snapshot of empty ranges.
+    await tx.$queryRawUnsafe(
+      `SELECT id FROM "Enrollment" WHERE id = $1 AND "facilityId" = $2 FOR UPDATE`,
+      opts.enrollmentId,
+      opts.facilityId,
+    );
+
+    // Same-receipt winner may have committed while we waited on the lock.
+    const racedByReceipt = await tx.enrollmentUnitRange.findUnique({
+      where: { sourceReceiptId: opts.receiptId },
+    });
+    if (racedByReceipt) {
+      return {
+        status: 'idempotent' as const,
+        range: {
+          id: racedByReceipt.id,
+          enrollmentId: racedByReceipt.enrollmentId,
+          fromOrderGlobal: racedByReceipt.fromOrderGlobal,
+          toOrderGlobal: racedByReceipt.toOrderGlobal,
+          sourceReceiptId: racedByReceipt.sourceReceiptId,
+          created: false,
+        },
+      };
+    }
+
     const enrollment = await tx.enrollment.findFirst({
       where: { id: opts.enrollmentId, facilityId: opts.facilityId },
       include: {

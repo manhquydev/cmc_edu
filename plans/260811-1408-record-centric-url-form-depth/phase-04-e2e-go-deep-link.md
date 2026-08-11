@@ -1,6 +1,6 @@
 # Phase 04 — e2e, /go, deep-link proof
 
-**Status:** in progress (2026-08-11)  
+**Status:** done (2026-08-11) — local ui-chromium journey green  
 **Risk:** Medium  
 **Depends on:** phase 03  
 
@@ -21,10 +21,10 @@ Prove cold-start and agent-style links; wire go-resolver; document UAT paths.
 
 ## Acceptance
 
-- [ ] e2e green for deep link path  
+- [x] e2e green for deep link path (PLAYWRIGHT_UI=1 shift journey, 1 passed)  
 - [x] `/go/shiftRegistration/{uuid}` resolves (links unit)  
 - [x] CopyLinkButton on form  
-- [ ] UAT docs updated  
+- [x] UAT docs updated (runbook-uat-golive, TL25, WF-P3-03)  
 
 ## Rollback
 

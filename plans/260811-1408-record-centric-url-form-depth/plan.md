@@ -1,7 +1,7 @@
 # Plan: Record-centric URL + form depth (Odoo-like UX, CMC path grammar)
 
 **ID:** `260811-1408-record-centric-url-form-depth`  
-**Status:** ACTIVE — phases 0–3 committed (`0573c95`); phase 04 e2e gate next; phase 05 matrix drafted  
+**Status:** ACTIVE — phases 0–4 done (e2e local green 2026-08-11); phase 05 matrix ready for post-merge  
 **Mode:** careful multi-phase; **pilot Work Schedule first**, then system roll-out  
 **Do not:** clone Odoo hash (`#action=&model=`); big-bang rewrite all modules at once  
 

@@ -360,6 +360,10 @@ model Receipt {
   /// NOT_FOUND check); nullable at the schema level only because `Receipt`
   /// predates `ClassBatch` (migration safety), not because the app allows it.
   classBatchId        String?
+  /// Plan 3 money bridge: how many curriculum units this receipt purchases.
+  /// Null = use LMS_DEFAULT_UNIT_COUNT_ON_RECEIPT (ops default); 0 = break-glass
+  /// (activate enrollment, no range grant — no learning until admin grants).
+  unitCount           Int?
   /// Plain scalar — references AppUser.id (arrives with the HR/identity phase).
   approvedById        String?
   /// Plain scalar — references AppUser.id (arrives with the HR/identity phase).
@@ -595,6 +599,8 @@ model EnrollmentUnitRange {
   enrollmentId    String
   fromOrderGlobal Int
   toOrderGlobal   Int
+  /// Idempotency key for provision grants: at most one range per receipt.
+  sourceReceiptId String?  @unique
   createdAt       DateTime @default(now()) @db.Timestamptz(3)
 
   enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)

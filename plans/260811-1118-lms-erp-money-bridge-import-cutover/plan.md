@@ -1,7 +1,7 @@
 ---
 title: "LMS ERP money bridge import cutover"
 description: "Plan 3/3: gói bán→unit, provision grant ranges, break-glass, refund revoke, import live cmc-lms, quality gate, đóng LMS cũ."
-status: pending
+status: in_progress
 priority: P1
 effort: "3–5 tuần"
 tags: [lms, erp, provision, cutover]
@@ -46,13 +46,26 @@ Range writer must be same grant service used by admin grantUnits (single-writer)
 
 ## Success criteria
 
-- [ ] Paid receipt → correct units  
+- [x] Paid receipt → correct units (default 4 / unitCount / 0 break-glass)  
 - [ ] 1 week ops without rollback  
 - [ ] Old LMS closed as SoT  
-- [ ] 0 dual-write  
+- [x] 0 dual-write (single grant writer path)  
+
+## Progress (2026-08-11 cook)
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 1 Start / runbook | done | `runbook-cutover-draft.md` |
+| 2 Package mapping | interim | `unitCount` + default env; owner table still open |
+| 3 grantUnitsFromReceipt | done | provision wire + idempotent sourceReceiptId |
+| 4 Break-glass + refund | done | unitCount=0; full refund deletes receipt ranges |
+| 5 Import dry-run | todo | not this slice |
+| 6 Cutover close LMS | todo | not this slice |
+
+Ship: `plans/reports/ship-lms-money-bridge-grant-slice.md`
 
 ## Note on package examples
 
-Before phase 2 implementation: collect 3–5 real sale packages (“gói X = N unit khóa Y”) from owner — form phiếu thu later; **model already locked**.
+Owner still should confirm 3–5 real packages. Interim: `LMS_DEFAULT_UNIT_COUNT_ON_RECEIPT` (default 4) and `Receipt.unitCount`.
 
 <!-- slug: lms-erp-money-bridge-import-cutover -->

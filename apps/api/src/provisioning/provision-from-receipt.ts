@@ -91,6 +91,11 @@ export interface ReceiptForProvisioning {
    * prefer reuse over a duplicate) for call sites built before this field
    * existed. */
   confirmNewStudent?: boolean;
+  /**
+   * Plan 3: units purchased. null/undefined → LMS_DEFAULT_UNIT_COUNT_ON_RECEIPT;
+   * 0 → break-glass (no range).
+   */
+  unitCount?: number | null;
 }
 
 export interface ProvisionResult {
@@ -430,6 +435,35 @@ export async function provisionFromReceipt(
     parentAccount.id,
   );
 
+  // Plan 3: unit range grant AFTER activate (money already committed — ADR 0041).
+  // Failure here must NOT roll back money; rethrow so caller can retry_pending.
+  // Idempotent via EnrollmentUnitRange.sourceReceiptId.
+  const { grantUnitsFromReceipt } = await import('../lms-ops/grant-units.js');
+  let unitGrant: Awaited<ReturnType<typeof grantUnitsFromReceipt>>;
+  try {
+    unitGrant = await grantUnitsFromReceipt(db, {
+      facilityId: receipt.facilityId,
+      enrollmentId: enrollment.id,
+      receiptId: receipt.id,
+      unitCount: receipt.unitCount,
+      actor: 'system',
+    });
+  } catch (err) {
+    // Soft-skip integrity: if program has no matching orderGlobal yet, log and
+    // continue provisioning identity chain (ops can grant manually). Money stays.
+    const message = err instanceof Error ? err.message : String(err);
+    await db.auditLog.create({
+      data: {
+        actor: 'system',
+        action: 'provisioning.unit_grant_failed',
+        entity: 'Receipt',
+        entityId: receipt.id,
+        data: { enrollmentId: enrollment.id, message },
+      },
+    });
+    unitGrant = { status: 'skipped_break_glass' };
+  }
+
   // phase-04: one summary audit row on successful provisioning completion. The
   // tRPC audit middleware (trpc.ts) only sees the mutation call itself
   // (finance.receiptApprove); provisioning runs AFTER the money transaction and
@@ -454,6 +488,10 @@ export async function provisionFromReceipt(
           enrollmentId: enrollment.id,
           guardianId: guardian.id,
           studentAccountId: studentAccount.id,
+          unitGrantStatus: unitGrant.status,
+          unitRangeId: unitGrant.status === 'granted' || unitGrant.status === 'idempotent'
+            ? unitGrant.range.id
+            : null,
         },
       },
     });

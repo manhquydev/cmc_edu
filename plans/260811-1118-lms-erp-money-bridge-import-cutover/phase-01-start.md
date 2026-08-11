@@ -1,6 +1,6 @@
 ---
 title: "Phase 1: Start cutover prep"
-status: todo
+status: done
 ---
 # Phase 1: Start
 ## Overview

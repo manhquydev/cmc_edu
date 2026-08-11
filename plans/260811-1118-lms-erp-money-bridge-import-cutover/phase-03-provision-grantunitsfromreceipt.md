@@ -1,6 +1,6 @@
 ---
 title: "Phase 3: grantUnitsFromReceipt"
-status: todo
+status: done
 dependencies: [2]
 ---
 # Phase 3: Provision grants unit ranges

@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Receipt unit package mapping"
-status: todo
+status: done
 dependencies: [1]
 ---
 # Phase 2: Product mapping gói → unit

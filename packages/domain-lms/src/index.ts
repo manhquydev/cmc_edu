@@ -23,3 +23,5 @@ export {
   type SequenceItem,
   type SequenceUpdatePlan,
 } from './exercise-sequence.js';
+
+export { resolvePackageGrantRange } from './package-grant.js';

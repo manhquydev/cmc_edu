@@ -766,6 +766,39 @@ export async function deleteStaffHrCascadeForAppUsers(...appUserIds: string[]): 
 // Phase-08: exercise + submission seeding helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Ensure UCREA orderGlobal 1–4 exist (default receipt package grant size).
+ * Idempotent; safe for CI migrate-only DBs that never ran prisma seed.
+ * Does not delete or rewrite existing rows.
+ */
+export async function ensureUcreaCurriculumAxis(): Promise<void> {
+  const db = getDb();
+  const rows: Array<{
+    program: 'UCREA';
+    level: number;
+    monthIndex: number;
+    unitType: 'LESSON';
+    title: string;
+    orderGlobal: number;
+  }> = [
+    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 1', orderGlobal: 1 },
+    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 2', orderGlobal: 2 },
+    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 3', orderGlobal: 3 },
+    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 4', orderGlobal: 4 },
+  ];
+  for (const row of rows) {
+    const existing = await db.curriculumUnit.findUnique({
+      where: {
+        program_orderGlobal: { program: row.program, orderGlobal: row.orderGlobal },
+      },
+      select: { id: true },
+    });
+    if (!existing) {
+      await db.curriculumUnit.create({ data: row });
+    }
+  }
+}
+
 /** Seeds one global CurriculumUnit and returns its id + title. Facility-agnostic
  * (no facilityId), so the facility teardown does not remove it — delete via
  * `cleanupCurriculumUnits`. Inert prerequisite data: a curriculum unit is a

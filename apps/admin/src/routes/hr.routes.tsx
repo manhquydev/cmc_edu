@@ -7,6 +7,8 @@ import { NAV_MODULES, isNavChildVisible } from '../shell/nav-registry.js';
 
 const CheckInOutPage = lazy(() => import('../pages/attendance/check-in-out.js'));
 const ShiftsPage = lazy(() => import('../pages/attendance/shifts.js'));
+const ShiftsNewPage = lazy(() => import('../pages/attendance/shifts-new.js'));
+const ShiftsDetailPage = lazy(() => import('../pages/attendance/shifts-detail.js'));
 const PayrollPage = lazy(() => import('../pages/hr/payroll.js'));
 const KpiPage = lazy(() => import('../pages/hr/kpi.js'));
 const MyHrPage = lazy(() => import('../pages/hr/my-hr.js'));
@@ -44,6 +46,23 @@ export const hrRoutes: RouteObject[] = [
     element: (
       <Suspense fallback={<Fallback />}>
         <ShiftsPage />
+      </Suspense>
+    ),
+  },
+  // Static before :registrationId (React Router match order).
+  {
+    path: 'shifts/new',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <ShiftsNewPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'shifts/:registrationId',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <ShiftsDetailPage />
       </Suspense>
     ),
   },

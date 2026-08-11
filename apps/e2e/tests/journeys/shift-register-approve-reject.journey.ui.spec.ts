@@ -53,12 +53,16 @@ test.describe('P3-03/04/07 journey — đăng ký ca: từ chối → nộp lạ
       await context.addCookies(cookiePair(STAFF_COOKIE_NAME, mintStaffCookie({ userId: saleUserId, roles: ['sale'], facilityId })));
       await page.goto('/cockpit');
       await menuNav(page, 'Nhân sự', 'Đăng ký ca', { role: 'sale' });
-      // SubmitTab is the default tab. Pick the group (its templates then load).
+      // Record-centric: compose is /hr/shifts/new (list is index only).
+      await page.getByRole('button', { name: 'Soạn phiếu mới' }).click();
+      await expect(page).toHaveURL(/\/hr\/shifts\/new$/);
+      // Pick the group (its templates then load as matrix columns).
       await page.getByRole('combobox', { name: /Nhóm ca/ }).click();
       await page.getByRole('option', { name: new RegExp(groupName) }).click();
       await page.getByLabel('Từ ngày').fill(tomorrow);
       await page.getByLabel('Đến ngày').fill(tomorrow);
-      await page.getByRole('radio', { name: new RegExp(templateName) }).check();
+      // SINGLE matrix: checkbox cells, not radio rows.
+      await page.getByRole('checkbox', { name: new RegExp(`${tomorrow} ${templateName}`) }).check();
 
       await page.setViewportSize({ width: 375, height: 812 });
       await expect(page.getByRole('button', { name: 'Gửi đăng ký' })).toBeVisible();
@@ -88,7 +92,8 @@ test.describe('P3-03/04/07 journey — đăng ký ca: từ chối → nộp lạ
       ).toBeLessThanOrEqual(mobileLayout.viewport);
 
       await page.getByRole('button', { name: 'Gửi đăng ký' }).click();
-      await expect(page.getByText('Đăng ký ca đã gửi, chờ GĐ duyệt.')).toBeVisible();
+      // After submit, form deep-link opens: /hr/shifts/{uuid}
+      await expect(page).toHaveURL(/\/hr\/shifts\/[0-9a-f-]{36}$/i, { timeout: 15_000 });
     } finally {
       await context.close();
     }

@@ -9,21 +9,25 @@ import {
   readUuidParam,
   resolveGo,
   sessionEvidencePath,
+  shiftRegistrationNewPath,
+  shiftRegistrationsPath,
 } from './index.js';
 
 const UUID = '550e8400-e29b-41d4-a716-446655440000';
 
 describe('links builders', () => {
-  it('builds the four entity detail paths', () => {
+  it('builds entity detail paths including shiftRegistration', () => {
     expect(links.opportunity(UUID)).toBe(`/crm/opportunities/${UUID}`);
     expect(links.receipt(UUID)).toBe(`/finance/${UUID}`);
     expect(links.student(UUID)).toBe(`/admin/students/${UUID}`);
     expect(links.classBatch(UUID)).toBe(`/admin/classes/${UUID}`);
+    expect(links.shiftRegistration(UUID)).toBe(`/hr/shifts/${UUID}`);
   });
 
   it('builds go paths', () => {
     expect(goPath('opportunity', UUID)).toBe(`/go/opportunity/${UUID}`);
     expect(goPath('receipt', UUID)).toBe(`/go/receipt/${UUID}`);
+    expect(goPath('shiftRegistration', UUID)).toBe(`/go/shiftRegistration/${UUID}`);
   });
 });
 
@@ -45,6 +49,7 @@ describe('resolveGo', () => {
     expect(resolveGo('receipt', UUID)).toBe(`/finance/${UUID}`);
     expect(resolveGo('student', UUID)).toBe(`/admin/students/${UUID}`);
     expect(resolveGo('classBatch', UUID)).toBe(`/admin/classes/${UUID}`);
+    expect(resolveGo('shiftRegistration', UUID)).toBe(`/hr/shifts/${UUID}`);
   });
 
   it('returns null for unknown entity keys', () => {
@@ -100,5 +105,12 @@ describe('workspace builders + readUuidParam', () => {
     const p = new URLSearchParams('a=abc&b=' + UUID);
     expect(readUuidParam(p, 'a')).toBeNull();
     expect(readUuidParam(p, 'b')).toBe(UUID);
+  });
+
+  it('shiftRegistrationsPath + shiftRegistrationNewPath', () => {
+    expect(shiftRegistrationsPath()).toBe('/hr/shifts');
+    expect(shiftRegistrationsPath({ scope: 'mine' })).toBe('/hr/shifts?scope=mine');
+    expect(shiftRegistrationsPath({ scope: 'inbox' })).toBe('/hr/shifts?scope=inbox');
+    expect(shiftRegistrationNewPath()).toBe('/hr/shifts/new');
   });
 });

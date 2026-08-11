@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Button,
   CmcTabs,
@@ -15,6 +15,7 @@ import {
   SectionBlock,
   Selector,
   StatusBadge,
+  WorkflowStatusbar,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
@@ -32,6 +33,12 @@ const LIFECYCLE_OPTIONS = [
   { value: 'withdrawn', label: 'Rút học' },
 ];
 
+const LIFECYCLE_LABELS: Record<string, string> = {
+  active: 'Đang học',
+  blocked_lms: 'Khóa LMS',
+  withdrawn: 'Rút học',
+};
+
 const LIFECYCLE_CONSEQUENCES: Record<string, string> = {
   blocked_lms:
     'Khóa LMS sẽ ngăn học viên đăng nhập ứng dụng học. Hành động này sẽ được ghi nhận trong nhật ký kiểm tra. Tiếp tục?',
@@ -39,6 +46,21 @@ const LIFECYCLE_CONSEQUENCES: Record<string, string> = {
     'Đánh dấu rút học xác nhận học viên đã kết thúc chương trình tại cơ sở. Tiếp tục?',
   active: 'Khôi phục trạng thái học viên về đang học. Tiếp tục?',
 };
+
+/** Multi-step lifecycle strip — same states as setLifecycle (domain unchanged). */
+function lifecycleSteps(lifecycle: string): {
+  steps: { id: string; label: string }[];
+  activeIndex: number;
+} {
+  const steps = [
+    { id: 'active', label: 'Đang học' },
+    { id: 'blocked_lms', label: 'Khóa LMS' },
+    { id: 'withdrawn', label: 'Rút học' },
+  ];
+  const idx =
+    lifecycle === 'withdrawn' ? 2 : lifecycle === 'blocked_lms' ? 1 : 0;
+  return { steps, activeIndex: idx };
+}
 
 function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -50,6 +72,7 @@ function initialsFromName(name: string): string {
 export default function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const { canDo } = useSession();
 
   // Prefer route fetch so deep-link / refresh still loads identity (red-team C1).
@@ -113,7 +136,10 @@ export default function StudentDetailPage() {
       content: (
         <div className="console-detail-panel">
           <div className="console-detail-stack">
-            <SectionBlock title="Thông tin học viên" description="Trường hiển thị theo recipe detail hệ thống.">
+            <SectionBlock
+              title="Thông tin học viên"
+              description="Cùng khung form chứng từ Console (list → form · statusbar · sheet)."
+            >
               <KeyValueList
                 items={[
                   {
@@ -125,7 +151,12 @@ export default function StudentDetailPage() {
                     key: 'lifecycle',
                     label: 'Trạng thái',
                     value: student ? (
-                      <StatusBadge status={student.lifecycle} />
+                      <StatusBadge
+                        status={student.lifecycle}
+                        label={
+                          LIFECYCLE_LABELS[student.lifecycle] ?? student.lifecycle
+                        }
+                      />
                     ) : (
                       '—'
                     ),
@@ -141,7 +172,10 @@ export default function StudentDetailPage() {
             </SectionBlock>
 
             {canSetLifecycle ? (
-              <SectionBlock title="Đổi trạng thái" description="Cần xác nhận trước khi ghi nhật ký.">
+              <SectionBlock
+                title="Đổi trạng thái"
+                description="Gọi student.setLifecycle — xác nhận trước khi ghi nhật ký (quyền không đổi)."
+              >
                 <HStack gap={2} align="end">
                   <div style={{ width: 200 }}>
                     <Selector
@@ -248,9 +282,17 @@ export default function StudentDetailPage() {
     );
   }
 
+  const lifecycleBar = student
+    ? lifecycleSteps(student.lifecycle)
+    : { steps: lifecycleSteps('active').steps, activeIndex: 0 };
+  const lifecycleLabel = student
+    ? (LIFECYCLE_LABELS[student.lifecycle] ?? student.lifecycle)
+    : '—';
+
   return (
     <>
       <DetailPage
+        density="ops"
         header={
           <PageHeader
             breadcrumbs={[
@@ -258,7 +300,17 @@ export default function StudentDetailPage() {
               { label: 'Học viên', href: '/admin/students' },
               { label: student?.fullName ?? '…' },
             ]}
-            actions={id ? <CopyLinkButton mode="go" entity="student" id={id} /> : undefined}
+            actions={
+              <HStack gap={1} wrap="wrap">
+                {id ? <CopyLinkButton mode="go" entity="student" id={id} /> : null}
+                <Button
+                  label="Về danh sách"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => navigate('/admin/students')}
+                />
+              </HStack>
+            }
           />
         }
         entity={
@@ -267,16 +319,31 @@ export default function StudentDetailPage() {
             subtitle={id ? `Mã: ${id.slice(0, 8)}…` : undefined}
             initials={student ? initialsFromName(student.fullName) : 'HS'}
             badges={
-              student ? <StatusBadge status={student.lifecycle} /> : undefined
+              student ? (
+                <StatusBadge
+                  status={student.lifecycle}
+                  label={LIFECYCLE_LABELS[student.lifecycle] ?? student.lifecycle}
+                />
+              ) : undefined
             }
             meta={
               student ? (
-                <span>Lifecycle · {student.lifecycle}</span>
+                <span>Học viên · {lifecycleLabel}</span>
               ) : !querySettled ? (
                 <span>Đang tải hồ sơ học viên…</span>
               ) : (
                 <span>Chưa có dữ liệu học viên</span>
               )
+            }
+            actions={
+              canSetLifecycle ? (
+                <Button
+                  label="Đổi trạng thái"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setActiveTab('profile')}
+                />
+              ) : undefined
             }
           />
         }
@@ -287,7 +354,14 @@ export default function StudentDetailPage() {
               {
                 key: 'lifecycle',
                 label: 'Trạng thái',
-                value: student ? <StatusBadge status={student.lifecycle} /> : '—',
+                value: student ? (
+                  <StatusBadge
+                    status={student.lifecycle}
+                    label={LIFECYCLE_LABELS[student.lifecycle] ?? student.lifecycle}
+                  />
+                ) : (
+                  '—'
+                ),
               },
               {
                 key: 'id',
@@ -296,6 +370,14 @@ export default function StudentDetailPage() {
               },
             ]}
           />
+        }
+        statusbar={
+          student ? (
+            <WorkflowStatusbar
+              steps={lifecycleBar.steps}
+              activeIndex={lifecycleBar.activeIndex}
+            />
+          ) : undefined
         }
         tabs={<CmcTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />}
       />

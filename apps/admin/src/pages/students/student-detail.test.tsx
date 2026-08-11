@@ -108,4 +108,20 @@ describe('StudentDetailPage — query vs location.state', () => {
     expect(screen.getByRole('heading', { name: 'From Server' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Stale List Name' })).toBeNull();
   });
+
+  it('renders Console form chrome and still uses setLifecycle path when data loads', () => {
+    getState.data = {
+      id: STUDENT_ID,
+      fullName: 'From Server',
+      lifecycle: 'active',
+      parentPhone: null,
+    };
+    renderWithProviders(<StudentDetailPage />);
+    // Statusbar lifecycle + sheet (shipped page, not re-implementation)
+    expect(screen.getAllByText('Đang học').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Thông tin học viên')).toBeTruthy();
+    expect(screen.getAllByText('Đổi trạng thái').length).toBeGreaterThanOrEqual(1);
+    // Permission gate still shows apply controls for GĐKD
+    expect(screen.getByRole('button', { name: 'Áp dụng' })).toBeTruthy();
+  });
 });

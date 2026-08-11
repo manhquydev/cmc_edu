@@ -109,6 +109,14 @@ describe('ClassDetailPage', () => {
     expect(await screen.findByRole('option', { name: 'Trần Thị B' })).toBeInTheDocument();
   });
 
+  it('renders Console form chrome without changing assignTeacher contract', () => {
+    renderWithProviders(<ClassDetailPage />);
+    expect(screen.getByText('Thông tin lớp')).toBeInTheDocument();
+    expect(screen.getByText('Phân công giáo viên')).toBeInTheDocument();
+    // Statusbar labels for active batch
+    expect(screen.getAllByText(/Đang mở/).length).toBeGreaterThanOrEqual(1);
+  });
+
   it('calls classBatch.assignTeacher.mutate({classBatchId, teacherAppUserId}) when a teacher is picked', async () => {
     renderWithProviders(<ClassDetailPage />);
     fireEvent.click(screen.getByRole('combobox', { name: 'Giáo viên' }));

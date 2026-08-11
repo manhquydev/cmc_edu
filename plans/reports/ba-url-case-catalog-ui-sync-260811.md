@@ -1,131 +1,119 @@
 # Bản đồ URL · Case · Đồng bộ giao diện (toàn admin)
 
-**Ngày:** 2026-08-11  
+**Ngày:** 2026-08-11 (refresh goal)  
 **Đối tượng:** chủ dự án (không cần nhớ thuật ngữ dev)  
-**Mục đích:** biết **mỗi màn ở đâu**, **làm gì**, **đã giống form chứng từ chưa**, **làm tiếp cái gì**  
-**PR #110:** để sau — không ship trong đợt này  
+**Nguồn routes:** `apps/admin/src/routes/*` + `nav-registry.ts`  
+**PR #110:** để sau — không ship trong goal này  
 
 ---
 
-## 0. Thuật ngữ đơn giản (thay dev jargon)
+## 0. Thuật ngữ đơn giản
 
-| Thuật ngữ cũ (dev) | Cách nói BA |
-|--------------------|-------------|
-| Resource-centric | **Một loại phiếu = một menu + một danh sách + form mở bằng mã** |
-| Form-depth | **Mở chi tiết bằng link UUID**, làm việc trên form, chia sẻ được |
-| List index-only | **Danh sách chỉ để mở phiếu**, không duyệt hàng loạt trên list |
-| Console grammar / densify | **Cùng “vỏ” màn**: header chứng từ · dải trạng thái · dải số tóm tắt · sheet thông tin |
-| WorkflowStatusbar | **Dải bước trạng thái** (Soạn → Chờ duyệt → …) |
-| EntityHeader | **Tiêu đề chứng từ + nút chính** |
-| HighlightStrip | **Dải tóm tắt** (giá trị / trạng thái / ngày) |
-| HITL | **Người bấm nút trên form** (duyệt, xác nhận…) |
-| Design system Console | **Bộ khung giao diện admin CMC** (học Odoo, màu token CMC) |
+| Cần nhớ | Ý nghĩa |
+|---------|---------|
+| **Danh sách** | Menu → bảng các phiếu |
+| **Form** | Mở 1 phiếu bằng mã UUID, làm việc + chia sẻ link |
+| **Cùng vỏ màn (Đạt)** | Header chứng từ + dải tóm tắt + sheet (+ dải trạng thái nếu có vòng đời) |
+| **Một phần** | Đã có form/list nhưng thiếu đủ chrome hoặc tab/workspace |
+| **Mỏng** | Form/list tối thiểu |
+| **List / Config / Placeholder** | Không phải form chứng từ UUID đầy đủ |
+| **Console** | Bộ giao diện admin CMC (học cảm giác Odoo, không copy TEKY teal) |
 
-**Mẫu URL chuẩn**
+**Mẫu URL**
 
 ```
-Danh sách:  /khu-vuc/ten-chung-tu
-Soạn mới:   /khu-vuc/ten-chung-tu/new     (khi cần)
-Form:       /khu-vuc/ten-chung-tu/{mã-uuid}
-Chia sẻ:    /go/{loại}/{mã-uuid}  → nhảy vào form
+Danh sách:  /khu-vực/tên
+Form:       /khu-vực/tên/{mã-uuid}
+Chia sẻ:    /go/{loại}/{mã-uuid}
 ```
 
----
-
-## 1. Tình trạng thật (advise nhanh)
-
-| Nhóm | Đã có form/link? | Vỏ form Console? | Luật nghiệp vụ |
-|------|------------------|------------------|----------------|
-| Ca · KPI · Phiếu thu · Aftersale · Cơ hội CRM | Có | **Đạt** (densify) | Giữ |
-| Phụ huynh | Có form | **Mỏng** → wave này densify | Giữ email/LMS |
-| Buổi học | Có form + tab | **Mỏng** → wave này densify header | Giữ tab điểm danh/nhận xét |
-| Học viên · Lớp | Có form | **Một phần** (đã strip/sheet) | Giữ lifecycle |
-| Chấm công | Màn thao tác (không form UUID) | Thẻ chấm **đã polish** | ADR punch |
-| Nhiều list/config (bậc lương, quà, users…) | List / config | Chưa cần form Odoo | Không ép form giả |
-| Bảng công tháng / kanban bù TEKY | Không | — | **Cấm product** nếu phá công–lương |
+**Thang vỏ (chrome grade)**  
+`Đạt` · `Một phần` · `Mỏng` · `List` · `Config` · `Placeholder` · `Dashboard` · `Auth` · `Tool` · `Báo cáo` · `Ops`
 
 ---
 
-## 2. Ma trận URL toàn admin (case × URL)
+## 1. Ma trận URL × case (mọi leaf nav + form route)
 
-**Cột “Vỏ”:** Đạt = statusbar/header/strip/sheet; Một phần; Mỏng; List; Config; Placeholder.
+### 1.1 Tổng quan · Auth
 
-### 2.1 Tổng quan
+| Case | List / màn | Form | Vỏ |
+|------|------------|------|-----|
+| Tổng quan | `/cockpit` | — | Dashboard |
+| Đăng nhập | `/login` | — | Auth |
+| Đổi mật khẩu | `/change-password` | — | Auth |
+| Chia sẻ chung | `/go/{loại}/{uuid}` | → form đích | Ops |
 
-| Case | URL | Vỏ | Ghi chú BA |
-|------|-----|-----|-----------|
-| Tổng quan | `/cockpit` | Dashboard | Không form chứng từ |
+### 1.2 Nhân sự (`/hr/*`)
 
-### 2.2 Nhân sự
-
-| Case | URL list | URL form | Vỏ | Luật chốt |
-|------|----------|----------|-----|-----------|
-| Chấm vào/ra | `/hr/checkin` | — (thao tác tại chỗ) | Thẻ chấm **đạt cảm giác** | Punch + offsite reason; **cấm** bù ngày tự do |
-| Phiếu bù (của tôi / hàng chờ) | cùng `/hr/checkin` (tab) | — | List + badge | Ticket đóng băng sau nộp; **không** kanban TEKY |
-| Đăng ký ca | `/hr/shifts` · `?scope=mine\|inbox` | `/hr/shifts/{uuid}` · `/hr/shifts/new` | **Đạt** | Duyệt trên form; list chỉ mở phiếu; track GĐ |
-| KPI | `/hr/kpi` | `/hr/kpi/{uuid}` | **Đạt** | Xác nhận = QL trực tiếp; duyệt cuối bulk GĐ |
-| Của tôi | `/hr/my` | — | List tóm tắt | Self-scope |
-| Chốt lương | `/hr/payroll` | (query user/period) | List/ops | Không form-depth wave này |
+| Case | List | Form | Vỏ | Ghi chú |
+|------|------|------|-----|---------|
+| Chấm công | `/hr/checkin` | — (thao tác tại chỗ) | **Một phần** | Thẻ chấm lớn; tab phiếu; **không** form bù ngày tự do |
+| Đăng ký ca | `/hr/shifts` · `?scope=` | `/hr/shifts/{uuid}` · `/hr/shifts/new` | **Đạt** | List index-only |
+| KPI | `/hr/kpi` | `/hr/kpi/{uuid}` | **Đạt** | Shared board |
+| Của tôi | `/hr/my` | — | List | Self |
+| Chốt lương | `/hr/payroll` | query user/period | Ops | |
 | Bậc lương | `/hr/salary-tiers` | — | Config | |
-| Cấu hình ca | `/admin/shift-config` | — | Config | GĐ manage |
+| Cấu hình ca | `/admin/shift-config` | — | Config | Nav HR, path admin |
 
-### 2.3 Tài chính & điều hành
+### 1.3 Tài chính & điều hành
 
-| Case | URL list | URL form | Vỏ | Luật chốt |
-|------|----------|----------|-----|-----------|
-| Phiếu thu | `/finance` | `/finance/{uuid}` · `/finance/new` | **Đạt** | Money-gate; duyệt / hoàn / huỷ trên form |
-| Hoàn tiền (mục lục) | `/finance/refund` | mở `/finance/{uuid}` | Index → form | Chỉ phiếu đã duyệt; cap remaining |
-| Xếp lớp | `/finance/class-placement` | — | Ops | enrollment.enroll |
-| Doanh thu | `/ops/revenue` | — | Báo cáo | |
-| Đối soát | `/ops/recon` | — | Ops | |
+| Case | List | Form | Vỏ |
+|------|------|------|-----|
+| Phiếu thu | `/finance` | `/finance/{uuid}` · `/finance/new` | **Đạt** |
+| Hoàn tiền (mục lục) | `/finance/refund` | → `/finance/{uuid}` | List → form |
+| Xếp lớp | `/finance/class-placement` | — | Ops |
+| Doanh thu | `/ops/revenue` | — | Báo cáo |
+| Đối soát | `/ops/recon` | — | Ops |
 
-### 2.4 CRM / sau bán
+### 1.4 CRM
 
-| Case | URL list | URL form | Vỏ | Luật chốt |
-|------|----------|----------|-----|-----------|
-| Pipeline / cơ hội | `/crm` | `/crm/opportunities/{uuid}` | **Đạt** | Stage pipeline |
-| Nhập lead hàng loạt | `/crm/bulk-import` | — | Tool | |
-| Báo cáo tuyển sinh | `/crm/report` | — | Báo cáo | |
-| Họp sau bán | `/crm/post-sale-meeting` | — | List + dialog | |
-| Case sau bán | `/crm/aftersale` | `/crm/aftersale/{uuid}` | **Đạt** | open→…→closed trên form |
+| Case | List | Form | Vỏ |
+|------|------|------|-----|
+| Pipeline / cơ hội | `/crm` | `/crm/opportunities/{uuid}` | **Đạt** |
+| Nhập lead | `/crm/bulk-import` | — | Tool |
+| Báo cáo tuyển sinh | `/crm/report` | — | Báo cáo |
+| Họp sau bán | `/crm/post-sale-meeting` | — | List + dialog |
+| Case sau bán | `/crm/aftersale` | `/crm/aftersale/{uuid}` | **Đạt** |
 
-### 2.5 Lớp · học viên · phụ huynh
+### 1.5 Lớp · học viên · phụ huynh
 
-| Case | URL list | URL form | Vỏ | Luật chốt |
-|------|----------|----------|-----|-----------|
-| Học viên | `/admin/students` | `/admin/students/{uuid}` | **Một phần** | lifecycle |
-| Lớp học | `/admin/classes` | `/admin/classes/{uuid}` | **Một phần** | |
-| Khoá học | `/admin/courses` | — | List/config | |
-| Phụ huynh | `/admin/parents` | `/admin/parents/{uuid}` | **Mỏng → densify** | email LMS · khóa LMS · con link |
+| Case | List | Form | Vỏ |
+|------|------|------|-----|
+| Học viên | `/admin/students` | `/admin/students/{uuid}` | **Đạt** (goal densify) |
+| Lớp học | `/admin/classes` | `/admin/classes/{uuid}` | **Đạt** (goal densify) |
+| Khoá học | `/admin/courses` | — | List/Config |
+| Phụ huynh | `/admin/parents` | `/admin/parents/{uuid}` | **Đạt** |
 
-### 2.6 Giảng dạy
+### 1.6 Giảng dạy
 
-| Case | URL list | URL form | Vỏ | Luật chốt |
-|------|----------|----------|-----|-----------|
-| Lịch dạy | `/teaching/schedule` | → buổi | Calendar | |
-| Buổi học | (từ lịch) | `/teaching/sessions/{uuid}?tab=` | **Mỏng → densify** | tab điểm danh/nhận xét/nhật ký |
-| Điểm danh (workspace) | `/teaching/attendance` | query session | Ops | |
-| Chấm bài | `/teaching/grading` | query submission | Ops | |
-| Nhật ký / nhận xét (menu) | `/teaching/session-evidence` · `session-assessment` | — | Ops | |
-| Bài tập | `/teaching/exercises` | — | Ops | |
-| Báo cáo AI | `/admin/report-cards` | — | Ops | path lệch teaching — note |
+| Case | List / màn | Form | Vỏ |
+|------|------------|------|-----|
+| Lịch dạy | `/teaching/schedule` | → buổi | Ops (calendar) |
+| Buổi học | (từ lịch) | `/teaching/sessions/{uuid}?tab=` | **Đạt** |
+| Điểm danh workspace | `/teaching/attendance` | query | Ops |
+| Chấm bài | `/teaching/grading` | query | Ops |
+| Nhật ký buổi (menu) | `/teaching/session-evidence` | — | Ops |
+| Nhận xét buổi (menu) | `/teaching/session-assessment` | — | Ops |
+| Bài tập | `/teaching/exercises` | — | Ops |
+| Báo cáo AI | `/admin/report-cards` | — | Ops (path lệch teaching) |
 
-### 2.7 Gắn kết · Quản trị · Khác
+### 1.7 Gắn kết · Quản trị
 
 | Case | URL | Vỏ |
 |------|-----|-----|
 | Quà tặng | `/admin/engagement/gifts` | Config |
-| Đổi thưởng | `/admin/engagement/rewards` | Queue |
+| Đổi thưởng | `/admin/engagement/rewards` | List/Queue |
 | Bảng xếp hạng | `/admin/engagement/leaderboard` | Placeholder |
-| Người dùng / cơ sở / IP / audit | `/admin/users` … | Config |
-| Chia sẻ chung | `/go/{loại}/{uuid}` | Resolver → form |
-| Đổi mật khẩu | `/change-password` | Auth |
-| Login | `/login` | Auth |
+| Người dùng | `/admin/users` | Config |
+| Cơ sở | `/admin/facilities` | Config |
+| IP mạng | `/admin/network-ip` | Config |
+| Nhật ký hệ thống | `/admin/audit-log` | Config |
+| Design lab | `/design` | Tool (dev) |
 
-### 2.8 Link chia sẻ đã đăng ký (`/go/...`)
+### 1.8 Link chia sẻ `/go/...`
 
-| Loại (entity) | Form đích |
-|---------------|-----------|
+| Entity | Form đích |
+|--------|-----------|
 | opportunity | `/crm/opportunities/{id}` |
 | receipt | `/finance/{id}` |
 | student | `/admin/students/{id}` |
@@ -138,69 +126,36 @@ Chia sẻ:    /go/{loại}/{mã-uuid}  → nhảy vào form
 
 ---
 
-## 3. Đối soát luật (tránh sai lệnh sau triển khai)
+## 2. Form chứng từ — grade sau goal
 
-| Luật đã chốt | Kỳ vọng | Kết luận |
-|--------------|---------|----------|
-| Một chứng từ = một menu, không “Duyệt …” | Nav theo resource | **Khớp** |
-| Form = nơi quyết định (duyệt ca, confirm KPI…) | Nút trên form | **Khớp** |
-| KPI confirm = quản lý; approved = bulk GĐ | Cờ server | **Khớp** |
-| Chấm: punch append; cấm bù tự do | UI không form bù | **Khớp** |
-| Không kanban ticket TEKY | Không product mới | **Khớp** |
-| Hoàn/huỷ trên form phiếu thu | UI có | **Khớp** · **chưa UAT** |
-| Console design, không skin TEKY teal | Token CMC | **Đang kéo đồng bộ** |
-| Ảnh Odoo/TEKY = cảm giác, không = luật | — | **Nhắc** |
-
----
-
-## 4. Học 4 ảnh (giữ)
-
-1. **Chấm thẻ lớn** → đã gần tại `/hr/checkin`  
-2. **Kanban ticket** → **không** product; dùng tab + badge  
-3. **Bảng công tháng** → **defer**  
-4. **KPI sheet + statusbar** → đã densify; **không** chatter  
+| Form | URL | Grade | Primary actions |
+|------|-----|-------|-----------------|
+| Ca | `/hr/shifts/{id}` | Đạt | Duyệt / Từ chối / Hủy |
+| KPI | `/hr/kpi/{id}` | Đạt | Xác nhận / Ghi đè |
+| Phiếu thu | `/finance/{id}` | Đạt | Duyệt / Hoàn / Huỷ |
+| Aftersale | `/crm/aftersale/{id}` | Đạt | Tiếp nhận / Giải quyết / Đóng |
+| Cơ hội | `/crm/opportunities/{id}` | Đạt | Stage actions |
+| Phụ huynh | `/admin/parents/{id}` | Đạt | Email / Khóa LMS |
+| Buổi học | `/teaching/sessions/{id}` | Đạt | Tab hub |
+| Học viên | `/admin/students/{id}` | **Đạt** | setLifecycle |
+| Lớp | `/admin/classes/{id}` | **Đạt** | assignTeacher · sessions |
 
 ---
 
-## 5. Hàng đợi đồng bộ giao diện (toàn dự án)
+## 3. Học 4 ảnh TEKY/Odoo (cảm giác ≠ luật)
 
-### Wave đã xong
-- B1 chấm · B2 ca · B3 KPI · B4 aftersale · receipt form  
-
-### Wave **đang làm** (session này)
-| # | Case | URL form | Việc |
-|---|------|----------|------|
-| **B5** | Phụ huynh | `/admin/parents/{uuid}` | Cùng vỏ form (strip + sheet + nút header) |
-| **B6** | Buổi học | `/teaching/sessions/{uuid}` | EntityHeader + strip + sheet tổng quan |
-
-### Wave tiếp (sau B5–B6)
-| # | Case | Việc | Ưu tiên |
-|---|------|------|---------|
-| B7 | Học viên form | Thêm statusbar lifecycle nếu cần | Cao |
-| B8 | Lớp form | Đồng bộ header/sheet | Trung |
-| B9 | List pages (ca · KPI · aftersale · phiếu thu · parents) | Cùng ListPage + FilterBar density | Trung |
-| B10 | Chấm công residual | Impeccable polish token | Thấp |
-| B11 | Bảng công tháng | Chỉ khi có nguồn số | Defer |
-| Ship | PR #110 | Owner | Defer |
-
-**Song song an toàn:** B5 ∥ B6 (parents vs teaching files).  
-**Cấm song song:** đổi domain permission + densify cùng lúc không review.
+| Ảnh | Học | Không học |
+|-----|-----|-----------|
+| 1 Chấm thẻ lớn | CTA một nút | Skin teal TEKY |
+| 2 Kanban ticket | Nhìn trạng thái | Product kanban bù tự do |
+| 3 Bảng công tháng | Cột dày | Wave này **defer** |
+| 4 KPI form | Statusbar + sheet | Chatter |
 
 ---
 
-## 6. Điều phối ak / agent
+## 4. Hàng đợi tiếp (sau goal)
 
-| Bước | Việc | Ai |
-|------|------|-----|
-| 1 | Catalog URL (file này) | main |
-| 2 | Cook B5 parents | cook + impeccable |
-| 3 | Cook B6 session | cook + impeccable |
-| 4 | Test unit form | vitest admin |
-| 5 | Review “chỉ vỏ, không đổi luật” | code-review nhẹ |
-| 6 | PR 110 | **owner sau** |
-
----
-
-## 7. Một câu chốt
-
-**Toàn dự án đã có menu + URL cho hầu hết case; lớp “vỏ form giống Odoo/Console” đã đạt trên ca · KPI · phiếu thu · CRM · aftersale — wave này kéo phụ huynh + buổi học; list/config còn lại đồng bộ dần; PR #110 và bảng công tháng để sau.**
+1. Đồng bộ **mật độ list** (ListPage + FilterBar) ca/KPI/aftersale/phiếu/PH  
+2. Impeccable polish residual chấm công  
+3. Owner: PR #110  
+4. **Không:** bảng công tháng · kanban TEKY · chatter · LMS portal  

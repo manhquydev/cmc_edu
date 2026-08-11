@@ -203,13 +203,18 @@ describe('lmsOps foundation spike', () => {
       endDate: '2026-10-26',
       slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
     });
-    const first = await testDbBypass((tx) =>
-      tx.classSession.findFirstOrThrow({
+    const ordered = await testDbBypass((tx) =>
+      tx.classSession.findMany({
         where: { classBatchId: created.classBatchId },
         orderBy: { sessionDate: 'asc' },
+        select: { id: true, curriculumUnitId: true },
       }),
     );
+    expect(ordered.length).toBeGreaterThanOrEqual(8);
+    // With 4 sessions/unit: index 4 starts as unit 102 before cancel of first.
+    expect(ordered[4]!.curriculumUnitId).toBe(unitIds[1]);
 
+    const first = ordered[0]!;
     const cancelled = await gddt.classSession.cancel({ sessionId: first.id });
     expect(cancelled.status).toBe('cancelled');
 
@@ -217,12 +222,14 @@ describe('lmsOps foundation spike', () => {
       tx.classSession.findMany({
         where: { classBatchId: created.classBatchId, status: { not: 'cancelled' } },
         orderBy: { sessionDate: 'asc' },
-        select: { curriculumUnitId: true },
+        select: { id: true, curriculumUnitId: true },
       }),
     );
-    expect(live.length).toBeGreaterThan(0);
+    expect(live.length).toBe(ordered.length - 1);
     expect(live.every((s) => s.curriculumUnitId != null)).toBe(true);
-    // First live after cancel still starts at neo unit 101.
+    // Boundary proof: old index-4 session slides 102 → 101 after cancel+restamp.
+    const slid = live.find((s) => s.id === ordered[4]!.id);
+    expect(slid?.curriculumUnitId).toBe(unitIds[0]);
     expect(live[0]!.curriculumUnitId).toBe(unitIds[0]);
   });
 

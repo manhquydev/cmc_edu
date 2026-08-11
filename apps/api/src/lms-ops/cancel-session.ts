@@ -56,9 +56,29 @@ export async function cancelSessionWithRestamp(
   if (session.status === 'cancelled') throw badRequest('Session is already cancelled.');
   if (session.status === 'done') throw badRequest('A done session cannot be cancelled.');
 
-  const updated = await tx.classSession.update({
-    where: { id: session.id },
+  // Race-safe: only planned/confirmed can flip to cancelled (same pattern as
+  // session-done sweep). Prevents overwriting a concurrent done transition.
+  const flipped = await tx.classSession.updateMany({
+    where: {
+      id: session.id,
+      facilityId: opts.facilityId,
+      status: { in: ['planned', 'confirmed'] },
+    },
     data: { status: 'cancelled' },
+  });
+  if (flipped.count === 0) {
+    const again = await tx.classSession.findFirst({
+      where: { id: session.id, facilityId: opts.facilityId },
+      select: { status: true },
+    });
+    if (!again) throw notFound('ClassSession not found.');
+    if (again.status === 'cancelled') throw badRequest('Session is already cancelled.');
+    if (again.status === 'done') throw badRequest('A done session cannot be cancelled.');
+    throw badRequest('Session cannot be cancelled in its current status.');
+  }
+
+  const updated = await tx.classSession.findFirstOrThrow({
+    where: { id: session.id, facilityId: opts.facilityId },
   });
 
   let restamped = 0;

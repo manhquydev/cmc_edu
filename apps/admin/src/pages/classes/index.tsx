@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { links } from '@cmc/links';
 import {
@@ -223,7 +223,6 @@ function ClassListContent() {
   const [createResult, setCreateResult] = useState<{
     classBatchId: string;
     code: string;
-    slotsCreated: number;
     sessionsCreated: number;
     sessionsStamped?: number;
     startUnitOrderGlobal?: number;
@@ -235,12 +234,19 @@ function ClassListContent() {
   // AsyncEntityCombobox renders the error banner itself (ported from an
   // independently-built version of this same component — see its
   // UseAsyncEntityOptionsResult['error'] doc comment).
+  // Filled from course.list pages that powered the combobox (including search).
+  const [programByCourseId, setProgramByCourseId] = useState<Record<string, string>>({});
+  const courseRowsRef = useRef<Array<{ id: string; program: string }>>([]);
+
   function useCourseOptions(search: string) {
     const { data, isLoading, error } = trpc.course.list.useQuery({
       page: 1,
       pageSize: 100,
       ...(search ? { search } : {}),
     });
+    if (data?.items?.length) {
+      courseRowsRef.current = data.items.map((c) => ({ id: c.id, program: c.program }));
+    }
     const options = (data?.items ?? []).map((c) => ({
       value: c.id,
       label: `${c.name} (${c.program})`,
@@ -256,7 +262,6 @@ function ClassListContent() {
       setCreateResult({
         classBatchId: res.classBatchId,
         code: res.code,
-        slotsCreated: 0,
         sessionsCreated: res.sessionsCreated,
         sessionsStamped: res.sessionsStamped,
         startUnitOrderGlobal: res.startUnitOrderGlobal,
@@ -265,7 +270,11 @@ function ClassListContent() {
     },
   });
 
-  const { data: unitsData, isLoading: unitsLoading } = trpc.curriculumUnit.list.useQuery(undefined, {
+  const {
+    data: unitsData,
+    isLoading: unitsLoading,
+    error: unitsError,
+  } = trpc.curriculumUnit.list.useQuery(undefined, {
     enabled: createOpen,
   });
 
@@ -294,6 +303,12 @@ function ClassListContent() {
     key: K,
   ) {
     return (value: string) => {
+      if (key === 'courseId' && value) {
+        const row = courseRowsRef.current.find((c) => c.id === value);
+        if (row) {
+          setProgramByCourseId((prev) => ({ ...prev, [value]: row.program }));
+        }
+      }
       setForm((f) => {
         const next = { ...f, [key]: value };
         // Changing course clears start unit (program may differ).
@@ -304,13 +319,7 @@ function ClassListContent() {
     };
   }
 
-  // Program of selected course — used to filter start-unit options.
-  const { data: coursePickData } = trpc.course.list.useQuery(
-    { page: 1, pageSize: 100 },
-    { enabled: createOpen },
-  );
-  const selectedCourseProgram =
-    (coursePickData?.items ?? []).find((c) => c.id === form.courseId)?.program ?? null;
+  const selectedCourseProgram = form.courseId ? (programByCourseId[form.courseId] ?? null) : null;
 
   const unitOptions = ((unitsData?.items ?? []) as Array<{
     id: string;
@@ -320,7 +329,7 @@ function ClassListContent() {
     level: number;
     monthIndex: number;
   }>)
-    .filter((u) => !selectedCourseProgram || u.program === selectedCourseProgram)
+    .filter((u) => selectedCourseProgram != null && u.program === selectedCourseProgram)
     .map((u) => ({
       value: u.id,
       label: `#${u.orderGlobal} · ${u.title} (L${u.level}/M${u.monthIndex})`,
@@ -492,23 +501,38 @@ function ClassListContent() {
                 status={errors.courseId ? { type: 'error', message: errors.courseId } : undefined}
               />
 
+              {unitsError ? (
+                <Banner
+                  status="error"
+                  title="Không tải được danh sách unit"
+                  description={unitsError.message}
+                />
+              ) : null}
               <Selector
                 label="Unit bắt đầu (neo lớp)"
                 placeholder={
                   !form.courseId
                     ? 'Chọn khoá học trước'
-                    : unitsLoading
-                      ? 'Đang tải unit…'
-                      : unitOptions.length === 0
-                        ? 'Không có unit cho chương trình'
-                        : 'Chọn unit bắt đầu'
+                    : !selectedCourseProgram
+                      ? 'Đang xác định chương trình…'
+                      : unitsLoading
+                        ? 'Đang tải unit…'
+                        : unitOptions.length === 0
+                          ? 'Không có unit cho chương trình'
+                          : 'Chọn unit bắt đầu'
                 }
                 options={unitOptions}
                 value={form.startUnitId || null}
                 onChange={(v) => setField('startUnitId')(v ?? '')}
                 hasSearch
                 hasClear={false}
-                isDisabled={!form.courseId || unitsLoading || unitOptions.length === 0}
+                isDisabled={
+                  !form.courseId ||
+                  !selectedCourseProgram ||
+                  unitsLoading ||
+                  Boolean(unitsError) ||
+                  unitOptions.length === 0
+                }
               />
               {errors.startUnitId ? (
                 <Text type="supporting" size="2xs" style={{ color: 'var(--cmc-danger)' }}>

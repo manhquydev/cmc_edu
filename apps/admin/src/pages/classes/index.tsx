@@ -522,7 +522,7 @@ function ClassListContent() {
                           : 'Chọn unit bắt đầu'
                 }
                 options={unitOptions}
-                value={form.startUnitId || null}
+                value={form.startUnitId || undefined}
                 onChange={(v) => setField('startUnitId')(v ?? '')}
                 hasSearch
                 hasClear={false}

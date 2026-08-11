@@ -13,7 +13,6 @@ import { onRoster } from './on-roster.js';
 import { ictDateOnlyOf, ictToUtc } from '@cmc/domain-time';
 
 type Tx = Prisma.TransactionClient;
-type Db = PrismaClient | Tx;
 
 export interface DeliveredSessionExercise {
   id: string;
@@ -197,6 +196,8 @@ export async function deliverForSession(
   } else {
     return null;
   }
+
+  if (!exerciseId) return null;
 
   const { randomUUID } = await import('node:crypto');
   const created = await tx.sessionExercise.create({

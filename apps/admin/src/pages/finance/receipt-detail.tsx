@@ -431,8 +431,12 @@ export default function ReceiptDetailPage() {
                 <Stack gap={2} style={{ maxWidth: 320 }}>
                   <NumberInput
                     label="Số tiền hoàn (VND)"
-                    value={refundAmount}
-                    onChange={setRefundAmount}
+                    value={
+                      refundAmount === '' || refundAmount == null
+                        ? null
+                        : Number(refundAmount)
+                    }
+                    onChange={(v) => setRefundAmount(v ?? '')}
                     min={1}
                     max={remainingBalance}
                     step={1_000}

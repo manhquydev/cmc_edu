@@ -20,7 +20,6 @@ import {
   SectionBlock,
   Stack,
   StatusBadge,
-  Text,
   TextArea,
   WorkflowStatusbar,
 } from '@cmc/ui';

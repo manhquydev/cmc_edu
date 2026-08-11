@@ -701,7 +701,7 @@ function CheckInTab() {
       : 'Chấm công';
 
   return (
-    <FormPage header={null} result={resultContent}>
+    <FormPage header={null} actions={null} result={resultContent}>
       <Stack gap={4} style={{ maxWidth: 640, marginInline: 'auto' }}>
         {/* Primary punch surface — large single CTA (Odoo/TEKY grammar, CMC Console chrome). */}
         <Card

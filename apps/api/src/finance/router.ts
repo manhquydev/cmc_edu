@@ -146,6 +146,11 @@ export interface ReceiptDto {
   remainingBalance?: number;
   /** GĐKD + approved + remainingBalance > 0. */
   viewerCanRefund?: boolean;
+  /**
+   * Cancel HITL — get-only. Same permission key as approve (`receiptApprove`);
+   * only when status is approved (server cancel rejects other statuses).
+   */
+  viewerCanCancel?: boolean;
 }
 
 export type ReceiptCreateResult =
@@ -804,6 +809,9 @@ export const financeRouter = router({
           Boolean(ctx.subject && can(ctx.subject, 'finance', 'refundCreate')) &&
           receipt.status === 'approved' &&
           remainingBalance > 0;
+        const viewerCanCancel =
+          Boolean(ctx.subject && can(ctx.subject, 'finance', 'receiptApprove')) &&
+          receipt.status === 'approved';
 
         return {
           ...dto,
@@ -811,6 +819,7 @@ export const financeRouter = router({
           refundedTotal,
           remainingBalance,
           viewerCanRefund,
+          viewerCanCancel,
         };
       });
     }),

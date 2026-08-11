@@ -208,17 +208,9 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/finance/:id', '/finance/refund'],
       models: ['Receipt', 'RefundRecord'],
     },
-    // 2026-08-11: hoàn tiền form-depth OK (index /finance/refund + receipt form
-    // refundCreate). Huỷ phiếu (receiptCancel) vẫn 0 matches UI → giữ no-ui-path
-    // cho cả P1-08 tới khi có cancel HITL + journey.
-    //   rg "trpc\.finance\.receiptCancel\b" apps/admin → 0
-    //   rg "trpc\.finance\.refundCreate\b" apps/admin → matches (receipt-detail)
-    statusReason: {
-      code: 'no-ui-path',
-      detail:
-        'Hoàn tiền đã có UI (index /finance/refund + form receipt refundCreate); ' +
-        'huỷ phiếu (receiptCancel) vẫn chưa có màn — P1-08 giữ no-ui-path tới khi có cancel HITL + journey.',
-    },
+    // 2026-08-11: form-depth on receipt — refundCreate + receiptCancel + index
+    // /finance/refund. No journey yet → evidence badge no-journey (built-unproven).
+    //   rg receiptCancel/refundCreate apps/admin → matches (receipt-detail)
   },
   {
     id: 'P1-09',

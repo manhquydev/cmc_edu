@@ -114,6 +114,35 @@ describe('finance.receiptGet — classBatchCode', () => {
     expect(got.refundedTotal).toBe(0);
     expect(got.remainingBalance).toBe(5_000_000);
     expect(got.viewerCanRefund).toBe(true);
+    expect(got.viewerCanCancel).toBe(true);
+  });
+
+  it('receiptGet viewerCanCancel is false on draft and after cancel', async () => {
+    const phone = '0933000006';
+    phonesToClean.push(phone);
+
+    const created = await sale.finance.receiptCreate({
+      studentName: 'Cancel Flag Student',
+      parentPhone: phone,
+      amount: 4_000_000,
+      classBatchId: classBatch.id,
+    });
+    if (created.status === 'needs_confirmation') throw new Error('unexpected needs_confirmation');
+
+    const draft = await director.finance.receiptGet({ receiptId: created.receipt.id });
+    expect(draft.viewerCanCancel).toBe(false);
+
+    await director.finance.receiptApprove({ receiptId: created.receipt.id });
+    const approved = await director.finance.receiptGet({ receiptId: created.receipt.id });
+    expect(approved.viewerCanCancel).toBe(true);
+
+    await director.finance.receiptCancel({
+      receiptId: created.receipt.id,
+      reason: 'test cancel flag',
+    });
+    const cancelled = await director.finance.receiptGet({ receiptId: created.receipt.id });
+    expect(cancelled.viewerCanCancel).toBe(false);
+    expect(cancelled.status).toBe('cancelled');
   });
 
   it('receiptGet includes refunds after refundCreate and drops viewerCanRefund at full refund', async () => {

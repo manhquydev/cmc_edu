@@ -25,6 +25,7 @@ const RECEIPT = {
   refundedTotal: 0,
   remainingBalance: 5_000_000,
   viewerCanRefund: false,
+  viewerCanCancel: false,
 };
 
 const receiptState: { data: typeof RECEIPT | undefined; error: { message: string } | null } = {
@@ -34,14 +35,20 @@ const receiptState: { data: typeof RECEIPT | undefined; error: { message: string
 const refetchSpy = vi.fn();
 const approveMutate = vi.fn();
 const refundMutate = vi.fn();
+const cancelMutate = vi.fn();
 let approveOnSuccess: ((res: unknown) => void) | undefined;
 let approveOnError: ((err: unknown) => void) | undefined;
 let refundOnSuccess: ((res: unknown) => void) | undefined;
+let cancelOnSuccess: ((res: unknown) => void) | undefined;
 const approveState: { error: { message: string } | null; isPending: boolean } = {
   error: null,
   isPending: false,
 };
 const refundState: { error: { message: string } | null; isPending: boolean } = {
+  error: null,
+  isPending: false,
+};
+const cancelState: { error: { message: string } | null; isPending: boolean } = {
   error: null,
   isPending: false,
 };
@@ -82,6 +89,17 @@ vi.mock('../../lib/trpc.js', async () => {
           isPending: refundState.isPending,
         });
       },
+      'finance.receiptCancel.useMutation': (options: {
+        onSuccess?: (res: unknown) => void;
+        onError?: (err: unknown) => void;
+      }) => {
+        cancelOnSuccess = options?.onSuccess;
+        return mutationResult({
+          mutate: cancelMutate,
+          error: cancelState.error,
+          isPending: cancelState.isPending,
+        });
+      },
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -107,10 +125,13 @@ describe('ReceiptDetailPage', () => {
     refetchSpy.mockClear();
     approveMutate.mockClear();
     refundMutate.mockClear();
+    cancelMutate.mockClear();
     approveState.error = null;
     approveState.isPending = false;
     refundState.error = null;
     refundState.isPending = false;
+    cancelState.error = null;
+    cancelState.isPending = false;
   });
 
   it('renders the loaded receipt fields', () => {
@@ -281,6 +302,69 @@ describe('ReceiptDetailPage', () => {
       refundOnSuccess?.({
         refund: { id: 'rf2', receiptId: 'r1', amount: 100_000, createdAt: new Date() },
         remainingBalance: 4_900_000,
+      }),
+    );
+    expect(refetchSpy).toHaveBeenCalled();
+  });
+
+  it('shows cancel form when viewerCanCancel and confirms receiptCancel with reason', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      status: 'approved',
+      canApprove: false,
+      viewerCanRefund: false,
+      viewerCanCancel: true,
+      remainingBalance: 5_000_000,
+      refunds: [],
+    };
+    renderDetail();
+    expect(screen.getByRole('button', { name: 'Huỷ phiếu thu' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Lý do huỷ/), {
+      target: { value: 'Nhập nhầm lớp' },
+    });
+    const cancelBtn = screen.getByRole('button', { name: 'Huỷ phiếu thu' });
+    expect(cancelBtn).not.toBeDisabled();
+    fireEvent.click(cancelBtn);
+    expect(cancelMutate).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Huỷ phiếu thu' }));
+    expect(cancelMutate).toHaveBeenCalledWith({
+      receiptId: 'r1',
+      reason: 'Nhập nhầm lớp',
+      void: false,
+    });
+  });
+
+  it('hides cancel form when viewerCanCancel is false', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      status: 'approved',
+      canApprove: false,
+      viewerCanCancel: false,
+      viewerCanRefund: false,
+      remainingBalance: 5_000_000,
+      refunds: [],
+    };
+    renderDetail();
+    expect(screen.queryByRole('button', { name: 'Huỷ phiếu thu' })).toBeNull();
+  });
+
+  it('refetches after receiptCancel.onSuccess', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      status: 'approved',
+      canApprove: false,
+      viewerCanCancel: true,
+      remainingBalance: 5_000_000,
+      refunds: [],
+    };
+    renderDetail();
+    expect(cancelOnSuccess).toBeDefined();
+    act(() =>
+      cancelOnSuccess?.({
+        receipt: { ...RECEIPT, status: 'cancelled' },
+        opportunityReverted: true,
+        studentLifecycle: 'active',
       }),
     );
     expect(refetchSpy).toHaveBeenCalled();

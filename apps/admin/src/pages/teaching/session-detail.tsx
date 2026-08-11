@@ -113,7 +113,6 @@ export default function SessionDetailPage() {
       <DetailPage
         header={
           <PageHeader
-            title="Buổi học"
             breadcrumbs={[
               { label: 'Giảng dạy', href: '/teaching' },
               { label: 'Lịch dạy', href: '/teaching/schedule' },
@@ -132,7 +131,6 @@ export default function SessionDetailPage() {
       <DetailPage
         header={
           <PageHeader
-            title="Buổi học"
             breadcrumbs={[
               { label: 'Giảng dạy', href: '/teaching' },
               { label: 'Lịch dạy', href: '/teaching/schedule' },
@@ -156,7 +154,6 @@ export default function SessionDetailPage() {
       <DetailPage
         header={
           <PageHeader
-            title="Buổi học"
             breadcrumbs={[
               { label: 'Giảng dạy', href: '/teaching' },
               { label: 'Lịch dạy', href: '/teaching/schedule' },

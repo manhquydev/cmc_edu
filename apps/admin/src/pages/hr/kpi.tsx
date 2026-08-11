@@ -78,6 +78,8 @@ interface KpiRow {
   tierMissing: boolean;
   fullName: string;
   position: string;
+  viewerCanConfirm?: boolean;
+  viewerCanOverride?: boolean;
   [key: string]: unknown;
 }
 
@@ -248,10 +250,10 @@ export default function KpiPage() {
             variant="ghost"
             onClick={() => navigate(links.kpiScore(row.id))}
           />
-          {row.status === 'submitted' && canDo('kpi', 'confirm') && (
+          {row.viewerCanConfirm && canDo('kpi', 'confirm') && (
             <Button label="Xác nhận" size="sm" variant="primary" onClick={() => setConfirmTarget(row)} />
           )}
-          {(row.status === 'submitted' || row.status === 'confirmed') && canDo('kpi', 'approve') && (
+          {row.viewerCanOverride && canDo('kpi', 'approve') && (
             <Button label="Ghi đè" size="sm" variant="secondary" onClick={() => setOverrideTarget(row)} />
           )}
         </HStack>

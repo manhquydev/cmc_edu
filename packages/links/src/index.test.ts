@@ -24,6 +24,7 @@ describe('links builders', () => {
     expect(links.classBatch(UUID)).toBe(`/admin/classes/${UUID}`);
     expect(links.shiftRegistration(UUID)).toBe(`/hr/shifts/${UUID}`);
     expect(links.kpiScore(UUID)).toBe(`/hr/kpi/${UUID}`);
+    expect(links.afterSaleCase(UUID)).toBe(`/crm/aftersale/${UUID}`);
   });
 
   it('builds go paths', () => {
@@ -31,6 +32,7 @@ describe('links builders', () => {
     expect(goPath('receipt', UUID)).toBe(`/go/receipt/${UUID}`);
     expect(goPath('shiftRegistration', UUID)).toBe(`/go/shiftRegistration/${UUID}`);
     expect(goPath('kpiScore', UUID)).toBe(`/go/kpiScore/${UUID}`);
+    expect(goPath('afterSaleCase', UUID)).toBe(`/go/afterSaleCase/${UUID}`);
   });
 });
 
@@ -54,6 +56,7 @@ describe('resolveGo', () => {
     expect(resolveGo('classBatch', UUID)).toBe(`/admin/classes/${UUID}`);
     expect(resolveGo('shiftRegistration', UUID)).toBe(`/hr/shifts/${UUID}`);
     expect(resolveGo('kpiScore', UUID)).toBe(`/hr/kpi/${UUID}`);
+    expect(resolveGo('afterSaleCase', UUID)).toBe(`/crm/aftersale/${UUID}`);
   });
 
   it('returns null for unknown entity keys', () => {

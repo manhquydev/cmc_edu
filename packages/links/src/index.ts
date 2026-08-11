@@ -22,6 +22,8 @@ export const links = {
   shiftRegistration: (id: string) => `/hr/shifts/${id}`,
   /** KpiScore form (shared KPI workspace) — UUID. */
   kpiScore: (id: string) => `/hr/kpi/${id}`,
+  /** AfterSaleCase form — UUID. */
+  afterSaleCase: (id: string) => `/crm/aftersale/${id}`,
 } as const;
 
 export type LinkEntity = keyof typeof links;

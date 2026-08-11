@@ -16,6 +16,8 @@ const { SCORE_ID, SCORE } = vi.hoisted(() => {
       override: false,
       overrideReason: null,
       tierMissing: false,
+      viewerCanConfirm: true,
+      viewerCanOverride: true,
       fullName: 'Nguyễn Văn A',
       position: 'Sale',
       appUser: {

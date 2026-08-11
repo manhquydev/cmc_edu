@@ -64,6 +64,25 @@ describe('afterSale lifecycle (P4)', () => {
     await expect(hr.afterSale.list({})).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
+  it('get returns case with studentName; unknown id NOT_FOUND', async () => {
+    const kase = await sale.afterSale.create({ studentId, description: 'Get me' });
+    const row = await sale.afterSale.get({ caseId: kase.id });
+    expect(row.id).toBe(kase.id);
+    expect(row.studentName).toBe('AfterSale Student');
+    expect(row.description).toBe('Get me');
+
+    await expect(
+      sale.afterSale.get({ caseId: '00000000-0000-4000-8000-000000000099' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('get forbids role without afterSale.manage', async () => {
+    const kase = await sale.afterSale.create({ studentId, description: 'Secret' });
+    await expect(hr.afterSale.get({ caseId: kase.id })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
+
   it('full lifecycle: create → advance → resolve → close', async () => {
     const kase = await sale.afterSale.create({ studentId, description: 'Student unhappy with schedule.' });
     expect(kase.status).toBe('open');

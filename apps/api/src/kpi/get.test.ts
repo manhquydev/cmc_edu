@@ -97,13 +97,17 @@ describe('kpi.get', () => {
     expect(row.status).toBe('submitted');
     expect(row.appUser.fullName).toBeTruthy();
     expect(row.fullName).toBeTruthy();
+    expect(row.viewerCanConfirm).toBe(false);
+    expect(row.viewerCanOverride).toBe(false);
   });
 
-  it('direct manager can load', async () => {
+  it('direct manager can load and may confirm', async () => {
     const row = await callerFor(facilityId, 'kpi-get-mgr', [
       'giam_doc_kinh_doanh',
     ]).kpi.get({ scoreId });
     expect(row.id).toBe(scoreId);
+    expect(row.viewerCanConfirm).toBe(true);
+    expect(row.viewerCanOverride).toBe(true);
   });
 
   it('matching-track director (GĐKD) can load sale score even if not manager', async () => {
@@ -122,6 +126,9 @@ describe('kpi.get', () => {
       'giam_doc_kinh_doanh',
     ]).kpi.get({ scoreId });
     expect(row.id).toBe(scoreId);
+    // Not managerId → cannot confirm; can override (branch director).
+    expect(row.viewerCanConfirm).toBe(false);
+    expect(row.viewerCanOverride).toBe(true);
   });
 
   it('wrong-track director (GĐĐT) cannot load sale score', async () => {

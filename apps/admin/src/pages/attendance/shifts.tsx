@@ -21,8 +21,6 @@ import {
   CountBadge,
   DataTable,
   DateField,
-  Dialog,
-  DialogHeader,
   EmptyState,
   HStack,
   PageHeader,
@@ -30,7 +28,6 @@ import {
   Stack,
   StatusBadge,
   Text,
-  TextArea,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { links, shiftRegistrationNewPath } from '@cmc/links';
@@ -984,46 +981,10 @@ interface PendingRow {
 
 function ApproveTab() {
   const navigate = useNavigate();
-  const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.shift.pendingForApproval.useQuery();
   const { data: groupsData } = trpc.shift.listGroups.useQuery();
   const groups: ShiftGroupOption[] = (groupsData as ShiftGroupOption[] | undefined) ?? [];
-  const [approveTarget, setApproveTarget] = useState<string | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
-
-  function invalidate() {
-    void utils.shift.pendingForApproval.invalidate();
-    void utils.shift.myRegistrations.invalidate();
-  }
-
-  const approveMut = trpc.shift.approve.useMutation({
-    onSuccess() {
-      setResult({ ok: true, text: 'Đã duyệt ca (approved).' });
-      setApproveTarget(null);
-      invalidate();
-    },
-    onError(err) {
-      setResult({ ok: false, text: err.message ?? 'Lỗi không xác định.' });
-      setApproveTarget(null);
-    },
-  });
-
-  const rejectMut = trpc.shift.reject.useMutation({
-    onSuccess() {
-      setResult({ ok: true, text: 'Đã từ chối (rejected) — ticket-lock được giải phóng.' });
-      setRejectTarget(null);
-      setRejectReason('');
-      invalidate();
-    },
-    onError(err) {
-      setResult({ ok: false, text: err.message ?? 'Lỗi không xác định.' });
-    },
-  });
-
   const rows: PendingRow[] = (data as PendingRow[] | undefined) ?? [];
-  const reasonOk = rejectReason.trim().length >= 3;
   const allTemplates = useMemo(() => groups.flatMap((g) => g.templates), [groups]);
 
   const columns: TableColumn<PendingRow>[] = [
@@ -1053,28 +1014,16 @@ function ApproveTab() {
     {
       key: '_actions',
       label: '',
-      width: 240,
+      width: 120,
       render: (_v, row) => (
-        <HStack gap={1} wrap="wrap">
-          <Button
-            label="Mở phiếu"
-            size="sm"
-            variant="ghost"
-            onClick={() =>
-              navigate(links.shiftRegistration(row.id), { state: { listScope: 'inbox' as const } })
-            }
-          />
-          <Button label="Duyệt" size="sm" variant="primary" onClick={() => setApproveTarget(row.id)} />
-          <Button
-            label="Từ chối"
-            size="sm"
-            variant="destructive"
-            onClick={() => {
-              setRejectTarget(row.id);
-              setRejectReason('');
-            }}
-          />
-        </HStack>
+        <Button
+          label="Mở phiếu"
+          size="sm"
+          variant="primary"
+          onClick={() =>
+            navigate(links.shiftRegistration(row.id), { state: { listScope: 'inbox' as const } })
+          }
+        />
       ),
     },
   ];
@@ -1082,79 +1031,19 @@ function ApproveTab() {
   return (
     <Stack gap={2} padding={4}>
       <style>{WS_CSS}</style>
-      {result && <Banner status={result.ok ? 'success' : 'error'} title={result.text} />}
+      <Text type="body" size="xsm" color="secondary">
+        Hàng chờ — bấm <strong>Mở phiếu</strong> để duyệt/từ chối trên form chi tiết (không duyệt trên list).
+      </Text>
       <DataTable<PendingRow>
         columns={columns}
         data={rows}
         loading={isLoading}
         error={error?.message}
         empty="Không có đăng ký chờ duyệt (chỉ phiếu submitted đúng track GĐ)."
+        onRowClick={(row) =>
+          navigate(links.shiftRegistration(row.id), { state: { listScope: 'inbox' as const } })
+        }
       />
-
-      <ConfirmDialog
-        opened={approveTarget !== null}
-        title="Duyệt đăng ký ca"
-        message="Chuyển submitted → approved? Không hoàn tác."
-        confirmLabel="Duyệt"
-        confirmColor="blue"
-        loading={approveMut.isPending}
-        onConfirm={() => approveTarget && approveMut.mutate({ registrationId: approveTarget })}
-        onCancel={() => setApproveTarget(null)}
-      />
-      <Dialog
-        isOpen={rejectTarget !== null}
-        onOpenChange={(next) => {
-          if (!next && !rejectMut.isPending) {
-            setRejectTarget(null);
-            setRejectReason('');
-          }
-        }}
-        width={420}
-        purpose="form"
-      >
-        <DialogHeader
-          title="Từ chối đăng ký ca"
-          onOpenChange={(next) => {
-            if (!next && !rejectMut.isPending) {
-              setRejectTarget(null);
-              setRejectReason('');
-            }
-          }}
-        />
-        <Stack gap={2}>
-          <TextArea
-            label="Lý do từ chối"
-            placeholder="Tối thiểu 3 ký tự (server bắt buộc)…"
-            value={rejectReason}
-            onChange={(v) => setRejectReason(v)}
-            rows={3}
-            maxLength={2000}
-          />
-          <HStack justify="end" gap={1}>
-            <Button
-              label="Hủy"
-              variant="secondary"
-              size="sm"
-              isDisabled={rejectMut.isPending}
-              onClick={() => {
-                setRejectTarget(null);
-                setRejectReason('');
-              }}
-            />
-            <Button
-              label="Từ chối"
-              size="sm"
-              variant="destructive"
-              isLoading={rejectMut.isPending}
-              isDisabled={!reasonOk}
-              onClick={() =>
-                rejectTarget &&
-                rejectMut.mutate({ registrationId: rejectTarget, reason: rejectReason.trim() })
-              }
-            />
-          </HStack>
-        </Stack>
-      </Dialog>
     </Stack>
   );
 }

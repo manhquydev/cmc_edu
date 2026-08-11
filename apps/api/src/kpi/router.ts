@@ -460,11 +460,21 @@ export const kpiRouter = router({
         throw forbidden('Not allowed to view this KPI score.');
       }
 
+      // UI action flags — mirror confirm/override server gates (not canDo alone).
+      const viewerCanConfirm =
+        score.status === 'submitted' && !isOwner && (isSuper || isDirectManager);
+      const viewerCanOverride =
+        (score.status === 'submitted' || score.status === 'confirmed') &&
+        !isOwner &&
+        (isSuper || isBranchDirector);
+
       return {
         ...score,
         fullName: score.appUser.fullName,
         position: score.appUser.position,
         tierMissing: score.tierIdSnapshot === null,
+        viewerCanConfirm,
+        viewerCanOverride,
       };
     });
   }),
@@ -503,6 +513,8 @@ export const kpiRouter = router({
             fullName: s.appUser.fullName,
             position: s.appUser.position,
             tierMissing: s.tierIdSnapshot === null,
+            viewerCanConfirm: false,
+            viewerCanOverride: false,
           }));
         }
 
@@ -526,12 +538,28 @@ export const kpiRouter = router({
             const role = resolveKpiTargetRole(s.appUser.roles);
             return role !== null && targetRoles.has(role);
           })
-          .map((s) => ({
-            ...s,
-            fullName: s.appUser.fullName,
-            position: s.appUser.position,
-            tierMissing: s.tierIdSnapshot === null,
-          }));
+          .map((s) => {
+            const isOwner = Boolean(caller && s.appUserId === caller.id);
+            const isDirectManager = Boolean(
+              caller && s.appUser.managerId && s.appUser.managerId === caller.id,
+            );
+            return {
+              ...s,
+              fullName: s.appUser.fullName,
+              position: s.appUser.position,
+              tierMissing: s.tierIdSnapshot === null,
+              viewerCanConfirm:
+                s.status === 'submitted' && !isOwner && (isSuperAdmin || isDirectManager),
+              viewerCanOverride:
+                (s.status === 'submitted' || s.status === 'confirmed') &&
+                !isOwner &&
+                (isSuperAdmin ||
+                  (resolveKpiTargetRole(s.appUser.roles) !== null &&
+                    allowedKpiTargetRoles(ctx.subject!.roles).has(
+                      resolveKpiTargetRole(s.appUser.roles)!,
+                    ))),
+            };
+          });
       });
     }),
 

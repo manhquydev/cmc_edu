@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ComponentProps } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Badge,
   BulkActionBar,
@@ -14,6 +15,7 @@ import {
   useToast,
 } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
+import { links } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { useAfterSaleActions } from './use-after-sale-actions.js';
 import { CreateAfterSaleCaseDialog } from './create-after-sale-case-dialog.js';
@@ -77,6 +79,7 @@ interface CaseRow {
 }
 
 export default function AfterSalePage() {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<Record<string, string>>({ status: '' });
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -124,9 +127,15 @@ export default function AfterSalePage() {
     {
       key: 'id',
       label: 'Hành động',
-      width: 220,
+      width: 280,
       render: (_v, row) => (
         <HStack gap={1}>
+          <Button
+            label="Mở phiếu"
+            size="sm"
+            variant="ghost"
+            onClick={() => navigate(links.afterSaleCase(row.id))}
+          />
           {row.status === 'open' && (
             <Button
               label="Tiếp nhận"

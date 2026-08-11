@@ -48,7 +48,7 @@ function statusSteps(status: string): { steps: { id: string; label: string }[]; 
 export default function KpiDetailPage() {
   const { scoreId = '' } = useParams<{ scoreId: string }>();
   const navigate = useNavigate();
-  const { canDo, me } = useSession();
+  const { canDo } = useSession();
   const idOk = UUID_RE.test(scoreId);
 
   const { data, isLoading, error, refetch } = trpc.kpi.get.useQuery(
@@ -157,13 +157,9 @@ export default function KpiDetailPage() {
 
   const { steps, activeIndex } = statusSteps(data.status);
   const shortId = scoreId.slice(0, 8);
-  const isOwner = data.appUser.userId === me?.userId;
-  const showConfirm =
-    canDo('kpi', 'confirm') && data.status === 'submitted' && !isOwner;
-  const showOverride =
-    canDo('kpi', 'approve') &&
-    (data.status === 'submitted' || data.status === 'confirmed') &&
-    !isOwner;
+  // Prefer server flags (managerId / branch) over canDo alone — avoids false 403.
+  const showConfirm = Boolean(data.viewerCanConfirm) && canDo('kpi', 'confirm');
+  const showOverride = Boolean(data.viewerCanOverride) && canDo('kpi', 'approve');
   const overrideOk =
     overrideValue !== undefined && overrideValue >= 0 && overrideReason.trim().length >= 1;
 

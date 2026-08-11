@@ -20,6 +20,8 @@ const ROW_SUBMITTED = {
   tierMissing: false,
   fullName: 'Nguyễn Văn A',
   position: 'Sale',
+  viewerCanConfirm: true,
+  viewerCanOverride: true,
 };
 
 const ROW_CONFIRMED = {
@@ -32,6 +34,8 @@ const ROW_CONFIRMED = {
   tierMissing: false,
   fullName: 'Trần Thị B',
   position: 'Giáo viên',
+  viewerCanConfirm: false,
+  viewerCanOverride: true,
 };
 
 let sessionRoles: string[] = ['giam_doc_dao_tao'];

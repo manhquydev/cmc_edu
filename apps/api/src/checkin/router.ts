@@ -36,6 +36,8 @@
 //   so the UI can prompt a director to reopen the period if they want the
 //   penalty recomputed — approving here does NOT itself touch the payslip.
 // manualPunch.reject   — same gate as approve.
+// manualPunch.get      — cold-start form by UUID (owner OR GĐ-track reviewer /
+//   super_admin); includes appUser for EntityHeader.
 // manualPunch.list     — `{scope:'inbox'|'mine', status?}`. `inbox` returns
 //   tickets of the caller's direct reports (or all, for super_admin); `mine`
 //   returns the caller's own tickets. Both are self-scoped reads, no
@@ -539,6 +541,38 @@ export const manualPunchRouter = router({
         });
         if (result.count === 0) throw badRequest('Ticket is not rejected.');
         return tx.manualAttendanceTicket.findUniqueOrThrow({ where: { id: ticket.id } });
+      });
+    }),
+
+  // -------------------------------------------------------------------------
+  // manualPunch.get — cold-start form by UUID (owner OR track reviewer)
+  // -------------------------------------------------------------------------
+  get: protectedProcedure
+    .input(z.object({ ticketId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const ticket = await tx.manualAttendanceTicket.findFirst({
+          where: { id: input.ticketId, facilityId },
+          include: { appUser: { select: { id: true, fullName: true, userId: true, roles: true } } },
+        });
+        if (!ticket) throw notFound('Ticket not found.');
+
+        const caller = await tx.appUser.findFirst({
+          where: { userId: ctx.subject!.userId, facilityId },
+        });
+        const isOwner = Boolean(caller && caller.id === ticket.appUserId);
+        const canReview = canReviewTicket({
+          reviewerId: caller?.id,
+          reviewerRoles: ctx.subject!.roles,
+          ownerId: ticket.appUserId,
+          ownerRoles: ticket.appUser.roles,
+        });
+        if (!isOwner && !canReview) {
+          throw forbidden('You cannot view this manual attendance ticket.');
+        }
+
+        return ticket;
       });
     }),
 

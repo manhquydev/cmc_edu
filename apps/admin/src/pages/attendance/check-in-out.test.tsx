@@ -8,22 +8,27 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 //   - Success → button shows "Đã ghi nhận" for 5s, then auto-reverts.
 //   - appCode OFFSITE_REASON_REQUIRED → opens reason modal; confirming
 //     re-mutates punch with same captured geo.
-//   - Approve opens detail Dialog with day punches (not plain ConfirmDialog).
+//   - Inbox is index-only: Mở phiếu → form (/hr/checkin/:ticketId).
 let punchOnSuccess: ((data: unknown) => void) | undefined;
 let punchOnError: ((err: { message: string; data?: { appCode?: string; appData?: { geoThresholdM?: number } } | null }) => void) | undefined;
 let resubmitOnError: ((err: { message: string }) => void) | undefined;
 const punchMutate = vi.fn();
 const resubmitMutate = vi.fn();
-const approveMutate = vi.fn();
-const rejectMutate = vi.fn();
 
 const myTicketsSpy = vi.fn();
 const inboxSpy = vi.fn();
-const dayPunchesSpy = vi.fn();
 const geoSummarySpy = vi.fn();
 let myTickets: Array<Record<string, unknown>> = [];
-let dayPunches: Array<Record<string, unknown>> = [];
 let geoSummary: Array<Record<string, unknown>> = [];
+
+const navigateMock = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
 // Real SessionProvider + real @cmc/auth `can()` (render-with-providers.tsx
 // pattern, matches shifts.test.tsx) — vary the mocked session's roles rather
 // than mocking session-context.js directly.
@@ -70,17 +75,10 @@ vi.mock('../../lib/trpc.js', async () => {
         myTicketsSpy(input);
         return queryResult(myTickets);
       },
-      'manualPunch.dayPunches.useQuery': (input: unknown, opts?: { enabled?: boolean }) => {
-        dayPunchesSpy(input);
-        if (opts?.enabled === false) return queryResult([]);
-        return queryResult(dayPunches);
-      },
       'manualPunch.resubmit.useMutation': (options: { onError?: (err: { message: string }) => void }) => {
         resubmitOnError = options?.onError;
         return mutationResult({ mutate: resubmitMutate });
       },
-      'manualPunch.approve.useMutation': () => mutationResult({ mutate: approveMutate }),
-      'manualPunch.reject.useMutation': () => mutationResult({ mutate: rejectMutate }),
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -94,14 +92,11 @@ describe('CheckInOutPage', () => {
   beforeEach(() => {
     punchMutate.mockClear();
     resubmitMutate.mockClear();
-    approveMutate.mockClear();
-    rejectMutate.mockClear();
+    navigateMock.mockClear();
     myTicketsSpy.mockClear();
     inboxSpy.mockClear();
-    dayPunchesSpy.mockClear();
     geoSummarySpy.mockClear();
     myTickets = [];
-    dayPunches = [];
     geoSummary = [];
     sessionRoles = ['sale'];
     captureGeoMock.mockReset();
@@ -286,11 +281,12 @@ describe('CheckInOutPage', () => {
     expect(screen.queryByRole('button', { name: 'Duyệt chấm công' })).toBeNull();
   });
 
-  it('approve detail dialog shows verification badges and distance snapshot, not coords', () => {
+  it('inbox is index-only: Mở phiếu navigates to ticket form; no list-row Duyệt/Từ chối', () => {
     sessionRoles = ['giam_doc_kinh_doanh'];
+    const ticketId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
     myTickets = [
       {
-        id: 't-appr',
+        id: ticketId,
         ticketDate: '2026-07-01T00:00:00.000Z',
         status: 'pending',
         note: 'đi họp',
@@ -299,29 +295,14 @@ describe('CheckInOutPage', () => {
         appUser: { fullName: 'Nguyen A' },
       },
     ];
-    dayPunches = [
-      {
-        punchAt: '2026-07-01T02:00:00.000Z',
-        verification: 'geo',
-        accuracyM: 25,
-        geofenceDistanceM: 180,
-        matchedRadiusM: 200,
-      },
-      {
-        punchAt: '2026-07-01T02:30:00.000Z',
-        verification: 'none',
-        accuracyM: null,
-        geofenceDistanceM: null,
-        matchedRadiusM: null,
-      },
-    ];
     renderWithProviders(<CheckInOutPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Hàng chờ phiếu' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Duyệt' }));
-    expect(screen.getByText('GPS')).toBeInTheDocument();
-    expect(screen.getByText('Offsite')).toBeInTheDocument();
-    expect(screen.getByText(/cách tâm 180m \(bán kính 200m\)/)).toBeInTheDocument();
-    expect(screen.queryByText(/21\./)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Duyệt', exact: true })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Từ chối', exact: true })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Mở phiếu' }));
+    expect(navigateMock).toHaveBeenCalledWith(`/hr/checkin/${ticketId}`, {
+      state: { listScope: 'inbox' },
+    });
     expect(screen.getByText('Chấm công GPS gần đây')).toBeInTheDocument();
   });
 

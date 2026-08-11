@@ -6,6 +6,9 @@ import { useSession } from '../lib/session-context.js';
 import { NAV_MODULES, isNavChildVisible } from '../shell/nav-registry.js';
 
 const CheckInOutPage = lazy(() => import('../pages/attendance/check-in-out.js'));
+const CheckInTicketDetailPage = lazy(
+  () => import('../pages/attendance/check-in-ticket-detail.js'),
+);
 const ShiftsPage = lazy(() => import('../pages/attendance/shifts.js'));
 const ShiftsNewPage = lazy(() => import('../pages/attendance/shifts-new.js'));
 const ShiftsDetailPage = lazy(() => import('../pages/attendance/shifts-detail.js'));
@@ -39,6 +42,15 @@ export const hrRoutes: RouteObject[] = [
     element: (
       <Suspense fallback={<Fallback />}>
         <CheckInOutPage />
+      </Suspense>
+    ),
+  },
+  // Static list above; UUID form for ManualAttendanceTicket (form-depth HITL).
+  {
+    path: 'checkin/:ticketId',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <CheckInTicketDetailPage />
       </Suspense>
     ),
   },

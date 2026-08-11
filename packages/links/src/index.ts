@@ -28,6 +28,8 @@ export const links = {
   parentAccount: (id: string) => `/admin/parents/${id}`,
   /** ClassSession form — UUID. */
   classSession: (id: string) => `/teaching/sessions/${id}`,
+  /** ManualAttendanceTicket form (check-in offsite approval) — UUID. */
+  manualPunchTicket: (id: string) => `/hr/checkin/${id}`,
 } as const;
 
 export type LinkEntity = keyof typeof links;
@@ -65,6 +67,15 @@ export function shiftRegistrationsPath(q?: {
 
 export function shiftRegistrationNewPath(): string {
   return '/hr/shifts/new';
+}
+
+/** Workspace list for check-in / manual punch tickets (not a /go entity alone). */
+export function checkInPath(q?: { scope?: 'mine' | 'inbox' }): string {
+  const params = new URLSearchParams();
+  if (q?.scope === 'mine' || q?.scope === 'inbox') {
+    params.set('scope', q.scope);
+  }
+  return withQuery('/hr/checkin', params);
 }
 
 /** KPI board (list) — period/status query filters. */

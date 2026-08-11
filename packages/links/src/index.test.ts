@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   UUID_RE,
   attendancePath,
+  checkInPath,
   goPath,
   gradingPath,
   links,
@@ -27,6 +28,7 @@ describe('links builders', () => {
     expect(links.afterSaleCase(UUID)).toBe(`/crm/aftersale/${UUID}`);
     expect(links.parentAccount(UUID)).toBe(`/admin/parents/${UUID}`);
     expect(links.classSession(UUID)).toBe(`/teaching/sessions/${UUID}`);
+    expect(links.manualPunchTicket(UUID)).toBe(`/hr/checkin/${UUID}`);
   });
 
   it('builds go paths', () => {
@@ -37,6 +39,7 @@ describe('links builders', () => {
     expect(goPath('afterSaleCase', UUID)).toBe(`/go/afterSaleCase/${UUID}`);
     expect(goPath('parentAccount', UUID)).toBe(`/go/parentAccount/${UUID}`);
     expect(goPath('classSession', UUID)).toBe(`/go/classSession/${UUID}`);
+    expect(goPath('manualPunchTicket', UUID)).toBe(`/go/manualPunchTicket/${UUID}`);
   });
 });
 
@@ -63,6 +66,7 @@ describe('resolveGo', () => {
     expect(resolveGo('afterSaleCase', UUID)).toBe(`/crm/aftersale/${UUID}`);
     expect(resolveGo('parentAccount', UUID)).toBe(`/admin/parents/${UUID}`);
     expect(resolveGo('classSession', UUID)).toBe(`/teaching/sessions/${UUID}`);
+    expect(resolveGo('manualPunchTicket', UUID)).toBe(`/hr/checkin/${UUID}`);
   });
 
   it('returns null for unknown entity keys', () => {
@@ -125,6 +129,12 @@ describe('workspace builders + readUuidParam', () => {
     expect(shiftRegistrationsPath({ scope: 'mine' })).toBe('/hr/shifts?scope=mine');
     expect(shiftRegistrationsPath({ scope: 'inbox' })).toBe('/hr/shifts?scope=inbox');
     expect(shiftRegistrationNewPath()).toBe('/hr/shifts/new');
+  });
+
+  it('checkInPath scope query', () => {
+    expect(checkInPath()).toBe('/hr/checkin');
+    expect(checkInPath({ scope: 'mine' })).toBe('/hr/checkin?scope=mine');
+    expect(checkInPath({ scope: 'inbox' })).toBe('/hr/checkin?scope=inbox');
   });
 
   it('kpiScoresPath builds board query filters', () => {

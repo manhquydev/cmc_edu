@@ -12,13 +12,17 @@ import {
   DialogHeader,
   EmptyState,
   EntityHeader,
+  HighlightStrip,
   HStack,
+  KeyValueList,
   PageHeader,
   ResultPanel,
+  SectionBlock,
   Stack,
   StatusBadge,
   Text,
   TextArea,
+  WorkflowStatusbar,
 } from '@cmc/ui';
 import { shiftRegistrationsPath, UUID_RE } from '@cmc/links';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
@@ -104,36 +108,13 @@ function listBackPath(state: unknown): string {
   return shiftRegistrationsPath(scope ? { scope } : undefined);
 }
 
-const STATUS_CSS = `
-.ws-detail-bar { display:flex; gap:0; list-style:none; margin:0; padding:0; height:30px; --a:11px; }
-.ws-detail-bar li { margin-left:calc(var(--a) * -1); }
-.ws-detail-bar li:first-child { margin-left:0; }
-.ws-detail-bar span {
-  display:flex; align-items:center; justify-content:center;
-  padding:0 calc(var(--a) + 12px); height:100%; font-size:11px; font-weight:600;
-  letter-spacing:.03em; text-transform:uppercase; white-space:nowrap;
-  background:#e9ecef; color:#868e96;
-  clip-path: polygon(0 0, calc(100% - var(--a)) 0, 100% 50%, calc(100% - var(--a)) 100%, 0 100%, var(--a) 50%);
-}
-.ws-detail-bar li:first-child span {
-  clip-path: polygon(0 0, calc(100% - var(--a)) 0, 100% 50%, calc(100% - var(--a)) 100%, 0 100%);
-  padding-left:14px;
-}
-.ws-detail-bar li:last-child span {
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, var(--a) 50%);
-  padding-right:14px;
-}
-.ws-detail-bar li.is-done span { background:#d3f9d8; color:#2b8a3e; }
-.ws-detail-bar li.is-current span { background:#00a09d; color:#fff; z-index:1; }
-.ws-detail-bar li.is-bad span { background:#fa5252; color:#fff; }
+/** Schedule matrix — domain-specific grid (Odoo-like work schedule sheet). */
+const MATRIX_CSS = `
 .ws-mx { width:100%; border-collapse:collapse; font-size:13px; }
-.ws-mx th, .ws-mx td { border:1px solid #dee2e6; padding:7px 10px; }
-.ws-mx thead th { background:#f1f3f5; font-size:12px; }
+.ws-mx th, .ws-mx td { border:1px solid var(--console-border, #dee2e6); padding:7px 10px; }
+.ws-mx thead th { background:var(--console-bg-subtle, #f1f3f5); font-size:12px; }
 .ws-mx .h { text-align:right; font-variant-numeric:tabular-nums; }
-.ws-ft { display:flex; justify-content:flex-end; gap:24px; padding:8px 12px; font-weight:600; background:#f8f9fa; border:1px solid #dee2e6; border-top:0; }
-.ws-kv { display:grid; grid-template-columns:140px 1fr; gap:6px 12px; font-size:13px; margin:12px 0; }
-.ws-kv dt { color:#495057; font-weight:500; }
-.ws-kv dd { margin:0; }
+.ws-ft { display:flex; justify-content:flex-end; gap:24px; padding:8px 12px; font-weight:600; background:var(--console-bg-subtle, #f8f9fa); border:1px solid var(--console-border, #dee2e6); border-top:0; }
 `;
 
 export default function ShiftsDetailPage() {
@@ -282,13 +263,13 @@ export default function ShiftsDetailPage() {
     }
   }
 
+  const trackLabel = data.shiftGroup.type === 'GIAO_VIEN' ? 'Giáo viên' : 'Kinh doanh';
+
   return (
     <DetailPage
       density="ops"
       header={
         <PageHeader
-          title="Work Schedule"
-          subtitle={`${data.appUser.fullName} · ${data.shiftGroup.name}`}
           breadcrumbs={[
             { label: 'Nhân sự' },
             { label: 'Work Schedule', href: listBackPath(location.state) },
@@ -299,67 +280,20 @@ export default function ShiftsDetailPage() {
               {idOk ? (
                 <CopyLinkButton mode="go" entity="shiftRegistration" id={registrationId} />
               ) : null}
-              {canCancel ? (
-                <Button label="Hủy phiếu" size="sm" variant="ghost" onClick={() => setCancelOpen(true)} />
-              ) : null}
-              {showApprove ? (
-                <>
-                  <Button
-                    label="Từ chối"
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => {
-                      setRejectOpen(true);
-                      setRejectReason('');
-                    }}
-                  />
-                  <Button
-                    label="Duyệt"
-                    size="sm"
-                    variant="primary"
-                    onClick={() => setApproveOpen(true)}
-                  />
-                </>
-              ) : null}
+              <Button
+                label="Về danh sách"
+                size="sm"
+                variant="ghost"
+                onClick={() => navigate(listBackPath(location.state))}
+              />
             </HStack>
           }
         />
       }
-      statusbar={
-        <>
-          <style>{STATUS_CSS}</style>
-          <ol className="ws-detail-bar" aria-label="Trạng thái phiếu">
-            {steps.map((s, i) => {
-              const state =
-                s.id === 'rejected' || s.id === 'cancelled'
-                  ? i === activeIndex
-                    ? 'bad'
-                    : i < activeIndex
-                      ? 'done'
-                      : 'todo'
-                  : i < activeIndex
-                    ? 'done'
-                    : i === activeIndex
-                      ? 'current'
-                      : 'todo';
-              return (
-                <li
-                  key={s.id}
-                  className={
-                    state === 'bad' ? 'is-bad' : state === 'done' ? 'is-done' : state === 'current' ? 'is-current' : ''
-                  }
-                >
-                  <span aria-current={i === activeIndex ? 'step' : undefined}>{s.label}</span>
-                </li>
-              );
-            })}
-          </ol>
-        </>
-      }
       entity={
         <EntityHeader
           title={`Work Schedule / ${data.appUser.fullName}`}
-          subtitle={`${data.shiftGroup.name} · ${data.shiftGroup.type === 'GIAO_VIEN' ? 'Giáo viên' : 'Kinh doanh'} · ${data.selectionMode}`}
+          subtitle={`${data.shiftGroup.name} · ${trackLabel} · ${data.selectionMode}`}
           initials={data.appUser.fullName.slice(0, 1).toUpperCase()}
           badges={
             <StatusBadge
@@ -367,84 +301,148 @@ export default function ShiftsDetailPage() {
               label={REG_STATUS_LABELS[data.status] ?? data.status}
             />
           }
+          meta={
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {entries.length} ca · {totalHours.toFixed(2)} giờ
+            </span>
+          }
+          actions={
+            showApprove || canCancel ? (
+              <HStack gap={1} wrap="wrap">
+                {canCancel ? (
+                  <Button
+                    label="Hủy phiếu"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setCancelOpen(true)}
+                  />
+                ) : null}
+                {showApprove ? (
+                  <>
+                    <Button
+                      label="Từ chối"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        setRejectOpen(true);
+                        setRejectReason('');
+                      }}
+                    />
+                    <Button
+                      label="Duyệt"
+                      size="sm"
+                      variant="primary"
+                      onClick={() => setApproveOpen(true)}
+                    />
+                  </>
+                ) : null}
+              </HStack>
+            ) : undefined
+          }
         />
       }
-    >
-      <style>{STATUS_CSS}</style>
-      {flash ? (
-        <Banner status={flash.ok ? 'success' : 'error'} title={flash.text} />
-      ) : null}
-
-      <dl className="ws-kv">
-        <dt>Từ ngày</dt>
-        <dd>{fmtDate(data.fromDate)}</dd>
-        <dt>Tới ngày</dt>
-        <dd>{fmtDate(data.toDate)}</dd>
-        <dt>Nhóm ca</dt>
-        <dd>
-          {data.shiftGroup.name} ({data.shiftGroup.selectionMode})
-        </dd>
-        <dt>Số ca</dt>
-        <dd>{entries.length}</dd>
-        {data.rejectReason ? (
-          <>
-            <dt>Lý do từ chối</dt>
-            <dd>{data.rejectReason}</dd>
-          </>
-        ) : null}
-      </dl>
-
-      <Text type="body" size="sm" weight="semibold">
-        Đăng ký lịch làm việc
-      </Text>
-      <table className="ws-mx">
-        <thead>
-          <tr>
-            <th>Ngày</th>
-            {templates.map((t) => (
-              <th key={t.id}>
-                {t.name}
-                <div style={{ fontWeight: 400, fontSize: 11, opacity: 0.75 }}>
-                  {t.startTime}–{t.endTime}
-                </div>
-              </th>
-            ))}
-            <th className="h">Tổng giờ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {dates.map((d) => {
-            const sel = byDate.get(d) ?? new Set();
-            let rowH = 0;
-            for (const tid of sel) {
-              const t = templates.find((x) => x.id === tid);
-              if (t) rowH += hoursBetween(t.startTime, t.endTime);
-            }
-            return (
-              <tr key={d}>
-                <td>{formatDayLabel(d)}</td>
-                {templates.map((t) => (
-                  <td key={t.id}>{sel.has(t.id) ? '✓ Đi làm' : '—'}</td>
-                ))}
-                <td className="h">{rowH.toFixed(2)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <div className="ws-ft">
-        <span>Tổng ca làm việc: {entries.length}</span>
-        <span>Tổng giờ: {totalHours.toFixed(2)}</span>
-      </div>
-
-      <HStack gap={1} style={{ marginTop: 16 }}>
-        <Button
-          label="Về danh sách"
-          size="sm"
-          variant="secondary"
-          onClick={() => navigate(listBackPath(location.state))}
+      summary={
+        <HighlightStrip
+          items={[
+            {
+              key: 'status',
+              label: 'Trạng thái',
+              value: (
+                <StatusBadge
+                  status={data.status}
+                  label={REG_STATUS_LABELS[data.status] ?? data.status}
+                />
+              ),
+            },
+            { key: 'from', label: 'Từ ngày', value: fmtDate(data.fromDate) },
+            { key: 'to', label: 'Tới ngày', value: fmtDate(data.toDate) },
+            {
+              key: 'hours',
+              label: 'Tổng giờ',
+              value: totalHours.toFixed(2),
+              tabular: true,
+            },
+          ]}
         />
-      </HStack>
+      }
+      statusbar={<WorkflowStatusbar steps={steps} activeIndex={activeIndex} />}
+    >
+      <style>{MATRIX_CSS}</style>
+      <div className="console-detail-panel">
+        <Stack gap={3} style={{ padding: 'var(--cmc-space-3)' }}>
+          {flash ? (
+            <Banner status={flash.ok ? 'success' : 'error'} title={flash.text} />
+          ) : null}
+
+          <SectionBlock
+            title="Thông tin phiếu"
+            description="Cùng khung form chứng từ Console (list → form · statusbar · sheet)."
+          >
+            <KeyValueList
+              items={[
+                { key: 'person', label: 'Nhân viên', value: data.appUser.fullName },
+                {
+                  key: 'group',
+                  label: 'Nhóm ca',
+                  value: `${data.shiftGroup.name} (${data.shiftGroup.selectionMode})`,
+                },
+                { key: 'track', label: 'Track', value: trackLabel },
+                { key: 'from', label: 'Từ ngày', value: fmtDate(data.fromDate) },
+                { key: 'to', label: 'Tới ngày', value: fmtDate(data.toDate) },
+                { key: 'count', label: 'Số ca', value: String(entries.length) },
+                ...(data.rejectReason
+                  ? [{ key: 'reject', label: 'Lý do từ chối', value: data.rejectReason }]
+                  : []),
+              ]}
+            />
+          </SectionBlock>
+
+          <SectionBlock
+            title="Đăng ký lịch làm việc"
+            description="Ma trận ngày × ca (đặc thù nghiệp vụ — không thay bằng chatter)."
+          >
+            <table className="ws-mx">
+              <thead>
+                <tr>
+                  <th>Ngày</th>
+                  {templates.map((t) => (
+                    <th key={t.id}>
+                      {t.name}
+                      <div style={{ fontWeight: 400, fontSize: 11, opacity: 0.75 }}>
+                        {t.startTime}–{t.endTime}
+                      </div>
+                    </th>
+                  ))}
+                  <th className="h">Tổng giờ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dates.map((d) => {
+                  const sel = byDate.get(d) ?? new Set();
+                  let rowH = 0;
+                  for (const tid of sel) {
+                    const t = templates.find((x) => x.id === tid);
+                    if (t) rowH += hoursBetween(t.startTime, t.endTime);
+                  }
+                  return (
+                    <tr key={d}>
+                      <td>{formatDayLabel(d)}</td>
+                      {templates.map((t) => (
+                        <td key={t.id}>{sel.has(t.id) ? '✓ Đi làm' : '—'}</td>
+                      ))}
+                      <td className="h">{rowH.toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="ws-ft">
+              <span>Tổng ca làm việc: {entries.length}</span>
+              <span>Tổng giờ: {totalHours.toFixed(2)}</span>
+            </div>
+          </SectionBlock>
+        </Stack>
+      </div>
 
       <ConfirmDialog
         opened={approveOpen}

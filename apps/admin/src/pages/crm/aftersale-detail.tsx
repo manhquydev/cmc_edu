@@ -7,12 +7,16 @@ import {
   DetailPage,
   EmptyState,
   EntityHeader,
+  HighlightStrip,
   HStack,
+  KeyValueList,
   PageHeader,
   ResultPanel,
+  SectionBlock,
   Stack,
   StatusBadge,
   Text,
+  WorkflowStatusbar,
 } from '@cmc/ui';
 import { UUID_RE } from '@cmc/links';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
@@ -32,6 +36,27 @@ const PRIORITY_LABELS: Record<string, string> = {
   normal: 'Bình thường',
   high: 'Cao',
 };
+
+function statusSteps(status: string): {
+  steps: { id: string; label: string }[];
+  activeIndex: number;
+} {
+  const steps = [
+    { id: 'open', label: 'Mở' },
+    { id: 'in_progress', label: 'Đang xử lý' },
+    { id: 'resolved', label: 'Đã giải quyết' },
+    { id: 'closed', label: 'Đã đóng' },
+  ];
+  const idx =
+    status === 'closed'
+      ? 3
+      : status === 'resolved'
+        ? 2
+        : status === 'in_progress'
+          ? 1
+          : 0;
+  return { steps, activeIndex: idx };
+}
 
 export default function AfterSaleDetailPage() {
   const { caseId = '' } = useParams<{ caseId: string }>();
@@ -110,14 +135,18 @@ export default function AfterSaleDetailPage() {
   }
 
   const shortId = caseId.slice(0, 8);
+  const { steps, activeIndex } = statusSteps(data.status);
+  const studentLabel = data.studentName ?? data.studentId ?? 'Học viên';
+  const priorityLabel = PRIORITY_LABELS[data.priority] ?? data.priority;
+  const showAdvance = data.status === 'open';
+  const showResolve = data.status === 'open' || data.status === 'in_progress';
+  const showClose = data.status === 'resolved';
 
   return (
     <DetailPage
       density="ops"
       header={
         <PageHeader
-          title="Case sau bán"
-          subtitle={data.studentName ?? data.studentId}
           breadcrumbs={[
             { label: 'CRM' },
             { label: 'Sau bán', href: '/crm/aftersale' },
@@ -126,48 +155,6 @@ export default function AfterSaleDetailPage() {
           actions={
             <HStack gap={1} wrap="wrap">
               <CopyLinkButton mode="go" entity="afterSaleCase" id={caseId} />
-              {data.status === 'open' ? (
-                <Button
-                  label="Tiếp nhận"
-                  size="sm"
-                  variant="secondary"
-                  isLoading={advanceMutation.isPending}
-                  onClick={() =>
-                    advanceMutation.mutate(
-                      { caseId },
-                      {
-                        onSuccess: () => setFlash({ ok: true, text: 'Đã tiếp nhận (in_progress).' }),
-                        onError: (e) => setFlash({ ok: false, text: e.message }),
-                      },
-                    )
-                  }
-                />
-              ) : null}
-              {data.status === 'open' || data.status === 'in_progress' ? (
-                <Button
-                  label="Giải quyết"
-                  size="sm"
-                  variant="primary"
-                  onClick={() => setResolveOpen(true)}
-                />
-              ) : null}
-              {data.status === 'resolved' ? (
-                <Button
-                  label="Đóng"
-                  size="sm"
-                  variant="ghost"
-                  isLoading={closeMutation.isPending}
-                  onClick={() =>
-                    closeMutation.mutate(
-                      { caseId },
-                      {
-                        onSuccess: () => setFlash({ ok: true, text: 'Đã đóng case.' }),
-                        onError: (e) => setFlash({ ok: false, text: e.message }),
-                      },
-                    )
-                  }
-                />
-              ) : null}
               <Button
                 label="Về danh sách"
                 size="sm"
@@ -180,8 +167,8 @@ export default function AfterSaleDetailPage() {
       }
       entity={
         <EntityHeader
-          title={data.studentName ?? 'Học viên'}
-          subtitle={`Ưu tiên: ${PRIORITY_LABELS[data.priority] ?? data.priority}`}
+          title={studentLabel}
+          subtitle={`Case sau bán · ưu tiên ${priorityLabel}`}
           initials={(data.studentName ?? 'C').slice(0, 1).toUpperCase()}
           badges={
             <StatusBadge
@@ -189,20 +176,107 @@ export default function AfterSaleDetailPage() {
               label={STATUS_LABELS[data.status] ?? data.status}
             />
           }
+          actions={
+            showAdvance || showResolve || showClose ? (
+              <HStack gap={1} wrap="wrap">
+                {showAdvance ? (
+                  <Button
+                    label="Tiếp nhận"
+                    size="sm"
+                    variant="secondary"
+                    isLoading={advanceMutation.isPending}
+                    onClick={() =>
+                      advanceMutation.mutate(
+                        { caseId },
+                        {
+                          onSuccess: () =>
+                            setFlash({ ok: true, text: 'Đã tiếp nhận (in_progress).' }),
+                          onError: (e) => setFlash({ ok: false, text: e.message }),
+                        },
+                      )
+                    }
+                  />
+                ) : null}
+                {showResolve ? (
+                  <Button
+                    label="Giải quyết"
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setResolveOpen(true)}
+                  />
+                ) : null}
+                {showClose ? (
+                  <Button
+                    label="Đóng"
+                    size="sm"
+                    variant="ghost"
+                    isLoading={closeMutation.isPending}
+                    onClick={() =>
+                      closeMutation.mutate(
+                        { caseId },
+                        {
+                          onSuccess: () => setFlash({ ok: true, text: 'Đã đóng case.' }),
+                          onError: (e) => setFlash({ ok: false, text: e.message }),
+                        },
+                      )
+                    }
+                  />
+                ) : null}
+              </HStack>
+            ) : undefined
+          }
         />
       }
+      summary={
+        <HighlightStrip
+          items={[
+            {
+              key: 'status',
+              label: 'Trạng thái',
+              value: (
+                <StatusBadge
+                  status={data.status}
+                  label={STATUS_LABELS[data.status] ?? data.status}
+                />
+              ),
+            },
+            { key: 'priority', label: 'Ưu tiên', value: priorityLabel },
+            { key: 'student', label: 'Học viên', value: studentLabel },
+          ]}
+        />
+      }
+      statusbar={<WorkflowStatusbar steps={steps} activeIndex={activeIndex} />}
     >
-      <Stack gap={2} padding={4}>
-        {flash ? <Banner status={flash.ok ? 'success' : 'error'} title={flash.text} /> : null}
-        <Text type="body" size="sm">
-          {data.description}
-        </Text>
-        {data.resolution ? (
-          <Text type="body" size="xsm" color="secondary">
-            Giải pháp: {data.resolution}
-          </Text>
-        ) : null}
-      </Stack>
+      <div className="console-detail-panel">
+        <Stack gap={3} style={{ padding: 'var(--cmc-space-3)', maxWidth: 720 }}>
+          {flash ? <Banner status={flash.ok ? 'success' : 'error'} title={flash.text} /> : null}
+
+          <SectionBlock
+            title="Nội dung case"
+            description="Cùng khung form chứng từ Console (list → form · statusbar · sheet)."
+          >
+            <KeyValueList
+              items={[
+                { key: 'student', label: 'Học viên', value: studentLabel },
+                { key: 'priority', label: 'Ưu tiên', value: priorityLabel },
+                {
+                  key: 'status',
+                  label: 'Trạng thái',
+                  value: STATUS_LABELS[data.status] ?? data.status,
+                },
+              ]}
+            />
+            <Text type="body" size="sm" style={{ marginTop: 12 }}>
+              {data.description}
+            </Text>
+            {data.resolution ? (
+              <Text type="body" size="xsm" color="secondary" style={{ marginTop: 8 }}>
+                Giải pháp: {data.resolution}
+              </Text>
+            ) : null}
+          </SectionBlock>
+        </Stack>
+      </div>
 
       <ResolveAfterSaleCaseDialog
         caseId={resolveOpen ? caseId : null}

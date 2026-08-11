@@ -73,10 +73,18 @@ describe('ShiftsDetailPage', () => {
     expect(screen.getAllByText(/Kinh doanh/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Chờ duyệt/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Tổng ca làm việc: 1/)).toBeInTheDocument();
+    // Console form grammar (not one-off statusbar CSS)
+    expect(screen.getByText('Thông tin phiếu')).toBeInTheDocument();
+    expect(screen.getByText('Đăng ký lịch làm việc')).toBeInTheDocument();
   });
 
   it('shows Duyệt for matching director on submitted', () => {
     renderWithProviders(<ShiftsDetailPage />, { route: `/hr/shifts/${REG_ID}` });
     expect(screen.getByRole('button', { name: 'Duyệt' })).toBeInTheDocument();
+  });
+
+  it('keeps reject action on form for director (resource-centric HITL)', () => {
+    renderWithProviders(<ShiftsDetailPage />, { route: `/hr/shifts/${REG_ID}` });
+    expect(screen.getByRole('button', { name: 'Từ chối' })).toBeInTheDocument();
   });
 });

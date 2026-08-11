@@ -167,6 +167,9 @@ importers:
       '@cmc/domain-identity':
         specifier: workspace:*
         version: link:../../packages/domain-identity
+      '@cmc/domain-lms':
+        specifier: workspace:*
+        version: link:../../packages/domain-lms
       '@cmc/domain-payroll':
         specifier: workspace:*
         version: link:../../packages/domain-payroll
@@ -362,6 +365,18 @@ importers:
         version: 4.1.10(@types/node@22.20.0)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.0(@types/node@22.20.0)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))
 
   packages/domain-identity:
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      typescript:
+        specifier: ^6.0.0
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@22.20.0)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.0(@types/node@22.20.0)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.5)(yaml@2.9.0))
+
+  packages/domain-lms:
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.1.10

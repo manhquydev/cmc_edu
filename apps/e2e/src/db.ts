@@ -773,8 +773,20 @@ export async function deleteStaffHrCascadeForAppUsers(...appUserIds: string[]): 
  * flow proves. The unique title lets a journey find its own exercise row. */
 export async function seedCurriculumUnit(title?: string): Promise<{ unitId: string; title: string }> {
   const unitTitle = title ?? `E2E Unit ${randomUUID().slice(0, 8)}`;
+  const max = await getDb().curriculumUnit.aggregate({
+    where: { program: 'UCREA' },
+    _max: { orderGlobal: true },
+  });
+  const orderGlobal = (max._max.orderGlobal ?? 0) + 1;
   const unit = await getDb().curriculumUnit.create({
-    data: { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: unitTitle },
+    data: {
+      program: 'UCREA',
+      level: 1,
+      monthIndex: 1,
+      unitType: 'LESSON',
+      title: unitTitle,
+      orderGlobal,
+    },
   });
   return { unitId: unit.id, title: unitTitle };
 }

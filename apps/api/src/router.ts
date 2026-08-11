@@ -21,6 +21,7 @@ import { scheduleRouter } from './class/schedule-router.js';
 import { courseRouter } from './course/router.js';
 import { crmRouter } from './crm/router.js';
 import { enrollmentRouter } from './enrollment/router.js';
+import { lmsOpsRouter } from './lms-ops/router.js';
 import { curriculumUnitRouter, exerciseRouter } from './exercise/router.js';
 import { exerciseOpenTierRouter } from './exercise/open-tier.js';
 import { facilityRouter } from './facility/router.js';
@@ -61,6 +62,8 @@ export const appRouter = router({
   crm: crmRouter,
   finance: financeRouter,
   enrollment: enrollmentRouter,
+  // LMS foundation spike: unit-aware class create, grant units, dual-gate roster.
+  lmsOps: lmsOpsRouter,
   // T3: merge LMS guardian consent procedures into the existing guardian router.
   guardian: mergeRouters(guardianRouter, guardianLmsRouter),
   lmsAuth: lmsAuthRouter,

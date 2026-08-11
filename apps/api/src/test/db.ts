@@ -167,6 +167,8 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
     // bypass GUC even though StudentAccount itself carries no RLS policy. It
     // also has an FK to Student, so it must run before `student.deleteMany`.
     await tx.studentAccount.deleteMany({ where: { student: { facilityId } } });
+    // LMS foundation: ranges before enrollments (CASCADE also covers, but explicit for clarity).
+    await tx.enrollmentUnitRange.deleteMany({ where: { facilityId } });
     await tx.enrollment.deleteMany({ where: { facilityId } });
     await tx.student.deleteMany({ where: { facilityId } });
     await tx.receipt.deleteMany({ where: { facilityId } });
@@ -513,18 +515,33 @@ export interface SeedCurriculumUnitOptions {
  * test that seeds one must delete it (and any `Exercise` rows pointing at it,
  * which RESTRICT-block the delete) itself, via `cleanupCurriculumUnits()`.
  */
+export interface SeedCurriculumUnitOptionsWithOrder extends SeedCurriculumUnitOptions {
+  orderGlobal?: number;
+}
+
 export async function seedCurriculumUnit(
-  opts: SeedCurriculumUnitOptions = {},
-): Promise<{ id: string }> {
-  return testDb().curriculumUnit.create({
+  opts: SeedCurriculumUnitOptionsWithOrder = {},
+): Promise<{ id: string; orderGlobal: number }> {
+  const program = opts.program ?? 'UCREA';
+  let orderGlobal = opts.orderGlobal;
+  if (orderGlobal == null) {
+    const max = await testDb().curriculumUnit.aggregate({
+      where: { program },
+      _max: { orderGlobal: true },
+    });
+    orderGlobal = (max._max.orderGlobal ?? 0) + 1;
+  }
+  const row = await testDb().curriculumUnit.create({
     data: {
-      program: opts.program ?? 'UCREA',
+      program,
       level: opts.level ?? 1,
-      monthIndex: opts.monthIndex ?? 1,
+      monthIndex: opts.monthIndex ?? orderGlobal,
       unitType: opts.unitType ?? 'LESSON',
       title: opts.title ?? `Seed Unit ${randomUUID().slice(0, 8)}`,
+      orderGlobal,
     },
   });
+  return { id: row.id, orderGlobal: row.orderGlobal };
 }
 
 /**

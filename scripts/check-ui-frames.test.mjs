@@ -47,9 +47,16 @@ describe('check-ui-frames.mjs', () => {
       report.detailTiers.full.some((f) => f.includes('opportunity-detail')),
       'opportunity-detail is full tier',
     );
+    // Densify wave: student form gained WorkflowStatusbar → full tier (was standard).
     assert.ok(
-      report.detailTiers.standard.some((f) => f.includes('student-detail')),
-      'student-detail is standard tier',
+      report.detailTiers.full.some((f) => f.includes('student-detail')),
+      'student-detail is full tier after densify',
+    );
+    assert.ok(
+      report.detailTiers.standard.some(
+        (f) => f.includes('parent-detail') || f.includes('session-detail'),
+      ),
+      'standard tier still has parent or session form',
     );
     assert.ok(
       report.detailTiers.settings.some((f) => f.includes('shift-config')),

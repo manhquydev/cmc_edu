@@ -95,8 +95,10 @@ export async function writeSequenceUpdate(
     where: { classBatchId: opts.classBatchId, position: { gt: deliveredCount } },
   });
   if (plan.replaced.length > 0) {
+    const { randomUUID } = await import('node:crypto');
     await tx.classExerciseItem.createMany({
       data: plan.replaced.map((item) => ({
+        id: randomUUID(),
         facilityId: opts.facilityId,
         classBatchId: opts.classBatchId,
         position: item.position,
@@ -146,6 +148,18 @@ export async function deliverForSession(
     throw badRequest('Session has not ended yet; delivery runs after endTime.');
   }
 
+  // Serialize deliver per batch (prevents double-assign of the same position).
+  await tx.$executeRawUnsafe(
+    `SELECT pg_advisory_xact_lock(hashtext($1::text), 91005)`,
+    session.classBatchId,
+  );
+  // Re-check after lock.
+  const again = await tx.sessionExercise.findUnique({
+    where: { classSessionId: session.id },
+    select: { id: true, classSessionId: true, exerciseId: true, position: true, deliveredAt: true },
+  });
+  if (again) return again;
+
   const sequence = await sequenceForBatch(tx, session.classBatchId);
   let exerciseId: string | null = null;
   let position = 0;
@@ -184,8 +198,10 @@ export async function deliverForSession(
     return null;
   }
 
+  const { randomUUID } = await import('node:crypto');
   const created = await tx.sessionExercise.create({
     data: {
+      id: randomUUID(),
       facilityId: session.facilityId,
       classSessionId: session.id,
       exerciseId,
@@ -212,6 +228,9 @@ export async function deliverDueExercises(
 ): Promise<{ delivered: number; skipped: number }> {
   const now = opts?.now ?? new Date();
   const limit = opts?.limit ?? 100;
+  // Match cmc-lms: only scan recent ended sessions (avoid poison backlog).
+  const windowMs = 14 * 24 * 60 * 60_000;
+  const notBefore = new Date(now.getTime() - windowMs);
 
   const due = await withFacility(
     db,
@@ -220,7 +239,7 @@ export async function deliverDueExercises(
       tx.classSession.findMany({
         where: {
           status: { not: 'cancelled' },
-          endTime: { lte: now },
+          endTime: { lte: now, gte: notBefore },
           deliveredExercise: null,
         },
         select: { id: true, facilityId: true },
@@ -239,8 +258,10 @@ export async function deliverDueExercises(
       );
       if (row) delivered += 1;
       else skipped += 1;
-    } catch {
+    } catch (err) {
       skipped += 1;
+      // eslint-disable-next-line no-console
+      console.error('[deliverDueExercises] session', s.id, err);
     }
   }
   return { delivered, skipped };

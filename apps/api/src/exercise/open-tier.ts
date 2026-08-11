@@ -206,11 +206,26 @@ export function getOpenCurriculumUnitIdsForStudent(
   return withFacility(db, student.facilityId, (tx) => resolveOpenCurriculumUnitIds(tx, student));
 }
 
-/** Every `published` Exercise whose unit is currently open for `student`. */
+/** Every `published` Exercise open for `student` (ADR 0038 or delivery path). */
 export async function listOpenExercisesForStudent(
   db: PrismaClient,
   student: LmsStudent,
 ): Promise<ExerciseDto[]> {
+  // Kill-switch OFF: exact delivered exercise ids (not whole unit catalog).
+  if (!isOpenTierEnabled()) {
+    return withFacility(db, student.facilityId, async (tx) => {
+      if (student.lifecycle === 'blocked_lms') return [];
+      const { deliveredExerciseIdsForStudent } = await import('../lms-ops/exercise-delivery.js');
+      const exerciseIds = await deliveredExerciseIdsForStudent(tx, student);
+      if (exerciseIds.size === 0) return [];
+      const exercises = await tx.exercise.findMany({
+        where: { id: { in: [...exerciseIds] }, status: 'published' },
+        orderBy: { createdAt: 'asc' },
+      });
+      return exercises.map(toExerciseDto);
+    });
+  }
+
   const openUnitIds = await getOpenCurriculumUnitIdsForStudent(db, student);
   if (openUnitIds.size === 0) {
     return [];
@@ -223,15 +238,28 @@ export async function listOpenExercisesForStudent(
 }
 
 /** Guard used by `submission.saveDraft` (../submission/router.ts): throws
- * BAD_REQUEST unless `exercise` is published AND its unit is open for
- * `student` right now (ADR 0038). */
+ * BAD_REQUEST unless `exercise` is published AND open for `student` right now. */
 export async function assertExerciseOpenForStudent(
   db: PrismaClient,
   student: LmsStudent,
-  exercise: { curriculumUnitId: string; status: string },
+  exercise: { id?: string; curriculumUnitId: string; status: string },
 ): Promise<void> {
   if (exercise.status !== 'published') {
     throw badRequest('Exercise is not published.');
+  }
+  if (!isOpenTierEnabled()) {
+    await withFacility(db, student.facilityId, async (tx) => {
+      if (student.lifecycle === 'blocked_lms') {
+        throw badRequest('Exercise is not open yet.');
+      }
+      const { deliveredExerciseIdsForStudent } = await import('../lms-ops/exercise-delivery.js');
+      const exerciseIds = await deliveredExerciseIdsForStudent(tx, student);
+      const id = exercise.id;
+      if (!id || !exerciseIds.has(id)) {
+        throw badRequest('Exercise is not open yet.');
+      }
+    });
+    return;
   }
   const openUnitIds = await getOpenCurriculumUnitIdsForStudent(db, student);
   if (!openUnitIds.has(exercise.curriculumUnitId)) {

@@ -230,6 +230,36 @@ describe('lmsOps exercise delivery', () => {
     }
   });
 
+  it('cancel after deliver revokes SessionExercise when no submissions', async () => {
+    const batch = await seedClassBatch({ facilityId: facility.id });
+    await publishedHomework(unitIds[0]!);
+    const pastEnd = new Date(Date.now() - 60_000);
+    const session = await testDbBypass((tx) =>
+      tx.classSession.create({
+        data: {
+          facilityId: facility.id,
+          classBatchId: batch.id,
+          sessionDate: pastEnd,
+          startTime: new Date(pastEnd.getTime() - 90 * 60_000),
+          endTime: pastEnd,
+          status: 'planned',
+          curriculumUnitId: unitIds[0]!,
+        },
+      }),
+    );
+    await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
+    const before = await testDbBypass((tx) =>
+      tx.sessionExercise.findUnique({ where: { classSessionId: session.id } }),
+    );
+    expect(before).not.toBeNull();
+
+    await gddt.classSession.cancel({ sessionId: session.id });
+    const after = await testDbBypass((tx) =>
+      tx.sessionExercise.findUnique({ where: { classSessionId: session.id } }),
+    );
+    expect(after).toBeNull();
+  });
+
   it('deliverDueExercises worker path delivers ended sessions', async () => {
     const batch = await seedClassBatch({ facilityId: facility.id });
     const homework = await publishedHomework(unitIds[0]!);

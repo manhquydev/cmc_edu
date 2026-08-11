@@ -128,6 +128,25 @@ export async function cancelSessionWithRestamp(
     });
   }
 
+  // Class-unit-spec §8.3: cancelled session must not burn sequence position.
+  // Revoke SessionExercise when no student has submitted that exercise yet.
+  const delivery = await tx.sessionExercise.findUnique({
+    where: { classSessionId: session.id },
+    select: { id: true, exerciseId: true },
+  });
+  if (delivery) {
+    const submissionCount = await tx.submission.count({
+      where: {
+        exerciseId: delivery.exerciseId,
+        facilityId: opts.facilityId,
+        status: { not: 'draft' },
+      },
+    });
+    if (submissionCount === 0) {
+      await tx.sessionExercise.delete({ where: { id: delivery.id } });
+    }
+  }
+
   return {
     session: {
       id: updated.id,

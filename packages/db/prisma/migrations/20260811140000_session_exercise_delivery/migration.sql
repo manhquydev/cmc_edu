@@ -3,7 +3,7 @@
 -- SessionExercise: at most one delivered homework per ClassSession.
 
 CREATE TABLE IF NOT EXISTS "ClassExerciseItem" (
-  "id"           TEXT         NOT NULL,
+  "id"           TEXT         NOT NULL DEFAULT gen_random_uuid()::text,
   "facilityId"   TEXT         NOT NULL,
   "classBatchId" TEXT         NOT NULL,
   "position"     INTEGER      NOT NULL,
@@ -42,7 +42,7 @@ CREATE POLICY "ClassExerciseItem_facility_isolation" ON "ClassExerciseItem"
 GRANT SELECT, INSERT, UPDATE, DELETE ON "ClassExerciseItem" TO cmc_app;
 
 CREATE TABLE IF NOT EXISTS "SessionExercise" (
-  "id"             TEXT         NOT NULL,
+  "id"             TEXT         NOT NULL DEFAULT gen_random_uuid()::text,
   "facilityId"     TEXT         NOT NULL,
   "classSessionId" TEXT         NOT NULL,
   "exerciseId"     TEXT         NOT NULL,

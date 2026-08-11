@@ -246,11 +246,15 @@ export default function CheckInTicketDetailPage() {
         <ResultPanel
           status="error"
           title="Không mở được phiếu"
-          description={error?.message ?? 'Ticket not found.'}
-          primaryAction={{
-            label: 'Về danh sách',
-            onClick: () => navigate(listBackPath(location.state)),
-          }}
+          message={error?.message ?? 'Ticket not found.'}
+          actions={
+            <Button
+              label="Về danh sách"
+              size="sm"
+              variant="secondary"
+              onClick={() => navigate(listBackPath(location.state))}
+            />
+          }
         />
       </DetailPage>
     );

@@ -21,8 +21,8 @@ import {
   isValidDateOnly,
   isValidTimeOfDay,
 } from '@cmc/domain-time';
-import { recomputeFinalGrade } from '../submission/router.js';
 import { spanDaysInclusive } from './generate-sessions.js';
+import { cancelSessionWithRestamp } from '../lms-ops/cancel-session.js';
 import {
   evaluateSessionDoneProgress,
   type SessionDoneProgress,
@@ -310,63 +310,21 @@ export const classSessionRouter = router({
       });
     }),
 
-  // planned/confirmed -> cancelled. Cancelled sessions are excluded from
-  // attendance (docs/19 §5 gate 1) — enforced in ../attendance/router.ts.
+  // planned/confirmed -> cancelled + unit restamp (shared with lmsOps).
+  // Cancelled sessions are excluded from attendance (docs/19 §5 gate 1).
   cancel: requirePermission('schedule', 'generate')
     .input(sessionIdInput)
     .mutation(async ({ ctx, input }): Promise<ClassSessionDto> => {
       const { facilityId } = scoped(ctx);
 
       return withFacility(ctx.db, facilityId, async (tx) => {
-        const session = await tx.classSession.findFirst({
-          where: { id: input.sessionId, facilityId },
+        const { session } = await cancelSessionWithRestamp(tx, {
+          facilityId,
+          sessionId: input.sessionId,
+          actorUserId: ctx.subject.userId,
+          auditAction: 'classSession.cancel',
         });
-        if (!session) {
-          throw notFound('ClassSession not found.');
-        }
-        if (session.status === 'cancelled') {
-          throw badRequest('Session is already cancelled.');
-        }
-        // HR remediation phase 7: `done` is one-way — the hours it represents
-        // have already been credited (payroll/KPI), so it can never be
-        // cancelled back out.
-        if (session.status === 'done') {
-          throw badRequest('A done session cannot be cancelled.');
-        }
-
-        const updated = await tx.classSession.update({
-          where: { id: session.id },
-          data: { status: 'cancelled' },
-        });
-
-        await tx.auditLog.create({
-          data: {
-            actor: ctx.subject.userId,
-            action: 'classSession.cancel',
-            entity: 'ClassSession',
-            entityId: updated.id,
-            data: { facilityId, previousStatus: session.status },
-          },
-        });
-
-        // Post-implementation hardening (M2): cancelling a session
-        // retroactively invalidates its Attendance rows from the FinalGrade
-        // attendance-rate denominator (../submission/router.ts's
-        // recomputeFinalGrade excludes `status: 'cancelled'` sessions) — the
-        // same principle attendance.mark/markAll's own recompute already
-        // enforces for status corrections. Without this, a parent's report
-        // card would show a stale score until some unrelated future
-        // attendance/grade event happened to trigger a refresh.
-        const affected = await tx.attendance.findMany({
-          where: { classSessionId: session.id, facilityId },
-          select: { studentId: true },
-        });
-        const studentIdsToRecompute = new Set(affected.map((a) => a.studentId));
-        for (const studentId of studentIdsToRecompute) {
-          await recomputeFinalGrade(tx, { facilityId, studentId, periodAnchor: session.endTime });
-        }
-
-        return toClassSessionDto(updated);
+        return toClassSessionDto(session);
       });
     }),
 

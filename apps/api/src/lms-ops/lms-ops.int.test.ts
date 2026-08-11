@@ -195,6 +195,37 @@ describe('lmsOps foundation spike', () => {
     expect(roster.students).toEqual([]);
   });
 
+  it('classSession.cancel unifies with restamp (same path as cancelSessionAndRestamp)', async () => {
+    const created = await gddt.lmsOps.createClassWithUnits({
+      courseId,
+      startUnitId: unitIds[0]!,
+      startDate: '2026-09-07',
+      endDate: '2026-10-26',
+      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+    });
+    const first = await testDbBypass((tx) =>
+      tx.classSession.findFirstOrThrow({
+        where: { classBatchId: created.classBatchId },
+        orderBy: { sessionDate: 'asc' },
+      }),
+    );
+
+    const cancelled = await gddt.classSession.cancel({ sessionId: first.id });
+    expect(cancelled.status).toBe('cancelled');
+
+    const live = await testDbBypass((tx) =>
+      tx.classSession.findMany({
+        where: { classBatchId: created.classBatchId, status: { not: 'cancelled' } },
+        orderBy: { sessionDate: 'asc' },
+        select: { curriculumUnitId: true },
+      }),
+    );
+    expect(live.length).toBeGreaterThan(0);
+    expect(live.every((s) => s.curriculumUnitId != null)).toBe(true);
+    // First live after cancel still starts at neo unit 101.
+    expect(live[0]!.curriculumUnitId).toBe(unitIds[0]);
+  });
+
   it('cancelSessionAndRestamp: cancelled session excluded; remaining sessions re-stamped', async () => {
     // 8 Mondays → two units (4 sessions each) when starting at order 101.
     const created = await gddt.lmsOps.createClassWithUnits({

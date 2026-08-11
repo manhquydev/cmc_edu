@@ -64,12 +64,12 @@ Daily teaching loop on monorepo without money bridge yet (admin can grant units 
 | Phase | Status | Evidence |
 |-------|--------|----------|
 | 1 Start | done | Plan 1 ship + foundation commit `7d55b17` |
-| 2 Class engine cancel restamp | done (API) | `cancelSessionAndRestamp` + int test |
+| 2 Class engine cancel restamp | done | unified `cancelSessionWithRestamp` on both cancel APIs |
 | 3 Enrollment grant revoke archive | done (API) | grantPast / revokeFromNext / archive + int tests |
 | 4 Family principal | done (API) | isActive + tokenVersion + setActive + lmsProcedure gate |
 | 5 Attendance journal photoConsent | done (API) | cancelled journal hide; window+override; photoConsent pre-existing |
 | 6 Exercise library delivery | partial | open-tier kill-switch; SessionExercise deferred |
-| 7 UI spines | partial | dual-gate roster + cancel restamp on session detail |
+| 7 UI spines | partial→stronger | dual-gate roster; cancel restamp; **createClassWithUnits UI** |
 
 Ship notes:
 - `plans/reports/ship-lms-teaching-spine-api-ops.md`

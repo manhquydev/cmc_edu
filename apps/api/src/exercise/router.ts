@@ -29,6 +29,8 @@ export interface CurriculumUnitDto {
   monthIndex: number;
   unitType: string;
   title: string;
+  /** Stable unit sequence within program (ADR 0046) — class start neo. */
+  orderGlobal: number;
 }
 
 function toCurriculumUnitDto(row: {
@@ -38,6 +40,7 @@ function toCurriculumUnitDto(row: {
   monthIndex: number;
   unitType: string;
   title: string;
+  orderGlobal: number;
 }): CurriculumUnitDto {
   return {
     id: row.id,
@@ -46,6 +49,7 @@ function toCurriculumUnitDto(row: {
     monthIndex: row.monthIndex,
     unitType: row.unitType,
     title: row.title,
+    orderGlobal: row.orderGlobal,
   };
 }
 
@@ -103,7 +107,7 @@ async function findExerciseOrThrow(db: PrismaClient, exerciseId: string) {
 export const curriculumUnitRouter = router({
   list: requirePermission('exercise', 'manage').query(async ({ ctx }) => {
     const units = await ctx.db.curriculumUnit.findMany({
-      orderBy: [{ program: 'asc' }, { level: 'asc' }, { monthIndex: 'asc' }],
+      orderBy: [{ program: 'asc' }, { orderGlobal: 'asc' }],
     });
     return { items: units.map(toCurriculumUnitDto) };
   }),

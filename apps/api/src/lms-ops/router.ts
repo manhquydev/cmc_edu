@@ -18,6 +18,7 @@ import { MAX_CLASS_SPAN_DAYS, planClassSessions, spanDaysInclusive } from '../cl
 import { assertNoRoomConflict } from '../class/room-conflict.js';
 import { onRoster } from './on-roster.js';
 import { restampBatchSessions } from './stamp-sessions.js';
+import { cancelSessionWithRestamp } from './cancel-session.js';
 
 const dateOnlySchema = z.string().refine(isValidDateOnly, { message: 'Expected YYYY-MM-DD.' });
 const timeOfDaySchema = z.string().refine(isValidTimeOfDay, { message: 'Expected HH:mm (24h).' });
@@ -377,65 +378,22 @@ export const lmsOpsRouter = router({
       });
     }),
 
-  /** Cancel session then restamp future units for the batch (no makeup). */
+  /**
+   * Cancel session then restamp (alias of unified cancelSessionWithRestamp).
+   * Prefer classSession.cancel for staff UIs — both share the same helper.
+   */
   cancelSessionAndRestamp: requirePermission('schedule', 'generate')
     .input(z.object({ classSessionId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
       return withFacility(ctx.db, facilityId, async (tx) => {
-        const session = await tx.classSession.findFirst({
-          where: { id: input.classSessionId, facilityId },
-          include: {
-            classBatch: {
-              select: {
-                id: true,
-                program: true,
-                currentUnitId: true,
-                currentUnitAnchor: true,
-                startUnitId: true,
-              },
-            },
-          },
+        const { session, restamped } = await cancelSessionWithRestamp(tx, {
+          facilityId,
+          sessionId: input.classSessionId,
+          actorUserId: ctx.subject.userId,
+          auditAction: 'lmsOps.cancelSessionAndRestamp',
         });
-        if (!session) throw notFound('ClassSession not found.');
-        if (session.status === 'cancelled') throw badRequest('Session is already cancelled.');
-        if (session.status === 'done') throw badRequest('A done session cannot be cancelled.');
-
-        await tx.classSession.update({
-          where: { id: session.id },
-          data: { status: 'cancelled' },
-        });
-
-        let stamped = 0;
-        const batch = session.classBatch;
-        const unitId = batch.currentUnitId ?? batch.startUnitId;
-        if (unitId) {
-          const unit = await tx.curriculumUnit.findUnique({
-            where: { id: unitId },
-            select: { orderGlobal: true },
-          });
-          if (unit) {
-            const anchor = batch.currentUnitAnchor ?? new Date(0);
-            stamped = await restampBatchSessions(tx, {
-              classBatchId: batch.id,
-              program: batch.program,
-              anchorOrderGlobal: unit.orderGlobal,
-              anchorDate: anchor,
-            });
-          }
-        }
-
-        await tx.auditLog.create({
-          data: {
-            actor: ctx.subject.userId,
-            action: 'lmsOps.cancelSessionAndRestamp',
-            entity: 'ClassSession',
-            entityId: session.id,
-            data: { facilityId, restamped: stamped },
-          },
-        });
-
-        return { classSessionId: session.id, restamped: stamped };
+        return { classSessionId: session.id, restamped };
       });
     }),
 

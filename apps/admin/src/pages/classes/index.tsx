@@ -94,6 +94,7 @@ interface SlotFormEntry {
 
 interface CreateClassForm {
   courseId: string;
+  startUnitId: string;
   startDate: string;
   endDate: string;
   teacherId: string;
@@ -102,6 +103,7 @@ interface CreateClassForm {
 
 interface CreateClassErrors {
   courseId?: string;
+  startUnitId?: string;
   startDate?: string;
   endDate?: string;
   slots?: string;
@@ -112,7 +114,14 @@ function makeSlot(counter: { current: number }): SlotFormEntry {
 }
 
 function emptyCreateForm(counter: { current: number }): CreateClassForm {
-  return { courseId: '', startDate: '', endDate: '', teacherId: '', slots: [makeSlot(counter)] };
+  return {
+    courseId: '',
+    startUnitId: '',
+    startDate: '',
+    endDate: '',
+    teacherId: '',
+    slots: [makeSlot(counter)],
+  };
 }
 
 // Mirrors classBatchCreateInput's own checks (class-batch-router.ts) so the
@@ -121,6 +130,7 @@ function emptyCreateForm(counter: { current: number }): CreateClassForm {
 function validateCreateForm(form: CreateClassForm): CreateClassErrors {
   const errors: CreateClassErrors = {};
   if (!form.courseId) errors.courseId = 'Vui lòng chọn khoá học';
+  if (!form.startUnitId) errors.startUnitId = 'Vui lòng chọn unit bắt đầu (neo lớp)';
   if (!DATE_RE.test(form.startDate)) errors.startDate = 'Định dạng YYYY-MM-DD';
   if (!DATE_RE.test(form.endDate)) errors.endDate = 'Định dạng YYYY-MM-DD';
   if (!errors.startDate && !errors.endDate && form.startDate > form.endDate) {
@@ -215,6 +225,8 @@ function ClassListContent() {
     code: string;
     slotsCreated: number;
     sessionsCreated: number;
+    sessionsStamped?: number;
+    startUnitOrderGlobal?: number;
   } | null>(null);
 
   // Dropdowns instead of pasted UUIDs (spec requirement). S6 fix: search-aware
@@ -238,16 +250,23 @@ function ClassListContent() {
   const { data: teacherData, isLoading: teacherLoading, error: teacherError } =
     trpc.user.pickList.useQuery({ role: 'giao_vien' });
 
-  const createMut = trpc.classBatch.create.useMutation({
+  // Unit-aware create (lmsOps): stamps sessions from start unit neo in same TX.
+  const createMut = trpc.lmsOps.createClassWithUnits.useMutation({
     onSuccess: (res) => {
       setCreateResult({
-        classBatchId: res.classBatch.id,
-        code: res.classBatch.code,
-        slotsCreated: res.slotsCreated,
+        classBatchId: res.classBatchId,
+        code: res.code,
+        slotsCreated: 0,
         sessionsCreated: res.sessionsCreated,
+        sessionsStamped: res.sessionsStamped,
+        startUnitOrderGlobal: res.startUnitOrderGlobal,
       });
       void utils.classBatch.list.invalidate();
     },
+  });
+
+  const { data: unitsData, isLoading: unitsLoading } = trpc.curriculumUnit.list.useQuery(undefined, {
+    enabled: createOpen,
   });
 
   const teacherOptions = ((teacherData?.items ?? []) as Array<{ id: string; fullName: string }>).map(
@@ -271,15 +290,41 @@ function ClassListContent() {
     resetCreateForm();
   }
 
-  function setField<K extends 'courseId' | 'startDate' | 'endDate' | 'teacherId'>(key: K) {
+  function setField<K extends 'courseId' | 'startUnitId' | 'startDate' | 'endDate' | 'teacherId'>(
+    key: K,
+  ) {
     return (value: string) => {
       setForm((f) => {
         const next = { ...f, [key]: value };
+        // Changing course clears start unit (program may differ).
+        if (key === 'courseId') next.startUnitId = '';
         if (submitted) setErrors(validateCreateForm(next));
         return next;
       });
     };
   }
+
+  // Program of selected course — used to filter start-unit options.
+  const { data: coursePickData } = trpc.course.list.useQuery(
+    { page: 1, pageSize: 100 },
+    { enabled: createOpen },
+  );
+  const selectedCourseProgram =
+    (coursePickData?.items ?? []).find((c) => c.id === form.courseId)?.program ?? null;
+
+  const unitOptions = ((unitsData?.items ?? []) as Array<{
+    id: string;
+    program: string;
+    title: string;
+    orderGlobal: number;
+    level: number;
+    monthIndex: number;
+  }>)
+    .filter((u) => !selectedCourseProgram || u.program === selectedCourseProgram)
+    .map((u) => ({
+      value: u.id,
+      label: `#${u.orderGlobal} · ${u.title} (L${u.level}/M${u.monthIndex})`,
+    }));
 
   function updateSlot(key: number, field: 'weekday' | 'startTime' | 'endTime', value: string) {
     setForm((f) => {
@@ -315,6 +360,7 @@ function ClassListContent() {
 
     createMut.mutate({
       courseId: form.courseId,
+      startUnitId: form.startUnitId,
       startDate: form.startDate,
       endDate: form.endDate,
       slots: form.slots.map((s) => ({
@@ -397,9 +443,7 @@ function ClassListContent() {
         />
       </ListPage>
 
-      {/* Create dialog — classBatch.create gộp sẵn tạo lớp + ScheduleSlot +
-          sinh ClassSession trong 1 transaction (class-batch-router.ts); kết
-          quả trả về slotsCreated/sessionsCreated hiển thị ngay sau khi tạo. */}
+      {/* Create dialog — lmsOps.createClassWithUnits: calendar + unit stamps. */}
       <Dialog
         isOpen={createOpen}
         onOpenChange={(next) => {
@@ -409,7 +453,7 @@ function ClassListContent() {
         width={560}
       >
         <DialogHeader
-          title="Tạo lớp học"
+          title="Tạo lớp học (unit-aware)"
           onOpenChange={(next) => {
             if (!next) closeCreateDialog();
           }}
@@ -420,7 +464,7 @@ function ClassListContent() {
               <Banner
                 status="success"
                 title={`Đã tạo lớp ${createResult.code}`}
-                description={`Đã sinh ${createResult.slotsCreated} khung giờ và ${createResult.sessionsCreated} buổi học.`}
+                description={`Đã sinh ${createResult.sessionsCreated} buổi, stamp ${createResult.sessionsStamped ?? 0} unit (neo order ${createResult.startUnitOrderGlobal ?? '—'}).`}
               />
               <HStack justify="end" gap={1}>
                 <Button label="Đóng" variant="secondary" onClick={closeCreateDialog} />
@@ -447,6 +491,30 @@ function ClassListContent() {
                 pinnedLabel={(id) => `Khoá đã chọn (${id.slice(0, 8)}…)`}
                 status={errors.courseId ? { type: 'error', message: errors.courseId } : undefined}
               />
+
+              <Selector
+                label="Unit bắt đầu (neo lớp)"
+                placeholder={
+                  !form.courseId
+                    ? 'Chọn khoá học trước'
+                    : unitsLoading
+                      ? 'Đang tải unit…'
+                      : unitOptions.length === 0
+                        ? 'Không có unit cho chương trình'
+                        : 'Chọn unit bắt đầu'
+                }
+                options={unitOptions}
+                value={form.startUnitId || null}
+                onChange={(v) => setField('startUnitId')(v ?? '')}
+                hasSearch
+                hasClear={false}
+                isDisabled={!form.courseId || unitsLoading || unitOptions.length === 0}
+              />
+              {errors.startUnitId ? (
+                <Text type="supporting" size="2xs" style={{ color: 'var(--cmc-danger)' }}>
+                  {errors.startUnitId}
+                </Text>
+              ) : null}
 
               <HStack gap={1}>
                 <div style={{ flex: 1 }}>

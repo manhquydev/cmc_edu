@@ -383,7 +383,7 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
       <ConfirmDialog
         opened={cancelTarget !== null}
         title="Huỷ buổi học"
-        message="Huỷ buổi học này? Buổi đã huỷ sẽ không được tính vào điểm danh và không thể khôi phục."
+        message="Huỷ buổi học này? Buổi đã huỷ không tính điểm danh; unit các buổi còn lại sẽ được restamp (không tạo buổi bù)."
         confirmLabel="Huỷ buổi"
         confirmColor="red"
         loading={cancelMut.isPending}

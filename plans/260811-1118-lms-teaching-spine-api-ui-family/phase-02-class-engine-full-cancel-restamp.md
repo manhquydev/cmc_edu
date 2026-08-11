@@ -17,4 +17,6 @@ Port session materialize, cancel with reasons, restamp future units, slot edit, 
 - [x] Integration tests cancel + restamp
 
 ## Notes
-API slice: `lmsOps.cancelSessionAndRestamp` uses existing `restampBatchSessions` neo. Slot edit / close/discard / realignHistory deferred.
+**Cancel-unify:** `classSession.cancel` and `lmsOps.cancelSessionAndRestamp` share
+`cancelSessionWithRestamp` (restamp + FinalGrade recompute). Slot edit / close /
+realignHistory still deferred.

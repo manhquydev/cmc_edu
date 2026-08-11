@@ -10,8 +10,12 @@ import {
   Button,
   CmcTabs,
   DetailPage,
+  EntityHeader,
+  HighlightStrip,
   HStack,
+  KeyValueList,
   PageHeader,
+  SectionBlock,
   Spinner,
   Stack,
   StatusBadge,
@@ -171,88 +175,115 @@ export default function SessionDetailPage() {
   }
 
   const title = session.batchCode || session.classBatchId.slice(0, 8);
+  const timeRange = fmtRange(session.startTime, session.endTime);
+  const shortId = session.id.slice(0, 8);
+  const statusLabel = session.isMakeup ? `${session.status} · buổi bù` : session.status;
 
   const overview = (
-    <Stack gap={3} style={{ padding: 'var(--cmc-space-3)', maxWidth: 720 }}>
-      <Text type="body" size="sm">
-        <strong>Lớp:</strong> {title}
-        {session.program ? ` · ${session.program}` : ''}
-      </Text>
-      <Text type="body" size="sm">
-        <strong>Thời gian:</strong> {fmtRange(session.startTime, session.endTime)}
-      </Text>
-      <Text type="body" size="sm">
-        <strong>Trạng thái:</strong> {session.status}
-        {session.isMakeup ? ' · buổi bù' : ''}
-      </Text>
-      <Text type="body" size="sm">
-        <strong>Tiến độ session-done:</strong> {progressLabel}
-      </Text>
-      {progress ? (
-        <HStack gap={1} style={{ flexWrap: 'wrap' }}>
-          <Badge
-            label={progress.attendanceOk ? `Điểm danh ✓ (${progress.presentCount})` : 'Điểm danh ✗'}
-            variant={progress.attendanceOk ? 'success' : 'neutral'}
+    <div className="console-detail-panel">
+      <Stack gap={3} style={{ padding: 'var(--cmc-space-3)', maxWidth: 720 }}>
+        <SectionBlock
+          title="Thông tin buổi học"
+          description="Cùng khung form chứng từ Console — tab điểm danh / nhận xét / nhật ký giữ nguyên."
+        >
+          <KeyValueList
+            items={[
+              { key: 'class', label: 'Lớp', value: title },
+              { key: 'program', label: 'Chương trình', value: session.program ?? '—' },
+              { key: 'time', label: 'Thời gian', value: timeRange },
+              { key: 'status', label: 'Trạng thái', value: statusLabel },
+              { key: 'progress', label: 'Tiến độ session-done', value: progressLabel },
+            ]}
           />
-          <Badge
-            label={`Nhận xét ${progress.assessmentsConfirmed}/${progress.assessmentsRequired}`}
-            variant={progress.assessmentOk ? 'success' : 'neutral'}
-          />
-          <Badge
-            label={progress.evidenceOk ? `Ảnh ✓ (${progress.photoCount})` : 'Ảnh ✗'}
-            variant={progress.evidenceOk ? 'success' : 'neutral'}
-          />
-          <Badge
-            label={progress.timeGatePassed ? 'Đã qua endTime' : 'Chưa endTime'}
-            variant={progress.timeGatePassed ? 'success' : 'neutral'}
-          />
-        </HStack>
-      ) : null}
-      <HStack gap={2} style={{ flexWrap: 'wrap' }}>
-        <Button label="Điểm danh" size="sm" variant="primary" onClick={() => setTab('attendance')} />
-        <Button label="Nhận xét" size="sm" variant="secondary" onClick={() => setTab('assessment')} />
-        <Button label="Nhật ký" size="sm" variant="secondary" onClick={() => setTab('evidence')} />
-        <Button
-          label="Lớp học"
-          size="sm"
-          variant="secondary"
-          onClick={() => navigate(`/admin/classes/${session.classBatchId}`)}
-        />
-        {canCancelRestamp && session.status !== 'cancelled' && session.status !== 'done' ? (
+        </SectionBlock>
+
+        {progress ? (
+          <HStack gap={1} style={{ flexWrap: 'wrap' }}>
+            <Badge
+              label={
+                progress.attendanceOk
+                  ? `Điểm danh ✓ (${progress.presentCount})`
+                  : 'Điểm danh ✗'
+              }
+              variant={progress.attendanceOk ? 'success' : 'neutral'}
+            />
+            <Badge
+              label={`Nhận xét ${progress.assessmentsConfirmed}/${progress.assessmentsRequired}`}
+              variant={progress.assessmentOk ? 'success' : 'neutral'}
+            />
+            <Badge
+              label={progress.evidenceOk ? `Ảnh ✓ (${progress.photoCount})` : 'Ảnh ✗'}
+              variant={progress.evidenceOk ? 'success' : 'neutral'}
+            />
+            <Badge
+              label={progress.timeGatePassed ? 'Đã qua endTime' : 'Chưa endTime'}
+              variant={progress.timeGatePassed ? 'success' : 'neutral'}
+            />
+          </HStack>
+        ) : null}
+
+        <HStack gap={2} style={{ flexWrap: 'wrap' }}>
           <Button
-            label={cancelRestamp.isPending ? 'Đang hủy…' : 'Hủy buổi + restamp unit'}
+            label="Điểm danh"
+            size="sm"
+            variant="primary"
+            onClick={() => setTab('attendance')}
+          />
+          <Button
+            label="Nhận xét"
             size="sm"
             variant="secondary"
-            isLoading={cancelRestamp.isPending}
-            isDisabled={cancelRestamp.isPending}
-            onClick={() => {
-              if (
-                !window.confirm(
-                  'Hủy buổi này và restamp unit cho các buổi còn lại? Không tạo buổi bù.',
-                )
-              ) {
-                return;
-              }
-              cancelRestamp.mutate({ classSessionId: session.id });
-            }}
+            onClick={() => setTab('assessment')}
+          />
+          <Button
+            label="Nhật ký"
+            size="sm"
+            variant="secondary"
+            onClick={() => setTab('evidence')}
+          />
+          <Button
+            label="Lớp học"
+            size="sm"
+            variant="secondary"
+            onClick={() => navigate(`/admin/classes/${session.classBatchId}`)}
+          />
+          {canCancelRestamp && session.status !== 'cancelled' && session.status !== 'done' ? (
+            <Button
+              label={cancelRestamp.isPending ? 'Đang hủy…' : 'Hủy buổi + restamp unit'}
+              size="sm"
+              variant="secondary"
+              isLoading={cancelRestamp.isPending}
+              isDisabled={cancelRestamp.isPending}
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    'Hủy buổi này và restamp unit cho các buổi còn lại? Không tạo buổi bù.',
+                  )
+                ) {
+                  return;
+                }
+                cancelRestamp.mutate({ classSessionId: session.id });
+              }}
+            />
+          ) : null}
+        </HStack>
+
+        {cancelRestamp.isError ? (
+          <Banner
+            status="error"
+            title="Không hủy được buổi"
+            description={cancelRestamp.error.message}
           />
         ) : null}
-      </HStack>
-      {cancelRestamp.isError ? (
-        <Banner
-          status="error"
-          title="Không hủy được buổi"
-          description={cancelRestamp.error.message}
-        />
-      ) : null}
-      {cancelRestamp.isSuccess ? (
-        <Banner
-          status="success"
-          title="Đã hủy buổi"
-          description={`Restamp ${cancelRestamp.data.restamped} buổi (không makeup).`}
-        />
-      ) : null}
-    </Stack>
+        {cancelRestamp.isSuccess ? (
+          <Banner
+            status="success"
+            title="Đã hủy buổi"
+            description={`Restamp ${cancelRestamp.data.restamped} buổi (không makeup).`}
+          />
+        ) : null}
+      </Stack>
+    </div>
   );
 
   const tabs = [
@@ -284,21 +315,63 @@ export default function SessionDetailPage() {
 
   return (
     <DetailPage
+      density="ops"
       header={
         <PageHeader
-          title={title}
-          subtitle={`${session.program ? `${session.program} · ` : ''}${fmtRange(session.startTime, session.endTime)} · ${progressLabel}`}
           breadcrumbs={[
             { label: 'Giảng dạy', href: '/teaching' },
             { label: 'Lịch dạy', href: '/teaching/schedule' },
-            { label: title },
+            { label: shortId },
           ]}
           actions={
             <HStack gap={1} style={{ flexWrap: 'wrap' }}>
-              <StatusBadge status={session.status} label={session.status} />
               <CopyLinkButton mode="go" entity="classSession" id={session.id} />
+              <Button
+                label="Về lịch"
+                size="sm"
+                variant="ghost"
+                onClick={() => navigate('/teaching/schedule')}
+              />
             </HStack>
           }
+        />
+      }
+      entity={
+        <EntityHeader
+          title={title}
+          subtitle={`${session.program ? `${session.program} · ` : ''}${timeRange}`}
+          initials={title.slice(0, 2).toUpperCase()}
+          badges={<StatusBadge status={session.status} label={session.status} />}
+          meta={<span style={{ fontSize: 12 }}>{progressLabel}</span>}
+          actions={
+            <HStack gap={1} wrap="wrap">
+              <Button
+                label="Điểm danh"
+                size="sm"
+                variant="primary"
+                onClick={() => setTab('attendance')}
+              />
+              <Button
+                label="Nhận xét"
+                size="sm"
+                variant="secondary"
+                onClick={() => setTab('assessment')}
+              />
+            </HStack>
+          }
+        />
+      }
+      summary={
+        <HighlightStrip
+          items={[
+            {
+              key: 'status',
+              label: 'Trạng thái',
+              value: <StatusBadge status={session.status} label={statusLabel} />,
+            },
+            { key: 'time', label: 'Thời gian', value: timeRange },
+            { key: 'progress', label: 'Session-done', value: progressLabel },
+          ]}
         />
       }
       tabs={<CmcTabs tabs={tabs} activeTab={activeTab} onTabChange={setTab} />}

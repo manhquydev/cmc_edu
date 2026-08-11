@@ -92,6 +92,8 @@ describe('SessionDetailPage', () => {
     expect(screen.getAllByText('Điểm danh').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Nhận xét').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Nhật ký').length).toBeGreaterThan(0);
+    // Console form grammar on overview
+    expect(screen.getByText('Thông tin buổi học')).toBeInTheDocument();
   });
 
   it('default tab is attendance when tab query omitted', async () => {

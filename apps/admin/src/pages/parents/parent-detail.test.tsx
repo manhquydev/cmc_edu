@@ -66,5 +66,13 @@ describe('ParentDetailPage', () => {
     expect(screen.getAllByText('0901234567').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('parent@example.com').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Trẻ A')).toBeInTheDocument();
+    // Console form grammar (strip + sheet)
+    expect(screen.getByText('Thông tin phụ huynh')).toBeInTheDocument();
+    expect(screen.getByText('Danh sách con')).toBeInTheDocument();
+  });
+
+  it('puts primary actions on entity header', () => {
+    renderWithProviders(<ParentDetailPage />, { route: `/admin/parents/${PARENT_ID}` });
+    expect(screen.getByRole('button', { name: 'Sửa email' })).toBeInTheDocument();
   });
 });

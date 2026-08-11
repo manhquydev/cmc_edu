@@ -10,9 +10,12 @@ import {
   DialogHeader,
   EmptyState,
   EntityHeader,
+  HighlightStrip,
   HStack,
+  KeyValueList,
   PageHeader,
   ResultPanel,
+  SectionBlock,
   Stack,
   StatusBadge,
   Text,
@@ -123,14 +126,13 @@ export default function ParentDetailPage() {
 
   const shortId = parentId.slice(0, 8);
   const canSetActive = canDo('parentAccount', 'setActive');
+  const lmsLabel = data.isActive ? 'LMS bật' : 'LMS khóa';
 
   return (
     <DetailPage
       density="ops"
       header={
         <PageHeader
-          title="Phụ huynh"
-          subtitle={data.phone}
           breadcrumbs={[
             { label: 'Lớp & Học sinh' },
             { label: 'Phụ huynh', href: '/admin/parents' },
@@ -139,23 +141,6 @@ export default function ParentDetailPage() {
           actions={
             <HStack gap={1} wrap="wrap">
               <CopyLinkButton mode="go" entity="parentAccount" id={parentId} />
-              <Button
-                label={data.email ? 'Sửa email' : 'Gán email LMS'}
-                size="sm"
-                variant="primary"
-                onClick={() => {
-                  setEmail(data.email ?? '');
-                  setEmailOpen(true);
-                }}
-              />
-              {canSetActive ? (
-                <Button
-                  label={data.isActive ? 'Khóa LMS' : 'Mở LMS'}
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setActiveOpen(true)}
-                />
-              ) : null}
               <Button
                 label="Về danh sách"
                 size="sm"
@@ -174,48 +159,116 @@ export default function ParentDetailPage() {
           badges={
             <StatusBadge
               status={data.isActive ? 'success' : 'warning'}
-              label={data.isActive ? 'LMS bật' : 'LMS khóa'}
+              label={lmsLabel}
             />
+          }
+          meta={
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {data.linkedChildrenCount} con liên kết
+            </span>
+          }
+          actions={
+            <HStack gap={1} wrap="wrap">
+              <Button
+                label={data.email ? 'Sửa email' : 'Gán email LMS'}
+                size="sm"
+                variant="primary"
+                onClick={() => {
+                  setEmail(data.email ?? '');
+                  setEmailOpen(true);
+                }}
+              />
+              {canSetActive ? (
+                <Button
+                  label={data.isActive ? 'Khóa LMS' : 'Mở LMS'}
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setActiveOpen(true)}
+                />
+              ) : null}
+            </HStack>
           }
         />
       }
+      summary={
+        <HighlightStrip
+          items={[
+            {
+              key: 'lms',
+              label: 'LMS',
+              value: (
+                <StatusBadge
+                  status={data.isActive ? 'success' : 'warning'}
+                  label={lmsLabel}
+                />
+              ),
+            },
+            {
+              key: 'email',
+              label: 'Email',
+              value: data.email ?? '—',
+            },
+            {
+              key: 'children',
+              label: 'Con liên kết',
+              value: String(data.linkedChildrenCount),
+              tabular: true,
+            },
+          ]}
+        />
+      }
     >
-      <Stack gap={3} padding={4}>
-        {updateEmailMut.error ? (
-          <Banner status="error" title={updateEmailMut.error.message} />
-        ) : null}
-        {setActiveMut.error ? (
-          <Banner status="error" title={setActiveMut.error.message} />
-        ) : null}
+      <div className="console-detail-panel">
+        <Stack gap={3} style={{ padding: 'var(--cmc-space-3)', maxWidth: 720 }}>
+          {updateEmailMut.error ? (
+            <Banner status="error" title={updateEmailMut.error.message} />
+          ) : null}
+          {setActiveMut.error ? (
+            <Banner status="error" title={setActiveMut.error.message} />
+          ) : null}
 
-        <Text type="body" size="sm">
-          Con đã liên kết (cơ sở này): <strong>{data.linkedChildrenCount}</strong>
-        </Text>
+          <SectionBlock
+            title="Thông tin phụ huynh"
+            description="Cùng khung form chứng từ Console (list → form · strip · sheet)."
+          >
+            <KeyValueList
+              items={[
+                { key: 'phone', label: 'SĐT', value: data.phone },
+                { key: 'email', label: 'Email LMS', value: data.email ?? 'Chưa gán' },
+                { key: 'lms', label: 'Trạng thái LMS', value: lmsLabel },
+                {
+                  key: 'children',
+                  label: 'Số con (cơ sở này)',
+                  value: String(data.linkedChildrenCount),
+                },
+              ]}
+            />
+          </SectionBlock>
 
-        <Stack gap={1}>
-          <Text type="body" size="sm" weight="medium">
-            Danh sách con
-          </Text>
-          {data.children.length === 0 ? (
-            <Text type="supporting" size="xsm">
-              Chưa có Guardian link trong cơ sở này.
-            </Text>
-          ) : (
-            data.children.map((c) => (
-              <HStack key={c.guardianId} gap={2}>
-                <Link to={links.student(c.studentId)}>
-                  <Text type="body" size="sm">
-                    {c.studentName}
-                  </Text>
-                </Link>
-                <Text type="supporting" size="xsm">
-                  ({c.relation})
-                </Text>
-              </HStack>
-            ))
-          )}
+          <SectionBlock title="Danh sách con" description="Guardian link trong cơ sở hiện tại.">
+            {data.children.length === 0 ? (
+              <Text type="supporting" size="xsm">
+                Chưa có Guardian link trong cơ sở này.
+              </Text>
+            ) : (
+              <Stack gap={1}>
+                {data.children.map((c) => (
+                  <HStack key={c.guardianId} gap={2}>
+                    <Link to={links.student(c.studentId)}>
+                      <Text type="body" size="sm">
+                        {c.studentName}
+                      </Text>
+                    </Link>
+                    <Text type="supporting" size="xsm">
+                      ({c.relation})
+                    </Text>
+                  </HStack>
+                ))}
+              </Stack>
+            )}
+          </SectionBlock>
         </Stack>
-      </Stack>
+      </div>
 
       <Dialog
         isOpen={emailOpen}

@@ -20,6 +20,7 @@ import { reconcileOrphanedReceipts, reconcileCancelledButProvisioned } from './r
 import { relayEmailOutbox, CONSOLE_TRANSPORT_PROD_FORBIDDEN } from './relay-email-outbox.js';
 import { runCancelSweep, runDoneSweep } from './session-done-sweep.js';
 import { sweepAuditLogRetention } from './audit-log-retention-sweep.js';
+import { deliverDueExercises } from '../lms-ops/exercise-delivery.js';
 import {
   BrevoEmailTransport,
   ConsoleEmailTransport,
@@ -124,6 +125,8 @@ export async function drainOnce(
   await relayEmailOutbox(db, transportMap);
   await runDoneSweep(db);
   await runCancelSweep(db);
+  // Teaching spine: deliver SessionExercise for ended sessions (1/session).
+  await deliverDueExercises(db);
   // Phase-04 super-admin-completion: AuditLog retention (>12mo). Uses its
   // own privileged connection internally — see audit-log-retention-sweep.ts.
   await sweepAuditLogRetention();

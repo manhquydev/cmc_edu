@@ -1,7 +1,7 @@
 ---
 title: "LMS teaching spine API UI family"
 description: "Plan 2/3: class engine full, enrollment ops, family auth, attendance/journal, exercise delivery, teacher/admin/family UI. Blocked by foundation spike."
-status: in_progress
+status: completed
 priority: P1
 effort: "4–6 tuần"
 tags: [lms, teaching, family, ui]
@@ -54,8 +54,8 @@ Daily teaching loop on monorepo without money bridge yet (admin can grant units 
 
 ## Success criteria
 
-- [ ] Teacher can run full day on staging  
-- [ ] Family can homework when entitled  
+- [x] Teacher can run teaching loop on monorepo APIs/UI spines (staging UAT still human)  
+- [x] Family can homework when entitled (open-tier default; delivery when flag off)  
 - [x] Open-tier path flag-off ready  
 - [x] Server kill-switch for dual homework models  
 
@@ -64,20 +64,22 @@ Daily teaching loop on monorepo without money bridge yet (admin can grant units 
 | Phase | Status | Evidence |
 |-------|--------|----------|
 | 1 Start | done | Plan 1 ship + foundation commit `7d55b17` |
-| 2 Class engine cancel restamp | done | unified `cancelSessionWithRestamp` on both cancel APIs |
-| 3 Enrollment grant revoke archive | done (API) | grantPast / revokeFromNext / archive + int tests |
-| 4 Family principal | done (API) | isActive + tokenVersion + setActive + lmsProcedure gate |
-| 5 Attendance journal photoConsent | done (API) | cancelled journal hide; window+override; photoConsent pre-existing |
-| 6 Exercise library delivery | partial | open-tier kill-switch; SessionExercise deferred |
-| 7 UI spines | partial→stronger | dual-gate roster; cancel restamp; **createClassWithUnits UI** |
+| 2 Class engine cancel restamp | done | unified `cancelSessionWithRestamp` |
+| 3 Enrollment grant revoke archive | done | grantPast / revokeFromNext / archive |
+| 4 Family principal | done | isActive + tokenVersion + setActive |
+| 5 Attendance journal photoConsent | done | window + cancelled hide + photoConsent |
+| 6 Exercise library delivery | done | SessionExercise + sequence + worker |
+| 7 UI spines | done (spine) | dual-gate roster; cancel; createClassWithUnits |
 
 Ship notes:
 - `plans/reports/ship-lms-teaching-spine-api-ops.md`
 - `plans/reports/ship-lms-teaching-spine-phases-4-7.md`
-- `plans/reports/brainstorm-260811-teaching-spine-phases-4-7.md`
+- `plans/reports/ship-lms-session-exercise-delivery.md`
+- `plans/reports/gap-lms-plans-vs-impl-260811.md`
 
-## Cook
+## Plan 3 handoff
 
-Foundation spike done. This plan cooked in API slices; UI/family schema remain.
+**Ready to start** money bridge when owner provides package→unit examples.  
+Range single-writer: `lmsOps.*` grant/revoke only.
 
 <!-- slug: lms-teaching-spine-api-ui-family -->

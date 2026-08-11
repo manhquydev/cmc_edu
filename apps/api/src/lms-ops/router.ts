@@ -19,6 +19,11 @@ import { assertNoRoomConflict } from '../class/room-conflict.js';
 import { onRoster } from './on-roster.js';
 import { restampBatchSessions } from './stamp-sessions.js';
 import { cancelSessionWithRestamp } from './cancel-session.js';
+import {
+  deliverForSession,
+  sequenceForBatch,
+  writeSequenceUpdate,
+} from './exercise-delivery.js';
 
 const dateOnlySchema = z.string().refine(isValidDateOnly, { message: 'Expected YYYY-MM-DD.' });
 const timeOfDaySchema = z.string().refine(isValidTimeOfDay, { message: 'Expected HH:mm (24h).' });
@@ -608,6 +613,88 @@ export const lmsOpsRouter = router({
           },
         });
         return { enrollmentId: enrollment.id, archivedAt: null as null };
+      });
+    }),
+
+  /**
+   * Freeze class homework sequence (positions after delivered MAX are replaced).
+   * Unit restamp never mutates this pointer.
+   */
+  assignExerciseSequence: requirePermission('exercise', 'manage')
+    .input(
+      z.object({
+        classBatchId: z.string().uuid(),
+        exerciseIds: z.array(z.string().uuid()).min(1).max(200),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const result = await writeSequenceUpdate(tx, {
+          facilityId,
+          classBatchId: input.classBatchId,
+          exerciseIds: input.exerciseIds,
+        });
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'lmsOps.assignExerciseSequence',
+            entity: 'ClassBatch',
+            entityId: input.classBatchId,
+            data: {
+              facilityId,
+              deliveredCount: result.deliveredCount,
+              sequenceLength: result.items.length,
+            },
+          },
+        });
+        return result;
+      });
+    }),
+
+  listExerciseSequence: requirePermission('exercise', 'manage')
+    .input(z.object({ classBatchId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const batch = await tx.classBatch.findFirst({
+          where: { id: input.classBatchId, facilityId },
+          select: { id: true },
+        });
+        if (!batch) throw notFound('ClassBatch not found.');
+        const items = await sequenceForBatch(tx, input.classBatchId);
+        return { items };
+      });
+    }),
+
+  /** Deliver homework for one ended session (manual / ops). Idempotent. */
+  deliverSessionExercise: requirePermission('exercise', 'manage')
+    .input(z.object({ classSessionId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const delivered = await deliverForSession(tx, {
+          facilityId,
+          classSessionId: input.classSessionId,
+        });
+        if (!delivered) {
+          return { delivered: false as const, reason: 'no_sequence_or_exhausted' as const };
+        }
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject.userId,
+            action: 'lmsOps.deliverSessionExercise',
+            entity: 'SessionExercise',
+            entityId: delivered.id,
+            data: {
+              facilityId,
+              classSessionId: delivered.classSessionId,
+              exerciseId: delivered.exerciseId,
+              position: delivered.position,
+            },
+          },
+        });
+        return { delivered: true as const, sessionExercise: delivered };
       });
     }),
 });

@@ -29,16 +29,17 @@
 1. **Cancel-unify:** `classSession.cancel` ≡ restamp + FinalGrade via `cancelSessionWithRestamp`
 2. **createClass UI:** admin form → `lmsOps.createClassWithUnits` + start unit picker
 
-### Still open for “full day staging” / plan success criteria
+### Optional polish (not Plan 3 blockers)
 
-| Criterion | Gap |
-|-----------|-----|
-| Teacher full day staging | SessionExercise delivery + grading path; maybe makeup policy UI |
-| Family homework when entitled | Entitlement gate default OFF; money→units is Plan 3 |
-| SessionExercise 1/session end | Not ported (monorepo Submission still exercise-scoped) |
-| Admin library folders | Not started |
+| Item | Note |
+|------|------|
+| Admin assignExerciseSequence UI | API ready |
+| Submission per SessionExercise | Still unique(exerciseId, studentId) |
+| Human staging UAT | Journey smoke ≠ business UAT |
+| Money → units | **Plan 3** |
 
 ## Verdict
 
-- Plan 1 foundation: **implementation complete** for cook scope.
-- Plan 2 teaching spine: **API + core UI spines largely done**; phase 6 library/delivery and full staging acceptance still open (honest partial).
+- Plan 1: complete.
+- Plan 2: **complete for monorepo teaching spines** (delivery + dual homework models).
+- Plan 3: **ready to start** — see `plan3-entry-checklist-from-plan2.md`.

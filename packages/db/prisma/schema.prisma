@@ -680,6 +680,7 @@ model ClassBatch {
   enrollments      Enrollment[]
   receipts         Receipt[]
   finalGrades      FinalGrade[]
+  exerciseItems    ClassExerciseItem[]
   teacherAppUser   AppUser?        @relation("ClassBatchTeacher", fields: [teacherAppUserId], references: [id])
   createdByAppUser AppUser?        @relation("ClassBatchCreatedBy", fields: [createdByAppUserId], references: [id])
 
@@ -758,6 +759,7 @@ model ClassSession {
   attendances            Attendance[]
   qualitativeAssessments QualitativeAssessment[]
   sessionEvidence        SessionEvidence?
+  deliveredExercise      SessionExercise?
   /// Self 1:1 relation: the original session this row is a makeup for
   /// (nullable — most sessions are not makeups), and the reverse pointer
   /// (the makeup session generated FROM this row, if any).
@@ -822,12 +824,58 @@ model Exercise {
   createdAt        DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime       @updatedAt @db.Timestamptz(3)
 
-  curriculumUnit CurriculumUnit @relation(fields: [curriculumUnitId], references: [id])
-  submissions    Submission[]
+  curriculumUnit   CurriculumUnit      @relation(fields: [curriculumUnitId], references: [id])
+  submissions      Submission[]
+  classExerciseItems ClassExerciseItem[]
+  sessionDeliveries  SessionExercise[]
 
   // One exercise per (unit, type) — TL19 §3 "unique [curriculumUnitId, type]".
   @@unique([curriculumUnitId, type])
   @@index([curriculumUnitId])
+}
+
+// ---------------------------------------------------------------------------
+// Teaching spine — exercise delivery (class-unit-spec §8).
+// Frozen class sequence + one SessionExercise per delivered session.
+// Facility-scoped + FORCE RLS (same pattern as EnrollmentUnitRange).
+// ---------------------------------------------------------------------------
+
+/// Frozen homework sequence for a class. Positions already delivered
+/// (SessionExercise) must not be rewritten on sequence reassignment.
+model ClassExerciseItem {
+  id           String   @id @default(uuid())
+  facilityId   String
+  classBatchId String
+  position     Int
+  exerciseId   String
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  classBatch ClassBatch @relation(fields: [classBatchId], references: [id], onDelete: Cascade)
+  exercise   Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+
+  @@unique([classBatchId, position])
+  @@index([facilityId])
+  @@index([classBatchId])
+  @@index([exerciseId])
+}
+
+/// One delivered homework instance for a class session (at most one per session).
+/// Cancelled sessions never get a delivery (worker skips them).
+model SessionExercise {
+  id             String   @id @default(uuid())
+  facilityId     String
+  classSessionId String   @unique
+  exerciseId     String
+  /// Position in the class frozen sequence at delivery time.
+  position       Int
+  deliveredAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  exercise     Exercise     @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+
+  @@index([facilityId])
+  @@index([exerciseId])
+  @@index([position])
 }
 
 // ---------------------------------------------------------------------------

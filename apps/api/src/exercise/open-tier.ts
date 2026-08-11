@@ -97,8 +97,17 @@ async function resolveOpenCurriculumUnitIds(
   if (student.lifecycle === 'blocked_lms') {
     return new Set();
   }
+  // When open-tier kill-switch is OFF, homework opens only via SessionExercise
+  // delivery (dual-gate roster membership), not ADR 0038 Tier A/B.
   if (!isOpenTierEnabled()) {
-    return new Set();
+    const { deliveredExerciseIdsForStudent } = await import('../lms-ops/exercise-delivery.js');
+    const exerciseIds = await deliveredExerciseIdsForStudent(tx, student);
+    if (exerciseIds.size === 0) return new Set();
+    const exercises = await tx.exercise.findMany({
+      where: { id: { in: [...exerciseIds] }, status: 'published' },
+      select: { curriculumUnitId: true },
+    });
+    return new Set(exercises.map((e) => e.curriculumUnitId));
   }
 
   const entitlementOn = isEntitlementGateOnOpenTier();

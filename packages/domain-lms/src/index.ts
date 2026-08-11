@@ -15,3 +15,11 @@ export {
   type ResolveReferenceAnchorError,
   type ResolveReferenceAnchorResult,
 } from './unit-progression.js';
+
+export {
+  buildClassSequence,
+  planSequenceUpdate,
+  nextDeliverablePosition,
+  type SequenceItem,
+  type SequenceUpdatePlan,
+} from './exercise-sequence.js';

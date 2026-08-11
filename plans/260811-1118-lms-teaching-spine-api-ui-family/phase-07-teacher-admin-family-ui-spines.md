@@ -1,6 +1,6 @@
 ---
 title: "Phase 7: UI spines"
-status: in_progress
+status: done
 dependencies: [3, 4, 5, 6]
 ---
 # Phase 7: Teacher admin family UI

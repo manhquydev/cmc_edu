@@ -323,11 +323,11 @@ describe('reconcileOrphanedReceipts (K2)', () => {
     expect(outcomes.find((o) => o.receiptId === renewal.receipt.id)).toBeUndefined();
   });
 
-  it('Plan 3: recovers missing EnrollmentUnitRange when identity chain is already complete', async () => {
-    const parentPhone = '0996000006';
+  it('Plan 3: full refund must not keep the receipt in the missing-range orphan set', async () => {
+    const parentPhone = '0996000007';
     phonesToClean.push(parentPhone);
     const draft = await sale.finance.receiptCreate({
-      studentName: 'K2 Range Gap Child',
+      studentName: 'K2 Refund Residual Child',
       parentPhone,
       amount: 5_000_000,
       classBatchId: classBatch.id,
@@ -338,20 +338,53 @@ describe('reconcileOrphanedReceipts (K2)', () => {
     const approved = await gdkd.finance.receiptApprove({ receiptId: draft.receipt.id });
     expect(approved.provisioning).toBe('ok');
 
-    const enrollment = await testDbBypass((tx) =>
-      tx.enrollment.findFirstOrThrow({
-        where: { classBatchId: classBatch.id, status: 'active' },
-      }),
-    );
-    // Simulate soft-swallowed / crashed grant: identity ok, range deleted.
-    await testDbBypass((tx) =>
-      tx.enrollmentUnitRange.deleteMany({ where: { sourceReceiptId: draft.receipt.id } }),
-    );
+    await gdkd.finance.refundCreate({
+      receiptId: draft.receipt.id,
+      amount: 5_000_000,
+    });
     expect(
       await testDbBypass((tx) =>
         tx.enrollmentUnitRange.count({ where: { sourceReceiptId: draft.receipt.id } }),
       ),
     ).toBe(0);
+
+    // Residual 0 + status still approved + active enrollment must NOT match
+    // the missing-range orphan clause (would fail-loop every drain).
+    const outcomes = await reconcileOrphanedReceipts(testDb());
+    expect(outcomes.find((o) => o.receiptId === draft.receipt.id)).toBeUndefined();
+  });
+
+  it('Plan 3: recovers missing range only when grant never succeeded (crash-before-grant)', async () => {
+    const parentPhone = '0996000006';
+    phonesToClean.push(parentPhone);
+    // Break-glass provision (unitCount 0) completes identity with no grant audit,
+    // then flip unitCount to paid span — models crash/repair after package set.
+    const draft = await sale.finance.receiptCreate({
+      studentName: 'K2 Range Gap Child',
+      parentPhone,
+      amount: 5_000_000,
+      classBatchId: classBatch.id,
+      unitCount: 0,
+    });
+    if (draft.status !== 'success') throw new Error('expected success');
+
+    const approved = await gdkd.finance.receiptApprove({ receiptId: draft.receipt.id });
+    expect(approved.provisioning).toBe('ok');
+    expect(
+      await testDbBypass((tx) =>
+        tx.enrollmentUnitRange.count({ where: { sourceReceiptId: draft.receipt.id } }),
+      ),
+    ).toBe(0);
+
+    await testDbBypass((tx) =>
+      tx.receipt.update({ where: { id: draft.receipt.id }, data: { unitCount: 2 } }),
+    );
+
+    const enrollment = await testDbBypass((tx) =>
+      tx.enrollment.findFirstOrThrow({
+        where: { classBatchId: classBatch.id, status: 'active' },
+      }),
+    );
 
     const outcomes = await reconcileOrphanedReceipts(testDb());
     const mine = outcomes.find((o) => o.receiptId === draft.receipt.id);
@@ -367,5 +400,41 @@ describe('reconcileOrphanedReceipts (K2)', () => {
 
     const second = await reconcileOrphanedReceipts(testDb());
     expect(second.find((o) => o.receiptId === draft.receipt.id)).toBeUndefined();
+  });
+
+  it('Plan 3: does not re-grant after intentional range delete when grant audit remains', async () => {
+    const parentPhone = '0996000008';
+    phonesToClean.push(parentPhone);
+    const draft = await sale.finance.receiptCreate({
+      studentName: 'K2 Ops Cut Child',
+      parentPhone,
+      amount: 5_000_000,
+      classBatchId: classBatch.id,
+      unitCount: 2,
+    });
+    if (draft.status !== 'success') throw new Error('expected success');
+
+    const approved = await gdkd.finance.receiptApprove({ receiptId: draft.receipt.id });
+    expect(approved.provisioning).toBe('ok');
+
+    // Ops/refund-style cut: delete range but leave enrollment.grantUnitsFromReceipt audit.
+    await testDbBypass((tx) =>
+      tx.enrollmentUnitRange.deleteMany({ where: { sourceReceiptId: draft.receipt.id } }),
+    );
+    const grantAudit = await testDb().auditLog.findFirst({
+      where: {
+        action: 'enrollment.grantUnitsFromReceipt',
+        data: { path: ['sourceReceiptId'], equals: draft.receipt.id },
+      },
+    });
+    expect(grantAudit).not.toBeNull();
+
+    const outcomes = await reconcileOrphanedReceipts(testDb());
+    expect(outcomes.find((o) => o.receiptId === draft.receipt.id)).toBeUndefined();
+    expect(
+      await testDbBypass((tx) =>
+        tx.enrollmentUnitRange.count({ where: { sourceReceiptId: draft.receipt.id } }),
+      ),
+    ).toBe(0);
   });
 });

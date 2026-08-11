@@ -584,6 +584,7 @@ async function runCancelTransaction(
     facilityId,
     receiptId: cancelled.id,
     actor: actorId,
+    auditAction: 'enrollment.revokeOnCancel',
   });
 
   await tx.auditLog.create({

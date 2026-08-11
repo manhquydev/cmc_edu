@@ -333,8 +333,15 @@ export async function grantUnitsFromReceipt(
  */
 export async function revokeRangesForReceipt(
   tx: Tx,
-  opts: { facilityId: string; receiptId: string; actor: string },
+  opts: {
+    facilityId: string;
+    receiptId: string;
+    actor: string;
+    /** Default enrollment.revokeOnRefund; cancel passes enrollment.revokeOnCancel. */
+    auditAction?: string;
+  },
 ): Promise<{ deleted: number }> {
+  const auditAction = opts.auditAction ?? 'enrollment.revokeOnRefund';
   const ranges = await tx.enrollmentUnitRange.findMany({
     where: { facilityId: opts.facilityId, sourceReceiptId: opts.receiptId },
   });
@@ -343,7 +350,7 @@ export async function revokeRangesForReceipt(
     await tx.auditLog.create({
       data: {
         actor: opts.actor,
-        action: 'enrollment.revokeOnRefund',
+        action: auditAction,
         entity: 'EnrollmentUnitRange',
         entityId: r.id,
         data: {

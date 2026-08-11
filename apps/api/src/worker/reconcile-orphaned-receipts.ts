@@ -99,6 +99,7 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
             r."studentId",
             r."confirmNewStudent",
             r."unitCount",
+            r."netAmount",
             COALESCE(s_new."id", s_renewal."id") AS "resolvedStudentId"
           FROM "Receipt" r
           LEFT JOIN "Student" s_new ON s_new."createdByReceiptId" = r."id"
@@ -132,8 +133,13 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
                 )
               )
            -- Plan 3: identity chain complete but unit range never granted
-           -- (soft-swallow bug, crash after activate, grant failure before rethrow fix).
+           -- (crash after activate / grant rethrow before range insert).
            -- unitCount = 0 is intentional break-glass (no range expected).
+           -- Full refund keeps status=approved but deliberately deletes ranges —
+           -- residual must be > 0 or every refunded receipt forever fails the drain.
+           -- Must NOT re-grant after intentional revoke (refund/cancel/revokeFromNext):
+           -- a prior grant audit for this sourceReceiptId means entitlement was once
+           -- delivered; missing row then means cut, not crash-before-first-grant.
            OR (
                 resolved."classBatchId" IS NOT NULL
                 AND (resolved."unitCount" IS NULL OR resolved."unitCount" <> 0)
@@ -147,6 +153,17 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
                 AND NOT EXISTS (
                   SELECT 1 FROM "EnrollmentUnitRange" eur
                   WHERE eur."sourceReceiptId" = resolved."receiptId"
+                )
+                AND (
+                  resolved."netAmount" - COALESCE((
+                    SELECT SUM(rr."amount") FROM "RefundRecord" rr
+                    WHERE rr."receiptId" = resolved."receiptId"
+                  ), 0)
+                ) > 0
+                AND NOT EXISTS (
+                  SELECT 1 FROM "AuditLog" al
+                  WHERE al."action" = 'enrollment.grantUnitsFromReceipt'
+                    AND al."data"->>'sourceReceiptId' = resolved."receiptId"::text
                 )
               )
       `,

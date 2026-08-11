@@ -237,4 +237,48 @@ describe('grantUnitsFromReceipt (Plan 3 money bridge)', () => {
     });
     expect(parent).not.toBeNull();
   });
+
+  it('receiptCancel deletes ranges for that receipt and audits revokeOnCancel', async () => {
+    const receipt = await approvedReceipt({
+      phone: '0961000006',
+      studentName: 'Cancel Kid',
+      unitCount: 2,
+    });
+    const provisioned = await provisionFromReceipt(testDb(), {
+      id: receipt.id,
+      facilityId: facility.id,
+      parentPhone: receipt.parentPhone,
+      studentName: receipt.studentName,
+      classBatchId,
+      unitCount: 2,
+    });
+    expect(
+      await testDbBypass((tx) =>
+        tx.enrollmentUnitRange.count({ where: { sourceReceiptId: receipt.id } }),
+      ),
+    ).toBe(1);
+
+    await gdkd.finance.receiptCancel({ receiptId: receipt.id, reason: 'ops cancel' });
+
+    expect(
+      await testDbBypass((tx) =>
+        tx.enrollmentUnitRange.count({ where: { sourceReceiptId: receipt.id } }),
+      ),
+    ).toBe(0);
+    expect(
+      await testDbBypass((tx) =>
+        tx.enrollmentUnitRange.count({ where: { enrollmentId: provisioned.enrollmentId } }),
+      ),
+    ).toBe(0);
+
+    const audit = await testDb().auditLog.findFirst({
+      where: {
+        action: 'enrollment.revokeOnCancel',
+        entity: 'EnrollmentUnitRange',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(audit).not.toBeNull();
+    expect((audit?.data as { receiptId?: string } | null)?.receiptId).toBe(receipt.id);
+  });
 });

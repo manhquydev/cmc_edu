@@ -230,6 +230,29 @@ export async function grantUnitsFromReceipt(
   }
 
   return withFacility(db, opts.facilityId, async (tx) => {
+    // Serialize with refundCreate: refuse grant when receipt is fully refunded.
+    const receiptRows = await tx.$queryRaw<
+      { id: string; netAmount: string | number; status: string }[]
+    >`
+      SELECT "id", "netAmount", "status" FROM "Receipt"
+      WHERE "id" = ${opts.receiptId} AND "facilityId" = ${opts.facilityId}
+      FOR UPDATE
+    `;
+    const receiptRow = receiptRows[0];
+    if (!receiptRow) throw notFound('Receipt not found.');
+    if (receiptRow.status !== 'approved') {
+      throw badRequest(`Receipt is "${receiptRow.status}", not "approved"; cannot grant units.`);
+    }
+    const refundAgg = await tx.refundRecord.aggregate({
+      where: { receiptId: opts.receiptId },
+      _sum: { amount: true },
+    });
+    const refunded = refundAgg._sum.amount?.toNumber() ?? 0;
+    const net = Number(receiptRow.netAmount);
+    if (net - refunded <= 0) {
+      throw badRequest('Receipt has no remaining balance; cannot grant units after full refund.');
+    }
+
     const existingByReceipt = await tx.enrollmentUnitRange.findUnique({
       where: { sourceReceiptId: opts.receiptId },
     });
@@ -263,19 +286,44 @@ export async function grantUnitsFromReceipt(
       unitCount,
     });
 
-    // Receipt-paid grants may start at/after current; if renewal extends past
-    // current, allowPast is not needed. If from < current (should not from resolve),
-    // allowPast for receipt path is still false — resolve ensures from >= current.
-    const granted = await grantRangeOnEnrollment(tx, {
-      facilityId: opts.facilityId,
-      enrollmentId: opts.enrollmentId,
-      range,
-      sourceReceiptId: opts.receiptId,
-      actor: opts.actor ?? 'system',
-      auditAction: 'enrollment.grantUnitsFromReceipt',
-      allowPast: false,
-    });
-    return { status: 'granted' as const, range: granted };
+    try {
+      const granted = await grantRangeOnEnrollment(tx, {
+        facilityId: opts.facilityId,
+        enrollmentId: opts.enrollmentId,
+        range,
+        sourceReceiptId: opts.receiptId,
+        actor: opts.actor ?? 'system',
+        auditAction: 'enrollment.grantUnitsFromReceipt',
+        allowPast: false,
+      });
+      return { status: 'granted' as const, range: granted };
+    } catch (err) {
+      // Concurrent same-receipt grant: unique sourceReceiptId → return winner.
+      if (
+        typeof err === 'object' &&
+        err !== null &&
+        'code' in err &&
+        (err as { code?: string }).code === 'P2002'
+      ) {
+        const raced = await tx.enrollmentUnitRange.findUnique({
+          where: { sourceReceiptId: opts.receiptId },
+        });
+        if (raced) {
+          return {
+            status: 'idempotent' as const,
+            range: {
+              id: raced.id,
+              enrollmentId: raced.enrollmentId,
+              fromOrderGlobal: raced.fromOrderGlobal,
+              toOrderGlobal: raced.toOrderGlobal,
+              sourceReceiptId: raced.sourceReceiptId,
+              created: false,
+            },
+          };
+        }
+      }
+      throw err;
+    }
   });
 }
 

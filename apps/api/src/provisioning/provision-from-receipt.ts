@@ -436,33 +436,17 @@ export async function provisionFromReceipt(
   );
 
   // Plan 3: unit range grant AFTER activate (money already committed — ADR 0041).
-  // Failure here must NOT roll back money; rethrow so caller can retry_pending.
+  // Failure MUST rethrow so receiptApprove records retry_pending (money stays).
+  // Intentional skip only: unitCount === 0 → skipped_break_glass.
   // Idempotent via EnrollmentUnitRange.sourceReceiptId.
   const { grantUnitsFromReceipt } = await import('../lms-ops/grant-units.js');
-  let unitGrant: Awaited<ReturnType<typeof grantUnitsFromReceipt>>;
-  try {
-    unitGrant = await grantUnitsFromReceipt(db, {
-      facilityId: receipt.facilityId,
-      enrollmentId: enrollment.id,
-      receiptId: receipt.id,
-      unitCount: receipt.unitCount,
-      actor: 'system',
-    });
-  } catch (err) {
-    // Soft-skip integrity: if program has no matching orderGlobal yet, log and
-    // continue provisioning identity chain (ops can grant manually). Money stays.
-    const message = err instanceof Error ? err.message : String(err);
-    await db.auditLog.create({
-      data: {
-        actor: 'system',
-        action: 'provisioning.unit_grant_failed',
-        entity: 'Receipt',
-        entityId: receipt.id,
-        data: { enrollmentId: enrollment.id, message },
-      },
-    });
-    unitGrant = { status: 'skipped_break_glass' };
-  }
+  const unitGrant = await grantUnitsFromReceipt(db, {
+    facilityId: receipt.facilityId,
+    enrollmentId: enrollment.id,
+    receiptId: receipt.id,
+    unitCount: receipt.unitCount,
+    actor: 'system',
+  });
 
   // phase-04: one summary audit row on successful provisioning completion. The
   // tRPC audit middleware (trpc.ts) only sees the mutation call itself
@@ -489,9 +473,10 @@ export async function provisionFromReceipt(
           guardianId: guardian.id,
           studentAccountId: studentAccount.id,
           unitGrantStatus: unitGrant.status,
-          unitRangeId: unitGrant.status === 'granted' || unitGrant.status === 'idempotent'
-            ? unitGrant.range.id
-            : null,
+          unitRangeId:
+            unitGrant.status === 'granted' || unitGrant.status === 'idempotent'
+              ? unitGrant.range.id
+              : null,
         },
       },
     });

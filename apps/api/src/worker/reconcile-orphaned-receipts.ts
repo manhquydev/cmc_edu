@@ -52,6 +52,8 @@ interface OrphanReceiptRow {
    * so a replayed orphan-recovery never bypasses the caller's original
    * new-vs-existing-child confirmation. */
   confirmNewStudent: boolean;
+  /** Plan 3: package unit count for grantUnitsFromReceipt (null → default env). */
+  unitCount: number | null;
 }
 
 export type ReconcileOutcome =
@@ -61,7 +63,8 @@ export type ReconcileOutcome =
 /**
  * Finds every approved Receipt whose provisioning chain is incomplete —
  * missing the resolved Student, the Guardian link, an active Enrollment for
- * its own classBatchId, or the StudentAccount — and replays
+ * its own classBatchId, the StudentAccount, or (Plan 3) a unit range when the
+ * receipt is not break-glass (`unitCount = 0`) — and replays
  * `provisionFromReceipt` for it. One receipt's failure (e.g. still missing
  * `classBatchId`) does not abort the batch — it is left for the next drain
  * cycle, recorded via the existing `provisioning.retry_pending` audit marker
@@ -95,6 +98,7 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
             r."classBatchId",
             r."studentId",
             r."confirmNewStudent",
+            r."unitCount",
             COALESCE(s_new."id", s_renewal."id") AS "resolvedStudentId"
           FROM "Receipt" r
           LEFT JOIN "Student" s_new ON s_new."createdByReceiptId" = r."id"
@@ -108,7 +112,8 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
           resolved."studentName",
           resolved."classBatchId",
           resolved."studentId",
-          resolved."confirmNewStudent"
+          resolved."confirmNewStudent",
+          resolved."unitCount"
         FROM resolved
         WHERE resolved."resolvedStudentId" IS NULL
            OR NOT EXISTS (
@@ -126,6 +131,24 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
                     AND e."status" = 'active'
                 )
               )
+           -- Plan 3: identity chain complete but unit range never granted
+           -- (soft-swallow bug, crash after activate, grant failure before rethrow fix).
+           -- unitCount = 0 is intentional break-glass (no range expected).
+           OR (
+                resolved."classBatchId" IS NOT NULL
+                AND (resolved."unitCount" IS NULL OR resolved."unitCount" <> 0)
+                AND resolved."resolvedStudentId" IS NOT NULL
+                AND EXISTS (
+                  SELECT 1 FROM "Enrollment" e
+                  WHERE e."studentId" = resolved."resolvedStudentId"
+                    AND e."classBatchId" = resolved."classBatchId"
+                    AND e."status" = 'active'
+                )
+                AND NOT EXISTS (
+                  SELECT 1 FROM "EnrollmentUnitRange" eur
+                  WHERE eur."sourceReceiptId" = resolved."receiptId"
+                )
+              )
       `,
     { bypass: true },
   );
@@ -141,6 +164,7 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
         classBatchId: receipt.classBatchId,
         studentId: receipt.studentId,
         confirmNewStudent: receipt.confirmNewStudent,
+        unitCount: receipt.unitCount,
       });
       outcomes.push({ receiptId: receipt.id, status: 'recovered', result });
       await db.auditLog.create({

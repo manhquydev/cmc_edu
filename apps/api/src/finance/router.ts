@@ -576,6 +576,16 @@ async function runCancelTransaction(
     }
   }
 
+  // Plan 3: cancelled money must cut unit ranges granted by this receipt even
+  // when another approved receipt keeps the enrollment active (M9). Attendance
+  // history is never erased — only entitlement ranges for this source.
+  const { revokeRangesForReceipt } = await import('../lms-ops/grant-units.js');
+  await revokeRangesForReceipt(tx, {
+    facilityId,
+    receiptId: cancelled.id,
+    actor: actorId,
+  });
+
   await tx.auditLog.create({
     data: {
       actor: actorId,

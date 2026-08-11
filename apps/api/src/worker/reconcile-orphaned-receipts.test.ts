@@ -15,10 +15,12 @@ import { reconcileOrphanedReceipts } from './reconcile-orphaned-receipts.js';
 import {
   buildLmsContext,
   buildStaffContext,
+  cleanupCurriculumUnits,
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
   seedClassBatch,
+  seedCurriculumUnit,
   testDb,
   testDbBypass,
 } from '../test/db.js';
@@ -32,11 +34,37 @@ describe('reconcileOrphanedReceipts (K2)', () => {
   let classBatch: { id: string };
   let classBatchTwo: { id: string };
   const phonesToClean: string[] = [];
+  let curriculumUnitIds: string[] = [];
 
   beforeEach(async () => {
     facility = await createTestFacility('Reconcile Facility');
+    // Plan 3 grant path needs program units + class current neo.
+    // Seed sequentially — concurrent create races on (program, orderGlobal).
+    const units: { id: string; orderGlobal: number }[] = [];
+    for (let i = 0; i < 8; i++) {
+      units.push(await seedCurriculumUnit({ program: 'UCREA', title: `K2 Unit ${i + 1}` }));
+    }
+    curriculumUnitIds = units.map((u) => u.id);
     classBatch = await seedClassBatch({ facilityId: facility.id });
     classBatchTwo = await seedClassBatch({ facilityId: facility.id });
+    await testDbBypass(async (tx) => {
+      await tx.classBatch.update({
+        where: { id: classBatch.id },
+        data: {
+          startUnitId: units[0].id,
+          currentUnitId: units[0].id,
+          currentUnitAnchor: new Date('2026-09-01'),
+        },
+      });
+      await tx.classBatch.update({
+        where: { id: classBatchTwo.id },
+        data: {
+          startUnitId: units[0].id,
+          currentUnitId: units[0].id,
+          currentUnitAnchor: new Date('2026-09-01'),
+        },
+      });
+    });
     sale = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'sale-reconcile-1', roles: ['sale'] }),
     );
@@ -47,6 +75,8 @@ describe('reconcileOrphanedReceipts (K2)', () => {
 
   afterEach(async () => {
     await cleanupFacility(facility.id);
+    await cleanupCurriculumUnits(...curriculumUnitIds);
+    curriculumUnitIds = [];
     await cleanupParentAccountsByPhone(...phonesToClean.map((p) => normalizeLoginPhone(p)));
     phonesToClean.length = 0;
   });
@@ -291,5 +321,51 @@ describe('reconcileOrphanedReceipts (K2)', () => {
 
     const outcomes = await reconcileOrphanedReceipts(testDb());
     expect(outcomes.find((o) => o.receiptId === renewal.receipt.id)).toBeUndefined();
+  });
+
+  it('Plan 3: recovers missing EnrollmentUnitRange when identity chain is already complete', async () => {
+    const parentPhone = '0996000006';
+    phonesToClean.push(parentPhone);
+    const draft = await sale.finance.receiptCreate({
+      studentName: 'K2 Range Gap Child',
+      parentPhone,
+      amount: 5_000_000,
+      classBatchId: classBatch.id,
+      unitCount: 2,
+    });
+    if (draft.status !== 'success') throw new Error('expected success');
+
+    const approved = await gdkd.finance.receiptApprove({ receiptId: draft.receipt.id });
+    expect(approved.provisioning).toBe('ok');
+
+    const enrollment = await testDbBypass((tx) =>
+      tx.enrollment.findFirstOrThrow({
+        where: { classBatchId: classBatch.id, status: 'active' },
+      }),
+    );
+    // Simulate soft-swallowed / crashed grant: identity ok, range deleted.
+    await testDbBypass((tx) =>
+      tx.enrollmentUnitRange.deleteMany({ where: { sourceReceiptId: draft.receipt.id } }),
+    );
+    expect(
+      await testDbBypass((tx) =>
+        tx.enrollmentUnitRange.count({ where: { sourceReceiptId: draft.receipt.id } }),
+      ),
+    ).toBe(0);
+
+    const outcomes = await reconcileOrphanedReceipts(testDb());
+    const mine = outcomes.find((o) => o.receiptId === draft.receipt.id);
+    expect(mine).toMatchObject({ receiptId: draft.receipt.id, status: 'recovered' });
+
+    const ranges = await testDbBypass((tx) =>
+      tx.enrollmentUnitRange.findMany({
+        where: { enrollmentId: enrollment.id, sourceReceiptId: draft.receipt.id },
+      }),
+    );
+    expect(ranges).toHaveLength(1);
+    expect(ranges[0].toOrderGlobal - ranges[0].fromOrderGlobal + 1).toBe(2);
+
+    const second = await reconcileOrphanedReceipts(testDb());
+    expect(second.find((o) => o.receiptId === draft.receipt.id)).toBeUndefined();
   });
 });

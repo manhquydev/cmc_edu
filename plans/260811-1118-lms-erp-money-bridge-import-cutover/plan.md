@@ -57,8 +57,9 @@ Range writer must be same grant service used by admin grantUnits (single-writer)
 |-------|--------|-------|
 | 1 Start / runbook | done | `runbook-cutover-draft.md` |
 | 2 Package mapping | interim | `unitCount` + default env; owner table still open |
-| 3 grantUnitsFromReceipt | done | provision wire + idempotent sourceReceiptId |
-| 4 Break-glass + refund | done | unitCount=0; full refund deletes receipt ranges |
+| 3 grantUnitsFromReceipt | done | provision wire + idempotent sourceReceiptId; rethrow on fail |
+| 4 Break-glass + refund | done | unitCount=0; full refund + cancel revoke ranges |
+| 3b Reconciler repair | done | unitCount pass-through + missing-range orphan |
 | 5 Import dry-run | todo | not this slice |
 | 6 Cutover close LMS | todo | not this slice |
 

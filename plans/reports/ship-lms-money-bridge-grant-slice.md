@@ -11,9 +11,13 @@
 | Schema | `Receipt.unitCount`, `EnrollmentUnitRange.sourceReceiptId` unique |
 | Domain | `resolvePackageGrantRange` pure helper |
 | Single writer | `apps/api/src/lms-ops/grant-units.ts` |
-| Provision | grants after activate; idempotent by receipt; unitCount 0 = break-glass |
+| Provision | grants after activate; **failures rethrow** → `retry_pending` (no soft-swallow) |
+| Break-glass | `unitCount = 0` → active enrollment, no range |
 | Refund | full refund deletes ranges for that `sourceReceiptId` |
-| Mapping | interim default 4 units; owner packages still needed for sale UX |
+| Cancel | `receiptCancel` also revokes ranges for the receipt (M9-safe) |
+| Reconciler | passes `unitCount`; treats missing range (non-zero units) as orphan |
+| Grant race | Receipt `FOR UPDATE` + residual check vs full refund; P2002 → idempotent |
+| Mapping | interim default 4 units (`LMS_DEFAULT_UNIT_COUNT_ON_RECEIPT`); owner packages still needed |
 | Runbook | `plans/260811-1118-lms-erp-money-bridge-import-cutover/runbook-cutover-draft.md` |
 
 ## Not in this slice
@@ -22,11 +26,24 @@
 - Quality gate / close old LMS
 - Sale UI package picker polish
 - Partial-refund unit proportion
+- Routing `addWithUnits`/`grantPast` admin paths fully through grant-units (helper exists; ops API consolidation optional)
 
 ## ADR 0041 preserved
 
-Grant runs **after** money commit; grant soft-failures do not roll back `netAmount`/`approved`.
+Grant runs **after** money commit. Grant integrity failures do **not** roll back `netAmount`/`approved`; they surface as `provisioning.pending` + reconciler retry. Intentional skip only for `unitCount === 0`.
 
-## Validation
+## Validation (2026-08-11)
 
-See test run in cook session (`grant-units.int.test.ts` + domain package-grant + finance regression).
+```text
+apps/api vitest:
+  grant-units.int.test.ts              5 passed
+  reconcile-orphaned-receipts.test.ts  6 passed (incl. missing-range recovery)
+  cancel-refund.test.ts               17 passed
+  idempotent.test.ts                   6 passed
+  guardian-provisioning.test.ts        3 passed
+  Total                               37 passed
+```
+
+## Ops prerequisites
+
+Class batches need `currentUnitId` neo + program `CurriculumUnit.orderGlobal` coverage for the sold span, or grant fails closed and reconciler keeps retrying until curriculum/neo is fixed.

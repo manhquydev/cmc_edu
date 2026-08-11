@@ -194,4 +194,187 @@ describe('lmsOps foundation spike', () => {
     expect(roster.sessionOrderGlobal).toBeNull();
     expect(roster.students).toEqual([]);
   });
+
+  it('cancelSessionAndRestamp: cancelled session excluded; remaining sessions re-stamped', async () => {
+    // 8 Mondays → two units (4 sessions each) when starting at order 101.
+    const created = await gddt.lmsOps.createClassWithUnits({
+      courseId,
+      startUnitId: unitIds[0]!,
+      startDate: '2026-09-07',
+      endDate: '2026-10-26',
+      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+    });
+
+    const before = await testDbBypass((tx) =>
+      tx.classSession.findMany({
+        where: { classBatchId: created.classBatchId },
+        orderBy: { sessionDate: 'asc' },
+        select: { id: true, status: true, curriculumUnitId: true, sessionDate: true },
+      }),
+    );
+    expect(before.length).toBeGreaterThanOrEqual(8);
+
+    const first = before[0]!;
+    const result = await gddt.lmsOps.cancelSessionAndRestamp({ classSessionId: first.id });
+    expect(result.classSessionId).toBe(first.id);
+    expect(result.restamped).toBeGreaterThan(0);
+
+    const after = await testDbBypass((tx) =>
+      tx.classSession.findMany({
+        where: { classBatchId: created.classBatchId },
+        orderBy: { sessionDate: 'asc' },
+        select: { id: true, status: true, curriculumUnitId: true },
+      }),
+    );
+    const cancelled = after.find((s) => s.id === first.id);
+    expect(cancelled?.status).toBe('cancelled');
+    // Cancelled sessions keep their prior stamp or null — they are not restamped as active units.
+    const live = after.filter((s) => s.status !== 'cancelled');
+    expect(live.every((s) => s.curriculumUnitId != null)).toBe(true);
+    // After cancel, first live session should still map to start unit (order 101).
+    expect(live[0]!.curriculumUnitId).toBe(unitIds[0]);
+
+    await expect(
+      gddt.lmsOps.cancelSessionAndRestamp({ classSessionId: first.id }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('grantPast allows past units; addWithUnits still blocks starts_in_past', async () => {
+    const created = await gddt.lmsOps.createClassWithUnits({
+      courseId,
+      startUnitId: unitIds[2]!, // start at order 103
+      startDate: '2026-09-07',
+      endDate: '2026-09-28',
+      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+    });
+    const active = await seedActiveEnrollment({
+      facilityId: facility.id,
+      classBatchId: created.classBatchId,
+      studentName: 'Past Grant Kid',
+    });
+
+    await expect(
+      gddt.lmsOps.addWithUnits({
+        enrollmentId: active.id,
+        fromOrderGlobal: 101,
+        toOrderGlobal: 102,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    const past = await gddt.lmsOps.grantPast({
+      enrollmentId: active.id,
+      fromOrderGlobal: 101,
+      toOrderGlobal: 102,
+    });
+    expect(past.fromOrderGlobal).toBe(101);
+    expect(past.toOrderGlobal).toBe(102);
+
+    // Overlap still forbidden on grantPast
+    await expect(
+      gddt.lmsOps.grantPast({
+        enrollmentId: active.id,
+        fromOrderGlobal: 102,
+        toOrderGlobal: 103,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('revokeFromNext truncates future units; past ranges untouched', async () => {
+    const created = await gddt.lmsOps.createClassWithUnits({
+      courseId,
+      startUnitId: unitIds[0]!,
+      startDate: '2026-09-07',
+      endDate: '2026-09-28',
+      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+    });
+    const active = await seedActiveEnrollment({
+      facilityId: facility.id,
+      classBatchId: created.classBatchId,
+    });
+    await gddt.lmsOps.addWithUnits({
+      enrollmentId: active.id,
+      fromOrderGlobal: 101,
+      toOrderGlobal: 104,
+    });
+
+    const session103 = await testDbBypass(async (tx) => {
+      const s = await tx.classSession.findFirstOrThrow({
+        where: { classBatchId: created.classBatchId },
+      });
+      await tx.classSession.update({
+        where: { id: s.id },
+        data: { curriculumUnitId: unitIds[2]! },
+      });
+      return s.id;
+    });
+
+    let roster = await gddt.lmsOps.rosterForSession({ classSessionId: session103 });
+    expect(roster.students.map((s) => s.studentId)).toContain(active.studentId);
+
+    const rev = await gddt.lmsOps.revokeFromNext({
+      enrollmentId: active.id,
+      fromOrderGlobal: 103,
+    });
+    expect(rev.rangesTouched).toBeGreaterThanOrEqual(1);
+
+    const ranges = await testDbBypass((tx) =>
+      tx.enrollmentUnitRange.findMany({
+        where: { enrollmentId: active.id },
+        select: { fromOrderGlobal: true, toOrderGlobal: true },
+      }),
+    );
+    expect(ranges).toEqual([{ fromOrderGlobal: 101, toOrderGlobal: 102 }]);
+
+    roster = await gddt.lmsOps.rosterForSession({ classSessionId: session103 });
+    expect(roster.students.map((s) => s.studentId)).not.toContain(active.studentId);
+  });
+
+  it('archiveEnrollment hides student from future sessions; unarchive restores', async () => {
+    const created = await gddt.lmsOps.createClassWithUnits({
+      courseId,
+      startUnitId: unitIds[0]!,
+      startDate: '2026-09-07',
+      endDate: '2026-09-28',
+      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+    });
+    const active = await seedActiveEnrollment({
+      facilityId: facility.id,
+      classBatchId: created.classBatchId,
+    });
+    await gddt.lmsOps.addWithUnits({
+      enrollmentId: active.id,
+      fromOrderGlobal: 101,
+      toOrderGlobal: 104,
+    });
+
+    // Session far in the future relative to archive day.
+    const futureSessionId = await testDbBypass(async (tx) => {
+      const s = await tx.classSession.findFirstOrThrow({
+        where: { classBatchId: created.classBatchId },
+        orderBy: { sessionDate: 'desc' },
+      });
+      return s.id;
+    });
+
+    let roster = await gddt.lmsOps.rosterForSession({ classSessionId: futureSessionId });
+    expect(roster.students.map((s) => s.studentId)).toContain(active.studentId);
+
+    // Archive "now" — sessions after today's ICT day drop off roster.
+    await gddt.lmsOps.archiveEnrollment({ enrollmentId: active.id });
+
+    // Force archivedAt to well before the future session date.
+    await testDbBypass(async (tx) => {
+      await tx.enrollment.update({
+        where: { id: active.id },
+        data: { archivedAt: new Date('2020-01-01T00:00:00.000Z') },
+      });
+    });
+
+    roster = await gddt.lmsOps.rosterForSession({ classSessionId: futureSessionId });
+    expect(roster.students.map((s) => s.studentId)).not.toContain(active.studentId);
+
+    await gddt.lmsOps.unarchiveEnrollment({ enrollmentId: active.id });
+    roster = await gddt.lmsOps.rosterForSession({ classSessionId: futureSessionId });
+    expect(roster.students.map((s) => s.studentId)).toContain(active.studentId);
+  });
 });

@@ -233,7 +233,7 @@ export const lmsOpsRouter = router({
           throw badRequest(
             validated.reason === 'inverted'
               ? 'fromOrderGlobal must be <= toOrderGlobal.'
-              : 'Range cannot start before the class current unit (use grantPast in a later plan).',
+              : 'Range cannot start before the class current unit (use grantPast for backfill).',
           );
         }
 

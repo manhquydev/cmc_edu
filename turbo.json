@@ -6,8 +6,6 @@
       "outputs": ["dist/**", ".prisma/**"]
     },
     "typecheck": {
-      // Own package build first so concurrent prisma generate (e.g. @cmc/db
-      // build + typecheck both calling generate) cannot clobber the client mid-tsc.
       "dependsOn": ["build", "^build"]
     },
     "test": {

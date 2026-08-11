@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent, within } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
+
+const approveMutate = vi.fn();
+const rejectMutate = vi.fn();
 
 const { REG_ID, REG } = vi.hoisted(() => {
   const REG_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -50,8 +53,8 @@ vi.mock('../../lib/trpc.js', async () => {
           config: { approvalSecondEyeThreshold: 20_000_000 },
         }),
       'shift.get.useQuery': queryResult(REG),
-      'shift.approve.useMutation': () => mutationResult({ mutate: vi.fn() }),
-      'shift.reject.useMutation': () => mutationResult({ mutate: vi.fn() }),
+      'shift.approve.useMutation': () => mutationResult({ mutate: approveMutate }),
+      'shift.reject.useMutation': () => mutationResult({ mutate: rejectMutate }),
       'shift.cancel.useMutation': () => mutationResult({ mutate: vi.fn() }),
     }),
     makeQueryClient: () => ({}),
@@ -86,5 +89,14 @@ describe('ShiftsDetailPage', () => {
   it('keeps reject action on form for director (resource-centric HITL)', () => {
     renderWithProviders(<ShiftsDetailPage />, { route: `/hr/shifts/${REG_ID}` });
     expect(screen.getByRole('button', { name: 'Từ chối' })).toBeInTheDocument();
+  });
+
+  it('calls shift.approve.mutate({registrationId}) after ConfirmDialog', () => {
+    renderWithProviders(<ShiftsDetailPage />, { route: `/hr/shifts/${REG_ID}` });
+    fireEvent.click(screen.getByRole('button', { name: 'Duyệt' }));
+    expect(approveMutate).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Duyệt' }));
+    expect(approveMutate).toHaveBeenCalledWith({ registrationId: REG_ID });
   });
 });

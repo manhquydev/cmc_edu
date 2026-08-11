@@ -106,53 +106,13 @@ describe('KpiPage', () => {
     expect(screen.getByText('1.500.000 đ')).toBeInTheDocument();
   });
 
-  it('does NOT call kpi.confirm.mutate on the trigger click alone (confirm gating)', () => {
+  it('list is index-only for row HITL: open form only (confirm/override on form)', () => {
     renderWithProviders(<KpiPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
-    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-    expect(confirmMutate).not.toHaveBeenCalled();
-  });
-
-  it('calls kpi.confirm.mutate({kpiScoreId}) only after the ConfirmDialog confirm click', () => {
-    renderWithProviders(<KpiPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
-    const dialog = screen.getByRole('alertdialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Xác nhận' }));
-    expect(confirmMutate).toHaveBeenCalledWith({ kpiScoreId: 'kpi-1' });
-  });
-
-  it('hides the Xác nhận button for a role without kpi.confirm permission', () => {
-    sessionRoles = ['sale'];
-    renderWithProviders(<KpiPage />);
+    expect(screen.getAllByRole('button', { name: 'Mở phiếu' }).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByRole('button', { name: 'Xác nhận' })).toBeNull();
-  });
-
-  it('opens the override modal and calls kpi.override.mutate with reason', () => {
-    renderWithProviders(<KpiPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Ghi đè' }));
-    fireEvent.change(screen.getByLabelText('Giá trị mới (VND)'), { target: { value: '1800000' } });
-    fireEvent.change(screen.getByLabelText('Lý do ghi đè'), { target: { value: 'Điều chỉnh theo doanh số' } });
-    const submitButtons = screen.getAllByRole('button', { name: 'Ghi đè' });
-    fireEvent.click(submitButtons[submitButtons.length - 1]);
-    expect(overrideMutate).toHaveBeenCalledWith({
-      kpiScoreId: 'kpi-1',
-      value: 1_800_000,
-      overrideReason: 'Điều chỉnh theo doanh số',
-    });
-  });
-
-  it('disables the override submit until a reason is entered', () => {
-    renderWithProviders(<KpiPage />);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Ghi đè' })[0]);
-    const submitButtons = screen.getAllByRole('button', { name: 'Ghi đè' });
-    const modalSubmit = submitButtons[submitButtons.length - 1];
-    expect(modalSubmit).toBeDisabled();
-  });
-
-  it('hides Ghi đè for a role without kpi.approve permission', () => {
-    sessionRoles = ['sale'];
-    renderWithProviders(<KpiPage />);
     expect(screen.queryByRole('button', { name: 'Ghi đè' })).toBeNull();
+    expect(confirmMutate).not.toHaveBeenCalled();
+    expect(overrideMutate).not.toHaveBeenCalled();
   });
 
   it('shows the "Đã trả lương kỳ X" button for canDo(kpi,bulkApprove)', () => {

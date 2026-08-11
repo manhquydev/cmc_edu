@@ -59,20 +59,30 @@ test.describe('P4-05 journey — chăm sóc sau bán: tạo → tiếp nhận �
     await expect(row).toBeVisible();
     await expect(row.getByText('Mở', { exact: true })).toBeVisible();
 
-    // --- take it up (advance → "Đang xử lý"), a direct mutation ---
-    await row.getByRole('button', { name: 'Tiếp nhận' }).click();
-    await expect(row.getByText('Đang xử lý', { exact: true })).toBeVisible();
+    // List is index-only — open form for lifecycle HITL (resource-centric).
+    await row.getByRole('button', { name: 'Mở phiếu' }).click();
+    await expect(page).toHaveURL(/\/crm\/aftersale\/[0-9a-f-]{36}/i);
+
+    // --- take it up (advance → "Đang xử lý") on form ---
+    await page.getByRole('button', { name: 'Tiếp nhận' }).click();
+    await expect(page.getByText('Đang xử lý', { exact: true }).first()).toBeVisible({
+      timeout: 15_000,
+    });
 
     // --- resolve it with an outcome (→ "Đã giải quyết") ---
-    await row.getByRole('button', { name: 'Giải quyết' }).click();
+    await page.getByRole('button', { name: 'Giải quyết' }).click();
     const resolveDialog = page.getByRole('dialog');
-    await resolveDialog.getByLabel('Kết quả xử lý').fill('Đã gặp PH, đổi lớp phù hợp — E2E');
+    await resolveDialog.getByLabel(/Kết quả xử lý/).fill('Đã gặp PH, đổi lớp phù hợp — E2E');
     await resolveDialog.getByRole('button', { name: 'Xác nhận' }).click();
-    await expect(row.getByText('Đã giải quyết', { exact: true })).toBeVisible();
+    await expect(page.getByText('Đã giải quyết', { exact: true }).first()).toBeVisible({
+      timeout: 15_000,
+    });
 
-    // --- close it (→ "Đã đóng"), a direct mutation ---
-    await row.getByRole('button', { name: 'Đóng' }).click();
-    await expect(row.getByText('Đã đóng', { exact: true })).toBeVisible();
+    // --- close it (→ "Đã đóng") ---
+    await page.getByRole('button', { name: 'Đóng' }).click();
+    await expect(page.getByText('Đã đóng', { exact: true }).first()).toBeVisible({
+      timeout: 15_000,
+    });
 
     await context.close();
   });

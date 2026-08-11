@@ -7,7 +7,6 @@ import {
   Button,
   DataTable,
   FilterBar,
-  HStack,
   LineIcon,
   ListPage,
   ListPagination,
@@ -17,9 +16,7 @@ import {
 import type { FilterDef, TableColumn } from '@cmc/ui';
 import { links } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
-import { useAfterSaleActions } from './use-after-sale-actions.js';
 import { CreateAfterSaleCaseDialog } from './create-after-sale-case-dialog.js';
-import { ResolveAfterSaleCaseDialog } from './resolve-after-sale-case-dialog.js';
 
 const PAGE_SIZE = 20;
 
@@ -84,7 +81,6 @@ export default function AfterSalePage() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
-  const [resolveCaseId, setResolveCaseId] = useState<string | null>(null);
   const { success: toastSuccess } = useToast();
 
   const statusRaw = filters.status ?? '';
@@ -99,7 +95,8 @@ export default function AfterSalePage() {
     pageSize: PAGE_SIZE,
   });
 
-  const { advanceMutation, closeMutation } = useAfterSaleActions();
+  // List = index only (resource-centric). Lifecycle HITL lives on form
+  // /crm/aftersale/:caseId (advance / resolve / close).
 
   const rows = (data?.items ?? []) as CaseRow[];
   const total = data?.total ?? 0;
@@ -127,42 +124,14 @@ export default function AfterSalePage() {
     {
       key: 'id',
       label: 'Hành động',
-      width: 280,
+      width: 120,
       render: (_v, row) => (
-        <HStack gap={1}>
-          <Button
-            label="Mở phiếu"
-            size="sm"
-            variant="ghost"
-            onClick={() => navigate(links.afterSaleCase(row.id))}
-          />
-          {row.status === 'open' && (
-            <Button
-              label="Tiếp nhận"
-              size="sm"
-              variant="secondary"
-              isLoading={advanceMutation.isPending}
-              onClick={() => advanceMutation.mutate({ caseId: row.id })}
-            />
-          )}
-          {(row.status === 'open' || row.status === 'in_progress') && (
-            <Button
-              label="Giải quyết"
-              size="sm"
-              variant="secondary"
-              onClick={() => setResolveCaseId(row.id)}
-            />
-          )}
-          {row.status === 'resolved' && (
-            <Button
-              label="Đóng"
-              size="sm"
-              variant="ghost"
-              isLoading={closeMutation.isPending}
-              onClick={() => closeMutation.mutate({ caseId: row.id })}
-            />
-          )}
-        </HStack>
+        <Button
+          label="Mở phiếu"
+          size="sm"
+          variant="ghost"
+          onClick={() => navigate(links.afterSaleCase(row.id))}
+        />
       ),
     },
   ];
@@ -242,7 +211,6 @@ export default function AfterSalePage() {
       </ListPage>
 
       <CreateAfterSaleCaseDialog opened={createOpen} onClose={() => setCreateOpen(false)} />
-      <ResolveAfterSaleCaseDialog caseId={resolveCaseId} onClose={() => setResolveCaseId(null)} />
     </>
   );
 }

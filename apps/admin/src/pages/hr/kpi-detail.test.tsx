@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent, within } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
+
+const confirmMutate = vi.fn();
+const overrideMutate = vi.fn();
 
 const { SCORE_ID, SCORE } = vi.hoisted(() => {
   const SCORE_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -52,8 +55,8 @@ vi.mock('../../lib/trpc.js', async () => {
           config: { approvalSecondEyeThreshold: 20_000_000 },
         }),
       'kpi.get.useQuery': queryResult(SCORE),
-      'kpi.confirm.useMutation': () => mutationResult({ mutate: vi.fn() }),
-      'kpi.override.useMutation': () => mutationResult({ mutate: vi.fn() }),
+      'kpi.confirm.useMutation': () => mutationResult({ mutate: confirmMutate }),
+      'kpi.override.useMutation': () => mutationResult({ mutate: overrideMutate }),
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -77,6 +80,35 @@ describe('KpiDetailPage', () => {
   it('shows Xác nhận for director on submitted', () => {
     renderWithProviders(<KpiDetailPage />, { route: `/hr/kpi/${SCORE_ID}` });
     expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeInTheDocument();
+  });
+
+  it('calls kpi.confirm.mutate({kpiScoreId}) only after ConfirmDialog confirm', () => {
+    renderWithProviders(<KpiDetailPage />, { route: `/hr/kpi/${SCORE_ID}` });
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    expect(confirmMutate).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xác nhận' }));
+    expect(confirmMutate).toHaveBeenCalledWith({ kpiScoreId: SCORE_ID });
+  });
+
+  it('calls kpi.override.mutate with value and reason from form', () => {
+    renderWithProviders(<KpiDetailPage />, { route: `/hr/kpi/${SCORE_ID}` });
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi đè' }));
+    // Prefer dialog field labels — sheet also shows "Giá trị" in HighlightStrip/KeyValueList.
+    fireEvent.change(screen.getByLabelText(/^Giá trị mới \(VND\)/), {
+      target: { value: '1800000' },
+    });
+    fireEvent.change(screen.getByLabelText(/^Lý do ghi đè/), {
+      target: { value: 'Điều chỉnh E2E' },
+    });
+    const submitButtons = screen.getAllByRole('button', { name: 'Ghi đè' });
+    fireEvent.click(submitButtons[submitButtons.length - 1]);
+    expect(overrideMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kpiScoreId: SCORE_ID,
+        overrideReason: 'Điều chỉnh E2E',
+      }),
+    );
   });
 
   it('shows Odoo-like statusbar steps and dense sheet fields (no chatter)', () => {

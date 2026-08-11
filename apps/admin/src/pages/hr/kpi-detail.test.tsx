@@ -70,13 +70,23 @@ describe('KpiDetailPage', () => {
 
   it('renders form from kpi.get', () => {
     renderWithProviders(<KpiDetailPage />, { route: `/hr/kpi/${SCORE_ID}` });
-    expect(screen.getByText(/Phiếu KPI/)).toBeInTheDocument();
-    expect(screen.getAllByText(/Nguyễn Văn A/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/1\.500\.000|1,500,000|1500000/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Phiếu KPI|Nguyễn Văn A/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/1\.500\.000|1,500,000|1500000/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows Xác nhận for director on submitted', () => {
     renderWithProviders(<KpiDetailPage />, { route: `/hr/kpi/${SCORE_ID}` });
     expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeInTheDocument();
+  });
+
+  it('shows Odoo-like statusbar steps and dense sheet fields (no chatter)', () => {
+    renderWithProviders(<KpiDetailPage />, { route: `/hr/kpi/${SCORE_ID}` });
+    expect(screen.getByRole('list', { name: 'Các bước' })).toBeInTheDocument();
+    expect(screen.getByText('Thông tin phiếu')).toBeInTheDocument();
+    expect(screen.getAllByText('Nhân viên').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Kỳ').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Giá trị/).length).toBeGreaterThanOrEqual(1);
+    // No chatter product surface.
+    expect(screen.queryByText(/Send message|Log note|Follow/i)).toBeNull();
   });
 });

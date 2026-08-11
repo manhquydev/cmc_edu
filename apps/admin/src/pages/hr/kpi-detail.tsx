@@ -12,14 +12,18 @@ import {
   DialogHeader,
   EmptyState,
   EntityHeader,
+  HighlightStrip,
   HStack,
+  KeyValueList,
   NumberInput,
   PageHeader,
   ResultPanel,
+  SectionBlock,
   Stack,
   StatusBadge,
   Text,
   TextArea,
+  WorkflowStatusbar,
 } from '@cmc/ui';
 import { kpiScoresPath, UUID_RE } from '@cmc/links';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
@@ -157,19 +161,19 @@ export default function KpiDetailPage() {
 
   const { steps, activeIndex } = statusSteps(data.status);
   const shortId = scoreId.slice(0, 8);
+  const personName = data.fullName ?? data.appUser.fullName;
   // Prefer server flags (managerId / branch) over canDo alone — avoids false 403.
   const showConfirm = Boolean(data.viewerCanConfirm) && canDo('kpi', 'confirm');
   const showOverride = Boolean(data.viewerCanOverride) && canDo('kpi', 'approve');
   const overrideOk =
     overrideValue !== undefined && overrideValue >= 0 && overrideReason.trim().length >= 1;
+  const valueLabel = `${Number(data.value).toLocaleString('vi-VN')} đ${data.override ? ' (ghi đè)' : ''}`;
 
   return (
     <DetailPage
       density="ops"
       header={
         <PageHeader
-          title="Phiếu KPI"
-          subtitle={`${data.fullName ?? data.appUser.fullName} · ${data.period}`}
           breadcrumbs={[
             { label: 'Nhân sự' },
             { label: 'KPI', href: kpiScoresPath({ period: data.period }) },
@@ -178,26 +182,6 @@ export default function KpiDetailPage() {
           actions={
             <HStack gap={1} wrap="wrap">
               <CopyLinkButton mode="go" entity="kpiScore" id={scoreId} />
-              {showConfirm ? (
-                <Button
-                  label="Xác nhận"
-                  size="sm"
-                  variant="primary"
-                  onClick={() => setConfirmOpen(true)}
-                />
-              ) : null}
-              {showOverride ? (
-                <Button
-                  label="Ghi đè"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    setOverrideValue(Number(data.value));
-                    setOverrideReason('');
-                    setOverrideOpen(true);
-                  }}
-                />
-              ) : null}
               <Button
                 label="Về danh sách"
                 size="sm"
@@ -208,58 +192,135 @@ export default function KpiDetailPage() {
           }
         />
       }
-      statusbar={
-        <HStack gap={1} wrap="wrap">
-          {steps.map((s, i) => (
-            <StatusBadge
-              key={s.id}
-              status={i === activeIndex ? 'info' : i < activeIndex ? 'success' : 'neutral'}
-              label={s.label}
-            />
-          ))}
-        </HStack>
-      }
       entity={
         <EntityHeader
-          title={data.fullName ?? data.appUser.fullName}
-          subtitle={`${data.position ?? '—'} · kỳ ${data.period}`}
-          initials={(data.fullName ?? data.appUser.fullName).slice(0, 1).toUpperCase()}
+          title={personName}
+          subtitle={`Phiếu KPI · ${data.position ?? '—'} · kỳ ${data.period}`}
+          initials={personName.slice(0, 1).toUpperCase()}
           badges={
             <StatusBadge
               status={data.status}
               label={STATUS_LABELS[data.status] ?? data.status}
             />
           }
+          meta={
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{valueLabel}</span>
+          }
+          actions={
+            showConfirm || showOverride ? (
+              <HStack gap={1} wrap="wrap">
+                {showConfirm ? (
+                  <Button
+                    label="Xác nhận"
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setConfirmOpen(true)}
+                  />
+                ) : null}
+                {showOverride ? (
+                  <Button
+                    label="Ghi đè"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setOverrideValue(Number(data.value));
+                      setOverrideReason('');
+                      setOverrideOpen(true);
+                    }}
+                  />
+                ) : null}
+              </HStack>
+            ) : undefined
+          }
         />
       }
+      summary={
+        <HighlightStrip
+          items={[
+            {
+              key: 'value',
+              label: 'Giá trị',
+              value: valueLabel,
+              tabular: true,
+            },
+            {
+              key: 'status',
+              label: 'Trạng thái',
+              value: (
+                <StatusBadge
+                  status={data.status}
+                  label={STATUS_LABELS[data.status] ?? data.status}
+                />
+              ),
+            },
+            { key: 'period', label: 'Kỳ', value: data.period },
+            { key: 'role', label: 'Vị trí', value: data.position ?? '—' },
+          ]}
+        />
+      }
+      statusbar={<WorkflowStatusbar steps={steps} activeIndex={activeIndex} />}
     >
-      <Stack gap={2} padding={4}>
-        {flash ? (
-          <Banner status={flash.ok ? 'success' : 'error'} title={flash.text} />
-        ) : null}
-        {data.tierMissing ? (
-          <Banner status="warning" title="Chưa gán bậc lương — nộp phiếu có thể bị chặn." />
-        ) : null}
-        <Text type="body" size="sm">
-          Giá trị KPI:{' '}
-          <strong>{Number(data.value).toLocaleString('vi-VN')} đ</strong>
-          {data.override ? ' (đã ghi đè)' : ''}
-        </Text>
-        {data.overrideReason ? (
-          <Text type="body" size="xsm" color="secondary">
-            Lý do ghi đè: {data.overrideReason}
+      <div className="console-detail-panel">
+        <Stack gap={3} style={{ padding: 'var(--cmc-space-3)', maxWidth: 720 }}>
+          {flash ? (
+            <Banner status={flash.ok ? 'success' : 'error'} title={flash.text} />
+          ) : null}
+          {data.tierMissing ? (
+            <Banner status="warning" title="Chưa gán bậc lương — nộp phiếu có thể bị chặn." />
+          ) : null}
+
+          <SectionBlock
+            title="Thông tin phiếu"
+            description="Cùng khung form chứng từ Console (list → form · statusbar · sheet)."
+          >
+            <KeyValueList
+              items={[
+                { key: 'person', label: 'Nhân viên', value: personName },
+                { key: 'period', label: 'Kỳ', value: data.period },
+                { key: 'position', label: 'Vị trí', value: data.position ?? '—' },
+                {
+                  key: 'value',
+                  label: 'Giá trị KPI',
+                  value: (
+                    <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                      {valueLabel}
+                    </span>
+                  ),
+                },
+                {
+                  key: 'status',
+                  label: 'Trạng thái',
+                  value: (
+                    <StatusBadge
+                      status={data.status}
+                      label={STATUS_LABELS[data.status] ?? data.status}
+                    />
+                  ),
+                },
+                ...(data.overrideReason
+                  ? [
+                      {
+                        key: 'overrideReason',
+                        label: 'Lý do ghi đè',
+                        value: data.overrideReason,
+                      },
+                    ]
+                  : []),
+              ]}
+            />
+          </SectionBlock>
+
+          <Text type="supporting" size="xsm">
+            Tất toán cuối (Đã duyệt) chỉ qua thao tác trên bảng KPI theo kỳ — không duyệt lẻ
+            trên form này.
           </Text>
-        ) : null}
-        <Text type="body" size="xsm" color="secondary">
-          Trạng thái máy: {data.status}. Tất toán (approved) chỉ qua «Đã trả lương kỳ» trên
-          board.
-        </Text>
-      </Stack>
+        </Stack>
+      </div>
 
       <ConfirmDialog
         opened={confirmOpen}
         title="Xác nhận điểm KPI"
-        message={`Xác nhận phiếu của ${data.fullName ?? data.appUser.fullName} kỳ ${data.period}?`}
+        message={`Xác nhận phiếu của ${personName} kỳ ${data.period}?`}
         confirmLabel="Xác nhận"
         confirmColor="blue"
         loading={confirmMut.isPending}

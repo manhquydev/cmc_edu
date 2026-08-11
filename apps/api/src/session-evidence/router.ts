@@ -401,10 +401,14 @@ export const sessionEvidenceRouter = router({
         if (classBatchIds.length === 0) return { items: [] };
 
         // Published evidence for sessions in the student's batches.
+        // Cancelled sessions never ran — hide journal from family (phase 5).
         const evidenceRows = await tx.sessionEvidence.findMany({
           where: {
             status: 'published',
-            classSession: { classBatchId: { in: classBatchIds } },
+            classSession: {
+              classBatchId: { in: classBatchIds },
+              status: { not: 'cancelled' },
+            },
           },
           include: { photos: { orderBy: { createdAt: 'asc' } } },
           orderBy: { publishedAt: 'desc' },

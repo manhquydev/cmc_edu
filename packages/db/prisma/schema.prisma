@@ -453,6 +453,10 @@ model ParentAccount {
   /// the parent sets one or staff captures it on receiptCreate.
   email                String?               @unique
   passwordHash         String?
+  /// Soft-disable LMS login without deleting Guardian links (teaching spine P4).
+  isActive             Boolean               @default(true)
+  /// Bumped on deactivation / forced re-login; must match LMS token `tv` claim.
+  tokenVersion         Int                   @default(0)
   createdAt            DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime              @updatedAt @db.Timestamptz(3)
   studentAccounts      StudentAccount[]

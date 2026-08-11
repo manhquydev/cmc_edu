@@ -101,6 +101,42 @@ async function loadGatedSession(
   return session;
 }
 
+/** Roles that may mark attendance outside the teacher time window. */
+const ATTENDANCE_WINDOW_OVERRIDE_ROLES = new Set([
+  'super_admin',
+  'giam_doc_dao_tao',
+  'giam_doc_kinh_doanh',
+]);
+
+/**
+ * Teacher window gate (phase 5). Default: ON in production; OFF in dev/test
+ * unless ATTENDANCE_WINDOW_ENFORCED=1 (mirrors open-tier kill-switch style).
+ */
+export function isAttendanceWindowEnforced(): boolean {
+  const v = (process.env.ATTENDANCE_WINDOW_ENFORCED ?? '').toLowerCase();
+  if (v === '0' || v === 'false' || v === 'off') return false;
+  if (v === '1' || v === 'true' || v === 'on') return true;
+  return process.env.NODE_ENV === 'production';
+}
+
+/** Teacher window: [start − 30m, end + 2h]. Directors override. */
+export function assertAttendanceWindow(
+  session: { startTime: Date; endTime: Date },
+  subject: { roles: readonly string[] },
+  now: Date = new Date(),
+): void {
+  if (!isAttendanceWindowEnforced()) return;
+  if (subject.roles.some((r) => ATTENDANCE_WINDOW_OVERRIDE_ROLES.has(r))) return;
+  const openAt = session.startTime.getTime() - 30 * 60_000;
+  const closeAt = session.endTime.getTime() + 2 * 60 * 60_000;
+  const t = now.getTime();
+  if (t < openAt || t > closeAt) {
+    throw badRequest(
+      'Attendance window closed for teachers (open 30 minutes before start, 2 hours after end). Ask a director to override.',
+    );
+  }
+}
+
 /** Gates 2-3: the enrollment resolves (in `facilityId`), matches the
  * session's class, and is `active`. */
 async function loadGatedEnrollment(
@@ -132,6 +168,7 @@ export const attendanceRouter = router({
       return withFacility(ctx.db, facilityId, async (tx) => {
         const session = await loadGatedSession(tx, facilityId, input.sessionId);
         await assertTeacherOwnsClass(tx, facilityId, ctx.subject, session.classBatchId);
+        assertAttendanceWindow(session, ctx.subject);
         const enrollment = await loadGatedEnrollment(tx, facilityId, input.enrollmentId, session);
 
         const markedAt = new Date();
@@ -194,6 +231,7 @@ export const attendanceRouter = router({
       return withFacility(ctx.db, facilityId, async (tx) => {
         const session = await loadGatedSession(tx, facilityId, input.sessionId);
         await assertTeacherOwnsClass(tx, facilityId, ctx.subject, session.classBatchId);
+        assertAttendanceWindow(session, ctx.subject);
 
         // Gates 2-3, batched: one `findMany` for the whole roster instead of
         // an N-round-trip `loadGatedEnrollment` per entry (up to 200 entries

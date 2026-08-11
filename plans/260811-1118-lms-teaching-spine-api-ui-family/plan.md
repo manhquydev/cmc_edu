@@ -66,12 +66,15 @@ Daily teaching loop on monorepo without money bridge yet (admin can grant units 
 | 1 Start | done | Plan 1 ship + foundation commit `7d55b17` |
 | 2 Class engine cancel restamp | done (API) | `cancelSessionAndRestamp` + int test |
 | 3 Enrollment grant revoke archive | done (API) | grantPast / revokeFromNext / archive + int tests |
-| 4 Family principal | partial | existing lms-auth ownership; isActive/tokenVersion not added |
-| 5 Attendance journal photoConsent | todo | — |
-| 6 Exercise library delivery | partial | open-tier kill-switch + entitlement gate only |
-| 7 UI spines | todo | — |
+| 4 Family principal | done (API) | isActive + tokenVersion + setActive + lmsProcedure gate |
+| 5 Attendance journal photoConsent | done (API) | cancelled journal hide; window+override; photoConsent pre-existing |
+| 6 Exercise library delivery | partial | open-tier kill-switch; SessionExercise deferred |
+| 7 UI spines | partial | dual-gate roster + cancel restamp on session detail |
 
-Ship note: `plans/reports/ship-lms-teaching-spine-api-ops.md`
+Ship notes:
+- `plans/reports/ship-lms-teaching-spine-api-ops.md`
+- `plans/reports/ship-lms-teaching-spine-phases-4-7.md`
+- `plans/reports/brainstorm-260811-teaching-spine-phases-4-7.md`
 
 ## Cook
 

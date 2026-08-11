@@ -147,6 +147,7 @@ const ACTIVE_ROLE_MATRIX: Array<{ key: string; allowed: readonly string[] }> = [
   { key: 'exercise.manage', allowed: ['giam_doc_dao_tao'] },
   { key: 'exercise.view', allowed: ['giao_vien', 'giam_doc_dao_tao'] },
   { key: 'parentAccount.updateEmail', allowed: ['giam_doc_kinh_doanh', 'sale'] },
+  { key: 'parentAccount.setActive', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'submission.grade', allowed: ['giao_vien', 'giam_doc_dao_tao'] },
   { key: 'assessment.draft', allowed: ['giao_vien', 'giam_doc_dao_tao'] },
   { key: 'assessment.confirm', allowed: ['giao_vien'] },

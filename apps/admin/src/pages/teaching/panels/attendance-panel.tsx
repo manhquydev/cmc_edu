@@ -103,16 +103,28 @@ export function AttendancePanel({ sessionId, classBatchId }: AttendancePanelProp
   const [saved, setSaved] = useState(false);
   const [saveValidationError, setSaveValidationError] = useState<string | null>(null);
 
+  // Dual-gate teaching roster (active ∩ unit range ∩ session stamp) when available.
+  const {
+    data: dualRoster,
+    isLoading: dualLoading,
+    error: dualError,
+  } = trpc.lmsOps.rosterForSession.useQuery(
+    { classSessionId: sessionId },
+    { enabled: Boolean(sessionId), retry: false },
+  );
+
   const { data: studentsData } = trpc.classBatch.listStudents.useQuery(
     { classBatchId },
-    { enabled: Boolean(classBatchId) },
+    { enabled: Boolean(classBatchId) && !dualRoster },
   );
 
   const {
     data,
-    isLoading,
+    isLoading: marksLoading,
     error: listError,
   } = trpc.attendance.listBySession.useQuery({ sessionId }, { enabled: Boolean(sessionId) });
+
+  const isLoading = dualLoading || marksLoading;
 
   const utils = trpc.useUtils();
   const markAll = trpc.attendance.markAll.useMutation({
@@ -134,6 +146,20 @@ export function AttendancePanel({ sessionId, classBatchId }: AttendancePanelProp
     setSaveValidationError(null);
   }, [data]);
 
+  // Prefer dual-gate roster as the row set; seed local status from marks.
+  useEffect(() => {
+    if (!dualStudents) return;
+    setLocalStatus((prev) => {
+      const next = { ...prev };
+      for (const s of dualStudents) {
+        if (next[s.enrollmentId]) continue;
+        const marked = markByEnrollment.get(s.enrollmentId);
+        if (marked) next[s.enrollmentId] = marked;
+      }
+      return next;
+    });
+  }, [dualStudents, data]);
+
   function toggleStatus(enrollmentId: string) {
     setLocalStatus((prev) => {
       const current = prev[enrollmentId];
@@ -145,19 +171,33 @@ export function AttendancePanel({ sessionId, classBatchId }: AttendancePanelProp
     setSaveValidationError(null);
   }
 
-  const nameByStudentId = new Map(
-    ((studentsData ?? []) as Array<{ studentId: string; fullName: string }>).map((s) => [
-      s.studentId,
-      s.fullName,
-    ]),
+  const markByEnrollment = new Map(
+    (data?.items ?? []).map((item) => [item.enrollmentId, item.status as AttendanceStatus]),
   );
 
-  const roster: RosterEntry[] = (data?.items ?? []).map((item) => ({
-    enrollmentId: item.enrollmentId,
-    studentId: item.studentId,
-    fullName: nameByStudentId.get(item.studentId) ?? item.studentId.slice(0, 8),
-    status: localStatus[item.enrollmentId] ?? null,
-  }));
+  const dualStudents = dualRoster?.students ?? null;
+  const fallbackStudents = (studentsData ?? []) as Array<{
+    enrollmentId?: string;
+    studentId: string;
+    fullName: string;
+  }>;
+
+  const roster: RosterEntry[] = dualStudents
+    ? dualStudents.map((s) => ({
+        enrollmentId: s.enrollmentId,
+        studentId: s.studentId,
+        fullName: s.fullName,
+        status: localStatus[s.enrollmentId] ?? markByEnrollment.get(s.enrollmentId) ?? null,
+      }))
+    : (data?.items ?? []).map((item) => {
+        const nameByStudentId = new Map(fallbackStudents.map((s) => [s.studentId, s.fullName]));
+        return {
+          enrollmentId: item.enrollmentId,
+          studentId: item.studentId,
+          fullName: nameByStudentId.get(item.studentId) ?? item.studentId.slice(0, 8),
+          status: localStatus[item.enrollmentId] ?? null,
+        };
+      });
 
   const total = roster.length;
   const presentCount = roster.filter((r) => r.status === 'present').length;
@@ -223,6 +263,25 @@ export function AttendancePanel({ sessionId, classBatchId }: AttendancePanelProp
       {listError ? (
         <div style={{ padding: 'var(--cmc-space-3)' }}>
           <Banner status="error" title="Lỗi tải danh sách" description={listError.message} />
+        </div>
+      ) : null}
+      {dualError && !dualRoster ? (
+        <div style={{ paddingInline: 'var(--cmc-space-3)', paddingTop: 'var(--cmc-space-2)' }}>
+          <Banner
+            status="warning"
+            title="Roster dual-gate không dùng được"
+            description="Đang dùng danh sách điểm danh hiện có. Kiểm tra quyền classRoster.read / stamp unit."
+          />
+        </div>
+      ) : null}
+      {dualRoster ? (
+        <div style={{ paddingInline: 'var(--cmc-space-3)', paddingTop: 'var(--cmc-space-2)' }}>
+          <Text type="supporting" size="xsm">
+            Roster dual-gate
+            {dualRoster.sessionOrderGlobal != null
+              ? ` · unit order ${dualRoster.sessionOrderGlobal}`
+              : ' · session chưa stamp unit'}
+          </Text>
         </div>
       ) : null}
       {markAll.error ? (

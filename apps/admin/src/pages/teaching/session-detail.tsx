@@ -67,6 +67,15 @@ export default function SessionDetailPage() {
     { enabled: Boolean(sessionId) },
   );
 
+  const utils = trpc.useUtils();
+  const cancelRestamp = trpc.lmsOps.cancelSessionAndRestamp.useMutation({
+    onSuccess: async () => {
+      await utils.classSession.get.invalidate({ sessionId: sessionId ?? '' });
+      await utils.classSession.doneProgress.invalidate({ sessionId: sessionId ?? '' });
+      await utils.lmsOps.rosterForSession.invalidate({ classSessionId: sessionId ?? '' });
+    },
+  });
+
   function setTab(id: string) {
     const next = new URLSearchParams(searchParams);
     next.set('tab', id);
@@ -200,7 +209,40 @@ export default function SessionDetailPage() {
           variant="secondary"
           onClick={() => navigate(`/admin/classes/${session.classBatchId}`)}
         />
+        {session.status !== 'cancelled' && session.status !== 'done' ? (
+          <Button
+            label={cancelRestamp.isPending ? 'Đang hủy…' : 'Hủy buổi + restamp unit'}
+            size="sm"
+            variant="secondary"
+            isLoading={cancelRestamp.isPending}
+            isDisabled={cancelRestamp.isSuccess}
+            onClick={() => {
+              if (
+                !window.confirm(
+                  'Hủy buổi này và restamp unit cho các buổi còn lại? Không tạo buổi bù.',
+                )
+              ) {
+                return;
+              }
+              cancelRestamp.mutate({ classSessionId: session.id });
+            }}
+          />
+        ) : null}
       </HStack>
+      {cancelRestamp.isError ? (
+        <Banner
+          status="error"
+          title="Không hủy được buổi"
+          description={cancelRestamp.error.message}
+        />
+      ) : null}
+      {cancelRestamp.isSuccess ? (
+        <Banner
+          status="success"
+          title="Đã hủy buổi"
+          description={`Restamp ${cancelRestamp.data.restamped} buổi (không makeup).`}
+        />
+      ) : null}
     </Stack>
   );
 

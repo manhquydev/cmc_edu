@@ -125,6 +125,8 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   'exercise.view': ['giao_vien', 'giam_doc_dao_tao'],
   // Staff email backfill — GĐKD + sale (the roles that capture email at enrollment).
   'parentAccount.updateEmail': ['giam_doc_kinh_doanh', 'sale'],
+  /** Soft-disable parent LMS login + bump tokenVersion (teaching spine P4). */
+  'parentAccount.setActive': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   'submission.grade': ['giao_vien', 'giam_doc_dao_tao'],
   'assessment.draft': ['giao_vien', 'giam_doc_dao_tao'],
   'assessment.confirm': ['giao_vien'],

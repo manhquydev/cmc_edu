@@ -485,4 +485,28 @@ describe('sessionEvidence (T3 US-019)', () => {
 
     await testDb().parentAccount.deleteMany({ where: { phone: otherPhone } });
   });
+
+  it('listForChild: hides published evidence when the session is cancelled', async () => {
+    const lmsParent = appRouter.createCaller(buildLmsContext({ parentAccountId: parent.id }));
+    const evidence = await teacher.sessionEvidence.upsert({
+      classSessionId: session.id,
+      summary: 'Sẽ bị ẩn khi hủy buổi.',
+    });
+    await teacher.sessionEvidence.addPhoto({
+      sessionEvidenceId: evidence.id,
+      blobRef: 'photos/cancelled-journal.jpg',
+    });
+    await teacher.sessionEvidence.publish({ sessionEvidenceId: evidence.id });
+
+    // Simulate post-publish cancel (journal must disappear for family).
+    await testDbBypass((tx) =>
+      tx.classSession.update({ where: { id: session.id }, data: { status: 'cancelled' } }),
+    );
+
+    const { items } = await lmsParent.sessionEvidence.listForChild({
+      studentId: enrollment.studentId,
+    });
+    expect(items.find((i) => i.id === evidence.id)).toBeUndefined();
+    expect(items).toHaveLength(0);
+  });
 });

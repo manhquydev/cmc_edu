@@ -29,6 +29,8 @@ export interface LmsSubject {
   parentAccountId: string;
   studentId?: string;
   kind: 'parent' | 'student';
+  /** From token `tv` claim; validated against ParentAccount.tokenVersion. */
+  tokenVersion?: number;
 }
 
 export interface Context {
@@ -242,8 +244,20 @@ const requireValidFacility = t.middleware(async ({ ctx, next }) => {
 /** Requires a valid staff session AND a facilityId that resolves to a real Facility. */
 export const protectedProcedure = basedProcedure.use(requireSession).use(requireValidFacility);
 
-const requireLmsSession = t.middleware(({ ctx, next }) => {
+const requireLmsSession = t.middleware(async ({ ctx, next }) => {
   if (!ctx.lmsSubject) {
+    throw unauthorized('LMS session required.');
+  }
+  // Soft-disable + forced re-login (ParentAccount.isActive / tokenVersion).
+  const account = await ctx.db.parentAccount.findUnique({
+    where: { id: ctx.lmsSubject.parentAccountId },
+    select: { isActive: true, tokenVersion: true },
+  });
+  if (!account || !account.isActive) {
+    throw unauthorized('LMS session required.');
+  }
+  const claimTv = ctx.lmsSubject.tokenVersion ?? 0;
+  if (claimTv !== account.tokenVersion) {
     throw unauthorized('LMS session required.');
   }
   return next({ ctx: { ...ctx, lmsSubject: ctx.lmsSubject } });

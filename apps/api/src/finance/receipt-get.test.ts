@@ -165,8 +165,9 @@ describe('finance.receiptGet — classBatchCode', () => {
     expect(partial.remainingBalance).toBe(1_500_000);
 
     const mid = await director.finance.receiptGet({ receiptId: created.receipt.id });
-    expect(mid.refunds).toHaveLength(1);
-    expect(mid.refunds[0]?.amount).toBe(500_000);
+    const midRefunds = mid.refunds ?? [];
+    expect(midRefunds).toHaveLength(1);
+    expect(midRefunds[0]?.amount).toBe(500_000);
     expect(mid.refundedTotal).toBe(500_000);
     expect(mid.remainingBalance).toBe(1_500_000);
     expect(mid.viewerCanRefund).toBe(true);
@@ -176,7 +177,7 @@ describe('finance.receiptGet — classBatchCode', () => {
       amount: 1_500_000,
     });
     const full = await director.finance.receiptGet({ receiptId: created.receipt.id });
-    expect(full.refunds).toHaveLength(2);
+    expect(full.refunds ?? []).toHaveLength(2);
     expect(full.refundedTotal).toBe(2_000_000);
     expect(full.remainingBalance).toBe(0);
     expect(full.viewerCanRefund).toBe(false);

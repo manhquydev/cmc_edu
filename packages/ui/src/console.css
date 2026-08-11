@@ -470,6 +470,26 @@ button.console-kanban-card {
   gap: 4px;
   margin-left: auto;
 }
+@media (max-width: 767px) {
+  .console-brand {
+    min-width: 0;
+    overflow: hidden;
+    padding: 0 8px;
+    text-overflow: ellipsis;
+  }
+  .console-menu-sections {
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .console-menu-sections::-webkit-scrollbar {
+    display: none;
+  }
+  .console-systray {
+    flex: 0 0 auto;
+    gap: 0;
+  }
+}
 /* Phase 3: shared template/archetype port */
 .console-wrap { background: var(--cmc-canvas); min-height: 100%; padding: 24px 28px;
   display: flex; flex-direction: column; gap: var(--cmc-gap-section); }

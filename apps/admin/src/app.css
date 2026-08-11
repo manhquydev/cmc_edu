@@ -281,6 +281,19 @@ body {
     border-bottom: 1px solid var(--cmc-border-subtle);
   }
 
+  .shift-registration-day-label {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .shift-registration-day-label > * {
+    max-width: 100%;
+  }
+
+  .shift-registration-quick-actions > button {
+    max-width: 100%;
+  }
+
   .shift-registration-day > :last-child {
     border-bottom: 0;
   }

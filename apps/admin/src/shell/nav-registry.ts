@@ -84,11 +84,16 @@ export const NAV_MODULES: NavModule[] = [
       // every action on the screen goes through, and it is the same key the
       // route gate checks — the menu promises exactly what the screen allows.
       { id: 'class-placement', label: 'Xếp lớp', path: '/finance/class-placement', icon: 'layers', permission: { module: 'enrollment', action: 'enroll' } },
-      // Hoàn tiền: procedure `finance.refundCreate` đã có, nhưng MÀN chưa xây —
-      // `/finance/refund` hiện là EmptyState "Tính năng chưa áp dụng", và sổ
-      // nghiệm thu đã hạ P1-08 khỏi `built` vì đúng lý do đó. Để entry này lại
-      // nghĩa là GĐKD bấm vào menu rồi gặp trang trống ngay ngày go-live.
-      // Khôi phục khi màn được xây, cùng lúc P1-08 quay lại `built`.
+      // Hoàn tiền: index phiếu approved → form /finance/:id ghi refundCreate.
+      // Gate receiptList so GĐĐT can open index/read ledger; write still needs
+      // refundCreate (server + form viewerCanRefund).
+      {
+        id: 'refund',
+        label: 'Hoàn tiền',
+        path: '/finance/refund',
+        icon: 'card',
+        permission: { module: 'finance', action: 'receiptList' },
+      },
     ],
   },
   {

@@ -208,19 +208,16 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/finance/:id', '/finance/refund'],
       models: ['Receipt', 'RefundRecord'],
     },
-    // Không có đường UI cho CẢ hai thao tác — không viết journey được (triage
-    // 2026-07-24, tự kiểm lại 2026-07-25). Bằng chứng:
-    //   rg "trpc\.finance\.receiptCancel\b" apps/admin/src apps/lms/src → 0 matches
-    //   rg "trpc\.finance\.refundCreate\b"  apps/admin/src apps/lms/src → 0 matches
-    //   refund.tsx không gọi tRPC nào — là EmptyState "Tính năng chưa áp dụng".
-    // Entry nav /finance/refund đã bị gỡ CÓ CHỦ Ý (nav-registry.ts, mục "Hoàn
-    // tiền": màn chưa xây → không để GĐKD bấm vào trang trống ngày go-live).
-    // Chờ plan sửa xây màn; khi đó gắn journey + khôi phục entry.
+    // 2026-08-11: hoàn tiền form-depth OK (index /finance/refund + receipt form
+    // refundCreate). Huỷ phiếu (receiptCancel) vẫn 0 matches UI → giữ no-ui-path
+    // cho cả P1-08 tới khi có cancel HITL + journey.
+    //   rg "trpc\.finance\.receiptCancel\b" apps/admin → 0
+    //   rg "trpc\.finance\.refundCreate\b" apps/admin → matches (receipt-detail)
     statusReason: {
       code: 'no-ui-path',
       detail:
-        'Huỷ + hoàn tiền chưa có màn UI: rg receiptCancel/refundCreate trong apps/admin+lms = 0 matches; ' +
-        '/finance/refund là EmptyState, entry nav gỡ chủ ý (nav-registry.ts).',
+        'Hoàn tiền đã có UI (index /finance/refund + form receipt refundCreate); ' +
+        'huỷ phiếu (receiptCancel) vẫn chưa có màn — P1-08 giữ no-ui-path tới khi có cancel HITL + journey.',
     },
   },
   {

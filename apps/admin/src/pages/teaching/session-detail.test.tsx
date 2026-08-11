@@ -98,4 +98,9 @@ describe('SessionDetailPage', () => {
     renderSession('/teaching/sessions/sess-1');
     expect(await screen.findByRole('button', { name: /Lưu điểm danh|Đã lưu/ })).toBeTruthy();
   });
+
+  it('exposes Copy link for classSession deep share', async () => {
+    renderSession('/teaching/sessions/sess-1?tab=overview');
+    expect(await screen.findByRole('button', { name: /Copy link|Đã copy/ })).toBeTruthy();
+  });
 });

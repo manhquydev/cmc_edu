@@ -19,6 +19,7 @@ import {
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
+import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { AttendancePanel } from './panels/attendance-panel.js';
 import { AssessmentPanel } from './panels/assessment-panel.js';
 import { EvidencePanel } from './panels/evidence-panel.js';
@@ -292,7 +293,12 @@ export default function SessionDetailPage() {
             { label: 'Lịch dạy', href: '/teaching/schedule' },
             { label: title },
           ]}
-          actions={<StatusBadge status={session.status} label={session.status} />}
+          actions={
+            <HStack gap={1} style={{ flexWrap: 'wrap' }}>
+              <StatusBadge status={session.status} label={session.status} />
+              <CopyLinkButton mode="go" entity="classSession" id={session.id} />
+            </HStack>
+          }
         />
       }
       tabs={<CmcTabs tabs={tabs} activeTab={activeTab} onTabChange={setTab} />}

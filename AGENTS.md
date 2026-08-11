@@ -54,6 +54,7 @@ request needs product knowledge, read in order:
   "production-ready". Staff đăng nhập bằng email/password; Entra SSO + Graph tạm tắt vì mất quyền M365
   (chi tiết + điều kiện bật lại: `docs/system-architecture.md`, mục Auth Integration).
 - `docs/codebase-summary.md` — current implementation status, phases complete, build verification
+- `docs/WORKSPACE-LEAN.md` — short agent workspace map (plans/reports paths, anti-Duyệt-app rule, CI/PR); live pointer `plans/reports/INDEX-live-260812.md`
 
 ## Operating model (solo + AI-generated code)
 

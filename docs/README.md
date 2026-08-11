@@ -123,3 +123,5 @@ Tài liệu Harness của dự án (không do core quản lý): `HARNESS.md`,
 > **trước khi** code mảng đó.
 
 - `docs/ux-resource-centric-structure.md` — **LOCKED** resource-centric UX structure (anti-bloat, list/form, scope axes)
+- `docs/WORKSPACE-LEAN.md` — short agent workspace entry (plans path, reports naming, no “Duyệt *” products, CI/PR)
+- Live authority pointer (dated): `plans/reports/INDEX-live-260812.md`

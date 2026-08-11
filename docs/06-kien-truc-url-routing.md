@@ -99,8 +99,8 @@ Quy tắc:
 | Bậc lương | `/hr/salary-tiers` | — |
 | Của tôi (KPI + Lương) | `/hr/my?period=` | tab KPI / Lương |
 | Chấm công | `/attendance/check-in-out` | — |
-| Đăng ký ca | `/attendance/shifts?view=kanban` → `/attendance/shifts/{id}` | — |
-| Danh mục ca | `/settings/shift-config` | — |
+| Đăng ký ca | `/hr/shifts?scope=mine\|inbox` → `/hr/shifts/new` → `/hr/shifts/{registrationId}` | Form chi tiết phiếu (record-centric; plan 260811-1408). Không dùng `/attendance/shifts` (stale). |
+| Danh mục ca | `/admin/shift-config` | — |
 
 ### D. Định danh & Quản trị
 | Trang | URL |

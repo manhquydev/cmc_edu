@@ -93,6 +93,8 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   'finance.receiptApprove': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   'finance.refundCreate': ['giam_doc_kinh_doanh'],
   'enrollment.enroll': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'],
+  // LMS foundation spike: unit-range grants — NEVER sale (SoD: money seat ≠ teaching rights).
+  'enrollment.grantUnits': ['giam_doc_dao_tao'],
   'enrollment.blockLms': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   'guardian.approveLink': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'],
   // Money-gate visibility (ADR-B SoD): same roster as receiptApprove — only
@@ -123,6 +125,8 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   'exercise.view': ['giao_vien', 'giam_doc_dao_tao'],
   // Staff email backfill — GĐKD + sale (the roles that capture email at enrollment).
   'parentAccount.updateEmail': ['giam_doc_kinh_doanh', 'sale'],
+  /** Soft-disable parent LMS login + bump tokenVersion (teaching spine P4). */
+  'parentAccount.setActive': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   'submission.grade': ['giao_vien', 'giam_doc_dao_tao'],
   'assessment.draft': ['giao_vien', 'giam_doc_dao_tao'],
   'assessment.confirm': ['giao_vien'],

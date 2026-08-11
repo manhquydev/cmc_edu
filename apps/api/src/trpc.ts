@@ -29,6 +29,8 @@ export interface LmsSubject {
   parentAccountId: string;
   studentId?: string;
   kind: 'parent' | 'student';
+  /** From token `tv` claim; validated against ParentAccount.tokenVersion. */
+  tokenVersion?: number;
 }
 
 export interface Context {
@@ -108,6 +110,7 @@ const AUDIT_EXCLUDED_PATHS = new Set<string>([
   'lmsAuth.requestOtpEmail',
   'lmsAuth.loginStudent',
   'lmsAuth.resetChildPassword',
+  'parentAccount.setActive',
   // Post-review fix: these two already audit via a SHARED helper
   // (auditChildDataAccess → action 'guardian.childDataRead'), not an inline
   // `auditLog.create` literal matching their own path name — a path-by-path
@@ -242,11 +245,13 @@ const requireValidFacility = t.middleware(async ({ ctx, next }) => {
 /** Requires a valid staff session AND a facilityId that resolves to a real Facility. */
 export const protectedProcedure = basedProcedure.use(requireSession).use(requireValidFacility);
 
-const requireLmsSession = t.middleware(({ ctx, next }) => {
-  if (!ctx.lmsSubject) {
+const requireLmsSession = t.middleware(async ({ ctx, next }) => {
+  const { assertLiveLmsSession } = await import('./lms-auth/assert-live-session.js');
+  const live = await assertLiveLmsSession(ctx.db, ctx.lmsSubject);
+  if (!live.ok) {
     throw unauthorized('LMS session required.');
   }
-  return next({ ctx: { ...ctx, lmsSubject: ctx.lmsSubject } });
+  return next({ ctx: { ...ctx, lmsSubject: ctx.lmsSubject! } });
 });
 
 /**

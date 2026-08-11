@@ -113,9 +113,9 @@ flowchart LR
 khoảng `[fromDate,toDate]` active bất kể ShiftGroup. `fromDate` phải tương lai (ICT). sale (SINGLE)
 chọn 1 ca/ngày; giáo viên (MULTIPLE) chọn nhiều — **đúng điểm khác biệt**.
 **Rules/ADR:** **ADR 0040** · QĐ 0035 · TL20 §2. **API:** `shift.submit` (`shift.submit`).
-**UI/URL:** `/hr/shifts`.
+**UI/URL:** `/hr/shifts` (list) → `/hr/shifts/new` (compose) → `/hr/shifts/:registrationId` (form after submit).
 **Traceability:** `nhân viên → WF-P3-03 → "Đăng ký ca làm" → shift.submit →
-/hr/shifts → apps/api/src/shift/register-approve.test.ts → ADR0040, QĐ0035`.
+/hr/shifts/new → /hr/shifts/:id → apps/api/src/shift/register-approve.test.ts → ADR0040, QĐ0035`.
 **Acceptance:** nhóm đúng theo vai trò; sale SINGLE vs GV MULTIPLE; ticket-lock 1 phiếu; overlap guard;
 fromDate tương lai.
 

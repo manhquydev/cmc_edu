@@ -103,6 +103,12 @@ const receiptCreateInput = z.object({
   parentEmail: z.string().email().optional(),
   amount: vndAmountSchema,
   classBatchId: z.string().min(1).optional(),
+  /**
+   * Plan 3: units purchased for the class program.
+   * omit/null → server default LMS_DEFAULT_UNIT_COUNT_ON_RECEIPT (usually 4);
+   * 0 → break-glass (activate enrollment, no learning until admin grants).
+   */
+  unitCount: z.number().int().min(0).max(240).optional(),
   /** Metric & Data Integrity remediation (scenario audit, PO round 3): set
    * ONLY when the caller has confirmed this phone genuinely has a NEW child
    * despite already owning ≥1 provisioned Student in this facility — bypasses
@@ -121,6 +127,8 @@ export interface ReceiptDto {
   studentName: string;
   classBatchId: string | null;
   classBatchCode: string | null;
+  /** Plan 3: purchased unit count; null means use default at provision. */
+  unitCount: number | null;
   netAmount: number;
   createdAt: Date;
   /** Server-derived UI hint: true iff the calling subject has the
@@ -159,6 +167,7 @@ interface ReceiptRow {
   studentName: string;
   classBatchId: string | null;
   classBatch?: { code: string } | null;
+  unitCount?: number | null;
   netAmount: { toNumber(): number };
   createdAt: Date;
   createdById: string;
@@ -187,6 +196,7 @@ function toReceiptDto(
     studentName: receipt.studentName,
     classBatchId: receipt.classBatchId,
     classBatchCode: receipt.classBatch?.code ?? null,
+    unitCount: receipt.unitCount ?? null,
     netAmount,
     createdAt: receipt.createdAt,
     canApprove,
@@ -566,6 +576,17 @@ async function runCancelTransaction(
     }
   }
 
+  // Plan 3: cancelled money must cut unit ranges granted by this receipt even
+  // when another approved receipt keeps the enrollment active (M9). Attendance
+  // history is never erased — only entitlement ranges for this source.
+  const { revokeRangesForReceipt } = await import('../lms-ops/grant-units.js');
+  await revokeRangesForReceipt(tx, {
+    facilityId,
+    receiptId: cancelled.id,
+    actor: actorId,
+    auditAction: 'enrollment.revokeOnCancel',
+  });
+
   await tx.auditLog.create({
     data: {
       actor: actorId,
@@ -685,6 +706,18 @@ async function runRefundTransaction(
     data: { receiptId: locked.id, facilityId, amount, idempotencyKey: idempotencyKey ?? null },
   });
 
+  // Plan 3: on full refund (remaining 0), cut unit ranges granted by this receipt.
+  // Partial refunds keep ranges (ops can revokeFromNext manually). Attendance kept.
+  const remaining = netAmount - (existingSum + amount);
+  if (remaining <= 0) {
+    const { revokeRangesForReceipt } = await import('../lms-ops/grant-units.js');
+    await revokeRangesForReceipt(tx, {
+      facilityId,
+      receiptId: locked.id,
+      actor: 'system',
+    });
+  }
+
   return {
     refund: {
       id: refund.id,
@@ -692,7 +725,7 @@ async function runRefundTransaction(
       amount: refund.amount.toNumber(),
       createdAt: refund.createdAt,
     },
-    remainingBalance: netAmount - (existingSum + amount),
+    remainingBalance: remaining,
   };
 }
 
@@ -903,6 +936,7 @@ export const financeRouter = router({
               parentEmail: input.parentEmail ?? null,
               studentName: input.studentName,
               classBatchId: input.classBatchId,
+              unitCount: input.unitCount ?? null,
               createdById: ctx.subject.userId,
               createdByAppUserId: callerAppUser?.id ?? null,
             },
@@ -962,6 +996,7 @@ export const financeRouter = router({
           classBatchId: receipt.classBatchId,
           studentId: receipt.studentId,
           confirmNewStudent: receipt.confirmNewStudent,
+          unitCount: receipt.unitCount,
         });
       } catch (error) {
         // C1 remediation: a receipt cancelled in the window between this

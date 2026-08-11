@@ -360,6 +360,10 @@ model Receipt {
   /// NOT_FOUND check); nullable at the schema level only because `Receipt`
   /// predates `ClassBatch` (migration safety), not because the app allows it.
   classBatchId        String?
+  /// Plan 3 money bridge: how many curriculum units this receipt purchases.
+  /// Null = use LMS_DEFAULT_UNIT_COUNT_ON_RECEIPT (ops default); 0 = break-glass
+  /// (activate enrollment, no range grant — no learning until admin grants).
+  unitCount           Int?
   /// Plain scalar — references AppUser.id (arrives with the HR/identity phase).
   approvedById        String?
   /// Plain scalar — references AppUser.id (arrives with the HR/identity phase).
@@ -453,6 +457,10 @@ model ParentAccount {
   /// the parent sets one or staff captures it on receiptCreate.
   email                String?               @unique
   passwordHash         String?
+  /// Soft-disable LMS login without deleting Guardian links (teaching spine P4).
+  isActive             Boolean               @default(true)
+  /// Bumped on deactivation / forced re-login; must match LMS token `tv` claim.
+  tokenVersion         Int                   @default(0)
   createdAt            DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime              @updatedAt @db.Timestamptz(3)
   studentAccounts      StudentAccount[]
@@ -566,16 +574,39 @@ model Enrollment {
   /// (app-level NOT_FOUND check) before the DB FK constraint is even reached.
   classBatchId String
   status       EnrollmentStatus @default(reserved)
+  /// Soft leave from this class: day-gate for roster (covers session day == archive day).
+  /// Null = still in class. LMS foundation spike (class-unit-spec archive semantics).
+  archivedAt   DateTime?        @db.Timestamptz(3)
   createdAt    DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime         @updatedAt @db.Timestamptz(3)
 
-  student     Student      @relation(fields: [studentId], references: [id])
-  classBatch  ClassBatch   @relation(fields: [classBatchId], references: [id])
+  student     Student                @relation(fields: [studentId], references: [id])
+  classBatch  ClassBatch             @relation(fields: [classBatchId], references: [id])
   attendances Attendance[]
+  unitRanges  EnrollmentUnitRange[]
 
   @@index([facilityId])
   @@index([studentId])
   @@index([classBatchId])
+}
+
+/// Sold / granted continuous unit span within a program orderGlobal axis.
+/// Teaching roster gate = Enrollment.status active AND range covers session unit stamp.
+/// facilityId denormalized for FORCE RLS (never join-only).
+model EnrollmentUnitRange {
+  id              String   @id @default(uuid())
+  facilityId      String
+  enrollmentId    String
+  fromOrderGlobal Int
+  toOrderGlobal   Int
+  /// Idempotency key for provision grants: at most one range per receipt.
+  sourceReceiptId String?  @unique
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([facilityId])
+  @@index([enrollmentId])
 }
 
 // ---------------------------------------------------------------------------
@@ -637,23 +668,34 @@ model ClassBatch {
   /// P3-I: real FK to AppUser (nullable — backfill; old rows keep plain scalar).
   teacherAppUserId   String?
   createdByAppUserId String?
+  /// LMS unit neo: start unit of the class (required for unit-stamped create path).
+  startUnitId        String?
+  /// LMS unit neo: current unit pointer for progression (defaults to startUnitId at create).
+  currentUnitId      String?
+  /// LMS unit neo: anchor date (ICT day) for session-count progression.
+  currentUnitAnchor  DateTime? @db.Date
   createdAt          DateTime @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime @updatedAt @db.Timestamptz(3)
 
-  course           Course         @relation(fields: [courseId], references: [id])
-  room             Room?          @relation(fields: [roomId], references: [id])
+  course           Course          @relation(fields: [courseId], references: [id])
+  room             Room?           @relation(fields: [roomId], references: [id])
+  startUnit        CurriculumUnit? @relation("ClassBatchStartUnit", fields: [startUnitId], references: [id])
+  currentUnit      CurriculumUnit? @relation("ClassBatchCurrentUnit", fields: [currentUnitId], references: [id])
   scheduleSlots    ScheduleSlot[]
   classSessions    ClassSession[]
   enrollments      Enrollment[]
   receipts         Receipt[]
   finalGrades      FinalGrade[]
-  teacherAppUser   AppUser?       @relation("ClassBatchTeacher", fields: [teacherAppUserId], references: [id])
-  createdByAppUser AppUser?       @relation("ClassBatchCreatedBy", fields: [createdByAppUserId], references: [id])
+  exerciseItems    ClassExerciseItem[]
+  teacherAppUser   AppUser?        @relation("ClassBatchTeacher", fields: [teacherAppUserId], references: [id])
+  createdByAppUser AppUser?        @relation("ClassBatchCreatedBy", fields: [createdByAppUserId], references: [id])
 
   @@unique([facilityId, code])
   @@index([facilityId])
   @@index([courseId])
   @@index([roomId])
+  @@index([startUnitId])
+  @@index([currentUnitId])
 }
 
 /// The weekly recurring schedule pattern a `ClassBatch` is generated from
@@ -723,6 +765,7 @@ model ClassSession {
   attendances            Attendance[]
   qualitativeAssessments QualitativeAssessment[]
   sessionEvidence        SessionEvidence?
+  deliveredExercise      SessionExercise?
   /// Self 1:1 relation: the original session this row is a makeup for
   /// (nullable — most sessions are not makeups), and the reverse pointer
   /// (the makeup session generated FROM this row, if any).
@@ -747,18 +790,25 @@ model ClassSession {
 /// RLS** (QĐ 0021) — the curriculum is shared system-wide across every
 /// facility, unlike `Course`/`Room`/`ClassBatch` above.
 model CurriculumUnit {
-  id         String   @id @default(uuid())
-  program    Program
-  level      Int
-  monthIndex Int
-  unitType   UnitType
-  title      String
-  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  id          String   @id @default(uuid())
+  program     Program
+  level       Int
+  monthIndex  Int
+  unitType    UnitType
+  title       String
+  /// Contiguous teaching order within a program (LMS entitlement axis).
+  /// Unique with program — sold unit ranges store these integers.
+  orderGlobal Int
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
 
-  classSessions ClassSession[]
-  exercises     Exercise[]
+  classSessions      ClassSession[]
+  exercises          Exercise[]
+  startOfBatches     ClassBatch[] @relation("ClassBatchStartUnit")
+  currentOfBatches   ClassBatch[] @relation("ClassBatchCurrentUnit")
 
+  @@unique([program, orderGlobal])
   @@index([program, level, monthIndex])
+  @@index([program, orderGlobal])
 }
 
 /// PDF-based exercise (docs/19 §3, WF-P2-04): `basePdfRef` is a `BlobStorage`
@@ -780,12 +830,58 @@ model Exercise {
   createdAt        DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime       @updatedAt @db.Timestamptz(3)
 
-  curriculumUnit CurriculumUnit @relation(fields: [curriculumUnitId], references: [id])
-  submissions    Submission[]
+  curriculumUnit   CurriculumUnit      @relation(fields: [curriculumUnitId], references: [id])
+  submissions      Submission[]
+  classExerciseItems ClassExerciseItem[]
+  sessionDeliveries  SessionExercise[]
 
   // One exercise per (unit, type) — TL19 §3 "unique [curriculumUnitId, type]".
   @@unique([curriculumUnitId, type])
   @@index([curriculumUnitId])
+}
+
+// ---------------------------------------------------------------------------
+// Teaching spine — exercise delivery (class-unit-spec §8).
+// Frozen class sequence + one SessionExercise per delivered session.
+// Facility-scoped + FORCE RLS (same pattern as EnrollmentUnitRange).
+// ---------------------------------------------------------------------------
+
+/// Frozen homework sequence for a class. Positions already delivered
+/// (SessionExercise) must not be rewritten on sequence reassignment.
+model ClassExerciseItem {
+  id           String   @id @default(uuid())
+  facilityId   String
+  classBatchId String
+  position     Int
+  exerciseId   String
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  classBatch ClassBatch @relation(fields: [classBatchId], references: [id], onDelete: Cascade)
+  exercise   Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+
+  @@unique([classBatchId, position])
+  @@index([facilityId])
+  @@index([classBatchId])
+  @@index([exerciseId])
+}
+
+/// One delivered homework instance for a class session (at most one per session).
+/// Cancelled sessions never get a delivery (worker skips them).
+model SessionExercise {
+  id             String   @id @default(uuid())
+  facilityId     String
+  classSessionId String   @unique
+  exerciseId     String
+  /// Position in the class frozen sequence at delivery time.
+  position       Int
+  deliveredAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  exercise     Exercise     @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+
+  @@index([facilityId])
+  @@index([exerciseId])
+  @@index([position])
 }
 
 // ---------------------------------------------------------------------------

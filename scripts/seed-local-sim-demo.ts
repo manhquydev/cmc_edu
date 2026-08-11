@@ -111,6 +111,18 @@ async function main() {
     process.stderr.write(`[curriculum-ensure] ${viaTsx.stderr}`);
   }
 
+  // Canonical shift catalog (3 ca Sale SINGLE + 3 ca GV MULTIPLE). Repairs
+  // inverted selectionMode / missing Ca 3 left by ad-hoc demo groups.
+  const shiftEnsure = spawnSync('npx', ['tsx', 'scripts/ensure-shift-catalog.ts'], {
+    env: { ...process.env, LOCAL_SIM_SEED_ALLOW: '1' },
+    encoding: 'utf8',
+    cwd: new URL('..', import.meta.url).pathname,
+  });
+  if (shiftEnsure.stdout) process.stdout.write(shiftEnsure.stdout);
+  if (shiftEnsure.status !== 0 && shiftEnsure.stderr) {
+    process.stderr.write(`[shift-catalog-ensure] ${shiftEnsure.stderr}`);
+  }
+
   const accounts: Record<string, string> = {};
 
   // Written after every rotation, not at the end: a password that has already

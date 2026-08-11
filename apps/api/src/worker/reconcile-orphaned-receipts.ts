@@ -52,6 +52,8 @@ interface OrphanReceiptRow {
    * so a replayed orphan-recovery never bypasses the caller's original
    * new-vs-existing-child confirmation. */
   confirmNewStudent: boolean;
+  /** Plan 3: package unit count for grantUnitsFromReceipt (null → default env). */
+  unitCount: number | null;
 }
 
 export type ReconcileOutcome =
@@ -61,7 +63,8 @@ export type ReconcileOutcome =
 /**
  * Finds every approved Receipt whose provisioning chain is incomplete —
  * missing the resolved Student, the Guardian link, an active Enrollment for
- * its own classBatchId, or the StudentAccount — and replays
+ * its own classBatchId, the StudentAccount, or (Plan 3) a unit range when the
+ * receipt is not break-glass (`unitCount = 0`) — and replays
  * `provisionFromReceipt` for it. One receipt's failure (e.g. still missing
  * `classBatchId`) does not abort the batch — it is left for the next drain
  * cycle, recorded via the existing `provisioning.retry_pending` audit marker
@@ -95,6 +98,8 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
             r."classBatchId",
             r."studentId",
             r."confirmNewStudent",
+            r."unitCount",
+            r."netAmount",
             COALESCE(s_new."id", s_renewal."id") AS "resolvedStudentId"
           FROM "Receipt" r
           LEFT JOIN "Student" s_new ON s_new."createdByReceiptId" = r."id"
@@ -108,7 +113,8 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
           resolved."studentName",
           resolved."classBatchId",
           resolved."studentId",
-          resolved."confirmNewStudent"
+          resolved."confirmNewStudent",
+          resolved."unitCount"
         FROM resolved
         WHERE resolved."resolvedStudentId" IS NULL
            OR NOT EXISTS (
@@ -126,6 +132,40 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
                     AND e."status" = 'active'
                 )
               )
+           -- Plan 3: identity chain complete but unit range never granted
+           -- (crash after activate / grant rethrow before range insert).
+           -- unitCount = 0 is intentional break-glass (no range expected).
+           -- Full refund keeps status=approved but deliberately deletes ranges —
+           -- residual must be > 0 or every refunded receipt forever fails the drain.
+           -- Must NOT re-grant after intentional revoke (refund/cancel/revokeFromNext):
+           -- a prior grant audit for this sourceReceiptId means entitlement was once
+           -- delivered; missing row then means cut, not crash-before-first-grant.
+           OR (
+                resolved."classBatchId" IS NOT NULL
+                AND (resolved."unitCount" IS NULL OR resolved."unitCount" <> 0)
+                AND resolved."resolvedStudentId" IS NOT NULL
+                AND EXISTS (
+                  SELECT 1 FROM "Enrollment" e
+                  WHERE e."studentId" = resolved."resolvedStudentId"
+                    AND e."classBatchId" = resolved."classBatchId"
+                    AND e."status" = 'active'
+                )
+                AND NOT EXISTS (
+                  SELECT 1 FROM "EnrollmentUnitRange" eur
+                  WHERE eur."sourceReceiptId" = resolved."receiptId"
+                )
+                AND (
+                  resolved."netAmount" - COALESCE((
+                    SELECT SUM(rr."amount") FROM "RefundRecord" rr
+                    WHERE rr."receiptId" = resolved."receiptId"
+                  ), 0)
+                ) > 0
+                AND NOT EXISTS (
+                  SELECT 1 FROM "AuditLog" al
+                  WHERE al."action" = 'enrollment.grantUnitsFromReceipt'
+                    AND al."data"->>'sourceReceiptId' = resolved."receiptId"::text
+                )
+              )
       `,
     { bypass: true },
   );
@@ -141,6 +181,7 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
         classBatchId: receipt.classBatchId,
         studentId: receipt.studentId,
         confirmNewStudent: receipt.confirmNewStudent,
+        unitCount: receipt.unitCount,
       });
       outcomes.push({ receiptId: receipt.id, status: 'recovered', result });
       await db.auditLog.create({

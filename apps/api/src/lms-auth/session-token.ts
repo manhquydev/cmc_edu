@@ -20,6 +20,8 @@ export interface LmsTokenClaims {
   parentAccountId: string;
   studentId?: string;
   kind: 'parent' | 'student';
+  /** ParentAccount.tokenVersion at issue time; rejected if account bumps. */
+  tokenVersion?: number;
 }
 
 /**
@@ -58,6 +60,7 @@ export function signLmsToken(
       parentAccountId: claims.parentAccountId,
       ...(claims.studentId !== undefined && { studentId: claims.studentId }),
       kind: claims.kind,
+      tv: claims.tokenVersion ?? 0,
       iat: now,
       exp: now + Math.floor(ttlMs / 1000),
     }),
@@ -97,7 +100,8 @@ export function verifyLmsToken(token: string, secret: string): LmsTokenClaims | 
   const exp = raw['exp'];
   if (typeof exp !== 'number' || exp < Math.floor(Date.now() / 1000)) return null;
 
-  const { parentAccountId, studentId, kind } = raw;
+  const { parentAccountId, studentId, kind, tv } = raw;
+  const tokenVersion = typeof tv === 'number' && Number.isInteger(tv) ? tv : 0;
   if (typeof parentAccountId !== 'string') return null;
   if (kind !== 'parent' && kind !== 'student') return null;
 
@@ -105,5 +109,6 @@ export function verifyLmsToken(token: string, secret: string): LmsTokenClaims | 
     parentAccountId,
     studentId: typeof studentId === 'string' ? studentId : undefined,
     kind,
+    tokenVersion,
   };
 }

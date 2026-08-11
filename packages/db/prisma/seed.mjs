@@ -75,8 +75,22 @@ async function seedCurriculumUnits(db) {
 
   const units = await db.curriculumUnit.createMany({
     data: [
-      { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'Bài 1: Làm quen' },
-      { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'REVIEW', title: 'Ôn tập tháng 1' },
+      {
+        program: 'UCREA',
+        level: 1,
+        monthIndex: 1,
+        unitType: 'LESSON',
+        title: 'Bài 1: Làm quen',
+        orderGlobal: 1,
+      },
+      {
+        program: 'UCREA',
+        level: 1,
+        monthIndex: 1,
+        unitType: 'REVIEW',
+        title: 'Ôn tập tháng 1',
+        orderGlobal: 2,
+      },
     ],
   });
   console.log(`Seeded ${units.count} CurriculumUnit rows.`);

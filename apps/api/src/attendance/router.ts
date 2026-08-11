@@ -21,6 +21,7 @@ import { withFacility, type Prisma } from '@cmc/db';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { lmsProcedure, requireLmsParent, requirePermission, router, scoped } from '../trpc.js';
 import { auditChildDataAccess, getApprovedChildren } from '../guardian/approved-children.js';
+import { onRoster } from '../lms-ops/on-roster.js';
 import { recomputeFinalGrade } from '../submission/router.js';
 import { assertTeacherOwnsClass } from './assert-teacher-owns-class.js';
 
@@ -101,6 +102,42 @@ async function loadGatedSession(
   return session;
 }
 
+/** Roles that may mark attendance outside the teacher time window. */
+const ATTENDANCE_WINDOW_OVERRIDE_ROLES = new Set([
+  'super_admin',
+  'giam_doc_dao_tao',
+  'giam_doc_kinh_doanh',
+]);
+
+/**
+ * Teacher window gate (phase 5). Default: ON in production; OFF in dev/test
+ * unless ATTENDANCE_WINDOW_ENFORCED=1 (mirrors open-tier kill-switch style).
+ */
+export function isAttendanceWindowEnforced(): boolean {
+  const v = (process.env.ATTENDANCE_WINDOW_ENFORCED ?? '').toLowerCase();
+  if (v === '0' || v === 'false' || v === 'off') return false;
+  if (v === '1' || v === 'true' || v === 'on') return true;
+  return process.env.NODE_ENV === 'production';
+}
+
+/** Teacher window: [start − 30m, end + 2h]. Directors override. */
+export function assertAttendanceWindow(
+  session: { startTime: Date; endTime: Date },
+  subject: { roles: readonly string[] },
+  now: Date = new Date(),
+): void {
+  if (!isAttendanceWindowEnforced()) return;
+  if (subject.roles.some((r) => ATTENDANCE_WINDOW_OVERRIDE_ROLES.has(r))) return;
+  const openAt = session.startTime.getTime() - 30 * 60_000;
+  const closeAt = session.endTime.getTime() + 2 * 60 * 60_000;
+  const t = now.getTime();
+  if (t < openAt || t > closeAt) {
+    throw badRequest(
+      'Attendance window closed for teachers (open 30 minutes before start, 2 hours after end). Ask a director to override.',
+    );
+  }
+}
+
 /** Gates 2-3: the enrollment resolves (in `facilityId`), matches the
  * session's class, and is `active`. */
 async function loadGatedEnrollment(
@@ -109,7 +146,13 @@ async function loadGatedEnrollment(
   enrollmentId: string,
   session: { classBatchId: string },
 ) {
-  const enrollment = await tx.enrollment.findFirst({ where: { id: enrollmentId, facilityId } });
+  const enrollment = await tx.enrollment.findFirst({
+    where: { id: enrollmentId, facilityId },
+    include: {
+      student: { select: { lifecycle: true } },
+      unitRanges: { select: { fromOrderGlobal: true, toOrderGlobal: true } },
+    },
+  });
   if (!enrollment) {
     throw badRequest('Enrollment not found.');
   }
@@ -122,6 +165,40 @@ async function loadGatedEnrollment(
   return enrollment;
 }
 
+/**
+ * Plan 2 dual-gate write path: unit-stamped sessions only accept students
+ * on roster (active ∩ range cover). Unstamped sessions keep legacy
+ * active-only gate so pre-unit classes still mark attendance.
+ */
+async function assertDualGateForMark(
+  tx: Prisma.TransactionClient,
+  session: { curriculumUnitId: string | null; sessionDate: Date },
+  enrollment: {
+    status: string;
+    archivedAt: Date | null;
+    student: { lifecycle: string };
+    unitRanges: { fromOrderGlobal: number; toOrderGlobal: number }[];
+  },
+): Promise<void> {
+  if (!session.curriculumUnitId) return;
+
+  const unit = await tx.curriculumUnit.findUnique({
+    where: { id: session.curriculumUnitId },
+    select: { orderGlobal: true },
+  });
+  const ok = onRoster({
+    enrollmentStatus: enrollment.status,
+    studentLifecycle: enrollment.student.lifecycle,
+    archivedDayUtc: enrollment.archivedAt,
+    sessionDate: session.sessionDate,
+    sessionOrderGlobal: unit?.orderGlobal ?? null,
+    ranges: enrollment.unitRanges,
+  });
+  if (!ok) {
+    throw badRequest('Student is not entitled for this session unit (dual-gate roster).');
+  }
+}
+
 export const attendanceRouter = router({
   // UPSERT — re-mark allowed, last-write-wins; every write is audited.
   mark: requirePermission('attendance', 'mark')
@@ -132,7 +209,9 @@ export const attendanceRouter = router({
       return withFacility(ctx.db, facilityId, async (tx) => {
         const session = await loadGatedSession(tx, facilityId, input.sessionId);
         await assertTeacherOwnsClass(tx, facilityId, ctx.subject, session.classBatchId);
+        assertAttendanceWindow(session, ctx.subject);
         const enrollment = await loadGatedEnrollment(tx, facilityId, input.enrollmentId, session);
+        await assertDualGateForMark(tx, session, enrollment);
 
         const markedAt = new Date();
         const attendance = await tx.attendance.upsert({
@@ -194,6 +273,7 @@ export const attendanceRouter = router({
       return withFacility(ctx.db, facilityId, async (tx) => {
         const session = await loadGatedSession(tx, facilityId, input.sessionId);
         await assertTeacherOwnsClass(tx, facilityId, ctx.subject, session.classBatchId);
+        assertAttendanceWindow(session, ctx.subject);
 
         // Gates 2-3, batched: one `findMany` for the whole roster instead of
         // an N-round-trip `loadGatedEnrollment` per entry (up to 200 entries
@@ -202,8 +282,21 @@ export const attendanceRouter = router({
         const enrollmentIds = input.entries.map((e) => e.enrollmentId);
         const enrollments = await tx.enrollment.findMany({
           where: { id: { in: enrollmentIds }, facilityId },
+          include: {
+            student: { select: { lifecycle: true } },
+            unitRanges: { select: { fromOrderGlobal: true, toOrderGlobal: true } },
+          },
         });
         const enrollmentById = new Map(enrollments.map((e) => [e.id, e]));
+        // Preload session unit once for dual-gate (unit-stamped sessions only).
+        let sessionOrderGlobal: number | null = null;
+        if (session.curriculumUnitId) {
+          const unit = await tx.curriculumUnit.findUnique({
+            where: { id: session.curriculumUnitId },
+            select: { orderGlobal: true },
+          });
+          sessionOrderGlobal = unit?.orderGlobal ?? null;
+        }
         const gatedEntries = input.entries.map((entry) => {
           const enrollment = enrollmentById.get(entry.enrollmentId);
           if (!enrollment) {
@@ -214,6 +307,19 @@ export const attendanceRouter = router({
           }
           if (enrollment.status !== 'active') {
             throw badRequest('Enrollment is not active.');
+          }
+          if (session.curriculumUnitId) {
+            const ok = onRoster({
+              enrollmentStatus: enrollment.status,
+              studentLifecycle: enrollment.student.lifecycle,
+              archivedDayUtc: enrollment.archivedAt,
+              sessionDate: session.sessionDate,
+              sessionOrderGlobal,
+              ranges: enrollment.unitRanges,
+            });
+            if (!ok) {
+              throw badRequest('Student is not entitled for this session unit (dual-gate roster).');
+            }
           }
           return { entry, enrollment };
         });

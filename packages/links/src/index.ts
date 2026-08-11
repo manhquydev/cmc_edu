@@ -18,6 +18,8 @@ export const links = {
   receipt: (id: string) => `/finance/${id}`,
   student: (id: string) => `/admin/students/${id}`,
   classBatch: (id: string) => `/admin/classes/${id}`,
+  /** ShiftRegistration form (Work Schedule) — UUID. */
+  shiftRegistration: (id: string) => `/hr/shifts/${id}`,
 } as const;
 
 export type LinkEntity = keyof typeof links;
@@ -40,6 +42,21 @@ export function resolveGo(entity: string, id: string): string | null {
 function withQuery(path: string, params: URLSearchParams): string {
   const qs = params.toString();
   return qs ? `${path}?${qs}` : path;
+}
+
+/** Workspace list for shift registrations (not a /go entity). */
+export function shiftRegistrationsPath(q?: {
+  scope?: 'mine' | 'inbox';
+}): string {
+  const params = new URLSearchParams();
+  if (q?.scope === 'mine' || q?.scope === 'inbox') {
+    params.set('scope', q.scope);
+  }
+  return withQuery('/hr/shifts', params);
+}
+
+export function shiftRegistrationNewPath(): string {
+  return '/hr/shifts/new';
 }
 
 /** Workspace deep-link builders (query params — not routed through /go). */

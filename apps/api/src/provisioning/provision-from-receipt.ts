@@ -91,6 +91,11 @@ export interface ReceiptForProvisioning {
    * prefer reuse over a duplicate) for call sites built before this field
    * existed. */
   confirmNewStudent?: boolean;
+  /**
+   * Plan 3: units purchased. null/undefined → LMS_DEFAULT_UNIT_COUNT_ON_RECEIPT;
+   * 0 → break-glass (no range).
+   */
+  unitCount?: number | null;
 }
 
 export interface ProvisionResult {
@@ -430,6 +435,19 @@ export async function provisionFromReceipt(
     parentAccount.id,
   );
 
+  // Plan 3: unit range grant AFTER activate (money already committed — ADR 0041).
+  // Failure MUST rethrow so receiptApprove records retry_pending (money stays).
+  // Intentional skip only: unitCount === 0 → skipped_break_glass.
+  // Idempotent via EnrollmentUnitRange.sourceReceiptId.
+  const { grantUnitsFromReceipt } = await import('../lms-ops/grant-units.js');
+  const unitGrant = await grantUnitsFromReceipt(db, {
+    facilityId: receipt.facilityId,
+    enrollmentId: enrollment.id,
+    receiptId: receipt.id,
+    unitCount: receipt.unitCount,
+    actor: 'system',
+  });
+
   // phase-04: one summary audit row on successful provisioning completion. The
   // tRPC audit middleware (trpc.ts) only sees the mutation call itself
   // (finance.receiptApprove); provisioning runs AFTER the money transaction and
@@ -454,6 +472,11 @@ export async function provisionFromReceipt(
           enrollmentId: enrollment.id,
           guardianId: guardian.id,
           studentAccountId: studentAccount.id,
+          unitGrantStatus: unitGrant.status,
+          unitRangeId:
+            unitGrant.status === 'granted' || unitGrant.status === 'idempotent'
+              ? unitGrant.range.id
+              : null,
         },
       },
     });

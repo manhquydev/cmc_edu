@@ -340,4 +340,95 @@ describe('exercise.openForStudent / listForStudent (US-015, ADR 0038 Tier A/B)',
       studentCaller(otherEnrollment.studentId).exercise.openForStudent(),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
+
+  // ---- Plan 2: open-tier kill-switch + entitlement gate ----
+
+  it('LMS_OPEN_TIER_ENABLED=0 returns empty open set even when Tier A would open', async () => {
+    const unit = await seedUnit();
+    const exercise = await publishedExerciseFor(unit.id);
+    await seedClassSession({
+      facilityId: facility.id,
+      classBatchId: classBatch.id,
+      curriculumUnitId: unit.id,
+      isMakeup: false,
+      endTime: PAST,
+    });
+    const enrollment = await seedStudent();
+
+    const prev = process.env.LMS_OPEN_TIER_ENABLED;
+    process.env.LMS_OPEN_TIER_ENABLED = '0';
+    try {
+      const result = await studentCaller(enrollment.studentId).exercise.openForStudent();
+      expect(result.items.find((e) => e.id === exercise.id)).toBeUndefined();
+      expect(result.items).toEqual([]);
+    } finally {
+      if (prev === undefined) delete process.env.LMS_OPEN_TIER_ENABLED;
+      else process.env.LMS_OPEN_TIER_ENABLED = prev;
+    }
+  });
+
+  it('LMS_ENTITLEMENT_GATE=1 hides units outside EnrollmentUnitRange', async () => {
+    const unit = await seedUnit();
+    const exercise = await publishedExerciseFor(unit.id);
+    await seedClassSession({
+      facilityId: facility.id,
+      classBatchId: classBatch.id,
+      curriculumUnitId: unit.id,
+      isMakeup: false,
+      endTime: PAST,
+    });
+    const enrollment = await seedStudent();
+    // No unit ranges granted — entitlement gate must empty the open set.
+
+    const prevOpen = process.env.LMS_OPEN_TIER_ENABLED;
+    const prevGate = process.env.LMS_ENTITLEMENT_GATE;
+    process.env.LMS_OPEN_TIER_ENABLED = '1';
+    process.env.LMS_ENTITLEMENT_GATE = '1';
+    try {
+      const result = await studentCaller(enrollment.studentId).exercise.openForStudent();
+      expect(result.items.find((e) => e.id === exercise.id)).toBeUndefined();
+    } finally {
+      if (prevOpen === undefined) delete process.env.LMS_OPEN_TIER_ENABLED;
+      else process.env.LMS_OPEN_TIER_ENABLED = prevOpen;
+      if (prevGate === undefined) delete process.env.LMS_ENTITLEMENT_GATE;
+      else process.env.LMS_ENTITLEMENT_GATE = prevGate;
+    }
+  });
+
+  it('LMS_ENTITLEMENT_GATE=1 keeps units covered by EnrollmentUnitRange', async () => {
+    const unit = await seedUnit();
+    const exercise = await publishedExerciseFor(unit.id);
+    await seedClassSession({
+      facilityId: facility.id,
+      classBatchId: classBatch.id,
+      curriculumUnitId: unit.id,
+      isMakeup: false,
+      endTime: PAST,
+    });
+    const enrollment = await seedStudent();
+    await testDbBypass((tx) =>
+      tx.enrollmentUnitRange.create({
+        data: {
+          facilityId: facility.id,
+          enrollmentId: enrollment.id,
+          fromOrderGlobal: unit.orderGlobal,
+          toOrderGlobal: unit.orderGlobal,
+        },
+      }),
+    );
+
+    const prevOpen = process.env.LMS_OPEN_TIER_ENABLED;
+    const prevGate = process.env.LMS_ENTITLEMENT_GATE;
+    process.env.LMS_OPEN_TIER_ENABLED = '1';
+    process.env.LMS_ENTITLEMENT_GATE = '1';
+    try {
+      const result = await studentCaller(enrollment.studentId).exercise.openForStudent();
+      expect(result.items.map((e) => e.id)).toContain(exercise.id);
+    } finally {
+      if (prevOpen === undefined) delete process.env.LMS_OPEN_TIER_ENABLED;
+      else process.env.LMS_OPEN_TIER_ENABLED = prevOpen;
+      if (prevGate === undefined) delete process.env.LMS_ENTITLEMENT_GATE;
+      else process.env.LMS_ENTITLEMENT_GATE = prevGate;
+    }
+  });
 });

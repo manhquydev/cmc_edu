@@ -21,6 +21,7 @@
 
 import type { PrismaClient, Prisma } from '@cmc/db';
 import { withFacility } from '@cmc/db';
+import { isEntitled } from '@cmc/domain-lms';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { lmsProcedure, requireLmsStudent, router } from '../trpc.js';
 import { toExerciseDto, type ExerciseDto } from './router.js';
@@ -70,6 +71,22 @@ export async function loadLmsStudent(
   return student;
 }
 
+/**
+ * Kill-switch for ADR 0038 open-tier (Plan 2 teaching spine).
+ * - unset / "1" / "true" → open-tier ON (legacy default)
+ * - "0" / "false" / "off" → open-tier OFF (empty open set)
+ */
+export function isOpenTierEnabled(): boolean {
+  const v = (process.env.LMS_OPEN_TIER_ENABLED ?? '1').toLowerCase();
+  return v !== '0' && v !== 'false' && v !== 'off';
+}
+
+/** When on, open units must also be covered by EnrollmentUnitRange (dual-gate homework). */
+export function isEntitlementGateOnOpenTier(): boolean {
+  const v = (process.env.LMS_ENTITLEMENT_GATE ?? '0').toLowerCase();
+  return v === '1' || v === 'true' || v === 'on';
+}
+
 /** ADR 0038 Tier A + Tier B, resolved to the set of `curriculumUnitId`s open
  * for `studentId` right now. Empty set for a `blocked_lms` student (the base
  * condition) without running either tier's query. */
@@ -80,10 +97,29 @@ async function resolveOpenCurriculumUnitIds(
   if (student.lifecycle === 'blocked_lms') {
     return new Set();
   }
+  // When open-tier kill-switch is OFF, homework opens only via SessionExercise
+  // delivery (dual-gate roster membership), not ADR 0038 Tier A/B.
+  if (!isOpenTierEnabled()) {
+    const { deliveredExerciseIdsForStudent } = await import('../lms-ops/exercise-delivery.js');
+    const exerciseIds = await deliveredExerciseIdsForStudent(tx, student);
+    if (exerciseIds.size === 0) return new Set();
+    const exercises = await tx.exercise.findMany({
+      where: { id: { in: [...exerciseIds] }, status: 'published' },
+      select: { curriculumUnitId: true },
+    });
+    return new Set(exercises.map((e) => e.curriculumUnitId));
+  }
 
+  const entitlementOn = isEntitlementGateOnOpenTier();
   const activeEnrollments = await tx.enrollment.findMany({
     where: { studentId: student.id, status: 'active' },
-    select: { classBatchId: true },
+    select: {
+      classBatchId: true,
+      classBatch: { select: { program: true } },
+      ...(entitlementOn
+        ? { unitRanges: { select: { fromOrderGlobal: true, toOrderGlobal: true } } }
+        : {}),
+    },
   });
   const classBatchIds = activeEnrollments.map((e) => e.classBatchId);
 
@@ -133,7 +169,33 @@ async function resolveOpenCurriculumUnitIds(
     if (unitId) openUnitIds.add(unitId);
   }
 
-  return openUnitIds;
+  if (!entitlementOn || openUnitIds.size === 0) {
+    return openUnitIds;
+  }
+
+  // Intersect open units with sold/granted ranges, scoped by program
+  // (orderGlobal is unique per program, not globally — ADR 0046).
+  const units = await tx.curriculumUnit.findMany({
+    where: { id: { in: [...openUnitIds] } },
+    select: { id: true, orderGlobal: true, program: true },
+  });
+  const rangesByProgram = new Map<string, { fromOrderGlobal: number; toOrderGlobal: number }[]>();
+  for (const e of activeEnrollments) {
+    const program = e.classBatch.program;
+    const ranges =
+      'unitRanges' in e && Array.isArray(e.unitRanges)
+        ? (e.unitRanges as { fromOrderGlobal: number; toOrderGlobal: number }[])
+        : [];
+    const bucket = rangesByProgram.get(program) ?? [];
+    bucket.push(...ranges);
+    rangesByProgram.set(program, bucket);
+  }
+  const filtered = new Set<string>();
+  for (const u of units) {
+    const ranges = rangesByProgram.get(u.program) ?? [];
+    if (isEntitled(ranges, u.orderGlobal)) filtered.add(u.id);
+  }
+  return filtered;
 }
 
 /** The set of `curriculumUnitId`s currently open for `student` (ADR 0038). */
@@ -144,11 +206,26 @@ export function getOpenCurriculumUnitIdsForStudent(
   return withFacility(db, student.facilityId, (tx) => resolveOpenCurriculumUnitIds(tx, student));
 }
 
-/** Every `published` Exercise whose unit is currently open for `student`. */
+/** Every `published` Exercise open for `student` (ADR 0038 or delivery path). */
 export async function listOpenExercisesForStudent(
   db: PrismaClient,
   student: LmsStudent,
 ): Promise<ExerciseDto[]> {
+  // Kill-switch OFF: exact delivered exercise ids (not whole unit catalog).
+  if (!isOpenTierEnabled()) {
+    return withFacility(db, student.facilityId, async (tx) => {
+      if (student.lifecycle === 'blocked_lms') return [];
+      const { deliveredExerciseIdsForStudent } = await import('../lms-ops/exercise-delivery.js');
+      const exerciseIds = await deliveredExerciseIdsForStudent(tx, student);
+      if (exerciseIds.size === 0) return [];
+      const exercises = await tx.exercise.findMany({
+        where: { id: { in: [...exerciseIds] }, status: 'published' },
+        orderBy: { createdAt: 'asc' },
+      });
+      return exercises.map(toExerciseDto);
+    });
+  }
+
   const openUnitIds = await getOpenCurriculumUnitIdsForStudent(db, student);
   if (openUnitIds.size === 0) {
     return [];
@@ -161,15 +238,28 @@ export async function listOpenExercisesForStudent(
 }
 
 /** Guard used by `submission.saveDraft` (../submission/router.ts): throws
- * BAD_REQUEST unless `exercise` is published AND its unit is open for
- * `student` right now (ADR 0038). */
+ * BAD_REQUEST unless `exercise` is published AND open for `student` right now. */
 export async function assertExerciseOpenForStudent(
   db: PrismaClient,
   student: LmsStudent,
-  exercise: { curriculumUnitId: string; status: string },
+  exercise: { id?: string; curriculumUnitId: string; status: string },
 ): Promise<void> {
   if (exercise.status !== 'published') {
     throw badRequest('Exercise is not published.');
+  }
+  if (!isOpenTierEnabled()) {
+    await withFacility(db, student.facilityId, async (tx) => {
+      if (student.lifecycle === 'blocked_lms') {
+        throw badRequest('Exercise is not open yet.');
+      }
+      const { deliveredExerciseIdsForStudent } = await import('../lms-ops/exercise-delivery.js');
+      const exerciseIds = await deliveredExerciseIdsForStudent(tx, student);
+      const id = exercise.id;
+      if (!id || !exerciseIds.has(id)) {
+        throw badRequest('Exercise is not open yet.');
+      }
+    });
+    return;
   }
   const openUnitIds = await getOpenCurriculumUnitIdsForStudent(db, student);
   if (!openUnitIds.has(exercise.curriculumUnitId)) {

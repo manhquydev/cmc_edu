@@ -78,6 +78,13 @@ export async function handleSessionPhotoGet(
     sendJson(res, 401, { error: 'LMS session required to view session photos.' });
     return;
   }
+  // ParentAccount isActive + tokenVersion (same gate as lmsProcedure).
+  const { assertLiveLmsSession } = await import('../lms-auth/assert-live-session.js');
+  const live = await assertLiveLmsSession(ctx.db, ctx.lmsSubject);
+  if (!live.ok) {
+    sendJson(res, 401, { error: 'LMS session required to view session photos.' });
+    return;
+  }
 
   const url = new URL(req.url ?? '', 'http://localhost');
   const blobRef = url.searchParams.get('ref');

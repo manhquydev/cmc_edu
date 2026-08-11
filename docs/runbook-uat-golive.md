@@ -141,7 +141,7 @@ Nguyên tắc: **FAIL khi vai CÓ quyền mà không tìm được lối vào.**
 | P1-06 | Liên kết phụ huynh–con | `/admin/parents` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-01 | Chấm công cặp vào/ra mỗi ngày | `/hr/checkin` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-02 | Duyệt phiếu chấm công offsite | `/hr/checkin` | | | | ☐ PASS ☐ FAIL ☐ N/A |
-| P3-03 | Đăng ký ca làm | `/hr/shifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-03 | Đăng ký ca làm | `/hr/shifts` → `/hr/shifts/new` → form `/hr/shifts/{uuid}` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-06 | Nộp & duyệt phiếu KPI (auto-score) | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-09 | Tính lại điểm KPI tự động | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P4-01 | Đổi quà bằng sao | `/admin/engagement/rewards`, `/student/gifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
@@ -158,10 +158,10 @@ Nguyên tắc: **FAIL khi vai CÓ quyền mà không tìm được lối vào.**
 | P1-06 | Liên kết phụ huynh–con | `/admin/parents` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-01 | Chấm công cặp vào/ra mỗi ngày | `/hr/checkin` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-02 | Duyệt phiếu chấm công offsite | `/hr/checkin` | | | | ☐ PASS ☐ FAIL ☐ N/A |
-| P3-04 | Duyệt ca | `/hr/shifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-04 | Duyệt ca | form `/hr/shifts/{uuid}` hoặc `/go/shiftRegistration/{uuid}` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-05 | Chốt lương tháng theo bậc lương | `/hr/payroll`, `/hr/salary-tiers`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-06 | Nộp & duyệt phiếu KPI (auto-score) | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
-| P3-07 | Từ chối đăng ký ca (kèm lý do) | `/hr/shifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-07 | Từ chối đăng ký ca (kèm lý do) | form `/hr/shifts/{uuid}` (lý do ≥ 3 ký tự) | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-08 | Tất toán KPI hàng loạt (branch-scope) | `/hr/kpi` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-09 | Tính lại điểm KPI tự động | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P4-01 | Đổi quà bằng sao | `/admin/engagement/rewards`, `/student/gifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
@@ -181,10 +181,10 @@ Nguyên tắc: **FAIL khi vai CÓ quyền mà không tìm được lối vào.**
 | P2-04 | Cung cấp bài tập PDF | `/teaching/exercises` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-01 | Chấm công cặp vào/ra mỗi ngày | `/hr/checkin` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-02 | Duyệt phiếu chấm công offsite | `/hr/checkin` | | | | ☐ PASS ☐ FAIL ☐ N/A |
-| P3-04 | Duyệt ca | `/hr/shifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-04 | Duyệt ca | form `/hr/shifts/{uuid}` hoặc `/go/shiftRegistration/{uuid}` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-05 | Chốt lương tháng theo bậc lương | `/hr/payroll`, `/hr/salary-tiers`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-06 | Nộp & duyệt phiếu KPI (auto-score) | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
-| P3-07 | Từ chối đăng ký ca (kèm lý do) | `/hr/shifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-07 | Từ chối đăng ký ca (kèm lý do) | form `/hr/shifts/{uuid}` (lý do ≥ 3 ký tự) | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-08 | Tất toán KPI hàng loạt (branch-scope) | `/hr/kpi` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-09 | Tính lại điểm KPI tự động | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P4-01 | Đổi quà bằng sao | `/admin/engagement/rewards`, `/student/gifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
@@ -203,7 +203,7 @@ Nguyên tắc: **FAIL khi vai CÓ quyền mà không tìm được lối vào.**
 | P2-08 | Gửi ảnh & tóm tắt buổi cho PH | `/teaching/session-evidence`, `/parent/evidence/:studentId` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-01 | Chấm công cặp vào/ra mỗi ngày | `/hr/checkin` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-02 | Duyệt phiếu chấm công offsite | `/hr/checkin` | | | | ☐ PASS ☐ FAIL ☐ N/A |
-| P3-03 | Đăng ký ca làm | `/hr/shifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P3-03 | Đăng ký ca làm | `/hr/shifts` → `/hr/shifts/new` → form `/hr/shifts/{uuid}` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-06 | Nộp & duyệt phiếu KPI (auto-score) | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P3-09 | Tính lại điểm KPI tự động | `/hr/kpi`, `/hr/my` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 

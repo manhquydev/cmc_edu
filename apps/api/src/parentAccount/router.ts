@@ -14,6 +14,11 @@ import type { Prisma } from '@cmc/db';
 import { conflict, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
+const setActiveInput = z.object({
+  parentAccountId: z.string().uuid(),
+  isActive: z.boolean(),
+});
+
 const listInput = z.object({
   page: z.number().int().positive().default(1),
   pageSize: z.number().int().positive().max(100).default(20),
@@ -136,6 +141,47 @@ export const parentAccountRouter = router({
           entity: 'ParentAccount',
           entityId: input.parentAccountId,
           data: { facilityId },
+        },
+      });
+
+      return updated;
+    }),
+
+  /**
+   * Soft-disable / re-enable a ParentAccount for LMS login. Deactivation
+   * increments tokenVersion so outstanding signed LMS tokens fail the
+   * lmsProcedure gate (forced re-login). Facility-scoped via Guardian.
+   */
+  setActive: requirePermission('parentAccount', 'setActive')
+    .input(setActiveInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+
+      const guardian = await ctx.db.guardian.findFirst({
+        where: { parentAccountId: input.parentAccountId, facilityId },
+        select: { id: true },
+      });
+      if (!guardian) throw notFound('ParentAccount not found in this facility.');
+
+      const updated = await ctx.db.parentAccount.update({
+        where: { id: input.parentAccountId },
+        data: input.isActive
+          ? { isActive: true }
+          : { isActive: false, tokenVersion: { increment: 1 } },
+        select: { id: true, isActive: true, tokenVersion: true },
+      });
+
+      await ctx.db.auditLog.create({
+        data: {
+          actor: ctx.subject!.userId,
+          action: 'parentAccount.setActive',
+          entity: 'ParentAccount',
+          entityId: input.parentAccountId,
+          data: {
+            facilityId,
+            isActive: updated.isActive,
+            tokenVersion: updated.tokenVersion,
+          },
         },
       });
 

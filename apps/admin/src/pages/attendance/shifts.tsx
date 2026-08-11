@@ -36,13 +36,13 @@ import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
 
 // ---------------------------------------------------------------------------
-// Styles — Odoo form density, CMC teal chevron (no numbered console-steps)
+// Styles — Odoo form density; accent via CMC Console tokens (no free TEKY teal)
 // ---------------------------------------------------------------------------
 
 const WS_CSS = `
 .ws-root {
-  --ws-teal: #00a09d;
-  --ws-teal-dark: #017e84;
+  --ws-teal: var(--cmc-brand);
+  --ws-teal-dark: var(--cmc-brand-hover);
   --ws-border: #dee2e6;
   --ws-muted: #6c757d;
   --ws-sheet: #fff;

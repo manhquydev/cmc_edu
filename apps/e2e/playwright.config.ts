@@ -75,6 +75,7 @@ const reporter = process.env.PLAYWRIGHT_UI
 // proxy (vite.config.ts) to forward /trpc, /upload, /auth, /health to the
 // real api server, keeping every browser request same-origin.
 const UI_API_URL = 'http://127.0.0.1:3999';
+const ERP_MOBILE_AUDIT_SPEC = /erp-mobile-viewport-audit\.ui\.spec\.ts$/;
 
 const uiServers = process.env.PLAYWRIGHT_UI
   ? [
@@ -122,6 +123,29 @@ export default defineConfig({
               baseURL: 'http://localhost:4174',
             },
             testMatch: /\.ui\.spec\.ts$/,
+            // ERP mobile audit owns explicit Admin-origin projects below. The
+            // legacy project remains LMS-default for its existing broad suite.
+            testIgnore: ERP_MOBILE_AUDIT_SPEC,
+          },
+          {
+            name: 'erp-admin-mobile-320',
+            use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:4173', viewport: { width: 320, height: 568 } },
+            testMatch: ERP_MOBILE_AUDIT_SPEC,
+          },
+          {
+            name: 'erp-admin-mobile-390',
+            use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:4173', viewport: { width: 390, height: 844 } },
+            testMatch: ERP_MOBILE_AUDIT_SPEC,
+          },
+          {
+            name: 'erp-admin-tablet-768',
+            use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:4173', viewport: { width: 768, height: 1024 } },
+            testMatch: ERP_MOBILE_AUDIT_SPEC,
+          },
+          {
+            name: 'erp-admin-desktop-1280',
+            use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:4173', viewport: { width: 1280, height: 900 } },
+            testMatch: ERP_MOBILE_AUDIT_SPEC,
           },
         ]
       : []),

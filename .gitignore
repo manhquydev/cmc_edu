@@ -55,6 +55,7 @@ yarn.lock
 .env*
 !.env.example
 !.env.prod.example
+!.env.obs.example
 # Same secrets without the leading dot; `.env*` above does not cover these
 /env
 /env.*

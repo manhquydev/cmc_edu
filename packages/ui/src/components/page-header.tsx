@@ -2,7 +2,7 @@ import { Stack, HStack } from '@astryxdesign/core/Stack';
 import { Breadcrumbs, BreadcrumbItem } from '@astryxdesign/core/Breadcrumbs';
 import { Text } from '@astryxdesign/core/Text';
 import { Heading } from '@astryxdesign/core/Heading';
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 
 export interface Breadcrumb {
@@ -22,11 +22,34 @@ export interface PageHeaderProps {
   breadcrumbs?: Breadcrumb[];
 }
 
+export type BreadcrumbHrefResolver = (breadcrumb: Breadcrumb) => string | undefined;
+
+const BreadcrumbHrefContext = createContext<BreadcrumbHrefResolver | undefined>(undefined);
+
+/**
+ * Lets an application provide route-aware defaults for breadcrumb labels.
+ * An explicitly declared breadcrumb href always takes precedence.
+ */
+export function BreadcrumbHrefProvider({
+  children,
+  resolveHref,
+}: {
+  children: ReactNode;
+  resolveHref: BreadcrumbHrefResolver;
+}) {
+  return (
+    <BreadcrumbHrefContext.Provider value={resolveHref}>
+      {children}
+    </BreadcrumbHrefContext.Provider>
+  );
+}
+
 /**
  * Page chrome: sticky soft header + linked breadcrumbs.
  * Parent crumbs with `href` use react-router (client nav), never full reload.
  */
 export function PageHeader({ title, subtitle, actions, breadcrumbs }: PageHeaderProps) {
+  const resolveBreadcrumbHref = useContext(BreadcrumbHrefContext);
   const showTitleBlock = Boolean(title) || Boolean(subtitle);
   const showMainRow = showTitleBlock || Boolean(actions);
 
@@ -38,11 +61,12 @@ export function PageHeader({ title, subtitle, actions, breadcrumbs }: PageHeader
             <Breadcrumbs>
               {breadcrumbs.map((bc, i) => {
                 const isLast = i === breadcrumbs.length - 1;
-                const clickable = Boolean(bc.href && !isLast);
+                const href = bc.href ?? resolveBreadcrumbHref?.(bc);
+                const clickable = Boolean(href && !isLast);
                 return (
                   <BreadcrumbItem key={`${bc.label}-${i}`} isCurrent={isLast}>
                     {clickable ? (
-                      <RouterLink to={bc.href!} className="console-bc-link">
+                      <RouterLink to={href!} className="console-bc-link">
                         {bc.label}
                       </RouterLink>
                     ) : (

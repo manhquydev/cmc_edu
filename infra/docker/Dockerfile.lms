@@ -36,7 +36,19 @@ FROM deps AS build
 COPY packages/ packages/
 COPY apps/api/ apps/api/
 COPY apps/lms/ apps/lms/
-RUN pnpm --filter @cmc/db exec prisma generate
+# prisma.config.ts loads packages/db/prisma/.env and requires DATABASE_URL to
+# resolve (Prisma 7 config validation) — `generate` never opens a connection,
+# so a build-time-only placeholder is enough (mirrors CI's ui-e2e.yml, which
+# writes the real value; here any syntactically valid postgres URL works).
+# The placeholder must survive until AFTER `run build` further down: `@cmc/db`'s
+# own `build` script re-runs `prisma generate` as part of the workspace build
+# cascade, and the ARG/ENV lines between here and that RUN can't be folded into
+# one shell command anyway (each ARG/ENV is its own Dockerfile instruction) —
+# so it's removed by the final RUN instead of this one. This build stage's
+# `packages/` never gets COPY'd into the runtime image, so nothing here can
+# leak into it regardless.
+RUN printf 'DATABASE_URL=postgresql://build:build@localhost:5432/build\n' > packages/db/prisma/.env \
+    && pnpm --filter @cmc/db exec prisma generate
 ARG VITE_API_BASE_URL=/api
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 # apps/lms/src/lib/trpc.ts and session-evidence.tsx read VITE_API_URL (not
@@ -46,9 +58,14 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 ARG VITE_API_URL=
 ENV VITE_API_URL=${VITE_API_URL}
 # `@cmc/lms...` builds workspace dependencies (ui/auth/api chain) first.
-RUN pnpm --filter @cmc/lms... run build
+RUN pnpm --filter @cmc/lms... run build \
+    && rm packages/db/prisma/.env
 
 FROM nginx:1.27-alpine AS runtime
 COPY --from=build /app/apps/lms/dist /usr/share/nginx/html/lms
-COPY infra/nginx/spa-fallback.conf /etc/nginx/conf.d/default.conf
+# spa-fallback.conf (generic) falls back to /index.html at the server root,
+# which does not exist here — dist is under /lms. That breaks client-side
+# routing on any deep link or page refresh. spa-fallback-lms.conf falls back
+# to /lms/index.html instead, matching where the bundle actually is.
+COPY infra/nginx/spa-fallback-lms.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

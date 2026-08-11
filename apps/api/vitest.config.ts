@@ -19,6 +19,11 @@ export default defineConfig({
       ...(process.env.DATABASE_URL && { DATABASE_URL: process.env.DATABASE_URL }),
       ...(process.env.APP_DATABASE_URL && { APP_DATABASE_URL: process.env.APP_DATABASE_URL }),
     },
+    // The build emits copied `dist/**/*.test.js` files beside the source
+    // tests. Keep Vitest's contract explicit: only authored source tests run;
+    // generated output is covered by the source run and must not be collected
+    // as a second suite.
+    include: ['src/**/*.test.ts'],
     // Integration tests hit ONE real, shared dev Postgres instance (no
     // per-worker isolated schema) — running test FILES in parallel (Vitest's
     // default) intermittently produces spurious FK-constraint errors during

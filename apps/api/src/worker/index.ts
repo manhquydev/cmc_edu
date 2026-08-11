@@ -14,6 +14,8 @@
 // the worker crashes fast rather than silently failing to deliver emails.
 // ConsoleEmailTransport is refused in production.
 
+// MUST be first — see lib/instrument.ts. No-op when SENTRY_DSN is unset.
+import { Sentry } from '../lib/instrument.js';
 import { createServer } from 'node:http';
 import { createPrismaClient } from '@cmc/db';
 import { reconcileOrphanedReceipts, reconcileCancelledButProvisioned } from './reconcile-orphaned-receipts.js';
@@ -33,6 +35,9 @@ import {
   assertCmcAppRole,
   assertLmsSecretConfiguredForProd,
 } from '../boot-checks.js';
+import { serviceLogger } from '../lib/logger.js';
+
+const log = serviceLogger('worker');
 
 /** No decision doc pins a concrete poll interval — 30s is a placeholder
  * (same caveat as the other placeholder constants in this codebase, e.g.
@@ -61,8 +66,7 @@ function startHealthServer(): void {
       res.end(`fail: ${consecutiveDrainFailures} consecutive drain failures`);
     }
   }).listen(port, () => {
-    // eslint-disable-next-line no-console
-    console.log(`[worker] health endpoint listening on http://0.0.0.0:${port}/`);
+    log.info({ port }, 'worker health endpoint listening');
   });
 }
 
@@ -105,8 +109,7 @@ function buildTransportMap(): Record<string, EmailTransport> {
   }
 
   // Development / CI: log instead of sending.
-  // eslint-disable-next-line no-console
-  console.log('[worker] non-production env — using ConsoleEmailTransport for all transports');
+  log.info('non-production env — using ConsoleEmailTransport for all transports');
   const stub = new ConsoleEmailTransport();
   return { brevo: stub, graph: stub };
 }
@@ -157,11 +160,26 @@ async function runForever(): Promise<never> {
       consecutiveDrainFailures = 0;
     } catch (error) {
       consecutiveDrainFailures += 1;
-      // eslint-disable-next-line no-console
-      console.error(
-        `[worker] drain cycle failed (${consecutiveDrainFailures}/${MAX_CONSECUTIVE_DRAIN_FAILURES} consecutive)`,
-        error,
+      log.error(
+        {
+          err: error,
+          consecutiveDrainFailures,
+          maxConsecutiveDrainFailures: MAX_CONSECUTIVE_DRAIN_FAILURES,
+          healthy: isWorkerHealthy(),
+        },
+        'worker drain cycle failed',
       );
+      // Report to GlitchTip too, tagged so an agent sees how close the worker is
+      // to the unhealthy threshold (which flips the /health endpoint to 503).
+      Sentry.withScope((scope) => {
+        scope.setTag('service', 'worker');
+        scope.setContext('drain', {
+          consecutiveDrainFailures,
+          maxConsecutiveDrainFailures: MAX_CONSECUTIVE_DRAIN_FAILURES,
+          healthy: isWorkerHealthy(),
+        });
+        Sentry.captureException(error);
+      });
     }
     await sleep(pollIntervalMs);
   }

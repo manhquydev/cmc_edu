@@ -19,18 +19,19 @@ import {
   CmcTabs,
   ConfirmDialog,
   DataTable,
+  DateField,
   Dialog,
   DialogHeader,
   Divider,
   FormPage,
   HStack,
   PageHeader,
+  ProgressSteps,
   Selector,
   Stack,
   StatusBadge,
   Text,
   TextArea,
-  TextInput,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { useSession } from '../../lib/session-context.js';
@@ -59,39 +60,65 @@ const REG_STATUS_LABELS: Record<string, string> = {
   cancelled: 'Đã hủy',
 };
 
-// ---------------------------------------------------------------------------
-// Entry row state
-// ---------------------------------------------------------------------------
-interface EntryRow {
-  _key: number;
-  date: string;
-  shiftTemplateId: string;
-}
-
-function makeEntry(counter: { current: number }): EntryRow {
-  return { _key: ++counter.current, date: '', shiftTemplateId: '' };
-}
-
 interface ShiftGroupOption {
   id: string;
   name: string;
   type: string;
+  selectionMode: 'SINGLE' | 'MULTIPLE';
   templates: { id: string; name: string; startTime: string; endTime: string }[];
+}
+
+type SelectedTemplatesByDate = Record<string, string[]>;
+
+function isDateOnly(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function datesInRange(fromDate: string, toDate: string): string[] {
+  if (!isDateOnly(fromDate) || !isDateOnly(toDate) || toDate < fromDate) return [];
+
+  const start = new Date(`${fromDate}T00:00:00.000Z`);
+  const end = new Date(`${toDate}T00:00:00.000Z`);
+  const dates: string[] = [];
+
+  for (let current = start; current <= end && dates.length <= 366; current.setUTCDate(current.getUTCDate() + 1)) {
+    dates.push(current.toISOString().slice(0, 10));
+  }
+
+  return dates;
+}
+
+function formatScheduleDate(date: string): string {
+  return new Date(`${date}T00:00:00.000Z`).toLocaleDateString('vi-VN', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Asia/Ho_Chi_Minh',
+  });
+}
+
+function isWeekday(date: string): boolean {
+  const day = new Date(`${date}T00:00:00.000Z`).getUTCDay();
+  return day >= 1 && day <= 5;
 }
 
 // ---------------------------------------------------------------------------
 // Submit tab
 // ---------------------------------------------------------------------------
 function SubmitTab() {
-  const keyCounter = useState(() => ({ current: 0 }))[0];
+  const utils = trpc.useUtils();
   const { data: groupsData, isLoading: groupsLoading, error: groupsError } =
     trpc.shift.listGroups.useQuery();
+  const { data: registrationsData } = trpc.shift.myRegistrations.useQuery();
   const groups: ShiftGroupOption[] = (groupsData as ShiftGroupOption[] | undefined) ?? [];
+  const registrations: MyRegRow[] = (registrationsData as MyRegRow[] | undefined) ?? [];
 
   const [groupId, setGroupId] = useState<string | undefined>(undefined);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [entries, setEntries] = useState<EntryRow[]>(() => [makeEntry(keyCounter)]);
+  const [selectedTemplatesByDate, setSelectedTemplatesByDate] = useState<SelectedTemplatesByDate>({});
+  const [pendingGroupId, setPendingGroupId] = useState<string | null>(null);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   const selectedGroup = groups.find((g) => g.id === groupId);
@@ -99,10 +126,26 @@ function SubmitTab() {
     value: g.id,
     label: `${g.name} (${g.type === 'GIAO_VIEN' ? 'Giáo viên' : 'Kinh doanh'})`,
   }));
-  const templateOptions = (selectedGroup?.templates ?? []).map((t) => ({
-    value: t.id,
-    label: `${t.name} (${t.startTime}–${t.endTime})`,
-  }));
+  const selectionMode = selectedGroup?.selectionMode;
+  const fromDateError =
+    fromDate && !isFutureICT(fromDate) ? 'Ngày bắt đầu phải là ngày tương lai theo giờ ICT.' : undefined;
+  const rawVisibleDates = datesInRange(fromDate, toDate);
+  const toDateError =
+    toDate && !isDateOnly(toDate)
+      ? 'Chọn ngày kết thúc hợp lệ.'
+      : fromDate && toDate && toDate < fromDate
+        ? 'Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.'
+        : rawVisibleDates.length > 366
+          ? 'Kỳ đăng ký tối đa 366 ngày.'
+          : undefined;
+  const visibleDates = fromDateError || toDateError ? [] : rawVisibleDates;
+  const entries = visibleDates.flatMap((date) =>
+    (selectedTemplatesByDate[date] ?? []).map((shiftTemplateId) => ({ date, shiftTemplateId })),
+  );
+  const selectedDayCount = visibleDates.filter((date) => (selectedTemplatesByDate[date] ?? []).length > 0).length;
+  const hasSelection = Object.values(selectedTemplatesByDate).some((templateIds) => templateIds.length > 0);
+  const hasSubmittedRegistration = registrations.some((registration) => registration.status === 'submitted');
+  const activeStep = !selectedGroup ? 0 : visibleDates.length === 0 ? 1 : entries.length > 0 ? 2 : 1;
 
   const mut = trpc.shift.submit.useMutation({
     onSuccess() {
@@ -110,29 +153,70 @@ function SubmitTab() {
       setGroupId(undefined);
       setFromDate('');
       setToDate('');
-      setEntries([makeEntry(keyCounter)]);
+      setSelectedTemplatesByDate({});
+      void utils.shift.myRegistrations.invalidate();
     },
     onError(err) {
       setResult({ ok: false, text: err.message ?? 'Lỗi không xác định.' });
     },
   });
 
-  const fromDateError =
-    fromDate && !isFutureICT(fromDate) ? 'Ngày bắt đầu phải là ngày tương lai (giờ ICT)' : undefined;
-
   const canSubmit =
     Boolean(groupId) &&
     isFutureICT(fromDate) &&
-    /^\d{4}-\d{2}-\d{2}$/.test(toDate) &&
-    entries.length > 0 &&
-    entries.every((e) => /^\d{4}-\d{2}-\d{2}$/.test(e.date) && Boolean(e.shiftTemplateId));
+    isDateOnly(toDate) &&
+    !toDateError &&
+    entries.length > 0;
 
-  function updateEntry(key: number, field: 'date' | 'shiftTemplateId', val: string) {
-    setEntries((prev) => prev.map((e) => (e._key === key ? { ...e, [field]: val } : e)));
+  function applyGroupChange(nextGroupId: string) {
+    setGroupId(nextGroupId);
+    setSelectedTemplatesByDate({});
+    setPendingGroupId(null);
+    setResult(null);
   }
 
-  function removeEntry(key: number) {
-    setEntries((prev) => prev.filter((e) => e._key !== key));
+  function requestGroupChange(nextGroupId: string) {
+    if (nextGroupId === groupId) return;
+    if (hasSelection) {
+      setPendingGroupId(nextGroupId);
+      return;
+    }
+    applyGroupChange(nextGroupId);
+  }
+
+  function selectTemplate(date: string, shiftTemplateId: string) {
+    setSelectedTemplatesByDate((previous) => {
+      const current = previous[date] ?? [];
+      const next =
+        selectionMode === 'MULTIPLE'
+          ? current.includes(shiftTemplateId)
+            ? current.filter((id) => id !== shiftTemplateId)
+            : [...current, shiftTemplateId]
+          : [shiftTemplateId];
+
+      return { ...previous, [date]: next };
+    });
+  }
+
+  function clearDate(date: string) {
+    setSelectedTemplatesByDate((previous) => ({ ...previous, [date]: [] }));
+  }
+
+  function selectWeekdays(shiftTemplateId: string) {
+    setSelectedTemplatesByDate((previous) => {
+      const next = { ...previous };
+      for (const date of visibleDates) {
+        if (!isWeekday(date)) continue;
+        const current = next[date] ?? [];
+        next[date] =
+          selectionMode === 'MULTIPLE'
+            ? current.includes(shiftTemplateId)
+              ? current
+              : [...current, shiftTemplateId]
+            : [shiftTemplateId];
+      }
+      return next;
+    });
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -142,12 +226,14 @@ function SubmitTab() {
       shiftGroupId: groupId,
       fromDate,
       toDate,
-      entries: entries.map((e2) => ({ date: e2.date, shiftTemplateId: e2.shiftTemplateId })),
+      entries,
     });
   }
 
   const resultContent = result ? (
-    <Banner status={result.ok ? 'success' : 'error'} title={result.text} />
+    <div aria-live="polite">
+      <Banner status={result.ok ? 'success' : 'error'} title={result.text} />
+    </div>
   ) : undefined;
 
   return (
@@ -160,8 +246,8 @@ function SubmitTab() {
             description={
               <>
                 Chọn nhóm ca và mẫu ca từ danh mục. Ngày bắt đầu phải{' '}
-                <Text type="body" size="xsm" weight="semibold" as="span">sau hôm nay (ICT)</Text>. Hệ thống cho phép tối đa 1 đăng ký
-                chờ duyệt tại một thời điểm (ticket-lock).
+                <Text type="body" size="xsm" weight="semibold" as="span">sau hôm nay theo giờ ICT</Text>. Mỗi nhân sự chỉ có một đăng ký
+                chờ duyệt tại một thời điểm.
               </>
             }
           />
@@ -181,89 +267,240 @@ function SubmitTab() {
         <Stack gap={2}>
           {groupsError && <Banner status="error" title={groupsError.message} />}
 
+          <div className="shift-registration-progress">
+            <ProgressSteps
+              steps={[
+                { id: 'period', label: 'Chọn kỳ' },
+                { id: 'schedule', label: 'Chọn ca' },
+                { id: 'review', label: 'Rà soát và gửi' },
+              ]}
+              activeIndex={activeStep}
+            />
+          </div>
+
           <Selector
             label="Nhóm ca"
             placeholder={groupsLoading ? 'Đang tải…' : 'Chọn nhóm ca'}
             options={groupOptions}
             value={groupId}
-            onChange={(v) => {
-              setGroupId(v);
-              setEntries([makeEntry(keyCounter)]);
-            }}
+            onChange={requestGroupChange}
             hasClear={false}
           />
 
-          <HStack gap={1} style={{ flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <TextInput
-                label="Từ ngày (YYYY-MM-DD)"
-                placeholder="2099-01-08"
+          {selectedGroup ? (
+            <div className="shift-registration-group-note" role="status">
+              <Text type="body" size="sm" weight="semibold">
+                {selectedGroup.name}
+              </Text>
+              <Text type="supporting" size="2xs">
+                {selectionMode === 'MULTIPLE'
+                  ? 'Có thể chọn nhiều mẫu ca khác nhau trong cùng một ngày.'
+                  : 'Mỗi ngày chỉ chọn một mẫu ca.'}
+              </Text>
+            </div>
+          ) : null}
+
+          <div className="shift-registration-period">
+            <div>
+              <DateField
+                label="Từ ngày"
                 value={fromDate}
-                onChange={(v) => setFromDate(v)}
-                status={fromDateError ? { type: 'error', message: fromDateError } : undefined}
-                size="sm"
+                onChange={(value) => {
+                  setFromDate(value);
+                  setResult(null);
+                }}
+                size="md"
               />
+              {fromDateError ? (
+                <Text className="shift-registration-field-error" type="supporting" size="2xs" role="alert">
+                  {fromDateError}
+                </Text>
+              ) : null}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <TextInput
-                label="Đến ngày (YYYY-MM-DD)"
-                placeholder="2099-01-31"
+            <div>
+              <DateField
+                label="Đến ngày"
                 value={toDate}
-                onChange={(v) => setToDate(v)}
-                status={
-                  toDate && !/^\d{4}-\d{2}-\d{2}$/.test(toDate)
-                    ? { type: 'error', message: 'Định dạng YYYY-MM-DD' }
-                    : undefined
-                }
-                size="sm"
+                onChange={(value) => {
+                  setToDate(value);
+                  setResult(null);
+                }}
+                size="md"
               />
+              {toDateError ? (
+                <Text className="shift-registration-field-error" type="supporting" size="2xs" role="alert">
+                  {toDateError}
+                </Text>
+              ) : null}
             </div>
-          </HStack>
+          </div>
 
-          <Divider label="Danh sách ngày đăng ký" />
+          {hasSubmittedRegistration ? (
+            <Banner
+              status="warning"
+              title="Bạn đang có một đăng ký chờ duyệt"
+              description="Hệ thống sẽ không nhận thêm đăng ký mới cho đến khi phiếu này được xử lý hoặc hủy."
+            />
+          ) : null}
 
-          {entries.map((entry) => (
-            <HStack key={entry._key} align="end" gap={1} wrap="wrap">
-              <div style={{ flex: '0 0 160px' }}>
-                <TextInput
-                  label="Ngày (YYYY-MM-DD)"
-                  placeholder="2099-01-08"
-                  value={entry.date}
-                  onChange={(v) => updateEntry(entry._key, 'date', v)}
-                  size="sm"
-                />
+          {selectedGroup && visibleDates.length > 0 && selectedGroup.templates.length > 0 ? (
+            <>
+              <Divider label="Lịch đăng ký" />
+
+              <div className="shift-registration-quick-actions" aria-label="Chọn nhanh ngày làm việc">
+                {selectedGroup.templates.map((template) => (
+                  <Button
+                    key={template.id}
+                    label={`Chọn T2–T6: ${template.name}`}
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => selectWeekdays(template.id)}
+                  />
+                ))}
+                {hasSelection ? (
+                  <Button
+                    label="Xóa các ca đã chọn"
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedTemplatesByDate({})}
+                  />
+                ) : null}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <Selector
-                  label="Mẫu ca"
-                  placeholder={selectedGroup ? 'Chọn mẫu ca' : 'Chọn nhóm ca trước'}
-                  options={templateOptions}
-                  value={entry.shiftTemplateId || undefined}
-                  onChange={(v) => updateEntry(entry._key, 'shiftTemplateId', v ?? '')}
-                  isDisabled={!selectedGroup}
-                  hasClear={false}
-                />
-              </div>
-              {entries.length > 1 && (
-                <Button
-                  label="Xóa"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => removeEntry(entry._key)}
-                />
-              )}
-            </HStack>
-          ))}
 
-          <Button
-            label="+ Thêm ngày"
-            variant="secondary"
-            size="sm"
-            style={{ alignSelf: 'flex-start' }}
-            onClick={() => setEntries((prev) => [...prev, makeEntry(keyCounter)])}
-          />
+              <section className="shift-registration-schedule" aria-labelledby="shift-registration-schedule-title">
+                <h2 id="shift-registration-schedule-title" className="console-sr-only">
+                  Chọn ca theo ngày
+                </h2>
+
+                <div className="shift-registration-grid">
+                  <div
+                    className="shift-registration-grid-heading"
+                    aria-hidden
+                    style={{ '--shift-template-count': selectedGroup.templates.length } as React.CSSProperties}
+                  >
+                    <span>Ngày</span>
+                    {selectedGroup.templates.map((template) => (
+                      <span key={template.id}>
+                        {template.name}
+                        <small>{template.startTime}–{template.endTime}</small>
+                      </span>
+                    ))}
+                  </div>
+
+                  {visibleDates.map((date) => {
+                    const selectedTemplateIds = selectedTemplatesByDate[date] ?? [];
+                    return (
+                      <div
+                        key={date}
+                        className="shift-registration-day"
+                        style={{ '--shift-template-count': selectedGroup.templates.length } as React.CSSProperties}
+                      >
+                        <div className="shift-registration-day-label">
+                          <Text type="body" size="sm" weight="semibold">
+                            {formatScheduleDate(date)}
+                          </Text>
+                          {selectedTemplateIds.length > 0 ? (
+                            <Button
+                              label="Bỏ chọn"
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => clearDate(date)}
+                            />
+                          ) : (
+                            <Text type="supporting" size="2xs">
+                              Chưa chọn ca
+                            </Text>
+                          )}
+                        </div>
+
+                        {selectedGroup.templates.map((template) => {
+                          const isSelected = selectedTemplateIds.includes(template.id);
+                          const inputId = `shift-${date}-${template.id}`;
+                          const label = `${template.name}, ${template.startTime} đến ${template.endTime}, ngày ${formatScheduleDate(date)}`;
+                          return (
+                            <label
+                              key={template.id}
+                              className={`shift-registration-choice${isSelected ? ' is-selected' : ''}`}
+                              htmlFor={inputId}
+                            >
+                              <input
+                                id={inputId}
+                                type={selectionMode === 'MULTIPLE' ? 'checkbox' : 'radio'}
+                                name={selectionMode === 'MULTIPLE' ? inputId : `shift-${date}`}
+                                checked={isSelected}
+                                onChange={() => selectTemplate(date, template.id)}
+                                aria-label={label}
+                              />
+                              <span className="shift-registration-choice-copy">
+                                <strong>{template.name}</strong>
+                                <small>{template.startTime}–{template.endTime}</small>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="shift-registration-summary" aria-labelledby="shift-registration-summary-title">
+                <h2 id="shift-registration-summary-title">Rà soát đăng ký</h2>
+                <dl>
+                  <div>
+                    <dt>Nhóm ca</dt>
+                    <dd>{selectedGroup.name}</dd>
+                  </div>
+                  <div>
+                    <dt>Kỳ đăng ký</dt>
+                    <dd>
+                      {formatScheduleDate(visibleDates[0])} đến {formatScheduleDate(visibleDates[visibleDates.length - 1])}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Ngày đã chọn</dt>
+                    <dd>{selectedDayCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Ca đã chọn</dt>
+                    <dd>{entries.length}</dd>
+                  </div>
+                </dl>
+                {entries.length === 0 ? (
+                  <Text type="supporting" size="2xs">
+                    Chọn ít nhất một ca trước khi gửi đăng ký.
+                  </Text>
+                ) : null}
+              </section>
+            </>
+          ) : selectedGroup && visibleDates.length > 0 && selectedGroup.templates.length === 0 ? (
+            <Banner
+              status="warning"
+              title="Nhóm ca chưa có mẫu ca"
+              description="Liên hệ người quản lý để bổ sung mẫu ca trước khi đăng ký."
+            />
+          ) : selectedGroup && fromDate && toDate && !fromDateError && !toDateError ? (
+            <Banner
+              status="warning"
+              title="Kỳ đăng ký chưa có ngày để chọn"
+              description="Điều chỉnh kỳ đăng ký để tiếp tục."
+            />
+          ) : null}
         </Stack>
       </FormPage>
+
+      <ConfirmDialog
+        opened={pendingGroupId !== null}
+        title="Đổi nhóm ca"
+        message="Các ca đã chọn không phù hợp với nhóm ca mới và sẽ bị xóa."
+        confirmLabel="Đổi nhóm ca"
+        confirmColor="blue"
+        onConfirm={() => pendingGroupId && applyGroupChange(pendingGroupId)}
+        onCancel={() => setPendingGroupId(null)}
+      />
     </form>
   );
 }
@@ -284,7 +521,7 @@ interface MyRegRow {
 function MyRegistrationsTab() {
   const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.shift.myRegistrations.useQuery();
-  const [cancelTarget, setCancelTarget] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<MyRegRow | null>(null);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   const cancelMut = trpc.shift.cancel.useMutation({
@@ -327,7 +564,7 @@ function MyRegistrationsTab() {
       width: 100,
       render: (_v, row) =>
         row.status === 'submitted' || row.status === 'approved' ? (
-          <Button label="Hủy" size="sm" variant="ghost" onClick={() => setCancelTarget(row.id)} />
+          <Button label="Hủy" size="sm" variant="ghost" onClick={() => setCancelTarget(row)} />
         ) : null,
     },
   ];
@@ -345,11 +582,15 @@ function MyRegistrationsTab() {
       <ConfirmDialog
         opened={cancelTarget !== null}
         title="Hủy đăng ký ca"
-        message="Hủy đăng ký ca này? Hành động này không thể hoàn tác."
+        message={
+          cancelTarget
+            ? `Hủy đăng ký từ ${fmtDate(cancelTarget.fromDate)} đến ${fmtDate(cancelTarget.toDate)}? Hành động này không thể hoàn tác.`
+            : ''
+        }
         confirmLabel="Hủy ca"
         confirmColor="red"
         loading={cancelMut.isPending}
-        onConfirm={() => cancelTarget && cancelMut.mutate({ registrationId: cancelTarget })}
+        onConfirm={() => cancelTarget && cancelMut.mutate({ registrationId: cancelTarget.id })}
         onCancel={() => setCancelTarget(null)}
       />
     </Stack>
@@ -372,8 +613,8 @@ interface PendingRow {
 function ApproveTab() {
   const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.shift.pendingForApproval.useQuery();
-  const [approveTarget, setApproveTarget] = useState<string | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
+  const [approveTarget, setApproveTarget] = useState<PendingRow | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<PendingRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -429,13 +670,13 @@ function ApproveTab() {
       width: 180,
       render: (_v, row) => (
         <HStack gap={1}>
-          <Button label="Duyệt" size="sm" variant="primary" onClick={() => setApproveTarget(row.id)} />
+          <Button label="Duyệt" size="sm" variant="primary" onClick={() => setApproveTarget(row)} />
           <Button
             label="Từ chối"
             size="sm"
             variant="destructive"
             onClick={() => {
-              setRejectTarget(row.id);
+              setRejectTarget(row);
               setRejectReason('');
             }}
           />
@@ -458,11 +699,15 @@ function ApproveTab() {
       <ConfirmDialog
         opened={approveTarget !== null}
         title="Duyệt đăng ký ca"
-        message="Duyệt đăng ký ca này? Hành động này không thể hoàn tác."
+        message={
+          approveTarget
+            ? `Duyệt đăng ký của ${approveTarget.appUser.fullName} từ ${fmtDate(approveTarget.fromDate)} đến ${fmtDate(approveTarget.toDate)}? Hành động này không thể hoàn tác.`
+            : ''
+        }
         confirmLabel="Duyệt"
         confirmColor="blue"
         loading={approveMut.isPending}
-        onConfirm={() => approveTarget && approveMut.mutate({ registrationId: approveTarget })}
+        onConfirm={() => approveTarget && approveMut.mutate({ registrationId: approveTarget.id })}
         onCancel={() => setApproveTarget(null)}
       />
 
@@ -477,6 +722,9 @@ function ApproveTab() {
           onOpenChange={(next) => { if (!next) { setRejectTarget(null); setRejectReason(''); } }}
         />
         <Stack gap={2}>
+          <Text type="supporting" size="2xs">
+            Nêu lý do từ chối, tối thiểu 3 ký tự.
+          </Text>
           <TextArea
             label="Lý do từ chối"
             placeholder="Nêu lý do từ chối (tối thiểu 3 ký tự)…"
@@ -493,7 +741,7 @@ function ApproveTab() {
               variant="destructive"
               isLoading={rejectMut.isPending}
               isDisabled={!reasonOk}
-              onClick={() => rejectTarget && rejectMut.mutate({ registrationId: rejectTarget, reason: rejectReason.trim() })}
+              onClick={() => rejectTarget && rejectMut.mutate({ registrationId: rejectTarget.id, reason: rejectReason.trim() })}
             />
           </HStack>
         </Stack>

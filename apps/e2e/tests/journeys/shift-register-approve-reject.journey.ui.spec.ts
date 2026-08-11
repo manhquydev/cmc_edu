@@ -56,13 +56,37 @@ test.describe('P3-03/04/07 journey — đăng ký ca: từ chối → nộp lạ
       // SubmitTab is the default tab. Pick the group (its templates then load).
       await page.getByRole('combobox', { name: /Nhóm ca/ }).click();
       await page.getByRole('option', { name: new RegExp(groupName) }).click();
-      await page.getByLabel('Từ ngày (YYYY-MM-DD)').fill(tomorrow);
-      await page.getByLabel('Đến ngày (YYYY-MM-DD)').fill(tomorrow);
-      // The single default day entry: its date + template. exact:true so it
-      // doesn't also match "Từ ngày"/"Đến ngày".
-      await page.getByLabel('Ngày (YYYY-MM-DD)', { exact: true }).fill(tomorrow);
-      await page.getByRole('combobox', { name: /Mẫu ca/ }).click();
-      await page.getByRole('option', { name: new RegExp(templateName) }).click();
+      await page.getByLabel('Từ ngày').fill(tomorrow);
+      await page.getByLabel('Đến ngày').fill(tomorrow);
+      await page.getByRole('radio', { name: new RegExp(templateName) }).check();
+
+      await page.setViewportSize({ width: 375, height: 812 });
+      await expect(page.getByRole('button', { name: 'Gửi đăng ký' })).toBeVisible();
+      const mobileLayout = await page.evaluate(() => {
+        const viewport = window.innerWidth;
+        const documentWidth = document.documentElement.scrollWidth;
+        const overflowingElements = [...document.querySelectorAll<HTMLElement>('body *')]
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+              tag: element.tagName.toLowerCase(),
+              className: element.className,
+              label: element.getAttribute('aria-label'),
+              left: Math.round(rect.left),
+              right: Math.round(rect.right),
+              width: Math.round(rect.width),
+            };
+          })
+          .filter((element) => element.right > viewport)
+          .slice(0, 12);
+
+        return { viewport, documentWidth, overflowingElements };
+      });
+      expect(
+        mobileLayout.documentWidth,
+        `Elements outside the ${mobileLayout.viewport}px viewport: ${JSON.stringify(mobileLayout.overflowingElements)}`,
+      ).toBeLessThanOrEqual(mobileLayout.viewport);
+
       await page.getByRole('button', { name: 'Gửi đăng ký' }).click();
       await expect(page.getByText('Đăng ký ca đã gửi, chờ GĐ duyệt.')).toBeVisible();
     } finally {

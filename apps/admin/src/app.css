@@ -39,3 +39,276 @@ body {
 .app-shell__body {
   padding: var(--cmc-space-4);
 }
+
+/* Shift registration: dense Console schedule surface, kept page-local. */
+.shift-registration-progress {
+  min-width: 0;
+}
+
+.shift-registration-group-note {
+  display: grid;
+  gap: var(--cmc-space-1);
+  padding: var(--cmc-space-2) var(--cmc-space-3);
+  background: var(--cmc-surface-sunken);
+  border: 1px solid var(--cmc-border-subtle);
+  border-radius: var(--cmc-radius-control);
+}
+
+.shift-registration-period {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cmc-space-3);
+}
+
+.shift-registration-period .console-date-field {
+  width: 100%;
+}
+
+.shift-registration-period .console-date-field-input {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.shift-registration-field-error {
+  display: block;
+  margin-top: var(--cmc-space-1);
+  color: var(--cmc-danger);
+}
+
+.shift-registration-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cmc-space-2);
+  align-items: center;
+}
+
+.shift-registration-quick-actions > button,
+.shift-registration-day-label > button {
+  min-height: 44px;
+}
+
+.shift-registration-schedule {
+  min-width: 0;
+}
+
+.shift-registration-grid-heading,
+.shift-registration-day {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.8fr) repeat(var(--shift-template-count), minmax(11rem, 1fr));
+  min-width: max-content;
+}
+
+.shift-registration-grid-heading {
+  --shift-template-count: 1;
+  background: var(--cmc-surface-sunken);
+  border-bottom: 1px solid var(--cmc-border-subtle);
+}
+
+.shift-registration-grid-heading > span {
+  display: grid;
+  gap: var(--cmc-space-1);
+  padding: var(--cmc-space-2) var(--cmc-space-3);
+  color: var(--cmc-text-2);
+  font-size: var(--cmc-font-size-column);
+  font-weight: 600;
+}
+
+.shift-registration-grid-heading small,
+.shift-registration-choice small {
+  color: var(--cmc-text-muted);
+  font-size: var(--cmc-font-size-column);
+  font-weight: 400;
+}
+
+.shift-registration-grid {
+  overflow-x: auto;
+  border: 1px solid var(--cmc-border-subtle);
+  background: var(--cmc-surface);
+}
+
+.shift-registration-day {
+  --shift-template-count: 1;
+  min-width: 0;
+  border-bottom: 1px solid var(--cmc-border-subtle);
+}
+
+.shift-registration-day:last-child {
+  border-bottom: 0;
+}
+
+.shift-registration-day-label,
+.shift-registration-choice {
+  min-width: 0;
+  border-right: 1px solid var(--cmc-border-subtle);
+}
+
+.shift-registration-day-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cmc-space-2);
+  padding: var(--cmc-space-2) var(--cmc-space-3);
+  background: var(--cmc-surface-sunken);
+}
+
+.shift-registration-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--cmc-space-2);
+  min-height: 44px;
+  padding: var(--cmc-space-2) var(--cmc-space-3);
+  color: var(--cmc-text);
+  cursor: pointer;
+  background: var(--cmc-surface);
+  transition:
+    background-color var(--cmc-duration-fast) var(--cmc-ease),
+    border-color var(--cmc-duration-fast) var(--cmc-ease),
+    transform var(--cmc-duration-fast) var(--cmc-ease);
+}
+
+.shift-registration-choice:last-child {
+  border-right: 0;
+}
+
+.shift-registration-choice:hover {
+  background: var(--cmc-hover);
+}
+
+.shift-registration-choice:active {
+  transform: translateY(1px);
+}
+
+.shift-registration-choice.is-selected {
+  background: var(--cmc-brand-muted);
+}
+
+.shift-registration-choice:focus-within {
+  outline: var(--cmc-focus-ring);
+  outline-offset: -3px;
+  box-shadow: var(--cmc-focus-halo);
+}
+
+.shift-registration-choice input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--cmc-brand);
+}
+
+.shift-registration-choice-copy {
+  display: grid;
+  min-width: 0;
+  gap: var(--cmc-space-1);
+}
+
+.shift-registration-choice-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shift-registration-summary {
+  display: grid;
+  gap: var(--cmc-space-2);
+  padding: var(--cmc-space-3);
+  background: var(--cmc-surface-sunken);
+  border: 1px solid var(--cmc-border-subtle);
+  border-radius: var(--cmc-radius-control);
+}
+
+.shift-registration-summary h2 {
+  margin: 0;
+  color: var(--cmc-text);
+  font-size: var(--cmc-fs-body);
+  line-height: var(--cmc-lh-body);
+}
+
+.shift-registration-summary dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--cmc-space-2);
+  margin: 0;
+}
+
+.shift-registration-summary dl > div {
+  min-width: 0;
+}
+
+.shift-registration-summary dt {
+  color: var(--cmc-text-muted);
+  font-size: var(--cmc-font-size-column);
+}
+
+.shift-registration-summary dd {
+  margin: var(--cmc-space-1) 0 0;
+  overflow: hidden;
+  color: var(--cmc-text);
+  font-size: var(--cmc-fs-body);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .shift-registration-period {
+    grid-template-columns: 1fr;
+  }
+
+  .shift-registration-grid-heading {
+    display: none;
+  }
+
+  .shift-registration-grid {
+    display: grid;
+    gap: var(--cmc-space-2);
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .shift-registration-day {
+    display: grid;
+    grid-template-columns: 1fr;
+    min-width: 0;
+    border: 1px solid var(--cmc-border-subtle);
+    background: var(--cmc-surface);
+  }
+
+  .shift-registration-day-label,
+  .shift-registration-choice {
+    border-right: 0;
+    border-bottom: 1px solid var(--cmc-border-subtle);
+  }
+
+  .shift-registration-day-label {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .shift-registration-day-label > * {
+    max-width: 100%;
+  }
+
+  .shift-registration-quick-actions > button {
+    max-width: 100%;
+  }
+
+  .shift-registration-day > :last-child {
+    border-bottom: 0;
+  }
+
+  .shift-registration-choice {
+    min-height: 52px;
+  }
+
+  .shift-registration-summary dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shift-registration-choice {
+    transition: none;
+  }
+}

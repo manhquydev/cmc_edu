@@ -824,7 +824,7 @@ export function SubmitTab({ onSubmittedId }: { onSubmittedId?: (id: string) => v
             <div>
               · <strong>Soạn</strong>: xóa lựa chọn, soạn lại
               <br />· <strong>Chờ duyệt</strong>: gửi phiếu nếu hợp lệ (cùng Gửi đăng ký)
-              <br />· <strong>Đã duyệt</strong>: chỉ GĐ trên tab Duyệt
+              <br />· <strong>Đã duyệt</strong>: chỉ GĐ trên form (mở từ Hàng chờ)
             </div>
           </div>
           {result?.ok ? (

@@ -218,6 +218,9 @@ export const lmsOpsRouter = router({
         if (enrollment.status !== 'active') {
           throw badRequest('Enrollment must be active before granting unit ranges.');
         }
+        if (enrollment.archivedAt) {
+          throw badRequest('Cannot grant units on an archived enrollment.');
+        }
 
         let currentOrder = 1;
         if (enrollment.classBatch.currentUnitId) {
@@ -480,7 +483,11 @@ export const lmsOpsRouter = router({
             throw badRequest(`orderGlobal ${o} is not in program ${enrollment.classBatch.program}.`);
           }
         }
-        for (const existing of enrollment.unitRanges) {
+        const freshRanges = await tx.enrollmentUnitRange.findMany({
+          where: { enrollmentId: enrollment.id },
+          select: { fromOrderGlobal: true, toOrderGlobal: true },
+        });
+        for (const existing of freshRanges) {
           if (rangesOverlap(range, existing)) {
             throw badRequest('Range overlaps an existing unit range for this enrollment.');
           }
@@ -512,7 +519,10 @@ export const lmsOpsRouter = router({
       });
     }),
 
-  /** Cut future units from fromOrderGlobal onward (past cannot be subtracted). */
+  /**
+   * Cut units from fromOrderGlobal onward. Past subtract is forbidden:
+   * fromOrderGlobal must be >= class current unit order.
+   */
   revokeFromNext: requirePermission('enrollment', 'grantUnits')
     .input(z.object({ enrollmentId: z.string().uuid(), fromOrderGlobal: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
@@ -520,9 +530,28 @@ export const lmsOpsRouter = router({
       return withFacility(ctx.db, facilityId, async (tx) => {
         const enrollment = await tx.enrollment.findFirst({
           where: { id: input.enrollmentId, facilityId },
-          include: { unitRanges: true },
+          include: {
+            classBatch: { select: { currentUnitId: true } },
+          },
         });
         if (!enrollment) throw notFound('Enrollment not found.');
+        if (enrollment.status !== 'active') {
+          throw badRequest('Enrollment must be active to revoke unit ranges.');
+        }
+
+        let currentOrder = 1;
+        if (enrollment.classBatch.currentUnitId) {
+          const cu = await tx.curriculumUnit.findUnique({
+            where: { id: enrollment.classBatch.currentUnitId },
+            select: { orderGlobal: true },
+          });
+          if (cu) currentOrder = cu.orderGlobal;
+        }
+        if (input.fromOrderGlobal < currentOrder) {
+          throw badRequest(
+            `Cannot revoke past units: fromOrderGlobal must be >= class current unit (${currentOrder}).`,
+          );
+        }
 
         await tx.$queryRawUnsafe(
           `SELECT id FROM "Enrollment" WHERE id = $1 AND "facilityId" = $2 FOR UPDATE`,
@@ -530,8 +559,12 @@ export const lmsOpsRouter = router({
           facilityId,
         );
 
+        const ranges = await tx.enrollmentUnitRange.findMany({
+          where: { enrollmentId: enrollment.id },
+        });
+
         let touched = 0;
-        for (const r of enrollment.unitRanges) {
+        for (const r of ranges) {
           if (r.toOrderGlobal < input.fromOrderGlobal) continue;
           if (r.fromOrderGlobal >= input.fromOrderGlobal) {
             await tx.enrollmentUnitRange.delete({ where: { id: r.id } });
@@ -552,7 +585,12 @@ export const lmsOpsRouter = router({
             action: 'enrollment.revokeFromNext',
             entity: 'Enrollment',
             entityId: enrollment.id,
-            data: { fromOrderGlobal: input.fromOrderGlobal, rangesTouched: touched, facilityId },
+            data: {
+              fromOrderGlobal: input.fromOrderGlobal,
+              classCurrentOrder: currentOrder,
+              rangesTouched: touched,
+              facilityId,
+            },
           },
         });
         return { enrollmentId: enrollment.id, rangesTouched: touched };

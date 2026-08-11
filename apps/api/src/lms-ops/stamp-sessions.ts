@@ -12,6 +12,10 @@ function toHhmm(d: Date): string {
 /**
  * Restamps non-cancelled sessions for a batch from neo (start unit order + anchor).
  * Must run in the same transaction as session create for spike create path.
+ *
+ * Progression math counts every non-cancelled session (including `done`).
+ * Writes only freeze-open statuses: never rewrite `done` teaching history
+ * (domain-lms: API decides which stamps to write).
  */
 export async function restampBatchSessions(
   tx: Prisma.TransactionClient,
@@ -38,7 +42,7 @@ export async function restampBatchSessions(
       status: { not: 'cancelled' },
       sessionDate: { gte: opts.anchorDate },
     },
-    select: { id: true, sessionDate: true, startTime: true },
+    select: { id: true, sessionDate: true, startTime: true, status: true },
   });
 
   const ordered: OrderedSession[] = sessions.map((s) => ({
@@ -47,9 +51,11 @@ export async function restampBatchSessions(
     startTime: toHhmm(s.startTime),
   }));
 
+  const frozenIds = new Set(sessions.filter((s) => s.status === 'done').map((s) => s.id));
   const stamps = deriveSessionUnits(opts.anchorOrderGlobal, maxOrder, ordered);
   let n = 0;
   for (const stamp of stamps) {
+    if (frozenIds.has(stamp.id)) continue;
     const unitId = unitIdByOrder.get(stamp.order);
     if (!unitId) continue;
     await tx.classSession.update({

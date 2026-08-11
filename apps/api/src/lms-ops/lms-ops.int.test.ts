@@ -329,6 +329,46 @@ describe('lmsOps foundation spike', () => {
     expect(roster.students.map((s) => s.studentId)).not.toContain(active.studentId);
   });
 
+  it('revokeFromNext rejects past subtract when fromOrderGlobal < class current unit', async () => {
+    const created = await gddt.lmsOps.createClassWithUnits({
+      courseId,
+      startUnitId: unitIds[2]!, // current unit order 103
+      startDate: '2026-09-07',
+      endDate: '2026-09-28',
+      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+    });
+    const active = await seedActiveEnrollment({
+      facilityId: facility.id,
+      classBatchId: created.classBatchId,
+    });
+    await gddt.lmsOps.grantPast({
+      enrollmentId: active.id,
+      fromOrderGlobal: 101,
+      toOrderGlobal: 104,
+    });
+
+    await expect(
+      gddt.lmsOps.revokeFromNext({
+        enrollmentId: active.id,
+        fromOrderGlobal: 101,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    // Still allowed to cut from current unit forward.
+    const rev = await gddt.lmsOps.revokeFromNext({
+      enrollmentId: active.id,
+      fromOrderGlobal: 103,
+    });
+    expect(rev.rangesTouched).toBeGreaterThanOrEqual(1);
+    const ranges = await testDbBypass((tx) =>
+      tx.enrollmentUnitRange.findMany({
+        where: { enrollmentId: active.id },
+        select: { fromOrderGlobal: true, toOrderGlobal: true },
+      }),
+    );
+    expect(ranges).toEqual([{ fromOrderGlobal: 101, toOrderGlobal: 102 }]);
+  });
+
   it('archiveEnrollment hides student from future sessions; unarchive restores', async () => {
     const created = await gddt.lmsOps.createClassWithUnits({
       courseId,

@@ -1,6 +1,6 @@
 ---
 title: "Phase 6: Exercise delivery"
-status: todo
+status: in_progress
 dependencies: [2, 3]
 ---
 # Phase 6: Exercise library + delivery + grading
@@ -10,6 +10,9 @@ Library folders, freeze class sequence, cron 1/session end, grade publish → st
 - [ ] SessionExercise model live
 - [ ] Delivery uses roster D1
 - [ ] realign units never moves sequence pointer
-- [ ] Server kill-switch for ADR 0038 open-tier
+- [x] Server kill-switch for ADR 0038 open-tier
 ## Success Criteria
 - [ ] Homework path only via delivery when flag on
+
+## Notes
+Kill-switch + program-scoped entitlement gate shipped. Library/delivery/grading still open.

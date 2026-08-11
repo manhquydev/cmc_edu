@@ -21,6 +21,7 @@
 
 import type { PrismaClient, Prisma } from '@cmc/db';
 import { withFacility } from '@cmc/db';
+import { isEntitled } from '@cmc/domain-lms';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { lmsProcedure, requireLmsStudent, router } from '../trpc.js';
 import { toExerciseDto, type ExerciseDto } from './router.js';
@@ -100,11 +101,15 @@ async function resolveOpenCurriculumUnitIds(
     return new Set();
   }
 
+  const entitlementOn = isEntitlementGateOnOpenTier();
   const activeEnrollments = await tx.enrollment.findMany({
     where: { studentId: student.id, status: 'active' },
     select: {
       classBatchId: true,
-      unitRanges: { select: { fromOrderGlobal: true, toOrderGlobal: true } },
+      classBatch: { select: { program: true } },
+      ...(entitlementOn
+        ? { unitRanges: { select: { fromOrderGlobal: true, toOrderGlobal: true } } }
+        : {}),
     },
   });
   const classBatchIds = activeEnrollments.map((e) => e.classBatchId);
@@ -155,20 +160,31 @@ async function resolveOpenCurriculumUnitIds(
     if (unitId) openUnitIds.add(unitId);
   }
 
-  if (!isEntitlementGateOnOpenTier() || openUnitIds.size === 0) {
+  if (!entitlementOn || openUnitIds.size === 0) {
     return openUnitIds;
   }
 
-  // Intersect open units with sold/granted ranges across active enrollments.
-  const { isEntitled } = await import('@cmc/domain-lms');
+  // Intersect open units with sold/granted ranges, scoped by program
+  // (orderGlobal is unique per program, not globally — ADR 0046).
   const units = await tx.curriculumUnit.findMany({
     where: { id: { in: [...openUnitIds] } },
-    select: { id: true, orderGlobal: true },
+    select: { id: true, orderGlobal: true, program: true },
   });
-  const allRanges = activeEnrollments.flatMap((e) => e.unitRanges);
+  const rangesByProgram = new Map<string, { fromOrderGlobal: number; toOrderGlobal: number }[]>();
+  for (const e of activeEnrollments) {
+    const program = e.classBatch.program;
+    const ranges =
+      'unitRanges' in e && Array.isArray(e.unitRanges)
+        ? (e.unitRanges as { fromOrderGlobal: number; toOrderGlobal: number }[])
+        : [];
+    const bucket = rangesByProgram.get(program) ?? [];
+    bucket.push(...ranges);
+    rangesByProgram.set(program, bucket);
+  }
   const filtered = new Set<string>();
   for (const u of units) {
-    if (isEntitled(allRanges, u.orderGlobal)) filtered.add(u.id);
+    const ranges = rangesByProgram.get(u.program) ?? [];
+    if (isEntitled(ranges, u.orderGlobal)) filtered.add(u.id);
   }
   return filtered;
 }

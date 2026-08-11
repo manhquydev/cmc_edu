@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Class engine full"
-status: todo
+status: done
 dependencies: [1]
 ---
 # Phase 2: Class engine full cancel restamp
@@ -10,8 +10,11 @@ Port session materialize, cancel with reasons, restamp future units, slot edit, 
 - Source: cmc-lms session-generator, batch-unit, class-batch router
 - Modify: apps/api class / lms-ops
 ## Requirements
-- [ ] Cancel rewinds unit stamps for future non-attended
-- [ ] No makeup session create path in new ops
+- [x] Cancel rewinds unit stamps for future non-attended
+- [x] No makeup session create path in new ops
 - [ ] realignHistory optional late / repair only
 ## Success Criteria
-- [ ] Integration tests cancel + restamp
+- [x] Integration tests cancel + restamp
+
+## Notes
+API slice: `lmsOps.cancelSessionAndRestamp` uses existing `restampBatchSessions` neo. Slot edit / close/discard / realignHistory deferred.

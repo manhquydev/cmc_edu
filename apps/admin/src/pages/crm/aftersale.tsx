@@ -237,6 +237,7 @@ export default function AfterSalePage() {
           empty="Chưa có case chăm sóc sau bán nào"
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
+          onRowClick={(row) => navigate(links.afterSaleCase(row.id))}
         />
       </ListPage>
 

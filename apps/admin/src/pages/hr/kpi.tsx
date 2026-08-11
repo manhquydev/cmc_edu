@@ -304,6 +304,7 @@ export default function KpiPage() {
             loading={isLoading}
             error={error?.message}
             empty="Không có phiếu KPI nào phù hợp bộ lọc."
+            onRowClick={(row) => navigate(links.kpiScore(row.id))}
           />
         </Stack>
       </ListPage>

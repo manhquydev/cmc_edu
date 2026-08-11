@@ -881,18 +881,15 @@ function MyRegistrationsTab({ onCompose }: { onCompose?: () => void }) {
 
   if (!isLoading && !error && rows.length === 0) {
     return (
-      <Stack gap={2} padding={4}>
-        <style>{WS_CSS}</style>
-        <EmptyState
-          title="Chưa có đăng ký ca"
-          description="Soạn phiếu mới rồi gửi (Chờ duyệt)."
-          action={
-            onCompose ? (
-              <Button label="Soạn phiếu mới" size="sm" variant="primary" onClick={onCompose} />
-            ) : undefined
-          }
-        />
-      </Stack>
+      <EmptyState
+        title="Chưa có đăng ký ca"
+        description="Soạn phiếu mới rồi gửi (Chờ duyệt)."
+        action={
+          onCompose ? (
+            <Button label="Soạn phiếu mới" size="sm" variant="primary" onClick={onCompose} />
+          ) : undefined
+        }
+      />
     );
   }
 
@@ -941,8 +938,7 @@ function MyRegistrationsTab({ onCompose }: { onCompose?: () => void }) {
   ];
 
   return (
-    <Stack gap={2} padding={4}>
-      <style>{WS_CSS}</style>
+    <Stack gap={2}>
       {result && <Banner status={result.ok ? 'success' : 'error'} title={result.text} />}
       <DataTable<MyRegRow>
         columns={columns}
@@ -950,7 +946,9 @@ function MyRegistrationsTab({ onCompose }: { onCompose?: () => void }) {
         loading={isLoading}
         error={error?.message}
         empty="Chưa có đăng ký ca."
-        onRowClick={(row) => navigate(links.shiftRegistration(row.id), { state: { listScope: 'mine' as const } })}
+        onRowClick={(row) =>
+          navigate(links.shiftRegistration(row.id), { state: { listScope: 'mine' as const } })
+        }
       />
       <ConfirmDialog
         opened={cancelTarget !== null}
@@ -1030,22 +1028,16 @@ function ApproveTab() {
   ];
 
   return (
-    <Stack gap={2} padding={4}>
-      <style>{WS_CSS}</style>
-      <Text type="body" size="xsm" color="secondary">
-        Hàng chờ — bấm <strong>Mở phiếu</strong> để duyệt/từ chối trên form chi tiết (không duyệt trên list).
-      </Text>
-      <DataTable<PendingRow>
-        columns={columns}
-        data={rows}
-        loading={isLoading}
-        error={error?.message}
-        empty="Không có đăng ký chờ duyệt (chỉ phiếu submitted đúng track GĐ)."
-        onRowClick={(row) =>
-          navigate(links.shiftRegistration(row.id), { state: { listScope: 'inbox' as const } })
-        }
-      />
-    </Stack>
+    <DataTable<PendingRow>
+      columns={columns}
+      data={rows}
+      loading={isLoading}
+      error={error?.message}
+      empty="Không có đăng ký chờ duyệt (chỉ phiếu submitted đúng track GĐ)."
+      onRowClick={(row) =>
+        navigate(links.shiftRegistration(row.id), { state: { listScope: 'inbox' as const } })
+      }
+    />
   );
 }
 

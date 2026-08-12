@@ -11,12 +11,14 @@ import {
   buildLmsContext,
   buildStaffContext,
   cleanupCurriculumUnits,
+  cleanupExerciseLibrary,
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
   seedClassBatch,
   seedClassSession,
   seedCurriculumUnit,
+  seedExerciseFolder,
   seedEnrolledStudentWithGuardian,
   seedParentAccount,
   testDbBypass,
@@ -32,6 +34,7 @@ describe('exercise.openForStudent — delivery-only (B3)', () => {
   let classBatch: { id: string; courseId: string };
   let parent: { id: string; phone: string };
   const seededUnitIds: string[] = [];
+  const seededFolderIds: string[] = [];
   const extraParentPhones: string[] = [];
 
   beforeEach(async () => {
@@ -47,6 +50,8 @@ describe('exercise.openForStudent — delivery-only (B3)', () => {
   afterEach(async () => {
     // Facility first: drops ClassExerciseItem / SessionExercise FKs to exercises.
     await cleanupFacility(facility.id);
+    await cleanupExerciseLibrary(...seededFolderIds);
+    seededFolderIds.length = 0;
     await cleanupCurriculumUnits(...seededUnitIds);
     seededUnitIds.length = 0;
     await cleanupParentAccountsByPhone(parent.phone, ...extraParentPhones);
@@ -59,9 +64,12 @@ describe('exercise.openForStudent — delivery-only (B3)', () => {
     return unit;
   }
 
-  async function publishedExerciseFor(unitId: string) {
+  async function publishedExerciseFor(_unitId: string) {
+    const folder = await seedExerciseFolder();
+    seededFolderIds.push(folder.id);
     const created = await gddt.exercise.create({
-      curriculumUnitId: unitId,
+      folderId: folder.id,
+      title: 'Bài tập mở',
       type: 'homework',
       basePdfRef: 'exercise-pdf/seed.pdf',
     });

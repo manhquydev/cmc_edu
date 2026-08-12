@@ -57,6 +57,15 @@ const INFRA_PROCEDURE_WHITELIST = new Set([
 // this map only annotates them with a reason so the tool distinguishes triaged gaps
 // from brand-new un-triaged orphans that need a decision.
 const DOCUMENTED_GAPS: Record<string, string> = {
+  // P2-04 chuyển soạn bài sang thư mục. curriculumUnit.list vẫn phục vụ màn lớp
+  // (neo unit / assignUnit) nhưng chưa có luồng riêng khai procedure này.
+  'curriculumUnit.list':
+    'Danh mục unit còn dùng ở màn lớp; P2-04 soạn bài đã đổi sang exerciseFolder.* (2026-08-13)',
+  // Procedure đổi tên / chuyển thư mục có thật. rg "exercise.update" trên
+  // apps/admin/src + apps/lms/src = 0 (chỉ Prisma update status trong test API).
+  // P2-04 không khai để bánh xe chắn orphan không đếm phủ không tồn tại.
+  'exercise.update':
+    'API đổi tên/chuyển thư mục bài có thật; chưa màn nào gọi (rg exercise.update apps/admin+lms = 0, 2026-08-13)',
   // PO quyết 2026-07-18: khoá học hiện import data, nhưng cần MÀN HÌNH tạo/quản lý
   // cho GĐĐT tự xử lý (không phụ thuộc IT chạy code) → tính năng tương lai cần xây;
   // trang /admin/courses hiện chỉ có danh sách (course.list), thiếu form tạo.
@@ -66,16 +75,14 @@ const DOCUMENTED_GAPS: Record<string, string> = {
   // để lời khai khớp thực tế; giữ ở đây để capability vẫn HIỆN, không bị whitelist
   // nuốt mất — trang phụ huynh hiện chưa có chỗ nào liệt kê lớp của con.
   'enrollment.mine': 'Danh sách lớp của con cho phụ huynh — procedure có thật nhưng chưa màn LMS nào gọi (triage 2026-07-24)',
-  // LMS foundation unit-range spike (lmsOps namespace): real server capabilities for
-  // class/unit grants, enrollment archive, exercise sequence delivery, session
-  // cancel+restamp — not yet wired to any student- or staff-facing UI journey.
-  // Keep as documented experimental gaps (E7 category c); exclude from acceptance
-  // until a UI-provable flow claims them. Do NOT invent fake flow coverage.
+  // LMS foundation unit-range spike (lmsOps namespace): real server capabilities
+  // for class/unit grants, enrollment archive, delivery, session cancel+restamp.
+  // `lmsOps.assignExerciseSequence` / `listExerciseSequence` đã có màn
+  // /teaching/classes/:classBatchId/exercise-sequence và được P2-09 khai —
+  // không còn trong map này. Các procedure còn lại chưa có UI/journey.
   'lmsOps.addWithUnits':
     'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
   'lmsOps.archiveEnrollment':
-    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
-  'lmsOps.assignExerciseSequence':
     'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
   'lmsOps.cancelSessionAndRestamp':
     'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
@@ -84,8 +91,6 @@ const DOCUMENTED_GAPS: Record<string, string> = {
   'lmsOps.deliverSessionExercise':
     'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
   'lmsOps.grantPast':
-    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
-  'lmsOps.listExerciseSequence':
     'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
   'lmsOps.revokeFromNext':
     'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',

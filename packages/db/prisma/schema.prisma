@@ -795,7 +795,6 @@ model CurriculumUnit {
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
 
   classSessions      ClassSession[]
-  exercises          Exercise[]
   startOfBatches     ClassBatch[] @relation("ClassBatchStartUnit")
   currentOfBatches   ClassBatch[] @relation("ClassBatchCurrentUnit")
 
@@ -804,32 +803,47 @@ model CurriculumUnit {
   @@index([program, orderGlobal])
 }
 
+/// Flat one-level folder for the exercise library. **GLOBAL, no `facilityId`,
+/// no RLS** — same QĐ 0021/0022 catalog rule as `CurriculumUnit`/`Exercise`.
+/// The exercise router reads this via plain `ctx.db` (not `withFacility`); an
+/// RLS policy on `app.current_facility_id` would hide every row.
+model ExerciseFolder {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  /// Hide from new assignments; does not rewrite class sequences already frozen.
+  archivedAt  DateTime?  @db.Timestamptz(3)
+  createdById String
+  createdAt   DateTime   @default(now()) @db.Timestamptz(3)
+
+  exercises Exercise[]
+}
+
 /// PDF-based exercise (docs/19 §3, WF-P2-04): `basePdfRef` is a `BlobStorage`
 /// key (@cmc/storage), not a DB-stored file. **GLOBAL, no `facilityId`, no
-/// RLS** (QĐ 0022) — one catalog of exercises per curriculum unit, shared
-/// system-wide like `CurriculumUnit` above (open-tier gating per-student
-/// happens in T2-II, not here). `createdById` is a plain scalar (references
-/// AppUser.id, arriving with the HR/identity phase — same deferral as
-/// `ClassBatch.teacherId`).
+/// RLS** (QĐ 0022) — one shared library, not bound to a curriculum unit.
+/// Open-tier gating per-student happens in T2-II, not here. `createdById` is a
+/// plain scalar (references AppUser.id, same deferral as `ClassBatch.teacherId`).
 model Exercise {
-  id               String         @id @default(uuid())
-  curriculumUnitId String
-  type             ExerciseType
-  basePdfRef       String
-  maxScore         Int            @default(10)
-  starReward       Int            @default(10)
-  status           ExerciseStatus @default(draft)
-  createdById      String
-  createdAt        DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime       @updatedAt @db.Timestamptz(3)
+  id            String         @id @default(uuid())
+  folderId      String
+  orderInFolder Int
+  title         String
+  type          ExerciseType
+  basePdfRef    String
+  maxScore      Int            @default(10)
+  starReward    Int            @default(10)
+  status        ExerciseStatus @default(draft)
+  createdById   String
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
 
-  curriculumUnit   CurriculumUnit      @relation(fields: [curriculumUnitId], references: [id])
+  folder             ExerciseFolder      @relation(fields: [folderId], references: [id])
   classExerciseItems ClassExerciseItem[]
   sessionDeliveries  SessionExercise[]
 
-  // One exercise per (unit, type) — TL19 §3 "unique [curriculumUnitId, type]".
-  @@unique([curriculumUnitId, type])
-  @@index([curriculumUnitId])
+  @@unique([folderId, orderInFolder])
+  @@index([folderId])
 }
 
 // ---------------------------------------------------------------------------

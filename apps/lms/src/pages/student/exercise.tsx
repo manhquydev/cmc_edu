@@ -143,7 +143,7 @@ export default function ExercisePage() {
 
       <div className="lms-page">
         <HStack justify="between" style={{ marginBottom: 8 }}>
-          <Heading level={4} style={{ margin: 0 }}>{slot.type}</Heading>
+          <Heading level={4} style={{ margin: 0 }}>{slot.title}</Heading>
           <Badge label={`${slot.starReward} sao`} variant="blue" />
         </HStack>
         <Text type="supporting" size="2xs" display="block" style={{ marginBottom: 8 }}>

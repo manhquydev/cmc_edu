@@ -1,7 +1,8 @@
-// Flow manifest — 38 luồng: 33 WF-code TL25 (P1–P4) + 5 ADMIN (nguồn: code +
-// plans/260716-1047-super-admin-completion). TL25 (docs/25-ma-tran-truy-vet-p1.md
-// §2) làm mẫu số; expected.trpc/uiRoutes/models dùng GIÁ TRỊ THẬT đối chiếu
-// trực tiếp scanner output (2026-07-18) — không chép mù TL25.
+// Flow manifest — 43 luồng: 33 WF-code TL25 (P1–P4) + 5 ADMIN (nguồn: code +
+// plans/260716-1047-super-admin-completion) + các luồng bổ sung từ code
+// (gồm P2-09 xếp dãy bài, B6, chưa có mã TL25). TL25
+// (docs/25-ma-tran-truy-vet-p1.md §2) làm mẫu số gốc; expected.trpc/uiRoutes/
+// models dùng GIÁ TRỊ THẬT đối chiếu trực tiếp scanner output — không chép mù TL25.
 //
 // Nguyên tắc claim procedure (E1/E7, plan 260718-0423):
 // - Procedure chính TL25 nêu + procedure PHỤ mà đúng màn hình/queue của WF đó
@@ -374,14 +375,15 @@ export const flows: FlowEntry[] = [
     expected: {
       // Luồng LMS học viên (StudentOnly). listForStudent = danh sách bài của HV (E1).
       trpc: ['exercise.openForStudent', 'exercise.listForStudent'],
-      uiRoutes: ['/student/home', '/student/exercise/:exerciseId'],
+      uiRoutes: ['/student/home', '/student/exercise/:sessionExerciseId'],
       models: ['Exercise'],
     },
     // "Mở bài theo tiến độ" cần gán unit vào buổi để mở tier cho học viên —
     // không màn nào làm việc đó. Tự kiểm 2026-07-25: rg
     // "classSession\.assignUnit|assignUnit" apps/admin/src apps/lms/src → 0
-    // matches (curriculumUnitId chỉ xuất hiện ở FORM tạo bài — thuộc P2-04,
-    // không phải gán vào buổi). User V5 từ chối S3 (seed session→unit) vì đó là
+    // matches. (Câu cũ nói `curriculumUnitId` nằm ở form tạo bài P2-04 nay đã
+    // lỗi thời — 2026-08-13 bài tập thôi gắn unit, form chọn THƯ MỤC.)
+    // User V5 từ chối S3 (seed session→unit) vì đó là
     // cơ chế open-tier chính P2-03 phải chứng minh → no-ui-path.
     statusReason: {
       code: 'no-ui-path',
@@ -398,18 +400,28 @@ export const flows: FlowEntry[] = [
     // thực tế thay vì nới quyền.
     actorRoles: ['giam_doc_dao_tao'],
     expected: {
-      // TL25 đã sync 2026-07-18: /curriculum/:unitId/exercises → /teaching/exercises
-      // (không có prefix /curriculum). exercise.list/close + curriculumUnit.list = màn soạn bài (E1).
-      trpc: ['exercise.create', 'exercise.publish', 'exercise.close', 'exercise.get', 'exercise.list', 'curriculumUnit.list'],
+      // Soạn bài chọn thư mục (exerciseFolder.*) thay curriculumUnit.list.
+      // `exercise.update` (đổi tên / chuyển thư mục) có API nhưng không màn nào
+      // gọi — xem DOCUMENTED_GAPS. Không khai để bánh xe chắn orphan không đếm
+      // phủ không tồn tại.
+      trpc: [
+        'exercise.create',
+        'exercise.publish',
+        'exercise.close',
+        'exercise.get',
+        'exercise.list',
+        'exerciseFolder.create',
+        'exerciseFolder.update',
+        'exerciseFolder.archive',
+        'exerciseFolder.list',
+      ],
       uiRoutes: ['/teaching/exercises'],
-      models: ['Exercise', 'CurriculumUnit'],
+      models: ['Exercise', 'ExerciseFolder'],
     },
-    // Journey: GĐĐT tạo bài tập (chọn unit từ curriculumUnit.list + loại + UPLOAD
-    // PDF thật qua /upload/exercise-pdf) → Publish → Đóng. Drive đủ 5 procedure
-    // khai (create/publish/close/list/curriculumUnit.list) + exercise.manage
-    // (upload). Unit seed unique (dữ liệu trơ, user đã duyệt seed loại này) để
-    // nhận diện đúng row. Vòng draft→published→closed đọc lại từ row là bằng
-    // chứng sống.
+    // Journey: GĐĐT tạo bài tập (chọn thư mục + loại + UPLOAD PDF thật qua
+    // /upload/exercise-pdf) → Publish → Đóng. Drive create/publish/close/list
+    // + folder CRUD + exercise.manage (upload). Vòng draft→published→closed
+    // đọc lại từ row là bằng chứng sống.
     journey: 'apps/e2e/tests/journeys/exercise-publish-close.journey.ui.spec.ts',
   },
   {
@@ -420,7 +432,7 @@ export const flows: FlowEntry[] = [
     expected: {
       // Luồng LMS học viên (StudentOnly). listForChild = bài đã nộp của HV (E1).
       trpc: ['submission.saveDraft', 'submission.submit', 'submission.listForChild'],
-      uiRoutes: ['/student/exercise/:exerciseId'],
+      uiRoutes: ['/student/exercise/:sessionExerciseId'],
       models: ['Submission'],
     },
     // Học viên chỉ nộp được khi bài đã mở (open-tier) — mà open-tier không có UI
@@ -529,6 +541,22 @@ export const flows: FlowEntry[] = [
     // session-evidence-publish.journey.ui.spec.ts vẫn ở lại làm guard hẹp cho
     // riêng đường công bố của giáo viên (cùng khuôn P3-05 giữ payroll-roster).
     journey: 'apps/e2e/tests/journeys/lms-parent-evidence-consent.journey.ui.spec.ts',
+  },
+  {
+    id: 'P2-09',
+    displayName: 'Xếp dãy bài cho lớp',
+    cluster: 'P2',
+    actorRoles: ['giam_doc_dao_tao'],
+    expected: {
+      // Màn /teaching/classes/:classBatchId/exercise-sequence (B6) gọi đúng hai
+      // procedure này. Không phải mã TL25 — thêm để sổ không nói "chưa có UI"
+      // trong khi màn đã đóng băng dãy bài cả lớp.
+      trpc: ['lmsOps.assignExerciseSequence', 'lmsOps.listExerciseSequence'],
+      uiRoutes: ['/teaching/classes/:classBatchId/exercise-sequence'],
+      models: ['ClassExerciseItem'],
+    },
+    // Có UI + procedure. CHƯA có journey e2e — không khai journey giả.
+    // Ledger sẽ là built-unproven / no-journey cho đến khi có spec.
   },
 
   // ─────────────────────────────── P3 — Nhân sự & lương ───────────────────────────────

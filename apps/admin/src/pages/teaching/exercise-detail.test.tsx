@@ -12,21 +12,20 @@ const { EXERCISE_ID, EXERCISE } = vi.hoisted(() => {
     EXERCISE_ID,
     EXERCISE: {
       id: EXERCISE_ID,
-      curriculumUnitId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      folderId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      orderInFolder: 1,
+      title: 'Bài tập buổi 1',
       type: 'homework',
       status: 'draft',
       basePdfRef: 'exercise-pdf/seed.pdf',
       maxScore: 10,
       starReward: 10,
       createdById: 'u-director',
-      curriculumUnit: {
+      folder: {
         id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-        program: 'English',
-        level: 'U2',
-        monthIndex: 3,
-        unitType: 'core',
-        title: 'Bài 3',
-        orderGlobal: 3,
+        name: 'Chưa phân loại',
+        description: null,
+        archivedAt: null,
       },
     },
   };
@@ -75,7 +74,8 @@ describe('ExerciseDetailPage', () => {
     renderWithProviders(<ExerciseDetailPage />, {
       route: `/teaching/exercises/${EXERCISE_ID}`,
     });
-    expect(screen.getByText(/Bài tập \/ Bài tập về nhà/)).toBeInTheDocument();
+    expect(screen.getAllByText('Bài tập buổi 1').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Chưa phân loại').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Thông tin bài tập')).toBeInTheDocument();
     expect(screen.getAllByText(/Nháp/).length).toBeGreaterThanOrEqual(1);
   });

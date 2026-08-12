@@ -213,9 +213,11 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/finance/:id', '/finance/refund'],
       models: ['Receipt', 'RefundRecord'],
     },
-    // 2026-08-11: form-depth on receipt — refundCreate + receiptCancel + index
-    // /finance/refund. No journey yet → evidence badge no-journey (built-unproven).
-    //   rg receiptCancel/refundCreate apps/admin → matches (receipt-detail)
+    // Journey: sale creates draft → GĐKD approves → Hoàn tiền index opens form
+    // → partial refundCreate (ledger UI) → receiptCancel → status cancelled.
+    // Durable state asserted via finance.receiptGet (refundedTotal + refunds +
+    // status), not mutation capture.
+    journey: 'apps/e2e/tests/journeys/receipt-refund-cancel.journey.ui.spec.ts',
   },
   {
     id: 'P1-09',

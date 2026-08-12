@@ -1,14 +1,16 @@
 // Exercise management — director creates exercises linked to CurriculumUnits.
 // exercise.manage permission = giam_doc_dao_tao only.
+// List is index-only (resource-centric): Công bố / Đóng live on
+// /teaching/exercises/:exerciseId form.
 
 import { useEffect, useRef, useState } from 'react';
 import type { ComponentProps } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Badge,
   Banner,
   BulkActionBar,
   Button,
-  ConfirmDialog,
   DataTable,
   Dialog,
   DialogHeader,
@@ -24,6 +26,7 @@ import {
   useToast,
 } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
+import { links } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 
 const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').trim();
@@ -72,14 +75,13 @@ interface ExerciseRow {
 }
 
 export default function ExercisesPage() {
+  const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
   const [curriculumUnitId, setCurriculumUnitId] = useState<string | null>(null);
   const [exerciseType, setExerciseType] = useState<string | null>(null);
   const [pdfBlobRef, setPdfBlobRef] = useState<string | null>(null);
   const [pdfUploading, setPdfUploading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
-  const [pendingPublishId, setPendingPublishId] = useState<string | null>(null);
-  const [pendingCloseId, setPendingCloseId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState('');
@@ -111,20 +113,10 @@ export default function ExercisesPage() {
       resetForm();
     },
   });
-  const publishMut = trpc.exercise.publish.useMutation({
-    onSuccess: () => {
-      void utils.exercise.list.invalidate();
-      setPendingPublishId(null);
-      toastSuccess('Đã công bố bài tập');
-    },
-  });
-  const closeMut = trpc.exercise.close.useMutation({
-    onSuccess: () => {
-      void utils.exercise.list.invalidate();
-      setPendingCloseId(null);
-      toastSuccess('Đã đóng bài tập');
-    },
-  });
+
+  function openExercise(row: ExerciseRow) {
+    navigate(links.exercise(row.id));
+  }
 
   function resetForm() {
     setCurriculumUnitId(null);
@@ -198,27 +190,9 @@ export default function ExercisesPage() {
     {
       key: 'id',
       label: 'Thao tác',
+      width: 120,
       render: (_v, row) => (
-        <HStack gap={1}>
-          {row.status === 'draft' && (
-            <Button
-              label="Công bố"
-              size="sm"
-              variant="primary"
-              isLoading={publishMut.isPending && pendingPublishId === row.id}
-              onClick={() => setPendingPublishId(row.id)}
-            />
-          )}
-          {row.status === 'published' && (
-            <Button
-              label="Đóng"
-              size="sm"
-              variant="destructive"
-              isLoading={closeMut.isPending && pendingCloseId === row.id}
-              onClick={() => setPendingCloseId(row.id)}
-            />
-          )}
-        </HStack>
+        <Button label="Mở phiếu" size="sm" variant="primary" onClick={() => openExercise(row)} />
       ),
     },
   ];
@@ -229,6 +203,7 @@ export default function ExercisesPage() {
       header={
         <PageHeader
           title="Quản lý bài tập"
+          subtitle="Danh sách bài tập · mở form để công bố / đóng (không HITL trên list)"
           breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Bài tập' }]}
           actions={
             <Button label="+ Tạo bài tập" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />
@@ -294,6 +269,7 @@ export default function ExercisesPage() {
           empty='Chưa có bài tập nào. Nhấn "Tạo bài tập" để bắt đầu.'
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
+          onRowClick={openExercise}
         />
       )}
 
@@ -395,30 +371,6 @@ export default function ExercisesPage() {
         </Stack>
       </Dialog>
 
-      <ConfirmDialog
-        opened={pendingPublishId !== null}
-        title="Công bố bài tập?"
-        message="Học sinh sẽ có thể nộp bài sau khi công bố. Bạn có chắc muốn công bố bài tập này?"
-        confirmLabel="Công bố"
-        confirmColor="green"
-        loading={publishMut.isPending}
-        onConfirm={() => {
-          if (pendingPublishId) publishMut.mutate({ exerciseId: pendingPublishId });
-        }}
-        onCancel={() => setPendingPublishId(null)}
-      />
-      <ConfirmDialog
-        opened={pendingCloseId !== null}
-        title="Đóng bài tập?"
-        message="Sau khi đóng, học sinh không thể nộp bài mới. Hành động này nên dùng khi hết hạn nộp."
-        confirmLabel="Đóng bài tập"
-        confirmColor="red"
-        loading={closeMut.isPending}
-        onConfirm={() => {
-          if (pendingCloseId) closeMut.mutate({ exerciseId: pendingCloseId });
-        }}
-        onCancel={() => setPendingCloseId(null)}
-      />
     </ListPage>
   );
 }

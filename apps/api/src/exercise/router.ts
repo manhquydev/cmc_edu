@@ -210,4 +210,25 @@ export const exerciseRouter = router({
       });
       return { items: exercises.map(toExerciseDto) };
     }),
+
+  /**
+   * Staff: cold-start form by UUID (resource-centric form-depth).
+   * Same exercise.manage gate as list/publish/close. Exercise is a global
+   * catalog (no facilityId / RLS) — same as list.
+   */
+  get: requirePermission('exercise', 'manage')
+    .input(exerciseIdInput)
+    .query(async ({ ctx, input }) => {
+      const exercise = await ctx.db.exercise.findUnique({
+        where: { id: input.exerciseId },
+        include: { curriculumUnit: true },
+      });
+      if (!exercise) {
+        throw notFound('Exercise not found.');
+      }
+      return {
+        ...toExerciseDto(exercise),
+        curriculumUnit: toCurriculumUnitDto(exercise.curriculumUnit),
+      };
+    }),
 });

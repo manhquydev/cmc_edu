@@ -32,6 +32,8 @@ export const links = {
   manualPunchTicket: (id: string) => `/hr/checkin/${id}`,
   /** Reward redemption form (engagement queue) — UUID. */
   reward: (id: string) => `/admin/engagement/rewards/${id}`,
+  /** Exercise form (teaching catalog publish/close) — UUID. */
+  exercise: (id: string) => `/teaching/exercises/${id}`,
 } as const;
 
 export type LinkEntity = keyof typeof links;

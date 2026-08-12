@@ -30,6 +30,7 @@ describe('links builders', () => {
     expect(links.classSession(UUID)).toBe(`/teaching/sessions/${UUID}`);
     expect(links.manualPunchTicket(UUID)).toBe(`/hr/checkin/${UUID}`);
     expect(links.reward(UUID)).toBe(`/admin/engagement/rewards/${UUID}`);
+    expect(links.exercise(UUID)).toBe(`/teaching/exercises/${UUID}`);
   });
 
   it('builds go paths', () => {
@@ -42,6 +43,7 @@ describe('links builders', () => {
     expect(goPath('classSession', UUID)).toBe(`/go/classSession/${UUID}`);
     expect(goPath('manualPunchTicket', UUID)).toBe(`/go/manualPunchTicket/${UUID}`);
     expect(goPath('reward', UUID)).toBe(`/go/reward/${UUID}`);
+    expect(goPath('exercise', UUID)).toBe(`/go/exercise/${UUID}`);
   });
 });
 
@@ -70,6 +72,7 @@ describe('resolveGo', () => {
     expect(resolveGo('classSession', UUID)).toBe(`/teaching/sessions/${UUID}`);
     expect(resolveGo('manualPunchTicket', UUID)).toBe(`/hr/checkin/${UUID}`);
     expect(resolveGo('reward', UUID)).toBe(`/admin/engagement/rewards/${UUID}`);
+    expect(resolveGo('exercise', UUID)).toBe(`/teaching/exercises/${UUID}`);
   });
 
   it('returns null for unknown entity keys', () => {

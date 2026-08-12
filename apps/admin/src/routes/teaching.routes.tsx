@@ -10,6 +10,7 @@ const GradingPage = lazy(() => import('../pages/teaching/grading.js'));
 const SessionEvidencePage = lazy(() => import('../pages/teaching/session-evidence.js'));
 const SessionAssessmentPage = lazy(() => import('../pages/teaching/session-assessment.js'));
 const ExercisesPage = lazy(() => import('../pages/teaching/exercises.js'));
+const ExerciseDetailPage = lazy(() => import('../pages/teaching/exercise-detail.js'));
 
 function PageFallback() {
   return <Skeleton height={200} radius={0} />;
@@ -74,11 +75,20 @@ export const teachingRoutes: RouteObject[] = [
       </Suspense>
     ),
   },
+  // Static list before :exerciseId (form-depth HITL).
   {
     path: 'exercises',
     element: (
       <Suspense fallback={<PageFallback />}>
         <ExercisesPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'exercises/:exerciseId',
+    element: (
+      <Suspense fallback={<PageFallback />}>
+        <ExerciseDetailPage />
       </Suspense>
     ),
   },

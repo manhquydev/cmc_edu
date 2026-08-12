@@ -35,7 +35,32 @@ const listInput = z.object({
   pageSize: z.number().int().positive().max(100).default(20),
 });
 
+const getInput = z.object({
+  caseId: z.string().uuid(),
+});
+
 export const afterSaleRouter = router({
+  /** Cold-start form /crm/aftersale/:caseId */
+  get: requirePermission('afterSale', 'manage')
+    .input(getInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const kase = await tx.afterSaleCase.findFirst({
+          where: { id: input.caseId, facilityId },
+        });
+        if (!kase) throw notFound('After-sale case not found.');
+        const student = await tx.student.findFirst({
+          where: { id: kase.studentId, facilityId },
+          select: { id: true, fullName: true },
+        });
+        return {
+          ...kase,
+          studentName: student?.fullName ?? null,
+        };
+      });
+    }),
+
   /** Facility-scoped, paginated case list for the after-sale screen (F10). */
   list: requirePermission('afterSale', 'manage')
     .input(listInput)

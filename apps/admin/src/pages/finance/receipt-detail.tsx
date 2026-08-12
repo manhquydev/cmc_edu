@@ -11,6 +11,7 @@ import {
   HighlightStrip,
   HStack,
   KeyValueList,
+  NumberInput,
   PageHeader,
   ResultPanel,
   SectionBlock,
@@ -18,6 +19,7 @@ import {
   StatActions,
   StatusBadge,
   Text,
+  TextArea,
   WorkflowStatusbar,
   useToast,
 } from '@cmc/ui';
@@ -68,6 +70,11 @@ export default function ReceiptDetailPage() {
 
   const [activeTab, setActiveTab] = useState('overview');
   const [approveOpen, setApproveOpen] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundAmount, setRefundAmount] = useState<number | string>('');
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelVoid, setCancelVoid] = useState(false);
   const [approveResult, setApproveResult] = useState<{
     // C1 remediation: 'aborted' means provisioning correctly refused to run
     // because the receipt was no longer approved (e.g. cancelled) by the
@@ -95,6 +102,37 @@ export default function ReceiptDetailPage() {
     },
     onError: () => {
       setApproveOpen(false);
+    },
+  });
+
+  const refundMutation = trpc.finance.refundCreate.useMutation({
+    onSuccess: (res) => {
+      setRefundOpen(false);
+      setRefundAmount('');
+      toastSuccess(
+        `Đã ghi hoàn ${fmt(res.refund.amount)} — còn lại ${fmt(res.remainingBalance)}`,
+      );
+      void refetch();
+    },
+    onError: () => {
+      setRefundOpen(false);
+    },
+  });
+
+  const cancelMutation = trpc.finance.receiptCancel.useMutation({
+    onSuccess: (res) => {
+      setCancelOpen(false);
+      setCancelReason('');
+      setCancelVoid(false);
+      toastSuccess(
+        res.opportunityReverted
+          ? 'Đã huỷ phiếu — cơ hội tuyển sinh đã mở lại'
+          : 'Đã huỷ phiếu thu',
+      );
+      void refetch();
+    },
+    onError: () => {
+      setCancelOpen(false);
     },
   });
 
@@ -145,6 +183,15 @@ export default function ReceiptDetailPage() {
   // Over-threshold banner: NEVER hardcode the VND amount — always read from session config.
   const threshold = me?.config.approvalSecondEyeThreshold;
   const isOverThreshold = threshold !== undefined && receipt.netAmount > threshold;
+  const refundAmountNum = Number(refundAmount);
+  const remainingBalance = receipt.remainingBalance ?? receipt.netAmount;
+  const canSubmitRefund =
+    Boolean(receipt.viewerCanRefund) &&
+    Number.isInteger(refundAmountNum) &&
+    refundAmountNum >= 1 &&
+    refundAmountNum <= remainingBalance;
+  const canSubmitCancel =
+    Boolean(receipt.viewerCanCancel) && cancelReason.trim().length >= 1;
 
   const overviewContent = (
     <div className="console-detail-panel">
@@ -265,6 +312,147 @@ export default function ReceiptDetailPage() {
               </Stack>
             }
           />
+        )}
+
+        {cancelMutation.error && (
+          <Banner
+            status="error"
+            title="Huỷ phiếu thất bại"
+            description={cancelMutation.error.message}
+          />
+        )}
+
+        {receipt.viewerCanCancel && (
+          <SectionBlock
+            title="Huỷ phiếu"
+            description="Chỉ phiếu đã duyệt. Huỷ cắt quyền học theo phiếu này; hoàn tiền một phần dùng mục Hoàn tiền bên dưới."
+          >
+            <Stack gap={2} style={{ maxWidth: 480 }}>
+              <TextArea
+                label="Lý do huỷ (bắt buộc)"
+                value={cancelReason}
+                onChange={setCancelReason}
+              />
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 'var(--cmc-space-2)',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={cancelVoid}
+                  onChange={(e) => setCancelVoid(e.target.checked)}
+                  style={{ marginTop: 'var(--cmc-space-1)' }}
+                />
+                <Stack gap={0.5}>
+                  <Text size="sm" weight="semibold">
+                    Huỷ vì nhập nhầm (rút học viên)
+                  </Text>
+                  <Text type="supporting" size="xsm">
+                    Bật khi phiếu tạo nhầm — hệ thống rút học viên. Để tắt khi huỷ thanh toán thật và giữ hồ sơ học viên.
+                  </Text>
+                </Stack>
+              </label>
+              <Button
+                label="Huỷ phiếu thu"
+                variant="secondary"
+                size="sm"
+                isDisabled={!canSubmitCancel}
+                onClick={() => setCancelOpen(true)}
+                isLoading={cancelMutation.isPending}
+              />
+            </Stack>
+          </SectionBlock>
+        )}
+
+        {(receipt.status === 'approved' || (receipt.refunds?.length ?? 0) > 0) && (
+          <SectionBlock
+            title="Hoàn tiền"
+            description="Sổ cái append-only trên phiếu thu (không phải màn duyệt riêng)."
+          >
+            <Stack gap={2}>
+              {refundMutation.error && (
+                <Banner
+                  status="error"
+                  title="Hoàn tiền thất bại"
+                  description={refundMutation.error.message}
+                />
+              )}
+              <KeyValueList
+                items={[
+                  {
+                    key: 'refunded',
+                    label: 'Đã hoàn',
+                    value: (
+                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {fmt(receipt.refundedTotal ?? 0)}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'remaining',
+                    label: 'Còn lại',
+                    value: (
+                      <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                        {fmt(remainingBalance)}
+                      </span>
+                    ),
+                  },
+                ]}
+              />
+              {(receipt.refunds ?? []).length === 0 ? (
+                <Text type="supporting" size="sm">
+                  Chưa có lần hoàn nào trên phiếu này.
+                </Text>
+              ) : (
+                <Stack gap={1}>
+                  {(receipt.refunds ?? []).map((r) => (
+                    <HStack key={r.id} justify="between" gap={2}>
+                      <Text type="supporting" size="xsm">
+                        {new Date(r.createdAt).toLocaleString('vi-VN', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                      <Text size="sm" weight="semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        −{fmt(r.amount)}
+                      </Text>
+                    </HStack>
+                  ))}
+                </Stack>
+              )}
+              {receipt.viewerCanRefund && (
+                <Stack gap={2} style={{ maxWidth: 320 }}>
+                  <NumberInput
+                    label="Số tiền hoàn (VND)"
+                    value={
+                      refundAmount === '' || refundAmount == null
+                        ? null
+                        : Number(refundAmount)
+                    }
+                    onChange={(v) => setRefundAmount(v ?? '')}
+                    min={1}
+                    max={remainingBalance}
+                    step={1_000}
+                  />
+                  <Button
+                    label="Ghi hoàn tiền"
+                    variant="primary"
+                    size="sm"
+                    isDisabled={!canSubmitRefund}
+                    onClick={() => setRefundOpen(true)}
+                    isLoading={refundMutation.isPending}
+                  />
+                </Stack>
+              )}
+            </Stack>
+          </SectionBlock>
         )}
       </div>
     </div>
@@ -394,6 +582,33 @@ export default function ReceiptDetailPage() {
                   onClick={() => setApproveOpen(true)}
                   isLoading={approveMutation.isPending}
                 />
+              ) : receipt.status === 'approved' &&
+                (receipt.viewerCanRefund || receipt.viewerCanCancel) ? (
+                <HStack gap={1} style={{ flexWrap: 'wrap' }}>
+                  {receipt.viewerCanCancel ? (
+                    <Button
+                      label="Huỷ phiếu"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setActiveTab('overview')}
+                    />
+                  ) : null}
+                  {receipt.viewerCanRefund ? (
+                    <Button
+                      label="Hoàn tiền"
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        setActiveTab('overview');
+                        if (refundAmount === '' || refundAmount == null) {
+                          setRefundAmount(remainingBalance);
+                        }
+                        setRefundOpen(true);
+                      }}
+                      isLoading={refundMutation.isPending}
+                    />
+                  ) : null}
+                </HStack>
               ) : undefined
             }
           />
@@ -466,6 +681,48 @@ export default function ReceiptDetailPage() {
         }}
         onCancel={() => setApproveOpen(false)}
         loading={approveMutation.isPending}
+      />
+      <ConfirmDialog
+        opened={refundOpen}
+        title="Xác nhận hoàn tiền"
+        message={
+          Number.isInteger(refundAmountNum) && refundAmountNum > 0
+            ? `Ghi hoàn ${fmt(refundAmountNum)} trên phiếu ${receipt.code}. Sổ cái append-only — không sửa/xóa lần hoàn sau khi ghi. Còn lại sau lần này: ${fmt(remainingBalance - refundAmountNum)}.`
+            : 'Nhập số tiền hoàn hợp lệ (số nguyên VND > 0) trước khi xác nhận.'
+        }
+        confirmLabel="Ghi hoàn tiền"
+        confirmColor="red"
+        onConfirm={() => {
+          if (!id || !Number.isInteger(refundAmountNum) || refundAmountNum < 1) return;
+          refundMutation.mutate({ receiptId: id, amount: refundAmountNum });
+        }}
+        onCancel={() => setRefundOpen(false)}
+        loading={refundMutation.isPending}
+      />
+      <ConfirmDialog
+        opened={cancelOpen}
+        title="Xác nhận huỷ phiếu thu"
+        message={
+          cancelReason.trim().length >= 1
+            ? `Huỷ phiếu ${receipt.code} (${fmt(receipt.netAmount)}) cho "${receipt.studentName}". Lý do: ${cancelReason.trim()}.${
+                cancelVoid
+                  ? ' Đã chọn rút học viên vì nhập nhầm.'
+                  : ' Hồ sơ học viên được giữ (huỷ thanh toán thật).'
+              } Hành động không hoàn tác trên phiếu.`
+            : 'Nhập lý do huỷ trước khi xác nhận.'
+        }
+        confirmLabel="Huỷ phiếu thu"
+        confirmColor="red"
+        onConfirm={() => {
+          if (!id || cancelReason.trim().length < 1) return;
+          cancelMutation.mutate({
+            receiptId: id,
+            reason: cancelReason.trim(),
+            void: cancelVoid,
+          });
+        }}
+        onCancel={() => setCancelOpen(false)}
+        loading={cancelMutation.isPending}
       />
     </>
   );

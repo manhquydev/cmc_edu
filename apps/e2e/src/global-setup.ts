@@ -20,7 +20,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import type { FullConfig } from '@playwright/test';
 import { assertNotProdDatabase } from './assert-not-prod.js';
-import { cleanupFacility, disconnectDb } from './db.js';
+import { cleanupFacility, disconnectDb, ensureUcreaCurriculumAxis } from './db.js';
 import { findFreePort } from './find-free-port.js';
 import { mintStaffCookie } from './session-injection.js';
 import { createSignedStaffClient, createStaffClient } from './trpc-client.js';
@@ -115,6 +115,11 @@ export default async function globalSetup(_config: FullConfig): Promise<() => Pr
   const facility = await bootstrapClient.facility.create.mutate({
     name: `E2E Run ${new Date().toISOString()}`,
   });
+
+  // Plan 3 money→units: receiptApprove grants orderGlobal 1..N (default N=4).
+  // CI migrate-only DBs have no prisma seed — without this axis, provisioning
+  // returns `pending` and enrollment e2e fails after approve.
+  await ensureUcreaCurriculumAxis();
 
   process.env.E2E_BASE_URL = baseUrl;
   process.env.E2E_FACILITY_ID = facility.id;

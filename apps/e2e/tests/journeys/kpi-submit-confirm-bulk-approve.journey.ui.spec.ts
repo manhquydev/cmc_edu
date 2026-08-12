@@ -129,21 +129,26 @@ test.describe('P3-06/P3-08 journey — phiếu KPI: nộp → xác nhận → t�
     // "Payslip for this period is finalized — reopen it before confirming", while
     // `kpi.bulkApprove` skips any score whose payslip is NOT finalized. So the one
     // workable sequence is confirm → finalize payroll → settle.
-    await menuNav(gdPage, 'Nhân sự', 'Duyệt KPI', { role: 'giam_doc_kinh_doanh' });
+    await menuNav(gdPage, 'Nhân sự', 'KPI', { role: 'giam_doc_kinh_doanh' });
     await gdPage.getByLabel('Kỳ (YYYY-MM)').fill(PERIOD);
     const kpiRow = gdPage.getByRole('row', { name: new RegExp(saleName) });
     await expect(kpiRow).toBeVisible();
-    await kpiRow.getByRole('button', { name: 'Xác nhận' }).click();
+    // Confirm is form-only (list index + bulk period settle only).
+    // exact:true — statusbar steps "Chờ xác nhận" / "Đã xác nhận" also match name: /Xác nhận/.
+    await kpiRow.getByRole('button', { name: 'Mở phiếu', exact: true }).click();
+    await expect(gdPage).toHaveURL(/\/hr\/kpi\/[0-9a-f-]{36}/i);
+    await gdPage.getByRole('button', { name: 'Xác nhận', exact: true }).click();
     const confirmDialog = gdPage.getByRole('alertdialog');
     await Promise.all([
       gdPage.waitForResponse((r) => r.url().includes('kpi.confirm') && r.status() === 200),
-      confirmDialog.getByRole('button', { name: 'Xác nhận' }).click(),
+      confirmDialog.getByRole('button', { name: 'Xác nhận', exact: true }).click(),
     ]);
-    // The list is filtered by status (defaults to "Chờ xác nhận"), so a confirmed
-    // slip drops out of it. Prove the transition positively by switching the
-    // filter and finding the row under "Đã xác nhận" — mere disappearance from
-    // the pending list would also be produced by an unrelated failure.
-    await expect(gdPage.getByRole('row', { name: new RegExp(saleName) })).toHaveCount(0);
+    await expect(gdPage.getByText('Đã xác nhận phiếu KPI.')).toBeVisible({
+      timeout: 15_000,
+    });
+    // Back to board: filter confirmed and find the row.
+    await menuNav(gdPage, 'Nhân sự', 'KPI', { role: 'giam_doc_kinh_doanh' });
+    await gdPage.getByLabel('Kỳ (YYYY-MM)').fill(PERIOD);
     await selectStatusFilter(gdPage, 'Đã xác nhận');
     await expect(gdPage.getByRole('row', { name: new RegExp(saleName) })).toBeVisible();
 
@@ -177,7 +182,7 @@ test.describe('P3-06/P3-08 journey — phiếu KPI: nộp → xác nhận → t�
     await expect(gdPage.getByText('Đã chốt', { exact: true })).toBeVisible();
 
     // --- settle the whole period (P3-08) ---
-    await menuNav(gdPage, 'Nhân sự', 'Duyệt KPI', { role: 'giam_doc_kinh_doanh' });
+    await menuNav(gdPage, 'Nhân sự', 'KPI', { role: 'giam_doc_kinh_doanh' });
     await gdPage.getByLabel('Kỳ (YYYY-MM)').fill(PERIOD);
     await gdPage.getByRole('button', { name: `Đã trả lương kỳ ${PERIOD}` }).click();
     const bulkDialog = gdPage.getByRole('alertdialog');

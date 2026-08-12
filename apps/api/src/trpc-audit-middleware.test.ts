@@ -17,11 +17,16 @@ import { z } from 'zod';
 import { afterEach, describe, expect, it } from 'vitest';
 import { appRouter } from './router.js';
 import { createCallerFactory, lmsProcedure, protectedProcedure, publicProcedure, router } from './trpc.js';
+import { normalizeLoginPhone } from '@cmc/domain-identity';
 import {
   buildLmsContext,
   buildStaffContext,
   cleanupFacility,
+  cleanupParentAccountsByPhone,
   createTestFacility,
+  seedClassBatch,
+  seedEnrolledStudentWithGuardian,
+  seedParentAccount,
   testDb,
 } from './test/db.js';
 
@@ -41,9 +46,15 @@ const createTestCaller = createCallerFactory(testRouter);
 
 describe('audit middleware — wiring (phase-04)', () => {
   let facilityId: string;
+  const phonesToClean: string[] = [];
 
   afterEach(async () => {
     if (facilityId) await cleanupFacility(facilityId);
+    facilityId = '';
+    if (phonesToClean.length > 0) {
+      await cleanupParentAccountsByPhone(...phonesToClean.map((p) => normalizeLoginPhone(p)));
+      phonesToClean.length = 0;
+    }
   });
 
   it('a successful staff mutation writes exactly 1 AuditLog row (actor=userId, action=path)', async () => {
@@ -95,21 +106,39 @@ describe('audit middleware — wiring (phase-04)', () => {
   });
 
   it('an LMS parent mutation logs actor=parent:<parentAccountId>', async () => {
-    const parentAccountId = `audit-parent-${randomUUID()}`;
-    const ctx = buildLmsContext({ parentAccountId, kind: 'parent' });
+    // requireLmsSession asserts a live ParentAccount row (assertLiveLmsSession).
+    // seedParentAccount stores the phone as given; use already-normalized 84 + 9 digits.
+    const phone = `849${String(Date.now()).slice(-8)}`;
+    const parent = await seedParentAccount(phone);
+    phonesToClean.push(phone);
+    const ctx = buildLmsContext({ parentAccountId: parent.id, kind: 'parent' });
     await createTestCaller(ctx).lmsMutate();
     const rows = await testDb().auditLog.findMany({
-      where: { action: 'lmsMutate', actor: `parent:${parentAccountId}` },
+      where: { action: 'lmsMutate', actor: `parent:${parent.id}` },
     });
     expect(rows.length).toBe(1);
   });
 
   it('an LMS student mutation logs actor=student:<studentId>', async () => {
-    const studentId = `audit-student-${randomUUID()}`;
-    const ctx = buildLmsContext({ parentAccountId: 'audit-parent-2', studentId, kind: 'student' });
+    const phone = `848${String(Date.now()).slice(-8)}`;
+    const parent = await seedParentAccount(phone);
+    phonesToClean.push(phone);
+    const facility = await createTestFacility('Audit Mw LMS Student');
+    facilityId = facility.id;
+    const classBatch = await seedClassBatch({ facilityId: facility.id });
+    const enrollment = await seedEnrolledStudentWithGuardian({
+      facilityId: facility.id,
+      classBatchId: classBatch.id,
+      parentAccountId: parent.id,
+    });
+    const ctx = buildLmsContext({
+      parentAccountId: parent.id,
+      studentId: enrollment.studentId,
+      kind: 'student',
+    });
     await createTestCaller(ctx).lmsMutate();
     const rows = await testDb().auditLog.findMany({
-      where: { action: 'lmsMutate', actor: `student:${studentId}` },
+      where: { action: 'lmsMutate', actor: `student:${enrollment.studentId}` },
     });
     expect(rows.length).toBe(1);
   });

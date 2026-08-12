@@ -45,37 +45,74 @@ function allowGate(): void {
   );
 }
 
+/** Minimal UCREA axis covering LMS_DEFAULT_UNIT_COUNT_ON_RECEIPT (default 4). */
+const UCREA_MINIMAL: Array<{
+  program: 'UCREA';
+  level: number;
+  monthIndex: number;
+  unitType: 'LESSON' | 'REVIEW';
+  title: string;
+  orderGlobal: number;
+}> = [
+  {
+    program: 'UCREA',
+    level: 1,
+    monthIndex: 1,
+    unitType: 'LESSON',
+    title: 'Bài 1: Làm quen',
+    orderGlobal: 1,
+  },
+  {
+    program: 'UCREA',
+    level: 1,
+    monthIndex: 1,
+    unitType: 'LESSON',
+    title: 'Bài 2',
+    orderGlobal: 2,
+  },
+  {
+    program: 'UCREA',
+    level: 1,
+    monthIndex: 1,
+    unitType: 'LESSON',
+    title: 'Bài 3',
+    orderGlobal: 3,
+  },
+  {
+    program: 'UCREA',
+    level: 1,
+    monthIndex: 1,
+    unitType: 'LESSON',
+    title: 'Bài 4',
+    orderGlobal: 4,
+  },
+];
+
 async function main(): Promise<void> {
   allowGate();
   const url = resolveDatabaseUrl();
   const db = createPrismaClientWithUrl(url);
   try {
-    const existingCount = await db.curriculumUnit.count();
-    if (existingCount > 0) {
-      console.log(`CurriculumUnit already present (${existingCount} rows) — skip.`);
-      return;
+    // Upsert by (program, orderGlobal) so a partial catalog (e.g. only 1–2)
+    // is extended to cover default receipt grant of 4 units.
+    let created = 0;
+    for (const row of UCREA_MINIMAL) {
+      const existing = await db.curriculumUnit.findUnique({
+        where: {
+          program_orderGlobal: { program: row.program, orderGlobal: row.orderGlobal },
+        },
+        select: { id: true },
+      });
+      if (existing) continue;
+      await db.curriculumUnit.create({ data: row });
+      created += 1;
     }
-    const result = await db.curriculumUnit.createMany({
-      data: [
-        {
-          program: 'UCREA',
-          level: 1,
-          monthIndex: 1,
-          unitType: 'LESSON',
-          title: 'Bài 1: Làm quen',
-          orderGlobal: 1,
-        },
-        {
-          program: 'UCREA',
-          level: 1,
-          monthIndex: 1,
-          unitType: 'REVIEW',
-          title: 'Ôn tập tháng 1',
-          orderGlobal: 2,
-        },
-      ],
-    });
-    console.log(`Seeded ${result.count} CurriculumUnit rows.`);
+    const total = await db.curriculumUnit.count({ where: { program: 'UCREA' } });
+    console.log(
+      created > 0
+        ? `Seeded ${created} CurriculumUnit rows (UCREA total ${total}).`
+        : `CurriculumUnit UCREA already covers 1–4 (total ${total}) — skip.`,
+    );
   } finally {
     await db.$disconnect();
   }

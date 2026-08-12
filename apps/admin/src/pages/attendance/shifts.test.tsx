@@ -278,17 +278,17 @@ describe('ShiftsPage — list / inbox', () => {
     expect(screen.getAllByRole('button', { name: 'Mở phiếu' }).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows the Duyệt / Từ chối tab for a role with shift.approve permission', () => {
+  it('shows the Hàng chờ tab for a role with shift.approve permission', () => {
     renderWithProviders(<ShiftsPage />);
-    expect(tabButton('Duyệt / Từ chối')).toBeInTheDocument();
+    expect(tabButton('Hàng chờ')).toBeInTheDocument();
   });
 
-  it('hides the Duyệt / Từ chối tab for a role without shift.approve permission', () => {
+  it('hides the Hàng chờ tab for a role without shift.approve permission', () => {
     sessionRoles = ['sale'];
     renderWithProviders(<ShiftsPage />);
     expect(
       within(screen.getByRole('navigation', { name: 'Tabs' })).queryByRole('button', {
-        name: 'Duyệt / Từ chối',
+        name: 'Hàng chờ',
       }),
     ).toBeNull();
     expect(screen.getAllByText(/Work Schedule/).length).toBeGreaterThanOrEqual(1);
@@ -306,48 +306,18 @@ describe('ShiftsPage — list / inbox', () => {
     expect(screen.getAllByRole('button', { name: 'Mở phiếu' }).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('does NOT call shift.approve.mutate on the trigger click alone (confirm gating)', () => {
+  it('inbox is index-only: no list-row Duyệt/Từ chối (form is HITL surface)', () => {
     renderWithProviders(<ShiftsPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Duyệt' }));
-    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(screen.getAllByText(/Hàng chờ/).length).toBeGreaterThanOrEqual(1);
+    // Only status badge "Từ chối" may appear on mine tab; inbox has no reject button.
+    expect(screen.queryByRole('button', { name: 'Duyệt', exact: true })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Từ chối', exact: true })).toBeNull();
     expect(approveMutate).not.toHaveBeenCalled();
-  });
-
-  it('calls shift.approve.mutate({registrationId}) only after the ConfirmDialog confirm click', () => {
-    renderWithProviders(<ShiftsPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Duyệt' }));
-    const dialog = screen.getByRole('alertdialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Duyệt' }));
-    expect(approveMutate).toHaveBeenCalledWith({ registrationId: REG_ID });
-  });
-
-  it('requires a reject reason of at least 3 chars before enabling the reject-modal button', () => {
-    renderWithProviders(<ShiftsPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Từ chối' }));
-    const rejectButtons = screen.getAllByRole('button', { name: 'Từ chối' });
-    const modalRejectBtn = rejectButtons[rejectButtons.length - 1];
-    expect(modalRejectBtn).toBeDisabled();
-    fireEvent.change(screen.getByLabelText('Lý do từ chối'), { target: { value: 'oke' } });
-    expect(modalRejectBtn).not.toBeDisabled();
-  });
-
-  it('does NOT call shift.reject.mutate before the reason is filled and the modal button clicked', () => {
-    renderWithProviders(<ShiftsPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Từ chối' }));
     expect(rejectMutate).not.toHaveBeenCalled();
   });
 
-  it('calls shift.reject.mutate({registrationId, reason}) after filling the reason and confirming', () => {
+  it('uses Console ListPage shell (ops density)', () => {
     renderWithProviders(<ShiftsPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Từ chối' }));
-    fireEvent.change(screen.getByLabelText('Lý do từ chối'), {
-      target: { value: 'Trùng lịch nghỉ lễ' },
-    });
-    const rejectButtons = screen.getAllByRole('button', { name: 'Từ chối' });
-    fireEvent.click(rejectButtons[rejectButtons.length - 1]);
-    expect(rejectMutate).toHaveBeenCalledWith({
-      registrationId: REG_ID,
-      reason: 'Trùng lịch nghỉ lễ',
-    });
+    expect(document.querySelector('.console-wrap--ops')).toBeTruthy();
   });
 });

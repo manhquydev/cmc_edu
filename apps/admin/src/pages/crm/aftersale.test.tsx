@@ -10,8 +10,7 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // - the "Tạo case" dialog picks a student via the shared StudentPicker
 //   (student.lookup) and calls `afterSale.create.mutate` with the exact
 //   {studentId, description, priority} payload
-// - per-status lifecycle actions (Tiếp nhận/Giải quyết/Đóng) call their
-//   matching mutation with a byte-identical payload
+// - list is index-only: lifecycle HITL is on form /crm/aftersale/:id
 interface CaseRowMock {
   id: string;
   studentId: string;
@@ -140,39 +139,15 @@ describe('AfterSalePage', () => {
     expect(screen.getByRole('navigation', { name: 'Phân trang' })).toBeInTheDocument();
   });
 
-  it('shows "Tiếp nhận" only on the open case, and calls afterSale.advance.mutate({caseId})', () => {
+  it('list is index-only: open form only (no lifecycle HITL on rows)', () => {
     renderWithProviders(<AfterSalePage />);
-    const advanceButtons = screen.getAllByRole('button', { name: 'Tiếp nhận' });
-    expect(advanceButtons).toHaveLength(1);
-    fireEvent.click(advanceButtons[0]);
-    expect(advanceMutate).toHaveBeenCalledWith({ caseId: 'case-1' });
-  });
-
-  it('shows "Đóng" only on the resolved case, and calls afterSale.close.mutate({caseId})', () => {
-    renderWithProviders(<AfterSalePage />);
-    const closeButtons = screen.getAllByRole('button', { name: 'Đóng' });
-    expect(closeButtons).toHaveLength(1);
-    fireEvent.click(closeButtons[0]);
-    expect(closeMutate).toHaveBeenCalledWith({ caseId: 'case-2' });
-  });
-
-  it('shows "Giải quyết" on both the open and resolved case (not on closed)', () => {
-    renderWithProviders(<AfterSalePage />);
-    expect(screen.getAllByRole('button', { name: 'Giải quyết' })).toHaveLength(1);
-  });
-
-  it('opens the resolve dialog and calls afterSale.resolve.mutate({caseId, resolution})', () => {
-    renderWithProviders(<AfterSalePage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Giải quyết' }));
-    // Astryx appends " ∙ Required" to an `isRequired` field's accessible
-    // label — regex-match the leading text (same convention as
-    // create-lead-dialog.test.tsx's `/^Họ tên/`).
-    fireEvent.change(screen.getByLabelText(/^Kết quả xử lý/), { target: { value: 'Đã gọi điện xác nhận' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
-    expect(resolveMutate).toHaveBeenCalledWith(
-      { caseId: 'case-1', resolution: 'Đã gọi điện xác nhận' },
-      expect.anything(),
-    );
+    expect(screen.getAllByRole('button', { name: 'Mở phiếu' }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByRole('button', { name: 'Tiếp nhận' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Giải quyết' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đóng' })).toBeNull();
+    expect(advanceMutate).not.toHaveBeenCalled();
+    expect(closeMutate).not.toHaveBeenCalled();
+    expect(resolveMutate).not.toHaveBeenCalled();
   });
 
   it('opens the create-case dialog, picks a student via StudentPicker, and calls afterSale.create.mutate with {studentId, description, priority}', () => {

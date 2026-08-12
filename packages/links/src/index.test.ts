@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   UUID_RE,
   attendancePath,
+  checkInPath,
   goPath,
   gradingPath,
   links,
@@ -11,6 +12,7 @@ import {
   sessionEvidencePath,
   shiftRegistrationNewPath,
   shiftRegistrationsPath,
+  kpiScoresPath,
 } from './index.js';
 
 const UUID = '550e8400-e29b-41d4-a716-446655440000';
@@ -22,12 +24,24 @@ describe('links builders', () => {
     expect(links.student(UUID)).toBe(`/admin/students/${UUID}`);
     expect(links.classBatch(UUID)).toBe(`/admin/classes/${UUID}`);
     expect(links.shiftRegistration(UUID)).toBe(`/hr/shifts/${UUID}`);
+    expect(links.kpiScore(UUID)).toBe(`/hr/kpi/${UUID}`);
+    expect(links.afterSaleCase(UUID)).toBe(`/crm/aftersale/${UUID}`);
+    expect(links.parentAccount(UUID)).toBe(`/admin/parents/${UUID}`);
+    expect(links.classSession(UUID)).toBe(`/teaching/sessions/${UUID}`);
+    expect(links.manualPunchTicket(UUID)).toBe(`/hr/checkin/${UUID}`);
+    expect(links.reward(UUID)).toBe(`/admin/engagement/rewards/${UUID}`);
   });
 
   it('builds go paths', () => {
     expect(goPath('opportunity', UUID)).toBe(`/go/opportunity/${UUID}`);
     expect(goPath('receipt', UUID)).toBe(`/go/receipt/${UUID}`);
     expect(goPath('shiftRegistration', UUID)).toBe(`/go/shiftRegistration/${UUID}`);
+    expect(goPath('kpiScore', UUID)).toBe(`/go/kpiScore/${UUID}`);
+    expect(goPath('afterSaleCase', UUID)).toBe(`/go/afterSaleCase/${UUID}`);
+    expect(goPath('parentAccount', UUID)).toBe(`/go/parentAccount/${UUID}`);
+    expect(goPath('classSession', UUID)).toBe(`/go/classSession/${UUID}`);
+    expect(goPath('manualPunchTicket', UUID)).toBe(`/go/manualPunchTicket/${UUID}`);
+    expect(goPath('reward', UUID)).toBe(`/go/reward/${UUID}`);
   });
 });
 
@@ -50,6 +64,12 @@ describe('resolveGo', () => {
     expect(resolveGo('student', UUID)).toBe(`/admin/students/${UUID}`);
     expect(resolveGo('classBatch', UUID)).toBe(`/admin/classes/${UUID}`);
     expect(resolveGo('shiftRegistration', UUID)).toBe(`/hr/shifts/${UUID}`);
+    expect(resolveGo('kpiScore', UUID)).toBe(`/hr/kpi/${UUID}`);
+    expect(resolveGo('afterSaleCase', UUID)).toBe(`/crm/aftersale/${UUID}`);
+    expect(resolveGo('parentAccount', UUID)).toBe(`/admin/parents/${UUID}`);
+    expect(resolveGo('classSession', UUID)).toBe(`/teaching/sessions/${UUID}`);
+    expect(resolveGo('manualPunchTicket', UUID)).toBe(`/hr/checkin/${UUID}`);
+    expect(resolveGo('reward', UUID)).toBe(`/admin/engagement/rewards/${UUID}`);
   });
 
   it('returns null for unknown entity keys', () => {
@@ -112,5 +132,20 @@ describe('workspace builders + readUuidParam', () => {
     expect(shiftRegistrationsPath({ scope: 'mine' })).toBe('/hr/shifts?scope=mine');
     expect(shiftRegistrationsPath({ scope: 'inbox' })).toBe('/hr/shifts?scope=inbox');
     expect(shiftRegistrationNewPath()).toBe('/hr/shifts/new');
+  });
+
+  it('checkInPath scope query', () => {
+    expect(checkInPath()).toBe('/hr/checkin');
+    expect(checkInPath({ scope: 'mine' })).toBe('/hr/checkin?scope=mine');
+    expect(checkInPath({ scope: 'inbox' })).toBe('/hr/checkin?scope=inbox');
+  });
+
+  it('kpiScoresPath builds board query filters', () => {
+    expect(kpiScoresPath()).toBe('/hr/kpi');
+    expect(kpiScoresPath({ period: '2026-08' })).toBe('/hr/kpi?period=2026-08');
+    expect(kpiScoresPath({ period: '2026-08', status: 'submitted' })).toBe(
+      '/hr/kpi?period=2026-08&status=submitted',
+    );
+    expect(kpiScoresPath({ period: 'bad' })).toBe('/hr/kpi');
   });
 });

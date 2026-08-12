@@ -21,16 +21,14 @@ import {
   CountBadge,
   DataTable,
   DateField,
-  Dialog,
-  DialogHeader,
   EmptyState,
   HStack,
+  ListPage,
   PageHeader,
   Selector,
   Stack,
   StatusBadge,
   Text,
-  TextArea,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { links, shiftRegistrationNewPath } from '@cmc/links';
@@ -38,13 +36,13 @@ import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
 
 // ---------------------------------------------------------------------------
-// Styles — Odoo form density, CMC teal chevron (no numbered console-steps)
+// Styles — Odoo form density; accent via CMC Console tokens (no free TEKY teal)
 // ---------------------------------------------------------------------------
 
 const WS_CSS = `
 .ws-root {
-  --ws-teal: #00a09d;
-  --ws-teal-dark: #017e84;
+  --ws-teal: var(--cmc-brand);
+  --ws-teal-dark: var(--cmc-brand-hover);
   --ws-border: #dee2e6;
   --ws-muted: #6c757d;
   --ws-sheet: #fff;
@@ -726,21 +724,21 @@ export function SubmitTab({ onSubmittedId }: { onSubmittedId?: (id: string) => v
             </div>
             <div className="ws-notebook-body">
               {!selectedGroup ? (
-                <div style={{ padding: 16 }}>
+                <div style={{ padding: 'var(--cmc-space-3)' }}>
                   <EmptyState
                     title="Chọn nhóm ca"
                     description={`Chỉ hiện nhóm track ${trackLabel} khớp role của bạn.`}
                   />
                 </div>
               ) : dates.length === 0 ? (
-                <div style={{ padding: 16 }}>
+                <div style={{ padding: 'var(--cmc-space-3)' }}>
                   <EmptyState
                     title="Chọn Từ ngày / Tới ngày"
                     description="Khoảng ngày tương lai (ICT) tạo các hàng trên lưới 3 ca."
                   />
                 </div>
               ) : templates.length === 0 ? (
-                <div style={{ padding: 16 }}>
+                <div style={{ padding: 'var(--cmc-space-3)' }}>
                   <EmptyState title="Nhóm chưa có mẫu ca" description="GĐ cấu hình tại Ca làm việc." />
                 </div>
               ) : (
@@ -753,7 +751,7 @@ export function SubmitTab({ onSubmittedId }: { onSubmittedId?: (id: string) => v
                           <Fragment key={t.id}>
                             <th>
                               {t.name}
-                              <div style={{ fontWeight: 400, fontSize: 11, opacity: 0.75 }}>
+                              <div style={{ fontWeight: 400, fontSize: 'var(--cmc-font-size-column)', opacity: 0.75 }}>
                                 {t.startTime}–{t.endTime}
                               </div>
                             </th>
@@ -826,7 +824,7 @@ export function SubmitTab({ onSubmittedId }: { onSubmittedId?: (id: string) => v
             <div>
               · <strong>Soạn</strong>: xóa lựa chọn, soạn lại
               <br />· <strong>Chờ duyệt</strong>: gửi phiếu nếu hợp lệ (cùng Gửi đăng ký)
-              <br />· <strong>Đã duyệt</strong>: chỉ GĐ trên tab Duyệt
+              <br />· <strong>Đã duyệt</strong>: chỉ GĐ trên form (mở từ Hàng chờ)
             </div>
           </div>
           {result?.ok ? (
@@ -883,18 +881,15 @@ function MyRegistrationsTab({ onCompose }: { onCompose?: () => void }) {
 
   if (!isLoading && !error && rows.length === 0) {
     return (
-      <Stack gap={2} padding={4}>
-        <style>{WS_CSS}</style>
-        <EmptyState
-          title="Chưa có đăng ký ca"
-          description="Soạn phiếu mới rồi gửi (Chờ duyệt)."
-          action={
-            onCompose ? (
-              <Button label="Soạn phiếu mới" size="sm" variant="primary" onClick={onCompose} />
-            ) : undefined
-          }
-        />
-      </Stack>
+      <EmptyState
+        title="Chưa có đăng ký ca"
+        description="Soạn phiếu mới rồi gửi (Chờ duyệt)."
+        action={
+          onCompose ? (
+            <Button label="Soạn phiếu mới" size="sm" variant="primary" onClick={onCompose} />
+          ) : undefined
+        }
+      />
     );
   }
 
@@ -943,8 +938,7 @@ function MyRegistrationsTab({ onCompose }: { onCompose?: () => void }) {
   ];
 
   return (
-    <Stack gap={2} padding={4}>
-      <style>{WS_CSS}</style>
+    <Stack gap={2}>
       {result && <Banner status={result.ok ? 'success' : 'error'} title={result.text} />}
       <DataTable<MyRegRow>
         columns={columns}
@@ -952,7 +946,9 @@ function MyRegistrationsTab({ onCompose }: { onCompose?: () => void }) {
         loading={isLoading}
         error={error?.message}
         empty="Chưa có đăng ký ca."
-        onRowClick={(row) => navigate(links.shiftRegistration(row.id), { state: { listScope: 'mine' as const } })}
+        onRowClick={(row) =>
+          navigate(links.shiftRegistration(row.id), { state: { listScope: 'mine' as const } })
+        }
       />
       <ConfirmDialog
         opened={cancelTarget !== null}
@@ -984,46 +980,10 @@ interface PendingRow {
 
 function ApproveTab() {
   const navigate = useNavigate();
-  const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.shift.pendingForApproval.useQuery();
   const { data: groupsData } = trpc.shift.listGroups.useQuery();
   const groups: ShiftGroupOption[] = (groupsData as ShiftGroupOption[] | undefined) ?? [];
-  const [approveTarget, setApproveTarget] = useState<string | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
-
-  function invalidate() {
-    void utils.shift.pendingForApproval.invalidate();
-    void utils.shift.myRegistrations.invalidate();
-  }
-
-  const approveMut = trpc.shift.approve.useMutation({
-    onSuccess() {
-      setResult({ ok: true, text: 'Đã duyệt ca (approved).' });
-      setApproveTarget(null);
-      invalidate();
-    },
-    onError(err) {
-      setResult({ ok: false, text: err.message ?? 'Lỗi không xác định.' });
-      setApproveTarget(null);
-    },
-  });
-
-  const rejectMut = trpc.shift.reject.useMutation({
-    onSuccess() {
-      setResult({ ok: true, text: 'Đã từ chối (rejected) — ticket-lock được giải phóng.' });
-      setRejectTarget(null);
-      setRejectReason('');
-      invalidate();
-    },
-    onError(err) {
-      setResult({ ok: false, text: err.message ?? 'Lỗi không xác định.' });
-    },
-  });
-
   const rows: PendingRow[] = (data as PendingRow[] | undefined) ?? [];
-  const reasonOk = rejectReason.trim().length >= 3;
   const allTemplates = useMemo(() => groups.flatMap((g) => g.templates), [groups]);
 
   const columns: TableColumn<PendingRow>[] = [
@@ -1053,109 +1013,31 @@ function ApproveTab() {
     {
       key: '_actions',
       label: '',
-      width: 240,
+      width: 120,
       render: (_v, row) => (
-        <HStack gap={1} wrap="wrap">
-          <Button
-            label="Mở phiếu"
-            size="sm"
-            variant="ghost"
-            onClick={() =>
-              navigate(links.shiftRegistration(row.id), { state: { listScope: 'inbox' as const } })
-            }
-          />
-          <Button label="Duyệt" size="sm" variant="primary" onClick={() => setApproveTarget(row.id)} />
-          <Button
-            label="Từ chối"
-            size="sm"
-            variant="destructive"
-            onClick={() => {
-              setRejectTarget(row.id);
-              setRejectReason('');
-            }}
-          />
-        </HStack>
+        <Button
+          label="Mở phiếu"
+          size="sm"
+          variant="primary"
+          onClick={() =>
+            navigate(links.shiftRegistration(row.id), { state: { listScope: 'inbox' as const } })
+          }
+        />
       ),
     },
   ];
 
   return (
-    <Stack gap={2} padding={4}>
-      <style>{WS_CSS}</style>
-      {result && <Banner status={result.ok ? 'success' : 'error'} title={result.text} />}
-      <DataTable<PendingRow>
-        columns={columns}
-        data={rows}
-        loading={isLoading}
-        error={error?.message}
-        empty="Không có đăng ký chờ duyệt (chỉ phiếu submitted đúng track GĐ)."
-      />
-
-      <ConfirmDialog
-        opened={approveTarget !== null}
-        title="Duyệt đăng ký ca"
-        message="Chuyển submitted → approved? Không hoàn tác."
-        confirmLabel="Duyệt"
-        confirmColor="blue"
-        loading={approveMut.isPending}
-        onConfirm={() => approveTarget && approveMut.mutate({ registrationId: approveTarget })}
-        onCancel={() => setApproveTarget(null)}
-      />
-      <Dialog
-        isOpen={rejectTarget !== null}
-        onOpenChange={(next) => {
-          if (!next && !rejectMut.isPending) {
-            setRejectTarget(null);
-            setRejectReason('');
-          }
-        }}
-        width={420}
-        purpose="form"
-      >
-        <DialogHeader
-          title="Từ chối đăng ký ca"
-          onOpenChange={(next) => {
-            if (!next && !rejectMut.isPending) {
-              setRejectTarget(null);
-              setRejectReason('');
-            }
-          }}
-        />
-        <Stack gap={2}>
-          <TextArea
-            label="Lý do từ chối"
-            placeholder="Tối thiểu 3 ký tự (server bắt buộc)…"
-            value={rejectReason}
-            onChange={(v) => setRejectReason(v)}
-            rows={3}
-            maxLength={2000}
-          />
-          <HStack justify="end" gap={1}>
-            <Button
-              label="Hủy"
-              variant="secondary"
-              size="sm"
-              isDisabled={rejectMut.isPending}
-              onClick={() => {
-                setRejectTarget(null);
-                setRejectReason('');
-              }}
-            />
-            <Button
-              label="Từ chối"
-              size="sm"
-              variant="destructive"
-              isLoading={rejectMut.isPending}
-              isDisabled={!reasonOk}
-              onClick={() =>
-                rejectTarget &&
-                rejectMut.mutate({ registrationId: rejectTarget, reason: rejectReason.trim() })
-              }
-            />
-          </HStack>
-        </Stack>
-      </Dialog>
-    </Stack>
+    <DataTable<PendingRow>
+      columns={columns}
+      data={rows}
+      loading={isLoading}
+      error={error?.message}
+      empty="Không có đăng ký chờ duyệt (chỉ phiếu submitted đúng track GĐ)."
+      onRowClick={(row) =>
+        navigate(links.shiftRegistration(row.id), { state: { listScope: 'inbox' as const } })
+      }
+    />
   );
 }
 
@@ -1199,37 +1081,41 @@ export default function ShiftsPage() {
       ),
     },
     ...(canApprove
-      ? [{ id: 'approve', label: 'Duyệt / Từ chối', content: <ApproveTab /> }]
+      ? [{ id: 'approve', label: 'Hàng chờ', content: <ApproveTab /> }]
       : []),
   ];
 
   return (
-    <>
-      <PageHeader
-        title="Work Schedule"
-        subtitle={
-          canApprove
-            ? 'List phiếu · mở form /hr/shifts/:id để duyệt chi tiết'
-            : `Track ${track === 'GIAO_VIEN' ? 'Giáo viên (MULTIPLE · 3 ca)' : 'Kinh doanh (SINGLE · 3 ca)'}`
-        }
-        breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Work Schedule' }]}
-        actions={
-          <HStack gap={1} align="center">
-            {canApprove && pendingCount > 0 ? (
-              <>
-                <Text type="body" size="sm">
-                  Chờ duyệt
-                </Text>
-                <CountBadge count={pendingCount} emphasize />
-              </>
-            ) : null}
-            <Link to={shiftRegistrationNewPath()}>
-              <Button label="Soạn phiếu mới" size="sm" variant="primary" />
-            </Link>
-          </HStack>
-        }
-      />
+    <ListPage
+      density="ops"
+      header={
+        <PageHeader
+          title="Work Schedule"
+          subtitle={
+            canApprove
+              ? 'Danh sách phiếu · mở form để duyệt/từ chối (không duyệt trên list)'
+              : `Track ${track === 'GIAO_VIEN' ? 'Giáo viên (MULTIPLE · 3 ca)' : 'Kinh doanh (SINGLE · 3 ca)'}`
+          }
+          breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Work Schedule' }]}
+          actions={
+            <HStack gap={1} align="center">
+              {canApprove && pendingCount > 0 ? (
+                <>
+                  <Text type="body" size="sm">
+                    Chờ duyệt
+                  </Text>
+                  <CountBadge count={pendingCount} emphasize />
+                </>
+              ) : null}
+              <Link to={shiftRegistrationNewPath()}>
+                <Button label="Soạn phiếu mới" size="sm" variant="primary" />
+              </Link>
+            </HStack>
+          }
+        />
+      }
+    >
       <CmcTabs activeTab={activeTab} onTabChange={onTabChange} tabs={tabs} />
-    </>
+    </ListPage>
   );
 }

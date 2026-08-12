@@ -112,7 +112,11 @@ describe('phase-04 mutation audit coverage', () => {
     const serialized = JSON.stringify(data);
     expect(serialized).not.toContain('0905555005'); // no parent phone
     expect(serialized).not.toContain('Audit Student'); // no student name
-    expect(Object.keys(data).every((k) => k.endsWith('Id'))).toBe(true);
+    // Plan 3 unit grant: unitGrantStatus is a closed enum status (not PII);
+    // every other key is an id reference.
+    expect(
+      Object.keys(data).every((k) => k.endsWith('Id') || k === 'unitGrantStatus'),
+    ).toBe(true);
   });
 
   it('successful provisioning writes exactly one idempotent provisioning.completed summary row', async () => {

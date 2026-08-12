@@ -141,8 +141,23 @@ export function DataTable<T extends Record<string, unknown>>({
           </Text>
         );
         if (!onRowClick) return content;
+        // Row open must not steal clicks from buttons/inputs in the cell
+        // (e.g. aftersale "Tiếp nhận", KPI "Xác nhận", parents "Duyệt").
         return (
-          <div onClick={() => onRowClick(row)} style={{ cursor: 'pointer' }}>
+          <div
+            onClick={(e) => {
+              const t = e.target as HTMLElement | null;
+              if (
+                t?.closest(
+                  'button, a, input, select, textarea, label, [role="button"], [role="checkbox"]',
+                )
+              ) {
+                return;
+              }
+              onRowClick(row);
+            }}
+            style={{ cursor: 'pointer' }}
+          >
             {content}
           </div>
         );

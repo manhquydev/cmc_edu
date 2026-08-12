@@ -424,11 +424,14 @@ export async function seedEnrolledStudentWithGuardian(opts: {
   classBatchId: string;
   parentAccountId: string;
   studentName?: string;
+  /** Forwarded to seedActiveEnrollment (dual-gate entitlement). */
+  unitRange?: { fromOrderGlobal: number; toOrderGlobal: number };
 }): Promise<{ id: string; studentId: string; classBatchId: string }> {
   const enrollment = await seedActiveEnrollment({
     facilityId: opts.facilityId,
     classBatchId: opts.classBatchId,
     studentName: opts.studentName,
+    unitRange: opts.unitRange,
   });
   await seedGuardianLink({
     facilityId: opts.facilityId,
@@ -450,6 +453,43 @@ export interface SeedClassBatchOptions {
 }
 
 /**
+ * Ensure global CurriculumUnit rows for `program` cover orderGlobal 1..maxOrder.
+ * Idempotent; shared catalog (not facility-scoped) so not torn down by
+ * cleanupFacility. Needed so provisionFromReceipt / receiptApprove unit grants
+ * (default package size 4, plus renewals) do not fail with
+ * "orderGlobal N is not in program …".
+ */
+export async function ensureProgramUnitAxis(
+  program: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE' = 'UCREA',
+  maxOrder = 16,
+): Promise<{ id: string; orderGlobal: number }[]> {
+  const out: { id: string; orderGlobal: number }[] = [];
+  for (let orderGlobal = 1; orderGlobal <= maxOrder; orderGlobal++) {
+    const existing = await testDb().curriculumUnit.findUnique({
+      where: { program_orderGlobal: { program, orderGlobal } },
+      select: { id: true, orderGlobal: true },
+    });
+    if (existing) {
+      out.push(existing);
+      continue;
+    }
+    const created = await testDb().curriculumUnit.create({
+      data: {
+        program,
+        level: 1,
+        monthIndex: Math.min(orderGlobal, 12),
+        unitType: 'LESSON',
+        title: `Test ${program} unit ${orderGlobal}`,
+        orderGlobal,
+      },
+      select: { id: true, orderGlobal: true },
+    });
+    out.push(created);
+  }
+  return out;
+}
+
+/**
  * P2-Foundation: seeds a real Course + ClassBatch (with the same code-format/
  * atomic-counter shape `classBatch.create` uses) for tests that only need a
  * valid `classBatchId` to exercise the P1<->P2 seam (`finance.receiptCreate`/
@@ -462,6 +502,9 @@ export async function seedClassBatch(
   opts: SeedClassBatchOptions,
 ): Promise<{ id: string; code: string; courseId: string }> {
   const program = opts.program ?? 'UCREA';
+  // Receipt approve grants units against the global program axis — ensure it
+  // exists before any test hits finance.receiptApprove → provisionFromReceipt.
+  await ensureProgramUnitAxis(program, 16);
   const startDate = opts.startDate ?? '2026-08-01';
   const endDate = opts.endDate ?? '2026-08-31';
   const year = Number(startDate.slice(0, 4));
@@ -596,6 +639,13 @@ export interface SeedActiveEnrollmentOptions {
   facilityId: string;
   classBatchId: string;
   studentName?: string;
+  /**
+   * Plan 2 dual-gate: when a session is unit-stamped, attendance.mark requires
+   * EnrollmentUnitRange cover. Default is no range (tests that grant ranges
+   * explicitly stay free of accidental overlap). Pass a range when the helper
+   * is used as a dual-gate-ready active student (e.g. open-tier Tier B mark).
+   */
+  unitRange?: { fromOrderGlobal: number; toOrderGlobal: number };
 }
 
 /**
@@ -620,6 +670,16 @@ export async function seedActiveEnrollment(
         status: 'active',
       },
     });
+    if (opts.unitRange) {
+      await tx.enrollmentUnitRange.create({
+        data: {
+          facilityId: opts.facilityId,
+          enrollmentId: enrollment.id,
+          fromOrderGlobal: opts.unitRange.fromOrderGlobal,
+          toOrderGlobal: opts.unitRange.toOrderGlobal,
+        },
+      });
+    }
     return { id: enrollment.id, studentId: student.id, classBatchId: enrollment.classBatchId };
   });
 }

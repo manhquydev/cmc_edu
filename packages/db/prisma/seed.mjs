@@ -67,33 +67,29 @@ async function main() {
 // (no facilityId) — idempotent by "does any row already exist" (unlike the
 // facility seed above, there is no natural unique field to find-or-create by).
 async function seedCurriculumUnits(db) {
-  const existingCount = await db.curriculumUnit.count();
-  if (existingCount > 0) {
-    console.log(`CurriculumUnit already seeded (${existingCount} rows).`);
-    return;
+  // Cover LMS_DEFAULT_UNIT_COUNT_ON_RECEIPT (default 4) for UCREA grants.
+  const rows = [
+    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'Bài 1: Làm quen', orderGlobal: 1 },
+    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'Bài 2', orderGlobal: 2 },
+    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'Bài 3', orderGlobal: 3 },
+    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'Bài 4', orderGlobal: 4 },
+  ];
+  let created = 0;
+  for (const row of rows) {
+    const existing = await db.curriculumUnit.findUnique({
+      where: { program_orderGlobal: { program: row.program, orderGlobal: row.orderGlobal } },
+      select: { id: true },
+    });
+    if (existing) continue;
+    await db.curriculumUnit.create({ data: row });
+    created += 1;
   }
-
-  const units = await db.curriculumUnit.createMany({
-    data: [
-      {
-        program: 'UCREA',
-        level: 1,
-        monthIndex: 1,
-        unitType: 'LESSON',
-        title: 'Bài 1: Làm quen',
-        orderGlobal: 1,
-      },
-      {
-        program: 'UCREA',
-        level: 1,
-        monthIndex: 1,
-        unitType: 'REVIEW',
-        title: 'Ôn tập tháng 1',
-        orderGlobal: 2,
-      },
-    ],
-  });
-  console.log(`Seeded ${units.count} CurriculumUnit rows.`);
+  const total = await db.curriculumUnit.count({ where: { program: 'UCREA' } });
+  console.log(
+    created > 0
+      ? `Seeded ${created} CurriculumUnit rows (UCREA total ${total}).`
+      : `CurriculumUnit UCREA 1–4 already present (total ${total}).`,
+  );
 }
 
 // HR remediation phase 1 (plans/260711-1752-hr-kpi-shift-attendance-remediation

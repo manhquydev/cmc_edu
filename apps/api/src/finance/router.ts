@@ -137,6 +137,20 @@ export interface ReceiptDto {
    * `netAmount > APPROVAL_SECOND_EYE_THRESHOLD`. `false` whenever subject is
    * not provided (e.g. post-mutation responses where approval is moot). */
   canApprove: boolean;
+  /**
+   * Refund ledger — populated by `receiptGet` only. List/create responses
+   * omit these (undefined) so list stays cheap; form cold-start uses get.
+   */
+  refunds?: RefundDto[];
+  refundedTotal?: number;
+  remainingBalance?: number;
+  /** GĐKD + approved + remainingBalance > 0. */
+  viewerCanRefund?: boolean;
+  /**
+   * Cancel HITL — get-only. Same permission key as approve (`receiptApprove`);
+   * only when status is approved (server cancel rejects other statuses).
+   */
+  viewerCanCancel?: boolean;
 }
 
 export type ReceiptCreateResult =
@@ -762,22 +776,52 @@ export const financeRouter = router({
 
   // K3 remediation: the single-receipt companion to receiptList (e.g. an
   // approver opening one item from the queue).
+  // Form cold-start also loads the append-only refund ledger for HITL.
   receiptGet: requirePermission('finance', 'receiptGet')
     .input(receiptGetInput)
     .query(async ({ ctx, input }): Promise<ReceiptDto> => {
       const { facilityId } = scoped(ctx);
 
-      const receipt = await withFacility(ctx.db, facilityId, (tx) =>
-        tx.receipt.findFirst({
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const receipt = await tx.receipt.findFirst({
           where: { id: input.receiptId, facilityId },
           include: { classBatch: { select: { code: true } } },
-        }),
-      );
-      // Out-of-facility ids look identical to non-existent ones (RLS — TL11 §2).
-      if (!receipt) {
-        throw notFound('Receipt not found.');
-      }
-      return toReceiptDto(receipt, ctx.subject ?? undefined);
+        });
+        // Out-of-facility ids look identical to non-existent ones (RLS — TL11 §2).
+        if (!receipt) {
+          throw notFound('Receipt not found.');
+        }
+
+        const refundRows = await tx.refundRecord.findMany({
+          where: { receiptId: receipt.id, facilityId },
+          orderBy: { createdAt: 'asc' },
+        });
+        const refunds: RefundDto[] = refundRows.map((r) => ({
+          id: r.id,
+          receiptId: r.receiptId,
+          amount: r.amount.toNumber(),
+          createdAt: r.createdAt,
+        }));
+        const refundedTotal = refunds.reduce((sum, r) => sum + r.amount, 0);
+        const dto = toReceiptDto(receipt, ctx.subject ?? undefined);
+        const remainingBalance = dto.netAmount - refundedTotal;
+        const viewerCanRefund =
+          Boolean(ctx.subject && can(ctx.subject, 'finance', 'refundCreate')) &&
+          receipt.status === 'approved' &&
+          remainingBalance > 0;
+        const viewerCanCancel =
+          Boolean(ctx.subject && can(ctx.subject, 'finance', 'receiptApprove')) &&
+          receipt.status === 'approved';
+
+        return {
+          ...dto,
+          refunds,
+          refundedTotal,
+          remainingBalance,
+          viewerCanRefund,
+          viewerCanCancel,
+        };
+      });
     }),
 
   receiptCreate: requirePermission('finance', 'receiptCreate')

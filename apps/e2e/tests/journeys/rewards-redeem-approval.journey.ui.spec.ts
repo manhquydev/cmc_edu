@@ -86,23 +86,27 @@ test.describe('P4-01 journey — đổi quà bằng sao (Đổi thưởng)', () 
     await expect(salePage).toHaveURL(/\/admin\/engagement\/rewards/);
 
     const pendingRow = await findInList(salePage, (text) => text.includes(giftName));
-    await pendingRow.getByRole('button', { name: 'Duyệt' }).click();
+    // Form-depth: list is index-only → Mở phiếu → UUID form, then ConfirmDialog.
+    await pendingRow.getByRole('button', { name: 'Mở phiếu' }).click();
+    await expect(salePage).toHaveURL(/\/admin\/engagement\/rewards\/[0-9a-f-]{36}/i);
 
-    // Real status transition, not a captured mutation response: re-locate the
-    // row after the list invalidates/refetches and read the rendered badge.
-    const approvedRow = await findInList(
-      salePage,
-      (text) => text.includes(giftName) && text.includes('Đã duyệt'),
-    );
-    await approvedRow.getByRole('button', { name: 'Giao quà' }).click();
+    await salePage.getByRole('button', { name: 'Duyệt', exact: true }).click();
+    const approveDialog = salePage.getByRole('alertdialog');
+    await expect(approveDialog).toBeVisible();
+    await approveDialog.getByRole('button', { name: 'Duyệt', exact: true }).click();
+    await expect(salePage.getByText(/Đã duyệt yêu cầu đổi quà/)).toBeVisible();
+    await expect(salePage.getByText('Đã duyệt').first()).toBeVisible();
 
-    const deliveredRow = await findInList(
-      salePage,
-      (text) => text.includes(giftName) && text.includes('Đã giao'),
-    );
-    await expect(deliveredRow).toBeVisible();
-    // Delivered is terminal — no further row action remains.
-    await expect(deliveredRow.getByRole('button')).toHaveCount(0);
+    await salePage.getByRole('button', { name: 'Giao quà', exact: true }).click();
+    const deliverDialog = salePage.getByRole('alertdialog');
+    await expect(deliverDialog).toBeVisible();
+    await deliverDialog.getByRole('button', { name: 'Giao quà', exact: true }).click();
+    await expect(salePage.getByText(/Đã giao quà/)).toBeVisible();
+    await expect(salePage.getByText('Đã giao').first()).toBeVisible();
+    // Delivered is terminal — no further form HITL remains.
+    await expect(salePage.getByRole('button', { name: 'Duyệt', exact: true })).toHaveCount(0);
+    await expect(salePage.getByRole('button', { name: 'Giao quà', exact: true })).toHaveCount(0);
+    await expect(salePage.getByRole('button', { name: 'Từ chối', exact: true })).toHaveCount(0);
 
     await saleContext.close();
   });

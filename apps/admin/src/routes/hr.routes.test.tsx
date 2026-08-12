@@ -42,9 +42,15 @@ vi.mock('../lib/trpc.js', async () => {
 // Real page components are heavy (their own tRPC calls, forms, etc.) and
 // irrelevant to a routing test — stand in with a plain marker per screen.
 vi.mock('../pages/attendance/check-in-out.js', () => ({ default: () => <div>CHECKIN_PAGE</div> }));
+vi.mock('../pages/attendance/check-in-ticket-detail.js', () => ({
+  default: () => <div>CHECKIN_TICKET_DETAIL</div>,
+}));
 vi.mock('../pages/attendance/shifts.js', () => ({ default: () => <div>SHIFTS_PAGE</div> }));
+vi.mock('../pages/attendance/shifts-new.js', () => ({ default: () => <div>SHIFTS_NEW_PAGE</div> }));
+vi.mock('../pages/attendance/shifts-detail.js', () => ({ default: () => <div>SHIFTS_DETAIL_PAGE</div> }));
 vi.mock('../pages/hr/payroll.js', () => ({ default: () => <div>PAYROLL_PAGE</div> }));
 vi.mock('../pages/hr/kpi.js', () => ({ default: () => <div>KPI_PAGE</div> }));
+vi.mock('../pages/hr/kpi-detail.js', () => ({ default: () => <div>KPI_DETAIL_PAGE</div> }));
 vi.mock('../pages/hr/my-hr.js', () => ({ default: () => <div>MY_PAGE</div> }));
 vi.mock('../pages/hr/salary-tiers.js', () => ({ default: () => <div>SALARY_TIERS_PAGE</div> }));
 
@@ -94,5 +100,11 @@ describe('hrRoutes', () => {
     sessionRoles = ['giam_doc_dao_tao'];
     renderHr('/hr/kpi');
     expect(await screen.findByText('KPI_PAGE')).toBeInTheDocument();
+  });
+
+  it('resolves /hr/checkin/:ticketId form-depth route', async () => {
+    sessionRoles = ['giam_doc_kinh_doanh'];
+    renderHr('/hr/checkin/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    expect(await screen.findByText('CHECKIN_TICKET_DETAIL')).toBeInTheDocument();
   });
 });

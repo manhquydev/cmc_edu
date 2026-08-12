@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Badge,
   Button,
@@ -10,6 +11,7 @@ import {
   FilterBar,
   HStack,
   ListPage,
+  ListPagination,
   PageHeader,
   Selector,
   Stack,
@@ -19,6 +21,7 @@ import {
   useToast,
 } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
+import { links } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -349,6 +352,7 @@ function AllParentsTab({
   debouncedSearch: string;
   emailFilter: EmailFilter;
 }) {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
 
   // Narrowing/widening the result set can strand the user on a now
@@ -386,9 +390,15 @@ function AllParentsTab({
     {
       key: '_actions',
       label: 'Thao tác',
-      width: 160,
+      width: 240,
       render: (_v, row) => (
         <HStack gap={1} onClick={(e) => e.stopPropagation()}>
+          <Button
+            label="Mở phiếu"
+            size="sm"
+            variant="ghost"
+            onClick={() => navigate(links.parentAccount(row.id))}
+          />
           <Button
             label="Cập nhật email"
             size="sm"
@@ -402,16 +412,9 @@ function AllParentsTab({
 
   const rows: ParentRow[] = (data?.items ?? []).map((item) => ({ ...item, _actions: null }));
   const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / ALL_PARENTS_PAGE_SIZE));
 
   return (
     <Stack gap={2}>
-      {data && (
-        <Text type="supporting" size="sm" style={{ padding: '4px var(--cmc-keyline-x)' }}>
-          {total} phụ huynh
-        </Text>
-      )}
-
       <DataTable<ParentRow>
         columns={columns}
         data={rows}
@@ -422,29 +425,15 @@ function AllParentsTab({
             ? 'Không có phụ huynh nào đang thiếu email'
             : 'Không có phụ huynh nào'
         }
+        onRowClick={(row) => navigate(links.parentAccount(row.id))}
       />
 
-      <HStack justify="between" align="center" padding={4}>
-        <Text type="supporting" size="xsm">
-          Trang {page}/{totalPages} — {total} phụ huynh
-        </Text>
-        <HStack gap={1}>
-          <Button
-            label="Trang trước"
-            size="sm"
-            variant="secondary"
-            isDisabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          />
-          <Button
-            label="Trang sau"
-            size="sm"
-            variant="secondary"
-            isDisabled={page >= totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          />
-        </HStack>
-      </HStack>
+      <ListPagination
+        page={page}
+        pageSize={ALL_PARENTS_PAGE_SIZE}
+        total={total}
+        onPageChange={setPage}
+      />
     </Stack>
   );
 }

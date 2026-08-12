@@ -160,22 +160,31 @@ test.describe('P4-01 journey (xuyên app) — chấm bài sinh sao → học sin
     await expect(giftCard.getByRole('button', { name: 'Chưa đủ sao' })).toBeVisible();
     await studentContext.close();
 
-    // --- ERP, director: the redemption reaches the staff queue; approve then
-    // deliver it (both real status transitions read back from the list) ---
+    // --- ERP, director: the redemption reaches the staff queue; open the form
+    // (list is index-only after form-depth) and approve then deliver it ---
     await menuNav(gdPage, 'Gắn kết', 'Đổi thưởng', { role: 'giam_doc_kinh_doanh' });
     const pendingRow = await findInList(gdPage, (text) => text.includes(giftName));
-    await pendingRow.getByRole('button', { name: 'Duyệt' }).click();
-    const approvedRow = await findInList(
-      gdPage,
-      (text) => text.includes(giftName) && text.includes('Đã duyệt'),
-    );
-    await approvedRow.getByRole('button', { name: 'Giao quà' }).click();
-    const deliveredRow = await findInList(
-      gdPage,
-      (text) => text.includes(giftName) && text.includes('Đã giao'),
-    );
-    await expect(deliveredRow).toBeVisible();
-    await expect(deliveredRow.getByRole('button')).toHaveCount(0);
+    // Form-depth: list is index-only → Mở phiếu → UUID form, then ConfirmDialog.
+    await pendingRow.getByRole('button', { name: 'Mở phiếu' }).click();
+    await expect(gdPage).toHaveURL(/\/admin\/engagement\/rewards\/[0-9a-f-]{36}/i);
+
+    await gdPage.getByRole('button', { name: 'Duyệt', exact: true }).click();
+    const approveDialog = gdPage.getByRole('alertdialog');
+    await expect(approveDialog).toBeVisible();
+    await approveDialog.getByRole('button', { name: 'Duyệt', exact: true }).click();
+    await expect(gdPage.getByText(/Đã duyệt yêu cầu đổi quà/)).toBeVisible();
+    await expect(gdPage.getByText('Đã duyệt').first()).toBeVisible();
+
+    await gdPage.getByRole('button', { name: 'Giao quà', exact: true }).click();
+    const deliverDialog = gdPage.getByRole('alertdialog');
+    await expect(deliverDialog).toBeVisible();
+    await deliverDialog.getByRole('button', { name: 'Giao quà', exact: true }).click();
+    await expect(gdPage.getByText(/Đã giao quà/)).toBeVisible();
+    await expect(gdPage.getByText('Đã giao').first()).toBeVisible();
+    // Delivered is terminal — no further form HITL remains.
+    await expect(gdPage.getByRole('button', { name: 'Duyệt', exact: true })).toHaveCount(0);
+    await expect(gdPage.getByRole('button', { name: 'Giao quà', exact: true })).toHaveCount(0);
+    await expect(gdPage.getByRole('button', { name: 'Từ chối', exact: true })).toHaveCount(0);
 
     // ── business invariant ──
     // The card's "Đổi quà" → "Chưa đủ sao" flip proves the balance crossed

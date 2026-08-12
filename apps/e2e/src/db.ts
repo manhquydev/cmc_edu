@@ -766,6 +766,39 @@ export async function deleteStaffHrCascadeForAppUsers(...appUserIds: string[]): 
 // Phase-08: exercise + submission seeding helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Ensure UCREA orderGlobal 1–4 exist (default receipt package grant size).
+ * Idempotent; safe for CI migrate-only DBs that never ran prisma seed.
+ * Does not delete or rewrite existing rows.
+ */
+export async function ensureUcreaCurriculumAxis(): Promise<void> {
+  const db = getDb();
+  const rows: Array<{
+    program: 'UCREA';
+    level: number;
+    monthIndex: number;
+    unitType: 'LESSON';
+    title: string;
+    orderGlobal: number;
+  }> = [
+    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 1', orderGlobal: 1 },
+    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 2', orderGlobal: 2 },
+    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 3', orderGlobal: 3 },
+    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 4', orderGlobal: 4 },
+  ];
+  for (const row of rows) {
+    const existing = await db.curriculumUnit.findUnique({
+      where: {
+        program_orderGlobal: { program: row.program, orderGlobal: row.orderGlobal },
+      },
+      select: { id: true },
+    });
+    if (!existing) {
+      await db.curriculumUnit.create({ data: row });
+    }
+  }
+}
+
 /** Seeds one global CurriculumUnit and returns its id + title. Facility-agnostic
  * (no facilityId), so the facility teardown does not remove it — delete via
  * `cleanupCurriculumUnits`. Inert prerequisite data: a curriculum unit is a
@@ -820,19 +853,13 @@ export async function seedPublishedExercise(opts?: {
   maxScore?: number;
   starReward?: number;
 }): Promise<{ unitId: string; exerciseId: string }> {
-  const db = getDb();
-  const unit = await db.curriculumUnit.create({
+  // orderGlobal required (LMS unit-range) — same sequence as seedCurriculumUnit.
+  const { unitId } = await seedCurriculumUnit(
+    `E2E Unit ${randomUUID().slice(0, 8)}`,
+  );
+  const exercise = await getDb().exercise.create({
     data: {
-      program: 'UCREA',
-      level: 1,
-      monthIndex: 1,
-      unitType: 'LESSON',
-      title: `E2E Unit ${randomUUID().slice(0, 8)}`,
-    },
-  });
-  const exercise = await db.exercise.create({
-    data: {
-      curriculumUnitId: unit.id,
+      curriculumUnitId: unitId,
       type: 'homework',
       basePdfRef: 'e2e/test.pdf',
       maxScore: opts?.maxScore ?? 10,
@@ -841,7 +868,7 @@ export async function seedPublishedExercise(opts?: {
       createdById: 'e2e-seed',
     },
   });
-  return { unitId: unit.id, exerciseId: exercise.id };
+  return { unitId, exerciseId: exercise.id };
 }
 
 /** Seeds a Submission in 'submitted' state directly in the DB (bypassing the

@@ -225,4 +225,55 @@ describe('manualPunch.approve/reject/list/resubmit — GĐ track (ADR 0043 phase
     const approved = await caller(superCtx).manualPunch.approve({ ticketId: ticket.id });
     expect(approved.status).toBe('approved');
   });
+
+  // -------------------------------------------------------------------------
+  // manualPunch.get — form-depth cold-start (resource UUID form)
+  // -------------------------------------------------------------------------
+  describe('manualPunch.get', () => {
+    it('owner can get own ticket with appUser.fullName', async () => {
+      const sale = await seedAppUser({ facilityId, userId: 'p4-get-owner', fullName: 'Sale Owner' });
+      await testDbBypass((tx) => tx.appUser.update({ where: { id: sale.id }, data: { roles: ['sale'] } }));
+      const ticket = await seedTicket(sale.id, '2026-08-14');
+      const got = await caller(ctxFor('p4-get-owner', ['sale'])).manualPunch.get({ ticketId: ticket.id });
+      expect(got.id).toBe(ticket.id);
+      expect(got.status).toBe('pending');
+      expect(got.appUser.fullName).toBe('Sale Owner');
+    });
+
+    it('matching-track director can get ticket', async () => {
+      const sale = await seedAppUser({ facilityId, userId: 'p4-get-sale' });
+      await testDbBypass((tx) => tx.appUser.update({ where: { id: sale.id }, data: { roles: ['sale'] } }));
+      const ticket = await seedTicket(sale.id, '2026-08-15');
+      const got = await caller(ctxFor('p4-get-gdkd', ['giam_doc_kinh_doanh'])).manualPunch.get({
+        ticketId: ticket.id,
+      });
+      expect(got.id).toBe(ticket.id);
+    });
+
+    it('wrong-track director cannot get ticket', async () => {
+      const sale = await seedAppUser({ facilityId, userId: 'p4-get-sale-wrong' });
+      await testDbBypass((tx) => tx.appUser.update({ where: { id: sale.id }, data: { roles: ['sale'] } }));
+      const ticket = await seedTicket(sale.id, '2026-08-16');
+      await expect(
+        caller(ctxFor('p4-get-gddt', ['giam_doc_dao_tao'])).manualPunch.get({ ticketId: ticket.id }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('unrelated staff cannot get another user ticket', async () => {
+      const sale = await seedAppUser({ facilityId, userId: 'p4-get-sale-peer' });
+      await testDbBypass((tx) => tx.appUser.update({ where: { id: sale.id }, data: { roles: ['sale'] } }));
+      const ticket = await seedTicket(sale.id, '2026-08-17');
+      await expect(
+        caller(ctxFor('p4-get-peer', ['sale'])).manualPunch.get({ ticketId: ticket.id }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('missing ticket → NOT_FOUND', async () => {
+      await expect(
+        caller(ctxFor('p4-get-miss', ['super_admin'])).manualPunch.get({
+          ticketId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+  });
 });

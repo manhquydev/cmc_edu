@@ -88,12 +88,21 @@ describe('exercise.openForStudent / listForStudent (US-015, ADR 0038 Tier A/B)',
     return appRouter.createCaller(buildLmsContext({ parentAccountId: parent.id, studentId, kind: 'student' }));
   }
 
-  /** Enrolls a student AND creates an approved Guardian link for `parent`. */
-  async function seedStudent() {
+  /** Enrolls a student AND creates an approved Guardian link for `parent`.
+   * Dual-gate ready by default (wide range) so attendance.mark on unit-stamped
+   * sessions works. Pass unitRange: null for entitlement-gate negatives. */
+  async function seedStudent(opts?: {
+    unitRange?: { fromOrderGlobal: number; toOrderGlobal: number } | null;
+  }) {
+    const unitRange =
+      opts && 'unitRange' in opts && opts.unitRange === null
+        ? undefined
+        : (opts?.unitRange ?? { fromOrderGlobal: 1, toOrderGlobal: 10_000 });
     return seedEnrolledStudentWithGuardian({
       facilityId: facility.id,
       classBatchId: classBatch.id,
       parentAccountId: parent.id,
+      unitRange,
     });
   }
 
@@ -377,7 +386,7 @@ describe('exercise.openForStudent / listForStudent (US-015, ADR 0038 Tier A/B)',
       isMakeup: false,
       endTime: PAST,
     });
-    const enrollment = await seedStudent();
+    const enrollment = await seedStudent({ unitRange: null });
     // No unit ranges granted — entitlement gate must empty the open set.
 
     const prevOpen = process.env.LMS_OPEN_TIER_ENABLED;

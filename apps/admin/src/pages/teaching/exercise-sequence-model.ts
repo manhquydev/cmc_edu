@@ -1,7 +1,6 @@
 // Pure helpers for the class exercise-sequence work surface.
-// listExerciseSequence returns { items } only — never guess deliveredCount from
-// sessions. Save is allowed only for a first assign (empty server sequence) or
-// after assignExerciseSequence returns deliveredCount in this session.
+// Freeze pointer comes from listExerciseSequence.deliveredCount
+// (MAX SessionExercise.position) — never from a session-count guess.
 
 export const EXERCISE_SEQUENCE_PATH = '/teaching/classes/:classBatchId/exercise-sequence';
 
@@ -119,20 +118,13 @@ export function formatSessionDay(value: Date | string): string {
   return new Date(value).toLocaleDateString('vi-VN');
 }
 
-/**
- * True when we know the server freeze pointer: first assign (empty sequence ⇒ 0)
- * or assignExerciseSequence already returned deliveredCount this session.
- */
-export function hasAuthoritativeFreeze(
-  serverItemCount: number,
-  authoritativeDeliveredCount: number | null,
-): boolean {
-  return serverItemCount === 0 || authoritativeDeliveredCount !== null;
+/** True when list/assign gave a numeric freeze pointer (0 is valid). */
+export function hasAuthoritativeFreeze(listedDeliveredCount: number | null | undefined): boolean {
+  return typeof listedDeliveredCount === 'number' && Number.isFinite(listedDeliveredCount);
 }
 
 export function canSafelySaveSequence(opts: {
-  serverItemCount: number;
-  authoritativeDeliveredCount: number | null;
+  listedDeliveredCount: number | null | undefined;
   dirty: boolean;
   tailIds: readonly string[];
   tailAllPublished: boolean;
@@ -141,7 +133,7 @@ export function canSafelySaveSequence(opts: {
   if (opts.readOnly || !opts.dirty || opts.tailIds.length === 0 || !opts.tailAllPublished) {
     return false;
   }
-  return hasAuthoritativeFreeze(opts.serverItemCount, opts.authoritativeDeliveredCount);
+  return hasAuthoritativeFreeze(opts.listedDeliveredCount);
 }
 
 export function tailHasUnpublished(

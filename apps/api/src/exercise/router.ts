@@ -17,7 +17,7 @@
 // (US-016/017) live in ../submission/router.ts.
 
 import { z } from 'zod';
-import type { PrismaClient } from '@cmc/db';
+import type { Prisma, PrismaClient } from '@cmc/db';
 import { badRequest, conflict, notFound } from '../errors.js';
 import { requirePermission, router } from '../trpc.js';
 import { assertFolderWritable } from './folder-router.js';
@@ -144,7 +144,18 @@ const exerciseListInput = z.object({
   type: exerciseTypeSchema.optional(),
 });
 
-async function nextOrderInFolder(db: PrismaClient, folderId: string): Promise<number> {
+type FolderDb = PrismaClient | Prisma.TransactionClient;
+
+/** Same class as `writeSequenceUpdate` (91004) / deliver (91005): serialize
+ *  max(orderInFolder)+1 per folder so two creates cannot mint the same slot. */
+async function lockFolderOrder(tx: Prisma.TransactionClient, folderId: string): Promise<void> {
+  await tx.$executeRawUnsafe(
+    `SELECT pg_advisory_xact_lock(hashtext($1::text), 91006)`,
+    folderId,
+  );
+}
+
+async function nextOrderInFolder(db: FolderDb, folderId: string): Promise<number> {
   const agg = await db.exercise.aggregate({
     where: { folderId },
     _max: { orderInFolder: true },
@@ -164,17 +175,20 @@ export const exerciseRouter = router({
       await assertFolderWritable(ctx.db, input.folderId);
 
       try {
-        const exercise = await ctx.db.exercise.create({
-          data: {
-            folderId: input.folderId,
-            orderInFolder: await nextOrderInFolder(ctx.db, input.folderId),
-            title: input.title,
-            type: input.type,
-            basePdfRef: input.basePdfRef,
-            maxScore: input.maxScore ?? 10,
-            starReward: input.starReward ?? 10,
-            createdById: ctx.subject.userId,
-          },
+        const exercise = await ctx.db.$transaction(async (tx) => {
+          await lockFolderOrder(tx, input.folderId);
+          return tx.exercise.create({
+            data: {
+              folderId: input.folderId,
+              orderInFolder: await nextOrderInFolder(tx, input.folderId),
+              title: input.title,
+              type: input.type,
+              basePdfRef: input.basePdfRef,
+              maxScore: input.maxScore ?? 10,
+              starReward: input.starReward ?? 10,
+              createdById: ctx.subject.userId,
+            },
+          });
         });
         return toExerciseDto(exercise);
       } catch (error) {
@@ -196,21 +210,27 @@ export const exerciseRouter = router({
     .mutation(async ({ ctx, input }): Promise<ExerciseDto> => {
       const exercise = await findExerciseOrThrow(ctx.db, input.exerciseId);
       const nextFolderId = input.folderId ?? exercise.folderId;
-      if (input.folderId && input.folderId !== exercise.folderId) {
-        await assertFolderWritable(ctx.db, input.folderId);
+      const moving = Boolean(input.folderId && input.folderId !== exercise.folderId);
+      if (moving) {
+        await assertFolderWritable(ctx.db, input.folderId!);
       }
       try {
-        const updated = await ctx.db.exercise.update({
-          where: { id: exercise.id },
-          data: {
-            ...(input.title !== undefined ? { title: input.title } : {}),
-            ...(input.folderId && input.folderId !== exercise.folderId
-              ? {
-                  folderId: nextFolderId,
-                  orderInFolder: await nextOrderInFolder(ctx.db, nextFolderId),
-                }
-              : {}),
-          },
+        const updated = await ctx.db.$transaction(async (tx) => {
+          if (moving) {
+            await lockFolderOrder(tx, nextFolderId);
+          }
+          return tx.exercise.update({
+            where: { id: exercise.id },
+            data: {
+              ...(input.title !== undefined ? { title: input.title } : {}),
+              ...(moving
+                ? {
+                    folderId: nextFolderId,
+                    orderInFolder: await nextOrderInFolder(tx, nextFolderId),
+                  }
+                : {}),
+            },
+          });
         });
         return toExerciseDto(updated);
       } catch (error) {

@@ -26,6 +26,7 @@ import { restampBatchSessions } from './stamp-sessions.js';
 import { cancelSessionWithRestamp } from './cancel-session.js';
 import {
   deliverForSession,
+  deliveredCountForBatch,
   sequenceForBatch,
   writeSequenceUpdate,
 } from './exercise-delivery.js';
@@ -672,7 +673,8 @@ export const lmsOpsRouter = router({
         });
         if (!batch) throw notFound('ClassBatch not found.');
         const items = await sequenceForBatch(tx, input.classBatchId);
-        return { items };
+        const deliveredCount = await deliveredCountForBatch(tx, input.classBatchId);
+        return { items, deliveredCount };
       });
     }),
 

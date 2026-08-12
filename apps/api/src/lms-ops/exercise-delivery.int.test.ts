@@ -138,6 +138,10 @@ describe('lmsOps exercise delivery', () => {
     expect(seq2.deliveredCount).toBe(1);
     expect(seq2.items.find((i) => i.position === 1)?.exerciseId).toBe(ex1.id);
     expect(seq2.items.find((i) => i.position === 2)?.exerciseId).toBe(exAlt.id);
+
+    const listed = await gddt.lmsOps.listExerciseSequence({ classBatchId: batch.id });
+    expect(listed.deliveredCount).toBe(1);
+    expect(listed.items).toEqual(seq2.items);
   });
 
   it('class without a sequence does not receive a delivery (no unit-stamp fallback)', async () => {

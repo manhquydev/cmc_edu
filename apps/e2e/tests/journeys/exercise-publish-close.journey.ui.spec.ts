@@ -1,19 +1,19 @@
 // P2-04 journey — Cung cấp bài tập PDF: a training director authors an exercise
-// (picks a curriculum unit, a type, uploads the PDF), then publishes it and
-// closes it — the full draft → published → closed lifecycle through the real UI.
+// (picks a library folder, types a title, a type, uploads the PDF), then
+// publishes it and closes it — the full draft → published → closed lifecycle
+// through the real UI.
 //
 // The upload is a real one: setInputFiles drives the hidden file input, whose
 // onChange POSTs the bytes to /upload/exercise-pdf (blob storage is local disk
-// in this env, so it works without any cloud config). The curriculum unit is
-// seeded with a unique title so this journey can find its own exercise row
-// among any others on the screen — a unit is inert catalog data, not a
-// mechanism this flow proves.
+// in this env, so it works without any cloud config). The folder is seeded so
+// the create button is reachable (empty library shows "Chưa có thư mục" and
+// hides "+ Tạo bài tập"). A unique title lets the journey find its own row.
 
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 
 import { mintStaffCookie } from '../../src/session-injection.js';
-import { seedCurriculumUnit, cleanupCurriculumUnits } from '../../src/db.js';
+import { seedExerciseFolder, cleanupExerciseLibrary } from '../../src/db.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
@@ -32,17 +32,17 @@ function cookiePair(name: string, value: string) {
 
 test.describe('P2-04 journey — cung cấp bài tập PDF (tạo → publish → đóng)', () => {
   const runId = randomUUID().slice(0, 8);
-  const unitTitle = `E2E P2-04 Unit ${runId}`;
-  let unitId = '';
+  const folderName = `E2E P2-04 Folder ${runId}`;
+  const exerciseTitle = `E2E P2-04 Bài ${runId}`;
+  let folderId = '';
 
   test.beforeAll(async () => {
-    const seeded = await seedCurriculumUnit(unitTitle);
-    unitId = seeded.unitId;
+    const seeded = await seedExerciseFolder(folderName);
+    folderId = seeded.folderId;
   });
 
   test.afterAll(async () => {
-    // Removes the unit and the exercise the journey created against it.
-    if (unitId) await cleanupCurriculumUnits(unitId);
+    if (folderId) await cleanupExerciseLibrary(folderId);
   });
 
   test('a training director authors an exercise, publishes it, then closes it', async ({ browser }) => {
@@ -59,14 +59,17 @@ test.describe('P2-04 journey — cung cấp bài tập PDF (tạo → publish �
     await menuNav(page, 'Giảng dạy', 'Bài tập', { role: 'giam_doc_dao_tao' });
     await expect(page).toHaveURL(/\/teaching\/exercises/);
 
+    // Left pane is a folder list (role=button). Auto-select picks the first
+    // live folder in name order — not necessarily this run's seed — so click
+    // the seeded folder before creating.
+    await page.getByRole('button', { name: folderName, exact: true }).click();
+
     // --- author the exercise ---
     // Header action is "+ Tạo bài tập"; the dialog's submit is "Tạo bài tập".
+    // The create button only exists once a folder is selected and is not archived.
     await page.getByRole('button', { name: '+ Tạo bài tập' }).click();
 
-    // The searchable unit Selector renders as a button (the non-search type
-    // Selector below is a combobox) — pick this run's own unit by its title.
-    await page.getByRole('button', { name: /Đơn vị học/ }).click();
-    await page.getByRole('option', { name: new RegExp(unitTitle) }).click();
+    await page.getByLabel('Tên bài tập').fill(exerciseTitle);
 
     // Type selector.
     await page.getByRole('combobox', { name: /Loại bài tập/ }).click();
@@ -81,13 +84,13 @@ test.describe('P2-04 journey — cung cấp bài tập PDF (tạo → publish �
     await expect(page.getByText('PDF đã upload')).toBeVisible();
 
     // The dialog's create button (exact, to exclude the header "+ Tạo bài tập")
-    // is enabled only once unit + type + pdf are set.
+    // is enabled only once title + type + pdf are set.
     await page.getByRole('button', { name: 'Tạo bài tập', exact: true }).click();
 
-    // --- the new exercise appears as a draft row, found by its unit title ---
-    const row = page.getByRole('row', { name: new RegExp(unitTitle) });
+    // --- the new exercise appears as a draft row, found by its title ---
+    const row = page.getByRole('row', { name: new RegExp(exerciseTitle) });
     await expect(row).toBeVisible();
-    await expect(row.getByText('draft')).toBeVisible();
+    await expect(row.getByText('Nháp')).toBeVisible();
 
     // Form-depth: list is index-only → open the exercise form; Công bố / Đóng
     // live on the detail with ConfirmDialog. draft → published → closed is read

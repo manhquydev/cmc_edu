@@ -63,12 +63,12 @@ phase này). Kèm test node nhỏ: chèn chuỗi cấm vào fixture → đỏ; H
 
 ## Nghiệm thu
 
-- [ ] `rg -n 'AppFrame|\.ck-surface|\.sh-\*|tpl-wrap|\.premium-|premium\.css'` trên tập allowlist = 0
-- [ ] Mọi script mới/hồi sinh đều **có mặt trong `.github/workflows/ci.yml`**
-- [ ] `check:doc-authority` đã chứng minh đỏ được
-- [ ] `docs/design-system-console.md` có mục precedence và bảng cổng CI đúng
-- [ ] TL12 vẫn là SoT cho LMS; `primitives.ts` vẫn export SideNav
-- [ ] `pnpm typecheck` xanh
+- [x] `rg -n 'AppFrame|\.ck-surface|\.sh-\*|tpl-wrap|\.premium-|premium\.css'` trên tập allowlist = 0
+- [x] Mọi script mới/hồi sinh đều **có mặt trong `.github/workflows/ci.yml`**
+- [x] `check:doc-authority` đã chứng minh đỏ được
+- [x] `docs/design-system-console.md` có mục precedence và bảng cổng CI đúng
+- [x] TL12 vẫn là SoT cho LMS; `primitives.ts` vẫn export SideNav
+- [ ] `pnpm typecheck` xanh — **không đạt trên worktree này** (lỗi sẵn có, không nằm trong diff; xem báo cáo cook)
 
 ## Rủi ro
 

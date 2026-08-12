@@ -71,11 +71,11 @@ Không xóa/đổi tên biến nào. Không thêm script CI mới. Không đụn
 
 ## Nghiệm thu
 
-- [ ] `pnpm --filter @cmc/ui test` xanh (baseline trước khi sửa: 41 file / 148 test)
-- [ ] Test precedence **đã được chứng minh đỏ được**: tạm đổi một giá trị trong `console.css` → đỏ, hoàn tác
-- [ ] Test mapping upstream chạy (không skip) trên worktree đã `pnpm install`
-- [ ] `pnpm typecheck` xanh
-- [ ] `git diff` **không chứa** thay đổi giá trị CSS nào — chỉ test + 1 dòng `report.tsx`
+- [x] `pnpm --filter @cmc/ui test` xanh (baseline trước khi sửa: 41 file / 148 test) — sau phase: 42 / 152
+- [x] Test precedence **đã được chứng minh đỏ được**: tạm đổi một giá trị trong `console.css` → đỏ, hoàn tác
+- [x] Test mapping upstream chạy (không skip) trên worktree đã `pnpm install`
+- [x] `pnpm typecheck` xanh
+- [x] `git diff` **không chứa** thay đổi giá trị CSS nào — chỉ test + 1 dòng `report.tsx`
 
 ## Rủi ro
 

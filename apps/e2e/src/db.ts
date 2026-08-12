@@ -827,28 +827,39 @@ export async function seedCurriculumUnit(title?: string): Promise<{ unitId: stri
   return { unitId: unit.id, title: unitTitle };
 }
 
-/** Deletes seeded CurriculumUnit rows (and any exercises + submissions
- * referencing them, to avoid the FK trip) — mirror of `cleanupExercises` for
- * units created directly. Uses the privileged migration-role connection:
- * `cmc_app` has no DELETE grant on Exercise/CurriculumUnit.
+/** Deletes only the CurriculumUnit rows the caller named.
+ * Exercises no longer hang off units — tear those down with
+ * `cleanupExerciseLibrary` / `cleanupExercises`. Uses the privileged
+ * migration-role connection: `cmc_app` has no DELETE grant on CurriculumUnit.
  *
  * Does NOT delete ClassSession rows, which also FK-reference CurriculumUnit —
  * safe only because callers seed no session against these units. A future
  * caller that does must clear sessions first or this trips the session FK. */
 export async function cleanupCurriculumUnits(...unitIds: string[]): Promise<void> {
   if (unitIds.length === 0) return;
+  await getPrivilegedDb().curriculumUnit.deleteMany({ where: { id: { in: unitIds } } });
+}
+
+export async function seedExerciseFolder(name?: string): Promise<{ folderId: string; name: string }> {
+  const folderName = name ?? `E2E folder ${randomUUID().slice(0, 8)}`;
+  const folder = await getDb().exerciseFolder.create({
+    data: { name: folderName, createdById: 'e2e-seed' },
+    select: { id: true, name: true },
+  });
+  return { folderId: folder.id, name: folder.name };
+}
+
+/** Deletes exercises in the named folders (plus leftover delivery/item FKs),
+ * then the folders. Privileged: no production delete path on these catalogs. */
+export async function cleanupExerciseLibrary(...folderIds: string[]): Promise<void> {
+  if (folderIds.length === 0) return;
   const db = getPrivilegedDb();
-  // Exercises no longer hang off units (exercise library, 2026-08-13): the seed
-  // helper below puts each one in its own throwaway folder, so clean by folder
-  // name instead of by unit. Leaving them behind would let a later test's
-  // `exercise.list` see published "ghost" exercises from this one.
   const exercises = await db.exercise.findMany({
-    where: { folder: { name: { startsWith: 'E2E ' } } },
+    where: { folderId: { in: folderIds } },
     select: { id: true },
   });
   const exerciseIds = exercises.map((e) => e.id);
   if (exerciseIds.length > 0) {
-    // B4: Submission → SessionExercise → Exercise (not exerciseId on Submission).
     const deliveries = await db.sessionExercise.findMany({
       where: { exerciseId: { in: exerciseIds } },
       select: { id: true },
@@ -861,7 +872,7 @@ export async function cleanupCurriculumUnits(...unitIds: string[]): Promise<void
     await db.classExerciseItem.deleteMany({ where: { exerciseId: { in: exerciseIds } } });
     await db.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
   }
-  await db.curriculumUnit.deleteMany({ where: { id: { in: unitIds } } });
+  await db.exerciseFolder.deleteMany({ where: { id: { in: folderIds } } });
 }
 
 /** Seeds a global CurriculumUnit + published Exercise. Both are facility-
@@ -963,9 +974,12 @@ export async function cleanupExercises(...exerciseIds: string[]): Promise<void> 
   // the privileged migration-role connection, same as cleanupFacility's
   // append-only tables.
   const db = getPrivilegedDb();
+  // Exercise library (2026-08-13): exercises hang off a folder, not a unit.
+  // The seed helper makes one throwaway folder per exercise, so teardown drops
+  // the folder too; the unit it also seeded is cleaned by `cleanupCurriculumUnits`.
   const exercises = await db.exercise.findMany({
     where: { id: { in: exerciseIds } },
-    select: { id: true, curriculumUnitId: true },
+    select: { id: true, folderId: true },
   });
   // B4: Submission → SessionExercise → Exercise. Spec afterAll runs before
   // global cleanupFacility, so clear deliveries (and their submissions) first.
@@ -980,9 +994,9 @@ export async function cleanupExercises(...exerciseIds: string[]): Promise<void> 
   }
   await db.classExerciseItem.deleteMany({ where: { exerciseId: { in: exerciseIds } } });
   await db.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
-  const unitIds = [...new Set(exercises.map((e) => e.curriculumUnitId))];
-  if (unitIds.length > 0) {
-    await db.curriculumUnit.deleteMany({ where: { id: { in: unitIds } } });
+  const folderIds = [...new Set(exercises.map((e) => e.folderId))];
+  if (folderIds.length > 0) {
+    await db.exerciseFolder.deleteMany({ where: { id: { in: folderIds } } });
   }
 }
 

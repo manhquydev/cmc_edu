@@ -119,8 +119,9 @@ export default function ExerciseSequencePage() {
 
   const serverItems = seq?.items ?? [];
   const sessionRows = (sessions ?? []) as Parameters<typeof chronologicalActiveSessions>[0];
-  const freezeKnown = hasAuthoritativeFreeze(serverItems.length, assignedDeliveredCount);
-  const deliveredCount = assignedDeliveredCount ?? 0;
+  const listedDeliveredCount = seq?.deliveredCount;
+  const freezeKnown = hasAuthoritativeFreeze(assignedDeliveredCount ?? listedDeliveredCount);
+  const deliveredCount = assignedDeliveredCount ?? listedDeliveredCount ?? 0;
   const serverTail = freezeKnown ? tailExerciseIds(serverItems, deliveredCount) : [];
   const tailIds = draftTail ?? serverTail;
   const frozen = freezeKnown ? serverItems.filter((item) => item.position <= deliveredCount) : [];
@@ -172,8 +173,7 @@ export default function ExerciseSequencePage() {
   );
   const tailAllPublished = !tailHasUnpublished(tailIds, statusById);
   const canSave = canSafelySaveSequence({
-    serverItemCount: serverItems.length,
-    authoritativeDeliveredCount: assignedDeliveredCount,
+    listedDeliveredCount: assignedDeliveredCount ?? listedDeliveredCount,
     dirty,
     tailIds,
     tailAllPublished,
@@ -372,11 +372,10 @@ export default function ExerciseSequencePage() {
           </Callout>
         ) : null}
 
-        {freezeUnknown ? (
+        {freezeUnknown && !seqLoading ? (
           <Callout tone="danger" title="Chưa biết biên đã phát — không lưu">
-            Dãy đã có sẵn nhưng API list không trả số bài đã phát. Lưu lúc này có thể xoá bài
-            chưa phát hoặc nhân bản bài đã phát. Chỉ xếp lần đầu khi lớp chưa có dãy, hoặc sau
-            khi vừa lưu thành công trong phiên này.
+            Phản hồi list thiếu deliveredCount. Không lưu để tránh xoá bài chưa phát. Tải lại
+            trang sau khi API trả số bài đã phát.
           </Callout>
         ) : null}
 

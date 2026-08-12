@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, within } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 import {
   buildDisplaySequence,
@@ -52,6 +52,7 @@ const fixtures = vi.hoisted(() => ({
   classStatus: 'active',
   roles: ['giam_doc_dao_tao'] as string[],
   deliveredOnSave: 0,
+  listedDeliveredCount: 0 as number | undefined,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -84,7 +85,12 @@ vi.mock('../../lib/trpc.js', async () => {
           endDate: '2026-06-01T00:00:00.000Z',
         }),
       'lmsOps.listExerciseSequence.useQuery': () =>
-        queryResult({ items: fixtures.sequenceItems }),
+        queryResult({
+          items: fixtures.sequenceItems,
+          ...(fixtures.listedDeliveredCount === undefined
+            ? {}
+            : { deliveredCount: fixtures.listedDeliveredCount }),
+        }),
       'classSession.list.useQuery': () => queryResult(fixtures.sessions),
       'exercise.list.useQuery': () => queryResult({ items: fixtures.exercises }),
       'exerciseFolder.list.useQuery': () =>
@@ -126,14 +132,23 @@ describe('exercise-sequence-model', () => {
     { id: 's4', status: 'planned', sessionDate: FUTURE_C, endTime: FUTURE_C, curriculumUnitId: null },
   ];
 
-  it('does not treat a session count as an authoritative freeze pointer', () => {
-    expect(hasAuthoritativeFreeze(0, null)).toBe(true);
-    expect(hasAuthoritativeFreeze(3, null)).toBe(false);
-    expect(hasAuthoritativeFreeze(3, 1)).toBe(true);
+  it('treats a numeric list deliveredCount (including 0) as the freeze pointer', () => {
+    expect(hasAuthoritativeFreeze(undefined)).toBe(false);
+    expect(hasAuthoritativeFreeze(null)).toBe(false);
+    expect(hasAuthoritativeFreeze(0)).toBe(true);
+    expect(hasAuthoritativeFreeze(1)).toBe(true);
     expect(
       canSafelySaveSequence({
-        serverItemCount: 3,
-        authoritativeDeliveredCount: null,
+        listedDeliveredCount: 1,
+        dirty: true,
+        tailIds: [EX_PUB_2],
+        tailAllPublished: true,
+        readOnly: false,
+      }),
+    ).toBe(true);
+    expect(
+      canSafelySaveSequence({
+        listedDeliveredCount: undefined,
         dirty: true,
         tailIds: [EX_PUB_2],
         tailAllPublished: true,
@@ -206,6 +221,7 @@ describe('ExerciseSequencePage', () => {
     fixtures.classStatus = 'active';
     fixtures.roles = ['giam_doc_dao_tao'];
     fixtures.deliveredOnSave = 0;
+    fixtures.listedDeliveredCount = 0;
     fixtures.sequenceItems = [];
     fixtures.sessions = [
       { id: 's1', status: 'done', sessionDate: PAST, endTime: PAST, curriculumUnitId: 'u1' },
@@ -243,12 +259,30 @@ describe('ExerciseSequencePage', () => {
     expect(screen.getByText(/Không tự lặp lại bài/)).toBeInTheDocument();
   });
 
-  it('refuses to save an existing sequence until deliveredCount is known', () => {
+  it('after reload, an existing sequence with listed deliveredCount can still edit the unlocked tail', () => {
     fixtures.sequenceItems = [
       { position: 1, exerciseId: EX_PUB_1 },
       { position: 2, exerciseId: EX_PUB_2 },
       { position: 3, exerciseId: EX_PUB_3 },
     ];
+    fixtures.listedDeliveredCount = 1;
+    renderWithProviders(<ExerciseSequencePage />);
+    expect(screen.queryByText(/Chưa biết biên đã phát/)).toBeNull();
+    expect(screen.getByText(/Đã phát — khoá/)).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Xuống' })[0]!);
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu dãy' }));
+    expect(assignMutate).toHaveBeenCalledWith({
+      classBatchId: CLASS_ID,
+      exerciseIds: [EX_PUB_3, EX_PUB_2],
+    });
+  });
+
+  it('stays fail-closed when list omits deliveredCount', () => {
+    fixtures.sequenceItems = [
+      { position: 1, exerciseId: EX_PUB_1 },
+      { position: 2, exerciseId: EX_PUB_2 },
+    ];
+    fixtures.listedDeliveredCount = undefined;
     renderWithProviders(<ExerciseSequencePage />);
     expect(screen.getByText(/Chưa biết biên đã phát/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Lưu dãy' })).toBeDisabled();

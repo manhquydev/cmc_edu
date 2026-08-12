@@ -161,8 +161,13 @@ export const flows: FlowEntry[] = [
         'guardian.rejectLink',
         'guardian.listPendingLinks',
         'parentAccount.updateEmail',
+        // Form-depth / directory on same /admin/parents surface (E1): list =
+        // "Tất cả phụ huynh" tab; get/setActive = UUID form activate/deactivate.
+        'parentAccount.list',
+        'parentAccount.get',
+        'parentAccount.setActive',
       ],
-      uiRoutes: ['/admin/parents'],
+      uiRoutes: ['/admin/parents', '/admin/parents/:parentId'],
       models: ['GuardianLinkRequest', 'Guardian', 'ParentAccount'],
     },
     // Journey: phụ huynh thật (tạo qua chuỗi phiếu thu) gửi 2 yêu cầu liên kết,
@@ -314,6 +319,12 @@ export const flows: FlowEntry[] = [
         'classSession.assignUnit',
         'classSession.confirm',
         'classSession.cancel',
+        // Form-depth / calendar reads on the same class-session surface (E1):
+        // get = session detail; listInRange = teaching schedule; doneProgress =
+        // hub badges on session panels.
+        'classSession.get',
+        'classSession.listInRange',
+        'classSession.doneProgress',
         'course.list',
         'room.create',
         'room.list',
@@ -552,9 +563,11 @@ export const flows: FlowEntry[] = [
         'manualPunch.resubmit',
         'manualPunch.list',
         'manualPunch.dayPunches',
+        // Form-depth cold-start for UUID ticket form (/hr/checkin/:ticketId).
+        'manualPunch.get',
         'checkInOut.geoPunchSummary',
       ],
-      uiRoutes: ['/hr/checkin'],
+      uiRoutes: ['/hr/checkin', '/hr/checkin/:ticketId'],
       models: ['ManualAttendanceTicket', 'TimePunch'],
     },
     // Phase 5 (plan 260723-1422): sale punches offsite (real ticket via
@@ -574,8 +587,15 @@ export const flows: FlowEntry[] = [
     actorRoles: ['sale', 'giao_vien'],
     expected: {
       // shift.cancel = huỷ đăng ký ca của chính mình (E1).
-      trpc: ['shift.submit', 'shift.listGroups', 'shift.myRegistrations', 'shift.cancel'],
-      uiRoutes: ['/hr/shifts'],
+      // shift.get = form-depth cold-start for /hr/shifts/:registrationId (owner view).
+      trpc: [
+        'shift.submit',
+        'shift.listGroups',
+        'shift.myRegistrations',
+        'shift.cancel',
+        'shift.get',
+      ],
+      uiRoutes: ['/hr/shifts', '/hr/shifts/new', '/hr/shifts/:registrationId'],
       models: ['ShiftRegistration', 'ShiftRegistrationEntry'],
     },
     // Cùng 1 journey với P3-04/P3-07 (T1): ticket-lock "1 submitted/người" ép
@@ -589,8 +609,9 @@ export const flows: FlowEntry[] = [
     cluster: 'P3',
     actorRoles: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
     expected: {
-      trpc: ['shift.approve', 'shift.pendingForApproval'],
-      uiRoutes: ['/hr/shifts'],
+      // shift.get = form-depth HITL surface (approve/reject on UUID form).
+      trpc: ['shift.approve', 'shift.pendingForApproval', 'shift.get'],
+      uiRoutes: ['/hr/shifts', '/hr/shifts/:registrationId'],
       models: ['ShiftRegistration'],
     },
     // Cùng journey với P3-03/P3-07 (T1). P3-04 = GĐKD duyệt đơn đã nộp lại
@@ -637,8 +658,9 @@ export const flows: FlowEntry[] = [
     cluster: 'P3',
     actorRoles: ['sale', 'giao_vien', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
     expected: {
-      trpc: ['kpi.submitSlip', 'kpi.confirm', 'kpi.override', 'kpi.myScore', 'kpi.list'],
-      uiRoutes: ['/hr/kpi', '/hr/my'],
+      // kpi.get = form-depth cold-start for /hr/kpi/:scoreId (confirm/override form).
+      trpc: ['kpi.submitSlip', 'kpi.confirm', 'kpi.override', 'kpi.myScore', 'kpi.list', 'kpi.get'],
+      uiRoutes: ['/hr/kpi', '/hr/kpi/:scoreId', '/hr/my'],
       models: ['KpiScore'],
     },
     // Journey (chung với P3-08): sale tự tính + nộp phiếu kỳ QUÁ KHỨ 2026-06
@@ -752,8 +774,17 @@ export const flows: FlowEntry[] = [
     actorRoles: ['hoc_vien', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'],
     expected: {
       // listForStudent = HV xem quà đổi được (E1).
-      trpc: ['rewards.redeem', 'rewards.approve', 'rewards.deliver', 'rewards.reject', 'rewards.list', 'rewards.listForStudent'],
-      uiRoutes: ['/admin/engagement/rewards', '/student/gifts'],
+      // rewards.get = form-depth cold-start for /admin/engagement/rewards/:rewardId.
+      trpc: [
+        'rewards.redeem',
+        'rewards.approve',
+        'rewards.deliver',
+        'rewards.reject',
+        'rewards.list',
+        'rewards.listForStudent',
+        'rewards.get',
+      ],
+      uiRoutes: ['/admin/engagement/rewards', '/admin/engagement/rewards/:rewardId', '/student/gifts'],
       models: ['Reward', 'StarTransaction'],
     },
     // Phase 5 (plan 260723-1422): admin-side half of this flow (`rewards.redeem`
@@ -862,9 +893,11 @@ export const flows: FlowEntry[] = [
         'afterSale.create',
         'afterSale.resolve',
         'afterSale.close',
+        // Form-depth cold-start for /crm/aftersale/:id.
+        'afterSale.get',
         'student.setLifecycle',
       ],
-      uiRoutes: ['/crm/aftersale'],
+      uiRoutes: ['/crm/aftersale', '/crm/aftersale/:caseId'],
       models: ['AfterSaleCase'],
     },
     // Journey drives the case lifecycle end-to-end on a GĐKD: create for a
@@ -902,8 +935,17 @@ export const flows: FlowEntry[] = [
     cluster: 'ADMIN',
     actorRoles: ['super_admin'],
     expected: {
-      trpc: ['user.create', 'user.list', 'user.update', 'user.updateRoles'],
-      uiRoutes: ['/admin/users'],
+      trpc: [
+        'user.create',
+        'user.list',
+        'user.update',
+        'user.updateRoles',
+        // Password lifecycle on the same staff surface: admin provisions temp
+        // (users.tsx reset dialog); staff rotates own password at /change-password.
+        'user.resetPassword',
+        'user.changeOwnPassword',
+      ],
+      uiRoutes: ['/admin/users', '/change-password'],
       models: ['AppUser'],
     },
     // Journey: super_admin tạo tài khoản nhân sự (form Thêm nhân viên) → gán vai

@@ -66,6 +66,33 @@ const DOCUMENTED_GAPS: Record<string, string> = {
   // để lời khai khớp thực tế; giữ ở đây để capability vẫn HIỆN, không bị whitelist
   // nuốt mất — trang phụ huynh hiện chưa có chỗ nào liệt kê lớp của con.
   'enrollment.mine': 'Danh sách lớp của con cho phụ huynh — procedure có thật nhưng chưa màn LMS nào gọi (triage 2026-07-24)',
+  // LMS foundation unit-range spike (lmsOps namespace): real server capabilities for
+  // class/unit grants, enrollment archive, exercise sequence delivery, session
+  // cancel+restamp — not yet wired to any student- or staff-facing UI journey.
+  // Keep as documented experimental gaps (E7 category c); exclude from acceptance
+  // until a UI-provable flow claims them. Do NOT invent fake flow coverage.
+  'lmsOps.addWithUnits':
+    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
+  'lmsOps.archiveEnrollment':
+    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
+  'lmsOps.assignExerciseSequence':
+    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
+  'lmsOps.cancelSessionAndRestamp':
+    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
+  'lmsOps.createClassWithUnits':
+    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
+  'lmsOps.deliverSessionExercise':
+    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
+  'lmsOps.grantPast':
+    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
+  'lmsOps.listExerciseSequence':
+    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
+  'lmsOps.revokeFromNext':
+    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
+  'lmsOps.rosterForSession':
+    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
+  'lmsOps.unarchiveEnrollment':
+    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
 };
 
 /**

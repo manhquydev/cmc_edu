@@ -35,7 +35,6 @@
 - **Truncate:** long text → ellipsis + `title` tooltip; never uneven multi-line siblings of same role.
 - **Equal siblings:** same component class = same min-height / slot geometry.
 
-Utilities: `.ck-keyline`, `.ck-truncate`, `.ck-label-upper`, `.ck-title-1line`, `.ck-meta-1line`.
 Do not introduce a parallel surface-utility family — raised surfaces use `--cmc-raised-*`.
 
 ---

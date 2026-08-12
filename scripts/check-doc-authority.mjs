@@ -20,35 +20,30 @@ const root = rootFlag !== -1 && process.argv[rootFlag + 1]
   ? path.resolve(process.argv[rootFlag + 1])
   : defaultRoot;
 
+/** One forbid set for every allowlist file. Per-file subsets created the N3 hole. */
+const FORBID = [
+  'AppFrame',
+  '.premium-',
+  '--sh-',
+  '.sh-',
+  '.ck-surface',
+  'tpl-wrap',
+  'premium.css',
+];
+
 const RULES = [
   {
     file: 'docs/README.md',
-    require: 'design-system-console',
+    requireLine: { match: /\*\*Frontend dev\*\*/, contains: 'design-system-console' },
+    forbid: FORBID,
   },
-  {
-    file: 'docs/12-design-system-ui.md',
-    forbid: ['AppFrame', '.premium-', '--sh-'],
-  },
-  {
-    file: 'design-system/cmc-edu/STRUCTURE.md',
-    forbid: ['AppFrame', '.ck-surface', '.sh-', 'tpl-wrap'],
-  },
-  {
-    file: 'design-system/cmc-edu/PAGE-FRAMES.md',
-    forbid: ['AppFrame', '.ck-surface', '.sh-', 'tpl-wrap'],
-  },
-  {
-    file: 'design-system/cmc-edu/MASTER.md',
-    forbid: ['AppFrame', '.ck-surface', '.sh-', 'tpl-wrap'],
-  },
-  {
-    file: 'packages/ui/llms.txt',
-    forbid: ['premium.css'],
-  },
-  {
-    file: 'packages/ui/src/index.ts',
-    forbid: ['.sh-'],
-  },
+  { file: 'docs/12-design-system-ui.md', forbid: FORBID },
+  { file: 'docs/18-tech-stack-va-chuan-ky-thuat.md', forbid: FORBID },
+  { file: 'design-system/cmc-edu/STRUCTURE.md', forbid: FORBID },
+  { file: 'design-system/cmc-edu/PAGE-FRAMES.md', forbid: FORBID },
+  { file: 'design-system/cmc-edu/MASTER.md', forbid: FORBID },
+  { file: 'packages/ui/llms.txt', forbid: FORBID },
+  { file: 'packages/ui/src/index.ts', forbid: FORBID },
 ];
 
 function checkFile(rule) {
@@ -59,11 +54,17 @@ function checkFile(rule) {
     return hits;
   }
   const text = fs.readFileSync(abs, 'utf8');
-  if (rule.require && !text.includes(rule.require)) {
-    hits.push({ line: 0, needle: `missing required: ${rule.require}` });
+  const lines = text.split('\n');
+  if (rule.requireLine) {
+    const { match, contains } = rule.requireLine;
+    const idx = lines.findIndex((line) => match.test(line));
+    if (idx === -1) {
+      hits.push({ line: 0, needle: `missing required line matching ${match}` });
+    } else if (!lines[idx].includes(contains)) {
+      hits.push({ line: idx + 1, needle: `missing required: ${contains}` });
+    }
   }
   if (rule.forbid) {
-    const lines = text.split('\n');
     lines.forEach((line, idx) => {
       for (const needle of rule.forbid) {
         if (line.includes(needle)) hits.push({ line: idx + 1, needle });

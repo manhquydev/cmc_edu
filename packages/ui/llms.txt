@@ -33,8 +33,6 @@ All raised composites share:
 - `--cmc-row-h` / `--cmc-head-h` / `--cmc-chip-h*` / `--cmc-cta-h*`
 - 1-line title/meta truncate (+ title tooltip)
 
-Utilities: `.ck-truncate`, `.ck-label-upper`, `.ck-title-1line`, `.ck-meta-1line`, `.ck-keyline`.
-
 Full rules: `design-system/cmc-edu/STRUCTURE.md`.
 
 ## Page frames (mandatory)

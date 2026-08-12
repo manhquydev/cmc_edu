@@ -138,7 +138,7 @@ Do **not** `npx shadcn add`. Map concepts:
 | Alert | Astryx `Banner` |
 | Skeleton | Astryx `Skeleton` |
 | Empty | `@cmc/ui` `EmptyState` (title, description, action, icon) |
-| Card | Premium `.ck-mc` / Panel / Astryx Card |
+| Card | Panel / Astryx Card |
 | Table | `DataTable` |
 | Badge | Astryx `Badge` + `StatusBadge` |
 | Tabs | `CmcTabs` |

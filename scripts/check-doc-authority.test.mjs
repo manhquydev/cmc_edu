@@ -16,6 +16,7 @@ const script = path.join(repoRoot, 'scripts/check-doc-authority.mjs');
 const ALLOWLIST = [
   'docs/README.md',
   'docs/12-design-system-ui.md',
+  'docs/18-tech-stack-va-chuan-ky-thuat.md',
   'design-system/cmc-edu/STRUCTURE.md',
   'design-system/cmc-edu/PAGE-FRAMES.md',
   'design-system/cmc-edu/MASTER.md',
@@ -54,12 +55,37 @@ describe('check-doc-authority.mjs', () => {
     }
   });
 
+  it('fails when the Frontend-dev row loses design-system-console (TL12 row still has it)', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'doc-authority-req-'));
+    try {
+      copyAllowlist(tmp);
+      const readme = path.join(tmp, 'docs/README.md');
+      const next = fs.readFileSync(readme, 'utf8').replace(
+        /^(\| \*\*Frontend dev\*\* \|).*$/m,
+        '$1 TL02 → TL06 → TL12 (design) → TL18 |',
+      );
+      assert.match(next, /admin chrome: design-system-console/);
+      assert.doesNotMatch(
+        next.split('\n').find((l) => l.includes('**Frontend dev**')) ?? '',
+        /design-system-console/,
+      );
+      fs.writeFileSync(readme, next);
+      const r = run(['--json', '--root', tmp]);
+      assert.equal(r.status, 1, r.stderr || r.stdout);
+      const report = JSON.parse(r.stdout);
+      const row = report.results.find((x) => x.file === 'docs/README.md');
+      assert.ok(row && row.hits.some((h) => String(h.needle).includes('design-system-console')));
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('passes on a clean HEAD', () => {
     const r = run(['--json']);
     assert.equal(r.status, 0, r.stderr || r.stdout);
     const report = JSON.parse(r.stdout);
     assert.equal(report.ok, true);
     assert.equal(report.failCount, 0);
-    assert.ok(report.checkCount >= 7);
+    assert.ok(report.checkCount >= 8);
   });
 });

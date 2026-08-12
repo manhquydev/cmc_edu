@@ -33,7 +33,7 @@
 | Package | Vai trò |
 |---|---|
 | `@cmc/auth` | **Permission registry** (`can()`, `requirePermission`) — nguồn phân quyền duy nhất |
-| `@cmc/ui` | Design system: tokens, primitives (Astryx barrel), **premium design-language layer** (LineIcon, MetricCard, Panel, TaskRow, FunnelBar, AppFrame, SideNav, page templates) — single-door imports (TL12) |
+| `@cmc/ui` | Design system: tokens, primitives (Astryx barrel), CMC Console (`ConsoleNavbar`, LineIcon, MetricCard, Panel, TaskRow, FunnelBar, page templates) — single-door imports (TL12 + design-system-console.md) |
 | `@cmc/db` | Prisma schema, seed, migration |
 | `domain-academic` · `domain-finance` · `domain-grading` · `domain-payroll` · `domain-rewards` | Logic nghiệp vụ thuần (nơi bồi unit test) |
 | `audit` | Nhật ký kiểm toán (nền SoD + agent oversight) |

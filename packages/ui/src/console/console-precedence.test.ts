@@ -1,12 +1,25 @@
 /**
  * Cross-file CSS precedence pin.
  *
- * Admin import order (apps/admin/src/main.tsx):
+ * Three sheets that declare the families under test (admin also loads
+ * reset.css and app.css; those do not declare --font-size-* /
+ * --color-text-* / --font-family-*):
  *   tokens.css → astryx-theme-cmc.css → console.css
  *
- * .o_web_client is nested inside [data-astryx-theme=neutral], so console.css
- * declarations on .o_web_client intentionally win inside the admin shell.
- * Outside that shell (LMS), Astryx/CMC mappings win.
+ * console.css wins inside the admin shell because it specifies these
+ * properties on .o_web_client itself. A specified value on an element
+ * always beats a value inherited from an ancestor — not because
+ * .o_web_client is nested in [data-astryx-theme], and not because of
+ * import order or selector specificity. Load order here matches admin
+ * for realism; the assertions do not depend on it.
+ *
+ * Assertions run on a descendant of .o_web_client. No Astryx component
+ * is the shell node; descendants are what actually render.
+ *
+ * jsdom does not resolve var() on used properties (color/font-size stay
+ * as the var() string). Custom-property getPropertyValue still returns
+ * the specified value, so this suite pins those specified values (and
+ * follows one var() hop when the specified value is a token ref).
  *
  * LIMITATION: jsdom silently drops @import of node_modules
  * (astryx-theme-cmc.css:16-17). The upstream --text-* family therefore
@@ -40,8 +53,42 @@ const FONT_SIZE_STEPS = [
   '5xl',
 ] as const;
 
-const COLOR_TEXT_STEPS = ['primary', 'secondary', 'disabled'] as const;
-const FONT_FAMILY_STEPS = ['body', 'heading'] as const;
+type FontSizeStep = (typeof FONT_SIZE_STEPS)[number];
+
+/** Odoo-dense steps specified on .o_web_client (console.css). */
+const SHELL_FONT_SIZE: Record<FontSizeStep, string> = {
+  '4xs': '10px',
+  '3xs': '10px',
+  '2xs': '11px',
+  xs: '12px',
+  sm: '13px',
+  base: '14px',
+  lg: '15px',
+  xl: '16px',
+  '2xl': '18px',
+  '3xl': '20px',
+  '4xl': '22px',
+  '5xl': '24px',
+};
+
+/**
+ * CMC / Astryx steps outside the shell after one var() hop
+ * (astryx-theme-cmc.css + tokens.css). 4xs/3xs/sm are token refs.
+ */
+const OUTSIDE_FONT_SIZE: Record<FontSizeStep, string> = {
+  '4xs': '11px',
+  '3xs': '11px',
+  '2xs': '12px',
+  xs: '12px',
+  sm: '13px',
+  base: '14px',
+  lg: '16px',
+  xl: '18px',
+  '2xl': '24px',
+  '3xl': '24px',
+  '4xl': '32px',
+  '5xl': '32px',
+};
 
 function injectSheet(css: string): HTMLStyleElement {
   const el = document.createElement('style');
@@ -54,38 +101,70 @@ function prop(el: Element, name: string): string {
   return getComputedStyle(el).getPropertyValue(name).trim();
 }
 
-function expectWinner(
+/** Specified custom-property value, or the token it points at (one hop). */
+function specifiedPx(el: Element, name: string): string {
+  const value = prop(el, name);
+  const ref = value.match(/^var\((--[a-z0-9-]+)\)$/);
+  return ref ? prop(el, ref[1]) : value;
+}
+
+function expectSpecified(
   el: Element,
   name: string,
   expected: string,
   otherSurface: string,
 ): void {
+  const actual = specifiedPx(el, name);
+  expect(
+    actual,
+    `${name} specified as ${JSON.stringify(prop(el, name))} → ${JSON.stringify(actual)}; expected ${JSON.stringify(expected)}; other surface is ${JSON.stringify(otherSurface)}`,
+  ).toBe(expected);
+}
+
+/** jsdom resolves a hex color only when it is assigned as a used `color`. */
+function hexAsRgb(hex: string): string {
+  const probe = document.createElement('span');
+  document.body.appendChild(probe);
+  probe.style.color = hex;
+  const rgb = getComputedStyle(probe).color;
+  probe.remove();
+  return rgb;
+}
+
+function expectHexColor(el: Element, name: string, hex: string, rgb: string): void {
   const actual = prop(el, name);
   expect(
     actual,
-    `${name} resolved to ${JSON.stringify(actual)}; expected winner ${JSON.stringify(expected)}; other surface is ${JSON.stringify(otherSurface)}`,
-  ).toBe(expected);
+    `${name} specified as ${JSON.stringify(actual)}; expected hex ${JSON.stringify(hex)}`,
+  ).toBe(hex);
+  expect(
+    hexAsRgb(actual),
+    `${name} ${JSON.stringify(actual)} as used color; expected ${JSON.stringify(rgb)}`,
+  ).toBe(rgb);
 }
 
 describe('console / Astryx / CMC precedence', () => {
   let sheets: HTMLStyleElement[];
-  let shell: HTMLElement;
-  let outside: HTMLElement;
+  let shellChild: HTMLElement;
+  let outsideChild: HTMLElement;
 
   beforeEach(() => {
-    // Real admin import order — do not reorder.
+    // Order matches admin for realism; assertions do not depend on it.
     sheets = [injectSheet(tokensCss), injectSheet(astryxCss), injectSheet(consoleCss)];
 
     const theme = document.createElement('div');
     theme.setAttribute('data-astryx-theme', 'neutral');
-    shell = document.createElement('div');
+    const shell = document.createElement('div');
     shell.className = 'o_web_client';
+    shellChild = document.createElement('span');
+    shell.appendChild(shellChild);
     theme.appendChild(shell);
     document.body.appendChild(theme);
 
-    // Control: same theme attribute as LMS, not inside .o_web_client.
-    outside = document.createElement('div');
+    const outside = document.createElement('div');
     outside.setAttribute('data-astryx-theme', 'neutral');
+    outsideChild = document.createElement('span');
+    outside.appendChild(outsideChild);
     document.body.appendChild(outside);
   });
 
@@ -94,110 +173,82 @@ describe('console / Astryx / CMC precedence', () => {
     document.body.innerHTML = '';
   });
 
-  it('lets console.css win --font-size-* / --color-text-* / --font-family-* inside the admin shell', () => {
+  it('lets console.css win --font-size-* / --color-text-* / --font-family-* on descendants of the admin shell', () => {
     for (const step of FONT_SIZE_STEPS) {
       const name = `--font-size-${step}`;
-      expect(prop(shell, name).length, `${name} empty on .o_web_client (outside=${JSON.stringify(prop(outside, name))})`).toBeGreaterThan(0);
+      expectSpecified(shellChild, name, SHELL_FONT_SIZE[step], specifiedPx(outsideChild, name));
     }
 
-    // Distinct literals that prove which sheet won (shared steps like base=14px
-    // cannot tell the layers apart).
-    expectWinner(shell, '--font-size-lg', '15px', prop(outside, '--font-size-lg'));
-    expectWinner(shell, '--font-size-xl', '16px', prop(outside, '--font-size-xl'));
-    expectWinner(shell, '--font-size-2xl', '18px', prop(outside, '--font-size-2xl'));
-    expectWinner(shell, '--font-size-5xl', '24px', prop(outside, '--font-size-5xl'));
+    expectHexColor(shellChild, '--console-gray-900', '#212529', 'rgb(33, 37, 41)');
+    expectHexColor(shellChild, '--console-gray-600', '#6c757d', 'rgb(108, 117, 125)');
+    expect(
+      prop(shellChild, '--color-text-primary'),
+      `--color-text-primary must reference --console-gray-900; got ${JSON.stringify(prop(shellChild, '--color-text-primary'))}`,
+    ).toMatch(/--console-gray-900/);
+    expect(
+      prop(shellChild, '--color-text-secondary'),
+      `--color-text-secondary must reference --console-gray-600; got ${JSON.stringify(prop(shellChild, '--color-text-secondary'))}`,
+    ).toMatch(/--console-gray-600/);
+    expect(
+      prop(shellChild, '--color-text-disabled'),
+      `--color-text-disabled must reference --console-gray-600; got ${JSON.stringify(prop(shellChild, '--color-text-disabled'))}`,
+    ).toMatch(/--console-gray-600/);
 
-    // jsdom serializes var() fallbacks without the space after the comma.
-    expectWinner(
-      shell,
-      '--color-text-primary',
-      'var(--console-gray-900,#212529)',
-      prop(outside, '--color-text-primary'),
-    );
-    expectWinner(
-      shell,
-      '--color-text-secondary',
-      'var(--console-gray-600,#6c757d)',
-      prop(outside, '--color-text-secondary'),
-    );
-    expectWinner(
-      shell,
-      '--color-text-disabled',
-      'var(--console-gray-600,#6c757d)',
-      prop(outside, '--color-text-disabled'),
-    );
-
-    // jsdom serializes the family list with double quotes and no spaces.
+    // jsdom serialization of this family list (double quotes, no spaces) is a
+    // jsdom artifact, not a CSS contract — a jsdom bump that changes serialize
+    // will fail closed.
     const consoleFont =
       '"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
-    expectWinner(shell, '--font-family-body', consoleFont, prop(outside, '--font-family-body'));
-    expectWinner(shell, '--font-family-heading', consoleFont, prop(outside, '--font-family-heading'));
+    expect(
+      prop(shellChild, '--font-family-body'),
+      `--font-family-body shell=${JSON.stringify(prop(shellChild, '--font-family-body'))} outside=${JSON.stringify(prop(outsideChild, '--font-family-body'))}`,
+    ).toBe(consoleFont);
+    expect(
+      prop(shellChild, '--font-family-heading'),
+      `--font-family-heading shell=${JSON.stringify(prop(shellChild, '--font-family-heading'))} outside=${JSON.stringify(prop(outsideChild, '--font-family-heading'))}`,
+    ).toBe(consoleFont);
   });
 
-  it('lets CMC / Astryx win the same families outside .o_web_client', () => {
-    expectWinner(outside, '--font-size-lg', '16px', prop(shell, '--font-size-lg'));
-    expectWinner(outside, '--font-size-xl', '18px', prop(shell, '--font-size-xl'));
-    expectWinner(outside, '--font-size-2xl', '24px', prop(shell, '--font-size-2xl'));
-    expectWinner(outside, '--font-size-5xl', '32px', prop(shell, '--font-size-5xl'));
-
-    expectWinner(outside, '--color-text-primary', 'var(--cmc-text)', prop(shell, '--color-text-primary'));
-    expectWinner(
-      outside,
-      '--color-text-secondary',
-      'var(--cmc-text-muted)',
-      prop(shell, '--color-text-secondary'),
-    );
-    expectWinner(
-      outside,
-      '--color-text-disabled',
-      'var(--cmc-text-faint)',
-      prop(shell, '--color-text-disabled'),
-    );
-
-    expectWinner(
-      outside,
-      '--font-family-body',
-      'var(--cmc-font-sans)',
-      prop(shell, '--font-family-body'),
-    );
-    expectWinner(
-      outside,
-      '--font-family-heading',
-      'var(--cmc-font-sans)',
-      prop(shell, '--font-family-heading'),
-    );
-
+  it('lets CMC / Astryx win the same families on descendants outside .o_web_client', () => {
     for (const step of FONT_SIZE_STEPS) {
       const name = `--font-size-${step}`;
-      expect(prop(outside, name).length, `${name} empty outside shell`).toBeGreaterThan(0);
+      expectSpecified(outsideChild, name, OUTSIDE_FONT_SIZE[step], specifiedPx(shellChild, name));
     }
-    for (const step of COLOR_TEXT_STEPS) {
-      const name = `--color-text-${step}`;
-      expect(prop(outside, name).length, `${name} empty outside shell`).toBeGreaterThan(0);
-    }
-    for (const step of FONT_FAMILY_STEPS) {
-      const name = `--font-family-${step}`;
-      expect(prop(outside, name).length, `${name} empty outside shell`).toBeGreaterThan(0);
-    }
+
+    expectHexColor(outsideChild, '--cmc-text', '#1d1d1f', 'rgb(29, 29, 31)');
+    expectHexColor(outsideChild, '--cmc-text-muted', '#6e6e73', 'rgb(110, 110, 115)');
+    expectHexColor(outsideChild, '--cmc-text-faint', '#a39e96', 'rgb(163, 158, 150)');
+    expect(prop(outsideChild, '--color-text-primary')).toBe('var(--cmc-text)');
+    expect(prop(outsideChild, '--color-text-secondary')).toBe('var(--cmc-text-muted)');
+    expect(prop(outsideChild, '--color-text-disabled')).toBe('var(--cmc-text-faint)');
+
+    expect(prop(outsideChild, '--font-family-body')).toBe('var(--cmc-font-sans)');
+    expect(prop(outsideChild, '--font-family-heading')).toBe('var(--cmc-font-sans)');
   });
 
-  it('resolves different winners on the two surfaces (console ≠ CMC)', () => {
+  it('resolves different winners on the two descendant surfaces (console ≠ CMC)', () => {
     expect(
-      prop(shell, '--font-size-lg'),
-      `--font-size-lg shell=${JSON.stringify(prop(shell, '--font-size-lg'))} outside=${JSON.stringify(prop(outside, '--font-size-lg'))}`,
-    ).not.toBe(prop(outside, '--font-size-lg'));
+      specifiedPx(shellChild, '--font-size-4xl'),
+      `--font-size-4xl shell=${JSON.stringify(specifiedPx(shellChild, '--font-size-4xl'))} outside=${JSON.stringify(specifiedPx(outsideChild, '--font-size-4xl'))}`,
+    ).not.toBe(specifiedPx(outsideChild, '--font-size-4xl'));
     expect(
-      prop(shell, '--color-text-primary'),
-      `--color-text-primary shell=${JSON.stringify(prop(shell, '--color-text-primary'))} outside=${JSON.stringify(prop(outside, '--color-text-primary'))}`,
-    ).not.toBe(prop(outside, '--color-text-primary'));
+      prop(shellChild, '--console-gray-900'),
+      `--console-gray-900 shell=${JSON.stringify(prop(shellChild, '--console-gray-900'))} outside=${JSON.stringify(prop(outsideChild, '--console-gray-900'))}`,
+    ).not.toBe(prop(outsideChild, '--cmc-text'));
     expect(
-      prop(shell, '--font-family-body'),
-      `--font-family-body shell=${JSON.stringify(prop(shell, '--font-family-body'))} outside=${JSON.stringify(prop(outside, '--font-family-body'))}`,
-    ).not.toBe(prop(outside, '--font-family-body'));
+      prop(shellChild, '--font-family-body'),
+      `--font-family-body shell=${JSON.stringify(prop(shellChild, '--font-family-body'))} outside=${JSON.stringify(prop(outsideChild, '--font-family-body'))}`,
+    ).not.toBe(prop(outsideChild, '--font-family-body'));
   });
 });
 
 describe('upstream Astryx theme-neutral --text-* mapping', () => {
+  it('keeps the upstream theme file present when CI is set', () => {
+    if (process.env.CI) {
+      expect(existsSync(UPSTREAM_THEME)).toBe(true);
+    }
+  });
+
   it.skipIf(!existsSync(UPSTREAM_THEME))(
     'keeps --text-label-size / --text-heading-3-weight / --text-supporting-size remapped to font tokens',
     () => {

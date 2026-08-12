@@ -60,13 +60,13 @@
   --font-family-body: var(--cmc-font-sans);
   --font-family-heading: var(--cmc-font-sans);
 
-  /* Font-size scale — Astryx's own --font-size-* vars share their exact
-     name with console.css's Odoo-scoped equivalents (e.g. --font-size-lg).
-     Left unmapped, an Astryx heading rendered inside .o_web_client silently
-     inherits console.css's Odoo value (15px) instead of a CMC one — not
-     deliberate theming, a name collision. Pin every step explicitly to the
-     nearest real CMC type-scale token (11/12/13/14/16/18/24/32) so Astryx
-     text always renders on-scale regardless of console.css's own values. */
+  /* Font-size scale — same custom-property names as console.css.
+     These mappings apply outside .o_web_client (LMS). Inside the admin
+     shell, console.css sets the same names on .o_web_client itself; a
+     specified value on the element beats an inherited value from the
+     theme ancestor, regardless of selector specificity or import order.
+     Pin every step to a real CMC type-scale token so LMS text does not
+     fall through to Astryx defaults. */
   --font-size-4xs: var(--cmc-font-size-column);  /* 11px */
   --font-size-3xs: var(--cmc-font-size-column);  /* 11px */
   --font-size-2xs: 12px;

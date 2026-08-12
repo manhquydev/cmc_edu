@@ -15,12 +15,12 @@ describe('Astryx CMC theme bridge', () => {
 
   it('declares every Astryx --font-size-* step for surfaces outside the admin shell', () => {
     // Inside .o_web_client (admin), console.css sets these properties on the
-    // element itself, so they win over the theme ancestor — that cascade is
-    // pinned in console-precedence.test.ts.
+    // element itself, so they win over inherited theme values — that cascade
+    // is pinned in console-precedence.test.ts.
     // Outside the shell (LMS), these CMC mappings are what resolve. Declaring
     // them here keeps the LMS type scale from silently falling through to
-    // Astryx defaults. They do not, and cannot, override console.css inside
-    // the admin shell: .o_web_client is nested in [data-astryx-theme].
+    // Astryx defaults. They cannot override console.css inside the admin
+    // shell: a specified value on .o_web_client beats inheritance.
     for (const step of ['4xs', '3xs', '2xs', 'xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl']) {
       expect(css).toMatch(new RegExp(`--font-size-${step}\\s*:`));
     }

@@ -381,8 +381,9 @@ export const flows: FlowEntry[] = [
     // "Mở bài theo tiến độ" cần gán unit vào buổi để mở tier cho học viên —
     // không màn nào làm việc đó. Tự kiểm 2026-07-25: rg
     // "classSession\.assignUnit|assignUnit" apps/admin/src apps/lms/src → 0
-    // matches (curriculumUnitId chỉ xuất hiện ở FORM tạo bài — thuộc P2-04,
-    // không phải gán vào buổi). User V5 từ chối S3 (seed session→unit) vì đó là
+    // matches. (Câu cũ nói `curriculumUnitId` nằm ở form tạo bài P2-04 nay đã
+    // lỗi thời — 2026-08-13 bài tập thôi gắn unit, form chọn THƯ MỤC.)
+    // User V5 từ chối S3 (seed session→unit) vì đó là
     // cơ chế open-tier chính P2-03 phải chứng minh → no-ui-path.
     statusReason: {
       code: 'no-ui-path',

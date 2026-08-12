@@ -84,7 +84,7 @@ function ExerciseList() {
             onClick={() => navigate(`/student/exercise/${item.sessionExerciseId}`)}
           >
             <HStack justify="between" style={{ marginBottom: 4 }}>
-              <Text weight="bold" size="sm">{item.type}</Text>
+              <Text weight="bold" size="sm">{item.title}</Text>
               <Badge label={`Mở — ${item.starReward} sao`} variant="green" />
             </HStack>
             <Text type="supporting" size="2xs">

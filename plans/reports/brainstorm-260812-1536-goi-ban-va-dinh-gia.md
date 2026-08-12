@@ -96,6 +96,8 @@ Tình huống: gói *"UCREA unit 1→12"*. Học sinh mới vào lớp đang d�
 | **B. Dải chỉ để định cỡ và định giá** | Gói nghĩa là "12 unit, giá 12tr". Bán cho ai cũng được, **cấp 12 unit từ chỗ học sinh đang đứng** | Bán được cho mọi học sinh; ít gói phải quản | Học sinh mua "gói unit 1→12" nhưng học unit 13→24 — tên gói dễ gây hiểu nhầm |
 | **C. Lai** | Gói có cờ: *bám dải cố định* hay *chỉ định cỡ* | Phủ cả hai nhu cầu | Thêm một khái niệm người dùng phải hiểu |
 
+> ✅ **CHỦ HỆ THỐNG ĐÃ CHỐT 12/08/2026: cách B.** Xem `decisions-owner-260812-cau-8-9.md`.
+
 **Khuyến nghị: B**, và đặt tên gói theo **số unit** chứ không theo dải (*"Gói 12 unit — Khai giảng
 tháng 8"*), còn việc tích chọn dải X→Z chỉ là **cách tiện để đặt giá** (chọn 12 unit đầu để hệ
 tính hộ tổng đơn giá).
@@ -305,10 +307,12 @@ trình · tự động gia hạn · lịch sử bảng giá theo thời gian (ch
 
 ## Câu hỏi còn lại
 
-1. **Thời lượng buổi** — CSV và `class-unit-spec.md` đều ghi Bright I.G và Black Hole **110 phút**;
-   chủ hệ thống nghĩ là **120**. Nếu 120 đúng thì **CSV đang sai** và phải sửa trước khi nhập.
-2. **Cách hiểu dải unit của gói** — mục 4, khuyến nghị cách B.
-3. **Biên độ tự quyết của sale** — có mức giảm nào khỏi cần duyệt không?
+1. ~~**Thời lượng buổi**~~ — **ĐÃ CHỐT 12/08: giữ 110** (UCREA 90). Hai nguồn độc lập đều ghi 110,
+   CSV không sai. Xem `decisions-owner-260812-cau-8-9.md`.
+2. ~~**Cách hiểu dải unit của gói**~~ — **ĐÃ CHỐT 12/08: cách B**. Dải chỉ để **định cỡ và định giá**;
+   gói nghĩa là "N unit", cấp từ vị trí học sinh đang đứng. Đặt tên gói theo **số unit**, không theo
+   dải. Xem `decisions-owner-260812-cau-8-9.md`.
+3. **Biên độ tự quyết của sale** — có mức giảm nào khỏi cần duyệt không? *(vẫn mở)*
 4. **Một gói có được thu làm nhiều lần không** (trả góp)? Nếu có, mô hình phiếu thu phải đổi.
 5. **Gói và bảng giá dùng chung toàn hệ thống hay riêng từng cơ sở?**
 6. **2–3 gói có thật** đang bán, để làm dữ liệu mẫu kiểm chứng mô hình.

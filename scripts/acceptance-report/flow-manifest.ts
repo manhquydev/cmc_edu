@@ -374,7 +374,7 @@ export const flows: FlowEntry[] = [
     expected: {
       // Luồng LMS học viên (StudentOnly). listForStudent = danh sách bài của HV (E1).
       trpc: ['exercise.openForStudent', 'exercise.listForStudent'],
-      uiRoutes: ['/student/home', '/student/exercise/:exerciseId'],
+      uiRoutes: ['/student/home', '/student/exercise/:sessionExerciseId'],
       models: ['Exercise'],
     },
     // "Mở bài theo tiến độ" cần gán unit vào buổi để mở tier cho học viên —
@@ -398,18 +398,26 @@ export const flows: FlowEntry[] = [
     // thực tế thay vì nới quyền.
     actorRoles: ['giam_doc_dao_tao'],
     expected: {
-      // TL25 đã sync 2026-07-18: /curriculum/:unitId/exercises → /teaching/exercises
-      // (không có prefix /curriculum). exercise.list/close + curriculumUnit.list = màn soạn bài (E1).
-      trpc: ['exercise.create', 'exercise.publish', 'exercise.close', 'exercise.get', 'exercise.list', 'curriculumUnit.list'],
+      // Soạn bài chọn thư mục (exerciseFolder.*) thay curriculumUnit.list.
+      trpc: [
+        'exercise.create',
+        'exercise.update',
+        'exercise.publish',
+        'exercise.close',
+        'exercise.get',
+        'exercise.list',
+        'exerciseFolder.create',
+        'exerciseFolder.update',
+        'exerciseFolder.archive',
+        'exerciseFolder.list',
+      ],
       uiRoutes: ['/teaching/exercises'],
-      models: ['Exercise', 'CurriculumUnit'],
+      models: ['Exercise', 'ExerciseFolder'],
     },
-    // Journey: GĐĐT tạo bài tập (chọn unit từ curriculumUnit.list + loại + UPLOAD
-    // PDF thật qua /upload/exercise-pdf) → Publish → Đóng. Drive đủ 5 procedure
-    // khai (create/publish/close/list/curriculumUnit.list) + exercise.manage
-    // (upload). Unit seed unique (dữ liệu trơ, user đã duyệt seed loại này) để
-    // nhận diện đúng row. Vòng draft→published→closed đọc lại từ row là bằng
-    // chứng sống.
+    // Journey: GĐĐT tạo bài tập (chọn thư mục + loại + UPLOAD PDF thật qua
+    // /upload/exercise-pdf) → Publish → Đóng. Drive create/publish/close/list
+    // + folder CRUD + exercise.manage (upload). Vòng draft→published→closed
+    // đọc lại từ row là bằng chứng sống.
     journey: 'apps/e2e/tests/journeys/exercise-publish-close.journey.ui.spec.ts',
   },
   {
@@ -420,7 +428,7 @@ export const flows: FlowEntry[] = [
     expected: {
       // Luồng LMS học viên (StudentOnly). listForChild = bài đã nộp của HV (E1).
       trpc: ['submission.saveDraft', 'submission.submit', 'submission.listForChild'],
-      uiRoutes: ['/student/exercise/:exerciseId'],
+      uiRoutes: ['/student/exercise/:sessionExerciseId'],
       models: ['Submission'],
     },
     // Học viên chỉ nộp được khi bài đã mở (open-tier) — mà open-tier không có UI

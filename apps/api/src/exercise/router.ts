@@ -8,6 +8,7 @@
 // Authorization is `exercise.manage` (director/super_admin) for every
 // procedure here, including the read (`curriculumUnit.list`/`exercise.list`)
 // — the spec names no separate read-only permission (phase-03 §Procedures).
+// Exercise rows live in a folder (`folderId`), not on a curriculum unit.
 //
 // Scope: create/publish/close + the read lists only (US-014). Open-tier
 // visibility to students (ADR 0038) lives in ./open-tier.ts
@@ -19,6 +20,7 @@ import { z } from 'zod';
 import type { PrismaClient } from '@cmc/db';
 import { badRequest, conflict, notFound } from '../errors.js';
 import { requirePermission, router } from '../trpc.js';
+import { assertFolderWritable } from './folder-router.js';
 
 const exerciseTypeSchema = z.enum(['homework', 'test_entrance', 'test_periodic']);
 
@@ -60,7 +62,9 @@ function toCurriculumUnitDto(row: {
 
 export interface ExerciseDto {
   id: string;
-  curriculumUnitId: string;
+  folderId: string;
+  orderInFolder: number;
+  title: string;
   type: string;
   basePdfRef: string;
   maxScore: number;
@@ -71,7 +75,9 @@ export interface ExerciseDto {
 
 export function toExerciseDto(row: {
   id: string;
-  curriculumUnitId: string;
+  folderId: string;
+  orderInFolder: number;
+  title: string;
   type: string;
   basePdfRef: string;
   maxScore: number;
@@ -81,7 +87,9 @@ export function toExerciseDto(row: {
 }): ExerciseDto {
   return {
     id: row.id,
-    curriculumUnitId: row.curriculumUnitId,
+    folderId: row.folderId,
+    orderInFolder: row.orderInFolder,
+    title: row.title,
     type: row.type,
     basePdfRef: row.basePdfRef,
     maxScore: row.maxScore,
@@ -119,7 +127,8 @@ export const curriculumUnitRouter = router({
 });
 
 const createExerciseInput = z.object({
-  curriculumUnitId: z.string().uuid(),
+  folderId: z.string().uuid(),
+  title: z.string().trim().min(1).max(200),
   type: exerciseTypeSchema,
   /** The `blobRef` returned by `POST /upload/exercise-pdf` (../server.ts). */
   basePdfRef: z.string().min(1),
@@ -130,10 +139,18 @@ const createExerciseInput = z.object({
 const exerciseIdInput = z.object({ exerciseId: z.string().uuid() });
 
 const exerciseListInput = z.object({
-  curriculumUnitId: z.string().uuid().optional(),
+  folderId: z.string().uuid().optional(),
   status: z.enum(['draft', 'published', 'closed']).optional(),
   type: exerciseTypeSchema.optional(),
 });
+
+async function nextOrderInFolder(db: PrismaClient, folderId: string): Promise<number> {
+  const agg = await db.exercise.aggregate({
+    where: { folderId },
+    _max: { orderInFolder: true },
+  });
+  return (agg._max.orderInFolder ?? 0) + 1;
+}
 
 export const exerciseRouter = router({
   // `basePdfRef` must come from a prior `POST /upload/exercise-pdf` call —
@@ -144,15 +161,14 @@ export const exerciseRouter = router({
   create: requirePermission('exercise', 'manage')
     .input(createExerciseInput)
     .mutation(async ({ ctx, input }): Promise<ExerciseDto> => {
-      const unit = await ctx.db.curriculumUnit.findUnique({ where: { id: input.curriculumUnitId } });
-      if (!unit) {
-        throw notFound('CurriculumUnit not found.');
-      }
+      await assertFolderWritable(ctx.db, input.folderId);
 
       try {
         const exercise = await ctx.db.exercise.create({
           data: {
-            curriculumUnitId: input.curriculumUnitId,
+            folderId: input.folderId,
+            orderInFolder: await nextOrderInFolder(ctx.db, input.folderId),
+            title: input.title,
             type: input.type,
             basePdfRef: input.basePdfRef,
             maxScore: input.maxScore ?? 10,
@@ -162,10 +178,44 @@ export const exerciseRouter = router({
         });
         return toExerciseDto(exercise);
       } catch (error) {
-        // TL19 §3: unique `[curriculumUnitId, type]` — a repeat create for
-        // the same unit+type is a business conflict, not a validation error.
         if (isUniqueConstraintError(error)) {
-          throw conflict('An exercise of this type already exists for this unit.');
+          throw conflict('An exercise already occupies this position in the folder.');
+        }
+        throw error;
+      }
+    }),
+
+  update: requirePermission('exercise', 'manage')
+    .input(
+      z.object({
+        exerciseId: z.string().uuid(),
+        folderId: z.string().uuid().optional(),
+        title: z.string().trim().min(1).max(200).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }): Promise<ExerciseDto> => {
+      const exercise = await findExerciseOrThrow(ctx.db, input.exerciseId);
+      const nextFolderId = input.folderId ?? exercise.folderId;
+      if (input.folderId && input.folderId !== exercise.folderId) {
+        await assertFolderWritable(ctx.db, input.folderId);
+      }
+      try {
+        const updated = await ctx.db.exercise.update({
+          where: { id: exercise.id },
+          data: {
+            ...(input.title !== undefined ? { title: input.title } : {}),
+            ...(input.folderId && input.folderId !== exercise.folderId
+              ? {
+                  folderId: nextFolderId,
+                  orderInFolder: await nextOrderInFolder(ctx.db, nextFolderId),
+                }
+              : {}),
+          },
+        });
+        return toExerciseDto(updated);
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          throw conflict('An exercise already occupies this position in the folder.');
         }
         throw error;
       }
@@ -207,11 +257,11 @@ export const exerciseRouter = router({
     .query(async ({ ctx, input }) => {
       const exercises = await ctx.db.exercise.findMany({
         where: {
-          ...(input.curriculumUnitId ? { curriculumUnitId: input.curriculumUnitId } : {}),
+          ...(input.folderId ? { folderId: input.folderId } : {}),
           ...(input.status ? { status: input.status } : {}),
           ...(input.type ? { type: input.type } : {}),
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ orderInFolder: 'asc' }, { createdAt: 'desc' }],
       });
       return { items: exercises.map(toExerciseDto) };
     }),
@@ -226,14 +276,19 @@ export const exerciseRouter = router({
     .query(async ({ ctx, input }) => {
       const exercise = await ctx.db.exercise.findUnique({
         where: { id: input.exerciseId },
-        include: { curriculumUnit: true },
+        include: { folder: true },
       });
       if (!exercise) {
         throw notFound('Exercise not found.');
       }
       return {
         ...toExerciseDto(exercise),
-        curriculumUnit: toCurriculumUnitDto(exercise.curriculumUnit),
+        folder: {
+          id: exercise.folder.id,
+          name: exercise.folder.name,
+          description: exercise.folder.description,
+          archivedAt: exercise.folder.archivedAt,
+        },
       };
     }),
 });

@@ -14,6 +14,7 @@ import {
   buildLmsContext,
   buildStaffContext,
   cleanupCurriculumUnits,
+  cleanupExerciseLibrary,
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
@@ -21,6 +22,7 @@ import {
   seedClassBatch,
   seedClassSession,
   seedCurriculumUnit,
+  seedExerciseFolder,
   seedEnrolledStudentWithGuardian,
   seedParentAccount,
   testDb,
@@ -41,6 +43,7 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
   let sessionExerciseId: string;
   let parent: { id: string; phone: string };
   const seededUnitIds: string[] = [];
+  const seededFolderIds: string[] = [];
 
   beforeEach(async () => {
     facility = await createTestFacility('Grade Facility');
@@ -61,8 +64,11 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
     unit = await seedCurriculumUnit();
     seededUnitIds.push(unit.id);
 
+    const folder = await seedExerciseFolder();
+    seededFolderIds.push(folder.id);
     const created = await gddt.exercise.create({
-      curriculumUnitId: unit.id,
+      folderId: folder.id,
+      title: 'Bài tập chấm',
       type: 'homework',
       basePdfRef: 'exercise-pdf/seed.pdf',
       maxScore: 10,
@@ -93,6 +99,8 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
     // Facility teardown first: it deletes Submission rows (RESTRICT FK to
     // Exercise) before cleanupCurriculumUnits deletes the Exercise/unit rows.
     await cleanupFacility(facility.id);
+    await cleanupExerciseLibrary(...seededFolderIds);
+    seededFolderIds.length = 0;
     await cleanupCurriculumUnits(...seededUnitIds);
     seededUnitIds.length = 0;
     await cleanupParentAccountsByPhone(parent.phone);

@@ -57,6 +57,10 @@ const INFRA_PROCEDURE_WHITELIST = new Set([
 // this map only annotates them with a reason so the tool distinguishes triaged gaps
 // from brand-new un-triaged orphans that need a decision.
 const DOCUMENTED_GAPS: Record<string, string> = {
+  // P2-04 chuyển soạn bài sang thư mục. curriculumUnit.list vẫn phục vụ màn lớp
+  // (neo unit / assignUnit) nhưng chưa có luồng riêng khai procedure này.
+  'curriculumUnit.list':
+    'Danh mục unit còn dùng ở màn lớp; P2-04 soạn bài đã đổi sang exerciseFolder.* (2026-08-13)',
   // PO quyết 2026-07-18: khoá học hiện import data, nhưng cần MÀN HÌNH tạo/quản lý
   // cho GĐĐT tự xử lý (không phụ thuộc IT chạy code) → tính năng tương lai cần xây;
   // trang /admin/courses hiện chỉ có danh sách (course.list), thiếu form tạo.

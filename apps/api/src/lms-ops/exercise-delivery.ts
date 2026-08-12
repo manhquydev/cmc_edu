@@ -113,7 +113,7 @@ export async function writeSequenceUpdate(
 }
 
 /**
- * Deliver next sequence item (or unit-stamped homework fallback) for one session.
+ * Deliver next sequence item for one session. No sequence ⇒ no delivery.
  * Idempotent: if SessionExercise already exists, returns it.
  * Skips cancelled sessions and sessions that have not ended.
  */
@@ -168,43 +168,23 @@ export async function deliverForSession(
   if (again) return again;
 
   const sequence = await sequenceForBatch(tx, session.classBatchId);
-  let exerciseId: string | null = null;
-  let position = 0;
-
-  if (sequence.length > 0) {
-    const deliveredPositions = await deliveredPositionsForBatch(tx, session.classBatchId);
-    const nextPos = nextDeliverablePosition(
-      deliveredPositions,
-      sequence[sequence.length - 1]!.position,
-    );
-    if (nextPos == null) {
-      return null; // sequence exhausted — not an error
-    }
-    const item = sequence.find((s) => s.position === nextPos);
-    if (!item) return null;
-    exerciseId = item.exerciseId;
-    position = item.position;
-  } else {
-    // Fallback: published homework for the stamped unit (no frozen sequence).
-    // curriculumUnitId is required above so roster can resolve orderGlobal.
-    const homework = await tx.exercise.findFirst({
-      where: {
-        curriculumUnitId: session.curriculumUnitId,
-        type: 'homework',
-        status: 'published',
-      },
-      select: { id: true },
-    });
-    if (!homework) return null;
-    exerciseId = homework.id;
-    // Synthetic position: count existing deliveries + 1 (gap-free for unit path).
-    const count = await tx.sessionExercise.count({
-      where: { classSession: { classBatchId: session.classBatchId } },
-    });
-    position = count + 1;
+  if (sequence.length === 0) {
+    // No unit-stamp fallback: a class without a frozen sequence gets no homework.
+    return null;
   }
 
-  if (!exerciseId) return null;
+  const deliveredPositions = await deliveredPositionsForBatch(tx, session.classBatchId);
+  const nextPos = nextDeliverablePosition(
+    deliveredPositions,
+    sequence[sequence.length - 1]!.position,
+  );
+  if (nextPos == null) {
+    return null; // sequence exhausted — not an error
+  }
+  const item = sequence.find((s) => s.position === nextPos);
+  if (!item) return null;
+  const exerciseId = item.exerciseId;
+  const position = item.position;
 
   const { randomUUID } = await import('node:crypto');
   const created = await tx.sessionExercise.create({

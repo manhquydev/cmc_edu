@@ -159,7 +159,6 @@ export async function assertSessionExerciseOpenForStudent(
     maxScore: number;
     starReward: number;
     basePdfRef: string;
-    curriculumUnitId: string;
   };
 }> {
   if (student.lifecycle === 'blocked_lms') {
@@ -179,7 +178,6 @@ export async function assertSessionExerciseOpenForStudent(
             maxScore: true,
             starReward: true,
             basePdfRef: true,
-            curriculumUnitId: true,
           },
         },
         classSession: {

@@ -838,8 +838,12 @@ export async function seedCurriculumUnit(title?: string): Promise<{ unitId: stri
 export async function cleanupCurriculumUnits(...unitIds: string[]): Promise<void> {
   if (unitIds.length === 0) return;
   const db = getPrivilegedDb();
+  // Exercises no longer hang off units (exercise library, 2026-08-13): the seed
+  // helper below puts each one in its own throwaway folder, so clean by folder
+  // name instead of by unit. Leaving them behind would let a later test's
+  // `exercise.list` see published "ghost" exercises from this one.
   const exercises = await db.exercise.findMany({
-    where: { curriculumUnitId: { in: unitIds } },
+    where: { folder: { name: { startsWith: 'E2E ' } } },
     select: { id: true },
   });
   const exerciseIds = exercises.map((e) => e.id);
@@ -870,9 +874,15 @@ export async function seedPublishedExercise(opts?: {
   const { unitId } = await seedCurriculumUnit(
     `E2E Unit ${randomUUID().slice(0, 8)}`,
   );
+  const folder = await getDb().exerciseFolder.create({
+    data: { name: `E2E ${randomUUID().slice(0, 8)}`, createdById: 'e2e-seed' },
+    select: { id: true },
+  });
   const exercise = await getDb().exercise.create({
     data: {
-      curriculumUnitId: unitId,
+      folderId: folder.id,
+      orderInFolder: 1,
+      title: `E2E homework ${randomUUID().slice(0, 8)}`,
       type: 'homework',
       basePdfRef: 'e2e/test.pdf',
       maxScore: opts?.maxScore ?? 10,

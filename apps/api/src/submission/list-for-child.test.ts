@@ -13,12 +13,14 @@ import {
   buildLmsContext,
   buildStaffContext,
   cleanupCurriculumUnits,
+  cleanupExerciseLibrary,
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
   seedClassBatch,
   seedClassSession,
   seedCurriculumUnit,
+  seedExerciseFolder,
   seedEnrolledStudentWithGuardian,
   seedParentAccount,
   testDbBypass,
@@ -37,6 +39,7 @@ describe('submission.listForChild (gap-closure 260710-0005 Phase 2)', () => {
   let sessionExerciseId: string;
   let parent: { id: string; phone: string };
   const seededUnitIds: string[] = [];
+  const seededFolderIds: string[] = [];
   const parentPhonesToClean: string[] = [];
 
   beforeEach(async () => {
@@ -48,8 +51,11 @@ describe('submission.listForChild (gap-closure 260710-0005 Phase 2)', () => {
     unit = await seedCurriculumUnit({ title: 'Unit With A Real Title' });
     seededUnitIds.push(unit.id);
 
+    const folder = await seedExerciseFolder();
+    seededFolderIds.push(folder.id);
     const created = await gddt.exercise.create({
-      curriculumUnitId: unit.id,
+      folderId: folder.id,
+      title: 'Bài tập list-for-child',
       type: 'homework',
       basePdfRef: 'exercise-pdf/seed.pdf',
       maxScore: 10,
@@ -78,6 +84,8 @@ describe('submission.listForChild (gap-closure 260710-0005 Phase 2)', () => {
 
   afterEach(async () => {
     await cleanupFacility(facility.id);
+    await cleanupExerciseLibrary(...seededFolderIds);
+    seededFolderIds.length = 0;
     await cleanupCurriculumUnits(...seededUnitIds);
     seededUnitIds.length = 0;
     await cleanupParentAccountsByPhone(...parentPhonesToClean);
@@ -109,7 +117,7 @@ describe('submission.listForChild (gap-closure 260710-0005 Phase 2)', () => {
 
     expect(result.items).toHaveLength(1);
     const item = result.items[0]!;
-    expect(item.exerciseTitle).toBe('Unit With A Real Title');
+    expect(item.exerciseTitle).toBe('Bài tập list-for-child');
     expect(item.score).toBe(9);
     expect(item.starReward).toBe(12);
     expect(item.status).toBe('graded');

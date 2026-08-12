@@ -11,6 +11,7 @@ import {
   buildLmsContext,
   buildStaffContext,
   cleanupCurriculumUnits,
+  cleanupExerciseLibrary,
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
@@ -19,6 +20,7 @@ import {
   seedClassBatch,
   seedClassSession,
   seedCurriculumUnit,
+  seedExerciseFolder,
   seedEnrolledStudentWithGuardian,
   seedParentAccount,
   testDbBypass,
@@ -331,9 +333,11 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
     const parentPhone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
     const parent = await seedParentAccount(parentPhone);
 
+    const folder = await seedExerciseFolder();
     try {
       const created = await gddt.exercise.create({
-        curriculumUnitId: unit.id,
+        folderId: folder.id,
+        title: 'Bài tập M2',
         type: 'homework',
         basePdfRef: 'exercise-pdf/m2-seed.pdf',
         maxScore: 10,
@@ -425,6 +429,7 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
       // second, harmless no-op call once this has already run).
       await cleanupFacility(facility.id);
       await cleanupParentAccountsByPhone(parent.phone);
+      await cleanupExerciseLibrary(folder.id);
       await cleanupCurriculumUnits(unit.id);
     }
   });

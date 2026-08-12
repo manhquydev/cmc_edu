@@ -12,6 +12,7 @@ import { appRouter } from '../router.js';
 import {
   buildStaffContext,
   cleanupCurriculumUnits,
+  cleanupExerciseLibrary,
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
@@ -19,6 +20,7 @@ import {
   seedClassBatch,
   seedClassSession,
   seedCurriculumUnit,
+  seedExerciseFolder,
   seedEnrolledStudentWithGuardian,
   seedParentAccount,
   testDbBypass,
@@ -35,6 +37,7 @@ describe('teacher class-scoping — cross-router FORBIDDEN proof (H1+H2)', () =>
   let session: { id: string };
   let enrollment: { id: string; studentId: string };
   const seededUnitIds: string[] = [];
+  const seededFolderIds: string[] = [];
   const phonesToClean: string[] = [];
 
   beforeEach(async () => {
@@ -84,6 +87,8 @@ describe('teacher class-scoping — cross-router FORBIDDEN proof (H1+H2)', () =>
     // cleanupFacility deletes Submission rows (facility-scoped) FIRST — must
     // run before cleanupCurriculumUnits (Submission → SessionExercise → Exercise).
     await cleanupFacility(facility.id);
+    await cleanupExerciseLibrary(...seededFolderIds);
+    seededFolderIds.length = 0;
     await cleanupCurriculumUnits(...seededUnitIds);
     seededUnitIds.length = 0;
     await cleanupParentAccountsByPhone(...phonesToClean);
@@ -131,8 +136,11 @@ describe('teacher class-scoping — cross-router FORBIDDEN proof (H1+H2)', () =>
     it('FORBIDDEN for teacher B, OK for teacher A', async () => {
       const unit = await seedCurriculumUnit();
       seededUnitIds.push(unit.id);
+      const folder = await seedExerciseFolder();
+      seededFolderIds.push(folder.id);
       const created = await gddt.exercise.create({
-        curriculumUnitId: unit.id,
+        folderId: folder.id,
+        title: 'Bài tập scope',
         type: 'homework',
         basePdfRef: 'exercise-pdf/scope-test.pdf',
         maxScore: 10,

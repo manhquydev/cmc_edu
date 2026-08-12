@@ -574,9 +574,9 @@ export interface SeedCurriculumUnitOptions {
 
 /**
  * T2-I: `CurriculumUnit` is a GLOBAL table (no facilityId, no RLS — QĐ 0021),
- * so it is NOT covered by `cleanupFacility()`'s per-facility teardown; every
- * test that seeds one must delete it (and any `Exercise` rows pointing at it,
- * which RESTRICT-block the delete) itself, via `cleanupCurriculumUnits()`.
+ * so it is NOT covered by `cleanupFacility()`'s per-facility teardown. Every
+ * test that seeds one must delete it via `cleanupCurriculumUnits()`. Exercises
+ * no longer FK to units — tear those down with `cleanupExerciseLibrary()`.
  */
 export interface SeedCurriculumUnitOptionsWithOrder extends SeedCurriculumUnitOptions {
   orderGlobal?: number;
@@ -608,17 +608,55 @@ export async function seedCurriculumUnit(
 }
 
 /**
- * Deletes `Exercise` rows for each unit (RESTRICT FK), then the units
- * themselves — via the PRIVILEGED connection, like `Attendance`/`RefundRecord`
- * teardown above. Wave-A privilege hardening's default-privilege template
- * grants new tables only SELECT/INSERT for `cmc_app`; neither `CurriculumUnit`
- * nor `Exercise` has a production delete path (no `exercise.delete`
- * procedure), so this is teardown-only, same rationale as those two.
+ * Deletes `CurriculumUnit` rows via the privileged connection.
+ * Exercises no longer FK to units — call `cleanupExerciseLibrary` for any
+ * folders/exercises the test created, or leftover catalog rows become ghosts
+ * visible to later tests.
  */
 export async function cleanupCurriculumUnits(...curriculumUnitIds: string[]): Promise<void> {
   if (curriculumUnitIds.length === 0) return;
-  await privilegedDb().exercise.deleteMany({ where: { curriculumUnitId: { in: curriculumUnitIds } } });
   await privilegedDb().curriculumUnit.deleteMany({ where: { id: { in: curriculumUnitIds } } });
+}
+
+export async function seedExerciseFolder(opts?: {
+  name?: string;
+  createdById?: string;
+}): Promise<{ id: string; name: string }> {
+  return privilegedDb().exerciseFolder.create({
+    data: {
+      name: opts?.name ?? `Test folder ${randomUUID().slice(0, 8)}`,
+      createdById: opts?.createdById ?? 'test-seed',
+    },
+    select: { id: true, name: true },
+  });
+}
+
+/**
+ * Deletes exercises in the given folders (and leftover delivery/item FKs),
+ * then the folders. Privileged: no production delete path on these catalogs.
+ */
+export async function cleanupExerciseLibrary(...folderIds: string[]): Promise<void> {
+  if (folderIds.length === 0) return;
+  const db = privilegedDb();
+  const exercises = await db.exercise.findMany({
+    where: { folderId: { in: folderIds } },
+    select: { id: true },
+  });
+  const exerciseIds = exercises.map((e) => e.id);
+  if (exerciseIds.length > 0) {
+    const deliveries = await db.sessionExercise.findMany({
+      where: { exerciseId: { in: exerciseIds } },
+      select: { id: true },
+    });
+    const deliveryIds = deliveries.map((d) => d.id);
+    if (deliveryIds.length > 0) {
+      await db.submission.deleteMany({ where: { sessionExerciseId: { in: deliveryIds } } });
+      await db.sessionExercise.deleteMany({ where: { id: { in: deliveryIds } } });
+    }
+    await db.classExerciseItem.deleteMany({ where: { exerciseId: { in: exerciseIds } } });
+    await db.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
+  }
+  await db.exerciseFolder.deleteMany({ where: { id: { in: folderIds } } });
 }
 
 export interface SeedClassSessionOptions {

@@ -1,28 +1,31 @@
-// Exercise management — director creates exercises linked to CurriculumUnits.
-// exercise.manage permission = giam_doc_dao_tao only.
-// List is index-only (resource-centric): Công bố / Đóng live on
-// /teaching/exercises/:exerciseId form.
+// Exercise library — folders on the left, exercises on the right.
+// exercise.manage = giam_doc_dao_tao. Archive hides a folder from new writes
+// and does not rewrite ClassExerciseItem rows already frozen on a class.
+// Publish / close stay on /teaching/exercises/:exerciseId (resource-centric).
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentProps } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Badge,
   Banner,
-  BulkActionBar,
   Button,
+  ConfirmDialog,
   DataTable,
   Dialog,
   DialogHeader,
+  EmptyState,
   FilterBar,
   HStack,
   ListPage,
   ListPagination,
+  MasterDetail,
   PageHeader,
   Selector,
   Skeleton,
   Stack,
   Text,
+  TextInput,
   useToast,
 } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
@@ -39,6 +42,12 @@ const STATUS_VARIANTS: Record<string, BadgeVariant> = {
   closed: 'error',
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Nháp',
+  published: 'Đã công bố',
+  closed: 'Đã đóng',
+};
+
 const EXERCISE_TYPE_OPTIONS = [
   { value: 'homework', label: 'Bài tập về nhà' },
   { value: 'test_entrance', label: 'Kiểm tra đầu vào' },
@@ -46,6 +55,12 @@ const EXERCISE_TYPE_OPTIONS = [
 ];
 
 const EXERCISE_FILTERS: FilterDef[] = [
+  {
+    key: 'q',
+    label: 'Tìm kiếm',
+    type: 'text',
+    placeholder: 'Tên bài tập…',
+  },
   {
     key: 'status',
     label: 'Trạng thái',
@@ -66,9 +81,17 @@ const EXERCISE_FILTERS: FilterDef[] = [
   },
 ];
 
+interface FolderRow {
+  id: string;
+  name: string;
+  description: string | null;
+  archivedAt: Date | string | null;
+}
+
 interface ExerciseRow {
   id: string;
-  curriculumUnitId: string;
+  folderId: string;
+  title: string;
   type: string;
   status: string;
   [key: string]: unknown;
@@ -76,14 +99,18 @@ interface ExerciseRow {
 
 export default function ExercisesPage() {
   const navigate = useNavigate();
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [folderDialog, setFolderDialog] = useState<'create' | 'rename' | null>(null);
+  const [folderName, setFolderName] = useState('');
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [curriculumUnitId, setCurriculumUnitId] = useState<string | null>(null);
+  const [exerciseTitle, setExerciseTitle] = useState('');
   const [exerciseType, setExerciseType] = useState<string | null>(null);
   const [pdfBlobRef, setPdfBlobRef] = useState<string | null>(null);
   const [pdfUploading, setPdfUploading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const pageSize = 20;
@@ -93,41 +120,105 @@ export default function ExercisesPage() {
 
   useEffect(() => {
     setPage(1);
-    setSelectedIds([]);
-  }, [statusFilter, typeFilter]);
+  }, [statusFilter, typeFilter, searchQuery, selectedFolderId]);
 
-  const { data: unitsData, isLoading: unitsLoading } = trpc.curriculumUnit.list.useQuery();
-  const { data, isLoading, error } = trpc.exercise.list.useQuery({
-    ...(statusFilter
-      ? { status: statusFilter as 'draft' | 'published' | 'closed' }
-      : {}),
-    ...(typeFilter
-      ? { type: typeFilter as 'homework' | 'test_entrance' | 'test_periodic' }
-      : {}),
+  const { data: foldersData, isLoading: foldersLoading, error: foldersError } =
+    trpc.exerciseFolder.list.useQuery();
+  const folders = (foldersData?.items ?? []) as FolderRow[];
+
+  useEffect(() => {
+    if (selectedFolderId) return;
+    const firstLive = folders.find((f) => !f.archivedAt);
+    const first = firstLive ?? folders[0];
+    if (first) setSelectedFolderId(first.id);
+  }, [folders, selectedFolderId]);
+
+  const selectedFolder = folders.find((f) => f.id === selectedFolderId) ?? null;
+  const folderArchived = selectedFolder?.archivedAt != null;
+
+  const { data, isLoading, error } = trpc.exercise.list.useQuery(
+    {
+      ...(selectedFolderId ? { folderId: selectedFolderId } : {}),
+      ...(statusFilter
+        ? { status: statusFilter as 'draft' | 'published' | 'closed' }
+        : {}),
+      ...(typeFilter
+        ? { type: typeFilter as 'homework' | 'test_entrance' | 'test_periodic' }
+        : {}),
+    },
+    { enabled: selectedFolderId != null },
+  );
+
+  const createFolderMut = trpc.exerciseFolder.create.useMutation({
+    onSuccess: (created) => {
+      void utils.exerciseFolder.list.invalidate();
+      setFolderDialog(null);
+      setFolderName('');
+      setSelectedFolderId(created.id);
+      toastSuccess('Đã tạo thư mục');
+    },
+  });
+
+  const renameFolderMut = trpc.exerciseFolder.update.useMutation({
+    onSuccess: () => {
+      void utils.exerciseFolder.list.invalidate();
+      void utils.exercise.list.invalidate();
+      setFolderDialog(null);
+      setFolderName('');
+      toastSuccess('Đã đổi tên thư mục');
+    },
+  });
+
+  const archiveFolderMut = trpc.exerciseFolder.archive.useMutation({
+    onSuccess: () => {
+      void utils.exerciseFolder.list.invalidate();
+      setArchiveOpen(false);
+      toastSuccess('Đã ẩn thư mục. Dãy bài đã gán của lớp không đổi.');
+    },
   });
 
   const createMut = trpc.exercise.create.useMutation({
     onSuccess: () => {
       void utils.exercise.list.invalidate();
       setCreateOpen(false);
-      resetForm();
+      resetCreateForm();
+      toastSuccess('Đã tạo bài tập');
     },
   });
+
+  const folderWriteError =
+    (folderDialog === 'rename' ? renameFolderMut.error : createFolderMut.error) ?? null;
+  const createError = createMut.error;
 
   function openExercise(row: ExerciseRow) {
     navigate(links.exercise(row.id));
   }
 
-  function resetForm() {
-    setCurriculumUnitId(null);
+  function resetCreateForm() {
+    setExerciseTitle('');
     setExerciseType(null);
     setPdfBlobRef(null);
     setPdfError(null);
   }
 
-  function closeDialog() {
+  function closeCreateDialog() {
     setCreateOpen(false);
-    resetForm();
+    resetCreateForm();
+  }
+
+  function openCreateFolder() {
+    setFolderName('');
+    setFolderDialog('create');
+  }
+
+  function openRenameFolder() {
+    setFolderName(selectedFolder?.name ?? '');
+    setFolderDialog('rename');
+  }
+
+  function closeFolderDialog() {
+    setFolderDialog(null);
+    setFolderName('');
   }
 
   async function handlePdfUpload(file: File) {
@@ -154,38 +245,32 @@ export default function ExercisesPage() {
     }
   }
 
-  const units = unitsData?.items ?? [];
-  const unitMap = new Map(units.map((u) => [u.id, u]));
-
-  const unitOptions = units.map((u) => ({
-    value: u.id,
-    label: `${u.program} – Lv${u.level} T${u.monthIndex}: ${u.title}`,
-  }));
-
-  const exercises = (data?.items ?? []) as ExerciseRow[];
+  const q = searchQuery.trim().toLocaleLowerCase('vi');
+  const exercises = useMemo(() => {
+    const rows = (data?.items ?? []) as ExerciseRow[];
+    if (!q) return rows;
+    return rows.filter((row) => row.title.toLocaleLowerCase('vi').includes(q));
+  }, [data?.items, q]);
   const pageRows = exercises.slice((page - 1) * pageSize, page * pageSize);
 
   const columns: TableColumn<ExerciseRow>[] = [
-    {
-      key: 'curriculumUnitId',
-      label: 'Đơn vị học',
-      render: (v) => {
-        const unit = unitMap.get(v as string);
-        return unit
-          ? `${unit.program} Lv${unit.level} T${unit.monthIndex}: ${unit.title}`
-          : String(v);
-      },
-    },
+    { key: 'title', label: 'Tên bài' },
     {
       key: 'type',
       label: 'Loại',
+      width: 180,
       render: (v) => EXERCISE_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? String(v),
     },
     {
       key: 'status',
       label: 'Trạng thái',
-      width: 120,
-      render: (v) => <Badge label={String(v)} variant={STATUS_VARIANTS[v as string] ?? 'neutral'} />,
+      width: 140,
+      render: (v) => (
+        <Badge
+          label={STATUS_LABELS[v as string] ?? String(v)}
+          variant={STATUS_VARIANTS[v as string] ?? 'neutral'}
+        />
+      ),
     },
     {
       key: 'id',
@@ -197,60 +282,122 @@ export default function ExercisesPage() {
     },
   ];
 
-  return (
-    <ListPage
-      density="ops"
-      header={
-        <PageHeader
-          title="Quản lý bài tập"
-          subtitle="Danh sách bài tập · mở form để công bố / đóng (không HITL trên list)"
-          breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Bài tập' }]}
-          actions={
-            <Button label="+ Tạo bài tập" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />
-          }
-        />
-      }
-      filters={
-        <FilterBar
-          filters={EXERCISE_FILTERS}
-          value={{ status: statusFilter, type: typeFilter }}
-          onChange={(next) => {
-            setStatusFilter(next.status ?? '');
-            setTypeFilter(next.type ?? '');
-          }}
-        />
-      }
-      controlFooter={
-        !isLoading && !error ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cmc-space-2)', width: '100%' }}>
-            <BulkActionBar
-              selectionCount={selectedIds.length}
-              onClear={() => setSelectedIds([])}
-            >
-              <Button
-                label="Sao chép ID"
-                size="sm"
-                variant="secondary"
-                isDisabled={selectedIds.length === 0}
-                onClick={() => {
-                  void navigator.clipboard?.writeText(selectedIds.join(', '));
-                  toastSuccess(`Đã sao chép ${selectedIds.length} ID bài tập`);
-                }}
-              />
-            </BulkActionBar>
-            <ListPagination
-              page={page}
-              pageSize={pageSize}
-              total={exercises.length}
-              onPageChange={(p) => {
-                setPage(p);
-                setSelectedIds([]);
+  const folderPanel = (
+    <Stack gap={0}>
+      <HStack
+        justify="between"
+        style={{
+          paddingInline: 'var(--cmc-space-3)',
+          paddingBlock: 'var(--cmc-space-2)',
+          borderBottom: '1px solid var(--cmc-border)',
+        }}
+      >
+        <Text size="sm" weight="medium">
+          Thư mục
+        </Text>
+        <Button label="+ Thư mục" size="sm" variant="ghost" onClick={openCreateFolder} />
+      </HStack>
+      {foldersLoading && (
+        <div style={{ margin: 'var(--cmc-space-3)' }}>
+          <Skeleton height={160} radius={1} />
+        </div>
+      )}
+      {foldersError && (
+        <div style={{ margin: 'var(--cmc-space-3)' }}>
+          <Banner status="error" title={foldersError.message} />
+        </div>
+      )}
+      {!foldersLoading && !foldersError && folders.length === 0 && (
+        <div style={{ padding: 'var(--cmc-space-3)' }}>
+          <EmptyState
+            title="Chưa có thư mục"
+            description='Nhấn "+ Thư mục" để tạo thư mục đầu tiên.'
+          />
+        </div>
+      )}
+      {!foldersLoading &&
+        !foldersError &&
+        folders.map((folder) => {
+          const selected = folder.id === selectedFolderId;
+          const archived = folder.archivedAt != null;
+          return (
+            <div
+              key={folder.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedFolderId(folder.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedFolderId(folder.id);
+                }
               }}
-            />
-          </div>
-        ) : undefined
-      }
-    >
+              style={{
+                paddingInline: 'var(--cmc-space-3)',
+                paddingBlock: 'var(--cmc-space-2)',
+                borderBottom: '1px solid var(--cmc-border)',
+                cursor: 'pointer',
+                background: selected ? 'var(--cmc-brand-muted)' : 'var(--cmc-surface)',
+                borderLeft: selected ? '3px solid var(--cmc-brand)' : '3px solid transparent',
+              }}
+            >
+              <HStack justify="between" style={{ marginBottom: archived ? 2 : 0 }}>
+                <Text size="sm" weight="medium">
+                  {folder.name}
+                </Text>
+                {archived ? <Badge label="Đã ẩn" variant="neutral" /> : null}
+              </HStack>
+            </div>
+          );
+        })}
+    </Stack>
+  );
+
+  const listPanel = !selectedFolder ? (
+    <div style={{ padding: 'var(--cmc-space-3)' }}>
+      <EmptyState title="Chọn một thư mục" description="Chọn thư mục bên trái để xem bài tập." />
+    </div>
+  ) : (
+    <Stack gap={0}>
+      <HStack
+        justify="between"
+        style={{
+          paddingInline: 'var(--cmc-space-3)',
+          paddingBlock: 'var(--cmc-space-2)',
+          borderBottom: '1px solid var(--cmc-border)',
+          flexWrap: 'wrap',
+          gap: 'var(--cmc-space-2)',
+        }}
+      >
+        <Stack gap={0}>
+          <Text size="sm" weight="medium">
+            {selectedFolder.name}
+          </Text>
+          {folderArchived ? (
+            <Text type="supporting" size="xsm">
+              Thư mục đã ẩn — không thêm bài mới. Dãy lớp không đổi.
+            </Text>
+          ) : null}
+        </Stack>
+        <HStack gap={1} style={{ flexWrap: 'wrap' }}>
+          <Button label="Đổi tên" size="sm" variant="secondary" onClick={openRenameFolder} />
+          <Button
+            label="Ẩn thư mục"
+            size="sm"
+            variant="ghost"
+            isDisabled={folderArchived}
+            onClick={() => setArchiveOpen(true)}
+          />
+          <Button
+            label="+ Tạo bài tập"
+            size="sm"
+            variant="primary"
+            isDisabled={folderArchived}
+            onClick={() => setCreateOpen(true)}
+          />
+        </HStack>
+      </HStack>
+
       {isLoading && (
         <div style={{ margin: 'var(--cmc-space-3)' }}>
           <Skeleton height={200} radius={1} />
@@ -261,43 +408,153 @@ export default function ExercisesPage() {
           <Banner status="error" title={error.message} />
         </div>
       )}
-
       {!isLoading && !error && (
-        <DataTable<ExerciseRow>
-          columns={columns}
-          data={pageRows}
-          empty='Chưa có bài tập nào. Nhấn "Tạo bài tập" để bắt đầu.'
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          onRowClick={openExercise}
-        />
-      )}
-
-      {/* Create dialog.
-          TODO(astryx-review): Astryx `Dialog` (native <dialog>-based) manages
-          its own focus-trap / auto-focus / Escape-dismiss internally —
-          different implementation from the prior `Modal`, though the
-          resulting close-on-backdrop/Escape UX is preserved. Flagged per
-          migration instructions as "any modal that isn't a simple confirm"
-          for reviewer sign-off (same class of flag as EnrollPicker). */}
-      <Dialog isOpen={createOpen} onOpenChange={(next) => { if (!next) closeDialog(); }} width={480}>
-        <DialogHeader title="Tạo bài tập mới" onOpenChange={(next) => { if (!next) closeDialog(); }} />
-        <Stack gap={2}>
-          {unitsLoading ? (
-            <Skeleton height={36} radius={1} />
-          ) : (
-            <Selector
-              label="Đơn vị học (CurriculumUnit)"
-              placeholder="Chọn chương trình / tháng / bài"
-              options={unitOptions}
-              value={curriculumUnitId ?? undefined}
-              onChange={(v) => setCurriculumUnitId(v ?? null)}
-              hasSearch
-              hasClear={false}
-              isRequired
+        <>
+          <DataTable<ExerciseRow>
+            columns={columns}
+            data={pageRows}
+            empty={
+              q || statusFilter || typeFilter
+                ? 'Không có bài khớp bộ lọc hiện tại.'
+                : 'Chưa có bài tập trong thư mục này. Nhấn "Tạo bài tập" để tải lên.'
+            }
+            onRowClick={openExercise}
+          />
+          <div style={{ padding: 'var(--cmc-space-3)' }}>
+            <ListPagination
+              page={page}
+              pageSize={pageSize}
+              total={exercises.length}
+              onPageChange={setPage}
             />
-          )}
+          </div>
+        </>
+      )}
+    </Stack>
+  );
 
+  return (
+    <ListPage
+      density="ops"
+      header={
+        <PageHeader
+          title="Thư viện bài tập"
+          subtitle="Thư mục bên trái · bài tập bên phải. Ẩn thư mục không đụng dãy đã gán."
+          breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Bài tập' }]}
+        />
+      }
+      filters={
+        <FilterBar
+          filters={EXERCISE_FILTERS}
+          value={{ q: searchQuery, status: statusFilter, type: typeFilter }}
+          onChange={(next) => {
+            setSearchQuery(next.q ?? '');
+            setStatusFilter(next.status ?? '');
+            setTypeFilter(next.type ?? '');
+          }}
+        />
+      }
+    >
+      <div
+        style={{
+          flex: 1,
+          minHeight: 520,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <MasterDetail
+          list={folderPanel}
+          detail={listPanel}
+          selectedId={selectedFolderId ?? undefined}
+          listWidth={280}
+        />
+      </div>
+
+      <Dialog
+        purpose="form"
+        isOpen={folderDialog != null}
+        onOpenChange={(next) => {
+          if (!next) closeFolderDialog();
+        }}
+        width={420}
+      >
+        <DialogHeader
+          title={folderDialog === 'rename' ? 'Đổi tên thư mục' : 'Tạo thư mục'}
+          onOpenChange={(next) => {
+            if (!next) closeFolderDialog();
+          }}
+        />
+        <Stack gap={2}>
+          {folderWriteError ? <Banner status="error" title={folderWriteError.message} /> : null}
+          <TextInput
+            label="Tên thư mục"
+            placeholder="VD: UCREA tháng 3"
+            value={folderName}
+            onChange={setFolderName}
+          />
+          <HStack justify="end" gap={2} style={{ flexWrap: 'wrap' }}>
+            <Button label="Huỷ" variant="secondary" size="sm" onClick={closeFolderDialog} />
+            <Button
+              label={folderDialog === 'rename' ? 'Lưu tên' : 'Tạo thư mục'}
+              variant="primary"
+              size="sm"
+              isLoading={createFolderMut.isPending || renameFolderMut.isPending}
+              isDisabled={!folderName.trim()}
+              onClick={() => {
+                const name = folderName.trim();
+                if (!name) return;
+                if (folderDialog === 'rename' && selectedFolderId) {
+                  renameFolderMut.mutate({ folderId: selectedFolderId, name });
+                  return;
+                }
+                createFolderMut.mutate({ name });
+              }}
+            />
+          </HStack>
+        </Stack>
+      </Dialog>
+
+      <ConfirmDialog
+        opened={archiveOpen}
+        title="Ẩn thư mục này?"
+        message="Thư mục sẽ không nhận bài mới. Dãy bài đã gán cho lớp không đổi — bài vẫn phát và nộp như cũ."
+        confirmLabel="Ẩn thư mục"
+        confirmColor="red"
+        loading={archiveFolderMut.isPending}
+        onConfirm={() => {
+          if (!selectedFolderId) return;
+          archiveFolderMut.mutate({ folderId: selectedFolderId });
+        }}
+        onCancel={() => setArchiveOpen(false)}
+      />
+
+      <Dialog
+        purpose="form"
+        isOpen={createOpen}
+        onOpenChange={(next) => {
+          if (!next) closeCreateDialog();
+        }}
+        width={480}
+      >
+        <DialogHeader
+          title="Tải bài lên thư mục"
+          onOpenChange={(next) => {
+            if (!next) closeCreateDialog();
+          }}
+        />
+        <Stack gap={2}>
+          {createError ? <Banner status="error" title={createError.message} /> : null}
+          <Text type="supporting" size="sm">
+            Thư mục: {selectedFolder?.name ?? '—'}
+          </Text>
+          <TextInput
+            label="Tên bài tập"
+            placeholder="VD: Bài tập buổi 1"
+            value={exerciseTitle}
+            onChange={setExerciseTitle}
+          />
           <Selector
             label="Loại bài tập"
             placeholder="Chọn loại"
@@ -307,8 +564,6 @@ export default function ExercisesPage() {
             hasClear={false}
             isRequired
           />
-
-          {/* PDF upload — required */}
           <div>
             <Text type="body" size="sm" weight="medium" style={{ marginBottom: 'var(--cmc-space-1)' }}>
               File PDF bài tập (bắt buộc)
@@ -339,9 +594,6 @@ export default function ExercisesPage() {
               accept="application/pdf"
               style={{ display: 'none' }}
               onChange={async (e) => {
-                // Capture the input node before the await; React nulls
-                // `e.currentTarget` after the handler yields (same class of
-                // bug fixed in session-evidence.tsx during phase-07).
                 const input = e.currentTarget;
                 const file = input.files?.[0];
                 if (file) await handlePdfUpload(file);
@@ -349,19 +601,21 @@ export default function ExercisesPage() {
               }}
             />
           </div>
-
           <HStack justify="end" gap={2} style={{ flexWrap: 'wrap' }}>
-            <Button label="Huỷ" variant="secondary" size="sm" onClick={closeDialog} />
+            <Button label="Huỷ" variant="secondary" size="sm" onClick={closeCreateDialog} />
             <Button
               label="Tạo bài tập"
               variant="primary"
               size="sm"
               isLoading={createMut.isPending}
-              isDisabled={!curriculumUnitId || !exerciseType || !pdfBlobRef}
+              isDisabled={!selectedFolderId || folderArchived || !exerciseTitle.trim() || !exerciseType || !pdfBlobRef}
               onClick={() => {
-                if (!curriculumUnitId || !exerciseType || !pdfBlobRef) return;
+                if (!selectedFolderId || !exerciseType || !pdfBlobRef) return;
+                const title = exerciseTitle.trim();
+                if (!title) return;
                 createMut.mutate({
-                  curriculumUnitId,
+                  folderId: selectedFolderId,
+                  title,
                   type: exerciseType as 'homework' | 'test_entrance' | 'test_periodic',
                   basePdfRef: pdfBlobRef,
                 });
@@ -370,7 +624,6 @@ export default function ExercisesPage() {
           </HStack>
         </Stack>
       </Dialog>
-
     </ListPage>
   );
 }

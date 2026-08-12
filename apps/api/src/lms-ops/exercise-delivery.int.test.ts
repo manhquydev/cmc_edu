@@ -6,12 +6,14 @@ import {
   buildLmsContext,
   buildStaffContext,
   cleanupCurriculumUnits,
+  cleanupExerciseLibrary,
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
   seedAppUser,
   seedClassBatch,
   seedCurriculumUnit,
+  seedExerciseFolder,
   seedEnrolledStudentWithGuardian,
   seedParentAccount,
   testDbBypass,
@@ -26,6 +28,7 @@ describe('lmsOps exercise delivery', () => {
   let facility: { id: string };
   let gddt: Caller;
   let unitIds: string[] = [];
+  let folderIds: string[] = [];
   let parentPhone: string;
 
   beforeEach(async () => {
@@ -44,6 +47,8 @@ describe('lmsOps exercise delivery', () => {
 
   afterEach(async () => {
     await cleanupFacility(facility.id);
+    await cleanupExerciseLibrary(...folderIds);
+    folderIds = [];
     await cleanupCurriculumUnits(...unitIds);
     unitIds = [];
     if (parentPhone) {
@@ -52,11 +57,14 @@ describe('lmsOps exercise delivery', () => {
     }
   });
 
-  async function publishedHomework(unitId: string) {
+  async function publishedHomework(label: string) {
+    const folder = await seedExerciseFolder({ name: `Del ${label}` });
+    folderIds.push(folder.id);
     const created = await gddt.exercise.create({
-      curriculumUnitId: unitId,
+      folderId: folder.id,
+      title: `Bài ${label}`,
       type: 'homework',
-      basePdfRef: `exercise-pdf/del-${unitId.slice(0, 8)}.pdf`,
+      basePdfRef: `exercise-pdf/del-${label}.pdf`,
     });
     return gddt.exercise.publish({ exerciseId: created.id });
   }
@@ -68,8 +76,8 @@ describe('lmsOps exercise delivery', () => {
       tx.classBatch.update({ where: { id: batch.id }, data: { teacherAppUserId: teacher.id } }),
     );
 
-    const ex1 = await publishedHomework(unitIds[0]!);
-    const ex2 = await publishedHomework(unitIds[1]!);
+    const ex1 = await publishedHomework('u1');
+    const ex2 = await publishedHomework('u2');
 
     const seq = await gddt.lmsOps.assignExerciseSequence({
       classBatchId: batch.id,
@@ -112,8 +120,11 @@ describe('lmsOps exercise delivery', () => {
     }
 
     // Re-assign sequence keeps delivered position 1, replaces future.
+    const altFolder = await seedExerciseFolder({ name: 'Periodic' });
+    folderIds.push(altFolder.id);
     const created = await gddt.exercise.create({
-      curriculumUnitId: unitIds[1]!,
+      folderId: altFolder.id,
+      title: 'Kiểm tra định kỳ',
       type: 'test_periodic',
       basePdfRef: 'exercise-pdf/del-period.pdf',
     });
@@ -129,9 +140,9 @@ describe('lmsOps exercise delivery', () => {
     expect(seq2.items.find((i) => i.position === 2)?.exerciseId).toBe(exAlt.id);
   });
 
-  it('unit-stamp fallback delivers published homework without sequence', async () => {
+  it('class without a sequence does not receive a delivery (no unit-stamp fallback)', async () => {
     const batch = await seedClassBatch({ facilityId: facility.id });
-    const homework = await publishedHomework(unitIds[0]!);
+    await publishedHomework('orphan');
     const pastEnd = new Date(Date.now() - 60_000);
     const session = await testDbBypass((tx) =>
       tx.classSession.create({
@@ -148,15 +159,16 @@ describe('lmsOps exercise delivery', () => {
     );
 
     const d = await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
-    expect(d.delivered).toBe(true);
-    if (d.delivered) {
-      expect(d.sessionExercise.exerciseId).toBe(homework.id);
-    }
+    expect(d).toEqual({ delivered: false, reason: 'no_sequence_or_exhausted' });
+    const row = await testDbBypass((tx) =>
+      tx.sessionExercise.findUnique({ where: { classSessionId: session.id } }),
+    );
+    expect(row).toBeNull();
   });
 
   it('cancelled session cannot receive delivery', async () => {
     const batch = await seedClassBatch({ facilityId: facility.id });
-    await publishedHomework(unitIds[0]!);
+    await publishedHomework('cancelled');
     const pastEnd = new Date(Date.now() - 60_000);
     const session = await testDbBypass((tx) =>
       tx.classSession.create({
@@ -179,7 +191,7 @@ describe('lmsOps exercise delivery', () => {
 
   it('refuses delivery when session has no curriculum unit (avoids invisible deliver)', async () => {
     const batch = await seedClassBatch({ facilityId: facility.id });
-    const homework = await publishedHomework(unitIds[0]!);
+    const homework = await publishedHomework('no-unit');
     await gddt.lmsOps.assignExerciseSequence({
       classBatchId: batch.id,
       exerciseIds: [homework.id],
@@ -213,7 +225,11 @@ describe('lmsOps exercise delivery', () => {
 
   it('homework visible only via delivered SessionExercise + dual-gate roster', async () => {
     const batch = await seedClassBatch({ facilityId: facility.id });
-    const homework = await publishedHomework(unitIds[0]!);
+    const homework = await publishedHomework('visible');
+    await gddt.lmsOps.assignExerciseSequence({
+      classBatchId: batch.id,
+      exerciseIds: [homework.id],
+    });
     const pastEnd = new Date(Date.now() - 60_000);
     const session = await testDbBypass((tx) =>
       tx.classSession.create({
@@ -259,7 +275,11 @@ describe('lmsOps exercise delivery', () => {
 
   it('cancel after deliver revokes SessionExercise when no submissions', async () => {
     const batch = await seedClassBatch({ facilityId: facility.id });
-    await publishedHomework(unitIds[0]!);
+    const homework = await publishedHomework('revoke');
+    await gddt.lmsOps.assignExerciseSequence({
+      classBatchId: batch.id,
+      exerciseIds: [homework.id],
+    });
     const pastEnd = new Date(Date.now() - 60_000);
     const session = await testDbBypass((tx) =>
       tx.classSession.create({
@@ -289,7 +309,11 @@ describe('lmsOps exercise delivery', () => {
 
   it('deliverDueExercises worker path delivers ended sessions', async () => {
     const batch = await seedClassBatch({ facilityId: facility.id });
-    const homework = await publishedHomework(unitIds[0]!);
+    const homework = await publishedHomework('worker');
+    await gddt.lmsOps.assignExerciseSequence({
+      classBatchId: batch.id,
+      exerciseIds: [homework.id],
+    });
     const pastEnd = new Date(Date.now() - 120_000);
     await testDbBypass((tx) =>
       tx.classSession.create({

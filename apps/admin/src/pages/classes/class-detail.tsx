@@ -28,6 +28,7 @@ import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { exerciseSequencePath } from '../teaching/exercise-sequence-model.js';
 
 const CLASS_STATUS_LABELS: Record<string, string> = {
   planned: 'Dự kiến',
@@ -430,6 +431,8 @@ export default function ClassDetailPage() {
 function ClassDetailContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { canDo } = useSession();
+  const canSequence = canDo('exercise', 'manage');
   const [activeTab, setActiveTab] = useState('overview');
 
   const { data: cls, isLoading, error } = trpc.classBatch.get.useQuery(
@@ -521,6 +524,14 @@ function ClassDetailContent() {
           ]}
           actions={
             <HStack gap={1} wrap="wrap">
+              {id && canSequence ? (
+                <Button
+                  label="Xếp dãy bài"
+                  size="sm"
+                  variant="primary"
+                  onClick={() => navigate(exerciseSequencePath(id))}
+                />
+              ) : null}
               {id ? <CopyLinkButton mode="go" entity="classBatch" id={id} /> : null}
               <Button
                 label="Về danh sách"

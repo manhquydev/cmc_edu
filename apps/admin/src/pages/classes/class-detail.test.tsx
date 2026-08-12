@@ -47,10 +47,15 @@ const assignTeacherMutate = vi.fn();
 const assignUnitMutate = vi.fn();
 const cancelMutate = vi.fn();
 const pickListSpy = vi.fn();
+const navigateMock = vi.fn();
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-  return { ...actual, useParams: () => ({ id: 'cb-1' }) };
+  return {
+    ...actual,
+    useParams: () => ({ id: 'cb-1' }),
+    useNavigate: () => navigateMock,
+  };
 });
 
 vi.mock('../../lib/trpc.js', async () => {
@@ -92,6 +97,13 @@ describe('ClassDetailPage', () => {
     assignTeacherMutate.mockClear();
     assignUnitMutate.mockClear();
     cancelMutate.mockClear();
+    navigateMock.mockClear();
+  });
+
+  it('links Giám đốc đào tạo to the class exercise-sequence work surface', () => {
+    renderWithProviders(<ClassDetailPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Xếp dãy bài' }));
+    expect(navigateMock).toHaveBeenCalledWith('/teaching/classes/cb-1/exercise-sequence');
   });
 
   // The teacher-only rule now lives on the server (`user.pickList({role})`,

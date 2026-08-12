@@ -11,6 +11,7 @@ const SessionEvidencePage = lazy(() => import('../pages/teaching/session-evidenc
 const SessionAssessmentPage = lazy(() => import('../pages/teaching/session-assessment.js'));
 const ExercisesPage = lazy(() => import('../pages/teaching/exercises.js'));
 const ExerciseDetailPage = lazy(() => import('../pages/teaching/exercise-detail.js'));
+const ExerciseSequencePage = lazy(() => import('../pages/teaching/exercise-sequence.js'));
 
 function PageFallback() {
   return <Skeleton height={200} radius={0} />;
@@ -72,6 +73,14 @@ export const teachingRoutes: RouteObject[] = [
     element: (
       <Suspense fallback={<PageFallback />}>
         <SessionAssessmentPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'classes/:classBatchId/exercise-sequence',
+    element: (
+      <Suspense fallback={<PageFallback />}>
+        <ExerciseSequencePage />
       </Suspense>
     ),
   },

@@ -23,6 +23,15 @@
 Session brief (pre-scout): [`brainstorm-advise-260812-herdr-ui-workspace-coord.md`](./brainstorm-advise-260812-herdr-ui-workspace-coord.md)  
 Retire candidates (read-only): [`proposal-260812-docs-retire-list.md`](./proposal-260812-docs-retire-list.md)
 
+**Design system audit 2026-08-13 (4 grok lane + Claude cross-check, impeccable):** Console **10/20**, LMS
+**10/20**. P0 gốc = `astryx-theme-cmc.css` ∩ `console.css` trùng **17 tên biến**, kẻ thắng do lồng DOM, mọi
+test CSS là `readFileSync` một file nên không bắt được.
+Tổng hợp: [`audit-260813-0052-ds-impeccable-synthesis.md`](./audit-260813-0052-ds-impeccable-synthesis.md) ·
+Quyết định owner: [`decisions-owner-260813-0120-design-system.md`](./decisions-owner-260813-0120-design-system.md) ·
+Plan 6 phase: [`plans/260813-0120-design-system-hardening/plan.md`](../260813-0120-design-system-hardening/plan.md).
+Lưu ý khi đọc `docs/design-system-console.md`: nó **đúng** về bản đồ code (28 VERIFIED / 8 DRIFT) nhưng im
+lặng về Astryx và 2 cổng CI; `docs/README.md:15,41` vẫn chỉ frontend sang TL12 (ngôn ngữ đã khai tử) — phase 05.
+
 ---
 
 ## Wave commits (resource-centric + hardening)

@@ -23,6 +23,7 @@ import { crmRouter } from './crm/router.js';
 import { enrollmentRouter } from './enrollment/router.js';
 import { lmsOpsRouter } from './lms-ops/router.js';
 import { curriculumUnitRouter, exerciseRouter } from './exercise/router.js';
+import { exerciseFolderRouter } from './exercise/folder-router.js';
 import { exerciseOpenTierRouter } from './exercise/open-tier.js';
 import { facilityRouter } from './facility/router.js';
 import { facilityNetworkRouter } from './facility/network-router.js';
@@ -80,6 +81,7 @@ export const appRouter = router({
   schedule: scheduleRouter,
   attendance: attendanceRouter,
   curriculumUnit: curriculumUnitRouter,
+  exerciseFolder: exerciseFolderRouter,
   // T2-I (CRUD) merged with T2-II (ADR 0038 open-tier reads) under one key.
   exercise: mergeRouters(exerciseRouter, exerciseOpenTierRouter),
   submission: submissionRouter,

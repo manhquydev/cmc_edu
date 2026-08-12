@@ -18,10 +18,12 @@ import { appRouter } from '../router.js';
 import {
   buildStaffContext,
   cleanupCurriculumUnits,
+  cleanupExerciseLibrary,
   cleanupFacility,
   createTestFacility,
   seedClassBatch,
   seedCurriculumUnit,
+  seedExerciseFolder,
   testDbBypass,
 } from '../test/db.js';
 import { handleExercisePdfUpload, MAX_EXERCISE_PDF_BYTES } from './upload-route.js';
@@ -33,7 +35,9 @@ describe('exercise.create/publish/close + classSession.assignUnit (T2-I, TL19 §
   let gddt: Caller;
   let teacher: Caller;
   let unit: { id: string };
+  let folder: { id: string; name: string };
   const seededUnitIds: string[] = [];
+  const seededFolderIds: string[] = [];
 
   beforeEach(async () => {
     facility = await createTestFacility('Exercise Facility');
@@ -45,9 +49,13 @@ describe('exercise.create/publish/close + classSession.assignUnit (T2-I, TL19 §
     );
     unit = await seedCurriculumUnit();
     seededUnitIds.push(unit.id);
+    folder = await seedExerciseFolder({ name: 'Publish folder' });
+    seededFolderIds.push(folder.id);
   });
 
   afterEach(async () => {
+    await cleanupExerciseLibrary(...seededFolderIds);
+    seededFolderIds.length = 0;
     await cleanupCurriculumUnits(...seededUnitIds);
     seededUnitIds.length = 0;
     await cleanupFacility(facility.id);
@@ -55,17 +63,19 @@ describe('exercise.create/publish/close + classSession.assignUnit (T2-I, TL19 §
 
   // ---- exercise.get (form-depth cold-start) ----
 
-  it('exercise.get: returns exercise + curriculumUnit for exercise.manage', async () => {
+  it('exercise.get: returns exercise + folder for exercise.manage', async () => {
     const created = await gddt.exercise.create({
-      curriculumUnitId: unit.id,
+      folderId: folder.id,
+      title: 'Bài tập nháp',
       type: 'homework',
       basePdfRef: 'exercise-pdf/seed.pdf',
     });
     const got = await gddt.exercise.get({ exerciseId: created.id });
     expect(got.id).toBe(created.id);
     expect(got.status).toBe('draft');
-    expect(got.curriculumUnit.id).toBe(unit.id);
-    expect(got.curriculumUnit.title).toBeTruthy();
+    expect(got.title).toBe('Bài tập nháp');
+    expect(got.folder.id).toBe(folder.id);
+    expect(got.folder.name).toBe('Publish folder');
   });
 
   it('exercise.get: missing id → NOT_FOUND', async () => {
@@ -76,7 +86,8 @@ describe('exercise.create/publish/close + classSession.assignUnit (T2-I, TL19 §
 
   it('exercise.get: role without exercise.manage → FORBIDDEN', async () => {
     const created = await gddt.exercise.create({
-      curriculumUnitId: unit.id,
+      folderId: folder.id,
+      title: 'Bài tập',
       type: 'test_entrance',
       basePdfRef: 'exercise-pdf/seed.pdf',
     });
@@ -89,7 +100,8 @@ describe('exercise.create/publish/close + classSession.assignUnit (T2-I, TL19 §
 
   it('creates a draft exercise, publishes it, then closes it', async () => {
     const created = await gddt.exercise.create({
-      curriculumUnitId: unit.id,
+      folderId: folder.id,
+      title: 'Bài tập',
       type: 'homework',
       basePdfRef: 'exercise-pdf/seed.pdf',
     });
@@ -106,7 +118,8 @@ describe('exercise.create/publish/close + classSession.assignUnit (T2-I, TL19 §
 
   it('rejects publishing a non-draft exercise with BAD_REQUEST', async () => {
     const created = await gddt.exercise.create({
-      curriculumUnitId: unit.id,
+      folderId: folder.id,
+      title: 'Bài tập',
       type: 'homework',
       basePdfRef: 'exercise-pdf/seed.pdf',
     });
@@ -119,7 +132,8 @@ describe('exercise.create/publish/close + classSession.assignUnit (T2-I, TL19 §
 
   it('rejects closing a draft (not-yet-published) exercise with BAD_REQUEST', async () => {
     const created = await gddt.exercise.create({
-      curriculumUnitId: unit.id,
+      folderId: folder.id,
+      title: 'Bài tập',
       type: 'homework',
       basePdfRef: 'exercise-pdf/seed.pdf',
     });
@@ -134,7 +148,8 @@ describe('exercise.create/publish/close + classSession.assignUnit (T2-I, TL19 §
   // `published` even enters that later gate's precondition.
   it('a draft exercise is not yet "open" (status stays draft until publish)', async () => {
     const created = await gddt.exercise.create({
-      curriculumUnitId: unit.id,
+      folderId: folder.id,
+      title: 'Bài tập',
       type: 'homework',
       basePdfRef: 'exercise-pdf/seed.pdf',
     });
@@ -143,22 +158,23 @@ describe('exercise.create/publish/close + classSession.assignUnit (T2-I, TL19 §
     expect(created.status).toBe('draft');
   });
 
-  // ---- unique [curriculumUnitId, type] ----
+  // ---- many homework per folder (the catalog constraint this phase removes) ----
 
-  it('rejects a duplicate [unit, type] exercise with CONFLICT', async () => {
-    await gddt.exercise.create({
-      curriculumUnitId: unit.id,
+  it('allows two homework exercises in the same folder', async () => {
+    const first = await gddt.exercise.create({
+      folderId: folder.id,
+      title: 'Bài 1',
       type: 'homework',
       basePdfRef: 'exercise-pdf/first.pdf',
     });
-
-    await expect(
-      gddt.exercise.create({
-        curriculumUnitId: unit.id,
-        type: 'homework',
-        basePdfRef: 'exercise-pdf/second.pdf',
-      }),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    const second = await gddt.exercise.create({
+      folderId: folder.id,
+      title: 'Bài 2',
+      type: 'homework',
+      basePdfRef: 'exercise-pdf/second.pdf',
+    });
+    expect(first.id).not.toBe(second.id);
+    expect(second.orderInFolder).toBe(first.orderInFolder + 1);
   });
 
   // ---- permission gate ----
@@ -166,7 +182,8 @@ describe('exercise.create/publish/close + classSession.assignUnit (T2-I, TL19 §
   it('rejects exercise.create from a non-GĐĐT role with FORBIDDEN', async () => {
     await expect(
       teacher.exercise.create({
-        curriculumUnitId: unit.id,
+        folderId: folder.id,
+        title: 'Bài tập',
         type: 'homework',
         basePdfRef: 'exercise-pdf/seed.pdf',
       }),

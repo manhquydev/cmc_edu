@@ -636,7 +636,7 @@ export const submissionRouter = router({
                 exercise: {
                   select: {
                     starReward: true,
-                    curriculumUnit: { select: { title: true } },
+                    title: true,
                   },
                 },
               },
@@ -648,7 +648,7 @@ export const submissionRouter = router({
             id: row.id,
             sessionExerciseId: row.sessionExerciseId,
             exerciseId: row.sessionExercise.exerciseId,
-            exerciseTitle: row.sessionExercise.exercise.curriculumUnit.title,
+            exerciseTitle: row.sessionExercise.exercise.title,
             status: row.status,
             submittedAt: row.submittedAt,
             score: row.score,

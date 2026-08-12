@@ -186,9 +186,8 @@ export default function ExerciseDetailPage() {
   const { steps, activeIndex } = statusSteps(status);
   const shortId = exerciseId.slice(0, 8);
   const typeLabel = TYPE_LABELS[data.type] ?? data.type;
-  const unitLabel = data.curriculumUnit
-    ? `${data.curriculumUnit.program} Lv${data.curriculumUnit.level} T${data.curriculumUnit.monthIndex}: ${data.curriculumUnit.title}`
-    : data.curriculumUnitId;
+  const folderLabel = data.folder?.name ?? 'Thư mục';
+  const titleLabel = data.title || `Bài tập / ${typeLabel}`;
 
   return (
     <DetailPage
@@ -215,9 +214,9 @@ export default function ExerciseDetailPage() {
       }
       entity={
         <EntityHeader
-          title={`Bài tập / ${typeLabel}`}
-          subtitle={unitLabel}
-          initials={typeLabel.slice(0, 1).toUpperCase()}
+          title={titleLabel}
+          subtitle={folderLabel}
+          initials={titleLabel.slice(0, 1).toUpperCase()}
           badges={
             <StatusBadge status={status} label={STATUS_LABELS[status] ?? status} />
           }
@@ -285,7 +284,8 @@ export default function ExerciseDetailPage() {
           >
             <KeyValueList
               items={[
-                { key: 'unit', label: 'Đơn vị học', value: unitLabel },
+                { key: 'title', label: 'Tên bài', value: titleLabel },
+                { key: 'folder', label: 'Thư mục', value: folderLabel },
                 { key: 'type', label: 'Loại', value: typeLabel },
                 {
                   key: 'status',

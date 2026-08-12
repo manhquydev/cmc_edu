@@ -28,6 +28,7 @@ Retire candidates (read-only): [`proposal-260812-docs-retire-list.md`](./proposa
 | `4267eb5` | docs(workspace): lean agent entry + live authority index (ui-lean slice B) |
 | `2947d6a` | fix(admin): map shifts WS_CSS teal → CMC brand tokens (ui-console; TEKY teal gone) |
 | `8ce3a24` | docs(plans): residual UI dual-HITL matrix from scout-pi |
+| `da3b8a8` | feat(engagement): resource-centric form depth for rewards approval (ui-console S2; rewards demote) |
 
 ---
 
@@ -40,7 +41,7 @@ Retire candidates (read-only): [`proposal-260812-docs-retire-list.md`](./proposa
 | State (scout @ `2947d6a` / matrix @ `8ce3a24`) | **OPEN** · required CI green when last checked |
 | Merge | **Human OK only** — agents do not merge |
 
-**Landed in wave (summary):** form-depth (shifts, KPI, aftersale, receipt refund/cancel, parents directory, sessions share); demote dual-HITL on aftersale + KPI lists; console densify; ui-ratchet 0; shifts teal tokenized; workspace lean index; residual matrix scout.
+**Landed in wave (summary):** form-depth (shifts, KPI, aftersale, receipt refund/cancel, parents directory, sessions share, rewards); demote dual-HITL on aftersale + KPI + rewards lists; console densify; ui-ratchet 0; shifts teal tokenized; workspace lean index; residual matrix scout.
 
 ---
 
@@ -56,13 +57,13 @@ Retire candidates (read-only): [`proposal-260812-docs-retire-list.md`](./proposa
 | parents link-request | **KEEP** list Duyệt (owner lock) | — |
 | `resolve-after-sale-case-dialog` | **KEEP** form-owned (used by `aftersale-detail` only; **not** dead) | stale comments only |
 | check-in `manualPunch` | **GAP #1** — row Duyệt/dialog on list; no UUID form | **S1** form-depth (+ `manualPunch.get`) |
-| engagement rewards | **GAP #2** — list Duyệt/Giao/Từ chối; no `/:uuid`; no API `get` | **S2** demote after `rewards.get` |
-| teaching exercises | **GAP #3** — list `Công bố`/`Đóng`; no detail form | schedule later (not S1/S2) |
+| engagement rewards | **DONE** demote (list index-only; form `/admin/engagement/rewards/:rewardId` + `rewards.get`) | — |
+| teaching exercises | **GAP #3** — list `Công bố`/`Đóng`; no detail form | schedule later |
 
-### Notes (scout)
+### Notes (scout + S2)
 
 - **GAP #1** `apps/admin/src/pages/attendance/check-in-out.tsx` — ApproveTicketsTab + dialogs; route `/hr/checkin` only.
-- **GAP #2** `apps/admin/src/pages/engagement/rewards.tsx` — list mutations only; needs API `get` before form URL.
+- **Rewards (S2 `da3b8a8`)** — list index-only; form `/admin/engagement/rewards/:rewardId` + API `rewards.get` + `links.reward`.
 - **GAP #3** `apps/admin/src/pages/teaching/exercises.tsx` — publish/close on list; logged residual, not yet scheduled.
 - TEKY `#00a09d` **gone** after `2947d6a`; raw gray neutrals in WS_CSS are micro hygiene only.
 
@@ -70,8 +71,8 @@ Retire candidates (read-only): [`proposal-260812-docs-retire-list.md`](./proposa
 
 ## Residual next steps (ordered; from scout §6)
 
-1. **S1** ui-console: check-in `manualPunch` form-depth (GAP #1).
-2. **S2** ui-console: rewards demote + `rewards.get` + UUID form (GAP #2).
-3. **S3** ui-lean: this INDEX refresh + retire proposal (docs-only) — in flight / landing.
+1. **S1** ui-console: check-in `manualPunch` form-depth (GAP #1) — still open if not landed elsewhere.
+2. **S2** ui-console: rewards demote — **DONE** (`da3b8a8`).
+3. **S3** ui-lean: INDEX refresh after S2 + retire proposal (docs-only) — this update.
 4. Later: exercises GAP #3; optional console grammar on payroll / report-cards; human merge #110.
 5. Keep historical `plans/<timestamp>-*/` and old reports; never mass-delete.

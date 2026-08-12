@@ -64,7 +64,6 @@ interface SessionInRangeRow {
   startTime: string;
   endTime: string;
   status: string;
-  isMakeup: boolean;
   batchCode: string;
   program: string;
   teacherId: string | null;
@@ -88,7 +87,6 @@ const SESSION_A: SessionInRangeRow = {
   startTime: '2026-08-03T11:00:00.000Z',
   endTime: '2026-08-03T12:30:00.000Z',
   status: 'planned',
-  isMakeup: false,
   batchCode: 'ENG-A1',
   program: 'English',
   teacherId: 't1',

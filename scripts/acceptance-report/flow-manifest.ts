@@ -317,7 +317,6 @@ export const flows: FlowEntry[] = [
         'classBatch.listStudents',
         'schedule.generateSessions',
         'classSession.list',
-        'classSession.addMakeup',
         'classSession.assignUnit',
         'classSession.confirm',
         'classSession.cancel',

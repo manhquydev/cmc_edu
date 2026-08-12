@@ -174,7 +174,7 @@ export default function SessionDetailPage() {
   const title = session.batchCode || session.classBatchId.slice(0, 8);
   const timeRange = fmtRange(session.startTime, session.endTime);
   const shortId = session.id.slice(0, 8);
-  const statusLabel = session.isMakeup ? `${session.status} · buổi bù` : session.status;
+  const statusLabel = session.status;
 
   const overview = (
     <div className="console-detail-panel">
@@ -254,7 +254,7 @@ export default function SessionDetailPage() {
               onClick={() => {
                 if (
                   !window.confirm(
-                    'Hủy buổi này và restamp unit cho các buổi còn lại? Không tạo buổi bù.',
+                    'Hủy buổi này và restamp unit cho các buổi còn lại?',
                   )
                 ) {
                   return;
@@ -276,7 +276,7 @@ export default function SessionDetailPage() {
           <Banner
             status="success"
             title="Đã hủy buổi"
-            description={`Restamp ${cancelRestamp.data.restamped} buổi (không makeup).`}
+            description={`Restamp ${cancelRestamp.data.restamped} buổi.`}
           />
         ) : null}
       </Stack>

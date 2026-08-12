@@ -95,14 +95,19 @@ Bài tập KHÔNG mở ngay khi `published`; mở theo **tiến độ dạy th�
 
 - **Điều kiện nền:** Exercise `status = published` **và** học viên không ở lifecycle bị chặn
   (`BLOCKED_LMS_LIFECYCLE`).
-- **Tier A — mở cả lớp:** một `curriculumUnit` mở cho **toàn batch** khi **buổi học (không phải buổi
-  bù) dạy unit đó đã KẾT THÚC** — kết thúc tính theo giờ ICT (`sessionEndUtc`, UTC+7). Tức là học
+- **Tier A — mở cả lớp (đường duy nhất):** một `curriculumUnit` mở cho **toàn batch** khi **buổi học
+  dạy unit đó đã KẾT THÚC** — kết thúc tính theo giờ ICT (`sessionEndUtc`, UTC+7). Tức là học
   xong bài mới mở bài tập bài đó.
-- **Tier B — mở riêng học viên (buổi bù):** buổi **bù** (`isMakeup`) mà một học viên **có mặt/đi muộn**
-  → mở unit đó **chỉ cho học viên ấy**, KHÔNG mở cả lớp (buổi bù dạy cho một HS vắng không được mở
-  cho toàn batch).
 
-→ Quy tắc: "học tới đâu, mở bài tới đó", công bằng cho cả buổi học chính và buổi bù.
+→ Quy tắc: "học tới đâu, mở bài tới đó".
+
+> **2026-08-12 — gỡ buổi bù / Tier B.** Trước đây còn **Tier B**: buổi `isMakeup` mà HS `present`/`late`
+> mở unit **chỉ cho HS ấy** (không mở cả lớp). Đã xóa cờ/cột `isMakeup` + `makeupForSessionId`, API
+> `classSession.addMakeup`, UI "Thêm buổi bù", và nhánh open-tier Tier B. **Lý do:** buổi bù thường
+> không gán unit nhưng vẫn được đếm trong restamp (mọi buổi non-cancelled) → chiếm một vị trí, đẩy
+> lệch các buổi sau (unit 4 buổi thành 5 buổi thực); LMS vận hành thật cũng đã bỏ. HS nghỉ **vẫn
+> nhận bài về nhà** (còn trong roster); học bù thật do cơ sở xếp **ngoài hệ thống** hoặc bằng thêm
+> khung lịch tuần — **không** thêm lại buổi rời / Tier B trừ khi có quyết định sản phẩm mới.
 
 ## 5. Cổng thời gian: "Giáo viên điểm danh lúc nào" (`attendance.ts`)
 
@@ -175,7 +180,7 @@ Nghiệp vụ "ảnh lớp gửi PH" — giáo viên ghi lại buổi học, g�
 | Login học viên = SĐT PH (student) | ~~QĐ 0033~~ → đảo bởi **product-decision 2026-07-07** (xem §2): auth 2-tier, `kind='parent'` dùng email+OTP, `kind='student'` dùng SĐT PH+password |
 | Chương trình / chứng chỉ | QĐ 0008, 0021 + seed-curriculum |
 | Bài tập PDF + annotation | `schema.prisma` (Exercise/Submission) |
-| Mở bài tập theo buổi học | `lib/exercise-open.ts` (Tier A/B) |
+| Mở bài tập theo buổi học | `lib/exercise-open.ts` (Tier A only; Tier B gỡ 2026-08-12 — §4) |
 | Cổng điểm danh | `routers/attendance.ts` |
 | Nộp bài một chiều + cộng sao idempotent | `submission/router.ts` (§3, §6) |
 | Chốt nhận xét terminal + concurrency một-người-thắng | `assessment/router.ts` (§6) |

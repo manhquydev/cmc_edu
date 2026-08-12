@@ -221,7 +221,7 @@ describe('session-done-sweep (HR remediation phase 7)', () => {
   // Task B: cancel + restamp (no makeup — Plan 2 owner rule)
   // ---------------------------------------------------------------------
 
-  it('cancels a 0-present session past endTime+24h without creating makeup', async () => {
+  it('cancels a 0-present session past endTime+24h and restamps remaining units', async () => {
     const { sessionId } = await seedRealSession({
       sessionDateOnly: '2026-08-03', // Monday
       weekday: 1,
@@ -235,15 +235,9 @@ describe('session-done-sweep (HR remediation phase 7)', () => {
     expect(outcomes).toHaveLength(1);
     expect(outcomes[0]!.sessionId).toBe(sessionId);
     expect(outcomes[0]!.roomConflict).toBe(false);
-    expect(outcomes[0]!.makeupSessionId).toBeNull();
 
     const original = await testDbBypass((tx) => tx.classSession.findUniqueOrThrow({ where: { id: sessionId } }));
     expect(original.status).toBe('cancelled');
-
-    const anyMakeup = await testDbBypass((tx) =>
-      tx.classSession.findFirst({ where: { makeupForSessionId: sessionId } }),
-    );
-    expect(anyMakeup).toBeNull();
 
     const audit = await testDb().auditLog.findFirst({
       where: { action: 'worker.cancelSweep.restamp', entityId: sessionId },
@@ -297,28 +291,34 @@ describe('session-done-sweep (HR remediation phase 7)', () => {
     expect(session.status).toBe('planned');
   });
 
-  it('an ad-hoc session (no scheduleSlot) cancels with restamp path and no makeup', async () => {
+  it('an ad-hoc session (no scheduleSlot) cancels via the restamp path', async () => {
     const batch = await seedClassBatch({ facilityId: facility.id, startDate: '2026-08-01', endDate: '2026-08-31' });
-    const adHoc = await gddt.classSession.addMakeup({
-      classBatchId: batch.id,
-      sessionDate: '2026-08-03',
-      startTime: '18:00',
-      endTime: '19:30',
-    });
+    // Direct seed leaves scheduleSlotId null (ad-hoc session).
+    const adHoc = await testDbBypass((tx) =>
+      tx.classSession.create({
+        data: {
+          facilityId: facility.id,
+          classBatchId: batch.id,
+          sessionDate: new Date('2026-08-03T00:00:00.000Z'),
+          startTime: new Date('2026-08-03T11:00:00.000Z'),
+          endTime: new Date('2026-08-03T12:30:00.000Z'),
+          status: 'planned',
+        },
+      }),
+    );
 
     const now = new Date('2026-08-05T00:00:00.000Z');
     const outcomes = await runCancelSweep(testDb(), now);
 
     expect(outcomes).toHaveLength(1);
     expect(outcomes[0]!.sessionId).toBe(adHoc.id);
-    expect(outcomes[0]!.makeupSessionId).toBeNull();
     expect(outcomes[0]!.roomConflict).toBe(false);
 
     const session = await testDbBypass((tx) => tx.classSession.findUniqueOrThrow({ where: { id: adHoc.id } }));
     expect(session.status).toBe('cancelled');
   });
 
-  it('concurrency: two simultaneous sweep runs cancel exactly once and create no makeup', async () => {
+  it('concurrency: two simultaneous sweep runs cancel exactly once', async () => {
     const { sessionId } = await seedRealSession({
       sessionDateOnly: '2026-08-03',
       weekday: 1,
@@ -335,12 +335,6 @@ describe('session-done-sweep (HR remediation phase 7)', () => {
     const combined = [...outcomesA, ...outcomesB].filter((o) => o.sessionId === sessionId);
     // Exactly one of the two concurrent runs wins the conditional cancel.
     expect(combined).toHaveLength(1);
-    expect(combined[0]!.makeupSessionId).toBeNull();
-
-    const makeups = await testDbBypass((tx) =>
-      tx.classSession.findMany({ where: { makeupForSessionId: sessionId } }),
-    );
-    expect(makeups).toHaveLength(0);
 
     const original = await testDbBypass((tx) => tx.classSession.findUniqueOrThrow({ where: { id: sessionId } }));
     expect(original.status).toBe('cancelled');

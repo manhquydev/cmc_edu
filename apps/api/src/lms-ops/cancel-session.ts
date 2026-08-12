@@ -17,7 +17,6 @@ export interface CancelSessionResult {
     startTime: Date;
     endTime: Date;
     status: string;
-    isMakeup: boolean;
     curriculumUnitId: string | null;
   };
   restamped: number;
@@ -157,7 +156,6 @@ export async function cancelSessionWithRestamp(
       startTime: updated.startTime,
       endTime: updated.endTime,
       status: updated.status,
-      isMakeup: updated.isMakeup,
       curriculumUnitId: updated.curriculumUnitId,
     },
     restamped,

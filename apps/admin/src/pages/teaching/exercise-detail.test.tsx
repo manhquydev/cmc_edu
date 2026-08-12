@@ -22,7 +22,7 @@ const { EXERCISE_ID, EXERCISE } = vi.hoisted(() => {
       curriculumUnit: {
         id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
         program: 'English',
-        level: 1,
+        level: 'U2',
         monthIndex: 3,
         unitType: 'core',
         title: 'Bài 3',

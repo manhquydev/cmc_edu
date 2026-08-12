@@ -25,7 +25,7 @@ const { COURSES, TEACHERS, CLASSES, UNITS, navigateSpy } = vi.hoisted(() => ({
         program: 'UCREA',
         title: 'Unit 1',
         orderGlobal: 101,
-        level: 1,
+        level: 'U2',
         monthIndex: 1,
         unitType: 'core',
       },

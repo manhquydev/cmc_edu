@@ -44,7 +44,7 @@ người*. Đây là chỗ agent tạo giá trị: xử hết ca thường, ch�
 | **Tuyển sinh** | Thu lead, làm giàu, tạo opp O1, nhắc lịch hẹn | Tư vấn/chốt (quan hệ) · duyệt tiền > ngưỡng | Giám sát tỉ lệ chuyển đổi bất thường |
 | **Thu học phí → tài khoản** | Sinh phiếu nháp, provisioning, gửi email | Duyệt phiếu > ngưỡng (cổng tiền) | **Đối soát phiếu tự-duyệt** (xem §5.2) |
 | **Chấm công → lương** | Tính phạt, gộp payslip, nhắc chốt | Miễn/giảm phạt (override giám đốc) | Phát hiện payslip lệch bất thường |
-| **Xếp lịch/lớp** | Sinh buổi học, buổi bù, nhắc GV | Xếp GV vào lớp nhạy cảm | Giám sát tải lớp/GV |
+| **Xếp lịch/lớp** | Sinh buổi học theo khung lịch tuần, nhắc GV | Xếp GV vào lớp nhạy cảm | Giám sát tải lớp/GV |
 | **Đánh giá học sinh** | Soạn *nháp* nhận xét (agent đã có) | **GV chốt nhận xét** (an toàn/đúng về trẻ) | — |
 | **CSKH/phụ huynh** | Trả lời FAQ, nhắc lịch, gửi kết quả | Xử PH bức xúc / khiếu nại | Giám sát chất lượng hội thoại |
 | **Hoàn tiền** | Ghi nhận, tính cap | Duyệt hoàn > ngưỡng | Giám sát tần suất hoàn bất thường |
@@ -115,7 +115,7 @@ phiếu "tạo & tự duyệt" vượt ngưỡng, hoàn tiền bất thường, 
 Không thay cổng tiền; nó là **lớp detective control** mà tổ chức nhỏ vốn thiếu.
 
 ### 5.3. Scheduling / Ops Agent
-Auto: sinh buổi học, buổi bù, phát hiện xung đột phòng/GV, nhắc điểm danh. HITL: xếp GV vào ca
+Auto: sinh buổi học theo khung lịch tuần (không có buổi bù — gỡ 2026-08-12), phát hiện xung đột phòng/GV, nhắc điểm danh. HITL: xếp GV vào ca
 nhạy cảm.
 
 ### 5.4. Communication Agent (email + Zalo)

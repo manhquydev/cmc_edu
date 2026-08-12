@@ -178,12 +178,11 @@ test.describe('attendance + grading + star balance', () => {
       facilityId,
     });
 
-    const session = await gddt.classSession.addMakeup.mutate({
-      classBatchId,
-      sessionDate: '2026-09-01',
-      startTime: '11:00',
-      endTime: '12:00',
-    });
+    // Weekly sessions already materialised by classBatch.create in provision.
+    const sessions = await gddt.classSession.list.query({ classBatchId });
+    const planned = sessions.filter((s) => s.status === 'planned');
+    expect(planned.length).toBeGreaterThanOrEqual(1);
+    const session = planned[0]!;
     expect(session.status).toBe('planned');
 
     const { enrollmentId } = await seedActiveEnrollment({ facilityId, classBatchId });
@@ -252,12 +251,11 @@ test.describe('attendance + grading + star balance', () => {
       facilityId,
     });
 
-    const session = await gddt.classSession.addMakeup.mutate({
-      classBatchId,
-      sessionDate: '2026-09-02',
-      startTime: '11:00',
-      endTime: '12:00',
-    });
+    // Pick a different weekly planned session than test 1 (index 0).
+    const sessions = await gddt.classSession.list.query({ classBatchId });
+    const planned = sessions.filter((s) => s.status === 'planned');
+    expect(planned.length).toBeGreaterThanOrEqual(2);
+    const session = planned[1]!;
     await gddt.classSession.cancel.mutate({ sessionId: session.id });
 
     const { enrollmentId } = await seedActiveEnrollment({ facilityId, classBatchId });

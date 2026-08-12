@@ -1,13 +1,13 @@
 #!/usr/bin/env tsx
-// Ensures the global CurriculumUnit catalog has the minimal UCREA set used by
-// exercise.create / classSession.assignUnit (same rows as packages/db/prisma/seed.mjs).
+// Ensures the global CurriculumUnit catalog matches the framework CSV
+// (packages/db/prisma/data/CMC_EDU_Khung_Chuong_Trinh.csv → 96 units).
 //
 // local-sim demo (seed-local-sim-demo.ts) never ran prisma seed — leaving
 // CurriculumUnit empty and blocking the entire grading path. Call this from
 // host against the published Postgres port, or run after migrate on any env.
 //
 // Safety:
-//   - Idempotent: no-op when any CurriculumUnit row exists.
+//   - Idempotent upsert on (program, orderGlobal).
 //   - Requires LOCAL_SIM_SEED_ALLOW=1 OR SYNTH_SEED_ALLOW=1 OR ENSURE_CURRICULUM_ALLOW=1
 //     so a stray run against an unexpected DB is fail-closed.
 //
@@ -16,6 +16,7 @@
 //     npx tsx scripts/ensure-curriculum-units.ts
 
 import { createPrismaClientWithUrl } from '@cmc/db';
+import { importCurriculumUnits } from '../packages/db/prisma/import-curriculum-units.mjs';
 
 function resolveDatabaseUrl(): string {
   const raw =
@@ -45,73 +46,15 @@ function allowGate(): void {
   );
 }
 
-/** Minimal UCREA axis covering LMS_DEFAULT_UNIT_COUNT_ON_RECEIPT (default 4). */
-const UCREA_MINIMAL: Array<{
-  program: 'UCREA';
-  level: number;
-  monthIndex: number;
-  unitType: 'LESSON' | 'REVIEW';
-  title: string;
-  orderGlobal: number;
-}> = [
-  {
-    program: 'UCREA',
-    level: 1,
-    monthIndex: 1,
-    unitType: 'LESSON',
-    title: 'Bài 1: Làm quen',
-    orderGlobal: 1,
-  },
-  {
-    program: 'UCREA',
-    level: 1,
-    monthIndex: 1,
-    unitType: 'LESSON',
-    title: 'Bài 2',
-    orderGlobal: 2,
-  },
-  {
-    program: 'UCREA',
-    level: 1,
-    monthIndex: 1,
-    unitType: 'LESSON',
-    title: 'Bài 3',
-    orderGlobal: 3,
-  },
-  {
-    program: 'UCREA',
-    level: 1,
-    monthIndex: 1,
-    unitType: 'LESSON',
-    title: 'Bài 4',
-    orderGlobal: 4,
-  },
-];
-
 async function main(): Promise<void> {
   allowGate();
   const url = resolveDatabaseUrl();
   const db = createPrismaClientWithUrl(url);
   try {
-    // Upsert by (program, orderGlobal) so a partial catalog (e.g. only 1–2)
-    // is extended to cover default receipt grant of 4 units.
-    let created = 0;
-    for (const row of UCREA_MINIMAL) {
-      const existing = await db.curriculumUnit.findUnique({
-        where: {
-          program_orderGlobal: { program: row.program, orderGlobal: row.orderGlobal },
-        },
-        select: { id: true },
-      });
-      if (existing) continue;
-      await db.curriculumUnit.create({ data: row });
-      created += 1;
-    }
-    const total = await db.curriculumUnit.count({ where: { program: 'UCREA' } });
+    const result = await importCurriculumUnits(db);
     console.log(
-      created > 0
-        ? `Seeded ${created} CurriculumUnit rows (UCREA total ${total}).`
-        : `CurriculumUnit UCREA already covers 1–4 (total ${total}) — skip.`,
+      `CurriculumUnit ensure: created=${result.created} updated=${result.updated} ` +
+        `total=${result.total} (UCREA=${result.counts.UCREA} BRIGHT_IG=${result.counts.BRIGHT_IG} BLACK_HOLE=${result.counts.BLACK_HOLE}).`,
     );
   } finally {
     await db.$disconnect();

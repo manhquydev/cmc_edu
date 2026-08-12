@@ -4,8 +4,11 @@
 import type { Prisma, PrismaClient } from '@cmc/db';
 import { withFacility } from '@cmc/db';
 import {
+  rangeEndpointsOnAxis,
   resolvePackageGrantRange,
+  toProgramUnitAxis,
   validateNewRange,
+  type ProgramUnitAxis,
   type UnitRange,
 } from '@cmc/domain-lms';
 import { badRequest, notFound } from '../errors.js';
@@ -29,16 +32,70 @@ export async function loadProgramUnitOrders(
   return new Map(units.map((u) => [u.orderGlobal, u.id]));
 }
 
+/** Ascending real order_global spine for a program (gap-aware progression). */
+export async function loadProgramUnitAxis(
+  tx: Tx,
+  program: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE',
+): Promise<ProgramUnitAxis> {
+  const unitOrders = await loadProgramUnitOrders(tx, program);
+  return toProgramUnitAxis(unitOrders.keys());
+}
+
+/** Endpoints must exist on the program axis; integer holes between them are OK. */
+export function assertRangeOnProgram(
+  range: UnitRange,
+  unitOrders: Map<number, string>,
+  program: string,
+): void {
+  const axis = toProgramUnitAxis(unitOrders.keys());
+  if (!rangeEndpointsOnAxis(range, axis)) {
+    throw badRequest(
+      `orderGlobal range [${range.fromOrderGlobal}..${range.toOrderGlobal}] ` +
+        `is not on program ${program} (endpoints must be real units; gaps between are allowed).`,
+    );
+  }
+}
+
+/**
+ * Class current unit order on the program axis.
+ *
+ * Prefer `currentUnitId` when set and still present. If neo is missing or the
+ * unit row is gone (corrupt / pre-neo batch), fall back to the **first real
+ * unit of that program** — never hardcode `1` (Bright I.G starts at 37,
+ * Black Hole at 61). Empty program catalog → clear BAD_REQUEST.
+ *
+ * Decision: recover with axis[0] rather than hard-fail on null neo so receipt
+ * grants still resolve for rare broken rows; createClassWithUnits always sets
+ * neo so this path is exceptional. Empty axis is non-recoverable.
+ */
 export async function resolveClassCurrentOrder(
   tx: Tx,
-  classBatch: { currentUnitId: string | null },
+  classBatch: {
+    currentUnitId: string | null;
+    program: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE';
+  },
 ): Promise<number> {
-  if (!classBatch.currentUnitId) return 1;
-  const cu = await tx.curriculumUnit.findUnique({
-    where: { id: classBatch.currentUnitId },
+  if (classBatch.currentUnitId) {
+    const cu = await tx.curriculumUnit.findUnique({
+      where: { id: classBatch.currentUnitId },
+      select: { orderGlobal: true, program: true },
+    });
+    if (cu && cu.program === classBatch.program) {
+      return cu.orderGlobal;
+    }
+  }
+
+  const first = await tx.curriculumUnit.findFirst({
+    where: { program: classBatch.program },
+    orderBy: { orderGlobal: 'asc' },
     select: { orderGlobal: true },
   });
-  return cu?.orderGlobal ?? 1;
+  if (!first) {
+    throw badRequest(
+      `Program ${classBatch.program} has no CurriculumUnit rows; cannot resolve class current unit.`,
+    );
+  }
+  return first.orderGlobal;
 }
 
 export function defaultUnitCountFromEnv(): number {
@@ -123,13 +180,7 @@ export async function grantRangeOnEnrollment(
   }
 
   const unitOrders = await loadProgramUnitOrders(tx, enrollment.classBatch.program);
-  for (let o = opts.range.fromOrderGlobal; o <= opts.range.toOrderGlobal; o++) {
-    if (!unitOrders.has(o)) {
-      throw badRequest(
-        `orderGlobal ${o} is not in program ${enrollment.classBatch.program}.`,
-      );
-    }
-  }
+  assertRangeOnProgram(opts.range, unitOrders, enrollment.classBatch.program);
 
   await tx.$queryRawUnsafe(
     `SELECT id FROM "Enrollment" WHERE id = $1 AND "facilityId" = $2 FOR UPDATE`,
@@ -308,11 +359,23 @@ export async function grantUnitsFromReceipt(
     if (!enrollment) throw notFound('Enrollment not found.');
 
     const currentOrder = await resolveClassCurrentOrder(tx, enrollment.classBatch);
-    const range = resolvePackageGrantRange({
-      currentOrder,
-      existingRanges: enrollment.unitRanges,
-      unitCount,
-    });
+    const programAxis = await loadProgramUnitAxis(tx, enrollment.classBatch.program);
+    if (programAxis.length === 0) {
+      throw badRequest(
+        `Program ${enrollment.classBatch.program} has no CurriculumUnit rows; cannot grant units.`,
+      );
+    }
+    let range: UnitRange;
+    try {
+      range = resolvePackageGrantRange({
+        currentOrder,
+        existingRanges: enrollment.unitRanges,
+        unitCount,
+        programAxis,
+      });
+    } catch (err) {
+      throw badRequest(String(err instanceof Error ? err.message : err));
+    }
 
     try {
       const granted = await grantRangeOnEnrollment(tx, {

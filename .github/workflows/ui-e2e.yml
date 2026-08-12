@@ -188,16 +188,15 @@ jobs:
       # Business-correctness gate: a money/state flow must not silently regress
       # from `verified-correct` back to `reachable-only` (green but its number
       # was never checked). `acceptance:report` regenerates the ledger from the
-      # run above (`|| true`: its own untriaged-orphan exit is a separate ledger
-      # concern, not this gate — it still writes verification.json before
-      # exiting). `business:verify --strict` then fails the job iff any
-      # money/state-critical flow is only reachable-only. Same non-bypassable
-      # rationale as promoting ui-e2e to blocking (solo maintainer, AI-generated
-      # code, no human-QA fallback): the tier that proves the NUMBERS are right,
-      # not just that the screen opened, must gate merges too.
+      # run above and FAILS on untriaged tRPC orphans (orphan ratchet — new
+      # procedures must be claimed on a flow or DOCUMENTED_GAPS). It still
+      # writes verification.json before exiting. `business:verify --strict`
+      # then fails the job iff any money/state-critical flow is only
+      # reachable-only. Same non-bypassable rationale as promoting ui-e2e to
+      # blocking (solo maintainer, AI-generated code, no human-QA fallback).
       - name: Business-correctness gate (money/state flows must be verified-correct)
         run: |
-          pnpm acceptance:report || true
+          pnpm acceptance:report
           pnpm business:verify --strict
 
       # The artifact is the ONLY sanctioned source for the acceptance ledger of

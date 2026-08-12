@@ -3,7 +3,12 @@
 
 import { z } from 'zod';
 import { withFacility, type Prisma } from '@cmc/db';
-import { validateNewRange } from '@cmc/domain-lms';
+import {
+  previousOrderOnAxis,
+  rangeEndpointsOnAxis,
+  toProgramUnitAxis,
+  validateNewRange,
+} from '@cmc/domain-lms';
 import {
   compareDateOnly,
   ictDateOnlyOf,
@@ -75,6 +80,21 @@ async function loadProgramUnitOrders(
     select: { id: true, orderGlobal: true },
   });
   return new Map(units.map((u) => [u.orderGlobal, u.id]));
+}
+
+/** Endpoints must be real units; integer holes between labels are allowed (Bright I.G). */
+function assertRangeEndpointsOnProgram(
+  range: { fromOrderGlobal: number; toOrderGlobal: number },
+  unitOrders: Map<number, string>,
+  program: string,
+): void {
+  const axis = toProgramUnitAxis(unitOrders.keys());
+  if (!rangeEndpointsOnAxis(range, axis)) {
+    throw badRequest(
+      `orderGlobal range [${range.fromOrderGlobal}..${range.toOrderGlobal}] ` +
+        `is not on program ${program} (endpoints must be real units; gaps between are allowed).`,
+    );
+  }
 }
 
 export const lmsOpsRouter = router({
@@ -247,11 +267,7 @@ export const lmsOpsRouter = router({
         }
 
         const unitOrders = await loadProgramUnitOrders(tx, enrollment.classBatch.program);
-        for (let o = range.fromOrderGlobal; o <= range.toOrderGlobal; o++) {
-          if (!unitOrders.has(o)) {
-            throw badRequest(`orderGlobal ${o} is not in program ${enrollment.classBatch.program}.`);
-          }
-        }
+        assertRangeEndpointsOnProgram(range, unitOrders, enrollment.classBatch.program);
 
         for (const existing of enrollment.unitRanges) {
           if (rangesOverlap(range, existing)) {
@@ -441,11 +457,7 @@ export const lmsOpsRouter = router({
         );
 
         const unitOrders = await loadProgramUnitOrders(tx, enrollment.classBatch.program);
-        for (let o = range.fromOrderGlobal; o <= range.toOrderGlobal; o++) {
-          if (!unitOrders.has(o)) {
-            throw badRequest(`orderGlobal ${o} is not in program ${enrollment.classBatch.program}.`);
-          }
-        }
+        assertRangeEndpointsOnProgram(range, unitOrders, enrollment.classBatch.program);
         const freshRanges = await tx.enrollmentUnitRange.findMany({
           where: { enrollmentId: enrollment.id },
           select: { fromOrderGlobal: true, toOrderGlobal: true },
@@ -494,7 +506,7 @@ export const lmsOpsRouter = router({
         const enrollment = await tx.enrollment.findFirst({
           where: { id: input.enrollmentId, facilityId },
           include: {
-            classBatch: { select: { currentUnitId: true } },
+            classBatch: { select: { currentUnitId: true, program: true } },
           },
         });
         if (!enrollment) throw notFound('Enrollment not found.');
@@ -522,6 +534,11 @@ export const lmsOpsRouter = router({
           facilityId,
         );
 
+        const unitOrders = await loadProgramUnitOrders(tx, enrollment.classBatch.program);
+        const programAxis = toProgramUnitAxis(unitOrders.keys());
+        // Last real unit kept after cut: strictly before fromOrderGlobal (not label-1).
+        const keepTo = previousOrderOnAxis(programAxis, input.fromOrderGlobal);
+
         const ranges = await tx.enrollmentUnitRange.findMany({
           where: { enrollmentId: enrollment.id },
         });
@@ -534,10 +551,15 @@ export const lmsOpsRouter = router({
             touched += 1;
             continue;
           }
-          // Truncate: keep [from, fromOrderGlobal-1]
+          // Truncate to last real unit before the cut (gaps are not units).
+          if (keepTo == null || keepTo < r.fromOrderGlobal) {
+            await tx.enrollmentUnitRange.delete({ where: { id: r.id } });
+            touched += 1;
+            continue;
+          }
           await tx.enrollmentUnitRange.update({
             where: { id: r.id },
-            data: { toOrderGlobal: input.fromOrderGlobal - 1 },
+            data: { toOrderGlobal: keepTo },
           });
           touched += 1;
         }

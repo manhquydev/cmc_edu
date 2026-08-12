@@ -219,8 +219,8 @@ Nguyên tắc: **FAIL khi vai CÓ quyền mà không tìm được lối vào.**
 
 | # | Luồng | Màn của luồng | Tiền đề (vai khác phải làm trước) | Người test | Giờ | Kết quả |
 |---|---|---|---|---|---|---|
-| P2-03 | Mở bài tập theo tiến độ học | `/student/home`, `/student/exercise/:exerciseId` | | | | ☐ PASS ☐ FAIL ☐ N/A |
-| P2-05 | Làm bài trên PDF & nộp | `/student/exercise/:exerciseId` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P2-03 | Mở bài tập theo lần phát + roster | `/student/home`, `/student/exercise/:sessionExerciseId` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| P2-05 | Làm bài trên PDF & nộp | `/student/exercise/:sessionExerciseId` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | P4-01 | Đổi quà bằng sao | `/admin/engagement/rewards`, `/student/gifts` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 
 ### Super admin (`super_admin`) — 5 luồng

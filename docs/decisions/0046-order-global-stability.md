@@ -33,3 +33,5 @@ Sold unit ranges store **integers** (`fromOrderGlobal`..`toOrderGlobal`). Shifti
 ## Consequences
 
 Foundation migration backfills existing rows by level/monthIndex order. Product CSV import (later) must assert stability or remap.
+
+> **2026-08-12:** CSV khung chương trình **đã nạp** (`packages/db/prisma/data/CMC_EDU_Khung_Chuong_Trinh.csv`, 96 unit). Điểm 4 (contiguous 1..N) chỉ còn đúng cho seed thử nghiệm. `CurriculumUnit.level` là **chuỗi mã cấp**, không phải thứ hạng số để backfill. Bất biến cấm đánh số lại dưới dải đã bán **không đổi**.

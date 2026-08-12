@@ -99,11 +99,11 @@ vụ tiền** nên phần này **không có bản mẫu để chép** — phải
 
 ---
 
-## Điều kiện tiên quyết chưa có
+## Điều kiện tiên quyết
 
 | # | Việc | Chặn đợt | Ai quyết |
 |---|------|----------|----------|
-| 1 | **Mốc đóng băng `cmc-lms`** (commit + ngày) | 2, 3 | Chủ hệ thống |
+| 1 | ~~Mốc đóng băng `cmc-lms`~~ — **ĐÃ CHỐT 12/08: commit `031d193`** (ngày commit 2026-08-09); `develop` và `main` cùng commit, không phân kỳ. Từ 12/08 ngừng thêm tính năng mới, vẫn sửa lỗi; bản chuẩn port là `031d193` | ~~2, 3~~ | ✅ |
 | 2 | ~~Quy tắc `level`~~ — **ĐÃ CHỐT 12/08: đổi kiểu cột `level` sang chuỗi**, giữ nguyên bản khung chương trình | ~~1~~ | ✅ |
 | 3 | Ánh xạ `blocked_lms` → giá trị nào trong bộ 6 | 1 | Sản phẩm (đề xuất `on_hold`) |
 | 3b | **Tiến trình unit phải đi theo unit có thật, không cộng số nguyên** — Bright I.G thiếu 5 số nên 4 buổi liên tiếp mất unit và roster rỗng. Xem phần "Phát hiện khi thi công" trong `phase-01` | **2, 4, 5 — chặn Bright I.G** | Sản phẩm + kỹ thuật |
@@ -112,12 +112,14 @@ vụ tiền** nên phần này **không có bản mẫu để chép** — phải
 | 6 | Chốt: một khoá quyền gộp cấp/thu/gỡ, hay tách khoá | 4 | Sản phẩm |
 
 **Đợt 1 chỉ còn chờ mục 3.** Mục 2 đã chốt ⇒ **Đợt 1 bắt đầu được ngay.**
-Mục 1 chặn từ Đợt 2.
+Mục 1 đã chốt ⇒ **Đợt 2 và Đợt 3 không còn bị chặn bởi mốc đóng băng.**
+Đợt 2 / 4 / 5 với Bright I.G vẫn bị chặn bởi mục 3b. Đợt 4 còn chờ mục 4, 5, 6.
 
 ### Quyết định đã chốt 2026-08-12 (ghi để không hỏi lại)
 
 | Nội dung | Quyết định |
 |----------|-----------|
+| Mốc đóng băng `cmc-lms` | **Commit `031d193`** (ngày commit 2026-08-09); `develop` = `main`, không phân kỳ. Chốt 12/08: ngừng tính năng mới, vẫn sửa lỗi; bản chuẩn port là `031d193` |
 | Cột `level` của khung chương trình | **Đổi sang chuỗi**, giữ nguyên bản CSV (`U2`, `J`, `G1`…) |
 | Sale thương lượng giá | **Được, nhưng phải xin duyệt** — cần luồng xin–duyệt |
 | Định giá | Đơn giá **theo từng unit** (sửa hàng loạt được) + **gói theo dải unit** có giá riêng |
@@ -145,7 +147,7 @@ Toàn chương trình:
 
 | # | Rủi ro | Giảm thiểu |
 |---|--------|-----------|
-| R1 | Mục tiêu di động — `cmc-lms` vẫn tiến hóa | Tiên quyết #1 (đóng băng) |
+| R1 | Mục tiêu di động — `cmc-lms` vẫn tiến hóa | **ĐÃ CHỐT 12/08:** đóng băng tại `031d193`; tiên quyết #1 hết chặn |
 | R2 | Đợt 3 phá bộ chứng cứ nghiệm thu (67 file, 25 test) | Đợt 3 đứng riêng, có mốc viết lại journey trong chính đợt |
 | R3 | Port lại thứ `cmc-lms` đã cố ý gỡ | Rào chắn 1 |
 | R4 | Copy service `cmc-lms` làm thủng RLS/RBAC/audit | Rào chắn 2 |

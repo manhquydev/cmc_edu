@@ -15,6 +15,8 @@
 > **Updated 2026-08-07 (FilterBar + list search + ui-e2e):** G1 **FilterBar** is the list filter host on ControlBar (debounced text; select `hasClear` for default-domain filters). Optional tRPC **`search`** on major list procedures (users, facilities, courses, classBatch, pickList, grading queue, …). ListPage FilterBar adoption ~**20/23** (holdouts: leaderboard, class-placement, refund). **CI:** `typecheck-and-test` + `ui-e2e` green on `develop` PR #75 (`eaa223a`). **Acceptance re-measure** @ same SHA (CI journey artifact, `gitDirty:false`): **31/38 proven**, 7 `no-ui-path` — no journey regression from FilterBar ship. Evidence: `plans/reports/ship-20260807-filterbar-search.md`, `plans/reports/cook-260807-0902-design3-validation-acceptance.md`. Still open: human visual smoke; 6 untriaged API orphans (pre-existing tool exit 1).
 >
 > **Updated 2026-08-12 (truth sync — post P1 wave / PR #110 + hardening):** Required CI on **develop and main** (branch-protected): **`typecheck-and-test` + `ui-e2e`** both block merge (since 2026-08-02; not advisory). Acceptance ledger is a **measured snapshot** — live source is always `pnpm acceptance:report` + latest CI `ui-e2e` journey artifact. Snapshot after P1-08 journey + form-depth/LMS-foundation wave: **36/42 flows proven** (was 31/38 in older photos; manifest/journey count evolved). Residual dual-HITL UI: teaching exercises list only (GAP #3). See `plans/reports/scout-260812-1054-develop-consolidated-state.md` and `plans/reports/INDEX-live-260812.md`.
+>
+> **Updated 2026-08-12 (chiều — PR #117/#118/#119 + đóng băng `cmc-lms`):** Khung chương trình thật **96 unit** (CSV; `CurriculumUnit.level` = chuỗi). Buổi bù đã gỡ. Mở bài = `SessionExercise` đã phát + `onRoster` (dải unit bắt buộc). Hai cờ env `LMS_OPEN_TIER_ENABLED` / `LMS_ENTITLEMENT_GATE` **đã xóa khỏi code**. Bài nộp khóa `(sessionExerciseId, studentId)`. Repo chị `cmc-lms` **đóng băng** tại commit **`031d193`** (ngày commit 2026-08-09; chốt 12/08): vẫn sửa lỗi vận hành, **không** thêm tính năng mới; bản chuẩn để port là `031d193`. Không tắt `cmc-lms` — hệ cũ vẫn phục vụ trung tâm cho tới khi hệ mới đủ tốt để thay.
 
 ---
 
@@ -80,7 +82,7 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 
 **apps/lms/** — LMS SPA, mobile-first
 - Parent sessions (`kind:'parent'`): email-OTP login, child picker, session evidence (consent-gated photos), report card, reset child password, consent settings
-- Student sessions (`kind:'student'`): phone+password login, `mustChangePassword` gate, exercises (open-tier), PDF annotation submit, star balance + gift redemption
+- Student sessions (`kind:'student'`): phone+password login, `mustChangePassword` gate, exercises (mở khi đã phát `SessionExercise` + `onRoster`; nộp theo `sessionExerciseId`), PDF annotation submit, star balance + gift redemption
 - **Kind guards:** `ParentOnly`/`StudentOnly` route wrappers in `kind-guard.tsx` — redirect to `/login` on wrong kind; backend `requireLmsParent`/`requireLmsStudent` re-gates every procedure
 - Session: `parseLmsToken` (base64url, unsigned placeholder — P0-debt: add HMAC signing)
 - `x-dev-lms-user` header (dev auth, `import.meta.env.DEV`-gated `DevHeaderWriter`)
@@ -474,7 +476,7 @@ if (!canApprove) throw forbidden('Insufficient role for approval.');
 |-----------|--------|--------|--------|
 | **Real OAuth2/SSO** | Stub (fail-closed) | Auth only; no tenant isolation risk | P2+ |
 | **Email/SMS Transport** | ConsoleTransport (dev); Brevo/Graph impl ready | Parents don't receive emails until env wired | Comms phase |
-| **LMS Frontend** | **Shipped** (`apps/lms` SPA: parent OTP + student password, exercises, gifts, parent evidence/report) | Not a greenfield; residual: unit-range UX, full teaching dual-gate for homework flag, Brevo OTP ops | Evolve parity with foundation ADR 0045 |
+| **LMS Frontend** | **Shipped** (`apps/lms` SPA: parent OTP + student password, exercises, gifts, parent evidence/report) | Not a greenfield; residual: unit-range UX, Brevo OTP ops. Homework open = `SessionExercise` + `onRoster` (PR #118; **không** còn cờ `LMS_*`). Sister repo `cmc-lms` **đóng băng** 2026-08-12 tại `031d193` — chỉ sửa lỗi, không thêm tính năng | Teaching tiếp ở monorepo; port từ mốc đóng băng `cmc-lms` |
 | **Admin Dashboard** | Facility management built (PR #34) | Super-admin CRUD + audit log viewer live | Complete (M0) |
 | **MCP Server SDK** | Skeleton (stub comment) | Protocol/tool metadata; real transport TBD | Agent phase (TBD) |
 | **LLM Client** | Built & tested (packages/llm) | OpenAI-compatible client + PII guard | Complete (M0) |

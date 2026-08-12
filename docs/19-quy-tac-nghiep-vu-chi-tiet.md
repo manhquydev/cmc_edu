@@ -10,8 +10,9 @@
 ## 1. Hệ thống chương trình học (Curriculum)
 
 - **Program (enum):** `UCREA`, `BRIGHT_IG`, `BLACK_HOLE`.
-- **Cấu trúc cấp độ × tháng** (theo seed framework): UCREA = 3 cấp × 12 tháng; Bright I.G. = 6 cấp ×
-  4 tháng; Black Hole theo charter chương trình.
+- **Cấu trúc cấp độ × tháng** (catalog thật 2026-08-12, 96 unit từ CSV): UCREA = 3 cấp × 12 tháng
+  (36); Bright I.G. = 6 cấp × **3 unit** (18 — mã `J,C,Q,T,U,W`); Black Hole = 42 unit (`B/G/P/R`).
+  `CurriculumUnit.level` là **chuỗi mã cấp**, không phải số thứ tự.
 - **CurriculumUnit:** đơn vị bài học, `UnitType` = `LESSON` | `REVIEW`. Bảng **global (không RLS)**
   — chương trình dùng chung toàn hệ (QĐ 0021).
 - **Exercise gắn CurriculumUnit:** mỗi unit có bài tập theo `type`; ràng buộc **unique
@@ -63,7 +64,8 @@
   (mặc định 10 sao).
 - `status`: `draft` → **`published`** → `closed`. **`published` = mở cho học viên** (§4).
 
-**Submission** (bài làm của học viên, 1 bản/`[exerciseId, studentId]`):
+**Submission** (bài làm của học viên, 1 bản/`[sessionExerciseId, studentId]` — mỗi **lần phát**
+một bản; học lại unit / phát lại trên buổi khác = nộp độc lập; *2026-08-12, PR #118*):
 - Học viên làm **trên chính file PDF**: nét vẽ/tương tác lưu ở **`annotationLayer` (JSON)** chồng
   lên PDF gốc; kèm `answerText` (nếu có). `version` tăng theo lần lưu.
 - `status`: `draft` (đang làm, lưu nháp) → **`submitted`** (nộp) → **`graded`** (GV chấm).
@@ -89,25 +91,29 @@ flowchart LR
 **Ghi chú kỹ thuật (nợ TL3):** PDF gốc + submission blob hiện local-disk; v2 chuyển object store
 + backup off-box. Annotation lưu dạng JSON (layer) — không sửa PDF gốc, giữ được bản gốc để chấm.
 
-## 4. Cổng thời gian: "Bài tập mở lúc nào" (`lib/exercise-open.ts`)
+## 4. Cổng thời gian: "Bài tập mở lúc nào" (`apps/api/src/exercise/open-tier.ts`)
 
-Bài tập KHÔNG mở ngay khi `published`; mở theo **tiến độ dạy thực tế**:
+Bài tập KHÔNG mở ngay khi `published`; mở theo **lần phát trên buổi** + roster:
 
 - **Điều kiện nền:** Exercise `status = published` **và** học viên không ở lifecycle bị chặn
   (`BLOCKED_LMS_LIFECYCLE`).
-- **Tier A — mở cả lớp (đường duy nhất):** một `curriculumUnit` mở cho **toàn batch** khi **buổi học
-  dạy unit đó đã KẾT THÚC** — kết thúc tính theo giờ ICT (`sessionEndUtc`, UTC+7). Tức là học
-  xong bài mới mở bài tập bài đó.
+- **Đường duy nhất (2026-08-12, PR #118):** bài mở khi đã được phát trên buổi chưa hủy
+  (`SessionExercise`) **và** học sinh có trên roster dual-gate của buổi đó (`onRoster`: enrollment
+  `active` + `EnrollmentUnitRange` phủ unit của buổi). Kiểm dải unit là bắt buộc — không còn cờ
+  env. Cùng một `Exercise` phát trên hai buổi = hai chỗ mở / hai bài nộp độc lập.
 
-→ Quy tắc: "học tới đâu, mở bài tới đó".
+→ Quy tắc: "phát bài trên buổi nào, nộp bài buổi đó".
 
-> **2026-08-12 — gỡ buổi bù / Tier B.** Trước đây còn **Tier B**: buổi `isMakeup` mà HS `present`/`late`
-> mở unit **chỉ cho HS ấy** (không mở cả lớp). Đã xóa cờ/cột `isMakeup` + `makeupForSessionId`, API
-> `classSession.addMakeup`, UI "Thêm buổi bù", và nhánh open-tier Tier B. **Lý do:** buổi bù thường
-> không gán unit nhưng vẫn được đếm trong restamp (mọi buổi non-cancelled) → chiếm một vị trí, đẩy
-> lệch các buổi sau (unit 4 buổi thành 5 buổi thực); LMS vận hành thật cũng đã bỏ. HS nghỉ **vẫn
-> nhận bài về nhà** (còn trong roster); học bù thật do cơ sở xếp **ngoài hệ thống** hoặc bằng thêm
-> khung lịch tuần — **không** thêm lại buổi rời / Tier B trừ khi có quyết định sản phẩm mới.
+> **2026-08-12 — gỡ buổi bù / Tier B, rồi gỡ luôn Tier A + hai cờ env (PR #118).** Trước đây còn
+> **Tier B**: buổi `isMakeup` mà HS `present`/`late` mở unit **chỉ cho HS ấy**. Đã xóa cờ/cột
+> `isMakeup` + `makeupForSessionId`, API `classSession.addMakeup`, UI "Thêm buổi bù". **Sau đó**
+> gỡ luôn **Tier A** (mở cả lớp khi buổi dạy unit kết thúc theo giờ ICT) cùng hai cờ
+> `LMS_OPEN_TIER_ENABLED` / `LMS_ENTITLEMENT_GATE` — chúng **không còn tồn tại trong code**.
+> **Lý do gỡ bù:** buổi bù thường không gán unit nhưng vẫn được đếm trong restamp → lệch 4 buổi
+> thành 5 buổi thực. **Lý do gỡ Tier A:** một đường mở (delivery + roster) thay hai tầng song
+> song. HS nghỉ **vẫn nhận bài về nhà** nếu còn trên roster của buổi đã phát; học bù thật do cơ
+> sở xếp **ngoài hệ thống** hoặc bằng thêm khung lịch tuần — **không** thêm lại buổi rời / Tier
+> A/B / hai cờ env trừ khi có quyết định sản phẩm mới.
 
 ## 5. Cổng thời gian: "Giáo viên điểm danh lúc nào" (`attendance.ts`)
 
@@ -178,9 +184,9 @@ Nghiệp vụ "ảnh lớp gửi PH" — giáo viên ghi lại buổi học, g�
 | Mã lớp | QĐ 0036 + `nextBatchCode()` |
 | Mã nhân viên / phiếu / OTP | `services/employee-code.ts`, `receipt-code`, code |
 | Login học viên = SĐT PH (student) | ~~QĐ 0033~~ → đảo bởi **product-decision 2026-07-07** (xem §2): auth 2-tier, `kind='parent'` dùng email+OTP, `kind='student'` dùng SĐT PH+password |
-| Chương trình / chứng chỉ | QĐ 0008, 0021 + seed-curriculum |
-| Bài tập PDF + annotation | `schema.prisma` (Exercise/Submission) |
-| Mở bài tập theo buổi học | `lib/exercise-open.ts` (Tier A only; Tier B gỡ 2026-08-12 — §4) |
+| Chương trình / chứng chỉ | QĐ 0008, 0021 + CSV `CMC_EDU_Khung_Chuong_Trinh.csv` (96 unit; 2026-08-12) |
+| Bài tập PDF + annotation | `schema.prisma` (Exercise / SessionExercise / Submission) |
+| Mở bài tập theo lần phát | `apps/api/src/exercise/open-tier.ts` (SessionExercise + `onRoster`; Tier A/B + hai cờ env gỡ 2026-08-12 — §4) |
 | Cổng điểm danh | `routers/attendance.ts` |
 | Nộp bài một chiều + cộng sao idempotent | `submission/router.ts` (§3, §6) |
 | Chốt nhận xét terminal + concurrency một-người-thắng | `assessment/router.ts` (§6) |

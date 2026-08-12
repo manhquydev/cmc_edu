@@ -11,20 +11,22 @@
 
 ---
 
-## ADR 0038 — Thời điểm mở bài tập theo tiến độ dạy (Tier A; Tier B đã gỡ)
+## ADR 0038 — Thời điểm mở bài tập theo tiến độ dạy (Tier A/B đã gỡ)
 
-**Status:** Accepted (formalize `lib/exercise-open.ts`). **Phần Tier B / buổi bù: gỡ 2026-08-12**
-(schema + open-tier + API/UI) — giữ nguyên quyết định gốc bên dưới, đánh dấu phần không còn hiệu lực.
+**Status:** Accepted (formalize `lib/exercise-open.ts`). **Phần Tier A + Tier B + hai cờ env: gỡ
+2026-08-12 (PR #118)** — giữ nguyên quyết định gốc bên dưới, đánh dấu phần không còn hiệu lực.
 **Context.** Bài tập gắn `curriculumUnit`. Cần định rõ *khi nào* một bài mở cho học viên — không thể
 mở ngay khi tạo, phải theo tiến độ học thực tế. (Bản gốc còn phủ buổi bù chỉ dạy HS vắng; phần đó
 đã gỡ — xem Decision.)
 
 **Decision.**
 - Điều kiện nền: Exercise `status = published` **và** HS không ở `BLOCKED_LMS_LIFECYCLE`.
-- **Tier A (mở cả lớp) — còn hiệu lực:** một `curriculumUnitId` mở cho **toàn batch** khi buổi học
+- ~~**Tier A (mở cả lớp):** một `curriculumUnitId` mở cho **toàn batch** khi buổi học
   dạy unit đó **đã kết thúc** — mốc kết thúc tính theo **giờ ICT** (`sessionEndUtc`, UTC+7), không theo
-  cột `sessionDate` UTC-midnight. (Bản gốc: chỉ buổi *không phải bù*; sau khi gỡ cờ bù thì mọi buổi
-  non-cancelled đều là buổi chính trên trục unit.)
+  cột `sessionDate` UTC-midnight.~~
+  **Gỡ 2026-08-12 (PR #118):** đường mở bài hiện tại là `SessionExercise` đã phát trên buổi
+  non-cancelled **và** học sinh `onRoster` (enrollment `active` + dải unit phủ unit buổi). Hai cờ
+  env `LMS_OPEN_TIER_ENABLED` / `LMS_ENTITLEMENT_GATE` **đã xóa khỏi code**.
 - ~~**Tier B (mở riêng HS):** buổi **bù** (`isMakeup`) mà HS **có mặt/đi muộn** (`present`/`late`) mở
   unit đó **chỉ cho HS ấy** (keyed trên `Attendance`), **không** mở cả lớp.~~
   **Gỡ 2026-08-12:** xóa `ClassSession.isMakeup` / `makeupForSessionId`, API `classSession.addMakeup`,
@@ -36,7 +38,10 @@ mở ngay khi tạo, phải theo tiến độ học thực tế. (Bản gốc c�
 - Buổi `cancelled` không mở gì.
 
 **Consequences.** "Học tới đâu mở bài tới đó"; phụ thuộc `SessionStatus` + giờ ICT. Nếu đổi cách tính
-giờ kết thúc, phải giữ nguyên ngữ nghĩa **Tier A** (đường mở bài duy nhất sau 2026-08-12).
+giờ kết thúc, phải giữ nguyên ngữ nghĩa **Tier A** (đường mở bài duy nhất sau khi gỡ Tier B).
+
+> **2026-08-12 (PR #118):** ngữ nghĩa Tier A ở trên **không còn** là đường mở bài. Bài mở theo lần
+> phát `SessionExercise` + `onRoster`. Hai cờ env đã xóa.
 
 **Alternatives bỏ.** Mở ngay khi published (không theo tiến độ) — bị loại vì học viên thấy bài chưa học.
 

@@ -75,7 +75,7 @@ file `HARNESS_*`, `CK_*`, `TRACE_SPEC`, `SESSION_LOOP` là công cụ AI-dev c�
 | 4.3 | Definition of Ready / Done | Cổng chất lượng | 🟡 `FEATURE_INTAKE` + DoD → **chuẩn hoá cổng (xem §5)** |
 | **Chuỗi Vận hành** ||||
 | 5.1 | Deploy / Runbook | Lên production | 🟢 có `prod-deploy-security-runbook`, `dev-prod-cicd-runbook` |
-| 5.2 | Migration & Seed | Dữ liệu | 🟢 có migrations + seed-curriculum |
+| 5.2 | Migration & Seed | Dữ liệu | 🟢 có migrations + CSV khung 96 unit (`CMC_EDU_Khung_Chuong_Trinh.csv`, 2026-08-12) |
 | 5.3 | Incident / Postmortem template | Vòng học hỏi | 🔴 → **thêm template** |
 
 > Đọc bảng: 🟢 có & tốt · 🟡 có nhưng cần chuẩn hoá/hợp nhất · 🔴 thiếu. Bạn **không thiếu nhiều

@@ -65,7 +65,7 @@ flowchart LR
 **Exceptions & edge:** buổi `cancelled` → **không điểm danh** (làm sai tỉ lệ chuyên cần). Cặp
 `enrollment.classBatchId ≠ session.classBatchId` → chặn (`BAD_REQUEST`). Enrollment `reserved` (chưa phí)
 → **không điểm danh được** (ADR-A). Điểm danh **không còn nhánh buổi bù / Tier B** (gỡ 2026-08-12;
-mở bài chỉ Tier A — WF-P2-03). Bucket theo **tháng ICT**.
+mở bài = lần phát `SessionExercise` + `onRoster` — WF-P2-03). Bucket theo **tháng ICT**.
 
 **Rules/ADR:** TL19 §5 · **ADR 0038** (attendance feed exercise-open) · computeFinalGrade. **API:**
 `attendance.mark`/`markAll` (`attendance.mark` — giao_vien). **UI/URL:** `/teaching/attendance?session=`.
@@ -85,29 +85,30 @@ bài tập / buổi kết thúc. **Precondition:** Exercise `published`.
 **Swimlane**
 ```mermaid
 flowchart TD
-    A["HS mở danh sách bài tập"] --> B["Hệ thống tính tập unit MỞ"]
-    B --> T1["Tier A: buổi dạy unit<br/>ĐÃ KẾT THÚC (giờ ICT) → mở cả lớp"]
-    T1 --> C["Hiện bài đã mở (published + đến giờ)"]
+    A["HS mở danh sách bài tập"] --> B["Hệ thống lọc lần phát mở"]
+    B --> T1["SessionExercise đã phát<br/>trên buổi chưa hủy + onRoster"]
+    T1 --> C["Hiện bài đã mở (published + đã phát + có dải unit)"]
 ```
 
-> **2026-08-12:** open-tier **chỉ còn Tier A**. Tier B (mở riêng HS dự buổi bù / `isMakeup`) đã gỡ
-> cùng toàn bộ đường buổi bù — không implement lại.
+> **2026-08-12 (PR #118):** đường mở bài = **lần phát** `SessionExercise` + `onRoster` (enrollment
+> `active` + dải unit phủ unit buổi). **Tier A và Tier B đã gỡ.** Hai cờ env
+> `LMS_OPEN_TIER_ENABLED` / `LMS_ENTITLEMENT_GATE` **đã xóa khỏi code** — không implement lại.
 
-**Happy path:** hệ thống lọc: `published` + **Tier A** (buổi dạy unit đã kết thúc theo giờ ICT) +
-HS không `BLOCKED_LMS_LIFECYCLE` → hiện bài.
+**Happy path:** hệ thống lọc: `published` + đã phát trên buổi non-cancelled + HS `onRoster` +
+HS không `BLOCKED_LMS_LIFECYCLE` → hiện bài (mỗi hàng có `sessionExerciseId`).
 
-**Exceptions & edge:** unit chưa dạy → **ẩn**. Lifecycle bị chặn → không thấy gì. Buổi `cancelled`
-không mở. Giờ tính theo **ICT** (`sessionEndUtc`). (Trước đây có nhánh “buổi bù mở riêng HS” —
-đã gỡ 2026-08-12.)
+**Exceptions & edge:** chưa phát / không trên roster / không có dải unit → **ẩn**. Lifecycle bị
+chặn → không thấy gì. Buổi `cancelled` không phát / không mở. (Trước đây: Tier A = buổi dạy unit
+đã kết thúc ICT; Tier B = buổi bù mở riêng HS — cả hai đã gỡ 2026-08-12.)
 
-**Rules/ADR:** **ADR 0038** (Tier A còn hiệu lực; Tier B đã gỡ — xem ghi chú 2026-08-12) · TL19 §4.
-**API:** `exercise.openForStudent` / LMS list (lmsProcedure).
-**UI/URL:** LMS `/student/exercise` (list) · `/student/exercise/:exerciseId` (detail).
+**Rules/ADR:** **ADR 0038** (Tier A/B đã gỡ — xem ghi chú 2026-08-12 / PR #118) · TL19 §4.
+**API:** `exercise.openForStudent` / LMS list (lmsProcedure) — trả `sessionExerciseId`.
+**UI/URL:** LMS `/student/exercise` (list) · `/student/exercise/:sessionExerciseId` (detail).
 
 **Traceability:** `hệ thống/HS → WF-P2-03 → "Mở bài tập theo tiến độ học" → exercise.openForStudent →
-/child/:id/exercises → test/exercise/open-tier.spec → ADR0038`.
-**Acceptance:** unit mở chỉ sau khi buổi kết thúc (ICT); lifecycle chặn thấy trống; **không** còn
-tiêu chí “buổi bù mở riêng HS” (gỡ 2026-08-12).
+/student/exercise/:sessionExerciseId → test/exercise/open-tier.spec → ADR0038`.
+**Acceptance:** bài mở chỉ khi đã phát + onRoster; lifecycle chặn thấy trống; **không** còn tiêu
+chí Tier A (buổi kết thúc ICT) hay “buổi bù mở riêng HS” (gỡ 2026-08-12).
 
 ---
 
@@ -155,12 +156,13 @@ stateDiagram-v2
 **Happy path:** HS mở PDF gốc → **vẽ/tương tác** → `annotationLayer` (JSON) + `answerText` lưu nháp
 (`version` tăng) → **Nộp** → `submitted`.
 
-**Exceptions & edge:** autosave nhiều lần (version tăng). **1 bản/`[exerciseId, studentId]`** (unique).
+**Exceptions & edge:** autosave nhiều lần (version tăng). **1 bản/`[sessionExerciseId, studentId]`**
+(unique — *2026-08-12, PR #118*; học lại unit / phát lại trên buổi khác = nộp độc lập).
 Sau `submitted` **không sửa** (trừ GV mở lại). Lifecycle chặn → không làm. Annotation **chồng lên** PDF gốc
 (không phá bản gốc).
 
 **Rules/ADR:** TL19 §3 · Submission model · TL08 §7. **API:** `submission.saveDraft/submit`
-(lmsProcedure). **UI/URL:** LMS `/student/exercise/:exerciseId`.
+(`sessionExerciseId`, lmsProcedure). **UI/URL:** LMS `/student/exercise/:sessionExerciseId`.
 
 **Traceability:** `học viên → WF-P2-05 → "Làm bài trên PDF & nộp" → submission.saveDraft/submit →
 /child/:id/exercises/:id → test/submission/annotate-submit.spec → TL19§3`.

@@ -6,6 +6,19 @@ Date: 2026-08-11
 
 Accepted.
 
+> **Status sync 2026-08-12 — trục unit KHÔNG liên tục:** khung chương trình thật đã được nạp
+> (96 unit từ CSV) và **`orderGlobal` có lỗ hổng**: Bright I.G chạy 37–59 nhưng **thiếu
+> 40, 44, 48, 52, 56**. Điểm 4 bên dưới ("contiguous 1..N") chỉ còn đúng cho seed thử nghiệm,
+> **không phải** cho dữ liệu thật.
+>
+> Hệ quả đã sửa trong code: mọi phép "tiến k unit" nay là **dịch k vị trí trên trục unit có thật**
+> của chương trình, không phải cộng k vào số. Lỗ hổng trong đánh số **không phải** unit.
+> Xem `packages/domain-lms/src/unit-progression.ts` (`ProgramUnitAxis`) và
+> `apps/api/src/lms-ops/bright-ig-gaps.int.test.ts`.
+>
+> Bất biến của ADR này **không đổi**: `orderGlobal` vẫn là danh tính quyền học, vẫn duy nhất theo
+> `(program, orderGlobal)`, và vẫn cấm đánh số lại dưới các dải đã bán.
+
 ## Context
 
 Sold unit ranges store **integers** (`fromOrderGlobal`..`toOrderGlobal`). Shifting order under live ranges silently changes who may attend.

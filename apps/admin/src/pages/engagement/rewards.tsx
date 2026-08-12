@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Button,
   DataTable,
   FilterBar,
-  HStack,
   ListPage,
   ListPagination,
   PageHeader,
@@ -12,13 +11,11 @@ import {
   Text,
 } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
+import { links } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 
-// Staff redemption queue — backend already exists (rewards.list +
-// approve/deliver/reject, apps/api/src/rewards/reward-router.ts). Row-action
-// buttons are gated by status to mirror the server's lifecycle guards
-// (approve: pending only; deliver: approved only; reject: pending|approved) —
-// this is UX-only; the server remains the authority.
+// Staff redemption queue — list is index-only (resource-centric).
+// Lifecycle Duyệt / Giao quà / Từ chối lives on /admin/engagement/rewards/:rewardId.
 const REWARD_STATUS_VALUES = ['pending', 'approved', 'delivered', 'rejected'] as const;
 type RewardStatus = (typeof REWARD_STATUS_VALUES)[number];
 
@@ -49,8 +46,8 @@ const FILTERS: FilterDef[] = [
 ];
 
 export default function RewardsQueuePage() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const utils = trpc.useUtils();
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
@@ -64,23 +61,9 @@ export default function RewardsQueuePage() {
   const allRows = (data as RewardRow[] | undefined) ?? [];
   const pageRows = allRows.slice((page - 1) * pageSize, page * pageSize);
 
-  // Track which row triggered the current mutation so only that row's button
-  // spins — otherwise `isPending` from useMutation applies globally and every
-  // row's button flashes a spinner during one action.
-  const [pendingRewardId, setPendingRewardId] = useState<string | null>(null);
-  const clearPending = () => setPendingRewardId(null);
-  const invalidate = () => {
-    clearPending();
-    void utils.rewards.list.invalidate();
-  };
-  const approveMut = trpc.rewards.approve.useMutation({ onSuccess: invalidate, onError: clearPending });
-  const deliverMut = trpc.rewards.deliver.useMutation({ onSuccess: invalidate, onError: clearPending });
-  const rejectMut = trpc.rewards.reject.useMutation({ onSuccess: invalidate, onError: clearPending });
-
-  const runAction = (rewardId: string, mutate: (input: { rewardId: string }) => void) => {
-    setPendingRewardId(rewardId);
-    mutate({ rewardId });
-  };
+  function openReward(row: RewardRow) {
+    navigate(links.reward(row.id));
+  }
 
   const COLUMNS: TableColumn<RewardRow>[] = [
     {
@@ -114,44 +97,10 @@ export default function RewardsQueuePage() {
     {
       key: 'id',
       label: 'Hành động',
-      width: 220,
-      render: (_v, row) => {
-        const canApprove = row.status === 'pending';
-        const canDeliver = row.status === 'approved';
-        const canReject = row.status === 'pending' || row.status === 'approved';
-        if (!canApprove && !canDeliver && !canReject) return null;
-        return (
-          <HStack gap={1}>
-            {canApprove && (
-              <Button
-                label="Duyệt"
-                variant="primary"
-                size="sm"
-                isLoading={approveMut.isPending && pendingRewardId === row.id}
-                onClick={() => runAction(row.id, approveMut.mutate)}
-              />
-            )}
-            {canDeliver && (
-              <Button
-                label="Giao quà"
-                variant="primary"
-                size="sm"
-                isLoading={deliverMut.isPending && pendingRewardId === row.id}
-                onClick={() => runAction(row.id, deliverMut.mutate)}
-              />
-            )}
-            {canReject && (
-              <Button
-                label="Từ chối"
-                variant="secondary"
-                size="sm"
-                isLoading={rejectMut.isPending && pendingRewardId === row.id}
-                onClick={() => runAction(row.id, rejectMut.mutate)}
-              />
-            )}
-          </HStack>
-        );
-      },
+      width: 120,
+      render: (_v, row) => (
+        <Button label="Mở phiếu" size="sm" variant="primary" onClick={() => openReward(row)} />
+      ),
     },
   ];
 
@@ -161,6 +110,7 @@ export default function RewardsQueuePage() {
       header={
         <PageHeader
           title="Yêu cầu đổi quà"
+          subtitle="Danh sách phiếu · mở form để duyệt / giao / từ chối (không duyệt trên list)"
           breadcrumbs={[
             { label: 'Quản trị' },
             { label: 'Engagement' },
@@ -184,6 +134,7 @@ export default function RewardsQueuePage() {
         loading={isLoading}
         error={error?.message}
         empty="Chưa có yêu cầu đổi quà nào"
+        onRowClick={openReward}
       />
     </ListPage>
   );

@@ -401,7 +401,7 @@ export const flows: FlowEntry[] = [
     expected: {
       // TL25 đã sync 2026-07-18: /curriculum/:unitId/exercises → /teaching/exercises
       // (không có prefix /curriculum). exercise.list/close + curriculumUnit.list = màn soạn bài (E1).
-      trpc: ['exercise.create', 'exercise.publish', 'exercise.close', 'exercise.list', 'curriculumUnit.list'],
+      trpc: ['exercise.create', 'exercise.publish', 'exercise.close', 'exercise.get', 'exercise.list', 'curriculumUnit.list'],
       uiRoutes: ['/teaching/exercises'],
       models: ['Exercise', 'CurriculumUnit'],
     },

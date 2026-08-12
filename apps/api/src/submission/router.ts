@@ -227,8 +227,8 @@ export async function recomputeFinalGrade(
 }
 
 export const submissionRouter = router({
-  // draft (create or re-save, version++) for an OPEN exercise (ADR 0038) —
-  // blocked once the submission has moved past `draft`.
+  // draft (create or re-save, version++) for a delivered OPEN exercise
+  // (SessionExercise + roster) — blocked once the submission has moved past `draft`.
   saveDraft: lmsProcedure.input(saveDraftInput).mutation(async ({ ctx, input }): Promise<SubmissionDto> => {
     const { studentId, parentAccountId } = requireLmsStudent(ctx);
     await assertPasswordNotExpired(ctx, studentId);
@@ -280,10 +280,8 @@ export const submissionRouter = router({
     await assertPasswordNotExpired(ctx, studentId);
     const student = await loadLmsStudent(ctx.db, studentId, parentAccountId);
 
-    // Metric & Data Integrity remediation (scenario audit): the exercise may
-    // have closed (or its Tier window ended) between saveDraft and submit —
-    // re-check the same gate saveDraft already enforces, closing the "submit
-    // a stale draft after the deadline" gap.
+    // Re-check delivery gate between saveDraft and submit (fail-closed if the
+    // SessionExercise was revoked or the student left roster).
     const exercise = await ctx.db.exercise.findUnique({ where: { id: input.exerciseId } });
     if (!exercise) {
       throw notFound('Exercise not found.');

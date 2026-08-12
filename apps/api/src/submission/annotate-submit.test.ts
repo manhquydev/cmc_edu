@@ -54,13 +54,18 @@ describe('submission.saveDraft / submission.submit (US-016, TL19 §3)', () => {
     });
     exercise = await gddt.exercise.publish({ exerciseId: created.id });
 
-    // Opens the unit (Tier A: a non-makeup session teaching it has ended).
-    await seedClassSession({
+    // Open via SessionExercise delivery (B3 — sole homework path).
+    await gddt.lmsOps.assignExerciseSequence({
+      classBatchId: classBatch.id,
+      exerciseIds: [exercise.id],
+    });
+    const session = await seedClassSession({
       facilityId: facility.id,
       classBatchId: classBatch.id,
       curriculumUnitId: unit.id,
       endTime: PAST,
     });
+    await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
 
     // Real ParentAccount for Guardian FK (F1 remediation).
     const phone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
@@ -77,12 +82,13 @@ describe('submission.saveDraft / submission.submit (US-016, TL19 §3)', () => {
     extraParentPhones.length = 0;
   });
 
-  /** Enrolls a student with an approved Guardian link for `parent`. */
+  /** Enrolls a student with approved Guardian + unit range (on-roster for delivery). */
   async function seedStudent() {
     return seedEnrolledStudentWithGuardian({
       facilityId: facility.id,
       classBatchId: classBatch.id,
       parentAccountId: parent.id,
+      unitRange: { fromOrderGlobal: 1, toOrderGlobal: 10_000 },
     });
   }
 
@@ -186,7 +192,7 @@ describe('submission.saveDraft / submission.submit (US-016, TL19 §3)', () => {
     expect(draftB.studentId).toBe(b.studentId);
   });
 
-  it('rejects a draft on an exercise that is not open yet (Tier A not reached)', async () => {
+  it('rejects a draft on an exercise that was never delivered for this student', async () => {
     const notYetUnit = await seedCurriculumUnit();
     seededUnitIds.push(notYetUnit.id);
     const createdNotYet = await gddt.exercise.create({
@@ -195,12 +201,28 @@ describe('submission.saveDraft / submission.submit (US-016, TL19 §3)', () => {
       basePdfRef: 'exercise-pdf/not-yet.pdf',
     });
     const notYetExercise = await gddt.exercise.publish({ exerciseId: createdNotYet.id });
-    // No teaching session at all for this unit -> never opened.
+    // Published but no SessionExercise delivery → fail-closed.
 
     const enrollment = await seedStudent();
     await expect(
       studentCaller(enrollment.studentId).submission.saveDraft({
         exerciseId: notYetExercise.id,
+        annotationLayer: {},
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('rejects saveDraft when homework is delivered but student is off-roster (no unit range)', async () => {
+    // Main fixture already delivered `exercise` for the class; enroll without range.
+    const enrollment = await seedEnrolledStudentWithGuardian({
+      facilityId: facility.id,
+      classBatchId: classBatch.id,
+      parentAccountId: parent.id,
+      // no unitRange → dual-gate roster excludes unit-stamped sessions
+    });
+    await expect(
+      studentCaller(enrollment.studentId).submission.saveDraft({
+        exerciseId: exercise.id,
         annotationLayer: {},
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });

@@ -63,12 +63,17 @@ describe('submission.saveTeacherAnnotation (phase-01a C3)', () => {
     });
     exercise = await gddt.exercise.publish({ exerciseId: created.id });
 
-    await seedClassSession({
+    await gddt.lmsOps.assignExerciseSequence({
+      classBatchId: classBatch.id,
+      exerciseIds: [exercise.id],
+    });
+    const session = await seedClassSession({
       facilityId: facility.id,
       classBatchId: classBatch.id,
       curriculumUnitId: unit.id,
       endTime: PAST,
     });
+    await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
 
     const phone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
     parent = await seedParentAccount(phone);
@@ -86,6 +91,7 @@ describe('submission.saveTeacherAnnotation (phase-01a C3)', () => {
       facilityId: facility.id,
       classBatchId: classBatch.id,
       parentAccountId: parent.id,
+      unitRange: { fromOrderGlobal: 1, toOrderGlobal: 10_000 },
     });
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
@@ -130,6 +136,7 @@ describe('submission.saveTeacherAnnotation (phase-01a C3)', () => {
       facilityId: facility.id,
       classBatchId: classBatch.id,
       parentAccountId: parent.id,
+      unitRange: { fromOrderGlobal: 1, toOrderGlobal: 10_000 },
     });
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),

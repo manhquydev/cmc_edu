@@ -1,25 +1,29 @@
-// exercise.openForStudent / exercise.listForStudent — T2-II (US-015, docs/26
-// WF-P2-03, ADR 0038 Tier A, TL19 §4).
+// exercise.openForStudent / exercise.listForStudent — student homework surface.
 //
-// Open-tier decision, restated:
-//   - Base: Exercise `status = published` AND student is NOT `blocked_lms`.
-//   - Tier A (opens for the whole batch): a `curriculumUnitId` opens when a
-//     ClassSession teaching that unit has ENDED — the ICT wall-clock
-//     `endTime` (already stored as the correct UTC instant by
-//     ../class/ict-time.ts) is in the past, and the session is not
-//     `cancelled`.
-// Makeup Tier B is intentionally removed: the product no longer creates
-// makeup sessions, so attendance-on-makeup is dead code.
-// `Exercise`/`CurriculumUnit` are GLOBAL tables (no facilityId, no RLS — QĐ
-// 0021/0022); `Enrollment`/`ClassSession` are facility-scoped — this module
-// resolves the student's OWN facility first, then runs the facility-scoped
-// lookups through `withFacility` (never a bypass — a student's open-tier
-// gate is always evaluated within their own facility).
+// Single open path (B3): an exercise is open for a student only when it was
+// **delivered** on a non-cancelled ClassSession (`SessionExercise`) and the
+// student is on that session's dual-gate roster (active enrollment, not
+// archived for the session day, **EnrollmentUnitRange covers session unit**
+// via `onRoster` / `isEntitled` — this entitlement check is REQUIRED and is
+// not the removed env flag `LMS_ENTITLEMENT_GATE`).
+//
+// Base filters: Exercise `status = published`; `blocked_lms` sees nothing
+// (empty list / gate fail — and Guardian approval still excludes blocked
+// children via `getApprovedChildren`).
+//
+// ADR 0038 Tier A (open whole unit after any ended teaching session) and the
+// env flags `LMS_OPEN_TIER_ENABLED` / `LMS_ENTITLEMENT_GATE` are removed.
+// Unit entitlement for homework is the dual-gate roster on the delivery path.
+//
+// `Exercise` is GLOBAL (no facilityId); enrollment/session reads run under
+// `withFacility` for the student's facility. File name kept as `open-tier.ts`
+// so external imports (`submission`, rewards, root router merge) stay stable;
+// the public procedure name remains `exercise.openForStudent`.
 
-import type { PrismaClient, Prisma } from '@cmc/db';
+import type { PrismaClient } from '@cmc/db';
 import { withFacility } from '@cmc/db';
-import { isEntitled } from '@cmc/domain-lms';
 import { badRequest, forbidden, notFound } from '../errors.js';
+import { deliveredExerciseIdsForStudent } from '../lms-ops/exercise-delivery.js';
 import { lmsProcedure, requireLmsStudent, router } from '../trpc.js';
 import { toExerciseDto, type ExerciseDto } from './router.js';
 import { getApprovedChildren } from '../guardian/approved-children.js';
@@ -36,15 +40,7 @@ export interface LmsStudent {
  * OWNERSHIP GATE (TL08 §7, child-data boundary): `parentAccountId` is the
  * parent whose session is making the call. Before disclosing any student data
  * we verify that an approved `Guardian` row exists linking this parent to
- * this student — `getApprovedChildren` is the SINGLE approved-Guardian gate
- * (./guardian/approved-children.ts). A parent who constructs a JWT with an
- * arbitrary `studentId` (not in their approved list) gets FORBIDDEN here,
- * never reaching the facility lookup or the exercise/submission surface.
- *
- * The subsequent `withFacility({ bypass })` is still needed because the
- * student's OWN facility is what this call is discovering, and `Student`
- * carries no facility-level RLS policy — the ownership check above (Guardian
- * link) is the real boundary, not the RLS GUC.
+ * this student — `getApprovedChildren` is the SINGLE approved-Guardian gate.
  */
 export async function loadLmsStudent(
   db: PrismaClient,
@@ -59,7 +55,11 @@ export async function loadLmsStudent(
   const student = await withFacility(
     db,
     null,
-    (tx) => tx.student.findUnique({ where: { id: studentId }, select: { id: true, facilityId: true, lifecycle: true } }),
+    (tx) =>
+      tx.student.findUnique({
+        where: { id: studentId },
+        select: { id: true, facilityId: true, lifecycle: true },
+      }),
     { bypass: true },
   );
   if (!student) {
@@ -68,147 +68,27 @@ export async function loadLmsStudent(
   return student;
 }
 
-/**
- * Kill-switch for ADR 0038 open-tier (Plan 2 teaching spine).
- * - unset / "1" / "true" → open-tier ON (legacy default)
- * - "0" / "false" / "off" → open-tier OFF (empty open set)
- */
-export function isOpenTierEnabled(): boolean {
-  const v = (process.env.LMS_OPEN_TIER_ENABLED ?? '1').toLowerCase();
-  return v !== '0' && v !== 'false' && v !== 'off';
-}
-
-/** When on, open units must also be covered by EnrollmentUnitRange (dual-gate homework). */
-export function isEntitlementGateOnOpenTier(): boolean {
-  const v = (process.env.LMS_ENTITLEMENT_GATE ?? '0').toLowerCase();
-  return v === '1' || v === 'true' || v === 'on';
-}
-
-/** ADR 0038 Tier A, resolved to the set of `curriculumUnitId`s open for
- * `studentId` right now. Empty set for a `blocked_lms` student (the base
- * condition) without running the tier query. */
-async function resolveOpenCurriculumUnitIds(
-  tx: Prisma.TransactionClient,
-  student: LmsStudent,
-): Promise<Set<string>> {
-  if (student.lifecycle === 'blocked_lms') {
-    return new Set();
-  }
-  // When open-tier kill-switch is OFF, homework opens only via SessionExercise
-  // delivery (dual-gate roster membership), not ADR 0038 Tier A.
-  if (!isOpenTierEnabled()) {
-    const { deliveredExerciseIdsForStudent } = await import('../lms-ops/exercise-delivery.js');
-    const exerciseIds = await deliveredExerciseIdsForStudent(tx, student);
-    if (exerciseIds.size === 0) return new Set();
-    const exercises = await tx.exercise.findMany({
-      where: { id: { in: [...exerciseIds] }, status: 'published' },
-      select: { curriculumUnitId: true },
-    });
-    return new Set(exercises.map((e) => e.curriculumUnitId));
-  }
-
-  const entitlementOn = isEntitlementGateOnOpenTier();
-  const activeEnrollments = await tx.enrollment.findMany({
-    where: { studentId: student.id, status: 'active' },
-    select: {
-      classBatchId: true,
-      classBatch: { select: { program: true } },
-      ...(entitlementOn
-        ? { unitRanges: { select: { fromOrderGlobal: true, toOrderGlobal: true } } }
-        : {}),
-    },
-  });
-  const classBatchIds = activeEnrollments.map((e) => e.classBatchId);
-
-  const openUnitIds = new Set<string>();
-
-  // Tier A: any non-cancelled session in one of this student's active classes,
-  // teaching a unit, that has already ENDED (ICT).
-  if (classBatchIds.length > 0) {
-    const tierASessions = await tx.classSession.findMany({
-      where: {
-        classBatchId: { in: classBatchIds },
-        status: { not: 'cancelled' },
-        curriculumUnitId: { not: null },
-        endTime: { lt: new Date() },
-      },
-      select: { curriculumUnitId: true },
-    });
-    for (const session of tierASessions) {
-      if (session.curriculumUnitId) openUnitIds.add(session.curriculumUnitId);
-    }
-  }
-
-  if (!entitlementOn || openUnitIds.size === 0) {
-    return openUnitIds;
-  }
-
-  // Intersect open units with sold/granted ranges, scoped by program
-  // (orderGlobal is unique per program, not globally — ADR 0046).
-  const units = await tx.curriculumUnit.findMany({
-    where: { id: { in: [...openUnitIds] } },
-    select: { id: true, orderGlobal: true, program: true },
-  });
-  const rangesByProgram = new Map<string, { fromOrderGlobal: number; toOrderGlobal: number }[]>();
-  for (const e of activeEnrollments) {
-    const program = e.classBatch.program;
-    const ranges =
-      'unitRanges' in e && Array.isArray(e.unitRanges)
-        ? (e.unitRanges as { fromOrderGlobal: number; toOrderGlobal: number }[])
-        : [];
-    const bucket = rangesByProgram.get(program) ?? [];
-    bucket.push(...ranges);
-    rangesByProgram.set(program, bucket);
-  }
-  const filtered = new Set<string>();
-  for (const u of units) {
-    const ranges = rangesByProgram.get(u.program) ?? [];
-    if (isEntitled(ranges, u.orderGlobal)) filtered.add(u.id);
-  }
-  return filtered;
-}
-
-/** The set of `curriculumUnitId`s currently open for `student` (ADR 0038). */
-export function getOpenCurriculumUnitIdsForStudent(
-  db: PrismaClient,
-  student: LmsStudent,
-): Promise<Set<string>> {
-  return withFacility(db, student.facilityId, (tx) => resolveOpenCurriculumUnitIds(tx, student));
-}
-
-/** Every `published` Exercise open for `student` (ADR 0038 or delivery path). */
+/** Published exercises delivered to this student (SessionExercise + roster). */
 export async function listOpenExercisesForStudent(
   db: PrismaClient,
   student: LmsStudent,
 ): Promise<ExerciseDto[]> {
-  // Kill-switch OFF: exact delivered exercise ids (not whole unit catalog).
-  if (!isOpenTierEnabled()) {
-    return withFacility(db, student.facilityId, async (tx) => {
-      if (student.lifecycle === 'blocked_lms') return [];
-      const { deliveredExerciseIdsForStudent } = await import('../lms-ops/exercise-delivery.js');
-      const exerciseIds = await deliveredExerciseIdsForStudent(tx, student);
-      if (exerciseIds.size === 0) return [];
-      const exercises = await tx.exercise.findMany({
-        where: { id: { in: [...exerciseIds] }, status: 'published' },
-        orderBy: { createdAt: 'asc' },
-      });
-      return exercises.map(toExerciseDto);
+  return withFacility(db, student.facilityId, async (tx) => {
+    if (student.lifecycle === 'blocked_lms') return [];
+    const exerciseIds = await deliveredExerciseIdsForStudent(tx, student);
+    if (exerciseIds.size === 0) return [];
+    const exercises = await tx.exercise.findMany({
+      where: { id: { in: [...exerciseIds] }, status: 'published' },
+      orderBy: { createdAt: 'asc' },
     });
-  }
-
-  const openUnitIds = await getOpenCurriculumUnitIdsForStudent(db, student);
-  if (openUnitIds.size === 0) {
-    return [];
-  }
-  const exercises = await db.exercise.findMany({
-    where: { curriculumUnitId: { in: [...openUnitIds] }, status: 'published' },
-    orderBy: { createdAt: 'asc' },
+    return exercises.map(toExerciseDto);
   });
-  return exercises.map(toExerciseDto);
 }
 
-/** Guard used by `submission.saveDraft` (../submission/router.ts): throws
- * BAD_REQUEST unless `exercise` is published AND open for `student` right now. */
+/**
+ * Guard for submission.saveDraft / submit: fail-closed unless the exercise is
+ * published and was delivered to this student (on-roster for that session).
+ */
 export async function assertExerciseOpenForStudent(
   db: PrismaClient,
   student: LmsStudent,
@@ -217,28 +97,30 @@ export async function assertExerciseOpenForStudent(
   if (exercise.status !== 'published') {
     throw badRequest('Exercise is not published.');
   }
-  if (!isOpenTierEnabled()) {
-    await withFacility(db, student.facilityId, async (tx) => {
-      if (student.lifecycle === 'blocked_lms') {
-        throw badRequest('Exercise is not open yet.');
-      }
-      const { deliveredExerciseIdsForStudent } = await import('../lms-ops/exercise-delivery.js');
-      const exerciseIds = await deliveredExerciseIdsForStudent(tx, student);
-      const id = exercise.id;
-      if (!id || !exerciseIds.has(id)) {
-        throw badRequest('Exercise is not open yet.');
-      }
-    });
-    return;
+  if (student.lifecycle === 'blocked_lms') {
+    throw badRequest(
+      'Exercise is not available: student is blocked from LMS.',
+    );
   }
-  const openUnitIds = await getOpenCurriculumUnitIdsForStudent(db, student);
-  if (!openUnitIds.has(exercise.curriculumUnitId)) {
-    throw badRequest('Exercise is not open yet.');
+  const id = exercise.id;
+  if (!id) {
+    throw badRequest(
+      'Exercise is not available: no delivered homework for this student.',
+    );
   }
+
+  await withFacility(db, student.facilityId, async (tx) => {
+    const exerciseIds = await deliveredExerciseIdsForStudent(tx, student);
+    if (!exerciseIds.has(id)) {
+      throw badRequest(
+        'Exercise is not available: not delivered for this student (or student is not on the session roster).',
+      );
+    }
+  });
 }
 
 export const exerciseOpenTierRouter = router({
-  // ADR 0038 (US-015): the student-facing "what can I do right now" list.
+  // Student-facing "what homework can I do right now" (delivery path only).
   openForStudent: lmsProcedure.query(async ({ ctx }): Promise<{ items: ExerciseDto[] }> => {
     const { studentId, parentAccountId } = requireLmsStudent(ctx);
     const student = await loadLmsStudent(ctx.db, studentId, parentAccountId);
@@ -246,7 +128,7 @@ export const exerciseOpenTierRouter = router({
     return { items };
   }),
 
-  // Alias (phase-03 spec: "= openForStudent alias if simpler").
+  // Alias kept for clients that call listForStudent.
   listForStudent: lmsProcedure.query(async ({ ctx }): Promise<{ items: ExerciseDto[] }> => {
     const { studentId, parentAccountId } = requireLmsStudent(ctx);
     const student = await loadLmsStudent(ctx.db, studentId, parentAccountId);

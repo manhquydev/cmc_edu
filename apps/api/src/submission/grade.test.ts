@@ -69,12 +69,17 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
     });
     exercise = await gddt.exercise.publish({ exerciseId: created.id });
 
-    await seedClassSession({
+    await gddt.lmsOps.assignExerciseSequence({
+      classBatchId: classBatch.id,
+      exerciseIds: [exercise.id],
+    });
+    const session = await seedClassSession({
       facilityId: facility.id,
       classBatchId: classBatch.id,
       curriculumUnitId: unit.id,
       endTime: PAST,
     });
+    await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
 
     // Real ParentAccount for Guardian FK (F1 remediation).
     const phone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
@@ -104,6 +109,7 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
       classBatchId: classBatch.id,
       parentAccountId: parent.id,
       studentName: opts.studentName,
+      unitRange: { fromOrderGlobal: 1, toOrderGlobal: 10_000 },
     });
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
@@ -188,6 +194,7 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
       facilityId: facility.id,
       classBatchId: classBatch.id,
       parentAccountId: parent.id,
+      unitRange: { fromOrderGlobal: 1, toOrderGlobal: 10_000 },
     });
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),

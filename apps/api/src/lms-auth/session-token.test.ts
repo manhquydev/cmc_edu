@@ -10,16 +10,26 @@ describe('signLmsToken / verifyLmsToken (RT-1)', () => {
   it('round-trips a parent token', () => {
     const token = signLmsToken({ parentAccountId: 'pa-1', kind: 'parent' }, SECRET);
     const claims = verifyLmsToken(token, SECRET);
-    expect(claims).toEqual({ parentAccountId: 'pa-1', kind: 'parent', studentId: undefined });
+    expect(claims).toEqual({
+      parentAccountId: 'pa-1',
+      kind: 'parent',
+      studentId: undefined,
+      tokenVersion: 0,
+    });
   });
 
   it('round-trips a student token with studentId', () => {
     const token = signLmsToken(
-      { parentAccountId: 'pa-1', studentId: 'st-1', kind: 'student' },
+      { parentAccountId: 'pa-1', studentId: 'st-1', kind: 'student', tokenVersion: 3 },
       SECRET,
     );
     const claims = verifyLmsToken(token, SECRET);
-    expect(claims).toEqual({ parentAccountId: 'pa-1', studentId: 'st-1', kind: 'student' });
+    expect(claims).toEqual({
+      parentAccountId: 'pa-1',
+      studentId: 'st-1',
+      kind: 'student',
+      tokenVersion: 3,
+    });
   });
 
   it('rejects a tampered payload', () => {

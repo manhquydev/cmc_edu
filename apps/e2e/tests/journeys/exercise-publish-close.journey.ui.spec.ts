@@ -89,25 +89,25 @@ test.describe('P2-04 journey — cung cấp bài tập PDF (tạo → publish �
     await expect(row).toBeVisible();
     await expect(row.getByText('draft')).toBeVisible();
 
-    // Publish → the row's "Công bố" action opens a confirm dialog ("Công bố bài
-    // tập?"); confirming it flips the row to published, which then offers "Đóng".
-    await row.getByRole('button', { name: 'Công bố' }).click();
+    // Form-depth: list is index-only → open the exercise form; Công bố / Đóng
+    // live on the detail with ConfirmDialog. draft → published → closed is read
+    // back off the form status badge, not assumed.
+    await row.getByRole('button', { name: 'Mở phiếu' }).click();
+    await expect(page).toHaveURL(/\/teaching\/exercises\/[0-9a-f-]{36}/i);
+
+    await page.getByRole('button', { name: 'Công bố', exact: true }).click();
     await page
       .getByRole('alertdialog', { name: 'Công bố bài tập?' })
-      .getByRole('button', { name: 'Công bố' })
+      .getByRole('button', { name: 'Công bố', exact: true })
       .click();
-    await expect(row.getByText('published')).toBeVisible();
+    await expect(page.getByText('Đã công bố').first()).toBeVisible();
 
-    // Close → the row's "Đóng" action opens a confirm dialog ("Đóng bài tập?");
-    // confirming it flips the row to closed. This draft → published → closed
-    // march is the living proof: each transition is read back off the row, not
-    // assumed.
-    await row.getByRole('button', { name: 'Đóng' }).click();
+    await page.getByRole('button', { name: 'Đóng', exact: true }).click();
     await page
       .getByRole('alertdialog', { name: 'Đóng bài tập?' })
-      .getByRole('button', { name: 'Đóng bài tập' })
+      .getByRole('button', { name: 'Đóng bài tập', exact: true })
       .click();
-    await expect(row.getByText('closed')).toBeVisible();
+    await expect(page.getByText('Đã đóng').first()).toBeVisible();
 
     await context.close();
   });

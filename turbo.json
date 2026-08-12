@@ -6,12 +6,13 @@
       "outputs": ["dist/**", ".prisma/**"]
     },
     "typecheck": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["build", "^build"]
     },
     "test": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["build", "^build"],
       "env": ["DATABASE_URL", "APP_DATABASE_URL"]
     },
+
     "dev": {
       "cache": false,
       "persistent": true

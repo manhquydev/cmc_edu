@@ -166,6 +166,14 @@ export async function createStaffViaAdminUi(
       timeout: DEFAULT_TIMEOUT_MS,
     });
 
+    // Default users list pageSize is 20; CI facilities accumulate many staff.
+    // Filter by name so findInList is not stuck on the first page of older rows.
+    const search = page.getByPlaceholder(/Tên, email, mã NV/i);
+    if (await search.count()) {
+      await search.fill(opts.fullName);
+      await page.waitForTimeout(400); // debounce matches users.tsx 300ms
+    }
+
     await findInList(page, (text) => text.includes(opts.fullName));
   } finally {
     await context.close();

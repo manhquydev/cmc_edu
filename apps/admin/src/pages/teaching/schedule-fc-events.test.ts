@@ -136,12 +136,6 @@ describe('schedule-fc-events adapter', () => {
       expect(classSessionToEvents([{ ...base, status: 'cancelled' }])).toHaveLength(0);
     });
 
-    it('marks makeup in title', () => {
-      const events = classSessionToEvents([{ ...base, isMakeup: true }]);
-      expect(events[0]!.title).toContain('(bù)');
-      expect(events[0]!.extendedProps.isMakeup).toBe(true);
-    });
-
     it('skips inverted start/end', () => {
       expect(
         classSessionToEvents([

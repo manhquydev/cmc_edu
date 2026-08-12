@@ -11,8 +11,18 @@
 
 import { z } from 'zod';
 import type { Prisma } from '@cmc/db';
+import { withFacility } from '@cmc/db';
 import { conflict, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
+
+const getInput = z.object({
+  parentAccountId: z.string().uuid(),
+});
+
+const setActiveInput = z.object({
+  parentAccountId: z.string().uuid(),
+  isActive: z.boolean(),
+});
 
 const listInput = z.object({
   page: z.number().int().positive().default(1),
@@ -33,6 +43,69 @@ export interface ParentAccountListItemDto {
 }
 
 export const parentAccountRouter = router({
+  /**
+   * Cold-start form /admin/parents/:id — facility-scoped via Guardian link.
+   */
+  get: requirePermission('parentAccount', 'updateEmail')
+    .input(getInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+
+      // ParentAccount has no facilityId; scope via Guardian. Student names need
+      // facility RLS context (withFacility), same pattern as afterSale.list.
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const guardian = await tx.guardian.findFirst({
+          where: { parentAccountId: input.parentAccountId, facilityId },
+          select: { id: true },
+        });
+        if (!guardian) throw notFound('ParentAccount not found in this facility.');
+
+        const parent = await tx.parentAccount.findFirst({
+          where: { id: input.parentAccountId },
+          select: {
+            id: true,
+            phone: true,
+            email: true,
+            isActive: true,
+            tokenVersion: true,
+            createdAt: true,
+            _count: { select: { guardians: { where: { facilityId } } } },
+          },
+        });
+        if (!parent) throw notFound('ParentAccount not found.');
+
+        const links = await tx.guardian.findMany({
+          where: { parentAccountId: parent.id, facilityId },
+          select: { id: true, relation: true, studentId: true },
+          orderBy: { createdAt: 'asc' },
+        });
+        const studentIds = [...new Set(links.map((g) => g.studentId))];
+        const students = studentIds.length
+          ? await tx.student.findMany({
+              where: { facilityId, id: { in: studentIds } },
+              select: { id: true, fullName: true },
+            })
+          : [];
+        const nameById = new Map(students.map((s) => [s.id, s.fullName]));
+
+        return {
+          id: parent.id,
+          phone: parent.phone,
+          email: parent.email,
+          isActive: parent.isActive,
+          tokenVersion: parent.tokenVersion,
+          createdAt: parent.createdAt,
+          linkedChildrenCount: parent._count.guardians,
+          children: links.map((g) => ({
+            guardianId: g.id,
+            relation: g.relation,
+            studentId: g.studentId,
+            studentName: nameById.get(g.studentId) ?? null,
+          })),
+        };
+      });
+    }),
+
   /**
    * Staff-facing directory of parents scoped to the caller's facility (via
    * their Guardian link — ParentAccount itself carries no facilityId).
@@ -136,6 +209,47 @@ export const parentAccountRouter = router({
           entity: 'ParentAccount',
           entityId: input.parentAccountId,
           data: { facilityId },
+        },
+      });
+
+      return updated;
+    }),
+
+  /**
+   * Soft-disable / re-enable a ParentAccount for LMS login. Deactivation
+   * increments tokenVersion so outstanding signed LMS tokens fail the
+   * lmsProcedure gate (forced re-login). Facility-scoped via Guardian.
+   */
+  setActive: requirePermission('parentAccount', 'setActive')
+    .input(setActiveInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+
+      const guardian = await ctx.db.guardian.findFirst({
+        where: { parentAccountId: input.parentAccountId, facilityId },
+        select: { id: true },
+      });
+      if (!guardian) throw notFound('ParentAccount not found in this facility.');
+
+      const updated = await ctx.db.parentAccount.update({
+        where: { id: input.parentAccountId },
+        data: input.isActive
+          ? { isActive: true }
+          : { isActive: false, tokenVersion: { increment: 1 } },
+        select: { id: true, isActive: true, tokenVersion: true },
+      });
+
+      await ctx.db.auditLog.create({
+        data: {
+          actor: ctx.subject!.userId,
+          action: 'parentAccount.setActive',
+          entity: 'ParentAccount',
+          entityId: input.parentAccountId,
+          data: {
+            facilityId,
+            isActive: updated.isActive,
+            tokenVersion: updated.tokenVersion,
+          },
         },
       });
 

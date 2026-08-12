@@ -1,0 +1,122 @@
+# Observability overlay — GlitchTip error tracking (observability Tier 1).
+# SEPARATE from docker-compose.prod.yml so it tears down independently:
+#   up:    docker compose -p cmcv2-obs --env-file .env.obs -f docker-compose.observability.yml up -d
+#   down:  docker compose -p cmcv2-obs -f docker-compose.observability.yml down
+# Own project name (cmcv2-obs) + own network/volumes — never entangled with the
+# app stack (cmcv2-prod). The app talks to GlitchTip only over the DSN (an HTTP
+# URL), so the two stacks need no shared network.
+#
+# Runs ON THE LAPTOP alongside the app (operator decision): error data may carry
+# student PII (breadcrumbs, request context), so it must not leave the machine.
+# Trade-off accepted: GlitchTip is down while the laptop sleeps — it cannot
+# capture errors during that window, and its MCP is unreachable then.
+#
+# GlitchTip's own footprint is small (official docs: 256MB min / 512MB rec) —
+# trivial on the 39GB laptop. Four services: web, worker, its own postgres, valkey.
+#
+# Agent access: GLITCHTIP_ENABLE_MCP exposes an MCP server at <web>/mcp. Connect
+# Claude Code with:
+#   claude mcp add --transport http glitchtip http://127.0.0.1:8000/mcp
+# (17 tools: issues, stack traces, performance, logs, uptime monitors.)
+
+name: cmcv2-obs
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+networks:
+  cmcv2-obs-net:
+    driver: bridge
+  # Shared bridge so the APP stack (cmcv2-prod api/worker) can reach
+  # glitchtip-web by container name to send Sentry events — without exposing
+  # GlitchTip on the host LAN (the 127.0.0.1:8000 publish stays loopback-only
+  # for the operator + MCP). Declared external so both compose projects attach
+  # to the same pre-created network; create once with:
+  #   docker network create cmc-obs-bridge
+  cmc-obs-bridge:
+    external: true
+
+volumes:
+  cmcv2-obs-pg-data:
+  cmcv2-obs-valkey-data:
+
+services:
+  # ── GlitchTip web (UI + ingest API + MCP endpoint) ──────────────────────────
+  glitchtip-web:
+    image: glitchtip/glitchtip:latest
+    restart: unless-stopped
+    # No command override — the image's default CMD (./bin/start.sh) runs DB
+    # migrations then the web server, so no separate migrate service is needed.
+    # (The earlier ./bin/run-migrate-and-runserver.sh was from app-sre's build
+    #  variant, absent in the published image — verified via docker inspect.)
+    # Loopback-only: reached by the agent locally and by the app via the DSN on
+    # the same host. Never bind 0.0.0.0 — Docker publish bypasses UFW (same rule
+    # as the app nginx). Web listens on 8080 inside the container. Expose
+    # remotely later via a dedicated tunnel block only if wanted; deferred.
+    ports:
+      - "127.0.0.1:8000:8080"
+    depends_on:
+      glitchtip-postgres:
+        condition: service_healthy
+      glitchtip-valkey:
+        condition: service_started
+    env_file: .env.obs
+    environment:
+      # Enables the built-in MCP server at /mcp (verified: glitchtip.com/documentation/mcp).
+      GLITCHTIP_ENABLE_MCP: "true"
+    networks:
+      - cmcv2-obs-net
+      # Also on the shared bridge as `glitchtip-web` — the app's api/worker send
+      # events to http://glitchtip-web:8080 over this network.
+      - cmc-obs-bridge
+    logging: *default-logging
+
+  # ── GlitchTip background worker (celery: alerts, cleanup, uptime checks) ─────
+  glitchtip-worker:
+    image: glitchtip/glitchtip:latest
+    restart: unless-stopped
+    # Canonical worker script in the published image (verified in /code/bin).
+    # It may crash-loop briefly on first boot ("relation ... does not exist")
+    # until glitchtip-web finishes migrations — restart:unless-stopped recovers it.
+    command: ["./bin/run-worker.sh"]
+    depends_on:
+      glitchtip-postgres:
+        condition: service_healthy
+      glitchtip-valkey:
+        condition: service_started
+    env_file: .env.obs
+    networks:
+      - cmcv2-obs-net
+    logging: *default-logging
+
+  # ── GlitchTip's own PostgreSQL (isolated from the app's cmcv2-prod DB) ───────
+  glitchtip-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env.obs
+    environment:
+      POSTGRES_DB: glitchtip
+      # POSTGRES_USER / POSTGRES_PASSWORD from .env.obs
+    volumes:
+      - cmcv2-obs-pg-data:/var/lib/postgresql/data
+    networks:
+      - cmcv2-obs-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d glitchtip"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  # ── Valkey (Redis-compatible cache / celery broker) ─────────────────────────
+  glitchtip-valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    volumes:
+      - cmcv2-obs-valkey-data:/data
+    networks:
+      - cmcv2-obs-net
+    logging: *default-logging

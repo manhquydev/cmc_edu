@@ -12,7 +12,6 @@ const SESSION = {
   startTime: '2026-08-03T11:00:00.000Z',
   endTime: '2026-08-03T12:30:00.000Z',
   status: 'confirmed',
-  isMakeup: false,
   curriculumUnitId: null,
   batchCode: 'CMC-UCREA-001',
   program: 'UCREA',
@@ -92,10 +91,17 @@ describe('SessionDetailPage', () => {
     expect(screen.getAllByText('Điểm danh').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Nhận xét').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Nhật ký').length).toBeGreaterThan(0);
+    // Console form grammar on overview
+    expect(screen.getByText('Thông tin buổi học')).toBeInTheDocument();
   });
 
   it('default tab is attendance when tab query omitted', async () => {
     renderSession('/teaching/sessions/sess-1');
     expect(await screen.findByRole('button', { name: /Lưu điểm danh|Đã lưu/ })).toBeTruthy();
+  });
+
+  it('exposes Copy link for classSession deep share', async () => {
+    renderSession('/teaching/sessions/sess-1?tab=overview');
+    expect(await screen.findByRole('button', { name: /Copy link|Đã copy/ })).toBeTruthy();
   });
 });

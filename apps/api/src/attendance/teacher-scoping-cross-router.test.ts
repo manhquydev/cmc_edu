@@ -82,8 +82,7 @@ describe('teacher class-scoping — cross-router FORBIDDEN proof (H1+H2)', () =>
       await tx.sessionEvidence.deleteMany({ where: { facilityId: facility.id } });
     });
     // cleanupFacility deletes Submission rows (facility-scoped) FIRST — must
-    // run before cleanupCurriculumUnits, which deletes the Exercise rows
-    // Submission.exerciseId RESTRICT-references.
+    // run before cleanupCurriculumUnits (Submission → SessionExercise → Exercise).
     await cleanupFacility(facility.id);
     await cleanupCurriculumUnits(...seededUnitIds);
     seededUnitIds.length = 0;
@@ -140,11 +139,34 @@ describe('teacher class-scoping — cross-router FORBIDDEN proof (H1+H2)', () =>
         starReward: 5,
       });
       const exercise = await gddt.exercise.publish({ exerciseId: created.id });
+      // Minimal SessionExercise so Submission can attach (B4).
+      const se = await testDbBypass(async (tx) => {
+        const past = new Date('2020-01-01T12:00:00.000Z');
+        const sess = await tx.classSession.create({
+          data: {
+            facilityId: facility.id,
+            classBatchId: classBatchA.id,
+            sessionDate: past,
+            startTime: past,
+            endTime: past,
+            status: 'planned',
+            curriculumUnitId: unit.id,
+          },
+        });
+        return tx.sessionExercise.create({
+          data: {
+            facilityId: facility.id,
+            classSessionId: sess.id,
+            exerciseId: exercise.id,
+            position: 1,
+          },
+        });
+      });
       const submission = await testDbBypass((tx) =>
         tx.submission.create({
           data: {
             facilityId: facility.id,
-            exerciseId: exercise.id,
+            sessionExerciseId: se.id,
             studentId: enrollment.studentId,
             annotationLayer: {},
             status: 'submitted',

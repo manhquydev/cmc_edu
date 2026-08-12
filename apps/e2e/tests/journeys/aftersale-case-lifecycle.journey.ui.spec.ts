@@ -59,20 +59,32 @@ test.describe('P4-05 journey — chăm sóc sau bán: tạo → tiếp nhận �
     await expect(row).toBeVisible();
     await expect(row.getByText('Mở', { exact: true })).toBeVisible();
 
-    // --- take it up (advance → "Đang xử lý"), a direct mutation ---
-    await row.getByRole('button', { name: 'Tiếp nhận' }).click();
-    await expect(row.getByText('Đang xử lý', { exact: true })).toBeVisible();
+    // List is index-only — open form for lifecycle HITL (resource-centric).
+    await row.getByRole('button', { name: 'Mở phiếu' }).click();
+    await expect(page).toHaveURL(/\/crm\/aftersale\/[0-9a-f-]{36}/i);
+
+    // --- take it up (advance → "Đang xử lý") on form ---
+    // exact:true — WorkflowStatusbar step labels also include these substrings.
+    await page.getByRole('button', { name: 'Tiếp nhận', exact: true }).click();
+    await expect(page.getByText('Đã tiếp nhận', { exact: false })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByRole('button', { name: 'Tiếp nhận', exact: true })).toHaveCount(0);
 
     // --- resolve it with an outcome (→ "Đã giải quyết") ---
-    await row.getByRole('button', { name: 'Giải quyết' }).click();
+    await page.getByRole('button', { name: 'Giải quyết', exact: true }).click();
     const resolveDialog = page.getByRole('dialog');
-    await resolveDialog.getByLabel('Kết quả xử lý').fill('Đã gặp PH, đổi lớp phù hợp — E2E');
-    await resolveDialog.getByRole('button', { name: 'Xác nhận' }).click();
-    await expect(row.getByText('Đã giải quyết', { exact: true })).toBeVisible();
+    await resolveDialog.getByLabel(/Kết quả xử lý/).fill('Đã gặp PH, đổi lớp phù hợp — E2E');
+    await resolveDialog.getByRole('button', { name: 'Xác nhận', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Đóng', exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
 
-    // --- close it (→ "Đã đóng"), a direct mutation ---
-    await row.getByRole('button', { name: 'Đóng' }).click();
-    await expect(row.getByText('Đã đóng', { exact: true })).toBeVisible();
+    // --- close it (→ "Đã đóng") ---
+    await page.getByRole('button', { name: 'Đóng', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Đóng', exact: true })).toHaveCount(0, {
+      timeout: 15_000,
+    });
 
     await context.close();
   });

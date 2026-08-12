@@ -12,6 +12,7 @@ const CrmReportPage = lazy(() => import('../pages/crm/report.js'));
 // page files' own header comments.
 const PostSaleMeetingPage = lazy(() => import('../pages/crm/post-sale-meeting.js'));
 const AfterSalePage = lazy(() => import('../pages/crm/aftersale.js'));
+const AfterSaleDetailPage = lazy(() => import('../pages/crm/aftersale-detail.js'));
 
 function Fallback() {
   return <ComingSoon />;
@@ -96,6 +97,22 @@ export const crmRoutes: RouteObject[] = [
     element: (
       <Suspense fallback={<Fallback />}>
         <AfterSalePage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'aftersale/:caseId',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <PermissionGate
+          module="afterSale"
+          action="manage"
+          title="Case sau bán"
+          breadcrumbs={[{ label: 'CRM' }, { label: 'Sau bán' }, { label: 'Chi tiết' }]}
+          requirementLabel="quản lý sau bán (afterSale.manage)"
+        >
+          <AfterSaleDetailPage />
+        </PermissionGate>
       </Suspense>
     ),
   },

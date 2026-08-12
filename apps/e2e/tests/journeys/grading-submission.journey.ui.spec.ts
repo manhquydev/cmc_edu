@@ -64,7 +64,12 @@ test.describe('P2-06 journey — chấm bài (GV chấm bài nộp, bài rời h
     // A published exercise and a submission waiting to be graded.
     const exercise = await seedPublishedExercise();
     exerciseId = exercise.exerciseId;
-    await seedSubmittedSubmission({ facilityId, studentId: enrollment.studentId, exerciseId });
+    await seedSubmittedSubmission({
+      facilityId,
+      studentId: enrollment.studentId,
+      exerciseId,
+      classBatchId: batch.classBatchId,
+    });
   });
 
   test.afterAll(async () => {

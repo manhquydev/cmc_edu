@@ -1,13 +1,13 @@
 #!/usr/bin/env tsx
-// Ensures the global CurriculumUnit catalog has the minimal UCREA set used by
-// exercise.create / classSession.assignUnit (same rows as packages/db/prisma/seed.mjs).
+// Ensures the global CurriculumUnit catalog matches the framework CSV
+// (packages/db/prisma/data/CMC_EDU_Khung_Chuong_Trinh.csv → 96 units).
 //
 // local-sim demo (seed-local-sim-demo.ts) never ran prisma seed — leaving
 // CurriculumUnit empty and blocking the entire grading path. Call this from
 // host against the published Postgres port, or run after migrate on any env.
 //
 // Safety:
-//   - Idempotent: no-op when any CurriculumUnit row exists.
+//   - Idempotent upsert on (program, orderGlobal).
 //   - Requires LOCAL_SIM_SEED_ALLOW=1 OR SYNTH_SEED_ALLOW=1 OR ENSURE_CURRICULUM_ALLOW=1
 //     so a stray run against an unexpected DB is fail-closed.
 //
@@ -16,6 +16,7 @@
 //     npx tsx scripts/ensure-curriculum-units.ts
 
 import { createPrismaClientWithUrl } from '@cmc/db';
+import { importCurriculumUnits } from '../packages/db/prisma/import-curriculum-units.mjs';
 
 function resolveDatabaseUrl(): string {
   const raw =
@@ -50,18 +51,11 @@ async function main(): Promise<void> {
   const url = resolveDatabaseUrl();
   const db = createPrismaClientWithUrl(url);
   try {
-    const existingCount = await db.curriculumUnit.count();
-    if (existingCount > 0) {
-      console.log(`CurriculumUnit already present (${existingCount} rows) — skip.`);
-      return;
-    }
-    const result = await db.curriculumUnit.createMany({
-      data: [
-        { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'Bài 1: Làm quen' },
-        { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'REVIEW', title: 'Ôn tập tháng 1' },
-      ],
-    });
-    console.log(`Seeded ${result.count} CurriculumUnit rows.`);
+    const result = await importCurriculumUnits(db);
+    console.log(
+      `CurriculumUnit ensure: created=${result.created} updated=${result.updated} ` +
+        `total=${result.total} (UCREA=${result.counts.UCREA} BRIGHT_IG=${result.counts.BRIGHT_IG} BLACK_HOLE=${result.counts.BLACK_HOLE}).`,
+    );
   } finally {
     await db.$disconnect();
   }

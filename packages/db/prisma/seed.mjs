@@ -24,6 +24,7 @@ import {
   SYNTHETIC_SEED_FACILITY_NAME,
   SYNTHETIC_SEED_FACILITY_CODE,
 } from './seed-constants.mjs';
+import { importCurriculumUnits } from './import-curriculum-units.mjs';
 
 // Idempotent find-or-create by name. `code` (system-wide unique, NOT NULL, no
 // DB default since migration 20260706170000) MUST be supplied on a direct
@@ -61,25 +62,15 @@ async function main() {
   }
 }
 
-// T2-I (docs/19 §1, QĐ 0021): a minimal UCREA unit set so
-// `classSession.assignUnit`/`exercise.create` have something real to
-// reference in dev/manual smoke-testing. CurriculumUnit is a GLOBAL catalog
-// (no facilityId) — idempotent by "does any row already exist" (unlike the
-// facility seed above, there is no natural unique field to find-or-create by).
+// Full framework catalog from prisma/data/CMC_EDU_Khung_Chuong_Trinh.csv
+// (96 units after grouping multi-topic rows). GLOBAL, no facilityId (QĐ 0021).
+// Idempotent upsert on (program, orderGlobal) — see import-curriculum-units.mjs.
 async function seedCurriculumUnits(db) {
-  const existingCount = await db.curriculumUnit.count();
-  if (existingCount > 0) {
-    console.log(`CurriculumUnit already seeded (${existingCount} rows).`);
-    return;
-  }
-
-  const units = await db.curriculumUnit.createMany({
-    data: [
-      { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'Bài 1: Làm quen' },
-      { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'REVIEW', title: 'Ôn tập tháng 1' },
-    ],
-  });
-  console.log(`Seeded ${units.count} CurriculumUnit rows.`);
+  const result = await importCurriculumUnits(db);
+  console.log(
+    `CurriculumUnit seed: created=${result.created} updated=${result.updated} ` +
+      `total=${result.total} (UCREA=${result.counts.UCREA} BRIGHT_IG=${result.counts.BRIGHT_IG} BLACK_HOLE=${result.counts.BLACK_HOLE}).`,
+  );
 }
 
 // HR remediation phase 1 (plans/260711-1752-hr-kpi-shift-attendance-remediation

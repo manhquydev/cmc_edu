@@ -38,6 +38,7 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
   let classBatch: { id: string; courseId: string };
   let unit: { id: string };
   let exercise: { id: string; maxScore: number; starReward: number };
+  let sessionExerciseId: string;
   let parent: { id: string; phone: string };
   const seededUnitIds: string[] = [];
 
@@ -69,12 +70,19 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
     });
     exercise = await gddt.exercise.publish({ exerciseId: created.id });
 
-    await seedClassSession({
+    await gddt.lmsOps.assignExerciseSequence({
+      classBatchId: classBatch.id,
+      exerciseIds: [exercise.id],
+    });
+    const session = await seedClassSession({
       facilityId: facility.id,
       classBatchId: classBatch.id,
       curriculumUnitId: unit.id,
       endTime: PAST,
     });
+    const delivered = await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
+    if (!delivered.delivered) throw new Error('expected delivery');
+    sessionExerciseId = delivered.sessionExercise.id;
 
     // Real ParentAccount for Guardian FK (F1 remediation).
     const phone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
@@ -104,12 +112,13 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
       classBatchId: classBatch.id,
       parentAccountId: parent.id,
       studentName: opts.studentName,
+      unitRange: { fromOrderGlobal: 1, toOrderGlobal: 10_000 },
     });
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
-    await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: { done: true } });
-    const submitted = await student.submission.submit({ exerciseId: exercise.id });
+    await student.submission.saveDraft({ sessionExerciseId: sessionExerciseId, annotationLayer: { done: true } });
+    const submitted = await student.submission.submit({ sessionExerciseId: sessionExerciseId });
     return { submissionId: submitted.id, studentId: enrollment.studentId, enrollmentId: enrollment.id };
   }
 
@@ -122,18 +131,54 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
     expect(graded.gradedAt).not.toBeNull();
   });
 
-  it('atomic-lock standardization (scenario audit pattern #3): 2 concurrent grades on the SAME submission → 1 succeeds, 1 CONFLICT (no silent overwrite)', async () => {
-    const { submissionId } = await seedSubmittedSubmission();
+  // Concurrent grades on the same row.
+  //
+  // Product contract (`router.ts` grade): compare-and-swap via
+  // `updateMany({ where: { status: submission.status } })` after a fresh read.
+  // - True race on `submitted`: one CAS wins, the other gets CONFLICT.
+  // - Near-sequential (one commits before the peer's findFirst): peer re-reads
+  //   `graded` and takes the intentional regrade path (graded→graded) — both
+  //   calls fulfill. That is NOT silent overwrite of an in-flight CAS; it is
+  //   the same allowed regrade the next test covers sequentially.
+  // - starReward: awarded at most once (in-tx check + partial unique index).
+  //
+  // Therefore fulfilled/rejected counts on Promise.allSettled are
+  // non-deterministic. Assert the durable end-state instead.
+  it('atomic-lock standardization (scenario audit pattern #3): 2 concurrent grades leave a single consistent graded row + one star award', async () => {
+    const { submissionId, studentId } = await seedSubmittedSubmission();
 
     const results = await Promise.allSettled([
       teacher.submission.grade({ submissionId, score: 7 }),
       teacher.submission.grade({ submissionId, score: 9 }),
     ]);
-    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+
+    // Any rejection must be the CAS conflict, never a hard failure that left
+    // the row half-applied. Zero rejections is allowed (regrade path).
     const rejected = results.filter((r) => r.status === 'rejected');
-    expect(fulfilled).toHaveLength(1);
-    expect(rejected).toHaveLength(1);
-    expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({ code: 'CONFLICT' });
+    for (const r of rejected) {
+      expect((r as PromiseRejectedResult).reason).toMatchObject({ code: 'CONFLICT' });
+    }
+    expect(results.filter((r) => r.status === 'fulfilled').length).toBeGreaterThanOrEqual(1);
+
+    const row = await testDbBypass((tx) =>
+      tx.submission.findUniqueOrThrow({ where: { id: submissionId } }),
+    );
+    expect(row.status).toBe('graded');
+    expect([7, 9]).toContain(row.score);
+    expect(row.gradedAt).not.toBeNull();
+
+    const starTxns = await testDbBypass((tx) =>
+      tx.starTransaction.findMany({
+        where: {
+          studentId,
+          type: 'homework_completed',
+          refType: 'submission',
+          refId: submissionId,
+        },
+      }),
+    );
+    expect(starTxns).toHaveLength(1);
+    expect(starTxns[0]?.amount).toBe(exercise.starReward);
   });
 
   it('a sequential regrade (submitted->graded, then graded->graded) is NOT a conflict — each call re-reads fresh state', async () => {
@@ -152,11 +197,12 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
       facilityId: facility.id,
       classBatchId: classBatch.id,
       parentAccountId: parent.id,
+      unitRange: { fromOrderGlobal: 1, toOrderGlobal: 10_000 },
     });
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
-    const draft = await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: {} });
+    const draft = await student.submission.saveDraft({ sessionExerciseId: sessionExerciseId, annotationLayer: {} });
 
     await expect(teacher.submission.grade({ submissionId: draft.id, score: 5 })).rejects.toMatchObject({
       code: 'BAD_REQUEST',

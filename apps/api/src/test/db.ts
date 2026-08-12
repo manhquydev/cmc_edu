@@ -167,6 +167,8 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
     // bypass GUC even though StudentAccount itself carries no RLS policy. It
     // also has an FK to Student, so it must run before `student.deleteMany`.
     await tx.studentAccount.deleteMany({ where: { student: { facilityId } } });
+    // LMS foundation: ranges before enrollments (CASCADE also covers, but explicit for clarity).
+    await tx.enrollmentUnitRange.deleteMany({ where: { facilityId } });
     await tx.enrollment.deleteMany({ where: { facilityId } });
     await tx.student.deleteMany({ where: { facilityId } });
     await tx.receipt.deleteMany({ where: { facilityId } });
@@ -422,11 +424,14 @@ export async function seedEnrolledStudentWithGuardian(opts: {
   classBatchId: string;
   parentAccountId: string;
   studentName?: string;
+  /** Forwarded to seedActiveEnrollment (dual-gate entitlement). */
+  unitRange?: { fromOrderGlobal: number; toOrderGlobal: number };
 }): Promise<{ id: string; studentId: string; classBatchId: string }> {
   const enrollment = await seedActiveEnrollment({
     facilityId: opts.facilityId,
     classBatchId: opts.classBatchId,
     studentName: opts.studentName,
+    unitRange: opts.unitRange,
   });
   await seedGuardianLink({
     facilityId: opts.facilityId,
@@ -448,6 +453,59 @@ export interface SeedClassBatchOptions {
 }
 
 /**
+ * Ensure global CurriculumUnit rows for `program` cover orderGlobal 1..maxOrder.
+ * Idempotent; shared catalog (not facility-scoped) so not torn down by
+ * cleanupFacility. Needed so provisionFromReceipt / receiptApprove unit grants
+ * (default package size 4, plus renewals) do not fail with
+ * "orderGlobal N is not in program …".
+ */
+/**
+ * Default framework level code for synthetic test units (CSV-verbatim, not a rank).
+ * UCREA starts at `U2`; Bright I.G / Black Hole use their first CSV bands.
+ */
+function defaultFrameworkLevel(program: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE'): string {
+  switch (program) {
+    case 'UCREA':
+      return 'U2';
+    case 'BRIGHT_IG':
+      return 'J';
+    case 'BLACK_HOLE':
+      return 'B';
+  }
+}
+
+export async function ensureProgramUnitAxis(
+  program: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE' = 'UCREA',
+  maxOrder = 16,
+): Promise<{ id: string; orderGlobal: number }[]> {
+  const out: { id: string; orderGlobal: number }[] = [];
+  const level = defaultFrameworkLevel(program);
+  for (let orderGlobal = 1; orderGlobal <= maxOrder; orderGlobal++) {
+    const existing = await testDb().curriculumUnit.findUnique({
+      where: { program_orderGlobal: { program, orderGlobal } },
+      select: { id: true, orderGlobal: true },
+    });
+    if (existing) {
+      out.push(existing);
+      continue;
+    }
+    const created = await testDb().curriculumUnit.create({
+      data: {
+        program,
+        level,
+        monthIndex: Math.min(orderGlobal, 12),
+        unitType: 'LESSON',
+        title: `Test ${program} unit ${orderGlobal}`,
+        orderGlobal,
+      },
+      select: { id: true, orderGlobal: true },
+    });
+    out.push(created);
+  }
+  return out;
+}
+
+/**
  * P2-Foundation: seeds a real Course + ClassBatch (with the same code-format/
  * atomic-counter shape `classBatch.create` uses) for tests that only need a
  * valid `classBatchId` to exercise the P1<->P2 seam (`finance.receiptCreate`/
@@ -460,6 +518,9 @@ export async function seedClassBatch(
   opts: SeedClassBatchOptions,
 ): Promise<{ id: string; code: string; courseId: string }> {
   const program = opts.program ?? 'UCREA';
+  // Receipt approve grants units against the global program axis — ensure it
+  // exists before any test hits finance.receiptApprove → provisionFromReceipt.
+  await ensureProgramUnitAxis(program, 16);
   const startDate = opts.startDate ?? '2026-08-01';
   const endDate = opts.endDate ?? '2026-08-31';
   const year = Number(startDate.slice(0, 4));
@@ -501,7 +562,11 @@ export async function seedClassBatch(
 
 export interface SeedCurriculumUnitOptions {
   program?: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE';
-  level?: number;
+  /**
+   * Framework level code (CSV-verbatim), e.g. `U2`, `U3`, `J`, `G`, `B`, `P`.
+   * Defaults to the program's first band (`U2` / `J` / `B`) — not a numeric rank.
+   */
+  level?: string;
   monthIndex?: number;
   unitType?: 'LESSON' | 'REVIEW';
   title?: string;
@@ -513,18 +578,33 @@ export interface SeedCurriculumUnitOptions {
  * test that seeds one must delete it (and any `Exercise` rows pointing at it,
  * which RESTRICT-block the delete) itself, via `cleanupCurriculumUnits()`.
  */
+export interface SeedCurriculumUnitOptionsWithOrder extends SeedCurriculumUnitOptions {
+  orderGlobal?: number;
+}
+
 export async function seedCurriculumUnit(
-  opts: SeedCurriculumUnitOptions = {},
-): Promise<{ id: string }> {
-  return testDb().curriculumUnit.create({
+  opts: SeedCurriculumUnitOptionsWithOrder = {},
+): Promise<{ id: string; orderGlobal: number }> {
+  const program = opts.program ?? 'UCREA';
+  let orderGlobal = opts.orderGlobal;
+  if (orderGlobal == null) {
+    const max = await testDb().curriculumUnit.aggregate({
+      where: { program },
+      _max: { orderGlobal: true },
+    });
+    orderGlobal = (max._max.orderGlobal ?? 0) + 1;
+  }
+  const row = await testDb().curriculumUnit.create({
     data: {
-      program: opts.program ?? 'UCREA',
-      level: opts.level ?? 1,
-      monthIndex: opts.monthIndex ?? 1,
+      program,
+      level: opts.level ?? defaultFrameworkLevel(program),
+      monthIndex: opts.monthIndex ?? orderGlobal,
       unitType: opts.unitType ?? 'LESSON',
       title: opts.title ?? `Seed Unit ${randomUUID().slice(0, 8)}`,
+      orderGlobal,
     },
   });
+  return { id: row.id, orderGlobal: row.orderGlobal };
 }
 
 /**
@@ -545,19 +625,20 @@ export interface SeedClassSessionOptions {
   facilityId: string;
   classBatchId: string;
   curriculumUnitId?: string | null;
-  isMakeup?: boolean;
   status?: 'planned' | 'confirmed' | 'cancelled' | 'done';
   sessionDate?: Date;
   startTime?: Date;
   endTime?: Date;
+  /** When omitted, leaves `scheduleSlotId` null (ad-hoc / open-tier seed). */
+  scheduleSlotId?: string | null;
 }
 
 /** T2-II (open-tier / grading tests): seeds a plain `ClassSession` directly
- * (bypasses generation), with the extra knobs (`curriculumUnitId`,
- * `isMakeup`, `endTime`) ADR 0038's Tier A/B gate reads. */
+ * (bypasses generation), with the extra knobs (`curriculumUnitId`, `endTime`)
+ * ADR 0038 Tier A reads. */
 export async function seedClassSession(
   opts: SeedClassSessionOptions,
-): Promise<{ id: string; classBatchId: string; curriculumUnitId: string | null; isMakeup: boolean; status: string }> {
+): Promise<{ id: string; classBatchId: string; curriculumUnitId: string | null; status: string }> {
   return testDbBypass((tx) =>
     tx.classSession.create({
       data: {
@@ -567,10 +648,10 @@ export async function seedClassSession(
         startTime: opts.startTime ?? new Date('2026-08-03T11:00:00.000Z'),
         endTime: opts.endTime ?? new Date('2026-08-03T12:30:00.000Z'),
         status: opts.status ?? 'planned',
-        isMakeup: opts.isMakeup ?? false,
         curriculumUnitId: opts.curriculumUnitId ?? null,
+        ...(opts.scheduleSlotId !== undefined ? { scheduleSlotId: opts.scheduleSlotId } : {}),
       },
-      select: { id: true, classBatchId: true, curriculumUnitId: true, isMakeup: true, status: true },
+      select: { id: true, classBatchId: true, curriculumUnitId: true, status: true },
     }),
   );
 }
@@ -579,6 +660,13 @@ export interface SeedActiveEnrollmentOptions {
   facilityId: string;
   classBatchId: string;
   studentName?: string;
+  /**
+   * Plan 2 dual-gate: when a session is unit-stamped, attendance.mark requires
+   * EnrollmentUnitRange cover. Default is no range (tests that grant ranges
+   * explicitly stay free of accidental overlap). Pass a range when the helper
+   * is used as a dual-gate-ready active student.
+   */
+  unitRange?: { fromOrderGlobal: number; toOrderGlobal: number };
 }
 
 /**
@@ -603,6 +691,16 @@ export async function seedActiveEnrollment(
         status: 'active',
       },
     });
+    if (opts.unitRange) {
+      await tx.enrollmentUnitRange.create({
+        data: {
+          facilityId: opts.facilityId,
+          enrollmentId: enrollment.id,
+          fromOrderGlobal: opts.unitRange.fromOrderGlobal,
+          toOrderGlobal: opts.unitRange.toOrderGlobal,
+        },
+      });
+    }
     return { id: enrollment.id, studentId: student.id, classBatchId: enrollment.classBatchId };
   });
 }

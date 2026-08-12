@@ -24,7 +24,6 @@ export interface ClassSessionLike {
   startTime: Date | string;
   endTime: Date | string;
   status: string;
-  isMakeup?: boolean;
   batchCode?: string;
   program?: string;
   teacherId?: string | null;
@@ -51,7 +50,6 @@ export interface ScheduleFcEvent {
     status: string;
     href: string;
     teacherId?: string | null;
-    isMakeup?: boolean;
   };
 }
 
@@ -109,7 +107,7 @@ export function classSessionToEvents(rows: ClassSessionLike[]): ScheduleFcEvent[
 
     out.push({
       id: row.id,
-      title: row.isMakeup ? `${title} (bù)` : title,
+      title,
       start,
       end,
       allDay: false,
@@ -123,7 +121,6 @@ export function classSessionToEvents(rows: ClassSessionLike[]): ScheduleFcEvent[
         status: row.status,
         href,
         teacherId: row.teacherId ?? null,
-        isMakeup: row.isMakeup ?? false,
       },
     });
   }

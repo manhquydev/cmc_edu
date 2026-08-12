@@ -60,7 +60,7 @@
 | **TimePunch / check-in-out** | Chấm công theo WiFi/IP cơ sở (`FacilityNetwork`). |
 | **Payslip** | Phiếu lương (`PayslipStatus`). Phạt trừ **post-tax**; self-healing từ punch live (QĐ 0025). |
 | **SalaryRate / CompensationPolicy** | Mức lương / chính sách lương (sửa được qua UI — QĐ 0012). |
-| **ShiftRegistration** | Đăng ký ca. Ticket-lock: 1 phiếu Nháp/Chờ duyệt tại 1 thời điểm (QĐ 0035). Duyệt: managerId/HR/giám đốc, chống tự-duyệt (QĐ 0027). |
+| **ShiftRegistration** | Đăng ký ca. Ticket-lock: 1 phiếu Nháp/Chờ duyệt tại 1 thời điểm (QĐ 0035). Duyệt: **track director** theo `ShiftGroup` (`GIAO_VIEN`→`giam_doc_dao_tao`, `KINH_DOANH`→`giam_doc_kinh_doanh`; `super_admin` bypass) — **không** chuỗi `managerId` (ADR 0040 as-built). Chống tự-duyệt (QĐ 0027). |
 | **KpiScore** | Điểm KPI auto + override theo cây quyền + audit (QĐ 0011). |
 
 ## 6. Nền tảng & Vận hành

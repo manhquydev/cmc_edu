@@ -18,6 +18,7 @@ const StudentDetailPage = lazy(() => import('../pages/students/student-detail.js
 
 // ── Parents (guardian link request queue) ───────────────────────────────────
 const ParentListPage = lazy(() => import('../pages/parents/index.js'));
+const ParentDetailPage = lazy(() => import('../pages/parents/parent-detail.js'));
 
 // ── Classes & Courses ────────────────────────────────────────────────────────
 const ClassListPage = lazy(() => import('../pages/classes/index.js'));
@@ -27,6 +28,7 @@ const CourseListPage = lazy(() => import('../pages/courses/index.js'));
 // ── Engagement ───────────────────────────────────────────────────────────────
 const GiftsPage = lazy(() => import('../pages/engagement/gifts.js'));
 const RewardsQueuePage = lazy(() => import('../pages/engagement/rewards.js'));
+const RewardsDetailPage = lazy(() => import('../pages/engagement/rewards-detail.js'));
 const LeaderboardPage = lazy(() => import('../pages/engagement/leaderboard.js'));
 
 // ── Admin (super_admin gated) ────────────────────────────────────────────────
@@ -70,8 +72,28 @@ export const adminRoutes: RouteObject[] = [
     ),
   },
 
-  // Parents (guardian link queue)
+  // Parents (directory + guardian link queue)
   { path: 'parents', element: <S><ParentListPage /></S> },
+  {
+    path: 'parents/:parentId',
+    element: (
+      <S>
+        <PermissionGate
+          module="parentAccount"
+          action="updateEmail"
+          title="Chi tiết phụ huynh"
+          breadcrumbs={[
+            { label: 'Lớp & Học sinh' },
+            { label: 'Phụ huynh' },
+            { label: 'Chi tiết' },
+          ]}
+          requirementLabel="quản lý email phụ huynh (parentAccount.updateEmail)"
+        >
+          <ParentDetailPage />
+        </PermissionGate>
+      </S>
+    ),
+  },
 
   // Classes
   { path: 'classes', element: <S><ClassListPage /></S> },
@@ -121,12 +143,23 @@ export const adminRoutes: RouteObject[] = [
       </S>
     ),
   },
+  // Static list before :rewardId (form-depth HITL).
   {
     path: 'engagement/rewards',
     element: (
       <S>
         <PermissionGate module="rewards" action="manage" title="Đổi thưởng" breadcrumbs={[{ label: 'Gắn kết' }, { label: 'Đổi thưởng' }]} requirementLabel="quản lý đổi thưởng (rewards.manage)">
           <RewardsQueuePage />
+        </PermissionGate>
+      </S>
+    ),
+  },
+  {
+    path: 'engagement/rewards/:rewardId',
+    element: (
+      <S>
+        <PermissionGate module="rewards" action="manage" title="Đổi thưởng" breadcrumbs={[{ label: 'Gắn kết' }, { label: 'Đổi thưởng' }]} requirementLabel="quản lý đổi thưởng (rewards.manage)">
+          <RewardsDetailPage />
         </PermissionGate>
       </S>
     ),

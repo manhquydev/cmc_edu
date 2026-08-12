@@ -195,6 +195,39 @@ describe('gift catalog + rewards lifecycle (P4)', () => {
     });
   });
 
+  // ---- rewards.get (form-depth cold-start) ----
+
+  it('rewards.get: returns reward + gift for facility staff with rewards.manage', async () => {
+    await giveStars(student.id, 20);
+    const gift = await gdkd.gift.upsert({ name: 'Get Gift', starsRequired: 10 });
+    const { reward } = await studentCaller.rewards.redeem({ giftId: gift.id });
+
+    const got = await gdkd.rewards.get({ rewardId: reward.id });
+    expect(got.id).toBe(reward.id);
+    expect(got.status).toBe('pending');
+    expect(got.gift.name).toBe('Get Gift');
+    expect(got.gift.starsRequired).toBe(10);
+  });
+
+  it('rewards.get: missing id → NOT_FOUND', async () => {
+    await expect(
+      gdkd.rewards.get({ rewardId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('rewards.get: sale without rewards.manage → FORBIDDEN', async () => {
+    // sale has rewards.manage in auth matrix for some roles — use giao_vien who lacks manage
+    const gv = appRouter.createCaller(
+      buildStaffContext({ facilityId: facility.id, userId: 'gv-rewards-get', roles: ['giao_vien'] }),
+    );
+    await giveStars(student.id, 20);
+    const gift = await gdkd.gift.upsert({ name: 'Forbidden Get Gift', starsRequired: 10 });
+    const { reward } = await studentCaller.rewards.redeem({ giftId: gift.id });
+    await expect(gv.rewards.get({ rewardId: reward.id })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
+
   // ---- rewards.approve / deliver / reject ----
 
   it('rewards.reject: refund exactly once → StarTransaction created + rejectionRefundedAt set', async () => {

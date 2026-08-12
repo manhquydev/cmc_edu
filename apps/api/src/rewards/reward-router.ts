@@ -258,6 +258,26 @@ export const rewardRouter = router({
       });
     }),
 
+  /**
+   * Staff: cold-start form by UUID (resource-centric form-depth).
+   * Same facility wall + rewards.manage as list.
+   */
+  get: requirePermission('rewards', 'manage')
+    .input(z.object({ rewardId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const reward = await tx.reward.findUnique({
+          where: { id: input.rewardId },
+          include: { gift: { select: { id: true, name: true, starsRequired: true } } },
+        });
+        if (!reward || reward.facilityId !== facilityId) {
+          throw notFound('Reward not found.');
+        }
+        return reward;
+      });
+    }),
+
   /** Staff: list rewards in this facility, optionally filtered by status. */
   list: requirePermission('rewards', 'manage')
     .input(

@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ToastProvider } from '@cmc/ui';
+import { PageHeader, ToastProvider } from '@cmc/ui';
 
 const sessionState = vi.hoisted(() => ({
   me: null as null | {
@@ -78,6 +78,19 @@ function renderShell(route = '/cockpit') {
         children: [
           { path: 'cockpit', element: <div>cockpit-body</div> },
           { path: 'finance', element: <div>finance-body</div> },
+          { path: 'crm', element: <div>crm-body</div> },
+          {
+            path: 'bulk-import',
+            element: (
+              <PageHeader
+                breadcrumbs={[
+                  { label: 'Kinh doanh' },
+                  { label: 'Pipeline CRM' },
+                  { label: 'Nhập hàng loạt' },
+                ]}
+              />
+            ),
+          },
           { path: 'change-password', element: <div>change-password-body</div> },
           { path: 'unknown', element: <div>unknown-body</div> },
         ],
@@ -176,6 +189,16 @@ describe('Shell (Console chrome)', () => {
     expect(paletteText).toContain('Phiếu thu');
     expect(paletteText).not.toContain('Đối soát');
   });
-});
 
+  it('resolves a route-backed parent breadcrumb from the shell for a page that omitted href', async () => {
+    const { fireEvent } = await import('@testing-library/react');
+    renderShell('/bulk-import');
+
+    const parent = screen.getByRole('link', { name: 'Pipeline CRM' });
+    expect(parent).toHaveAttribute('href', '/crm');
+
+    fireEvent.click(parent);
+    expect(await screen.findByText('crm-body')).toBeInTheDocument();
+  });
+});
 

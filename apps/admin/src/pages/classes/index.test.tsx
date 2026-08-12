@@ -14,10 +14,23 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // `const`s run — fixtures referenced directly (not inside a deferred
 // closure) by the mock factory MUST be `vi.hoisted`, same as
 // class-detail.test.tsx's CLASS/TEACHERS/SESSIONS/UNITS.
-const { COURSES, TEACHERS, CLASSES, navigateSpy } = vi.hoisted(() => ({
+const { COURSES, TEACHERS, CLASSES, UNITS, navigateSpy } = vi.hoisted(() => ({
   COURSES: { items: [{ id: 'course-1', program: 'UCREA', name: 'UCREA Cấp 1' }] },
   TEACHERS: { items: [{ id: 't-1', fullName: 'Trần Thị B' }] },
   CLASSES: { items: [], total: 0, page: 1, pageSize: 50 },
+  UNITS: {
+    items: [
+      {
+        id: 'unit-101',
+        program: 'UCREA',
+        title: 'Unit 1',
+        orderGlobal: 101,
+        level: 'U2',
+        monthIndex: 1,
+        unitType: 'core',
+      },
+    ],
+  },
   // Spy navigate: createMemoryRouter + nested <Routes> hits RR7 data-router
   // AbortSignal errors in jsdom when asserting destination pages via real nav.
   navigateSpy: vi.fn(),
@@ -59,7 +72,8 @@ vi.mock('../../lib/trpc.js', async () => {
         pickListSpy(input);
         return queryResult(TEACHERS);
       },
-      'classBatch.create.useMutation': (opts: { onSuccess?: (res: unknown) => void }) => {
+      'curriculumUnit.list.useQuery': () => queryResult(UNITS),
+      'lmsOps.createClassWithUnits.useMutation': (opts: { onSuccess?: (res: unknown) => void }) => {
         createOnSuccess = opts?.onSuccess;
         return mutationResult({
           mutate: (...a: unknown[]) => {
@@ -102,6 +116,7 @@ async function selectFromDropdown(label: string | RegExp, optionName: string | R
 async function fillValidForm() {
   await openCreateDialog();
   await selectFromDropdown(/^Khoá học(?!\s*—)/, /UCREA Cấp 1/);
+  await selectFromDropdown(/^Unit bắt đầu/, /#101/);
   fireEvent.change(screen.getByLabelText(/^Ngày bắt đầu \(YYYY-MM-DD\)/), { target: { value: '2026-08-01' } });
   fireEvent.change(screen.getByLabelText(/^Ngày kết thúc \(YYYY-MM-DD\)/), { target: { value: '2026-12-01' } });
   await selectFromDropdown('Thứ', 'Thứ 2');
@@ -175,7 +190,7 @@ describe('ClassListPage — Tạo lớp', () => {
     expect(screen.getByRole('button', { name: 'Tạo lớp' })).not.toBeDisabled();
   });
 
-  it('calls classBatch.create.mutate with the exact payload (courseId, dates, slots as {weekday,startTime,endTime}, teacherId)', async () => {
+  it('calls lmsOps.createClassWithUnits.mutate with startUnitId + calendar payload', async () => {
     renderListPage();
     await fillValidForm();
     await selectFromDropdown('Giáo viên (tuỳ chọn)', 'Trần Thị B');
@@ -184,6 +199,7 @@ describe('ClassListPage — Tạo lớp', () => {
 
     expect(createMutate).toHaveBeenCalledWith({
       courseId: 'course-1',
+      startUnitId: 'unit-101',
       startDate: '2026-08-01',
       endDate: '2026-12-01',
       slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
@@ -199,6 +215,7 @@ describe('ClassListPage — Tạo lớp', () => {
 
     expect(createMutate).toHaveBeenCalledWith({
       courseId: 'course-1',
+      startUnitId: 'unit-101',
       startDate: '2026-08-01',
       endDate: '2026-12-01',
       slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
@@ -206,23 +223,27 @@ describe('ClassListPage — Tạo lớp', () => {
     expect(createMutate.mock.calls[0]?.[0]).not.toHaveProperty('teacherId');
   });
 
-  it('shows slotsCreated/sessionsCreated after a successful create, and "Xem lớp" navigates to the new class', async () => {
+  it('shows stamped unit create result and "Xem lớp" navigates to the new class', async () => {
     renderListPage();
     await fillValidForm();
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lớp' }));
 
     act(() =>
       createOnSuccess?.({
-        classBatch: { id: 'new-cb-1', code: 'CB010' },
-        slotsCreated: 1,
-        sessionsCreated: 20,
+        classBatchId: 'cb-new',
+        code: 'HN-UCREA-2026-001',
+        sessionsCreated: 12,
+        sessionsStamped: 12,
+        startUnitOrderGlobal: 101,
       }),
     );
 
-    expect(screen.getByText('Đã tạo lớp CB010')).toBeInTheDocument();
-    expect(screen.getByText('Đã sinh 1 khung giờ và 20 buổi học.')).toBeInTheDocument();
+    expect(screen.getByText('Đã tạo lớp HN-UCREA-2026-001')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Đã sinh 12 buổi, stamp 12 unit \(neo order 101\)/),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Xem lớp' }));
-    expect(navigateSpy).toHaveBeenCalledWith('/admin/classes/new-cb-1');
+    expect(navigateSpy).toHaveBeenCalledWith('/admin/classes/cb-new');
   });
 });

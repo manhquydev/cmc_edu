@@ -65,24 +65,22 @@ describe('visibleModulesFor', () => {
     expect(childIds).toContain('my');
   });
 
-  // Per-item nav visibility (module.children entries) is filtered downstream
-  // by `shell.tsx`'s `isChildVisible={(c) => c.permission ? canDo(...) : true}`
-  // — `visibleModulesFor` only decides module-row visibility. Assert the
-  // metadata this depends on is correct: Duyệt KPI / Chốt lương / Bậc lương
-  // carry the 2-GĐ+super_admin permission keys already in the registry.
-  it('tags Duyệt KPI / Chốt lương / Bậc lương with the 2-GĐ+super_admin permission keys', () => {
+  // Per-item nav visibility is filtered by permission when set. Shared
+  // workspaces (KPI, checkin, shifts, my) omit the gate; server scopes rows.
+  it('tags Chốt lương / Bậc lương with director permission keys; KPI is ungated shared board', () => {
     const hr = NAV_MODULES.find((m) => m.id === 'hr');
     const kpiChild = hr?.children?.find((c) => c.id === 'kpi');
     const payrollChild = hr?.children?.find((c) => c.id === 'payroll');
     const tierChild = hr?.children?.find((c) => c.id === 'salary-tiers');
-    expect(kpiChild?.permission).toEqual({ module: 'kpi', action: 'confirm' });
+    expect(kpiChild?.label).toBe('KPI');
+    expect(kpiChild?.permission).toBeUndefined();
     expect(payrollChild?.permission).toEqual({ module: 'payslip', action: 'assemble' });
     expect(tierChild?.permission).toEqual({ module: 'salaryTier', action: 'manage' });
   });
 
-  it('leaves Chấm công / Đăng ký ca / Của tôi without a permission gate', () => {
+  it('leaves Chấm công / Đăng ký ca / Của tôi / KPI without a permission gate', () => {
     const hr = NAV_MODULES.find((m) => m.id === 'hr');
-    for (const id of ['checkin', 'shifts', 'my']) {
+    for (const id of ['checkin', 'shifts', 'my', 'kpi']) {
       expect(hr?.children?.find((c) => c.id === id)?.permission).toBeUndefined();
     }
   });
@@ -202,14 +200,18 @@ describe('nav entries a role really sees (module gate + child gate, real permiss
     expect(pathsFor('giam_doc_kinh_doanh')).toContain('/ops/revenue');
   });
 
-  // The acceptance ledger stopped counting placeholder screens as built; the
-  // menu has to agree, or a director clicks "Hoàn tiền" on day one and lands on
-  // "Tính năng chưa áp dụng". Restore an entry when its screen is built, at the
-  // same time the corresponding flow returns to `built`.
+  // Placeholder screens must not get menu entries. /finance/refund is built
+  // (approved-receipt index → form). Leaderboard remains URL-only.
   it('points no menu entry at a placeholder screen', () => {
-    const placeholders = ['/finance/refund', '/admin/engagement/leaderboard'];
+    const placeholders = ['/admin/engagement/leaderboard'];
     const everyPath = NAV_MODULES.flatMap((mod) => [mod.path, ...(mod.children ?? []).map((c) => c.path)]);
     for (const path of placeholders) expect(everyPath).not.toContain(path);
+  });
+
+  it('shows Hoàn tiền index to roles that can list receipts', () => {
+    expect(pathsFor('giam_doc_kinh_doanh')).toContain('/finance/refund');
+    expect(pathsFor('giam_doc_dao_tao')).toContain('/finance/refund');
+    expect(pathsFor('sale')).not.toContain('/finance/refund');
   });
 
   it('shows the reward queue to the three roles that can manage rewards', () => {

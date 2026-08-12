@@ -60,7 +60,12 @@ export function LoginPage() {
         mustChangePassword?: boolean;
       };
       if (!resp.ok) {
-        setError(body.error ?? 'Đăng nhập thất bại.');
+        // The API returns one generic message for every failure reason
+        // (unknown email, wrong password, locked account, ...) by design —
+        // no-leak, chống dò email/tài khoản. Never surface `body.error` raw:
+        // it comes back in English and would defeat the point of showing a
+        // single message by making it distinguishable per status/wording.
+        setError('Thông tin đăng nhập không chính xác. Vui lòng kiểm tra lại.');
         return;
       }
       // The staff cookie is set — refetch the session before entering the app.

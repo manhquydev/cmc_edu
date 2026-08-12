@@ -1,5 +1,6 @@
 import {
   Badge,
+  BreadcrumbHrefProvider,
   CommandPalette,
   LineIcon,
   ConsoleNavbar,
@@ -13,6 +14,7 @@ import { useSession } from '../lib/session-context.js';
 import { EnrollPicker } from '../lib/enroll-picker.js';
 import { isNavChildVisible, visibleModulesFor } from './nav-registry.js';
 import { RoleSwitcher } from './role-switcher.js';
+import { resolveAdminBreadcrumbHref } from './breadcrumb-routes.js';
 import { useCallback, useMemo, useState } from 'react';
 
 // Same convention as lib/trpc.ts: empty = same-origin (Vite /auth proxy · nginx).
@@ -124,32 +126,34 @@ export function Shell() {
   );
 
   return (
-    <div className="o_web_client">
-      {!suppressChrome && (
-        <ConsoleNavbar
-          apps={modules}
-          activeAppId={activeId}
-          isChildVisible={(c) => isNavChildVisible(c, canDo)}
-          onNavigate={navigate}
-          // Unmatched route: product fallback (not apps[0].label). Active module → navbar default.
-          brand={activeId ? undefined : 'CMC EDU'}
-          systray={systray}
-        />
-      )}
-      <main className="console-main" role="main">
-        <Outlet />
-      </main>
-      {!suppressChrome && (
-        <>
-          <EnrollPicker opened={enrollPickerOpen} onClose={() => setEnrollPickerOpen(false)} />
-          <CommandPalette
-            open={cmdOpen}
-            onOpenChange={setCmdOpen}
-            items={commandItems}
-            onNavigate={(href) => void navigate(href)}
+    <BreadcrumbHrefProvider resolveHref={resolveAdminBreadcrumbHref}>
+      <div className="o_web_client">
+        {!suppressChrome && (
+          <ConsoleNavbar
+            apps={modules}
+            activeAppId={activeId}
+            isChildVisible={(c) => isNavChildVisible(c, canDo)}
+            onNavigate={navigate}
+            // Unmatched route: product fallback (not apps[0].label). Active module → navbar default.
+            brand={activeId ? undefined : 'CMC EDU'}
+            systray={systray}
           />
-        </>
-      )}
-    </div>
+        )}
+        <main className="console-main" role="main">
+          <Outlet />
+        </main>
+        {!suppressChrome && (
+          <>
+            <EnrollPicker opened={enrollPickerOpen} onClose={() => setEnrollPickerOpen(false)} />
+            <CommandPalette
+              open={cmdOpen}
+              onOpenChange={setCmdOpen}
+              items={commandItems}
+              onNavigate={(href) => void navigate(href)}
+            />
+          </>
+        )}
+      </div>
+    </BreadcrumbHrefProvider>
   );
 }

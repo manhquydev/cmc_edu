@@ -20,9 +20,12 @@
 //                     R2-6) tất toán every `confirmed` slip in scope whose
 //                     Payslip is already `finalized`, excluding the caller's
 //                     own slip. Idempotent (only touches `confirmed` rows).
-//   kpi.list       — 2 GĐ / super_admin inbox, branch-scoped by target ROLE.
+//   kpi.list       — shared board: directors = branch-scoped by target ROLE;
+//                     other staff = self-only rows (resource-centric workspace).
 //   kpi.myScore    — self-scoped read, no dedicated permission key
 //                     (red-team #20 — same posture as payslip.my).
+//   kpi.get        — cold-start form /hr/kpi/:scoreId: owner | manager |
+//                     branch director | super_admin.
 //
 // `kpi.submit` / `kpi.approve` (standalone) / `kpi.getForUser` are REMOVED
 // (red-team #10/#11) — `approved` is reachable ONLY via `bulkApprove`.
@@ -96,6 +99,8 @@ const listInput = z.object({
 });
 
 const myScoreInput = z.object({ period: periodSchema });
+
+const getInput = z.object({ scoreId: z.string().uuid() });
 
 export const kpiRouter = router({
   // -------------------------------------------------------------------------
@@ -412,7 +417,70 @@ export const kpiRouter = router({
     }),
 
   // -------------------------------------------------------------------------
-  // kpi.list — 2 GĐ / super_admin inbox, branch-scoped by target ROLE
+  // kpi.get — form cold-start /hr/kpi/:scoreId
+  // -------------------------------------------------------------------------
+  get: protectedProcedure.input(getInput).query(async ({ ctx, input }) => {
+    const { facilityId } = scoped(ctx);
+    return withFacility(ctx.db, facilityId, async (tx) => {
+      const score = await tx.kpiScore.findFirst({
+        where: { id: input.scoreId, facilityId },
+        include: {
+          appUser: {
+            select: {
+              id: true,
+              fullName: true,
+              userId: true,
+              managerId: true,
+              roles: true,
+              position: true,
+            },
+          },
+        },
+      });
+      if (!score) throw notFound('KpiScore not found.');
+
+      const roles = ctx.subject!.roles;
+      const isSuper = roles.includes('super_admin');
+      const caller = await tx.appUser.findFirst({
+        where: { userId: ctx.subject!.userId, facilityId },
+      });
+      const isOwner = Boolean(caller && caller.id === score.appUserId);
+      const isDirectManager = Boolean(
+        caller && score.appUser.managerId && score.appUser.managerId === caller.id,
+      );
+      const targetRole = resolveKpiTargetRole(score.appUser.roles);
+      const branchOk =
+        targetRole !== null && allowedKpiTargetRoles(roles).has(targetRole);
+      const isBranchDirector =
+        !isSuper &&
+        branchOk &&
+        (roles.includes('giam_doc_dao_tao') || roles.includes('giam_doc_kinh_doanh'));
+
+      if (!isOwner && !isSuper && !isDirectManager && !isBranchDirector) {
+        throw forbidden('Not allowed to view this KPI score.');
+      }
+
+      // UI action flags — mirror confirm/override server gates (not canDo alone).
+      const viewerCanConfirm =
+        score.status === 'submitted' && !isOwner && (isSuper || isDirectManager);
+      const viewerCanOverride =
+        (score.status === 'submitted' || score.status === 'confirmed') &&
+        !isOwner &&
+        (isSuper || isBranchDirector);
+
+      return {
+        ...score,
+        fullName: score.appUser.fullName,
+        position: score.appUser.position,
+        tierMissing: score.tierIdSnapshot === null,
+        viewerCanConfirm,
+        viewerCanOverride,
+      };
+    });
+  }),
+
+  // -------------------------------------------------------------------------
+  // kpi.list — shared board: directors = branch scope; staff = self only
   // -------------------------------------------------------------------------
   list: protectedProcedure
     .input(listInput)
@@ -422,8 +490,32 @@ export const kpiRouter = router({
         const isSuperAdmin = ctx.subject!.roles.includes('super_admin');
         const isGddt = ctx.subject!.roles.includes('giam_doc_dao_tao');
         const isGdkd = ctx.subject!.roles.includes('giam_doc_kinh_doanh');
-        if (!isSuperAdmin && !isGddt && !isGdkd) {
-          throw forbidden('Only a director can list KPI scores.');
+        const isDirector = isSuperAdmin || isGddt || isGdkd;
+
+        const caller = await tx.appUser.findFirst({
+          where: { userId: ctx.subject!.userId, facilityId },
+        });
+
+        if (!isDirector) {
+          if (!caller) throw forbidden('Staff profile not found in this facility.');
+          const scores = await tx.kpiScore.findMany({
+            where: {
+              facilityId,
+              period: input.period,
+              appUserId: caller.id,
+              ...(input.status ? { status: input.status } : {}),
+            },
+            include: { appUser: true },
+            orderBy: { updatedAt: 'desc' },
+          });
+          return scores.map((s) => ({
+            ...s,
+            fullName: s.appUser.fullName,
+            position: s.appUser.position,
+            tierMissing: s.tierIdSnapshot === null,
+            viewerCanConfirm: false,
+            viewerCanOverride: false,
+          }));
         }
 
         const targetRoles = new Set<'sale' | 'giao_vien'>();
@@ -446,12 +538,28 @@ export const kpiRouter = router({
             const role = resolveKpiTargetRole(s.appUser.roles);
             return role !== null && targetRoles.has(role);
           })
-          .map((s) => ({
-            ...s,
-            fullName: s.appUser.fullName,
-            position: s.appUser.position,
-            tierMissing: s.tierIdSnapshot === null,
-          }));
+          .map((s) => {
+            const isOwner = Boolean(caller && s.appUserId === caller.id);
+            const isDirectManager = Boolean(
+              caller && s.appUser.managerId && s.appUser.managerId === caller.id,
+            );
+            return {
+              ...s,
+              fullName: s.appUser.fullName,
+              position: s.appUser.position,
+              tierMissing: s.tierIdSnapshot === null,
+              viewerCanConfirm:
+                s.status === 'submitted' && !isOwner && (isSuperAdmin || isDirectManager),
+              viewerCanOverride:
+                (s.status === 'submitted' || s.status === 'confirmed') &&
+                !isOwner &&
+                (isSuperAdmin ||
+                  (resolveKpiTargetRole(s.appUser.roles) !== null &&
+                    allowedKpiTargetRoles(ctx.subject!.roles).has(
+                      resolveKpiTargetRole(s.appUser.roles)!,
+                    ))),
+            };
+          });
       });
     }),
 

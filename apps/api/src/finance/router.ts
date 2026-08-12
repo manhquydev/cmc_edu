@@ -103,6 +103,12 @@ const receiptCreateInput = z.object({
   parentEmail: z.string().email().optional(),
   amount: vndAmountSchema,
   classBatchId: z.string().min(1).optional(),
+  /**
+   * Plan 3: units purchased for the class program.
+   * omit/null → server default LMS_DEFAULT_UNIT_COUNT_ON_RECEIPT (usually 4);
+   * 0 → break-glass (activate enrollment, no learning until admin grants).
+   */
+  unitCount: z.number().int().min(0).max(240).optional(),
   /** Metric & Data Integrity remediation (scenario audit, PO round 3): set
    * ONLY when the caller has confirmed this phone genuinely has a NEW child
    * despite already owning ≥1 provisioned Student in this facility — bypasses
@@ -121,6 +127,8 @@ export interface ReceiptDto {
   studentName: string;
   classBatchId: string | null;
   classBatchCode: string | null;
+  /** Plan 3: purchased unit count; null means use default at provision. */
+  unitCount: number | null;
   netAmount: number;
   createdAt: Date;
   /** Server-derived UI hint: true iff the calling subject has the
@@ -129,6 +137,20 @@ export interface ReceiptDto {
    * `netAmount > APPROVAL_SECOND_EYE_THRESHOLD`. `false` whenever subject is
    * not provided (e.g. post-mutation responses where approval is moot). */
   canApprove: boolean;
+  /**
+   * Refund ledger — populated by `receiptGet` only. List/create responses
+   * omit these (undefined) so list stays cheap; form cold-start uses get.
+   */
+  refunds?: RefundDto[];
+  refundedTotal?: number;
+  remainingBalance?: number;
+  /** GĐKD + approved + remainingBalance > 0. */
+  viewerCanRefund?: boolean;
+  /**
+   * Cancel HITL — get-only. Same permission key as approve (`receiptApprove`);
+   * only when status is approved (server cancel rejects other statuses).
+   */
+  viewerCanCancel?: boolean;
 }
 
 export type ReceiptCreateResult =
@@ -159,6 +181,7 @@ interface ReceiptRow {
   studentName: string;
   classBatchId: string | null;
   classBatch?: { code: string } | null;
+  unitCount?: number | null;
   netAmount: { toNumber(): number };
   createdAt: Date;
   createdById: string;
@@ -187,6 +210,7 @@ function toReceiptDto(
     studentName: receipt.studentName,
     classBatchId: receipt.classBatchId,
     classBatchCode: receipt.classBatch?.code ?? null,
+    unitCount: receipt.unitCount ?? null,
     netAmount,
     createdAt: receipt.createdAt,
     canApprove,
@@ -566,6 +590,17 @@ async function runCancelTransaction(
     }
   }
 
+  // Plan 3: cancelled money must cut unit ranges granted by this receipt even
+  // when another approved receipt keeps the enrollment active (M9). Attendance
+  // history is never erased — only entitlement ranges for this source.
+  const { revokeRangesForReceipt } = await import('../lms-ops/grant-units.js');
+  await revokeRangesForReceipt(tx, {
+    facilityId,
+    receiptId: cancelled.id,
+    actor: actorId,
+    auditAction: 'enrollment.revokeOnCancel',
+  });
+
   await tx.auditLog.create({
     data: {
       actor: actorId,
@@ -685,6 +720,18 @@ async function runRefundTransaction(
     data: { receiptId: locked.id, facilityId, amount, idempotencyKey: idempotencyKey ?? null },
   });
 
+  // Plan 3: on full refund (remaining 0), cut unit ranges granted by this receipt.
+  // Partial refunds keep ranges (ops can revokeFromNext manually). Attendance kept.
+  const remaining = netAmount - (existingSum + amount);
+  if (remaining <= 0) {
+    const { revokeRangesForReceipt } = await import('../lms-ops/grant-units.js');
+    await revokeRangesForReceipt(tx, {
+      facilityId,
+      receiptId: locked.id,
+      actor: 'system',
+    });
+  }
+
   return {
     refund: {
       id: refund.id,
@@ -692,7 +739,7 @@ async function runRefundTransaction(
       amount: refund.amount.toNumber(),
       createdAt: refund.createdAt,
     },
-    remainingBalance: netAmount - (existingSum + amount),
+    remainingBalance: remaining,
   };
 }
 
@@ -729,22 +776,52 @@ export const financeRouter = router({
 
   // K3 remediation: the single-receipt companion to receiptList (e.g. an
   // approver opening one item from the queue).
+  // Form cold-start also loads the append-only refund ledger for HITL.
   receiptGet: requirePermission('finance', 'receiptGet')
     .input(receiptGetInput)
     .query(async ({ ctx, input }): Promise<ReceiptDto> => {
       const { facilityId } = scoped(ctx);
 
-      const receipt = await withFacility(ctx.db, facilityId, (tx) =>
-        tx.receipt.findFirst({
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const receipt = await tx.receipt.findFirst({
           where: { id: input.receiptId, facilityId },
           include: { classBatch: { select: { code: true } } },
-        }),
-      );
-      // Out-of-facility ids look identical to non-existent ones (RLS — TL11 §2).
-      if (!receipt) {
-        throw notFound('Receipt not found.');
-      }
-      return toReceiptDto(receipt, ctx.subject ?? undefined);
+        });
+        // Out-of-facility ids look identical to non-existent ones (RLS — TL11 §2).
+        if (!receipt) {
+          throw notFound('Receipt not found.');
+        }
+
+        const refundRows = await tx.refundRecord.findMany({
+          where: { receiptId: receipt.id, facilityId },
+          orderBy: { createdAt: 'asc' },
+        });
+        const refunds: RefundDto[] = refundRows.map((r) => ({
+          id: r.id,
+          receiptId: r.receiptId,
+          amount: r.amount.toNumber(),
+          createdAt: r.createdAt,
+        }));
+        const refundedTotal = refunds.reduce((sum, r) => sum + r.amount, 0);
+        const dto = toReceiptDto(receipt, ctx.subject ?? undefined);
+        const remainingBalance = dto.netAmount - refundedTotal;
+        const viewerCanRefund =
+          Boolean(ctx.subject && can(ctx.subject, 'finance', 'refundCreate')) &&
+          receipt.status === 'approved' &&
+          remainingBalance > 0;
+        const viewerCanCancel =
+          Boolean(ctx.subject && can(ctx.subject, 'finance', 'receiptApprove')) &&
+          receipt.status === 'approved';
+
+        return {
+          ...dto,
+          refunds,
+          refundedTotal,
+          remainingBalance,
+          viewerCanRefund,
+          viewerCanCancel,
+        };
+      });
     }),
 
   receiptCreate: requirePermission('finance', 'receiptCreate')
@@ -903,6 +980,7 @@ export const financeRouter = router({
               parentEmail: input.parentEmail ?? null,
               studentName: input.studentName,
               classBatchId: input.classBatchId,
+              unitCount: input.unitCount ?? null,
               createdById: ctx.subject.userId,
               createdByAppUserId: callerAppUser?.id ?? null,
             },
@@ -962,6 +1040,7 @@ export const financeRouter = router({
           classBatchId: receipt.classBatchId,
           studentId: receipt.studentId,
           confirmNewStudent: receipt.confirmNewStudent,
+          unitCount: receipt.unitCount,
         });
       } catch (error) {
         // C1 remediation: a receipt cancelled in the window between this

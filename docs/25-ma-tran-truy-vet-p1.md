@@ -37,15 +37,15 @@ run 2026-07-12 sau HR remediation phase 6) · `ADR/QĐ` · `Oversight`.
 | **P2-08** | giao_vien | "Gửi ảnh & tóm tắt buổi cho PH" | `sessionEvidence.publish` (giao_vien) | `/teaching/session-evidence` · `/parent/evidence/:studentId` | `apps/api/src/session-evidence/publish.test.ts` · `photo-access.test.ts` | TL19§6b · **TL08§7** | người |
 | **P3-01** | nhân viên | "Chấm công cặp vào/ra mỗi ngày" | `checkInOut.punch` (checkInOut.punch) | `/hr/checkin` | `apps/api/src/checkin/punch-offsite.test.ts` · `apps/api/src/checkin/ip-match.test.ts` | **ADR0043** | người |
 | **P3-02** | sale / giao_vien (chủ phiếu) · GĐ theo track (duyệt) · super_admin (phiếu không track) | "Duyệt phiếu chấm công offsite" | `manualPunch.approve/reject/resubmit/list` (manualPunch.approve) | `/hr/checkin` | `apps/api/src/checkin/manual-punch-approval-track.test.ts` · `apps/e2e/tests/attendance-lifecycle.spec.ts` | **ADR0043** | HITL |
-| **P3-03** | sale / giao_vien | "Đăng ký ca làm" | `shift.submit`/`listGroups`/`myRegistrations` (shift.submit) | `/hr/shifts` | `apps/api/src/shift/register-approve.test.ts` | **ADR0040** · QĐ0035 | HITL |
-| **P3-04** | GĐKD / GĐĐT | "Duyệt ca" | `shift.approve`/`pendingForApproval` (shift.approve, gate ROLE khớp group-type) | `/hr/shifts` | `apps/api/src/shift/register-approve.test.ts` · `apps/e2e/tests/shift-lifecycle.spec.ts` | **ADR0040** · docs/20 §2 | HITL |
+| **P3-03** | sale / giao_vien | "Đăng ký ca làm" | `shift.submit`/`listGroups`/`myRegistrations`/`get` (shift.submit) | `/hr/shifts` → `/new` → `/{id}` | `apps/api/src/shift/register-approve.test.ts` · journey form-depth | **ADR0040** · QĐ0035 | HITL |
+| **P3-04** | GĐKD / GĐĐT | "Duyệt ca" | `shift.approve`/`get`/`pendingForApproval` (shift.approve, gate ROLE khớp group-type) | `/hr/shifts/{id}` · `/go/shiftRegistration/{id}` | `apps/api/src/shift/register-approve.test.ts` · `apps/e2e/tests/shift-lifecycle.spec.ts` · journey | **ADR0040** · docs/20 §2 | HITL |
 | **P3-05** | GĐKD / GĐĐT | "Chốt lương tháng theo bậc lương" | `payslip.assemble/finalize/reopen/my/getForUser` · `salaryTier.list/create/update` · `compensation.assignTier` (payslip.assemble, salaryTier.manage) | `/hr/payroll` · `/hr/salary-tiers` · `/hr/my` | `apps/api/src/payroll/policy-model.test.ts` · `policy-rates.test.ts` · `penalty-posttax.test.ts` · `payslip-my.test.ts` · `apps/e2e/tests/kpi-lifecycle.spec.ts` | **ADR0044** · docs/20 §3 | HITL |
 | **P3-06** | sale / giao_vien / GĐKD / GĐĐT | "Nộp & duyệt phiếu KPI (auto-score)" | `kpi.refresh/submitSlip/confirm/override/myScore/list` (kpi.submitSlip, kpi.confirm, kpi.approve) | `/hr/kpi` · `/hr/my` | `apps/api/src/kpi/lifecycle.test.ts` · `apps/api/src/kpi/auto-score.test.ts` · `apps/e2e/tests/kpi-lifecycle.spec.ts` | **ADR0044** · docs/20 §4 | HITL |
-| **P3-07** | GĐKD / GĐĐT | "Từ chối đăng ký ca (kèm lý do)" | `shift.reject` (shift.approve, anti-self + gate group-type) | `/hr/shifts` | `apps/api/src/shift/reject-validate.test.ts` · `apps/e2e/tests/shift-lifecycle.spec.ts` | **ADR0040** · docs/20 §2 | HITL |
+| **P3-07** | GĐKD / GĐĐT | "Từ chối đăng ký ca (kèm lý do)" | `shift.reject` (shift.approve, anti-self + gate group-type) | `/hr/shifts/{id}` | `apps/api/src/shift/reject-validate.test.ts` · journey form-depth | **ADR0040** · docs/20 §2 | HITL |
 | **P3-08** | GĐKD / GĐĐT | "Tất toán KPI hàng loạt (branch-scope)" | `kpi.bulkApprove` (kpi.bulkApprove) | `/hr/kpi` | `apps/api/src/kpi/lifecycle.test.ts` · `apps/e2e/tests/kpi-lifecycle.spec.ts` | **ADR0044** · docs/20 §4 | HITL |
 | **P3-09** | sale / giao_vien / GĐKD / GĐĐT | "Tính lại điểm KPI tự động (công thức PHẦN NHÂN)" | `kpi.refresh` (kpi.refresh) | `/hr/kpi` · `/hr/my` | `apps/api/src/kpi/auto-score.test.ts` · `apps/api/src/kpi/lifecycle.test.ts` · `apps/e2e/tests/kpi-lifecycle.spec.ts` | **ADR0044** | auto |
 | **P3-10** | hệ thống | "Đánh giá buổi học hoàn thành (session-done)" | (internal sweep worker; không có procedure gọi trực tiếp) | — (feed vào `/hr/kpi`, `/teaching/*`) | `apps/api/src/class/session-done.test.ts` · `apps/api/src/worker/session-done-sweep.test.ts` | **ADR0044** | auto |
-| **P3-11** | hệ thống | "Tự huỷ buổi 0 điểm danh + xếp buổi bù nối đuôi" | (internal sweep worker; không có procedure gọi trực tiếp) | `/admin/classes/:id` | `apps/api/src/worker/session-done-sweep.test.ts` | **ADR0044** | auto |
+| **P3-11** | hệ thống | "Tự huỷ buổi 0 điểm danh + restamp unit (không xếp buổi bù — gỡ nối đuôi 2026-08-12)" | (internal sweep worker; không có procedure gọi trực tiếp) | `/admin/classes/:id` | `apps/api/src/worker/session-done-sweep.test.ts` | **ADR0044** | auto |
 | **P4-01** | học viên / nhân viên | "Đổi quà bằng sao" | `rewards.redeem/approve/deliver` | `/admin/engagement/rewards` | `apps/api/src/rewards/redeem-refund.test.ts` | TL20§5 | HITL |
 | **P4-02** | GĐ | "Cấu hình quà đổi sao" | `gift.upsert/list` (GĐ) | `/admin/engagement/rewards` | `apps/api/src/rewards/redeem-refund.test.ts` | TL20§5 | người |
 | **P4-03** | nhân viên | "Lên lịch & nhắc họp PH" | `parentMeeting.schedule/complete` | `/crm/post-sale-meeting` *(UI EmptyState — chưa gọi API)* | `apps/api/src/meeting/parent-meeting.test.ts` | TL20§6 | HITL |
@@ -69,7 +69,7 @@ run 2026-07-12 sau HR remediation phase 6) · `ADR/QĐ` · `Oversight`.
 | QĐ 0033 (định danh phone) | P1-04, P1-07 | ✓ |
 | I3 (revert O4 khi phiếu duy nhất) | P1-08 | ✓ |
 | GuardianLinkRequest | P1-06 | ✓ |
-| **ADR 0038 (mở bài tập Tier A/B)** | P2-02, P2-03 | ✓ |
+| **ADR 0038 (mở bài tập Tier A; Tier B gỡ 2026-08-12)** | P2-02, P2-03 | ✓ |
 | **TL08 §7 (dữ liệu trẻ — người chốt)** | P2-07, P2-08 | ✓ |
 | TL19 §3/§6 (bài PDF, chấm, sao) | P2-04, P2-05, P2-06 | ✓ |
 | QĐ 0036 (mã lớp) + auto-sinh buổi | P2-01 | ✓ |

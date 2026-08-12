@@ -57,8 +57,14 @@ describe('finance.receiptCreate / receiptApprove attribution writers (HR remedia
     phonesToClean.length = 0;
   });
 
+  /** Global ParentAccount is phone-keyed — fixed digits collide across CI runs. */
+  function uniquePhone(suffix: number): string {
+    const base = String(Date.now()).slice(-7);
+    return `09${base}${suffix}`;
+  }
+
   it('receiptCreate writes createdByAppUserId when the caller has an AppUser row in this facility', async () => {
-    const parentPhone = '0933000001';
+    const parentPhone = uniquePhone(1);
     phonesToClean.push(parentPhone);
 
     const result = await sale.finance.receiptCreate({
@@ -68,7 +74,9 @@ describe('finance.receiptCreate / receiptApprove attribution writers (HR remedia
       classBatchId: classBatch.id,
     });
     expect(result.status).toBe('success');
-    if (result.status !== 'success') throw new Error('expected status success');
+    if (result.status !== 'success') {
+      throw new Error(`expected status success, got ${JSON.stringify(result)}`);
+    }
 
     const row = await testDbBypass((tx) => tx.receipt.findUniqueOrThrow({ where: { id: result.receipt.id } }));
     expect(row.createdByAppUserId).toBe(saleAppUserId);
@@ -79,7 +87,7 @@ describe('finance.receiptCreate / receiptApprove attribution writers (HR remedia
     const noAppUserSale = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'no-app-user-sale-999', roles: ['sale'] }),
     );
-    const parentPhone = '0933000002';
+    const parentPhone = uniquePhone(2);
     phonesToClean.push(parentPhone);
 
     const result = await noAppUserSale.finance.receiptCreate({
@@ -89,14 +97,16 @@ describe('finance.receiptCreate / receiptApprove attribution writers (HR remedia
       classBatchId: classBatch.id,
     });
     expect(result.status).toBe('success');
-    if (result.status !== 'success') throw new Error('expected status success');
+    if (result.status !== 'success') {
+      throw new Error(`expected status success, got ${JSON.stringify(result)}`);
+    }
 
     const row = await testDbBypass((tx) => tx.receipt.findUniqueOrThrow({ where: { id: result.receipt.id } }));
     expect(row.createdByAppUserId).toBeNull();
   });
 
   it('receiptApprove writes approvedAt at the moment of approval', async () => {
-    const parentPhone = '0933000003';
+    const parentPhone = uniquePhone(3);
     phonesToClean.push(parentPhone);
 
     const created = await sale.finance.receiptCreate({
@@ -105,7 +115,9 @@ describe('finance.receiptCreate / receiptApprove attribution writers (HR remedia
       amount: 3_000_000,
       classBatchId: classBatch.id,
     });
-    if (created.status !== 'success') throw new Error('expected status success');
+    if (created.status !== 'success') {
+      throw new Error(`expected status success, got ${JSON.stringify(created)}`);
+    }
 
     const before = Date.now();
     const approved = await gdkd.finance.receiptApprove({ receiptId: created.receipt.id });

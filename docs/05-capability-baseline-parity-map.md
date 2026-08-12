@@ -30,7 +30,7 @@ Nhóm theo khu vực nghiệp vụ. Cột "Điểm cắm AI" = nơi agent sẽ t
 | Miền (router) | Làm gì | Điểm cắm AI |
 |---|---|---|
 | `curriculum` · `course` · `class-batch` · `room` | Chương trình, khoá, lớp, phòng | Ops agent: auto sinh session khi tạo lớp |
-| `schedule` | Lịch dạy, buổi học, buổi bù, chống trùng phòng/GV | Ops agent: xếp lịch, phát hiện xung đột |
+| `schedule` | Lịch dạy, buổi học theo khung lịch tuần, chống trùng phòng/GV (buổi bù đã gỡ 2026-08-12) | Ops agent: xếp lịch, phát hiện xung đột |
 | `enrollment` | Ghi danh: `reserved` (giữ chỗ, chưa phí) → `active` khi phiếu duyệt — lái bởi Receipt (ADR-A) | — (HITL tại duyệt phí) |
 | `attendance` · `session-evidence` | Điểm danh, ảnh lớp/bằng chứng buổi học | **Người-bắt-buộc** (GV) |
 | `assessment` · `grade` · `submission` · `exercise` | Nhận xét, chấm điểm, bài tập, nộp bài | Teacher-assist: draft nhận xét → GV chốt |

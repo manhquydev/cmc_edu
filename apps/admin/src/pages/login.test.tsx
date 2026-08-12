@@ -135,13 +135,30 @@ describe('LoginPage — staff email/password form', () => {
     });
   });
 
-  it('shows the server error message on rejected credentials', async () => {
+  it('shows a Vietnamese generic message on rejected credentials, never the raw server string', async () => {
     fetchSpy.mockResolvedValue(jsonResponse(401, { error: 'Invalid credentials.' }));
     renderWithProviders(<LoginPage />);
 
     fillAndSubmit('staff@cmc.test', 'wrong-password-1');
 
-    expect(await screen.findByText('Invalid credentials.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Thông tin đăng nhập không chính xác. Vui lòng kiểm tra lại.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Invalid credentials.')).not.toBeInTheDocument();
+  });
+
+  it('shows the same generic message regardless of the server-reported error reason', async () => {
+    // The API intentionally collapses every failure (unknown email, locked
+    // account, ...) into one message — the UI must not become distinguishable
+    // by echoing whatever string the server happens to send back.
+    fetchSpy.mockResolvedValue(jsonResponse(401, { error: 'Account locked.' }));
+    renderWithProviders(<LoginPage />);
+
+    fillAndSubmit('staff@cmc.test', 'wrong-password-1');
+
+    expect(
+      await screen.findByText('Thông tin đăng nhập không chính xác. Vui lòng kiểm tra lại.'),
+    ).toBeInTheDocument();
   });
 
   it('disables submit until both fields are filled', () => {

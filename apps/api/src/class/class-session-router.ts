@@ -1,35 +1,29 @@
 // classSession router — T1 session lifecycle (docs/26 phase-02, ADR 0038 Tier
-// reachability C1 fix): `cancel`/`confirm` flip `SessionStatus`; `addMakeup`
-// creates an ad-hoc `isMakeup=true` session for a batch, the data foundation
-// exercise-open Tier B (docs/19 §4) will read from in a later phase. All
-// three gate on `schedule.generate` (GĐĐT/super_admin) — the same permission
-// `classBatch.create`/`schedule.generateSessions` already use, since session
-// lifecycle is a training-ops action, not a teacher-facing one (that's
-// `attendance.mark`, ./attendance/router.ts).
+// A open-tier): `cancel`/`confirm` flip `SessionStatus`; `assignUnit` stamps
+// the unit a session teaches. Lifecycle mutations gate on `schedule.generate`
+// (GĐĐT/super_admin) — the same permission `classBatch.create`/
+// `schedule.generateSessions` already use, since session lifecycle is a
+// training-ops action, not a teacher-facing one (that's `attendance.mark`,
+// ./attendance/router.ts). Makeup sessions are intentionally not supported.
 
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { badRequest, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 import { assertSessionActive } from './assert-session-active.js';
-import type { PlannedSession } from './generate-sessions.js';
-import { assertNoRoomConflict } from './room-conflict.js';
 import {
   compareDateOnly,
-  ictDateOnlyOf,
   ictToUtc,
   isValidDateOnly,
-  isValidTimeOfDay,
 } from '@cmc/domain-time';
-import { recomputeFinalGrade } from '../submission/router.js';
 import { spanDaysInclusive } from './generate-sessions.js';
+import { cancelSessionWithRestamp } from '../lms-ops/cancel-session.js';
 import {
   evaluateSessionDoneProgress,
   type SessionDoneProgress,
 } from './session-done.js';
 
 const dateOnlySchema = z.string().refine(isValidDateOnly, { message: 'Expected YYYY-MM-DD.' });
-const timeOfDaySchema = z.string().refine(isValidTimeOfDay, { message: 'Expected HH:mm (24h).' });
 
 /** Max calendar window for listInRange (calendar lazy load; prevents unbounded scans). */
 const LIST_IN_RANGE_MAX_DAYS = 120;
@@ -41,18 +35,6 @@ const assignUnitInput = z.object({
   curriculumUnitId: z.string().uuid(),
 });
 
-const addMakeupInput = z
-  .object({
-    classBatchId: z.string().uuid(),
-    sessionDate: dateOnlySchema,
-    startTime: timeOfDaySchema,
-    endTime: timeOfDaySchema,
-  })
-  .refine((input) => input.startTime < input.endTime, {
-    message: 'startTime must be before endTime.',
-    path: ['endTime'],
-  });
-
 export interface ClassSessionDto {
   id: string;
   classBatchId: string;
@@ -61,7 +43,6 @@ export interface ClassSessionDto {
   startTime: Date;
   endTime: Date;
   status: string;
-  isMakeup: boolean;
   curriculumUnitId: string | null;
 }
 
@@ -73,7 +54,6 @@ function toClassSessionDto(row: {
   startTime: Date;
   endTime: Date;
   status: string;
-  isMakeup: boolean;
   curriculumUnitId: string | null;
 }): ClassSessionDto {
   return {
@@ -84,7 +64,6 @@ function toClassSessionDto(row: {
     startTime: row.startTime,
     endTime: row.endTime,
     status: row.status,
-    isMakeup: row.isMakeup,
     curriculumUnitId: row.curriculumUnitId,
   };
 }
@@ -132,7 +111,6 @@ export interface ClassSessionInRangeDto {
   startTime: Date;
   endTime: Date;
   status: string;
-  isMakeup: boolean;
   curriculumUnitId: string | null;
   batchCode: string;
   program: string;
@@ -299,7 +277,6 @@ export const classSessionRouter = router({
           startTime: row.startTime,
           endTime: row.endTime,
           status: row.status,
-          isMakeup: row.isMakeup,
           curriculumUnitId: row.curriculumUnitId,
           batchCode: row.classBatch.code,
           program: row.classBatch.program,
@@ -310,63 +287,21 @@ export const classSessionRouter = router({
       });
     }),
 
-  // planned/confirmed -> cancelled. Cancelled sessions are excluded from
-  // attendance (docs/19 §5 gate 1) — enforced in ../attendance/router.ts.
+  // planned/confirmed -> cancelled + unit restamp (shared with lmsOps).
+  // Cancelled sessions are excluded from attendance (docs/19 §5 gate 1).
   cancel: requirePermission('schedule', 'generate')
     .input(sessionIdInput)
     .mutation(async ({ ctx, input }): Promise<ClassSessionDto> => {
       const { facilityId } = scoped(ctx);
 
       return withFacility(ctx.db, facilityId, async (tx) => {
-        const session = await tx.classSession.findFirst({
-          where: { id: input.sessionId, facilityId },
+        const { session } = await cancelSessionWithRestamp(tx, {
+          facilityId,
+          sessionId: input.sessionId,
+          actorUserId: ctx.subject.userId,
+          auditAction: 'classSession.cancel',
         });
-        if (!session) {
-          throw notFound('ClassSession not found.');
-        }
-        if (session.status === 'cancelled') {
-          throw badRequest('Session is already cancelled.');
-        }
-        // HR remediation phase 7: `done` is one-way — the hours it represents
-        // have already been credited (payroll/KPI), so it can never be
-        // cancelled back out.
-        if (session.status === 'done') {
-          throw badRequest('A done session cannot be cancelled.');
-        }
-
-        const updated = await tx.classSession.update({
-          where: { id: session.id },
-          data: { status: 'cancelled' },
-        });
-
-        await tx.auditLog.create({
-          data: {
-            actor: ctx.subject.userId,
-            action: 'classSession.cancel',
-            entity: 'ClassSession',
-            entityId: updated.id,
-            data: { facilityId, previousStatus: session.status },
-          },
-        });
-
-        // Post-implementation hardening (M2): cancelling a session
-        // retroactively invalidates its Attendance rows from the FinalGrade
-        // attendance-rate denominator (../submission/router.ts's
-        // recomputeFinalGrade excludes `status: 'cancelled'` sessions) — the
-        // same principle attendance.mark/markAll's own recompute already
-        // enforces for status corrections. Without this, a parent's report
-        // card would show a stale score until some unrelated future
-        // attendance/grade event happened to trigger a refresh.
-        const affected = await tx.attendance.findMany({
-          where: { classSessionId: session.id, facilityId },
-          select: { studentId: true },
-        });
-        const studentIdsToRecompute = new Set(affected.map((a) => a.studentId));
-        for (const studentId of studentIdsToRecompute) {
-          await recomputeFinalGrade(tx, { facilityId, studentId, periodAnchor: session.endTime });
-        }
-
-        return toClassSessionDto(updated);
+        return toClassSessionDto(session);
       });
     }),
 
@@ -394,62 +329,6 @@ export const classSessionRouter = router({
         });
 
         return toClassSessionDto(updated);
-      });
-    }),
-
-  // Ad-hoc `isMakeup=true` session for a batch — room/time comes from the
-  // batch's own room (same double-booking guard as `classBatch.create`/
-  // `schedule.generateSessions`, G1 review M1), not a client-supplied room.
-  addMakeup: requirePermission('schedule', 'generate')
-    .input(addMakeupInput)
-    .mutation(async ({ ctx, input }): Promise<ClassSessionDto> => {
-      const { facilityId } = scoped(ctx);
-
-      return withFacility(ctx.db, facilityId, async (tx) => {
-        const classBatch = await tx.classBatch.findFirst({
-          where: { id: input.classBatchId, facilityId },
-        });
-        if (!classBatch) {
-          throw notFound('ClassBatch not found.');
-        }
-
-        // Low-Severity Hygiene remediation (scenario audit): a makeup date
-        // outside the batch's own [startDate, endDate] is almost certainly a
-        // typo (or the wrong batch) — reject it instead of silently creating
-        // an ad-hoc session that will never show up in the batch's own
-        // schedule range.
-        const batchStart = ictDateOnlyOf(classBatch.startDate);
-        const batchEnd = ictDateOnlyOf(classBatch.endDate);
-        if (input.sessionDate < batchStart || input.sessionDate > batchEnd) {
-          throw badRequest(
-            `sessionDate (${input.sessionDate}) is outside the class batch's date range (${batchStart}..${batchEnd}).`,
-          );
-        }
-
-        const planned: PlannedSession = {
-          scheduleSlotId: undefined,
-          sessionDate: ictToUtc(input.sessionDate, '00:00'),
-          startTime: ictToUtc(input.sessionDate, input.startTime),
-          endTime: ictToUtc(input.sessionDate, input.endTime),
-        };
-
-        if (classBatch.roomId) {
-          await assertNoRoomConflict(tx, facilityId, classBatch.roomId, [planned], classBatch.id);
-        }
-
-        const session = await tx.classSession.create({
-          data: {
-            facilityId,
-            classBatchId: classBatch.id,
-            scheduleSlotId: null,
-            sessionDate: planned.sessionDate,
-            startTime: planned.startTime,
-            endTime: planned.endTime,
-            isMakeup: true,
-          },
-        });
-
-        return toClassSessionDto(session);
       });
     }),
 

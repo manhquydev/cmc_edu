@@ -3,14 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, act, within } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
-// Locks `curriculumUnit.list` / `exercise.list` query bindings and the
-// `exercise.create/publish/close` mutation payloads + invalidate BEFORE the
-// ListPage refactor (TDD per phase-07). The refactor only changes
-// presentation — the PDF-upload flow and mutation contracts stay unchanged.
+// List is index-only: row actions navigate to form; publish/close live on
+// exercise-detail (not this page).
+
 interface UnitItem {
   id: string;
   program: string;
-  level: number;
+  level: string;
   monthIndex: number;
   title: string;
 }
@@ -22,9 +21,21 @@ interface ExerciseItem {
   status: string;
 }
 
-const UNIT_A: UnitItem = { id: 'unit-1', program: 'English', level: 1, monthIndex: 3, title: 'Bài 3' };
-const EXERCISE_A: ExerciseItem = { id: 'ex-1', curriculumUnitId: 'unit-1', type: 'homework', status: 'draft' };
-const EXERCISE_B: ExerciseItem = { id: 'ex-2', curriculumUnitId: 'unit-1', type: 'test_periodic', status: 'published' };
+const UNIT_A: UnitItem = { id: 'unit-1', program: 'English', level: 'U2', monthIndex: 3, title: 'Bài 3' };
+const DRAFT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const PUBLISHED_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const EXERCISE_A: ExerciseItem = {
+  id: DRAFT_ID,
+  curriculumUnitId: 'unit-1',
+  type: 'homework',
+  status: 'draft',
+};
+const EXERCISE_B: ExerciseItem = {
+  id: PUBLISHED_ID,
+  curriculumUnitId: 'unit-1',
+  type: 'test_periodic',
+  status: 'published',
+};
 
 const exercisesState: { items: ExerciseItem[]; error: { message: string } | null } = {
   items: [EXERCISE_A, EXERCISE_B],
@@ -33,9 +44,16 @@ const exercisesState: { items: ExerciseItem[]; error: { message: string } | null
 const unitsListSpy = vi.fn();
 const exerciseListSpy = vi.fn();
 const createMutate = vi.fn();
-const publishMutate = vi.fn();
-const closeMutate = vi.fn();
+const navigateMock = vi.fn();
 let capturedCreateOpts: { onSuccess?: () => void } | undefined;
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
 
 vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
@@ -62,8 +80,6 @@ vi.mock('../../lib/trpc.js', async () => {
         capturedCreateOpts = opts;
         return mutationResult({ mutate: createMutate });
       },
-      'exercise.publish.useMutation': () => mutationResult({ mutate: publishMutate }),
-      'exercise.close.useMutation': () => mutationResult({ mutate: closeMutate }),
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -82,8 +98,7 @@ describe('ExercisesPage', () => {
     unitsListSpy.mockClear();
     exerciseListSpy.mockClear();
     createMutate.mockClear();
-    publishMutate.mockClear();
-    closeMutate.mockClear();
+    navigateMock.mockClear();
     capturedCreateOpts = undefined;
   });
 
@@ -100,22 +115,25 @@ describe('ExercisesPage', () => {
     expect(within(table).getByText('Kiểm tra định kỳ')).toBeInTheDocument();
   });
 
-  it('publish action calls exercise.publish.mutate only after ConfirmDialog confirm', () => {
+  it('list is index-only: Mở phiếu navigates to form; no list-row Công bố/Đóng', () => {
     renderWithProviders(<ExercisesPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Công bố' }));
-    expect(publishMutate).not.toHaveBeenCalled();
-    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-    const confirmButtons = screen.getAllByRole('button', { name: 'Công bố' });
-    fireEvent.click(confirmButtons[confirmButtons.length - 1]!);
-    expect(publishMutate).toHaveBeenCalledWith({ exerciseId: 'ex-1' });
+    expect(screen.queryByRole('button', { name: 'Công bố', exact: true })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đóng', exact: true })).toBeNull();
+
+    const openButtons = screen.getAllByRole('button', { name: 'Mở phiếu' });
+    expect(openButtons).toHaveLength(2);
+    fireEvent.click(openButtons[0]);
+    expect(navigateMock).toHaveBeenCalledWith(`/teaching/exercises/${DRAFT_ID}`);
   });
 
-  it('close action calls exercise.close.mutate only after ConfirmDialog confirm', () => {
+  it('still offers Mở phiếu for closed rows (view-only form)', () => {
+    const closedId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    exercisesState.items = [
+      { id: closedId, curriculumUnitId: 'unit-1', type: 'homework', status: 'closed' },
+    ];
     renderWithProviders(<ExercisesPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
-    expect(closeMutate).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Đóng bài tập' }));
-    expect(closeMutate).toHaveBeenCalledWith({ exerciseId: 'ex-2' });
+    fireEvent.click(screen.getByRole('button', { name: 'Mở phiếu' }));
+    expect(navigateMock).toHaveBeenCalledWith(`/teaching/exercises/${closedId}`);
   });
 
   it('exercise.create.useMutation onSuccess invalidates exercise.list', () => {
@@ -134,9 +152,6 @@ describe('ExercisesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '+ Tạo bài tập' }));
 
     const dialog = screen.getByRole('dialog');
-    // Select curriculum unit + type via the Selector inputs, exactly as the
-    // pre-refactor dialog does — assert on the disabled create button first
-    // since the PDF is not uploaded yet (create requires basePdfRef).
     expect(within(dialog).getByRole('button', { name: 'Tạo bài tập' })).toBeDisabled();
   });
 

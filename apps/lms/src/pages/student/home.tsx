@@ -6,9 +6,9 @@
 //     are rendered anywhere on this page.
 //   - StudentLayout redirects to /student/change-password if mustChangePassword.
 //
-// exercise.openForStudent returns only exercises whose curriculumUnit is open
-// for THIS student (ADR 0038 Tier A + B). Locked exercises are not returned by
-// the backend; the UI shows only the open set.
+// exercise.openForStudent returns delivery slots open for THIS student
+// (SessionExercise + dual-gate roster). Each item has sessionExerciseId —
+// same catalog exercise re-delivered ⇒ a new list row / new submission target.
 //
 // Star balance comes from gift.listForStudent (combined endpoint: gifts + balance).
 
@@ -36,7 +36,7 @@ function StarBalanceHero() {
   );
 }
 
-// Exercise list — open-tier only (backend-gated, ADR 0038).
+// Exercise list — one row per open delivery (backend-gated, SessionExercise).
 function ExerciseList() {
   const navigate = useNavigate();
   const { data, isLoading, error } = trpc.exercise.openForStudent.useQuery();
@@ -50,34 +50,52 @@ function ExerciseList() {
     return (
       <Banner
         status="info"
-        title="Chưa có bài tập nào mở. Bài tập sẽ xuất hiện sau khi hoàn thành buổi học."
+        title="Chưa có bài tập nào mở. Bài sẽ xuất hiện sau khi buổi học kết thúc và được phát bài."
       />
     );
   }
 
+  // Same catalog exercise can appear more than once (re-delivery). Count by
+  // exercise.id so we can label "lần 1 / lần 2" without sessionDate from API.
+  const deliveryOrdinalBySe = new Map<string, number>();
+  const countByExercise = new Map<string, number>();
+  for (const item of items) {
+    const n = (countByExercise.get(item.id) ?? 0) + 1;
+    countByExercise.set(item.id, n);
+    deliveryOrdinalBySe.set(item.sessionExerciseId, n);
+  }
+
   return (
     <Stack gap={1.5}>
-      {items.map((exercise) => (
-        <div
-          key={exercise.id}
-          style={{
-            padding: 16,
-            border: '1px solid var(--cmc-border)',
-            borderRadius: 'var(--cmc-radius-xs)',
-            background: 'var(--cmc-surface)',
-            cursor: 'pointer',
-          }}
-          onClick={() => navigate(`/student/exercise/${exercise.id}`)}
-        >
-          <HStack justify="between" style={{ marginBottom: 4 }}>
-            <Text weight="bold" size="sm">{exercise.type}</Text>
-            <Badge label={`Mở — ${exercise.starReward} sao`} variant="green" />
-          </HStack>
-          <Text type="supporting" size="2xs">
-            Điểm tối đa: {exercise.maxScore} | Trạng thái: {exercise.status}
-          </Text>
-        </div>
-      ))}
+      {items.map((item) => {
+        const totalForCatalog = countByExercise.get(item.id) ?? 1;
+        const ordinal = deliveryOrdinalBySe.get(item.sessionExerciseId) ?? 1;
+        const multi = totalForCatalog > 1;
+        return (
+          <div
+            key={item.sessionExerciseId}
+            style={{
+              padding: 16,
+              border: '1px solid var(--cmc-border)',
+              borderRadius: 'var(--cmc-radius-xs)',
+              background: 'var(--cmc-surface)',
+              cursor: 'pointer',
+            }}
+            onClick={() => navigate(`/student/exercise/${item.sessionExerciseId}`)}
+          >
+            <HStack justify="between" style={{ marginBottom: 4 }}>
+              <Text weight="bold" size="sm">{item.type}</Text>
+              <Badge label={`Mở — ${item.starReward} sao`} variant="green" />
+            </HStack>
+            <Text type="supporting" size="2xs">
+              Điểm tối đa: {item.maxScore}
+              {multi
+                ? ` · Lần phát ${ordinal}/${totalForCatalog} (làm mới, không phải bài cũ)`
+                : ' · Bài đã phát cho buổi học'}
+            </Text>
+          </div>
+        );
+      })}
     </Stack>
   );
 }

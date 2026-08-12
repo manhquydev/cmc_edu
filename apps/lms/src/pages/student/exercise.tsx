@@ -1,10 +1,14 @@
-// Exercise detail — student submission flow.
+// Exercise detail — student submission flow for one **delivery instance**.
 //
-// Flow: load exercise info → student writes answer → saveDraft → submit.
+// Flow: load open homework slot → student writes answer → saveDraft → submit.
 //
-// Backend contracts:
-//   submission.saveDraft({ exerciseId, annotationLayer, answerText? })
-//   submission.submit({ exerciseId })
+// Backend contracts (B4):
+//   submission.saveDraft({ sessionExerciseId, annotationLayer, answerText? })
+//   submission.submit({ sessionExerciseId })
+//
+// List source: exercise.openForStudent → items include `sessionExerciseId`
+// (SessionExercise row id). Same catalog exercise delivered on two sessions
+// ⇒ two open slots / two URLs.
 //
 // annotationLayer is capped at 1MB by the backend. This UI sends a minimal
 // JSON object (the text answer encoded as a JSON field) — well under the cap.
@@ -22,17 +26,24 @@ import { trpc } from '../../lib/trpc.js';
 // Max answer text length — well within the backend's 20k char limit.
 const MAX_ANSWER_TEXT = 5_000;
 
+/** Short delivery label when API does not yet expose sessionDate (B4 UX). */
+function deliveryLabel(sessionExerciseId: string): string {
+  const short = sessionExerciseId.replace(/-/g, '').slice(0, 8);
+  return `Lần phát ${short}`;
+}
+
 export default function ExercisePage() {
-  const { exerciseId } = useParams<{ exerciseId: string }>();
+  // Route param is the SessionExercise id (not the catalog Exercise id).
+  const { sessionExerciseId } = useParams<{ sessionExerciseId: string }>();
   const navigate = useNavigate();
   const [answerText, setAnswerText] = useState('');
   const [saveError, setSaveError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
-  // Load open exercises to find this one (uses cached data from home page).
+  // Load open homework slots (cached from home). Match by delivery id.
   const { data: exercisesData, isLoading } = trpc.exercise.openForStudent.useQuery();
-  const exercise = exercisesData?.items.find((e) => e.id === exerciseId);
+  const slot = exercisesData?.items.find((e) => e.sessionExerciseId === sessionExerciseId);
 
   const saveDraftMut = trpc.submission.saveDraft.useMutation({
     onSuccess() {
@@ -54,26 +65,26 @@ export default function ExercisePage() {
   });
 
   function saveDraft() {
-    if (!exerciseId) return;
+    if (!sessionExerciseId) return;
     setSaveError('');
     // annotationLayer carries the answer as a structured JSON object.
     // This minimal shape keeps payload well under the 1MB cap.
     saveDraftMut.mutate({
-      exerciseId,
+      sessionExerciseId,
       annotationLayer: { answerText },
       answerText,
     });
   }
 
   function submitAnswer() {
-    if (!exerciseId) return;
+    if (!sessionExerciseId) return;
     setSubmitError('');
     // Save latest draft first, then submit.
     saveDraftMut.mutate(
-      { exerciseId, annotationLayer: { answerText }, answerText },
+      { sessionExerciseId, annotationLayer: { answerText }, answerText },
       {
         onSuccess() {
-          submitMut.mutate({ exerciseId });
+          submitMut.mutate({ sessionExerciseId });
         },
       },
     );
@@ -87,10 +98,14 @@ export default function ExercisePage() {
     );
   }
 
-  if (!exercise) {
+  if (!slot) {
     return (
       <div className="lms-shell" style={{ padding: '1.5rem' }}>
-        <Banner status="warning" title="Bài tập không tồn tại hoặc chưa mở" description="Bài tập này chưa mở hoặc không thuộc về tài khoản của bạn." />
+        <Banner
+          status="warning"
+          title="Bài tập không tồn tại hoặc chưa mở"
+          description="Lần phát bài này chưa mở, đã hủy, hoặc không thuộc về tài khoản của bạn."
+        />
         <Button
           variant="ghost"
           style={{ marginTop: 16 }}
@@ -104,7 +119,11 @@ export default function ExercisePage() {
   if (submitted) {
     return (
       <div className="lms-shell" style={{ padding: '1.5rem' }}>
-        <Banner status="success" title="Đã nộp bài thành công!" description="Bài làm của bạn đã được gửi. Giáo viên sẽ chấm điểm sớm nhất có thể." />
+        <Banner
+          status="success"
+          title="Đã nộp bài thành công!"
+          description="Bài làm của bạn đã được gửi cho lần phát này. Giáo viên sẽ chấm điểm sớm nhất có thể."
+        />
         <Button
           style={{ marginTop: 16 }}
           label="← Về trang chủ"
@@ -124,15 +143,20 @@ export default function ExercisePage() {
 
       <div className="lms-page">
         <HStack justify="between" style={{ marginBottom: 8 }}>
-          <Heading level={4} style={{ margin: 0 }}>{exercise.type}</Heading>
-          <Badge label={`${exercise.starReward} sao`} variant="blue" />
+          <Heading level={4} style={{ margin: 0 }}>{slot.type}</Heading>
+          <Badge label={`${slot.starReward} sao`} variant="blue" />
         </HStack>
+        <Text type="supporting" size="2xs" display="block" style={{ marginBottom: 8 }}>
+          Điểm tối đa: {slot.maxScore}
+        </Text>
+        {/* Delivery instance — distinguishes re-deliveries of the same catalog exercise. */}
         <Text type="supporting" size="2xs" display="block" style={{ marginBottom: 24 }}>
-          Điểm tối đa: {exercise.maxScore}
+          {deliveryLabel(slot.sessionExerciseId)} · đây là lần làm gắn với buổi đã phát bài (không
+          phải bài cũ)
         </Text>
 
         {/* PDF base reference — full PDF render is P2-debt */}
-        {exercise.basePdfRef && (
+        {slot.basePdfRef && (
           <Banner
             status="info"
             title={
@@ -142,7 +166,7 @@ export default function ExercisePage() {
                   variant="ghost"
                   size="sm"
                   label="Xem PDF"
-                  href={exercise.basePdfRef}
+                  href={slot.basePdfRef}
                   target="_blank"
                   rel="noopener noreferrer"
                 />

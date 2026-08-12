@@ -36,7 +36,19 @@ FROM deps AS build
 COPY packages/ packages/
 COPY apps/api/ apps/api/
 COPY apps/admin/ apps/admin/
-RUN pnpm --filter @cmc/db exec prisma generate
+# prisma.config.ts loads packages/db/prisma/.env and requires DATABASE_URL to
+# resolve (Prisma 7 config validation) — `generate` never opens a connection,
+# so a build-time-only placeholder is enough (mirrors CI's ui-e2e.yml, which
+# writes the real value; here any syntactically valid postgres URL works).
+# The placeholder must survive until AFTER `run build` further down: `@cmc/db`'s
+# own `build` script re-runs `prisma generate` as part of the workspace build
+# cascade, and the ARG/ENV lines between here and that RUN can't be folded into
+# one shell command anyway (each ARG/ENV is its own Dockerfile instruction) —
+# so it's removed by the final RUN instead of this one. This build stage's
+# `packages/` never gets COPY'd into the runtime image, so nothing here can
+# leak into it regardless.
+RUN printf 'DATABASE_URL=postgresql://build:build@localhost:5432/build\n' > packages/db/prisma/.env \
+    && pnpm --filter @cmc/db exec prisma generate
 ARG VITE_API_BASE_URL=/api
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 # SSO UI flag: VITE_SSO_ENABLED=true shows the Microsoft login button.
@@ -50,7 +62,8 @@ ENV VITE_API_URL=${VITE_API_URL}
 ARG VITE_BASE=/admin/
 ENV VITE_BASE=${VITE_BASE}
 # `@cmc/admin...` builds workspace dependencies (ui/auth/api chain) first.
-RUN pnpm --filter @cmc/admin... run build
+RUN pnpm --filter @cmc/admin... run build \
+    && rm packages/db/prisma/.env
 
 FROM nginx:1.27-alpine AS runtime
 COPY --from=build /app/apps/admin/dist /usr/share/nginx/html/admin

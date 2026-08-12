@@ -6,6 +6,11 @@ Date: 2026-07-05
 
 Accepted (formalize `routers/check-in-out.ts`).
 
+> **Status sync 2026-08-12 (as-built — do not reverse history above):**
+> - **IP CIDR match** (`FacilityNetwork` + `ipMatchesCidr`) remains **authoritative** for the network admission path.
+> - **GPS rejection in “Alternatives bỏ” is superseded** by [ADR 0044](./0044-geofence-gps-or-gate.md): admission is an **OR-gate** (`openMode || ipMatch || geoMatch`) with `verification` labels.
+> - **Manual-ticket approval** is **not** “direct manager only” — see [ADR 0043](./0043-attendance-daily-inout-pairing.md): **track director** roles (`giam_doc_kinh_doanh` / `giam_doc_dao_tao`, `super_admin` bypass).
+
 ## Context
 
 Chấm công tại cơ sở; cần xác thực "đang ở công ty" mà không dùng GPS (riêng tư, thiếu

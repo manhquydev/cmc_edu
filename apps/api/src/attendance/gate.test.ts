@@ -1,7 +1,7 @@
 // T1 integration tests (docs/26 phase-02, TL19 §5, WF-P2-02): the 5
 // attendance gates, upsert re-mark semantics, markAll atomicity, the unique
 // constraint, RLS isolation, and the session-lifecycle procedures
-// (cancel/confirm/addMakeup) that feed attendance's gate 1.
+// (cancel/confirm) that feed attendance's gate 1.
 
 import { randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -300,7 +300,7 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
     expect(unmarkedRow?.status).toBeNull();
   });
 
-  // ---- Session lifecycle: cancel / confirm / addMakeup ----
+  // ---- Session lifecycle: cancel / confirm ----
 
   it('classSession.cancel transitions planned/confirmed -> cancelled and blocks further attendance', async () => {
     const session = await seedSession({ status: 'confirmed' });
@@ -341,21 +341,33 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
       });
       const exercise = await gddt.exercise.publish({ exerciseId: created.id });
 
-      // A PAST session tied to `unit` so the exercise-open tier gate
-      // (ADR 0038) lets the student submit — mirrors
-      // ../submission/grade.test.ts's fixture, unrelated to the session
-      // under test below.
-      await seedClassSession({
+      // A PAST session tied to `unit`, with the exercise actually DELIVERED on
+      // it — homework now opens only through delivery, so the student cannot
+      // submit without a `SessionExercise`. Mirrors ../submission/grade.test.ts's
+      // fixture; unrelated to the session under test below.
+      await gddt.lmsOps.assignExerciseSequence({
+        classBatchId: classBatch.id,
+        exerciseIds: [exercise.id],
+      });
+      const openSession = await seedClassSession({
         facilityId: facility.id,
         classBatchId: classBatch.id,
         curriculumUnitId: unit.id,
         endTime: new Date('2020-01-01T00:00:00.000Z'),
       });
+      const delivered = await gddt.lmsOps.deliverSessionExercise({
+        classSessionId: openSession.id,
+      });
+      if (!delivered.delivered) throw new Error('expected delivery');
+      const sessionExerciseId = delivered.sessionExercise.id;
 
       const enrollment = await seedEnrolledStudentWithGuardian({
         facilityId: facility.id,
         classBatchId: classBatch.id,
         parentAccountId: parent.id,
+        // Delivered homework is roster-gated: the student must hold a unit
+        // range covering the delivering session's unit, or it stays closed.
+        unitRange: { fromOrderGlobal: 1, toOrderGlobal: 10_000 },
       });
 
       // The session under test: anchored to "now" so it lands in the same
@@ -379,8 +391,11 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
       const student = appRouter.createCaller(
         buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
       );
-      await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: { done: true } });
-      const submitted = await student.submission.submit({ exerciseId: exercise.id });
+      await student.submission.saveDraft({
+        sessionExerciseId,
+        annotationLayer: { done: true },
+      });
+      const submitted = await student.submission.submit({ sessionExerciseId });
       await teacher.submission.grade({ submissionId: submitted.id, score: 10 });
 
       const before = await testDbBypass((tx) =>
@@ -424,7 +439,7 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
     });
   });
 
-  it('forbids a role without schedule.generate permission from cancel/confirm/addMakeup', async () => {
+  it('forbids a role without schedule.generate permission from cancel/confirm', async () => {
     const session = await seedSession();
     await expect(teacher.classSession.cancel({ sessionId: session.id })).rejects.toMatchObject({
       code: 'FORBIDDEN',
@@ -432,73 +447,5 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
     await expect(teacher.classSession.confirm({ sessionId: session.id })).rejects.toMatchObject({
       code: 'FORBIDDEN',
     });
-    await expect(
-      teacher.classSession.addMakeup({
-        classBatchId: classBatch.id,
-        sessionDate: '2026-08-10',
-        startTime: '18:00',
-        endTime: '19:30',
-      }),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
-  });
-
-  it('classSession.addMakeup creates an isMakeup=true session for the batch', async () => {
-    const result = await gddt.classSession.addMakeup({
-      classBatchId: classBatch.id,
-      sessionDate: '2026-08-10',
-      startTime: '18:00',
-      endTime: '19:30',
-    });
-
-    expect(result.isMakeup).toBe(true);
-    expect(result.classBatchId).toBe(classBatch.id);
-    expect(result.scheduleSlotId).toBeNull();
-
-    const persisted = await testDbBypass((tx) => tx.classSession.findUniqueOrThrow({ where: { id: result.id } }));
-    expect(persisted.isMakeup).toBe(true);
-    expect(persisted.status).toBe('planned');
-  });
-
-  it('Low-Severity Hygiene remediation (scenario audit): addMakeup rejects a sessionDate outside [classBatch.startDate, endDate]', async () => {
-    await expect(
-      gddt.classSession.addMakeup({
-        classBatchId: classBatch.id,
-        sessionDate: '2026-09-15', // batch runs 2026-08-01..2026-08-31
-        startTime: '18:00',
-        endTime: '19:30',
-      }),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
-  });
-
-  it('classSession.addMakeup rejects an overlapping room booking with CONFLICT (shared assertNoRoomConflict)', async () => {
-    const room = await testDbBypass((tx) =>
-      tx.room.create({ data: { facilityId: facility.id, code: 'MK-ROOM-1', name: 'Makeup Room' } }),
-    );
-    await testDbBypass((tx) => tx.classBatch.update({ where: { id: classBatch.id }, data: { roomId: room.id } }));
-    // Existing booked session: 2026-08-10 18:00-19:30 ICT (11:00-12:30 UTC).
-    await testDbBypass((tx) =>
-      tx.classSession.create({
-        data: {
-          facilityId: facility.id,
-          classBatchId: classBatch.id,
-          sessionDate: new Date('2026-08-10T00:00:00.000Z'),
-          startTime: new Date('2026-08-10T11:00:00.000Z'),
-          endTime: new Date('2026-08-10T12:30:00.000Z'),
-          status: 'planned',
-        },
-      }),
-    );
-
-    const otherClassBatch = await seedClassBatch({ facilityId: facility.id, startDate: '2026-08-01', endDate: '2026-08-31' });
-    await testDbBypass((tx) => tx.classBatch.update({ where: { id: otherClassBatch.id }, data: { roomId: room.id } }));
-
-    await expect(
-      gddt.classSession.addMakeup({
-        classBatchId: otherClassBatch.id,
-        sessionDate: '2026-08-10',
-        startTime: '18:00',
-        endTime: '19:30',
-      }),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
   });
 });

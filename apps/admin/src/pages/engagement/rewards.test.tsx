@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, act } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
-// Locks the new rewards redemption queue (phase-01, stub→REAL upgrade). The
-// backend (`rewards.list` + `approve`/`deliver`/`reject`) already exists
-// (apps/api/src/rewards/reward-router.ts) — this test drives the UI contract:
-// list binding, status-filter → query input, and each lifecycle action
-// calling its mutation with a byte-identical `{rewardId}` payload + invalidate.
+// Resource-centric list: index-only. Row actions navigate to form; lifecycle
+// mutations live on rewards-detail (not this page).
+
 interface RewardRow {
   id: string;
   facilityId: string;
@@ -23,8 +21,11 @@ interface RewardRow {
   gift: { id: string; name: string; starsRequired: number };
 }
 
+const PENDING_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const APPROVED_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
 const PENDING_ROW: RewardRow = {
-  id: 'r-pending',
+  id: PENDING_ID,
   facilityId: 'f1',
   studentId: 'student-aaaa1111',
   giftId: 'g1',
@@ -40,7 +41,7 @@ const PENDING_ROW: RewardRow = {
 
 const APPROVED_ROW: RewardRow = {
   ...PENDING_ROW,
-  id: 'r-approved',
+  id: APPROVED_ID,
   studentId: 'student-bbbb2222',
   status: 'approved',
   approvedAt: '2026-07-02T00:00:00.000Z',
@@ -51,15 +52,18 @@ const rewardsListState: { data: RewardRow[]; error: { message: string } | null }
   error: null,
 };
 const listQuerySpy = vi.fn();
-const approveMutate = vi.fn();
-const deliverMutate = vi.fn();
-const rejectMutate = vi.fn();
-let approveOnSuccess: (() => void) | undefined;
-let deliverOnSuccess: (() => void) | undefined;
-let rejectOnSuccess: (() => void) | undefined;
+const navigateMock = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
 
 vi.mock('../../lib/trpc.js', async () => {
-  const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
+  const { buildTrpcMock, queryResult } = await import('../../test/mock-trpc.js');
   return {
     trpc: buildTrpcMock({
       'session.me.useQuery': queryResult({
@@ -75,18 +79,6 @@ vi.mock('../../lib/trpc.js', async () => {
           isError: rewardsListState.error !== null,
         });
       },
-      'rewards.approve.useMutation': (options: { onSuccess?: () => void }) => {
-        approveOnSuccess = options?.onSuccess;
-        return mutationResult({ mutate: approveMutate });
-      },
-      'rewards.deliver.useMutation': (options: { onSuccess?: () => void }) => {
-        deliverOnSuccess = options?.onSuccess;
-        return mutationResult({ mutate: deliverMutate });
-      },
-      'rewards.reject.useMutation': (options: { onSuccess?: () => void }) => {
-        rejectOnSuccess = options?.onSuccess;
-        return mutationResult({ mutate: rejectMutate });
-      },
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -94,14 +86,14 @@ vi.mock('../../lib/trpc.js', async () => {
   };
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const { trpc } = (await import('../../lib/trpc.js')) as any;
 import RewardsQueuePage from './rewards.js';
 
 describe('RewardsQueuePage', () => {
   beforeEach(() => {
     rewardsListState.data = [PENDING_ROW, APPROVED_ROW];
     rewardsListState.error = null;
+    navigateMock.mockClear();
+    listQuerySpy.mockClear();
   });
 
   it('renders reward rows bound to rewards.list.useQuery', () => {
@@ -111,51 +103,35 @@ describe('RewardsQueuePage', () => {
   });
 
   it('passes the status filter from the URL to rewards.list.useQuery', () => {
-    renderWithProviders(<RewardsQueuePage />, { route: '/engagement/rewards?status=pending' });
+    renderWithProviders(<RewardsQueuePage />, { route: '/admin/engagement/rewards?status=pending' });
     expect(listQuerySpy).toHaveBeenCalledWith({ status: 'pending' });
   });
 
-  it('approve action calls rewards.approve.mutate({rewardId}) and invalidates on success only for a pending row', () => {
-    const invalidateSpy = trpc.useUtils().rewards.list.invalidate;
+  it('inbox is index-only: Mở phiếu navigates to form; no list-row Duyệt/Giao quà/Từ chối', () => {
     renderWithProviders(<RewardsQueuePage />);
+    expect(screen.queryByRole('button', { name: 'Duyệt', exact: true })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Giao quà', exact: true })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Từ chối', exact: true })).toBeNull();
 
-    const approveButtons = screen.getAllByRole('button', { name: 'Duyệt' });
-    expect(approveButtons).toHaveLength(1); // only the pending row shows Duyệt
-    fireEvent.click(approveButtons[0]);
-
-    expect(approveMutate).toHaveBeenCalledWith({ rewardId: 'r-pending' });
-    expect(invalidateSpy).not.toHaveBeenCalled();
-    act(() => approveOnSuccess?.());
-    expect(invalidateSpy).toHaveBeenCalledTimes(1);
+    const openButtons = screen.getAllByRole('button', { name: 'Mở phiếu' });
+    expect(openButtons).toHaveLength(2);
+    fireEvent.click(openButtons[0]);
+    expect(navigateMock).toHaveBeenCalledWith(`/admin/engagement/rewards/${PENDING_ID}`);
   });
 
-  it('deliver action calls rewards.deliver.mutate({rewardId}) only for an approved row', () => {
-    renderWithProviders(<RewardsQueuePage />);
-    const deliverButtons = screen.getAllByRole('button', { name: 'Giao quà' });
-    expect(deliverButtons).toHaveLength(1); // only the approved row shows Giao quà
-    fireEvent.click(deliverButtons[0]);
-    expect(deliverMutate).toHaveBeenCalledWith({ rewardId: 'r-approved' });
-    act(() => deliverOnSuccess?.());
-  });
-
-  it('reject action calls rewards.reject.mutate({rewardId}) for pending and approved rows', () => {
-    renderWithProviders(<RewardsQueuePage />);
-    const rejectButtons = screen.getAllByRole('button', { name: 'Từ chối' });
-    expect(rejectButtons).toHaveLength(2); // pending + approved both show Từ chối
-    fireEvent.click(rejectButtons[0]);
-    expect(rejectMutate).toHaveBeenCalledWith({ rewardId: 'r-pending' });
-    act(() => rejectOnSuccess?.());
-  });
-
-  it('gates delivered/rejected rows to show no lifecycle actions', () => {
+  it('still offers Mở phiếu for delivered/rejected rows (view-only form)', () => {
+    const deliveredId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
     rewardsListState.data = [
-      { ...PENDING_ROW, id: 'r-delivered', status: 'delivered', deliveredAt: '2026-07-03T00:00:00.000Z' },
-      { ...PENDING_ROW, id: 'r-rejected', status: 'rejected', rejectedAt: '2026-07-03T00:00:00.000Z' },
+      {
+        ...PENDING_ROW,
+        id: deliveredId,
+        status: 'delivered',
+        deliveredAt: '2026-07-03T00:00:00.000Z',
+      },
     ];
     renderWithProviders(<RewardsQueuePage />);
-    expect(screen.queryByRole('button', { name: 'Duyệt' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Giao quà' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Từ chối' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Mở phiếu' }));
+    expect(navigateMock).toHaveBeenCalledWith(`/admin/engagement/rewards/${deliveredId}`);
   });
 
   it('renders empty state when rewards.list returns no rows', () => {

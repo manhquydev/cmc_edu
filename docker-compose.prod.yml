@@ -32,6 +32,14 @@ networks:
     ipam:
       config:
         - subnet: 172.28.0.0/16
+  # Shared bridge to the observability stack so api/worker can send Sentry
+  # events to http://glitchtip-web:8080 (see docker-compose.observability.yml).
+  # External + optional: create with `docker network create cmc-obs-bridge`;
+  # if absent, api/worker still start (SENTRY_DSN fail-open) — but declaring an
+  # external network that doesn't exist fails `up`, so it's created in the
+  # deploy runbook before bringing the stack up.
+  cmc-obs-bridge:
+    external: true
 
 volumes:
   cmcv2-prod-pg-data:
@@ -44,10 +52,14 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      # Loopback-only: this host reaches the internet only via a reverse SSH
+      # tunnel (VPS 127.0.0.1:8080 -> here). Never bind 0.0.0.0 — Docker's
+      # published ports bypass UFW, so 0.0.0.0 would expose this on the LAN.
+      # TLS terminates at the VPS Caddy; nginx here serves plain HTTP.
+      - "127.0.0.1:80:80"
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/api-locations.conf:/etc/nginx/api-locations.conf:ro
       - ./infra/nginx/certs:/etc/nginx/certs:ro
     depends_on:
       api:
@@ -79,6 +91,7 @@ services:
         condition: service_healthy
     networks:
       - cmcv2-prod-net
+      - cmc-obs-bridge   # reach glitchtip-web:8080 for Sentry events
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
       interval: 15s
@@ -102,6 +115,7 @@ services:
         condition: service_healthy
     networks:
       - cmcv2-prod-net
+      - cmc-obs-bridge   # reach glitchtip-web:8080 for Sentry events
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/"]
       interval: 30s
@@ -138,6 +152,13 @@ services:
         # empty (relative /auth/login works when admin and API share an nginx origin).
         VITE_SSO_ENABLED: ${VITE_SSO_ENABLED:-false}
         VITE_API_URL: ${VITE_API_URL:-}
+        # This deploy serves admin at the ROOT of its own domain (erp.clawcmc.io.vn),
+        # not at /admin/ on a shared origin — asset URLs must be un-prefixed.
+        # The edge nginx (infra/nginx/nginx.conf, erp server block) still
+        # rewrites the incoming request to /admin/* before proxying, because
+        # the container's own spa-fallback-admin.conf serves from that path
+        # regardless of this build's VITE_BASE.
+        VITE_BASE: /
     restart: unless-stopped
     networks:
       - cmcv2-prod-net

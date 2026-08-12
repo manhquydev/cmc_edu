@@ -18,6 +18,22 @@ export const links = {
   receipt: (id: string) => `/finance/${id}`,
   student: (id: string) => `/admin/students/${id}`,
   classBatch: (id: string) => `/admin/classes/${id}`,
+  /** ShiftRegistration form (Work Schedule) — UUID. */
+  shiftRegistration: (id: string) => `/hr/shifts/${id}`,
+  /** KpiScore form (shared KPI workspace) — UUID. */
+  kpiScore: (id: string) => `/hr/kpi/${id}`,
+  /** AfterSaleCase form — UUID. */
+  afterSaleCase: (id: string) => `/crm/aftersale/${id}`,
+  /** ParentAccount form — UUID. */
+  parentAccount: (id: string) => `/admin/parents/${id}`,
+  /** ClassSession form — UUID. */
+  classSession: (id: string) => `/teaching/sessions/${id}`,
+  /** ManualAttendanceTicket form (check-in offsite approval) — UUID. */
+  manualPunchTicket: (id: string) => `/hr/checkin/${id}`,
+  /** Reward redemption form (engagement queue) — UUID. */
+  reward: (id: string) => `/admin/engagement/rewards/${id}`,
+  /** Exercise form (teaching catalog publish/close) — UUID. */
+  exercise: (id: string) => `/teaching/exercises/${id}`,
 } as const;
 
 export type LinkEntity = keyof typeof links;
@@ -40,6 +56,45 @@ export function resolveGo(entity: string, id: string): string | null {
 function withQuery(path: string, params: URLSearchParams): string {
   const qs = params.toString();
   return qs ? `${path}?${qs}` : path;
+}
+
+/** Workspace list for shift registrations (not a /go entity). */
+export function shiftRegistrationsPath(q?: {
+  scope?: 'mine' | 'inbox';
+}): string {
+  const params = new URLSearchParams();
+  if (q?.scope === 'mine' || q?.scope === 'inbox') {
+    params.set('scope', q.scope);
+  }
+  return withQuery('/hr/shifts', params);
+}
+
+export function shiftRegistrationNewPath(): string {
+  return '/hr/shifts/new';
+}
+
+/** Workspace list for check-in / manual punch tickets (not a /go entity alone). */
+export function checkInPath(q?: { scope?: 'mine' | 'inbox' }): string {
+  const params = new URLSearchParams();
+  if (q?.scope === 'mine' || q?.scope === 'inbox') {
+    params.set('scope', q.scope);
+  }
+  return withQuery('/hr/checkin', params);
+}
+
+/** KPI board (list) — period/status query filters. */
+export function kpiScoresPath(q?: {
+  period?: string;
+  status?: 'draft' | 'submitted' | 'confirmed' | 'approved';
+}): string {
+  const params = new URLSearchParams();
+  if (q?.period && /^\d{4}-\d{2}$/.test(q.period)) {
+    params.set('period', q.period);
+  }
+  if (q?.status) {
+    params.set('status', q.status);
+  }
+  return withQuery('/hr/kpi', params);
 }
 
 /** Workspace deep-link builders (query params — not routed through /go). */

@@ -1,9 +1,8 @@
 /**
- * Session-scoped attendance roster — no class/session pickers.
+ * Session-scoped attendance roster — dual-gate preferred (ADR 0045).
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Badge,
   Banner,
   Button,
   Grid,
@@ -103,16 +102,33 @@ export function AttendancePanel({ sessionId, classBatchId }: AttendancePanelProp
   const [saved, setSaved] = useState(false);
   const [saveValidationError, setSaveValidationError] = useState<string | null>(null);
 
+  // Dual-gate teaching roster (active ∩ unit range ∩ session stamp).
+  const {
+    data: dualRoster,
+    isLoading: dualLoading,
+    error: dualError,
+    isFetched: dualFetched,
+  } = trpc.lmsOps.rosterForSession.useQuery(
+    { classSessionId: sessionId },
+    { enabled: Boolean(sessionId), retry: false },
+  );
+
+  // Legacy full-class list only when dual path is unavailable (no permission / pre-spike).
+  const dualFailed = dualFetched && Boolean(dualError);
+  const dualReady = dualFetched && !dualError && dualRoster != null;
+
   const { data: studentsData } = trpc.classBatch.listStudents.useQuery(
     { classBatchId },
-    { enabled: Boolean(classBatchId) },
+    { enabled: Boolean(classBatchId) && dualFailed },
   );
 
   const {
     data,
-    isLoading,
+    isLoading: marksLoading,
     error: listError,
   } = trpc.attendance.listBySession.useQuery({ sessionId }, { enabled: Boolean(sessionId) });
+
+  const isLoading = dualLoading || marksLoading;
 
   const utils = trpc.useUtils();
   const markAll = trpc.attendance.markAll.useMutation({
@@ -122,6 +138,16 @@ export function AttendancePanel({ sessionId, classBatchId }: AttendancePanelProp
       void utils.attendance.listBySession.invalidate({ sessionId });
     },
   });
+
+  const markByEnrollment = useMemo(
+    () =>
+      new Map(
+        (data?.items ?? []).map((item) => [item.enrollmentId, item.status as AttendanceStatus]),
+      ),
+    [data],
+  );
+
+  const dualStudents = dualReady ? (dualRoster.students ?? []) : null;
 
   useEffect(() => {
     if (!data?.items) return;
@@ -145,19 +171,31 @@ export function AttendancePanel({ sessionId, classBatchId }: AttendancePanelProp
     setSaveValidationError(null);
   }
 
-  const nameByStudentId = new Map(
-    ((studentsData ?? []) as Array<{ studentId: string; fullName: string }>).map((s) => [
-      s.studentId,
-      s.fullName,
-    ]),
-  );
+  const fallbackStudents = (studentsData ?? []) as Array<{
+    studentId: string;
+    fullName: string;
+  }>;
 
-  const roster: RosterEntry[] = (data?.items ?? []).map((item) => ({
-    enrollmentId: item.enrollmentId,
-    studentId: item.studentId,
-    fullName: nameByStudentId.get(item.studentId) ?? item.studentId.slice(0, 8),
-    status: localStatus[item.enrollmentId] ?? null,
-  }));
+  // Fail-closed: dual-gate is authority when it succeeds (even if empty).
+  // Only fall back to listBySession when dual query failed (e.g. no permission).
+  const roster: RosterEntry[] = dualStudents
+    ? dualStudents.map((s) => ({
+        enrollmentId: s.enrollmentId,
+        studentId: s.studentId,
+        fullName: s.fullName,
+        status: localStatus[s.enrollmentId] ?? markByEnrollment.get(s.enrollmentId) ?? null,
+      }))
+    : dualFailed
+      ? (data?.items ?? []).map((item) => {
+          const nameByStudentId = new Map(fallbackStudents.map((s) => [s.studentId, s.fullName]));
+          return {
+            enrollmentId: item.enrollmentId,
+            studentId: item.studentId,
+            fullName: nameByStudentId.get(item.studentId) ?? item.studentId.slice(0, 8),
+            status: localStatus[item.enrollmentId] ?? null,
+          };
+        })
+      : [];
 
   const total = roster.length;
   const presentCount = roster.filter((r) => r.status === 'present').length;
@@ -225,9 +263,28 @@ export function AttendancePanel({ sessionId, classBatchId }: AttendancePanelProp
           <Banner status="error" title="Lỗi tải danh sách" description={listError.message} />
         </div>
       ) : null}
+      {dualFailed ? (
+        <div style={{ paddingInline: 'var(--cmc-space-3)', paddingTop: 'var(--cmc-space-2)' }}>
+          <Banner
+            status="warning"
+            title="Roster dual-gate không dùng được"
+            description="Đang fallback danh sách điểm danh (không lọc unit). Cần quyền classRoster.read và session đã stamp."
+          />
+        </div>
+      ) : null}
+      {dualReady ? (
+        <div style={{ paddingInline: 'var(--cmc-space-3)', paddingTop: 'var(--cmc-space-2)' }}>
+          <Text type="supporting" size="xsm">
+            Roster dual-gate
+            {dualRoster.sessionOrderGlobal != null
+              ? ` · unit order ${dualRoster.sessionOrderGlobal}`
+              : ' · session chưa stamp unit (roster rỗng)'}
+          </Text>
+        </div>
+      ) : null}
       {markAll.error ? (
         <div style={{ paddingInline: 'var(--cmc-space-3)', paddingTop: 'var(--cmc-space-2)' }}>
-          <Banner status="error" title="Lưu thất bại" description={markAll.error.message} />
+          <Banner status="error" title="Lỗi lưu điểm danh" description={markAll.error.message} />
         </div>
       ) : null}
       {saveValidationError ? (
@@ -236,47 +293,27 @@ export function AttendancePanel({ sessionId, classBatchId }: AttendancePanelProp
         </div>
       ) : null}
 
-      <div>
-        {isLoading ? (
-          <Stack gap={0}>
-            {Array.from({ length: 6 }, (_, i) => (
-              <div
-                key={i}
-                style={{
-                  paddingInline: 'var(--cmc-space-3)',
-                  paddingBlock: 'var(--cmc-space-2)',
-                  borderBottom: '1px solid var(--cmc-border)',
-                  minHeight: TOUCH_MIN_HEIGHT,
-                }}
-              >
-                <HStack justify="between">
-                  <Skeleton height={14} width={120} radius={1} />
-                  <Skeleton height={36} width={96} radius={1} />
-                </HStack>
-              </div>
-            ))}
-          </Stack>
-        ) : roster.length === 0 ? (
-          <div style={{ padding: 'var(--cmc-space-4)' }}>
-            <Text type="supporting" size="sm" justify="center" display="block">
-              Không có học sinh nào trong buổi học này.
-            </Text>
-          </div>
-        ) : (
-          roster.map((entry) => (
-            <StudentRow key={entry.enrollmentId} entry={entry} onToggle={toggleStatus} />
-          ))
-        )}
-      </div>
-
-      {saved ? (
-        <div style={{ paddingInline: 'var(--cmc-space-3)', paddingBlock: 'var(--cmc-space-2)' }}>
-          <Badge
-            label={`Điểm danh đã được lưu — ${presentCount} có mặt / ${lateCount} muộn / ${absentCount} vắng`}
-            variant="success"
-          />
+      {isLoading ? (
+        <Stack gap={2} style={{ padding: 'var(--cmc-space-3)' }}>
+          <Skeleton height={44} />
+          <Skeleton height={44} />
+          <Skeleton height={44} />
+        </Stack>
+      ) : total === 0 ? (
+        <div style={{ padding: 'var(--cmc-space-3)' }}>
+          <Text type="supporting" size="sm">
+            Không có học sinh trên roster dual-gate cho buổi này.
+          </Text>
         </div>
-      ) : null}
+      ) : (
+        <div>
+          {roster.map((entry) => (
+            <StudentRow key={entry.enrollmentId} entry={entry} onToggle={toggleStatus} />
+          ))}
+        </div>
+      )}
     </>
   );
 }
+
+export default AttendancePanel;

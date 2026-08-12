@@ -11,10 +11,12 @@ import { appRouter } from '../router.js';
 import { provisionFromReceipt } from './provision-from-receipt.js';
 import {
   buildStaffContext,
+  cleanupCurriculumUnits,
   cleanupFacility,
   cleanupParentAccountsByPhone,
   createTestFacility,
   seedClassBatch,
+  seedCurriculumUnit,
   testDb,
   testDbBypass,
 } from '../test/db.js';
@@ -27,10 +29,27 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
   let gdkd: Caller;
   let classBatch: { id: string };
   const phonesToClean: string[] = [];
+  let curriculumUnitIds: string[] = [];
 
   beforeEach(async () => {
     facility = await createTestFacility('Provisioning Facility');
+    // Sequential seed avoids (program, orderGlobal) unique races.
+    const units: { id: string; orderGlobal: number }[] = [];
+    for (let i = 0; i < 8; i++) {
+      units.push(await seedCurriculumUnit({ program: 'UCREA', title: `Prov Unit ${i + 1}` }));
+    }
+    curriculumUnitIds = units.map((u) => u.id);
     classBatch = await seedClassBatch({ facilityId: facility.id });
+    await testDbBypass((tx) =>
+      tx.classBatch.update({
+        where: { id: classBatch.id },
+        data: {
+          startUnitId: units[0].id,
+          currentUnitId: units[0].id,
+          currentUnitAnchor: new Date('2026-09-01'),
+        },
+      }),
+    );
     sale = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'sale-prov-1', roles: ['sale'] }),
     );
@@ -41,6 +60,8 @@ describe('provisionFromReceipt (WF-P1-04, ADR 0041)', () => {
 
   afterEach(async () => {
     await cleanupFacility(facility.id);
+    await cleanupCurriculumUnits(...curriculumUnitIds);
+    curriculumUnitIds = [];
     await cleanupParentAccountsByPhone(...phonesToClean.map((p) => normalizeLoginPhone(p)));
     phonesToClean.length = 0;
   });

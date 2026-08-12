@@ -78,7 +78,12 @@ test.describe('Journey xuyên app — GV chấm điểm ERP → phụ huynh th�
 
     const exercise = await seedPublishedExercise({ starReward: 5 });
     exerciseId = exercise.exerciseId;
-    await seedSubmittedSubmission({ facilityId, studentId, exerciseId });
+    await seedSubmittedSubmission({
+      facilityId,
+      studentId,
+      exerciseId,
+      classBatchId: batch.classBatchId,
+    });
 
     // --- LMS, parent: the submission is visible and explicitly UNGRADED ---
     const parentAccountId = await findParentAccountIdByPhone(parentPhone);

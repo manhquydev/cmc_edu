@@ -46,25 +46,56 @@ test.describe('P3-03/04/07 journey — đăng ký ca: từ chối → nộp lạ
   const saleName = `E2E P3 Sale ${runId}`;
   const saleUserId = `e2e-p3shift-sale-${runId}`;
 
-  async function submitRegistration(browser: import('@playwright/test').Browser): Promise<void> {
+  /** Compose → submit → lands on form; returns registration UUID. */
+  async function submitRegistration(browser: import('@playwright/test').Browser): Promise<string> {
     const context = await browser.newContext({ baseURL: 'http://localhost:4173' });
     try {
       const page = await context.newPage();
       await context.addCookies(cookiePair(STAFF_COOKIE_NAME, mintStaffCookie({ userId: saleUserId, roles: ['sale'], facilityId })));
-      await page.goto('/cockpit');
-      await menuNav(page, 'Nhân sự', 'Đăng ký ca', { role: 'sale' });
-      // SubmitTab is the default tab. Pick the group (its templates then load).
+      // Record-centric compose URL (list may show two "Soạn phiếu mới" CTAs).
+      await page.goto('/hr/shifts/new');
+      await expect(page).toHaveURL(/\/hr\/shifts\/new$/);
+      // Pick the group (its templates then load as matrix columns).
       await page.getByRole('combobox', { name: /Nhóm ca/ }).click();
       await page.getByRole('option', { name: new RegExp(groupName) }).click();
-      await page.getByLabel('Từ ngày (YYYY-MM-DD)').fill(tomorrow);
-      await page.getByLabel('Đến ngày (YYYY-MM-DD)').fill(tomorrow);
-      // The single default day entry: its date + template. exact:true so it
-      // doesn't also match "Từ ngày"/"Đến ngày".
-      await page.getByLabel('Ngày (YYYY-MM-DD)', { exact: true }).fill(tomorrow);
-      await page.getByRole('combobox', { name: /Mẫu ca/ }).click();
-      await page.getByRole('option', { name: new RegExp(templateName) }).click();
+      await page.getByLabel('Từ ngày').fill(tomorrow);
+      await page.getByLabel('Đến ngày').fill(tomorrow);
+      // SINGLE matrix: checkbox cells, not radio rows.
+      await page.getByRole('checkbox', { name: new RegExp(`${tomorrow} ${templateName}`) }).check();
+
+      await page.setViewportSize({ width: 375, height: 812 });
+      await expect(page.getByRole('button', { name: 'Gửi đăng ký' })).toBeVisible();
+      const mobileLayout = await page.evaluate(() => {
+        const viewport = window.innerWidth;
+        const documentWidth = document.documentElement.scrollWidth;
+        const overflowingElements = [...document.querySelectorAll<HTMLElement>('body *')]
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+              tag: element.tagName.toLowerCase(),
+              className: element.className,
+              label: element.getAttribute('aria-label'),
+              left: Math.round(rect.left),
+              right: Math.round(rect.right),
+              width: Math.round(rect.width),
+            };
+          })
+          .filter((element) => element.right > viewport)
+          .slice(0, 12);
+
+        return { viewport, documentWidth, overflowingElements };
+      });
+      expect(
+        mobileLayout.documentWidth,
+        `Elements outside the ${mobileLayout.viewport}px viewport: ${JSON.stringify(mobileLayout.overflowingElements)}`,
+      ).toBeLessThanOrEqual(mobileLayout.viewport);
+
       await page.getByRole('button', { name: 'Gửi đăng ký' }).click();
-      await expect(page.getByText('Đăng ký ca đã gửi, chờ GĐ duyệt.')).toBeVisible();
+      // After submit, form deep-link opens: /hr/shifts/{uuid}
+      await expect(page).toHaveURL(/\/hr\/shifts\/[0-9a-f-]{36}$/i, { timeout: 15_000 });
+      const match = page.url().match(/\/hr\/shifts\/([0-9a-f-]{36})/i);
+      expect(match?.[1]).toBeTruthy();
+      return match![1]!;
     } finally {
       await context.close();
     }
@@ -94,38 +125,42 @@ test.describe('P3-03/04/07 journey — đăng ký ca: từ chối → nộp lạ
     await createStaffViaAdminUi(browser, { facilityId, userId: saleUserId, fullName: saleName, position: 'Sale' });
 
     // --- sale submits the registration ---
-    await submitRegistration(browser);
+    const firstRegId = await submitRegistration(browser);
 
-    // --- director (GĐKD) rejects with a reason (P3-07) ---
+    // --- director (GĐKD) rejects via form deep-link (P3-07 + phase 04 cold-start) ---
     const gdContext = await browser.newContext({ baseURL: 'http://localhost:4173' });
     const gdPage = await gdContext.newPage();
     await gdContext.addCookies(
       cookiePair(STAFF_COOKIE_NAME, mintStaffCookie({ userId: `e2e-p3shift-gd-${runId}`, roles: ['giam_doc_kinh_doanh'], facilityId })),
     );
-    await gdPage.goto('/cockpit');
-    await menuNav(gdPage, 'Nhân sự', 'Đăng ký ca', { role: 'giam_doc_kinh_doanh' });
-    await gdPage.locator('main.console-main').getByRole('button', { name: /Duyệt.*Từ chối/ }).click();
-    const pendingRow = gdPage.getByRole('row', { name: new RegExp(saleName) });
-    await expect(pendingRow).toBeVisible();
-    await pendingRow.getByRole('button', { name: 'Từ chối' }).click();
+    // Cold-start form by UUID (share/HITL path) — not list expand.
+    await gdPage.goto(`/hr/shifts/${firstRegId}`);
+    await expect(gdPage).toHaveURL(new RegExp(`/hr/shifts/${firstRegId}$`));
+    await expect(
+      gdPage.getByRole('heading', { name: new RegExp(`Work Schedule / ${saleName}`) }),
+    ).toBeVisible({ timeout: 15_000 });
+    await gdPage.getByRole('button', { name: 'Từ chối' }).click();
     const rejectDialog = gdPage.getByRole('dialog');
     await rejectDialog.getByRole('textbox').fill('Trùng ca với NV khác — E2E');
     await rejectDialog.getByRole('button', { name: 'Từ chối' }).click();
-    await expect(gdPage.getByRole('row', { name: new RegExp(saleName) })).toHaveCount(0);
+    await expect(gdPage.getByText(/Đã từ chối|rejected/i).first()).toBeVisible({ timeout: 15_000 });
 
     // --- sale resubmits (only possible now the previous one is rejected) ---
-    await submitRegistration(browser);
+    const secondRegId = await submitRegistration(browser);
 
-    // --- director approves (P3-04) ---
-    await gdPage.reload();
-    await gdPage.locator('main.console-main').getByRole('button', { name: /Duyệt.*Từ chối/ }).click();
-    const pending2 = gdPage.getByRole('row', { name: new RegExp(saleName) });
-    await expect(pending2).toBeVisible();
-    await pending2.getByRole('button', { name: 'Duyệt' }).click();
+    // --- director approves via /go deep-link (P3-04 + agent HITL path) ---
+    await gdPage.goto(`/go/shiftRegistration/${secondRegId}`);
+    await expect(gdPage).toHaveURL(new RegExp(`/hr/shifts/${secondRegId}$`), { timeout: 15_000 });
+    await expect(
+      gdPage.getByRole('heading', { name: new RegExp(`Work Schedule / ${saleName}`) }),
+    ).toBeVisible({ timeout: 15_000 });
+    // exact: true — nav may have other Duyệt* which substring-matches name 'Duyệt'.
+    await gdPage.getByRole('button', { name: 'Duyệt', exact: true }).click();
     // "Duyệt" opens a ConfirmDialog whose own confirm is also labelled "Duyệt".
     const approveDialog = gdPage.getByRole('alertdialog');
-    await approveDialog.getByRole('button', { name: 'Duyệt' }).click();
-    await expect(gdPage.getByRole('row', { name: new RegExp(saleName) })).toHaveCount(0);
+    await approveDialog.getByRole('button', { name: 'Duyệt', exact: true }).click();
+    // Flash banner only — statusbar always lists the label "Đã duyệt" as a step.
+    await expect(gdPage.getByText('Đã duyệt (approved).')).toBeVisible({ timeout: 15_000 });
     await gdContext.close();
 
     // ── business invariant (read AFTER approve, BEFORE the sale cancels) ──
@@ -151,20 +186,19 @@ test.describe('P3-03/04/07 journey — đăng ký ca: từ chối → nộp lạ
       1,
     );
 
-    // --- sale cancels the approved registration (P3-03) ---
+    // --- sale cancels the approved registration on form (P3-03 + form depth) ---
     const saleContext = await browser.newContext({ baseURL: 'http://localhost:4173' });
     const salePage = await saleContext.newPage();
     await saleContext.addCookies(cookiePair(STAFF_COOKIE_NAME, mintStaffCookie({ userId: saleUserId, roles: ['sale'], facilityId })));
-    await salePage.goto('/cockpit');
-    await menuNav(salePage, 'Nhân sự', 'Đăng ký ca', { role: 'sale' });
-    await salePage.getByRole('button', { name: /Đăng ký của tôi/ }).click();
-    const myRow = salePage.getByRole('row', { name: /approved|Đã duyệt/ });
-    await expect(myRow.first()).toBeVisible();
-    await myRow.first().getByRole('button', { name: 'Hủy' }).click();
+    await salePage.goto(`/hr/shifts/${secondRegId}`);
+    await expect(
+      salePage.getByRole('heading', { name: new RegExp(`Work Schedule / ${saleName}`) }),
+    ).toBeVisible({ timeout: 15_000 });
+    await salePage.getByRole('button', { name: 'Hủy phiếu' }).click();
     const cancelDialog = salePage.getByRole('alertdialog');
+    await expect(cancelDialog).toBeVisible();
     await cancelDialog.getByRole('button', { name: 'Hủy ca' }).click();
-    // After cancelling, the row is no longer approved.
-    await expect(salePage.getByText(/Đã hủy|cancelled/i).first()).toBeVisible();
+    await expect(salePage.getByText('Đã hủy (cancelled).')).toBeVisible({ timeout: 15_000 });
 
     await saleContext.close();
   });

@@ -8,10 +8,7 @@ import {
   CmcTabs,
   ConfirmDialog,
   DataTable,
-  DateField,
   DetailPage,
-  Dialog,
-  DialogHeader,
   EmptyState,
   EntityHeader,
   HighlightStrip,
@@ -25,15 +22,48 @@ import {
   Stack,
   StatusBadge,
   Text,
-  TimeField,
+  WorkflowStatusbar,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const CLASS_STATUS_LABELS: Record<string, string> = {
+  planned: 'Dự kiến',
+  active: 'Đang mở',
+  completed: 'Kết thúc',
+  cancelled: 'Đã hủy',
+  closed: 'Đã đóng',
+};
+
+function classStatusSteps(status: string): {
+  steps: { id: string; label: string }[];
+  activeIndex: number;
+} {
+  if (status === 'cancelled') {
+    return {
+      steps: [
+        { id: 'planned', label: 'Dự kiến' },
+        { id: 'active', label: 'Đang mở' },
+        { id: 'cancelled', label: 'Đã hủy' },
+      ],
+      activeIndex: 2,
+    };
+  }
+  const steps = [
+    { id: 'planned', label: 'Dự kiến' },
+    { id: 'active', label: 'Đang mở' },
+    { id: 'completed', label: 'Kết thúc' },
+  ];
+  const activeIndex =
+    status === 'completed' || status === 'closed'
+      ? 2
+      : status === 'active'
+        ? 1
+        : 0;
+  return { steps, activeIndex };
+}
 
 // HR remediation phase 5 (R2 #C5): teacher picker — AppUser role giao_vien.
 function TeacherPicker({ classBatchId, currentTeacherId }: { classBatchId: string; currentTeacherId: string | null }) {
@@ -138,7 +168,6 @@ interface SessionTabRow {
   startTime: string | Date;
   endTime: string | Date;
   status: string;
-  isMakeup: boolean;
   curriculumUnitId: string | null;
   [key: string]: unknown;
 }
@@ -146,7 +175,7 @@ interface SessionTabRow {
 interface CurriculumUnitRow {
   id: string;
   program: string;
-  level: number;
+  level: string;
   monthIndex: number;
   unitType: string;
   title: string;
@@ -224,29 +253,6 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
     },
   });
 
-  const [makeupOpen, setMakeupOpen] = useState(false);
-  const [makeupForm, setMakeupForm] = useState({ sessionDate: '', startTime: '', endTime: '' });
-  const addMakeupMut = trpc.classSession.addMakeup.useMutation({
-    onSuccess: () => {
-      void utils.classSession.list.invalidate({ classBatchId });
-      setMakeupOpen(false);
-      setMakeupForm({ sessionDate: '', startTime: '', endTime: '' });
-    },
-  });
-
-  function closeMakeupDialog() {
-    if (addMakeupMut.isPending) return;
-    setMakeupOpen(false);
-    setMakeupForm({ sessionDate: '', startTime: '', endTime: '' });
-    addMakeupMut.reset();
-  }
-
-  const makeupValid =
-    DATE_RE.test(makeupForm.sessionDate) &&
-    TIME_RE.test(makeupForm.startTime) &&
-    TIME_RE.test(makeupForm.endTime) &&
-    makeupForm.startTime < makeupForm.endTime;
-
   const units = ((unitsData?.items ?? []) as CurriculumUnitRow[]);
   const unitOptions = units
     .filter((u) => !program || u.program === program)
@@ -296,10 +302,7 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
       render: (v, row) =>
         dim(
           row.status,
-          <HStack gap={0.5}>
-            <Badge label={String(v)} variant={SESSION_STATUS_VARIANT[String(v)] ?? 'neutral'} />
-            {row.isMakeup && <Badge label="makeup" variant="warning" />}
-          </HStack>,
+          <Badge label={String(v)} variant={SESSION_STATUS_VARIANT[String(v)] ?? 'neutral'} />,
         ),
     },
     {
@@ -359,13 +362,9 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
   return (
     <div style={{ padding: 'var(--cmc-space-3)' }}>
       <Stack gap={2}>
-        <HStack justify="between" align="center">
-          <Text type="supporting" size="xsm">
-            Buổi học được sinh tự động khi tạo lớp (theo khung giờ đã chọn). Dùng nút bên phải để thêm buổi bù
-            phát sinh ngoài lịch.
-          </Text>
-          <Button label="+ Thêm buổi bù" size="sm" variant="secondary" onClick={() => setMakeupOpen(true)} />
-        </HStack>
+        <Text type="supporting" size="xsm">
+          Buổi học được sinh tự động khi tạo lớp (theo khung giờ đã chọn).
+        </Text>
 
         {cancelError && (
           <Banner status="error" title="Lỗi huỷ buổi học" description={cancelError} />
@@ -376,86 +375,20 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
           data={(data as SessionTabRow[] | undefined) ?? []}
           loading={isLoading}
           error={error?.message}
-          empty='Chưa có buổi học nào. Dùng nút "+ Thêm buổi bù" để thêm một buổi.'
+          empty="Chưa có buổi học nào."
         />
       </Stack>
 
       <ConfirmDialog
         opened={cancelTarget !== null}
         title="Huỷ buổi học"
-        message="Huỷ buổi học này? Buổi đã huỷ sẽ không được tính vào điểm danh và không thể khôi phục."
+        message="Huỷ buổi học này? Buổi đã huỷ không tính điểm danh; unit các buổi còn lại sẽ được restamp."
         confirmLabel="Huỷ buổi"
         confirmColor="red"
         loading={cancelMut.isPending}
         onConfirm={() => cancelTarget && cancelMut.mutate({ sessionId: cancelTarget })}
         onCancel={() => setCancelTarget(null)}
       />
-
-      {/* Makeup session dialog — `classSession.addMakeup` (isMakeup=true),
-          scoped to this batch's own room (server resolves it, not the form). */}
-      <Dialog
-        isOpen={makeupOpen}
-        onOpenChange={(next) => {
-          if (!next) closeMakeupDialog();
-        }}
-        purpose="form"
-        width={400}
-      >
-        <DialogHeader
-          title="Thêm buổi bù"
-          onOpenChange={(next) => {
-            if (!next) closeMakeupDialog();
-          }}
-        />
-        <Stack gap={2} padding={4}>
-          <DateField
-            label="Ngày (YYYY-MM-DD)"
-            value={makeupForm.sessionDate}
-            onChange={(v) => setMakeupForm((f) => ({ ...f, sessionDate: v }))}
-          />
-          <HStack gap={1}>
-            <div style={{ flex: 1 }}>
-              <TimeField
-                label="Giờ bắt đầu (HH:mm)"
-                value={makeupForm.startTime}
-                onChange={(v) => setMakeupForm((f) => ({ ...f, startTime: v }))}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <TimeField
-                label="Giờ kết thúc (HH:mm)"
-                value={makeupForm.endTime}
-                onChange={(v) => setMakeupForm((f) => ({ ...f, endTime: v }))}
-              />
-            </div>
-          </HStack>
-          {addMakeupMut.error && (
-            <Banner status="error" title="Lỗi thêm buổi bù" description={addMakeupMut.error.message} />
-          )}
-          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
-            <Button
-              label="Hủy"
-              variant="secondary"
-              onClick={closeMakeupDialog}
-              isDisabled={addMakeupMut.isPending}
-            />
-            <Button
-              label="Thêm buổi bù"
-              variant="primary"
-              isLoading={addMakeupMut.isPending}
-              isDisabled={!makeupValid}
-              onClick={() =>
-                addMakeupMut.mutate({
-                  classBatchId,
-                  sessionDate: makeupForm.sessionDate,
-                  startTime: makeupForm.startTime,
-                  endTime: makeupForm.endTime,
-                })
-              }
-            />
-          </HStack>
-        </Stack>
-      </Dialog>
     </div>
   );
 }
@@ -496,6 +429,7 @@ export default function ClassDetailPage() {
 
 function ClassDetailContent() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
 
   const { data: cls, isLoading, error } = trpc.classBatch.get.useQuery(
@@ -519,10 +453,14 @@ function ClassDetailContent() {
       );
     }
     if (!cls) return null;
+    const statusLabel = CLASS_STATUS_LABELS[cls.status] ?? cls.status;
     return (
       <div className="console-detail-panel">
         <div className="console-detail-stack">
-          <SectionBlock title="Thông tin lớp" description="Tổng quan kỳ học — cùng recipe KeyValue với màn chi tiết khác.">
+          <SectionBlock
+            title="Thông tin lớp"
+            description="Cùng khung form chứng từ Console (list → form · statusbar · sheet)."
+          >
             <KeyValueList
               items={[
                 { key: 'code', label: 'Mã lớp', value: cls.code },
@@ -530,7 +468,7 @@ function ClassDetailContent() {
                 {
                   key: 'status',
                   label: 'Trạng thái',
-                  value: <StatusBadge status={cls.status} />,
+                  value: <StatusBadge status={cls.status} label={statusLabel} />,
                 },
                 {
                   key: 'start',
@@ -545,7 +483,10 @@ function ClassDetailContent() {
               ]}
             />
           </SectionBlock>
-          <SectionBlock title="Phân công giáo viên">
+          <SectionBlock
+            title="Phân công giáo viên"
+            description="classBatch.assignTeacher — chỉ giáo viên (server filter), quyền không đổi."
+          >
             <TeacherPicker classBatchId={cls.id} currentTeacherId={cls.teacherAppUserId} />
           </SectionBlock>
         </div>
@@ -563,8 +504,14 @@ function ClassDetailContent() {
     },
   ];
 
+  const statusBar = cls ? classStatusSteps(cls.status) : null;
+  const statusLabel = cls
+    ? (CLASS_STATUS_LABELS[cls.status] ?? cls.status)
+    : '—';
+
   return (
     <DetailPage
+      density="ops"
       header={
         <PageHeader
           breadcrumbs={[
@@ -572,7 +519,17 @@ function ClassDetailContent() {
             { label: 'Lớp học', href: '/admin/classes' },
             { label: cls?.code ?? '…' },
           ]}
-          actions={id ? <CopyLinkButton mode="go" entity="classBatch" id={id} /> : undefined}
+          actions={
+            <HStack gap={1} wrap="wrap">
+              {id ? <CopyLinkButton mode="go" entity="classBatch" id={id} /> : null}
+              <Button
+                label="Về danh sách"
+                size="sm"
+                variant="ghost"
+                onClick={() => navigate('/admin/classes')}
+              />
+            </HStack>
+          }
         />
       }
       entity={
@@ -581,13 +538,21 @@ function ClassDetailContent() {
             title={cls.code}
             subtitle={cls.program}
             initials={cls.code.slice(0, 2).toUpperCase()}
-            badges={<StatusBadge status={cls.status} />}
+            badges={<StatusBadge status={cls.status} label={statusLabel} />}
             meta={
               <span>
                 {new Date(cls.startDate).toLocaleDateString('vi-VN')}
                 {' – '}
                 {new Date(cls.endDate).toLocaleDateString('vi-VN')}
               </span>
+            }
+            actions={
+              <Button
+                label="Tổng quan lớp"
+                size="sm"
+                variant="secondary"
+                onClick={() => setActiveTab('overview')}
+              />
             }
           />
         ) : isLoading ? (
@@ -603,7 +568,7 @@ function ClassDetailContent() {
               {
                 key: 'status',
                 label: 'Trạng thái',
-                value: <StatusBadge status={cls.status} />,
+                value: <StatusBadge status={cls.status} label={statusLabel} />,
               },
               {
                 key: 'range',
@@ -612,6 +577,11 @@ function ClassDetailContent() {
               },
             ]}
           />
+        ) : undefined
+      }
+      statusbar={
+        statusBar ? (
+          <WorkflowStatusbar steps={statusBar.steps} activeIndex={statusBar.activeIndex} />
         ) : undefined
       }
       tabs={<CmcTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />}

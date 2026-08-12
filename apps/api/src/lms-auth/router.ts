@@ -110,17 +110,25 @@ function getLmsSecret(): string {
   return process.env['LMS_SESSION_SECRET'] ?? LMS_SESSION_SECRET_DEV_DEFAULT;
 }
 
-/** Signs a parent LMS session token. */
+/** Signs a parent LMS session token (embeds ParentAccount.tokenVersion). */
 function encodeSessionToken(
   parentAccountId: string,
   kind: 'parent' | 'student' = 'parent',
+  tokenVersion = 0,
 ): string {
-  return signLmsToken({ parentAccountId, kind }, getLmsSecret());
+  return signLmsToken({ parentAccountId, kind, tokenVersion }, getLmsSecret());
 }
 
 /** Signs a student LMS session token. */
-function encodeStudentSessionToken(parentAccountId: string, studentId: string): string {
-  return signLmsToken({ parentAccountId, studentId, kind: 'student' }, getLmsSecret());
+function encodeStudentSessionToken(
+  parentAccountId: string,
+  studentId: string,
+  tokenVersion = 0,
+): string {
+  return signLmsToken(
+    { parentAccountId, studentId, kind: 'student', tokenVersion },
+    getLmsSecret(),
+  );
 }
 
 /** Normalizes a raw login phone; a malformed phone is a format error
@@ -305,7 +313,7 @@ export const lmsAuthRouter = router({
       }
 
       const parentAccount = await ctx.db.parentAccount.findUnique({ where: { phone } });
-      if (!parentAccount) {
+      if (!parentAccount || !parentAccount.isActive) {
         throw badRequest(GENERIC_VERIFY_FAILURE);
       }
 
@@ -319,7 +327,7 @@ export const lmsAuthRouter = router({
       });
 
       return {
-        sessionToken: encodeSessionToken(parentAccount.id, 'parent'),
+        sessionToken: encodeSessionToken(parentAccount.id, 'parent', parentAccount.tokenVersion),
         children,
         needsPicker: children.length >= 2,
       };
@@ -483,7 +491,7 @@ export const lmsAuthRouter = router({
       }
 
       const parentAccount = await ctx.db.parentAccount.findUnique({ where: { email } });
-      if (!parentAccount) {
+      if (!parentAccount || !parentAccount.isActive) {
         // Same generic failure as wrong/expired code — never reveal that an
         // email has no ParentAccount.
         throw badRequest(GENERIC_VERIFY_FAILURE);
@@ -499,7 +507,7 @@ export const lmsAuthRouter = router({
       });
 
       return {
-        sessionToken: encodeSessionToken(parentAccount.id, 'parent'),
+        sessionToken: encodeSessionToken(parentAccount.id, 'parent', parentAccount.tokenVersion),
         children,
         needsPicker: children.length >= 2,
       };
@@ -520,7 +528,7 @@ export const lmsAuthRouter = router({
 
       // Look up the ParentAccount for this phone, then the linked StudentAccount(s).
       const parentAccount = await ctx.db.parentAccount.findUnique({ where: { phone } });
-      if (!parentAccount) {
+      if (!parentAccount || !parentAccount.isActive) {
         // Equalise timing: (1) dummy DB round-trip so no-parent path issues the
         // same number of DB queries as the no-studentAccounts path below (both = 2),
         // preventing enumeration via DB-latency difference; (2) PBKDF2 call so
@@ -602,7 +610,11 @@ export const lmsAuthRouter = router({
       });
 
       return {
-        sessionToken: encodeStudentSessionToken(parentAccount.id, matchedAccount.studentId),
+        sessionToken: encodeStudentSessionToken(
+          parentAccount.id,
+          matchedAccount.studentId,
+          parentAccount.tokenVersion,
+        ),
         mustChangePassword: matchedAccount.mustChangePassword,
         studentId: matchedAccount.studentId,
       };

@@ -25,19 +25,27 @@ const exerciseTypeSchema = z.enum(['homework', 'test_entrance', 'test_periodic']
 export interface CurriculumUnitDto {
   id: string;
   program: string;
-  level: number;
+  /**
+   * Framework level code kept verbatim from the curriculum CSV
+   * (e.g. UCREA `U2`/`U3`/`U4`, Bright I.G `J`/`C`/…, Black Hole `B`/`G`/`P`/`R`).
+   * Not a numeric rank — sequence within a level is `monthIndex`.
+   */
+  level: string;
   monthIndex: number;
   unitType: string;
   title: string;
+  /** Stable unit sequence within program (ADR 0046) — class start neo. */
+  orderGlobal: number;
 }
 
 function toCurriculumUnitDto(row: {
   id: string;
   program: string;
-  level: number;
+  level: string;
   monthIndex: number;
   unitType: string;
   title: string;
+  orderGlobal: number;
 }): CurriculumUnitDto {
   return {
     id: row.id,
@@ -46,6 +54,7 @@ function toCurriculumUnitDto(row: {
     monthIndex: row.monthIndex,
     unitType: row.unitType,
     title: row.title,
+    orderGlobal: row.orderGlobal,
   };
 }
 
@@ -103,7 +112,7 @@ async function findExerciseOrThrow(db: PrismaClient, exerciseId: string) {
 export const curriculumUnitRouter = router({
   list: requirePermission('exercise', 'manage').query(async ({ ctx }) => {
     const units = await ctx.db.curriculumUnit.findMany({
-      orderBy: [{ program: 'asc' }, { level: 'asc' }, { monthIndex: 'asc' }],
+      orderBy: [{ program: 'asc' }, { orderGlobal: 'asc' }],
     });
     return { items: units.map(toCurriculumUnitDto) };
   }),
@@ -205,5 +214,26 @@ export const exerciseRouter = router({
         orderBy: { createdAt: 'desc' },
       });
       return { items: exercises.map(toExerciseDto) };
+    }),
+
+  /**
+   * Staff: cold-start form by UUID (resource-centric form-depth).
+   * Same exercise.manage gate as list/publish/close. Exercise is a global
+   * catalog (no facilityId / RLS) — same as list.
+   */
+  get: requirePermission('exercise', 'manage')
+    .input(exerciseIdInput)
+    .query(async ({ ctx, input }) => {
+      const exercise = await ctx.db.exercise.findUnique({
+        where: { id: input.exerciseId },
+        include: { curriculumUnit: true },
+      });
+      if (!exercise) {
+        throw notFound('Exercise not found.');
+      }
+      return {
+        ...toExerciseDto(exercise),
+        curriculumUnit: toCurriculumUnitDto(exercise.curriculumUnit),
+      };
     }),
 });

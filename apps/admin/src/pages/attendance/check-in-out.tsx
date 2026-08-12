@@ -12,13 +12,14 @@
 //   phase 4 — ADR 0043 §10).
 // - "Phiếu của tôi" hiện Giờ vào/Giờ ra (checkInAt/checkOutAt); phiếu `rejected`
 //   có nút "Gửi lại" → manualPunch.resubmit.mutate({ticketId, reason}).
-// - Tab "Duyệt chấm công" chỉ hiện khi canDo('manualPunch','approve') — inbox
-//   GĐ theo track (manualPunch.list({scope:'inbox'})), duyệt/từ chối qua
-//   ConfirmDialog/Dialog (không tự gọi mutation khi chỉ bấm trigger).
+// - Tab "Hàng chờ phiếu" chỉ hiện khi canDo('manualPunch','approve') — inbox
+//   GĐ theo track (manualPunch.list({scope:'inbox'})), **index-only**: row
+//   "Mở phiếu" → /hr/checkin/:ticketId (form owns Duyệt/Từ chối).
+//   Tên tab resource-centric (phiếu), không product "Duyệt chấm công".
 
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Badge,
   Banner,
   Button,
   Card,
@@ -35,6 +36,7 @@ import {
   TextArea,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
+import { links } from '@cmc/links';
 import { captureGeolocation, type CapturedGeo } from '../../lib/capture-geolocation.js';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
@@ -64,19 +66,6 @@ export function offsiteGeoHint(
     return `GPS sai số ±${Math.round(captured.accuracyM)}m, vượt ngưỡng ${geoThresholdM}m — thử ra gần cửa sổ/ngoài trời rồi chấm lại.`;
   }
   return 'Bạn đang ngoài vùng cho phép.';
-}
-
-function verificationBadge(v: string): { label: string; variant: 'success' | 'warning' | 'neutral' } {
-  switch (v) {
-    case 'network':
-      return { label: 'Mạng cơ sở', variant: 'success' };
-    case 'geo':
-      return { label: 'GPS', variant: 'warning' };
-    case 'open':
-      return { label: 'Không kiểm chứng', variant: 'neutral' };
-    default:
-      return { label: 'Offsite', variant: 'neutral' };
-  }
 }
 
 function fmtTime(v: unknown): string {
@@ -338,7 +327,7 @@ function MyTicketsSection() {
 }
 
 // ---------------------------------------------------------------------------
-// Duyệt chấm công — inbox GĐ theo track (manualPunch.list scope=inbox)
+// Hàng chờ phiếu — inbox GĐ theo track (manualPunch.list scope=inbox)
 // ---------------------------------------------------------------------------
 interface InboxTicketRow {
   id: string;
@@ -350,14 +339,6 @@ interface InboxTicketRow {
   [key: string]: unknown;
 }
 
-interface DayPunchRow {
-  punchAt: string | Date;
-  verification: string;
-  accuracyM: number | null;
-  geofenceDistanceM: number | null;
-  matchedRadiusM: number | null;
-}
-
 interface GeoSummaryRow {
   appUserId: string;
   fullName: string;
@@ -367,51 +348,16 @@ interface GeoSummaryRow {
 }
 
 function ApproveTicketsTab() {
-  const utils = trpc.useUtils();
+  const navigate = useNavigate();
   const { data, isLoading, error } = trpc.manualPunch.list.useQuery({ scope: 'inbox' });
   const geoSummary = trpc.checkInOut.geoPunchSummary.useQuery({ days: 30 });
-  const [detailTicket, setDetailTicket] = useState<InboxTicketRow | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
-
-  const dayPunchesQuery = trpc.manualPunch.dayPunches.useQuery(
-    { ticketId: detailTicket?.id ?? '' },
-    { enabled: detailTicket !== null },
-  );
-
-  function invalidate() {
-    void utils.manualPunch.list.invalidate();
-    void utils.checkInOut.geoPunchSummary.invalidate();
-  }
-
-  const approveMut = trpc.manualPunch.approve.useMutation({
-    onSuccess() {
-      setResult({ ok: true, text: 'Đã duyệt yêu cầu chấm công.' });
-      setDetailTicket(null);
-      invalidate();
-    },
-    onError(err) {
-      setResult({ ok: false, text: err.message ?? 'Lỗi không xác định.' });
-    },
-  });
-
-  const rejectMut = trpc.manualPunch.reject.useMutation({
-    onSuccess() {
-      setResult({ ok: true, text: 'Đã từ chối yêu cầu chấm công.' });
-      setRejectTarget(null);
-      setRejectReason('');
-      setDetailTicket(null);
-      invalidate();
-    },
-    onError(err) {
-      setResult({ ok: false, text: err.message ?? 'Lỗi không xác định.' });
-    },
-  });
 
   const rows = (data as InboxTicketRow[] | undefined) ?? [];
-  const dayPunches = (dayPunchesQuery.data as DayPunchRow[] | undefined) ?? [];
   const geoRows = (geoSummary.data as GeoSummaryRow[] | undefined) ?? [];
+
+  function openTicket(row: InboxTicketRow) {
+    navigate(links.manualPunchTicket(row.id), { state: { listScope: 'inbox' as const } });
+  }
 
   const columns: TableColumn<InboxTicketRow>[] = [
     { key: 'appUser', label: 'Nhân viên', render: (_v, row) => row.appUser.fullName },
@@ -426,17 +372,9 @@ function ApproveTicketsTab() {
     {
       key: '_actions',
       label: '',
-      width: 180,
+      width: 120,
       render: (_v, row) => (
-        <HStack gap={1}>
-          <Button label="Duyệt" size="sm" variant="primary" onClick={() => setDetailTicket(row)} />
-          <Button
-            label="Từ chối"
-            size="sm"
-            variant="destructive"
-            onClick={() => { setRejectTarget(row.id); setRejectReason(''); }}
-          />
-        </HStack>
+        <Button label="Mở phiếu" size="sm" variant="primary" onClick={() => openTicket(row)} />
       ),
     },
   ];
@@ -454,13 +392,13 @@ function ApproveTicketsTab() {
 
   return (
     <Stack gap={2} padding={4}>
-      {result && <Banner status={result.ok ? 'success' : 'error'} title={result.text} />}
       <DataTable<InboxTicketRow>
         columns={columns}
         data={rows}
         loading={isLoading}
         error={error?.message}
         empty="Không có yêu cầu chờ duyệt."
+        onRowClick={openTicket}
       />
 
       <Stack gap={1} style={{ marginTop: 'var(--cmc-space-3)' }}>
@@ -474,128 +412,6 @@ function ApproveTicketsTab() {
           empty="Không có punch GPS 30 ngày qua."
         />
       </Stack>
-
-      <Dialog
-        isOpen={detailTicket !== null}
-        onOpenChange={(next) => {
-          if (!next && !approveMut.isPending) setDetailTicket(null);
-        }}
-        width={560}
-        purpose="form"
-      >
-        <DialogHeader
-          title={
-            detailTicket
-              ? `${detailTicket.appUser.fullName} — ${new Date(detailTicket.ticketDate as string).toLocaleDateString('vi-VN')}`
-              : 'Chi tiết chấm công'
-          }
-          onOpenChange={(next) => {
-            if (!next) setDetailTicket(null);
-          }}
-        />
-        <Stack gap={2} padding={2}>
-          {detailTicket?.note ? (
-            <Text type="supporting" size="2xs">
-              Lý do: {detailTicket.note}
-            </Text>
-          ) : null}
-          {dayPunchesQuery.isLoading ? (
-            <Text type="supporting" size="2xs">
-              Đang tải punch…
-            </Text>
-          ) : dayPunches.length === 0 ? (
-            <Text type="supporting" size="2xs">
-              Không có punch trong ngày.
-            </Text>
-          ) : (
-            <table style={{ width: '100%', fontSize: 'var(--cmc-font-size-data)', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left', padding: 'var(--cmc-space-1) 0' }}>Giờ</th>
-                  <th style={{ textAlign: 'left', padding: 'var(--cmc-space-1) 0' }}>Nhãn</th>
-                  <th style={{ textAlign: 'left', padding: 'var(--cmc-space-1) 0' }}>Sai số</th>
-                  <th style={{ textAlign: 'left', padding: 'var(--cmc-space-1) 0' }}>Khoảng cách</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dayPunches.map((p, i) => {
-                  const badge = verificationBadge(p.verification);
-                  const dist =
-                    p.geofenceDistanceM != null && p.matchedRadiusM != null
-                      ? `cách tâm ${Math.round(p.geofenceDistanceM)}m (bán kính ${p.matchedRadiusM}m)`
-                      : '—';
-                  return (
-                    <tr key={i}>
-                      <td style={{ padding: 'var(--cmc-space-1) 0' }}>{fmtTime(p.punchAt)}</td>
-                      <td style={{ padding: 'var(--cmc-space-1) 0' }}>
-                        <Badge label={badge.label} variant={badge.variant} />
-                      </td>
-                      <td style={{ padding: 'var(--cmc-space-1) 0' }}>
-                        {p.accuracyM != null ? `±${Math.round(p.accuracyM)}m` : '—'}
-                      </td>
-                      <td style={{ padding: 'var(--cmc-space-1) 0' }}>{dist}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
-            <Button label="Đóng" variant="secondary" size="sm" onClick={() => setDetailTicket(null)} />
-            <Button
-              label="Từ chối"
-              size="sm"
-              variant="destructive"
-              onClick={() => {
-                if (detailTicket) {
-                  setRejectTarget(detailTicket.id);
-                  setRejectReason('');
-                }
-              }}
-            />
-            <Button
-              label="Duyệt"
-              size="sm"
-              variant="primary"
-              isLoading={approveMut.isPending}
-              onClick={() => detailTicket && approveMut.mutate({ ticketId: detailTicket.id })}
-            />
-          </HStack>
-        </Stack>
-      </Dialog>
-
-      <Dialog
-        isOpen={rejectTarget !== null}
-        onOpenChange={(next) => { if (!next && !rejectMut.isPending) { setRejectTarget(null); setRejectReason(''); } }}
-        width={420}
-        purpose="form"
-      >
-        <DialogHeader
-          title="Từ chối yêu cầu chấm công"
-          onOpenChange={(next) => { if (!next) { setRejectTarget(null); setRejectReason(''); } }}
-        />
-        <Stack gap={2}>
-          <TextArea
-            label="Lý do từ chối"
-            placeholder="Nêu lý do từ chối…"
-            value={rejectReason}
-            onChange={(v) => setRejectReason(v)}
-            rows={3}
-            maxLength={2000}
-          />
-          <HStack justify="end" gap={1}>
-            <Button label="Hủy" variant="secondary" size="sm" onClick={() => { setRejectTarget(null); setRejectReason(''); }} />
-            <Button
-              label="Từ chối"
-              size="sm"
-              variant="destructive"
-              isLoading={rejectMut.isPending}
-              isDisabled={rejectReason.trim().length === 0}
-              onClick={() => rejectTarget && rejectMut.mutate({ ticketId: rejectTarget, note: rejectReason.trim() })}
-            />
-          </HStack>
-        </Stack>
-      </Dialog>
     </Stack>
   );
 }
@@ -693,36 +509,47 @@ function CheckInTab() {
     ) : undefined;
 
   const busy = punchMut.isPending || capturing;
+  const punchLabel = recorded
+    ? 'Đã chấm công ✓'
+    : capturing
+      ? 'Đang lấy vị trí…'
+      : 'Chấm công';
 
   return (
-    <FormPage
-      header={null}
-      result={resultContent}
-      actions={
-        <Stack gap={1} hAlign="center">
-          <Button
-            label={
-              recorded
-                ? 'Đã chấm công ✓'
-                : capturing
-                  ? 'Đang lấy vị trí…'
-                  : 'Chấm công'
-            }
-            size="lg"
-            isLoading={busy && !recorded}
-            isDisabled={recorded}
-            onClick={() => void handlePunch()}
-          />
-          <Text type="supporting" size="2xs">
-            Trình duyệt có thể hỏi quyền vị trí — từ chối vẫn chấm được (cần lý do nếu ngoài mạng).
-          </Text>
-        </Stack>
-      }
-    >
-      <Stack gap={3} style={{ maxWidth: 560 }}>
-        <Card padding={6}>
+    <FormPage header={null} actions={null} result={resultContent}>
+      <Stack gap={4} style={{ maxWidth: 640, marginInline: 'auto' /* layout center; not a spacing token */ }}>
+        {/* Primary punch surface — large single CTA (Odoo/TEKY grammar, CMC Console chrome). */}
+        <Card
+          padding={6}
+          data-testid="check-in-punch-card"
+          style={{
+            border: '1px solid var(--cmc-border)',
+            boxShadow: 'var(--cmc-shadow-sm, 0 1px 3px rgba(0,0,0,.08))',
+          }}
+        >
           <Stack hAlign="center" gap={4}>
+            <Text type="body" size="lg" weight="semibold" style={{ textAlign: 'center' }}>
+              Chấm vào / chấm ra
+            </Text>
+            <Text type="supporting" size="sm" style={{ textAlign: 'center', maxWidth: 360 }}>
+              Bấm một lần để ghi nhận. Ngoài mạng cơ sở hệ thống sẽ yêu cầu lý do — không tạo phiếu bù ngày quá khứ.
+            </Text>
             <IctClock />
+            <Button
+              label={punchLabel}
+              size="lg"
+              isLoading={busy && !recorded}
+              isDisabled={recorded}
+              onClick={() => void handlePunch()}
+              style={{
+                minWidth: 220,
+                minHeight: 52,
+                fontWeight: 600,
+              }}
+            />
+            <Text type="supporting" size="2xs" style={{ textAlign: 'center' }}>
+              Trình duyệt có thể hỏi quyền vị trí — từ chối vẫn chấm được (cần lý do nếu ngoài mạng).
+            </Text>
           </Stack>
         </Card>
 
@@ -764,12 +591,23 @@ function CheckInTab() {
 // ---------------------------------------------------------------------------
 export default function CheckInOutPage() {
   const { canDo } = useSession();
-  const [activeTab, setActiveTab] = useState('checkin');
+  const canApprove = canDo('manualPunch', 'approve');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const scope = searchParams.get('scope');
+  const defaultTab = canApprove && scope === 'inbox' ? 'approve' : 'checkin';
+  const [activeTab, setActiveTab] = useState(defaultTab);
+
+  function onTabChange(id: string) {
+    setActiveTab(id);
+    if (id === 'approve') setSearchParams({ scope: 'inbox' }, { replace: true });
+    else setSearchParams({}, { replace: true });
+  }
 
   const tabs = [
-    { id: 'checkin', label: 'Tự chấm công', content: <CheckInTab /> },
-    ...(canDo('manualPunch', 'approve')
-      ? [{ id: 'approve', label: 'Duyệt chấm công', content: <ApproveTicketsTab /> }]
+    // Tab label ≠ punch button label ("Chấm công") so a11y roles stay unique.
+    { id: 'checkin', label: 'Tự chấm', content: <CheckInTab /> },
+    ...(canApprove
+      ? [{ id: 'approve', label: 'Hàng chờ phiếu', content: <ApproveTicketsTab /> }]
       : []),
   ];
 
@@ -777,9 +615,14 @@ export default function CheckInOutPage() {
     <>
       <PageHeader
         title="Chấm công"
+        subtitle={
+          canApprove
+            ? 'Danh sách phiếu · mở form để duyệt/từ chối (không duyệt trên list)'
+            : undefined
+        }
         breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Chấm công' }]}
       />
-      <CmcTabs activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />
+      <CmcTabs activeTab={activeTab} onTabChange={onTabChange} tabs={tabs} />
     </>
   );
 }

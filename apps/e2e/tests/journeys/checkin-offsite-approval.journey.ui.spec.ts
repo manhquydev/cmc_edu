@@ -212,7 +212,7 @@ test.describe('P3-02 journey — duyệt phiếu chấm công offsite theo track
     await gddtPage.goto('/cockpit');
 
     await menuNav(gddtPage, 'Nhân sự', 'Chấm công', { role: 'giam_doc_dao_tao' });
-    await gddtPage.getByRole('button', { name: 'Duyệt chấm công' }).click();
+    await gddtPage.getByRole('button', { name: 'Hàng chờ phiếu' }).click();
     await findInList.assertAbsent(gddtPage, (text) => text.includes(saleFullName));
     await gddtContext.close();
 
@@ -228,15 +228,19 @@ test.describe('P3-02 journey — duyệt phiếu chấm công offsite theo track
     await gdkdPage.goto('/cockpit');
 
     await menuNav(gdkdPage, 'Nhân sự', 'Chấm công', { role: 'giam_doc_kinh_doanh' });
-    await gdkdPage.getByRole('button', { name: 'Duyệt chấm công' }).click();
+    await gdkdPage.getByRole('button', { name: 'Hàng chờ phiếu' }).click();
     const ticketRow = await findInList(gdkdPage, (text) => text.includes(saleFullName));
-    // Approve UX is a detail Dialog (not ConfirmDialog/alertdialog) with day
-    // punch table + footer Duyệt — geofence plan phase 3 redesign.
-    await ticketRow.getByRole('button', { name: 'Duyệt' }).click();
-    const detailDialog = gdkdPage.getByRole('dialog');
-    await expect(detailDialog).toBeVisible();
-    await detailDialog.getByRole('button', { name: 'Duyệt' }).click();
-    await expect(gdkdPage.getByText('Đã duyệt yêu cầu chấm công.')).toBeVisible();
+    // Form-depth: list is index-only → Mở phiếu → /hr/checkin/:ticketId, then
+    // ConfirmDialog Duyệt on the form (not list-row HITL).
+    await ticketRow.getByRole('button', { name: 'Mở phiếu' }).click();
+    await expect(gdkdPage).toHaveURL(/\/hr\/checkin\/[0-9a-f-]{36}/i);
+    // exact: true — statusbar steps "Chờ duyệt"/"Đã duyệt" are also <button>s
+    // (ProgressSteps); substring "Duyệt" matches 3 controls without exact.
+    await gdkdPage.getByRole('button', { name: 'Duyệt', exact: true }).click();
+    const confirm = gdkdPage.getByRole('alertdialog');
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole('button', { name: 'Duyệt', exact: true }).click();
+    await expect(gdkdPage.getByText(/Đã duyệt yêu cầu chấm công/)).toBeVisible();
 
     // ── business invariant ──
     // The success banner proves the approve mutation ran, but not the durable

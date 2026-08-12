@@ -18,6 +18,7 @@
 //   (rejected ∉ the partial unique index's `WHERE status='submitted'`).
 // shift.cancel        — owner or director cancels (approved state cancellable).
 // shift.listGroups     — any active staff session: groups + nested templates.
+// shift.get            — single registration for form cold-start (/hr/shifts/:id).
 // shift.myRegistrations — self-scoped read: caller's own registrations + entries.
 // shift.pendingForApproval — key `shift.approve`: submitted registrations
 //   scoped to the caller's group-type (super_admin sees both).
@@ -86,6 +87,10 @@ const rejectInput = z.object({
 });
 
 const cancelInput = z.object({
+  registrationId: z.string().uuid(),
+});
+
+const getInput = z.object({
   registrationId: z.string().uuid(),
 });
 
@@ -378,6 +383,43 @@ export const shiftRouter = router({
         orderBy: { name: 'asc' },
       }),
     );
+  }),
+
+  // -------------------------------------------------------------------------
+  // shift.get — cold-start form for /hr/shifts/:registrationId
+  // Owner always; director of matching group-type (or super_admin); else 403.
+  // -------------------------------------------------------------------------
+  get: protectedProcedure.input(getInput).query(async ({ ctx, input }) => {
+    const { facilityId } = scoped(ctx);
+    return withFacility(ctx.db, facilityId, async (tx) => {
+      const registration = await tx.shiftRegistration.findFirst({
+        where: { id: input.registrationId, facilityId },
+        include: {
+          entries: true,
+          appUser: { select: { id: true, fullName: true, userId: true } },
+          shiftGroup: { include: { templates: { orderBy: { startTime: 'asc' } } } },
+        },
+      });
+      if (!registration) throw notFound('ShiftRegistration not found.');
+
+      const callerAppUser = await tx.appUser.findFirst({
+        where: { userId: ctx.subject!.userId, facilityId },
+      });
+      const isOwner = Boolean(callerAppUser && callerAppUser.id === registration.appUserId);
+      const roles = ctx.subject!.roles;
+      const isSuper = roles.includes('super_admin');
+      const groupType = registration.shiftGroup.type;
+      const isMatchingDirector =
+        isSuper ||
+        (groupType === 'GIAO_VIEN' && roles.includes('giam_doc_dao_tao')) ||
+        (groupType === 'KINH_DOANH' && roles.includes('giam_doc_kinh_doanh'));
+
+      if (!isOwner && !isMatchingDirector) {
+        throw forbidden('You cannot view this shift registration.');
+      }
+
+      return registration;
+    });
   }),
 
   // -------------------------------------------------------------------------

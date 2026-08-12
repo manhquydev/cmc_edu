@@ -21,6 +21,11 @@ const RECEIPT = {
   netAmount: 5_000_000,
   createdAt: '2026-07-01T00:00:00.000Z',
   canApprove: true,
+  refunds: [] as { id: string; receiptId: string; amount: number; createdAt: string }[],
+  refundedTotal: 0,
+  remainingBalance: 5_000_000,
+  viewerCanRefund: false,
+  viewerCanCancel: false,
 };
 
 const receiptState: { data: typeof RECEIPT | undefined; error: { message: string } | null } = {
@@ -29,9 +34,21 @@ const receiptState: { data: typeof RECEIPT | undefined; error: { message: string
 };
 const refetchSpy = vi.fn();
 const approveMutate = vi.fn();
+const refundMutate = vi.fn();
+const cancelMutate = vi.fn();
 let approveOnSuccess: ((res: unknown) => void) | undefined;
 let approveOnError: ((err: unknown) => void) | undefined;
+let refundOnSuccess: ((res: unknown) => void) | undefined;
+let cancelOnSuccess: ((res: unknown) => void) | undefined;
 const approveState: { error: { message: string } | null; isPending: boolean } = {
+  error: null,
+  isPending: false,
+};
+const refundState: { error: { message: string } | null; isPending: boolean } = {
+  error: null,
+  isPending: false,
+};
+const cancelState: { error: { message: string } | null; isPending: boolean } = {
   error: null,
   isPending: false,
 };
@@ -61,6 +78,28 @@ vi.mock('../../lib/trpc.js', async () => {
           isPending: approveState.isPending,
         });
       },
+      'finance.refundCreate.useMutation': (options: {
+        onSuccess?: (res: unknown) => void;
+        onError?: (err: unknown) => void;
+      }) => {
+        refundOnSuccess = options?.onSuccess;
+        return mutationResult({
+          mutate: refundMutate,
+          error: refundState.error,
+          isPending: refundState.isPending,
+        });
+      },
+      'finance.receiptCancel.useMutation': (options: {
+        onSuccess?: (res: unknown) => void;
+        onError?: (err: unknown) => void;
+      }) => {
+        cancelOnSuccess = options?.onSuccess;
+        return mutationResult({
+          mutate: cancelMutate,
+          error: cancelState.error,
+          isPending: cancelState.isPending,
+        });
+      },
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -81,12 +120,18 @@ function renderDetail(id = 'r1') {
 
 describe('ReceiptDetailPage', () => {
   beforeEach(() => {
-    receiptState.data = { ...RECEIPT };
+    receiptState.data = { ...RECEIPT, refunds: [] };
     receiptState.error = null;
     refetchSpy.mockClear();
     approveMutate.mockClear();
+    refundMutate.mockClear();
+    cancelMutate.mockClear();
     approveState.error = null;
     approveState.isPending = false;
+    refundState.error = null;
+    refundState.isPending = false;
+    cancelState.error = null;
+    cancelState.isPending = false;
   });
 
   it('renders the loaded receipt fields', () => {
@@ -180,5 +225,148 @@ describe('ReceiptDetailPage', () => {
     ).toBeInTheDocument();
     expect(refetchSpy).toHaveBeenCalled();
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('shows refund ledger and Ghi hoàn tiền when viewerCanRefund on approved receipt', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      status: 'approved',
+      canApprove: false,
+      viewerCanRefund: true,
+      refundedTotal: 0,
+      remainingBalance: 5_000_000,
+      refunds: [],
+    };
+    renderDetail();
+    expect(screen.getAllByText('Hoàn tiền').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Chưa có lần hoàn nào trên phiếu này.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ghi hoàn tiền' })).toBeDisabled();
+  });
+
+  it('lists prior refunds and confirms refundCreate with amount', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      status: 'approved',
+      canApprove: false,
+      viewerCanRefund: true,
+      refundedTotal: 1_000_000,
+      remainingBalance: 4_000_000,
+      refunds: [
+        {
+          id: 'rf1',
+          receiptId: 'r1',
+          amount: 1_000_000,
+          createdAt: '2026-07-02T00:00:00.000Z',
+        },
+      ],
+    };
+    renderDetail();
+    expect(screen.getByText(/−1\.000\.000 đ/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Số tiền hoàn/), { target: { value: '500000' } });
+    const btn = screen.getByRole('button', { name: 'Ghi hoàn tiền' });
+    expect(btn).not.toBeDisabled();
+    fireEvent.click(btn);
+    expect(refundMutate).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ghi hoàn tiền' }));
+    expect(refundMutate).toHaveBeenCalledWith({ receiptId: 'r1', amount: 500_000 });
+  });
+
+  it('hides refund form when viewerCanRefund is false', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      status: 'approved',
+      canApprove: false,
+      viewerCanRefund: false,
+      remainingBalance: 5_000_000,
+      refunds: [],
+    };
+    renderDetail();
+    expect(screen.getAllByText('Hoàn tiền').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByRole('button', { name: 'Ghi hoàn tiền' })).toBeNull();
+  });
+
+  it('refetches after refundCreate.onSuccess', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      status: 'approved',
+      canApprove: false,
+      viewerCanRefund: true,
+      remainingBalance: 5_000_000,
+      refunds: [],
+    };
+    renderDetail();
+    expect(refundOnSuccess).toBeDefined();
+    act(() =>
+      refundOnSuccess?.({
+        refund: { id: 'rf2', receiptId: 'r1', amount: 100_000, createdAt: new Date() },
+        remainingBalance: 4_900_000,
+      }),
+    );
+    expect(refetchSpy).toHaveBeenCalled();
+  });
+
+  it('shows cancel form when viewerCanCancel and confirms receiptCancel with reason', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      status: 'approved',
+      canApprove: false,
+      viewerCanRefund: false,
+      viewerCanCancel: true,
+      remainingBalance: 5_000_000,
+      refunds: [],
+    };
+    renderDetail();
+    expect(screen.getByRole('button', { name: 'Huỷ phiếu thu' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Lý do huỷ/), {
+      target: { value: 'Nhập nhầm lớp' },
+    });
+    const cancelBtn = screen.getByRole('button', { name: 'Huỷ phiếu thu' });
+    expect(cancelBtn).not.toBeDisabled();
+    fireEvent.click(cancelBtn);
+    expect(cancelMutate).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Huỷ phiếu thu' }));
+    expect(cancelMutate).toHaveBeenCalledWith({
+      receiptId: 'r1',
+      reason: 'Nhập nhầm lớp',
+      void: false,
+    });
+  });
+
+  it('hides cancel form when viewerCanCancel is false', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      status: 'approved',
+      canApprove: false,
+      viewerCanCancel: false,
+      viewerCanRefund: false,
+      remainingBalance: 5_000_000,
+      refunds: [],
+    };
+    renderDetail();
+    expect(screen.queryByRole('button', { name: 'Huỷ phiếu thu' })).toBeNull();
+  });
+
+  it('refetches after receiptCancel.onSuccess', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      status: 'approved',
+      canApprove: false,
+      viewerCanCancel: true,
+      remainingBalance: 5_000_000,
+      refunds: [],
+    };
+    renderDetail();
+    expect(cancelOnSuccess).toBeDefined();
+    act(() =>
+      cancelOnSuccess?.({
+        receipt: { ...RECEIPT, status: 'cancelled' },
+        opportunityReverted: true,
+        studentLifecycle: 'active',
+      }),
+    );
+    expect(refetchSpy).toHaveBeenCalled();
   });
 });

@@ -35,6 +35,13 @@ describe('can()', () => {
     expect(can(sale, 'finance', 'receiptApprove')).toBe(false);
   });
 
+  it('sale cannot grant unit ranges (LMS entitlement SoD)', () => {
+    const sale = { userId: 'u-sale', roles: ['sale'] as const };
+    expect(can(sale, 'enrollment', 'grantUnits')).toBe(false);
+    const gddt = { userId: 'u-gddt', roles: ['giam_doc_dao_tao'] as const };
+    expect(can(gddt, 'enrollment', 'grantUnits')).toBe(true);
+  });
+
   it('sale can create draft receipts', () => {
     const sale = { userId: 'u-sale', roles: ['sale'] as const };
     expect(can(sale, 'finance', 'receiptCreate')).toBe(true);
@@ -119,6 +126,7 @@ const ACTIVE_ROLE_MATRIX: Array<{ key: string; allowed: readonly string[] }> = [
   { key: 'finance.receiptApprove', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'finance.refundCreate', allowed: ['giam_doc_kinh_doanh'] },
   { key: 'enrollment.enroll', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'] },
+  { key: 'enrollment.grantUnits', allowed: ['giam_doc_dao_tao'] },
   { key: 'enrollment.blockLms', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'guardian.approveLink', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'] },
   { key: 'finance.receiptList', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
@@ -139,6 +147,7 @@ const ACTIVE_ROLE_MATRIX: Array<{ key: string; allowed: readonly string[] }> = [
   { key: 'exercise.manage', allowed: ['giam_doc_dao_tao'] },
   { key: 'exercise.view', allowed: ['giao_vien', 'giam_doc_dao_tao'] },
   { key: 'parentAccount.updateEmail', allowed: ['giam_doc_kinh_doanh', 'sale'] },
+  { key: 'parentAccount.setActive', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'submission.grade', allowed: ['giao_vien', 'giam_doc_dao_tao'] },
   { key: 'assessment.draft', allowed: ['giao_vien', 'giam_doc_dao_tao'] },
   { key: 'assessment.confirm', allowed: ['giao_vien'] },

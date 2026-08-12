@@ -53,6 +53,38 @@ describe('exercise.create/publish/close + classSession.assignUnit (T2-I, TL19 §
     await cleanupFacility(facility.id);
   });
 
+  // ---- exercise.get (form-depth cold-start) ----
+
+  it('exercise.get: returns exercise + curriculumUnit for exercise.manage', async () => {
+    const created = await gddt.exercise.create({
+      curriculumUnitId: unit.id,
+      type: 'homework',
+      basePdfRef: 'exercise-pdf/seed.pdf',
+    });
+    const got = await gddt.exercise.get({ exerciseId: created.id });
+    expect(got.id).toBe(created.id);
+    expect(got.status).toBe('draft');
+    expect(got.curriculumUnit.id).toBe(unit.id);
+    expect(got.curriculumUnit.title).toBeTruthy();
+  });
+
+  it('exercise.get: missing id → NOT_FOUND', async () => {
+    await expect(
+      gddt.exercise.get({ exerciseId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('exercise.get: role without exercise.manage → FORBIDDEN', async () => {
+    const created = await gddt.exercise.create({
+      curriculumUnitId: unit.id,
+      type: 'test_entrance',
+      basePdfRef: 'exercise-pdf/seed.pdf',
+    });
+    await expect(teacher.exercise.get({ exerciseId: created.id })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
+
   // ---- create -> publish -> close transitions ----
 
   it('creates a draft exercise, publishes it, then closes it', async () => {

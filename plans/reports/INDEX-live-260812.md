@@ -1,7 +1,10 @@
 # Live authority index — 2026-08-12
 
 **Role:** Pointer only. Historical `plans/*` and old reports stay; do **not** mass-delete.  
-**Residual truth (scout):** [`scout-260812-ui-workspace-residual-matrix.md`](./scout-260812-ui-workspace-residual-matrix.md) — prefer this over older coord tables.
+**Residual UI truth:** prefer this INDEX + post-merge scouts over older coord tables.  
+**Scout (consolidated develop):** [`scout-260812-1054-develop-consolidated-state.md`](./scout-260812-1054-develop-consolidated-state.md)  
+**ADR vs as-built map:** [`analysis-260812-1013-adr-journal-vs-business.md`](./analysis-260812-1013-adr-journal-vs-business.md)  
+**Earlier residual matrix (pre-S1 form-depth):** [`scout-260812-ui-workspace-residual-matrix.md`](./scout-260812-ui-workspace-residual-matrix.md)
 
 ---
 
@@ -12,67 +15,76 @@
 | [`docs/ux-resource-centric-structure.md`](../../docs/ux-resource-centric-structure.md) | **LOCKED** resource-centric UX (1 doc type → 1 list + form UUID; no “Duyệt *” products) |
 | [`docs/design-system-console.md`](../../docs/design-system-console.md) | Console chrome / tokens (no free TEKY teal makeup) |
 | [`docs/06-kien-truc-url-routing.md`](../../docs/06-kien-truc-url-routing.md) | URL grammar (TL06) |
-| [`docs/system-architecture.md`](../../docs/system-architecture.md) | As-built architecture |
+| [`docs/system-architecture.md`](../../docs/system-architecture.md) | As-built architecture (truth-synced 2026-08-12) |
 | [`docs/WORKSPACE-LEAN.md`](../../docs/WORKSPACE-LEAN.md) | Agent workspace entry (plans path, reports, CI, PR) |
 | [`docs/README.md`](../../docs/README.md) | Design corpus index (TL00–TL31) |
+| Live nav IA | `apps/admin/src/shell/nav-registry.ts` (TL16 ADR-C 5-group table = history) |
 
 Session brief (pre-scout): [`brainstorm-advise-260812-herdr-ui-workspace-coord.md`](./brainstorm-advise-260812-herdr-ui-workspace-coord.md)  
 Retire candidates (read-only): [`proposal-260812-docs-retire-list.md`](./proposal-260812-docs-retire-list.md)
 
 ---
 
-## Wave commits (2026-08-12)
+## Wave commits (resource-centric + hardening)
 
 | Commit | What |
 |--------|------|
-| `4267eb5` | docs(workspace): lean agent entry + live authority index (ui-lean slice B) |
-| `2947d6a` | fix(admin): map shifts WS_CSS teal → CMC brand tokens (ui-console; TEKY teal gone) |
+| `4267eb5` | docs(workspace): lean agent entry + live authority index (ui-lean) |
+| `2947d6a` | fix(admin): map shifts WS_CSS teal → CMC brand tokens |
 | `8ce3a24` | docs(plans): residual UI dual-HITL matrix from scout-pi |
-| `da3b8a8` | feat(engagement): resource-centric form depth for rewards approval (ui-console S2; rewards demote) |
+| `d52caa4` | feat(hr): form-depth for manual punch ticket approval (**S1 check-in DONE**) |
+| `9ddef3f` | fix(admin): ResultPanel props on manual punch ticket form |
+| `df4ded0` | fix(e2e): exact Duyệt on check-in form (avoid statusbar steps) |
+| `da3b8a8` | feat(engagement): resource-centric form depth for rewards approval (**S2 DONE**) |
+| `8d84de0` | docs(workspace): refresh live index after rewards demote (S2) |
+| P1a / `64c8448` (+ #112) | test(api): grade atomic-lock deflake |
+| P1c / `53fa7d0` (+ #113) | chore(acceptance): classify tRPC orphans + enable orphan ratchet |
+| P2 / `19608e1` (+ #114) | test(e2e): P1-08 refund/cancel journey (mark flow proven) |
+
+Base integration tip when this INDEX was truth-synced: `develop@71dc552` (merge #114).
 
 ---
 
-## PR #110 (wave status)
+## Branch / PR governance
 
 | Field | Value |
 |-------|--------|
-| PR | [#110](https://github.com/manhquydev/cmc_edu/pull/110) — resource-centric form depth + console densify |
-| Branch | `feat/lms-foundation-unit-range-spike` |
-| State (scout @ `2947d6a` / matrix @ `8ce3a24`) | **OPEN** · required CI green when last checked |
-| Merge | **Human OK only** — agents do not merge |
+| Integration | **`develop`** (and **`main`**) — **branch-protected** |
+| Required CI | **`typecheck-and-test` + `ui-e2e`** (both block merge) |
+| Wave PR #110 | **MERGED** into develop (form-depth + LMS foundation unit-range) |
+| Merge to main / promotion | **Human OK only** — agents do not merge |
 
-**Landed in wave (summary):** form-depth (shifts, KPI, aftersale, receipt refund/cancel, parents directory, sessions share, rewards); demote dual-HITL on aftersale + KPI + rewards lists; console densify; ui-ratchet 0; shifts teal tokenized; workspace lean index; residual matrix scout.
+**Landed (summary):** form-depth (shifts, KPI, aftersale, receipt refund/cancel, parents, sessions, rewards, **check-in tickets**); dual-HITL demote on aftersale/KPI/rewards/check-in lists; Console densify; TEKY teal gone; workspace lean docs; grade deflake; orphan ratchet; P1-08 journey proven.
+
+**Acceptance photo (measured):** **36/42** proven after P1-08 journey — re-run `pnpm acceptance:report` + CI artifact for live number (docs are snapshots only).
 
 ---
 
-## Residual dual-HITL matrix
-
-**Source of residual truth:** [`scout-260812-ui-workspace-residual-matrix.md`](./scout-260812-ui-workspace-residual-matrix.md) §1–2, §6.
+## Residual dual-HITL matrix (live on develop)
 
 | Surface | Verdict (live) | Next |
 |---------|----------------|------|
-| aftersale list | **DONE** demote (list opens compose only) | — |
-| KPI list + bulk period | **DONE** demote rows; bulk **KEEP** (owner lock) | — |
+| aftersale list | **DONE** demote | — |
+| KPI list + bulk period | **DONE** demote rows; bulk **KEEP** | — |
 | shifts | **OK** index + form Duyệt | optional FilterBar later |
 | parents link-request | **KEEP** list Duyệt (owner lock) | — |
-| `resolve-after-sale-case-dialog` | **KEEP** form-owned (used by `aftersale-detail` only; **not** dead) | stale comments only |
-| check-in `manualPunch` | **GAP #1** — row Duyệt/dialog on list; no UUID form | **S1** form-depth (+ `manualPunch.get`) |
-| engagement rewards | **DONE** demote (list index-only; form `/admin/engagement/rewards/:rewardId` + `rewards.get`) | — |
-| teaching exercises | **GAP #3** — list `Công bố`/`Đóng`; no detail form | schedule later |
+| `resolve-after-sale-case-dialog` | **KEEP** form-owned | stale comments only |
+| check-in `manualPunch` | **DONE** demote — list `Mở phiếu` → `/hr/checkin/:ticketId` + `manualPunch.get` (`d52caa4`) | — |
+| engagement rewards | **DONE** demote — form `/admin/engagement/rewards/:rewardId` + `rewards.get` (`da3b8a8`) | — |
+| teaching exercises | **GAP #3** — list `Công bố`/`Đóng`; no detail form | **only residual list-HITL UI** |
 
-### Notes (scout + S2)
+### Notes
 
-- **GAP #1** `apps/admin/src/pages/attendance/check-in-out.tsx` — ApproveTicketsTab + dialogs; route `/hr/checkin` only.
-- **Rewards (S2 `da3b8a8`)** — list index-only; form `/admin/engagement/rewards/:rewardId` + API `rewards.get` + `links.reward`.
-- **GAP #3** `apps/admin/src/pages/teaching/exercises.tsx` — publish/close on list; logged residual, not yet scheduled.
-- TEKY `#00a09d` **gone** after `2947d6a`; raw gray neutrals in WS_CSS are micro hygiene only.
+- Check-in list is index-only; form owns Duyệt/Từ chối (`check-in-ticket-detail.tsx`, route `hr/checkin/:ticketId`).
+- Rewards list index-only; form owns lifecycle.
+- **Only residual dual-HITL product UI:** teaching exercises (`apps/admin/src/pages/teaching/exercises.tsx`).
+- TEKY `#00a09d` gone after `2947d6a`.
 
 ---
 
-## Residual next steps (ordered; from scout §6)
+## Residual next steps
 
-1. **S1** ui-console: check-in `manualPunch` form-depth (GAP #1) — still open if not landed elsewhere.
-2. **S2** ui-console: rewards demote — **DONE** (`da3b8a8`).
-3. **S3** ui-lean: INDEX refresh after S2 + retire proposal (docs-only) — this update.
-4. Later: exercises GAP #3; optional console grammar on payroll / report-cards; human merge #110.
-5. Keep historical `plans/<timestamp>-*/` and old reports; never mass-delete.
+1. **GAP #3** exercises form-depth (resource-centric) — remaining list HITL.
+2. LMS student/spine journeys still open in acceptance (P2 teaching flows) — product/UI, not INDEX.
+3. Promote develop → main only with human OK after green required checks.
+4. Keep historical `plans/*`; never mass-delete.

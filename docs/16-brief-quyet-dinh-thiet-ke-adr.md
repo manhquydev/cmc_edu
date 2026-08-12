@@ -58,6 +58,14 @@ ngưỡng phê duyệt, review độc lập, giám sát bất thường, audit.
 
 ## ADR-C — IA điều hướng: 5 nhóm chức năng, lọc theo vai trò
 
+> **Status 2026-08-12 — bảng 5 nhóm bên dưới = LỊCH SỬ (superseded as IA source of truth).**
+> Principles still hold: **≤7 top-level groups**, function-named (not role-named), **filter by
+> permission/`can()`**. Live admin IA:
+> - `apps/admin/src/shell/nav-registry.ts` (as-built section tree: e.g. Tổng quan, Giảng dạy, Lớp & HS,
+>   Tài chính & Điều hành, Gắn kết, Nhân sự, Quản trị)
+> - Resource-centric grammar (no “Duyệt *” products): [`docs/ux-resource-centric-structure.md`](./ux-resource-centric-structure.md)
+> Do **not** treat the frozen 5-row table as the nav map for new screens.
+
 **Context.** Các tài liệu chia nhóm menu lệch nhau (6 vs 9). Cần một IA chuẩn duy nhất.
 
 **Research.** Tối đa **~7 mục cấp một** (7 là "ngưỡng ép buộc" hữu ích, mỗi mục phải xứng đáng có
@@ -65,7 +73,7 @@ mặt). Tổ chức theo **chức năng/quy trình thực tế** (dễ đoán, l
 vai trò** — hệ thích ứng theo người đăng nhập (giám đốc thấy màn khác nhân viên). **Không đặt tên
 nhóm theo vai trò**, đặt theo *chức năng*.
 
-**Decision — 5 nhóm chức năng (đặt tên theo việc, hiển thị lọc theo role):**
+**Decision — 5 nhóm chức năng (historical snapshot; superseded for live nav — see Status banner):**
 
 | Nhóm (chức năng) | Nội dung | Vai trò thấy |
 |---|---|---|
@@ -76,9 +84,10 @@ nhóm theo vai trò**, đặt theo *chức năng*.
 | **Quản trị** | Cơ sở · người dùng · cấu hình | super_admin |
 
 - Mỗi vai trò có **trang đích (persona landing)** riêng; nav lọc bằng cùng `can()` (không hardcode).
-- TL02/TL05/TL06 **trỏ về bảng này** (nguồn IA duy nhất) — hết lệch.
+- ~~TL02/TL05/TL06 trỏ về bảng này (nguồn IA duy nhất)~~ → live: **nav-registry** + resource-centric doc.
 
-**Consequences.** Điều hướng dễ đoán, ≤7 nhóm, khớp mô hình 4 vai trò.
+**Consequences.** Nguyên tắc ≤7 nhóm + filter role vẫn đúng; cây menu thực tế đã mở rộng/gộp theo
+resource-centric Console (HR, Engagement, CRM gộp Tài chính, …).
 
 ---
 

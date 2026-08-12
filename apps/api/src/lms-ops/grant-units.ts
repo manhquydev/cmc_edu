@@ -56,16 +56,46 @@ export function assertRangeOnProgram(
   }
 }
 
+/**
+ * Class current unit order on the program axis.
+ *
+ * Prefer `currentUnitId` when set and still present. If neo is missing or the
+ * unit row is gone (corrupt / pre-neo batch), fall back to the **first real
+ * unit of that program** — never hardcode `1` (Bright I.G starts at 37,
+ * Black Hole at 61). Empty program catalog → clear BAD_REQUEST.
+ *
+ * Decision: recover with axis[0] rather than hard-fail on null neo so receipt
+ * grants still resolve for rare broken rows; createClassWithUnits always sets
+ * neo so this path is exceptional. Empty axis is non-recoverable.
+ */
 export async function resolveClassCurrentOrder(
   tx: Tx,
-  classBatch: { currentUnitId: string | null },
+  classBatch: {
+    currentUnitId: string | null;
+    program: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE';
+  },
 ): Promise<number> {
-  if (!classBatch.currentUnitId) return 1;
-  const cu = await tx.curriculumUnit.findUnique({
-    where: { id: classBatch.currentUnitId },
+  if (classBatch.currentUnitId) {
+    const cu = await tx.curriculumUnit.findUnique({
+      where: { id: classBatch.currentUnitId },
+      select: { orderGlobal: true, program: true },
+    });
+    if (cu && cu.program === classBatch.program) {
+      return cu.orderGlobal;
+    }
+  }
+
+  const first = await tx.curriculumUnit.findFirst({
+    where: { program: classBatch.program },
+    orderBy: { orderGlobal: 'asc' },
     select: { orderGlobal: true },
   });
-  return cu?.orderGlobal ?? 1;
+  if (!first) {
+    throw badRequest(
+      `Program ${classBatch.program} has no CurriculumUnit rows; cannot resolve class current unit.`,
+    );
+  }
+  return first.orderGlobal;
 }
 
 export function defaultUnitCountFromEnv(): number {

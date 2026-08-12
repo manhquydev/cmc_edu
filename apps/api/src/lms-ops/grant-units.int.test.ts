@@ -7,12 +7,13 @@ import {
   cleanupCurriculumUnits,
   cleanupFacility,
   createTestFacility,
+  seedActiveEnrollment,
   seedClassBatch,
   seedCurriculumUnit,
   testDbBypass,
 } from '../test/db.js';
 import { provisionFromReceipt } from '../provisioning/provision-from-receipt.js';
-import { grantUnitsFromReceipt } from './grant-units.js';
+import { grantUnitsFromReceipt, resolveClassCurrentOrder } from './grant-units.js';
 import { testDb } from '../test/db.js';
 import { normalizeLoginPhone } from '@cmc/domain-identity';
 
@@ -280,5 +281,190 @@ describe('grantUnitsFromReceipt (Plan 3 money bridge)', () => {
     });
     expect(audit).not.toBeNull();
     expect((audit?.data as { receiptId?: string } | null)?.receiptId).toBe(receipt.id);
+  });
+});
+
+/**
+ * PR review F6: resolveClassCurrentOrder must not hardcode order 1.
+ * Bright I.G axis starts at 37; Black Hole at 61.
+ */
+describe('resolveClassCurrentOrder — program-aware neo fallback', () => {
+  let facility: { id: string };
+  let ownedUnitIds: string[] = [];
+
+  beforeEach(async () => {
+    facility = await createTestFacility('Neo Fallback Facility');
+    ownedUnitIds = [];
+  });
+
+  afterEach(async () => {
+    if (facility?.id) await cleanupFacility(facility.id);
+    await cleanupCurriculumUnits(...ownedUnitIds);
+    ownedUnitIds = [];
+  });
+
+  /** Drop low-order harness rows so first-unit = real program min (CSV spine). */
+  async function purgeLowOrderUnits(
+    program: 'BRIGHT_IG' | 'BLACK_HOLE',
+    minReal: number,
+  ): Promise<void> {
+    const stray = await testDb().curriculumUnit.findMany({
+      where: { program, orderGlobal: { lt: minReal } },
+      select: { id: true },
+    });
+    if (stray.length === 0) return;
+    await cleanupCurriculumUnits(...stray.map((s) => s.id));
+  }
+
+  async function ensureUnit(
+    program: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE',
+    orderGlobal: number,
+    level: string,
+  ): Promise<{ id: string; orderGlobal: number }> {
+    const existing = await testDb().curriculumUnit.findUnique({
+      where: { program_orderGlobal: { program, orderGlobal } },
+      select: { id: true, orderGlobal: true },
+    });
+    if (existing) return existing;
+    const created = await seedCurriculumUnit({
+      program,
+      orderGlobal,
+      level,
+      title: `${program} ${orderGlobal}`,
+    });
+    ownedUnitIds.push(created.id);
+    return created;
+  }
+
+  async function batchWithoutNeo(
+    program: 'BRIGHT_IG' | 'BLACK_HOLE',
+  ): Promise<{ id: string }> {
+    return testDbBypass(async (tx) => {
+      const course = await tx.course.create({
+        data: {
+          facilityId: facility.id,
+          program,
+          name: `${program} no-neo course`,
+        },
+      });
+      const batch = await tx.classBatch.create({
+        data: {
+          facilityId: facility.id,
+          code: `NEO-${program}-${Math.random().toString(36).slice(2, 8)}`,
+          courseId: course.id,
+          program,
+          startDate: new Date('2026-09-01T00:00:00.000Z'),
+          endDate: new Date('2026-12-31T00:00:00.000Z'),
+          createdById: 'test-neo-fallback',
+          currentUnitId: null,
+          startUnitId: null,
+        },
+      });
+      return { id: batch.id };
+    });
+  }
+
+  it('Bright I.G missing neo → first real unit 37 (not hardcoded 1)', async () => {
+    await purgeLowOrderUnits('BRIGHT_IG', 37);
+    await ensureUnit('BRIGHT_IG', 37, 'J');
+    await ensureUnit('BRIGHT_IG', 38, 'J');
+    await ensureUnit('BRIGHT_IG', 39, 'J');
+    await ensureUnit('BRIGHT_IG', 41, 'T');
+
+    const order = await testDbBypass((tx) =>
+      resolveClassCurrentOrder(tx, { currentUnitId: null, program: 'BRIGHT_IG' }),
+    );
+    expect(order).toBe(37);
+    expect(order).not.toBe(1);
+  });
+
+  it('Black Hole missing neo → first real unit 61 (not hardcoded 1)', async () => {
+    await purgeLowOrderUnits('BLACK_HOLE', 61);
+    await ensureUnit('BLACK_HOLE', 61, 'B');
+    await ensureUnit('BLACK_HOLE', 62, 'B');
+
+    const order = await testDbBypass((tx) =>
+      resolveClassCurrentOrder(tx, { currentUnitId: null, program: 'BLACK_HOLE' }),
+    );
+    expect(order).toBe(61);
+    expect(order).not.toBe(1);
+  });
+
+  it('Bright I.G missing neo: grantUnitsFromReceipt starts package at 37', async () => {
+    await purgeLowOrderUnits('BRIGHT_IG', 37);
+    const u37 = await ensureUnit('BRIGHT_IG', 37, 'J');
+    await ensureUnit('BRIGHT_IG', 38, 'J');
+    await ensureUnit('BRIGHT_IG', 39, 'J');
+    await ensureUnit('BRIGHT_IG', 41, 'T');
+
+    const batch = await batchWithoutNeo('BRIGHT_IG');
+    const enrollment = await seedActiveEnrollment({
+      facilityId: facility.id,
+      classBatchId: batch.id,
+      studentName: 'No Neo Grant Kid',
+    });
+    const receipt = await testDbBypass((tx) =>
+      tx.receipt.create({
+        data: {
+          facilityId: facility.id,
+          code: `PT-NEO-${Math.random().toString(36).slice(2, 10)}`,
+          netAmount: 5_000_000,
+          status: 'approved',
+          kind: 'new',
+          parentPhone: '0961777001',
+          studentName: 'No Neo Grant Kid',
+          classBatchId: batch.id,
+          unitCount: 4,
+          createdById: 'sale-neo',
+        },
+      }),
+    );
+
+    const granted = await grantUnitsFromReceipt(testDb(), {
+      facilityId: facility.id,
+      enrollmentId: enrollment.id,
+      receiptId: receipt.id,
+      unitCount: 4,
+    });
+    expect(granted.status).toBe('granted');
+    if (granted.status !== 'granted') throw new Error('expected granted');
+    // Old bug: currentOrder=1 → range [1..] fails axis check or wrong start.
+    expect(granted.range.fromOrderGlobal).toBe(37);
+    expect(granted.range.toOrderGlobal).toBe(41);
+    expect(u37.orderGlobal).toBe(37);
+  });
+
+  it('orphan currentUnitId falls back to program first unit', async () => {
+    await purgeLowOrderUnits('BRIGHT_IG', 37);
+    await ensureUnit('BRIGHT_IG', 37, 'J');
+    const order = await testDbBypass((tx) =>
+      resolveClassCurrentOrder(tx, {
+        // Valid UUID shape that does not exist as CurriculumUnit.
+        currentUnitId: '00000000-0000-4000-8000-000000000099',
+        program: 'BRIGHT_IG',
+      }),
+    );
+    expect(order).toBe(37);
+  });
+
+  it('empty program catalog throws clear BAD_REQUEST', async () => {
+    // Isolate: delete every BLACK_HOLE unit we can (test DB only).
+    const allBh = await testDb().curriculumUnit.findMany({
+      where: { program: 'BLACK_HOLE' },
+      select: { id: true },
+    });
+    if (allBh.length > 0) {
+      await cleanupCurriculumUnits(...allBh.map((u) => u.id));
+    }
+    await expect(
+      testDbBypass((tx) =>
+        resolveClassCurrentOrder(tx, { currentUnitId: null, program: 'BLACK_HOLE' }),
+      ),
+    ).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: expect.stringMatching(/no CurriculumUnit/i),
+    });
+    // Re-seed minimal Black Hole spine so later suites are not poisoned.
+    await ensureUnit('BLACK_HOLE', 61, 'B');
   });
 });

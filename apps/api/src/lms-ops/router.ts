@@ -29,6 +29,7 @@ import {
   sequenceForBatch,
   writeSequenceUpdate,
 } from './exercise-delivery.js';
+import { resolveClassCurrentOrder } from './grant-units.js';
 
 const dateOnlySchema = z.string().refine(isValidDateOnly, { message: 'Expected YYYY-MM-DD.' });
 const timeOfDaySchema = z.string().refine(isValidTimeOfDay, { message: 'Expected HH:mm (24h).' });
@@ -248,14 +249,7 @@ export const lmsOpsRouter = router({
           throw badRequest('Cannot grant units on an archived enrollment.');
         }
 
-        let currentOrder = 1;
-        if (enrollment.classBatch.currentUnitId) {
-          const cu = await tx.curriculumUnit.findUnique({
-            where: { id: enrollment.classBatch.currentUnitId },
-            select: { orderGlobal: true },
-          });
-          if (cu) currentOrder = cu.orderGlobal;
-        }
+        const currentOrder = await resolveClassCurrentOrder(tx, enrollment.classBatch);
 
         const validated = validateNewRange(range, currentOrder);
         if (!validated.ok) {
@@ -514,14 +508,7 @@ export const lmsOpsRouter = router({
           throw badRequest('Enrollment must be active to revoke unit ranges.');
         }
 
-        let currentOrder = 1;
-        if (enrollment.classBatch.currentUnitId) {
-          const cu = await tx.curriculumUnit.findUnique({
-            where: { id: enrollment.classBatch.currentUnitId },
-            select: { orderGlobal: true },
-          });
-          if (cu) currentOrder = cu.orderGlobal;
-        }
+        const currentOrder = await resolveClassCurrentOrder(tx, enrollment.classBatch);
         if (input.fromOrderGlobal < currentOrder) {
           throw badRequest(
             `Cannot revoke past units: fromOrderGlobal must be >= class current unit (${currentOrder}).`,

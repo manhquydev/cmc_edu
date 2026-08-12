@@ -37,8 +37,8 @@ const { CLASS, TEACHERS, SESSIONS, UNITS } = vi.hoisted(() => ({
   ],
   UNITS: {
     items: [
-      { id: 'unit-1', program: 'IELTS', level: 1, monthIndex: 1, unitType: 'lesson', title: 'Đơn vị 1' },
-      { id: 'unit-2', program: 'IELTS', level: 1, monthIndex: 2, unitType: 'lesson', title: 'Đơn vị 2' },
+      { id: 'unit-1', program: 'IELTS', level: 'U2', monthIndex: 1, unitType: 'lesson', title: 'Đơn vị 1' },
+      { id: 'unit-2', program: 'IELTS', level: 'U2', monthIndex: 2, unitType: 'lesson', title: 'Đơn vị 2' },
     ],
   },
 }));

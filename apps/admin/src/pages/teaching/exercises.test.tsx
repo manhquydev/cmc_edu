@@ -21,7 +21,7 @@ interface ExerciseItem {
   status: string;
 }
 
-const UNIT_A: UnitItem = { id: 'unit-1', program: 'English', level: 1, monthIndex: 3, title: 'Bài 3' };
+const UNIT_A: UnitItem = { id: 'unit-1', program: 'English', level: 'U2', monthIndex: 3, title: 'Bài 3' };
 const DRAFT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const PUBLISHED_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const EXERCISE_A: ExerciseItem = {

@@ -154,9 +154,10 @@ describe('resolvePackageGrantRange', () => {
     ).toThrow(/exceeds remaining program units/);
   });
 
-  it('rejects renewal when max existing is last unit and N>0 would invent 60/61', () => {
-    // After granting through 59, nextOrderOnAxis is null; fall back to currentOrder=59
-    // then unitCount=2 exceeds remaining (only 59 left as 1 unit from that index).
+  it('rejects renewal when max existing is last unit (axis exhausted — no invent past end)', () => {
+    // After granting through 59, nextOrderOnAxis is null → program sold out.
+    // Must fail here with a sold-out message, not invent 60/61 or return an
+    // overlapping range that downstream reports as "Range overlaps…".
     expect(() =>
       resolvePackageGrantRange({
         currentOrder: 59,
@@ -164,19 +165,35 @@ describe('resolvePackageGrantRange', () => {
         unitCount: 2,
         programAxis: BRIGHT_IG,
       }),
-    ).toThrow(/exceeds remaining program units/);
+    ).toThrow(/no remaining program units after order 59/);
   });
 
-  it('when axis exhausted after grant, falls back to currentOrder for from', () => {
-    // nextAfter == null branch: maxExisting past last label, current still on last unit, N=1 OK.
-    expect(
+  it('when axis exhausted after grant, rejects even N=1 (sold out — not overlap)', () => {
+    // Former bug: fall back to currentOrder=59 produced {59,59} which overlapped
+    // the existing range and failed as "Range overlaps an existing unit range".
+    expect(() =>
       resolvePackageGrantRange({
         currentOrder: 59,
         existingRanges: [{ fromOrderGlobal: 57, toOrderGlobal: 59 }],
         unitCount: 1,
         programAxis: BRIGHT_IG,
       }),
-    ).toEqual({ fromOrderGlobal: 59, toOrderGlobal: 59 });
+    ).toThrow(/no remaining program units after order 59/);
+  });
+
+  it('Black Hole: sold through last unit 102 → clear sold-out, not overlap', () => {
+    // Review scenario: axis ends at 102; student already holds 95–102; class
+    // current is 99; receipt tries to grant 4 more. nextAfter is null — do not
+    // return 99–102 (would overlap) and force a misleading overlap reject.
+    const BLACK_HOLE = contiguousProgramAxis(61, 102);
+    expect(() =>
+      resolvePackageGrantRange({
+        currentOrder: 99,
+        existingRanges: [{ fromOrderGlobal: 95, toOrderGlobal: 102 }],
+        unitCount: 4,
+        programAxis: BLACK_HOLE,
+      }),
+    ).toThrow(/no remaining program units after order 102/);
   });
 
   it('single-unit program: can sell N=1, cannot sell N=2', () => {

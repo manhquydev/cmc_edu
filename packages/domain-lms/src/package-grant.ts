@@ -40,13 +40,16 @@ export function resolvePackageGrantRange(opts: {
   } else {
     const nextAfter = nextOrderOnAxis(axis, maxExisting);
     // Class may have advanced past the last granted label — take the later of
-    // (next real after grant) and (class current). If the axis is exhausted
-    // after maxExisting, fall back to currentOrder (caller validation fails
-    // if that is also off-axis / cannot fit unitCount).
-    from =
-      nextAfter == null
-        ? opts.currentOrder
-        : Math.max(opts.currentOrder, nextAfter);
+    // (next real after grant) and (class current).
+    // Axis exhausted after maxExisting ⇒ program has nothing left to sell.
+    // Do NOT fall back to currentOrder: that always yields from ≤ maxExisting
+    // and surfaces as a misleading "range overlaps" reject downstream.
+    if (nextAfter == null) {
+      throw new Error(
+        `no remaining program units after order ${maxExisting}`,
+      );
+    }
+    from = Math.max(opts.currentOrder, nextAfter);
   }
 
   const fromIdx = axisIndexOf(axis, from);

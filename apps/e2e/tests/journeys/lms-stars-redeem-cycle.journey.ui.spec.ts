@@ -90,7 +90,12 @@ test.describe('P4-01 journey (xuyên app) — chấm bài sinh sao → học sin
     // A submitted homework worth 5 stars, waiting in the teacher's queue.
     const exercise = await seedPublishedExercise({ starReward: 5 });
     exerciseId = exercise.exerciseId;
-    await seedSubmittedSubmission({ facilityId, studentId, exerciseId });
+    await seedSubmittedSubmission({
+      facilityId,
+      studentId,
+      exerciseId,
+      classBatchId: batch.classBatchId,
+    });
 
     // --- ERP, teacher: grade the submission — this is what MINTS the stars ---
     const teacherContext = await browser.newContext({ baseURL: 'http://localhost:4173' });

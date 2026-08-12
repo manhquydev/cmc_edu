@@ -169,11 +169,12 @@ async function cancelZeroPresentWithRestamp(
     select: { id: true, exerciseId: true },
   });
   if (delivery) {
+    // B4: RESTRICT + no DELETE grant on Submission for cmc_app — revoke
+    // SessionExercise only when no submission rows (draft or submitted) exist.
     const submissionCount = await tx.submission.count({
       where: {
-        exerciseId: delivery.exerciseId,
+        sessionExerciseId: delivery.id,
         facilityId: session.facilityId,
-        status: { not: 'draft' },
       },
     });
     if (submissionCount === 0) {

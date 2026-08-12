@@ -176,7 +176,9 @@ test.describe('LMS kind isolation — student vs parent session gates', () => {
     let caughtError: unknown;
     try {
       await parentClient.submission.saveDraft.mutate({
-        exerciseId: '00000000-0000-0000-0000-000000000001', // non-existent, gate rejects first
+        // B4: saveDraft takes sessionExerciseId (delivery), not catalog exerciseId.
+        // Non-existent id — kind gate (requireLmsStudent) rejects parent first.
+        sessionExerciseId: '00000000-0000-0000-0000-000000000001',
         annotationLayer: {},
       });
     } catch (err) {

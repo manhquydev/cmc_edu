@@ -148,8 +148,13 @@ test.describe('attendance + grading + star balance', () => {
     const seeded = await seedPublishedExercise({ maxScore: 10, starReward });
     exerciseId = seeded.exerciseId;
 
-    // Seed a Submission in 'submitted' state for this student.
-    const sub = await seedSubmittedSubmission({ facilityId, studentId, exerciseId });
+    // Seed a Submission in 'submitted' state (B4: via SessionExercise delivery).
+    const sub = await seedSubmittedSubmission({
+      facilityId,
+      studentId,
+      exerciseId,
+      classBatchId,
+    });
     submissionId = sub.submissionId;
   });
 

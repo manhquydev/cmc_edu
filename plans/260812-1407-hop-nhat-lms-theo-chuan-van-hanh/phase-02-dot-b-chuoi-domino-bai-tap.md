@@ -46,6 +46,38 @@ không tạo buổi rời.
 
 ---
 
+## Thứ tự thi công — sửa lại 2026-08-12 sau khi rà code thật
+
+**B1 và B2 đã xong** trong PR #117 (merge vào `develop`).
+
+| Đợt sóng | Bước | Phụ thuộc mốc đóng băng `cmc-lms`? |
+|----------|------|-----------------------------------|
+| **1** | **B3** rồi **B4** | **Không** — chỉ gỡ nợ của chính `cmc_edu` và đổi khoá nội bộ |
+| **2** | **B5** rồi **B6** | **Có** — đây là phần port mô hình từ `cmc-lms` |
+
+Hai điều làm rõ sau khi đọc code:
+
+1. **`Submission` chỉ migrate MỘT lần.** B4 đổi `Submission` sang trỏ `SessionExercise`; B5 đổi
+   `SessionExercise` trỏ sang `ExerciseFile`. Hai bước chạm hai bảng khác nhau. Bản kế hoạch
+   trước lo phải migrate hai lần — **lo thừa**.
+2. **B3 rẻ hơn tưởng.** Ba hàm trong `open-tier.ts` đều đã có sẵn nhánh rẽ sang phát bài. Giao
+   diện học sinh gọi cùng procedure `exercise.openForStudent` nên **không phải sửa `apps/lms`**.
+
+**B5 lớn hơn tên gọi rất nhiều — 31 file (52 kể cả test).** Nó không phải "thêm thư viện PDF"
+mà là **thay hẳn mô hình danh mục bài tập**:
+
+| | `cmc_edu` hiện tại | Chuẩn `cmc-lms` |
+|---|---|---|
+| Bài tập | `Exercise` **bắt buộc gắn unit**, `unique(unit, type)` — mỗi unit chỉ **một** bài mỗi loại | `ExerciseFile` trong thư mục, **không** gắn unit |
+| Dãy bài lớp | trỏ `exerciseId` | trỏ `exerciseFileId` + **lưu tên thư mục lúc gán** |
+| Điểm tối đa / thưởng sao | cấu hình theo từng bài | **hằng số 10 / 10** |
+| Điểm | **số nguyên** | cho **điểm lẻ 7.5** |
+
+Hai dòng cuối là khác biệt **nghiệp vụ thật**: giáo viên ở `cmc_edu` hiện **không chấm được 7.5**.
+
+Và `Exercise` gắn unit chính là mô hình `cmc-lms` đã cố ý bỏ ⇒ B5 xoá nó cũng làm **Tier A chết
+theo**. Làm B3 trước chỉ là dọn sớm, không mâu thuẫn.
+
 ## Các bước
 
 ### B1. Gỡ đường buổi bù

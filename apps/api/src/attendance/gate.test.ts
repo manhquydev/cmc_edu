@@ -341,21 +341,33 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
       });
       const exercise = await gddt.exercise.publish({ exerciseId: created.id });
 
-      // A PAST session tied to `unit` so the exercise-open tier gate
-      // (ADR 0038) lets the student submit — mirrors
-      // ../submission/grade.test.ts's fixture, unrelated to the session
-      // under test below.
-      await seedClassSession({
+      // A PAST session tied to `unit`, with the exercise actually DELIVERED on
+      // it — homework now opens only through delivery, so the student cannot
+      // submit without a `SessionExercise`. Mirrors ../submission/grade.test.ts's
+      // fixture; unrelated to the session under test below.
+      await gddt.lmsOps.assignExerciseSequence({
+        classBatchId: classBatch.id,
+        exerciseIds: [exercise.id],
+      });
+      const openSession = await seedClassSession({
         facilityId: facility.id,
         classBatchId: classBatch.id,
         curriculumUnitId: unit.id,
         endTime: new Date('2020-01-01T00:00:00.000Z'),
       });
+      const delivered = await gddt.lmsOps.deliverSessionExercise({
+        classSessionId: openSession.id,
+      });
+      if (!delivered.delivered) throw new Error('expected delivery');
+      const sessionExerciseId = delivered.sessionExercise.id;
 
       const enrollment = await seedEnrolledStudentWithGuardian({
         facilityId: facility.id,
         classBatchId: classBatch.id,
         parentAccountId: parent.id,
+        // Delivered homework is roster-gated: the student must hold a unit
+        // range covering the delivering session's unit, or it stays closed.
+        unitRange: { fromOrderGlobal: 1, toOrderGlobal: 10_000 },
       });
 
       // The session under test: anchored to "now" so it lands in the same
@@ -379,8 +391,11 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
       const student = appRouter.createCaller(
         buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
       );
-      await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: { done: true } });
-      const submitted = await student.submission.submit({ exerciseId: exercise.id });
+      await student.submission.saveDraft({
+        sessionExerciseId,
+        annotationLayer: { done: true },
+      });
+      const submitted = await student.submission.submit({ sessionExerciseId });
       await teacher.submission.grade({ submissionId: submitted.id, score: 10 });
 
       const before = await testDbBypass((tx) =>

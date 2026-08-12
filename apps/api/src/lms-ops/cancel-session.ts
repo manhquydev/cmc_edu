@@ -134,11 +134,13 @@ export async function cancelSessionWithRestamp(
     select: { id: true, exerciseId: true },
   });
   if (delivery) {
+    // B4: submissions attach to this delivery (RESTRICT). cmc_app has no DELETE
+    // on Submission — only revoke SessionExercise when zero rows exist (draft
+    // or submitted). If a student already drafted/submitted, keep the delivery.
     const submissionCount = await tx.submission.count({
       where: {
-        exerciseId: delivery.exerciseId,
+        sessionExerciseId: delivery.id,
         facilityId: opts.facilityId,
-        status: { not: 'draft' },
       },
     });
     if (submissionCount === 0) {

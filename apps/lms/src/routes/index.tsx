@@ -74,7 +74,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/student/home" replace /> },
       { path: 'home', element: <StudentHomePage /> },
-      { path: 'exercise/:exerciseId', element: <ExercisePage /> },
+      { path: 'exercise/:sessionExerciseId', element: <ExercisePage /> },
       { path: 'gifts', element: <GiftsPage /> },
       { path: 'change-password', element: <ChangePasswordPage /> },
     ],

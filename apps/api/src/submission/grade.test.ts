@@ -38,6 +38,7 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
   let classBatch: { id: string; courseId: string };
   let unit: { id: string };
   let exercise: { id: string; maxScore: number; starReward: number };
+  let sessionExerciseId: string;
   let parent: { id: string; phone: string };
   const seededUnitIds: string[] = [];
 
@@ -69,12 +70,19 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
     });
     exercise = await gddt.exercise.publish({ exerciseId: created.id });
 
-    await seedClassSession({
+    await gddt.lmsOps.assignExerciseSequence({
+      classBatchId: classBatch.id,
+      exerciseIds: [exercise.id],
+    });
+    const session = await seedClassSession({
       facilityId: facility.id,
       classBatchId: classBatch.id,
       curriculumUnitId: unit.id,
       endTime: PAST,
     });
+    const delivered = await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
+    if (!delivered.delivered) throw new Error('expected delivery');
+    sessionExerciseId = delivered.sessionExercise.id;
 
     // Real ParentAccount for Guardian FK (F1 remediation).
     const phone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
@@ -104,12 +112,13 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
       classBatchId: classBatch.id,
       parentAccountId: parent.id,
       studentName: opts.studentName,
+      unitRange: { fromOrderGlobal: 1, toOrderGlobal: 10_000 },
     });
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
-    await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: { done: true } });
-    const submitted = await student.submission.submit({ exerciseId: exercise.id });
+    await student.submission.saveDraft({ sessionExerciseId: sessionExerciseId, annotationLayer: { done: true } });
+    const submitted = await student.submission.submit({ sessionExerciseId: sessionExerciseId });
     return { submissionId: submitted.id, studentId: enrollment.studentId, enrollmentId: enrollment.id };
   }
 
@@ -188,11 +197,12 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
       facilityId: facility.id,
       classBatchId: classBatch.id,
       parentAccountId: parent.id,
+      unitRange: { fromOrderGlobal: 1, toOrderGlobal: 10_000 },
     });
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
-    const draft = await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: {} });
+    const draft = await student.submission.saveDraft({ sessionExerciseId: sessionExerciseId, annotationLayer: {} });
 
     await expect(teacher.submission.grade({ submissionId: draft.id, score: 5 })).rejects.toMatchObject({
       code: 'BAD_REQUEST',

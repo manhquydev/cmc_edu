@@ -146,6 +146,14 @@ export async function deliverForSession(
   if (session.endTime.getTime() > now.getTime()) {
     throw badRequest('Session has not ended yet; delivery runs after endTime.');
   }
+  // Dual-gate roster needs session orderGlobal (onRoster fail-closes on null).
+  // Delivering without a unit stamp creates SessionExercise rows that no student
+  // can see — "delivered then invisible". Require assignUnit first.
+  if (!session.curriculumUnitId) {
+    throw badRequest(
+      'Cannot deliver exercise: session has no curriculum unit assigned. Assign a unit before delivering homework.',
+    );
+  }
 
   // Serialize deliver per batch (prevents double-assign of the same position).
   await tx.$executeRawUnsafe(
@@ -176,8 +184,9 @@ export async function deliverForSession(
     if (!item) return null;
     exerciseId = item.exerciseId;
     position = item.position;
-  } else if (session.curriculumUnitId) {
+  } else {
     // Fallback: published homework for the stamped unit (no frozen sequence).
+    // curriculumUnitId is required above so roster can resolve orderGlobal.
     const homework = await tx.exercise.findFirst({
       where: {
         curriculumUnitId: session.curriculumUnitId,
@@ -193,8 +202,6 @@ export async function deliverForSession(
       where: { classSession: { classBatchId: session.classBatchId } },
     });
     position = count + 1;
-  } else {
-    return null;
   }
 
   if (!exerciseId) return null;
@@ -309,7 +316,11 @@ export async function rosterStudentIdsForSession(
   return out;
 }
 
-/** Open exercise ids for a student via SessionExercise delivery (kill-switch path). */
+/**
+ * Open exercise ids for a student via SessionExercise delivery + dual-gate
+ * roster (`onRoster`: active, not archived for session day, **unit range covers
+ * session orderGlobal** — entitlement is enforced here, not via LMS_ENTITLEMENT_GATE).
+ */
 export async function deliveredExerciseIdsForStudent(
   tx: Tx,
   student: { id: string; facilityId: string },

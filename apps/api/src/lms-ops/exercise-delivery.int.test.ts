@@ -177,7 +177,41 @@ describe('lmsOps exercise delivery', () => {
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
-  it('open-tier OFF: homework only via delivered SessionExercise + dual-gate roster', async () => {
+  it('refuses delivery when session has no curriculum unit (avoids invisible deliver)', async () => {
+    const batch = await seedClassBatch({ facilityId: facility.id });
+    const homework = await publishedHomework(unitIds[0]!);
+    await gddt.lmsOps.assignExerciseSequence({
+      classBatchId: batch.id,
+      exerciseIds: [homework.id],
+    });
+    const pastEnd = new Date(Date.now() - 60_000);
+    const session = await testDbBypass((tx) =>
+      tx.classSession.create({
+        data: {
+          facilityId: facility.id,
+          classBatchId: batch.id,
+          sessionDate: pastEnd,
+          startTime: new Date(pastEnd.getTime() - 90 * 60_000),
+          endTime: pastEnd,
+          status: 'planned',
+          curriculumUnitId: null,
+        },
+      }),
+    );
+
+    await expect(
+      gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id }),
+    ).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: expect.stringMatching(/no curriculum unit/i),
+    });
+    const row = await testDbBypass((tx) =>
+      tx.sessionExercise.findUnique({ where: { classSessionId: session.id } }),
+    );
+    expect(row).toBeNull();
+  });
+
+  it('homework visible only via delivered SessionExercise + dual-gate roster', async () => {
     const batch = await seedClassBatch({ facilityId: facility.id });
     const homework = await publishedHomework(unitIds[0]!);
     const pastEnd = new Date(Date.now() - 60_000);
@@ -212,22 +246,15 @@ describe('lmsOps exercise delivery', () => {
 
     await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
 
-    const prev = process.env.LMS_OPEN_TIER_ENABLED;
-    process.env.LMS_OPEN_TIER_ENABLED = '0';
-    try {
-      const student = appRouter.createCaller(
-        buildLmsContext({
-          parentAccountId: parent.id,
-          studentId: enrollment.studentId,
-          kind: 'student',
-        }),
-      );
-      const open = await student.exercise.openForStudent();
-      expect(open.items.map((e) => e.id)).toContain(homework.id);
-    } finally {
-      if (prev === undefined) delete process.env.LMS_OPEN_TIER_ENABLED;
-      else process.env.LMS_OPEN_TIER_ENABLED = prev;
-    }
+    const student = appRouter.createCaller(
+      buildLmsContext({
+        parentAccountId: parent.id,
+        studentId: enrollment.studentId,
+        kind: 'student',
+      }),
+    );
+    const open = await student.exercise.openForStudent();
+    expect(open.items.map((e) => e.id)).toContain(homework.id);
   });
 
   it('cancel after deliver revokes SessionExercise when no submissions', async () => {

@@ -106,6 +106,7 @@ vụ tiền** nên phần này **không có bản mẫu để chép** — phải
 | 1 | **Mốc đóng băng `cmc-lms`** (commit + ngày) | 2, 3 | Chủ hệ thống |
 | 2 | ~~Quy tắc `level`~~ — **ĐÃ CHỐT 12/08: đổi kiểu cột `level` sang chuỗi**, giữ nguyên bản khung chương trình | ~~1~~ | ✅ |
 | 3 | Ánh xạ `blocked_lms` → giá trị nào trong bộ 6 | 1 | Sản phẩm (đề xuất `on_hold`) |
+| 3b | **Tiến trình unit phải đi theo unit có thật, không cộng số nguyên** — Bright I.G thiếu 5 số nên 4 buổi liên tiếp mất unit và roster rỗng. Xem phần "Phát hiện khi thi công" trong `phase-01` | **2, 4, 5 — chặn Bright I.G** | Sản phẩm + kỹ thuật |
 | 4 | **5 câu hỏi về gói bán** (xem báo cáo brainstorm) | 4 | Chủ hệ thống |
 | 5 | Chốt: cấp bù unit quá khứ có bước xem trước hay xác nhận hai lớp | 4 | Sản phẩm |
 | 6 | Chốt: một khoá quyền gộp cấp/thu/gỡ, hay tách khoá | 4 | Sản phẩm |

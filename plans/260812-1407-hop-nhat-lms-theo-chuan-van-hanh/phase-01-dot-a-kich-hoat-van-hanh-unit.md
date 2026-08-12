@@ -109,6 +109,50 @@ những việc sau **không còn lý do nằm ở đây**:
 
 ---
 
+## ⚠ Phát hiện khi thi công (2026-08-12) — CHẶN Bright I.G
+
+Sau khi nạp khung thật, lộ ra một lỗi **chỉ xuất hiện với dữ liệu thật**, vô hình khi còn 4 unit nháp.
+
+**`order_global` của Bright I.G có lỗ hổng:**
+
+| Chương trình | Khoảng | Liên tục? | Thiếu |
+|--------------|--------|-----------|-------|
+| UCREA | 1–36 | ✅ | — |
+| **Bright I.G** | 37–59 | ❌ | **40, 44, 48, 52, 56** |
+| Black Hole | 61–102 | ✅ | — |
+
+**Vì sao hỏng:** công thức tiến trình unit là `neo + floor(số buổi / 4)` — **thuần số học, không
+biết số nào thực sự tồn tại** (`packages/domain-lms/src/unit-progression.ts:45-50`).
+
+Lớp Bright I.G neo tại unit 37:
+
+| Buổi | Công thức ra | Có thật? |
+|------|--------------|----------|
+| 1–4 | 37 | ✅ |
+| 5–8 | 38 | ✅ |
+| 9–12 | 39 | ✅ |
+| **13–16** | **40** | ❌ **không tồn tại** |
+| 17–20 | 41 | ✅ |
+
+Khi gán unit, `restampBatchSessions` tra bảng không thấy unit 40 nên **bỏ qua** ⇒ 4 buổi liên tiếp
+**không có unit** ⇒ dual-gate chặn hết ⇒ **roster rỗng, không ai điểm danh được**.
+
+Và việc đếm unit còn lại cũng sai: dải `[37..48]` đếm ra 12 unit nhưng **chỉ 9 unit có thật** ⇒
+học sinh trả tiền 12 unit, học được 9.
+
+**Cách sửa đúng:** làm cho tiến trình unit **đi theo danh sách unit có thật** của chương trình,
+không cộng số nguyên. "Sau 4 buổi sang unit tiếp theo" nghĩa là unit kế tiếp **trong khung**,
+không phải số kế tiếp. Kéo theo: việc tạo dải khi bán và việc đếm unit còn lại cũng phải đi theo
+tập unit có thật.
+
+**Phạm vi ảnh hưởng:** `@cmc/domain-lms` (tiến trình + đếm + tạo dải) và mọi chỗ dùng chúng.
+Chưa sửa trong đợt này vì đây là **thay đổi ngữ nghĩa lõi dạy-học**, cần chốt trước.
+
+> Lưu ý: `cmc-lms` dùng **cùng công thức**. Nhiều khả năng họ chưa gặp vì chỉ vận hành chương
+> trình có `order_global` liên tục. Cần hỏi lại khi chốt cách sửa.
+
+---
+
 ## Red Team Review
 
 **Ngày:** 2026-08-12 · 4 vòng song song, 4 lăng kính (codex + pi + 2 grok).

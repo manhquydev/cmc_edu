@@ -106,14 +106,20 @@ vụ tiền** nên phần này **không có bản mẫu để chép** — phải
 | 1 | ~~Mốc đóng băng `cmc-lms`~~ — **ĐÃ CHỐT 12/08: commit `031d193`** (ngày commit 2026-08-09); `develop` và `main` cùng commit, không phân kỳ. Từ 12/08 ngừng thêm tính năng mới, vẫn sửa lỗi; bản chuẩn port là `031d193` | ~~2, 3~~ | ✅ |
 | 2 | ~~Quy tắc `level`~~ — **ĐÃ CHỐT 12/08: đổi kiểu cột `level` sang chuỗi**, giữ nguyên bản khung chương trình | ~~1~~ | ✅ |
 | 3 | Ánh xạ `blocked_lms` → giá trị nào trong bộ 6 | 1 | Sản phẩm (đề xuất `on_hold`) |
-| 3b | **Tiến trình unit phải đi theo unit có thật, không cộng số nguyên** — Bright I.G thiếu 5 số nên 4 buổi liên tiếp mất unit và roster rỗng. Xem phần "Phát hiện khi thi công" trong `phase-01` | **2, 4, 5 — chặn Bright I.G** | Sản phẩm + kỹ thuật |
-| 4 | **5 câu hỏi về gói bán** (xem báo cáo brainstorm) | 4 | Chủ hệ thống |
+| 3b | ~~Tiến trình unit đi theo unit có thật~~ — **ĐÃ LÀM XONG** trong PR #117: bốn hàm thuần nhận trục unit có thật, mọi phép tiến k unit là dịch k vị trí. Có integration test trên trục Bright I.G có lỗ hổng thật | ~~2, 4, 5~~ | ✅ |
+| 4 | **Câu hỏi về gói bán** — đã chốt: phạm vi gói, quyền thương lượng, cách hoàn tiền, cách hiểu dải unit (cách B). **Còn mở:** biên độ tự quyết giảm giá của sale · trả góp · gói dùng chung hay riêng cơ sở · bảng gói thật | 4 | Chủ hệ thống |
 | 5 | Chốt: cấp bù unit quá khứ có bước xem trước hay xác nhận hai lớp | 4 | Sản phẩm |
 | 6 | Chốt: một khoá quyền gộp cấp/thu/gỡ, hay tách khoá | 4 | Sản phẩm |
 
-**Đợt 1 chỉ còn chờ mục 3.** Mục 2 đã chốt ⇒ **Đợt 1 bắt đầu được ngay.**
-Mục 1 đã chốt ⇒ **Đợt 2 và Đợt 3 không còn bị chặn bởi mốc đóng băng.**
-Đợt 2 / 4 / 5 với Bright I.G vẫn bị chặn bởi mục 3b. Đợt 4 còn chờ mục 4, 5, 6.
+**Tình trạng chặn tính đến 12/08/2026:**
+
+| Đợt | Còn bị chặn không |
+|-----|-------------------|
+| 1 (nền dữ liệu) | Chỉ còn mục 3 (ánh xạ `blocked_lms`) cho phần vòng đời; phần khung chương trình **đã xong** |
+| 2 (mô hình bài tập) | **Không còn** — mục 1 và 3b đã xong. B3/B4 đã ship, B5/B6 làm được |
+| 3 (danh tính) | **Không còn** |
+| 4 (vận hành + gói bán) | Còn mục 4 (phần chưa chốt), 5, 6 |
+| 5 (nhập dữ liệu + cắt chuyển) | Còn mục 3 |
 
 ### Quyết định đã chốt 2026-08-12 (ghi để không hỏi lại)
 
@@ -124,6 +130,8 @@ Mục 1 đã chốt ⇒ **Đợt 2 và Đợt 3 không còn bị chặn bởi m�
 | Sale thương lượng giá | **Được, nhưng phải xin duyệt** — cần luồng xin–duyệt |
 | Định giá | Đơn giá **theo từng unit** (sửa hàng loạt được) + **gói theo dải unit** có giá riêng |
 | Hoàn tiền giữa khóa | **Xây đầy đủ** dù thực tế ít khi duyệt |
+| Thời lượng buổi | **Giữ 110** cho Bright I.G và Black Hole (UCREA 90) — tài liệu đúng, CSV không sai |
+| "Dải unit" của gói bán | **Cách B** — dải chỉ để định cỡ và định giá; gói nghĩa là "N unit", cấp từ vị trí học sinh đang đứng |
 
 ---
 

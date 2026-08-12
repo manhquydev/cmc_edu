@@ -28,7 +28,7 @@
 | **`reserved` (nghĩa CMC)** | Giữ chỗ trong lớp, **chưa đóng phí**. Lưu ý: khác nghĩa "ghế giữ theo nhóm" trong SIS đại học — ở CMC `reserved` chỉ mang nghĩa chờ-phí. |
 | **Attendance** | Điểm danh (`AttendanceStatus`). Bắt buộc có `ClassSession`. |
 | **ManualAttendanceTicket** | Phiếu chấm công/điểm danh thủ công theo NGÀY khi ngoài WiFi (QĐ 0034). |
-| **Assessment / Grade / Submission / Exercise** | Nhận xét (QualitativeAssessment/SessionStudentComment) · điểm (FinalGrade/GradingTemplate) · bài nộp · bài tập. |
+| **Assessment / Grade / Submission / Exercise** | Nhận xét (QualitativeAssessment/SessionStudentComment) · điểm (FinalGrade/GradingTemplate) · bài nộp khóa `(sessionExerciseId, studentId)` (mỗi lần phát một bản — *2026-08-12*) · bài tập catalog (`Exercise`) / lần phát (`SessionExercise`). |
 | **Certificate / LevelProgress** | Chứng chỉ (cấp tay — QĐ 0008) · lên cấp độ. **Cả hai đã LOẠI khỏi v2** (TL19 §6d). |
 
 ## 3. CRM & Bán hàng

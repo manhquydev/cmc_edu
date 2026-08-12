@@ -51,6 +51,11 @@
 > smoke. Ship: `plans/reports/ship-20260807-filterbar-search.md`. Design authority:
 > `docs/design-system-console.md`.
 
+> **Cập nhật 2026-08-12 — khung 96 unit + gỡ buổi bù + một đường mở bài (PR #117/#118/#119) + đóng băng `cmc-lms`.**
+> Catalog thật 96 unit từ CSV (`CurriculumUnit.level` = chuỗi). Sweep 0 điểm danh **chỉ hủy + restamp**, không tạo buổi bù.
+> Homework: `exercise.openForStudent` trả các `SessionExercise` đã phát mà HS `onRoster` (dải unit bắt buộc). Hai cờ env `LMS_OPEN_TIER_ENABLED` / `LMS_ENTITLEMENT_GATE` **đã xóa**. `submission.saveDraft/submit` nhận `sessionExerciseId`.
+> Repo chị `cmc-lms` **đóng băng** tại **`031d193`** (chốt 12/08): sửa lỗi vận hành vẫn làm; **không** thêm tính năng mới. Quyền học / `lmsOps.*` sống ở `apps/api/src/lms-ops/` + `@cmc/domain-lms`.
+
 ---
 
 ## Monorepo Structure
@@ -221,8 +226,8 @@ Student work review & AI-draft comments (WF-P2-07).
 Student PDF exercise submissions & grading (WF-P2-05, WF-P2-06).
 
 **Procedures:**
-- `submission.saveDraft(exerciseId, annotations)` → local draft (browser-only)  
-- `submission.submit(exerciseId, pdfBytes)` → finalize & lock  
+- `submission.saveDraft({ sessionExerciseId, annotationLayer })` → draft keyed by delivery *(2026-08-12, PR #118; không còn `exerciseId`)*  
+- `submission.submit({ sessionExerciseId })` → finalize & lock  
 - `submission.grade(submissionId, score, comment)` → teacher marks + star rewards  
 - `submission.listForChild(childId)` → student self-read
 
@@ -242,10 +247,10 @@ Daily class attendance tracking (WF-P2-02).
 ---
 
 ### 12. Exercise Router (`apps/api/src/exercise/`)
-Curriculum exercise & tier-based unlock (WF-P2-03, WF-P2-04).
+Curriculum exercise & delivery-based unlock (WF-P2-03, WF-P2-04).
 
 **Procedures:**
-- `exercise.openForStudent(studentId, tier)` → unlock tier A/B based on progress  
+- `exercise.openForStudent` → list published homework already delivered as `SessionExercise` where the student is on the dual-gate roster (`onRoster`). Each item includes `sessionExerciseId`. *(2026-08-12, PR #118: Tier A/B and env flags `LMS_OPEN_TIER_ENABLED` / `LMS_ENTITLEMENT_GATE` removed.)*  
 - `exercise.publish(unitId, pdfUrl)` → teacher uploads exercise
 
 **Test Coverage:** `exercise/open-tier.test.ts` · `exercise/publish.test.ts`
@@ -338,8 +343,8 @@ Sweep-only (no event hooks) worker that marks a session `done` once 3 conditions
 attendance, every `present` student has a `confirmed` QualitativeAssessment, `published` SessionEvidence
 with ≥1 photo) and `now >= endTime`. `doneAt` freezes at the latest condition's timestamp. Feeds
 `creditFactor(doneAt, endTime)` (24h→1.0, 48h→0.5, else 0) into KPI's `collectTeacherHours`. A second
-sweep auto-cancels 0-`present` sessions past `endTime + 24h` and tail-appends a makeup session onto the
-recurring slot (room conflict skips auto-creation, reported for manual handling).
+sweep auto-cancels 0-`present` sessions past `endTime + 24h` and **restamps units**. It does **not**
+create makeup sessions (buổi bù gỡ 2026-08-12 — không còn `isMakeup` / `addMakeup`).
 
 **Test Coverage:** `class/session-done.test.ts` · `worker/session-done-sweep.test.ts`
 

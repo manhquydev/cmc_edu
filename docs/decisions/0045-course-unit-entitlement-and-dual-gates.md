@@ -11,8 +11,11 @@ Accepted (owner decisions 2026-08-11 + LMS foundation spike plan).
 >   permission key `enrollment.grantUnits` — not a top-level `enrollment.grantUnits` procedure tree.
 > - Money bridge: `grantUnitsFromReceipt` after provision (see `apps/api/src/lms-ops/grant-units.ts`).
 > - **Teaching dual-gate** (attendance / roster / delivery) is live via `onRoster` + unit stamp.
-> - **Homework dual-gate** (ADR 0038 open-tier ∩ ranges) is **deferred for production** until
->   `LMS_ENTITLEMENT_GATE` defaults on **and** product OK (flag currently default **off**).
+> - **Homework dual-gate is live** (PR #118): bài mở chỉ khi đã phát `SessionExercise` **và**
+>   `onRoster` (enrollment `active` + dải unit phủ unit buổi). Cờ `LMS_ENTITLEMENT_GATE` **đã xóa
+>   khỏi code** — entitlement không còn là công tắc tùy chọn / mặc định tắt.
+> - **ADR 0038 Tier A/B không còn là đường mở bài.** Hai cờ `LMS_OPEN_TIER_ENABLED` và
+>   `LMS_ENTITLEMENT_GATE` đã xóa cùng Tier A.
 > - **Trục unit thật KHÔNG liên tục** — xem điểm 6 dưới đây. Khung chương trình thật (96 unit)
 >   đã nạp; Bright I.G thiếu `orderGlobal` 40, 44, 48, 52, 56.
 
@@ -31,7 +34,7 @@ Owner locked: teaching rights are **unit ranges inside a program/course axis**, 
    - **`lmsOps.addWithUnits`** / related `lmsOps.*` grant helpers → ranges only; requires active enrollment for roster; **sale excluded** (permission: `enrollment.grantUnits`).
    - Receipt path may call **`grantUnitsFromReceipt`** (idempotent money→range bridge).
 4. **Fail-closed:** session without `curriculumUnitId` stamp ⇒ empty teaching roster for that session.
-5. **ADR 0038:** still live for default homework open; kill-switch + optional entitlement flag — see 0038 Status banner. Foundation **does not** claim production dual-gate for exercises until flag policy changes.
+5. **ADR 0038:** quyết định gốc (Tier A/B + cờ env) **đã gỡ 2026-08-12 (PR #118)** — xem 0038 Status banner. Homework open = `SessionExercise` delivery + `onRoster` (entitlement **luôn** bật, không còn flag).
 6. **Tiến trình unit đi theo TRỤC UNIT CÓ THẬT, không cộng số nguyên** *(bổ sung 2026-08-12)*
 
    `orderGlobal` là **nhãn định danh**, không phải số đếm liên tục. Khung chương trình thật có

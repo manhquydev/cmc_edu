@@ -42,7 +42,7 @@ không student mồ côi; `active⇔phiếu approved`; refund ≤ netAmount; PH 
 (ADR0038); upload PDF→published; **làm bài PDF (annotation)→nộp**; chấm+sao; **nhận xét agent-draft→GV
 chốt**; session-evidence gửi PH.
 **Nguồn:** WF-P2-01…08 (TL26) · ADR0038 · TL19§3–6 · TL08§7.
-**Acceptance:** buổi auto-sinh; reserved không điểm danh; unit mở chỉ sau buổi (ICT)+Tier B; annotation
+**Acceptance:** buổi auto-sinh; reserved không điểm danh; bài mở khi đã phát `SessionExercise` + `onRoster` (Tier A/B gỡ 2026-08-12); annotation
 lưu chồng PDF; sao cộng một lần; nhận xét/ảnh trẻ không auto-publish; internalNote ẩn với PH.
 
 ## P3 — HR / Ca / Lương

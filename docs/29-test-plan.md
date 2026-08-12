@@ -10,7 +10,7 @@
 
 | Tầng | Phạm vi | Công cụ | Nơi |
 |---|---|---|---|
-| **Unit** (đáy — dày) | Hàm thuần: lương/phạt post-tax, KPI, `computeFinalGrade`, `exercise-open` Tier A, tiến trình unit trên trục có lỗ hổng (`order_global` gap-aware), `ipMatchesCidr`, code-gen | Vitest | `packages/domain-*`, `lib/` |
+| **Unit** (đáy — dày) | Hàm thuần: lương/phạt post-tax, KPI, `computeFinalGrade`, mở bài theo lần phát (`SessionExercise` + `onRoster`), tiến trình unit trên trục có lỗ hổng (`order_global` gap-aware), `ipMatchesCidr`, code-gen | Vitest | `packages/domain-*`, `lib/` |
 | **Integration** (giữa) | RLS theo facility, flow provisioning, cổng tiền SoD, cổng điểm danh, ticket-lock ca, restamp/grant unit trên trục gapped (Bright I.G) | Vitest + Postgres test | `apps/api` |
 | **E2E** (đỉnh — mỏng) | Critical path: ghi danh→provisioning, làm bài PDF→chấm, chấm công, duyệt ca | Playwright | `apps/e2e` |
 
@@ -19,7 +19,7 @@
 | Module | Target | Vì sao |
 |---|---|---|
 | **finance / provisioning / payroll** (tiền) | **≥ 90%** unit + integration đủ nhánh | Sai = mất tiền/toàn vẹn |
-| exercise-open · attendance gate · unit progression | ≥ 85% (Tier A, cancelled, reserved; trục unit **có lỗ hổng** thật) | Logic tinh vi (ADR 0038 Tier A; gap-aware 2026-08-12) |
+| exercise-open · attendance gate · unit progression | ≥ 85% (delivery + `onRoster`, cancelled, reserved; trục unit **có lỗ hổng** thật) | Logic tinh vi (ADR 0038 đã gỡ Tier A/B 2026-08-12; gap-aware) |
 | auth / RLS / RBAC | ≥ 85% + test vượt-rào âm tính | Bảo mật/cô lập |
 | shift / kpi | ≥ 80% | Nhiều nhánh vai trò |
 | CRM / rewards / meeting / aftersale | ≥ 70% | Rủi ro trung bình |
@@ -43,7 +43,7 @@ Mỗi WF có ≥1 spec. Trích: `finance/approve.spec` · `provisioning/idempote
 | Provisioning idempotent (ADR 0041) | lỗi provisioning **không rollback** netAmount; replay không nhân đôi; race SĐT ON CONFLICT |
 | netAmount/refund (QĐ0028) | `SUM(refund) ≤ netAmount` dưới `FOR UPDATE`; refund vượt → `BAD_REQUEST` |
 | enrollment (ADR-A) | `reserved` không điểm danh được; `active ⇔ Receipt approved` |
-| exercise-open (ADR0038) | unit mở chỉ sau buổi kết thúc (ICT) — **Tier A only** (Tier B / buổi bù gỡ 2026-08-12; **không** viết lại test Tier B); lifecycle chặn |
+| exercise-open (ADR0038) | bài mở chỉ khi đã phát `SessionExercise` + `onRoster` (Tier A/B + hai cờ env gỡ 2026-08-12, PR #118; **không** viết lại test Tier A/B hay cờ env); khóa nộp `(sessionExerciseId, studentId)`; lifecycle chặn |
 | unit progression (trục gapped) | restamp/grant/roster trên Bright I.G: `order_global` thiếu 40/44/48/52/56 — buổi sau lỗ hổng gán unit **có thật** (vd. 41), không invent label lỗ; gói N unit = N unit thật; cancel+restamp trượt đúng trên trục |
 | attendance gate | buổi cancelled không điểm danh; mismatch batch chặn |
 | check-in IP (ADR0039) | IP trong CIDR → `ip`; ngoài → `manual`; không tự duyệt phiếu |

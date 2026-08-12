@@ -29,9 +29,9 @@ run 2026-07-12 sau HR remediation phase 6) · `ADR/QĐ` · `Oversight`.
 | **P1-09** | agent / GĐĐT | "Giám sát bất thường tài chính" | `finance.*`+`audit.*` (read-only, MCP) | `/ops/recon` · `/finance/:id?flag=` | `agent/recon.spec` | ADR-B · TL13 | **HOTL** |
 | **P2-01** | GĐĐT | "Tạo lớp tự sinh lịch buổi" | `classBatch.create` (class.create) | `/admin/classes/:id` | `apps/api/src/class/generate-sessions.test.ts` | QĐ0036 | auto |
 | **P2-02** | giao_vien | "Điểm danh buổi học" | `attendance.mark/markAll` (attendance.mark) | `/teaching/attendance?session=` | `apps/api/src/attendance/gate.test.ts` | TL19§5 · **ADR0038** | người |
-| **P2-03** | hệ thống / HS | "Mở bài tập theo tiến độ học" | `exercise.openForStudent` (lms) | `/student/exercise/:exerciseId` | `apps/api/src/exercise/open-tier.test.ts` | **ADR0038** | auto |
+| **P2-03** | hệ thống / HS | "Mở bài tập theo lần phát + roster" | `exercise.openForStudent` (lms) | `/student/exercise/:sessionExerciseId` | `apps/api/src/exercise/open-tier.test.ts` | **ADR0038** | auto |
 | **P2-04** | GĐĐT | "Cung cấp bài tập PDF" | `exercise.create/publish` (assessment.*) | `/teaching/exercises` | `apps/api/src/exercise/publish.test.ts` | TL19§3 | HITL |
-| **P2-05** | học viên | "Làm bài trên PDF & nộp" | `submission.saveDraft/submit` (lms) | `/student/exercise/:exerciseId` | `apps/api/src/submission/annotate-submit.test.ts` | TL19§3 | auto |
+| **P2-05** | học viên | "Làm bài trên PDF & nộp" | `submission.saveDraft/submit` (lms, `sessionExerciseId`) | `/student/exercise/:sessionExerciseId` | `apps/api/src/submission/annotate-submit.test.ts` | TL19§3 | auto |
 | **P2-06** | giao_vien | "Chấm bài & cộng sao" | `submission.grade` (grade) | `/teaching/grading` | `apps/api/src/submission/grade.test.ts` · `teacher-annotation.test.ts` · `list-for-child.test.ts` | TL19§6 | người |
 | **P2-07** | agent / giao_vien | "Nhận xét (AI nháp, GV chốt)" | `assessment.draftComment/confirm` | `/teaching/session-assessment` · `/admin/report-cards` | `apps/api/src/assessment/draft-confirm.test.ts` | **TL08§7** · TL13 | HITL |
 | **P2-08** | giao_vien | "Gửi ảnh & tóm tắt buổi cho PH" | `sessionEvidence.publish` (giao_vien) | `/teaching/session-evidence` · `/parent/evidence/:studentId` | `apps/api/src/session-evidence/publish.test.ts` · `photo-access.test.ts` | TL19§6b · **TL08§7** | người |
@@ -69,7 +69,7 @@ run 2026-07-12 sau HR remediation phase 6) · `ADR/QĐ` · `Oversight`.
 | QĐ 0033 (định danh phone) | P1-04, P1-07 | ✓ |
 | I3 (revert O4 khi phiếu duy nhất) | P1-08 | ✓ |
 | GuardianLinkRequest | P1-06 | ✓ |
-| **ADR 0038 (mở bài tập Tier A; Tier B gỡ 2026-08-12)** | P2-02, P2-03 | ✓ |
+| **ADR 0038 (mở bài theo lần phát + `onRoster`; Tier A/B + hai cờ env gỡ 2026-08-12)** | P2-02, P2-03 | ✓ |
 | **TL08 §7 (dữ liệu trẻ — người chốt)** | P2-07, P2-08 | ✓ |
 | TL19 §3/§6 (bài PDF, chấm, sao) | P2-04, P2-05, P2-06 | ✓ |
 | QĐ 0036 (mã lớp) + auto-sinh buổi | P2-01 | ✓ |

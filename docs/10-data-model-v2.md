@@ -64,7 +64,7 @@ erDiagram
 | `Enrollment` | Ghi danh — **`EnrollmentStatus` 2 bước** (xem §3) |
 | `Attendance` · `ManualAttendanceTicket` · `SessionEvidence` · `SessionEvidencePhoto` | Điểm danh · phiếu thủ công · bằng chứng buổi · ảnh lớp |
 | `QualitativeAssessment` · `SessionStudentComment` · `Grade` · `FinalGrade` · `GradingTemplate` | Nhận xét · điểm |
-| `Exercise` · `Submission` · `Certificate` · `LevelProgress` | Bài tập · nộp · chứng chỉ · lên cấp |
+| `Exercise` · `SessionExercise` · `Submission` · `Certificate` · `LevelProgress` | Bài tập catalog · lần phát trên buổi · nộp (khóa `(sessionExerciseId, studentId)` — *2026-08-12, PR #118*) · chứng chỉ · lên cấp |
 
 ### Nhân sự – Lương – Ca – Gắn kết
 | Model | Vai trò |
@@ -91,6 +91,7 @@ erDiagram
 | V11 | `Receipt.approvedAt` (timestamp riêng, ghi bởi `finance.receiptApprove`) — nguồn duy nhất `kpi.refresh`'s `collectSaleRevenue` dùng để bucket doanh thu vào đúng kỳ ICT, tách khỏi `updatedAt`. `ClassSession`/`SessionStatus` thêm `done` + `doneAt` (đóng băng tại thời điểm session-done engine đánh giá). **Lịch sử buổi bù:** V11 từng mô tả thêm `makeupForSessionId` (buổi bù trỏ về buổi gốc) cùng `isMakeup` — **đã gỡ hoàn toàn 2026-08-12** (migration `20260812120000_curriculum_level_text_drop_session_makeup`): bỏ cột, quan hệ tự trỏ, API `addMakeup`, UI buổi bù; sweep 0 điểm danh **chỉ hủy**, không tạo bù. Lý do: buổi bù không gán unit/restamp đúng tiến trình 4 buổi/unit; HS nghỉ vẫn ở roster nhận bài; dạy thêm = thêm khung lịch tuần | docs/20, docs/22 ADR 0044; 2026-08-12 |
 | V12 | **Chấm công cặp vào/ra mỗi ngày**: `TimePunch.withinNetwork Boolean @default(true)` (thêm cạnh `ip`/`method` cũ — cột quyết định logic mới, cơ sở chưa khai báo `FacilityNetwork` nào mặc định `true`). `ManualAttendanceTicket.checkInAt`/`checkOutAt DateTime?` (mốc đầu/cuối ngày, đóng băng khi phiếu rời `pending`/`resubmitted`) + `@@unique([appUserId, ticketDate])` (chặn 2 phiếu cùng ngày — nền tảng cho `manualPunch.resubmit` ghi đè dòng cũ thay vì tạo dòng mới). Xoá hẳn đường tạo phiếu thủ công nhập ngày tùy ý (`manualPunch.create`) | docs/decisions/0043-attendance-daily-inout-pairing.md |
 | V13 | **Khung chương trình thật + `level` text + tiến trình unit gap-aware (2026-08-12):** nạp 96 `CurriculumUnit` từ `packages/db/prisma/data/CMC_EDU_Khung_Chuong_Trinh.csv` (36 UCREA · 18 Bright I.G · 42 Black Hole) — không còn gói 4 unit UCREA nháp. `CurriculumUnit.level`: `Int` → **`String`** (mã cấp giữ nguyên văn CSV). `order_global` có lỗ (Bright I.G thiếu 40/44/48/52/56); tiến trình unit dịch vị trí trên trục unit **có thật** theo chương trình, không cộng số nguyên vào nhãn | migration `20260812120000_…`; `@cmc/domain-lms` |
+| V14 | **Một đường mở bài + bài nộp gắn lần phát (2026-08-12, PR #118):** gỡ Tier A open-tier và hai cờ env `LMS_OPEN_TIER_ENABLED` / `LMS_ENTITLEMENT_GATE`. `Submission` đổi khóa `(exerciseId, studentId)` → **`(sessionExerciseId, studentId)`** — học lại unit / phát lại trên buổi khác = nộp độc lập. Kiểm dải unit giữ nguyên trên `onRoster` | schema `SessionExercise` / `Submission`; `apps/api/src/exercise/open-tier.ts`; `submission/router.ts` |
 
 ## 4. Bất biến dữ liệu phải giữ (từ TL1)
 

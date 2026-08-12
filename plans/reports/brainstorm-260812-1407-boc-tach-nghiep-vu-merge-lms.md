@@ -161,7 +161,7 @@ Script import (chưa tồn tại), dry-run, đối soát, freeze, chuyển SoT, 
 
 | # | Việc | Chặn đợt nào |
 |---|------|--------------|
-| 1 | **Mốc đóng băng `cmc-lms`** (commit/ngày cụ thể) — đã chốt nguyên tắc freeze, chưa có mốc | Tất cả |
+| 1 | ~~**Mốc đóng băng `cmc-lms`**~~ — **ĐÃ CHỐT 12/08/2026** tại commit `031d193` | ~~Tất cả~~ ✅ |
 | 2 | **Bảng gói bán → số unit** (3–5 gói thật) | Seam tiền, E |
 | 3 | **Ánh xạ `blocked_lms` → giá trị nào trong bộ 6** | D, E |
 | 4 | Đếm DB: enrollment active không có dải unit; số hàng `isMakeup=true` | A, B |
@@ -198,6 +198,6 @@ Mục 1 và 2 là **quyết định chủ hệ thống**. Mục 3 là quyết đ
 
 ## Câu hỏi chưa giải quyết
 
-1. Mốc đóng băng `cmc-lms` — chưa có.
+1. ~~Mốc đóng băng `cmc-lms`~~ — **đã chốt 12/08/2026** tại commit `031d193` (ngày commit 09/08).
 2. Payroll/KPI có phụ thuộc `SessionStatus.done` không — chưa audit.
 3. Số liệu DB thật (enrollment không dải, hàng `isMakeup`) — chưa truy vấn.

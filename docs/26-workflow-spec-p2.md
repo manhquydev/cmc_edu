@@ -33,8 +33,9 @@ stateDiagram-v2
 3) nút "sinh lại" (`schedule.generateSessions`) mở rộng/đổi lịch.
 
 **Exceptions & edge:** trùng phòng/GV (`CONFLICT`). Re-generate **idempotent** (không nhân đôi buổi cũ).
-Buổi bù (`isMakeup`) thêm riêng (mở bài Tier B — WF-P2-03). Đổi ngày → chỉ sinh buổi mới, giữ buổi có
-điểm danh.
+Đổi ngày → chỉ sinh buổi mới, giữ buổi có điểm danh. **Không còn buổi bù** (`classSession.addMakeup` /
+`isMakeup` đã gỡ 2026-08-12 — buổi bù chiếm slot restamp, đẩy lệch unit 4 buổi → 5 buổi thực; học bù
+thật do cơ sở xếp ngoài hệ thống, hoặc thêm khung lịch tuần).
 
 **Rules/ADR:** QĐ 0036 (mã lớp) · quyết định 2026-07-05 (auto-sinh buổi). **API:** `classBatch.create`
 (`class.create` — GĐĐT) · `schedule.generateSessions`. **UI/URL:** `/classes/new` · `/classes/:id/sessions`.
@@ -63,7 +64,8 @@ flowchart LR
 
 **Exceptions & edge:** buổi `cancelled` → **không điểm danh** (làm sai tỉ lệ chuyên cần). Cặp
 `enrollment.classBatchId ≠ session.classBatchId` → chặn (`BAD_REQUEST`). Enrollment `reserved` (chưa phí)
-→ **không điểm danh được** (ADR-A). Buổi **bù** có mặt → mở bài Tier B (WF-P2-03). Bucket theo **tháng ICT**.
+→ **không điểm danh được** (ADR-A). Điểm danh **không còn nhánh buổi bù / Tier B** (gỡ 2026-08-12;
+mở bài chỉ Tier A — WF-P2-03). Bucket theo **tháng ICT**.
 
 **Rules/ADR:** TL19 §5 · **ADR 0038** (attendance feed exercise-open) · computeFinalGrade. **API:**
 `attendance.mark`/`markAll` (`attendance.mark` — giao_vien). **UI/URL:** `/teaching/attendance?session=`.
@@ -84,23 +86,28 @@ bài tập / buổi kết thúc. **Precondition:** Exercise `published`.
 ```mermaid
 flowchart TD
     A["HS mở danh sách bài tập"] --> B["Hệ thống tính tập unit MỞ"]
-    B --> T1["Tier A: buổi (không bù) dạy unit<br/>ĐÃ KẾT THÚC (giờ ICT) → mở cả lớp"]
-    B --> T2["Tier B: buổi BÙ HS có mặt<br/>→ mở unit riêng HS đó"]
-    T1 & T2 --> C["Hiện bài đã mở (published + đến giờ)"]
+    B --> T1["Tier A: buổi dạy unit<br/>ĐÃ KẾT THÚC (giờ ICT) → mở cả lớp"]
+    T1 --> C["Hiện bài đã mở (published + đến giờ)"]
 ```
 
-**Happy path:** hệ thống lọc: `published` + (Tier A buổi đã kết thúc **hoặc** Tier B buổi bù có mặt) +
+> **2026-08-12:** open-tier **chỉ còn Tier A**. Tier B (mở riêng HS dự buổi bù / `isMakeup`) đã gỡ
+> cùng toàn bộ đường buổi bù — không implement lại.
+
+**Happy path:** hệ thống lọc: `published` + **Tier A** (buổi dạy unit đã kết thúc theo giờ ICT) +
 HS không `BLOCKED_LMS_LIFECYCLE` → hiện bài.
 
-**Exceptions & edge:** unit chưa dạy → **ẩn**. Buổi bù mở **chỉ cho HS dự** (không cả lớp). Lifecycle bị
-chặn → không thấy gì. Buổi `cancelled` không mở. Giờ tính theo **ICT** (`sessionEndUtc`).
+**Exceptions & edge:** unit chưa dạy → **ẩn**. Lifecycle bị chặn → không thấy gì. Buổi `cancelled`
+không mở. Giờ tính theo **ICT** (`sessionEndUtc`). (Trước đây có nhánh “buổi bù mở riêng HS” —
+đã gỡ 2026-08-12.)
 
-**Rules/ADR:** **ADR 0038** · TL19 §4. **API:** `exercise.openForStudent` / LMS list (lmsProcedure).
+**Rules/ADR:** **ADR 0038** (Tier A còn hiệu lực; Tier B đã gỡ — xem ghi chú 2026-08-12) · TL19 §4.
+**API:** `exercise.openForStudent` / LMS list (lmsProcedure).
 **UI/URL:** LMS `/student/exercise` (list) · `/student/exercise/:exerciseId` (detail).
 
 **Traceability:** `hệ thống/HS → WF-P2-03 → "Mở bài tập theo tiến độ học" → exercise.openForStudent →
 /child/:id/exercises → test/exercise/open-tier.spec → ADR0038`.
-**Acceptance:** unit mở chỉ sau khi buổi kết thúc (ICT); buổi bù mở riêng HS; lifecycle chặn thấy trống.
+**Acceptance:** unit mở chỉ sau khi buổi kết thúc (ICT); lifecycle chặn thấy trống; **không** còn
+tiêu chí “buổi bù mở riêng HS” (gỡ 2026-08-12).
 
 ---
 

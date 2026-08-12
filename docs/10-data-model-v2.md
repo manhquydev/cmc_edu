@@ -59,8 +59,8 @@ erDiagram
 ### Học tập
 | Model | Vai trò |
 |---|---|
-| `Course` · `CoursePrice` · `CurriculumUnit` · `AcademicTerm` | Khoá · giá · đơn vị CT · học kỳ |
-| `ClassBatch` · `ScheduleSlot` · `ClassSession` · `Room` | Lớp · khung lịch · buổi học · phòng |
+| `Course` · `CoursePrice` · `CurriculumUnit` · `AcademicTerm` | Khoá · giá · đơn vị CT (global) · học kỳ. **`CurriculumUnit.level`** = chuỗi mã cấp khung (`U2`, `U3`, `J`, `G`, `B`, `P`…), **không** phải số thứ tự *(cập nhật 2026-08-12)*. Catalog: **96 unit** (36 UCREA / 18 Bright I.G / 42 Black Hole) từ CSV khung chương trình |
+| `ClassBatch` · `ScheduleSlot` · `ClassSession` · `Room` | Lớp · khung lịch · buổi học · phòng. `ClassSession` có `status` gồm `done` + `doneAt`; **không** còn cờ/cột buổi bù (`isMakeup` / `makeupForSessionId` đã gỡ 2026-08-12) |
 | `Enrollment` | Ghi danh — **`EnrollmentStatus` 2 bước** (xem §3) |
 | `Attendance` · `ManualAttendanceTicket` · `SessionEvidence` · `SessionEvidencePhoto` | Điểm danh · phiếu thủ công · bằng chứng buổi · ảnh lớp |
 | `QualitativeAssessment` · `SessionStudentComment` · `Grade` · `FinalGrade` · `GradingTemplate` | Nhận xét · điểm |
@@ -88,8 +88,9 @@ erDiagram
 | V8 | **Mô hình lương bậc greenfield**: `SalaryTier` (catalog `baseSalary`/`unitRate`/`requiredShifts`/`requiredMetric` theo `type` KINH_DOANH\|GIAO_VIEN, `@@unique([facilityId,name])`) + `SalaryRate.tierId` (FK, gán qua `compensation.assignTier`). 3 cột cũ trên `SalaryRate` (`baseSalary`, `variablePayRate`, `kpiMax`) **nullable-deprecated** — không writer mới ghi, giữ lại chỉ để đọc dữ liệu cũ. `CompensationPolicy` (per-facility `penaltyRatePerLateMinute`/`penaltyRatePerEarlyMinute`, fallback 500/1000đ khi chưa có row) | docs/20, docs/22 ADR 0044 |
 | V9 | `KpiScore` mở rộng cho công thức auto-score: `metricValue`/`quotaSnapshot`/`shiftActual`/`shiftRequired`/`unitRateSnapshot`/`tierIdSnapshot` (snapshot tại thời điểm `kpi.refresh` — không đổi khi tier đổi sau đó); `kpiMax` cũ chuyển **nullable, retired**. `Payslip.kpiBonus` tái dụng làm "Phần KPI" (= `KpiScore.value` khi status confirmed\|approved); `Payslip.variablePay` **deprecated, luôn 0** (`assembleSlip`, @cmc/domain-payroll) | docs/20, docs/22 ADR 0044 |
 | V10 | `ShiftGroup`/`ShiftTemplate` có `@@unique` natural key (`[facilityId,name]` / `[shiftGroupId,name]`) cho idempotent catalog seed. `ShiftRegistration` thêm status `rejected` + cột `rejectReason` (bắt buộc khi `shift.reject`) — `rejected` KHÔNG tính vào ticket-lock (unique partial index `WHERE status='submitted'`) lẫn overlap-range guard, cho phép nộp lại ngay | docs/20 |
-| V11 | `Receipt.approvedAt` (timestamp riêng, ghi bởi `finance.receiptApprove`) — nguồn duy nhất `kpi.refresh`'s `collectSaleRevenue` dùng để bucket doanh thu vào đúng kỳ ICT, tách khỏi `updatedAt`. `ClassSession`/`SessionStatus` thêm `done` + `doneAt` (đóng băng tại thời điểm session-done engine đánh giá) + `makeupForSessionId` (buổi bù trỏ về buổi gốc) | docs/20, docs/22 ADR 0044 |
+| V11 | `Receipt.approvedAt` (timestamp riêng, ghi bởi `finance.receiptApprove`) — nguồn duy nhất `kpi.refresh`'s `collectSaleRevenue` dùng để bucket doanh thu vào đúng kỳ ICT, tách khỏi `updatedAt`. `ClassSession`/`SessionStatus` thêm `done` + `doneAt` (đóng băng tại thời điểm session-done engine đánh giá). **Lịch sử buổi bù:** V11 từng mô tả thêm `makeupForSessionId` (buổi bù trỏ về buổi gốc) cùng `isMakeup` — **đã gỡ hoàn toàn 2026-08-12** (migration `20260812120000_curriculum_level_text_drop_session_makeup`): bỏ cột, quan hệ tự trỏ, API `addMakeup`, UI buổi bù; sweep 0 điểm danh **chỉ hủy**, không tạo bù. Lý do: buổi bù không gán unit/restamp đúng tiến trình 4 buổi/unit; HS nghỉ vẫn ở roster nhận bài; dạy thêm = thêm khung lịch tuần | docs/20, docs/22 ADR 0044; 2026-08-12 |
 | V12 | **Chấm công cặp vào/ra mỗi ngày**: `TimePunch.withinNetwork Boolean @default(true)` (thêm cạnh `ip`/`method` cũ — cột quyết định logic mới, cơ sở chưa khai báo `FacilityNetwork` nào mặc định `true`). `ManualAttendanceTicket.checkInAt`/`checkOutAt DateTime?` (mốc đầu/cuối ngày, đóng băng khi phiếu rời `pending`/`resubmitted`) + `@@unique([appUserId, ticketDate])` (chặn 2 phiếu cùng ngày — nền tảng cho `manualPunch.resubmit` ghi đè dòng cũ thay vì tạo dòng mới). Xoá hẳn đường tạo phiếu thủ công nhập ngày tùy ý (`manualPunch.create`) | docs/decisions/0043-attendance-daily-inout-pairing.md |
+| V13 | **Khung chương trình thật + `level` text + tiến trình unit gap-aware (2026-08-12):** nạp 96 `CurriculumUnit` từ `packages/db/prisma/data/CMC_EDU_Khung_Chuong_Trinh.csv` (36 UCREA · 18 Bright I.G · 42 Black Hole) — không còn gói 4 unit UCREA nháp. `CurriculumUnit.level`: `Int` → **`String`** (mã cấp giữ nguyên văn CSV). `order_global` có lỗ (Bright I.G thiếu 40/44/48/52/56); tiến trình unit dịch vị trí trên trục unit **có thật** theo chương trình, không cộng số nguyên vào nhãn | migration `20260812120000_…`; `@cmc/domain-lms` |
 
 ## 4. Bất biến dữ liệu phải giữ (từ TL1)
 
@@ -112,6 +113,6 @@ erDiagram
 - **Thời gian:** lưu UTC, bucket/hiển thị theo ICT (UTC+7) — nhất là biên tháng lương (QĐ 0025).
 - **Migration v1→v2:** backfill `EnrollmentStatus=active` cho enrollment cũ (không phá điểm danh
   đang chạy); backfill `createdByReceiptId` nếu import; đặt default `oversightMode` cho bản ghi cũ.
-- **Seed:** curriculum UCREA/Bright I.G. theo `seed-curriculum` đã có.
+- **Seed / catalog (2026-08-12):** 96 unit khung thật từ CSV `packages/db/prisma/data/CMC_EDU_Khung_Chuong_Trinh.csv` (import/seed); `CurriculumUnit.level` là chuỗi mã cấp, không phải số.
 
 > Liên kết: TL07 (glossary) · TL09 (C4) · TL1 (bất biến) · TL05 (miền) · TL6 (routing map theo model).

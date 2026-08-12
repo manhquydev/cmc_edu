@@ -13,6 +13,8 @@ Accepted (owner decisions 2026-08-11 + LMS foundation spike plan).
 > - **Teaching dual-gate** (attendance / roster / delivery) is live via `onRoster` + unit stamp.
 > - **Homework dual-gate** (ADR 0038 open-tier ∩ ranges) is **deferred for production** until
 >   `LMS_ENTITLEMENT_GATE` defaults on **and** product OK (flag currently default **off**).
+> - **Trục unit thật KHÔNG liên tục** — xem điểm 6 dưới đây. Khung chương trình thật (96 unit)
+>   đã nạp; Bright I.G thiếu `orderGlobal` 40, 44, 48, 52, 56.
 
 ## Context
 
@@ -30,6 +32,26 @@ Owner locked: teaching rights are **unit ranges inside a program/course axis**, 
    - Receipt path may call **`grantUnitsFromReceipt`** (idempotent money→range bridge).
 4. **Fail-closed:** session without `curriculumUnitId` stamp ⇒ empty teaching roster for that session.
 5. **ADR 0038:** still live for default homework open; kill-switch + optional entitlement flag — see 0038 Status banner. Foundation **does not** claim production dual-gate for exercises until flag policy changes.
+6. **Tiến trình unit đi theo TRỤC UNIT CÓ THẬT, không cộng số nguyên** *(bổ sung 2026-08-12)*
+
+   `orderGlobal` là **nhãn định danh**, không phải số đếm liên tục. Khung chương trình thật có
+   lỗ hổng đánh số (Bright I.G: 37–59 thiếu 40, 44, 48, 52, 56). **Lỗ hổng không phải là unit.**
+
+   Gọi `axis` = danh sách `orderGlobal` **có thật** của chương trình, sắp tăng dần.
+
+   | Phép tính | Luật |
+   |-----------|------|
+   | Unit của buổi thứ `k` (đếm từ neo, bỏ buổi đã hủy) | `axis[chỉSốCủa(neo) + floor(k / 4)]`, kẹp tại phần tử cuối của `axis` |
+   | Cấp gói `N` unit | `N` phần tử **liên tiếp trên `axis`** kể từ vị trí bắt đầu — **bỏ qua lỗ hổng**, không phải `từ + N - 1` |
+   | Số unit còn lại của một dải | Đếm phần tử của `axis` nằm trong dải — **không** đếm mọi số nguyên giữa hai đầu mút |
+   | Neo không nằm trên `axis` | **Ném lỗi**, không im lặng bỏ qua |
+
+   Hệ quả: một dải `[37..48]` của Bright I.G chứa **9 unit thật**, không phải 12.
+   Nơi cài đặt: `packages/domain-lms/src/unit-progression.ts` (`ProgramUnitAxis`) và
+   `package-grant.ts`. Bằng chứng: `apps/api/src/lms-ops/bright-ig-gaps.int.test.ts`.
+
+   > Bất biến của [ADR 0046](./0046-order-global-stability.md) không đổi: cấm đánh số lại
+   > dưới các dải đã bán.
 
 ## Consequences
 

@@ -11,24 +11,32 @@
 
 ---
 
-## ADR 0038 — Thời điểm mở bài tập theo tiến độ dạy (Tier A/B)
+## ADR 0038 — Thời điểm mở bài tập theo tiến độ dạy (Tier A; Tier B đã gỡ)
 
-**Status:** Accepted (formalize `lib/exercise-open.ts`).
+**Status:** Accepted (formalize `lib/exercise-open.ts`). **Phần Tier B / buổi bù: gỡ 2026-08-12**
+(schema + open-tier + API/UI) — giữ nguyên quyết định gốc bên dưới, đánh dấu phần không còn hiệu lực.
 **Context.** Bài tập gắn `curriculumUnit`. Cần định rõ *khi nào* một bài mở cho học viên — không thể
-mở ngay khi tạo, phải theo tiến độ học thực tế; và buổi học bù chỉ dạy cho HS vắng, không thể mở cho
-cả lớp.
+mở ngay khi tạo, phải theo tiến độ học thực tế. (Bản gốc còn phủ buổi bù chỉ dạy HS vắng; phần đó
+đã gỡ — xem Decision.)
 
 **Decision.**
 - Điều kiện nền: Exercise `status = published` **và** HS không ở `BLOCKED_LMS_LIFECYCLE`.
-- **Tier A (mở cả lớp):** một `curriculumUnitId` mở cho **toàn batch** khi buổi học **không phải bù**
+- **Tier A (mở cả lớp) — còn hiệu lực:** một `curriculumUnitId` mở cho **toàn batch** khi buổi học
   dạy unit đó **đã kết thúc** — mốc kết thúc tính theo **giờ ICT** (`sessionEndUtc`, UTC+7), không theo
-  cột `sessionDate` UTC-midnight.
-- **Tier B (mở riêng HS):** buổi **bù** (`isMakeup`) mà HS **có mặt/đi muộn** (`present`/`late`) mở
-  unit đó **chỉ cho HS ấy** (keyed trên `Attendance`), **không** mở cả lớp.
+  cột `sessionDate` UTC-midnight. (Bản gốc: chỉ buổi *không phải bù*; sau khi gỡ cờ bù thì mọi buổi
+  non-cancelled đều là buổi chính trên trục unit.)
+- ~~**Tier B (mở riêng HS):** buổi **bù** (`isMakeup`) mà HS **có mặt/đi muộn** (`present`/`late`) mở
+  unit đó **chỉ cho HS ấy** (keyed trên `Attendance`), **không** mở cả lớp.~~
+  **Gỡ 2026-08-12:** xóa `ClassSession.isMakeup` / `makeupForSessionId`, API `classSession.addMakeup`,
+  UI "Thêm buổi bù", và nhánh open-tier Tier B. **Lý do:** buổi bù thường không gán unit nhưng vẫn
+  được đếm trong restamp (mọi buổi non-cancelled) → chiếm một vị trí, đẩy lệch các buổi sau, biến
+  unit 4 buổi thành 5 buổi thực; LMS vận hành thật cũng đã bỏ buổi bù có chủ đích. HS nghỉ **vẫn
+  nhận bài về nhà** (còn trong roster); học bù thật do cơ sở xếp **ngoài hệ thống** hoặc bằng thêm
+  khung lịch tuần — **không** tái tạo buổi rời / Tier B trừ khi có quyết định sản phẩm mới.
 - Buổi `cancelled` không mở gì.
 
-**Consequences.** "Học tới đâu mở bài tới đó"; công bằng buổi bù; phụ thuộc `SessionStatus` +
-`isMakeup` + giờ ICT. Nếu đổi cách tính giờ kết thúc, phải giữ nguyên ngữ nghĩa Tier A/B.
+**Consequences.** "Học tới đâu mở bài tới đó"; phụ thuộc `SessionStatus` + giờ ICT. Nếu đổi cách tính
+giờ kết thúc, phải giữ nguyên ngữ nghĩa **Tier A** (đường mở bài duy nhất sau 2026-08-12).
 
 **Alternatives bỏ.** Mở ngay khi published (không theo tiến độ) — bị loại vì học viên thấy bài chưa học.
 
@@ -168,10 +176,13 @@ khái niệm hệ thống — chỉ dựa điểm danh thô, không phản ánh 
   (`collectTeacherHours`). Session trước mốc kích hoạt engine (`SESSION_DONE_ACTIVATED_AT`) là lịch
   sử, backfill 1 lần, credit luôn 1.0 (không phạt hồi tố dữ liệu cũ chưa từng được thiết kế theo
   cơ chế này — R2 Scope F3).
-- Sweep thứ hai: session quá `endTime + 24h` với 0 điểm danh `present` → tự `cancelled`; nếu có
-  `scheduleSlotId` (không phải buổi thêm tay), tự tạo buổi bù nối vào **cuối** chuỗi slot lặp lại
-  (có thể kéo dài lịch học qua `ClassBatch.endDate` khi lớp nợ buổi); phòng bận → bỏ qua tạo tự động,
-  báo `roomConflict: true`, người xử lý thủ công.
+- Sweep thứ hai: session quá `endTime + 24h` với 0 điểm danh `present` → tự `cancelled` (và restamp
+  dãy buổi non-cancelled còn lại). ~~Nếu có `scheduleSlotId` (không phải buổi thêm tay), tự tạo buổi
+  bù nối vào **cuối** chuỗi slot lặp lại (có thể kéo dài lịch học qua `ClassBatch.endDate` khi lớp
+  nợ buổi); phòng bận → bỏ qua tạo tự động, báo `roomConflict: true`, người xử lý thủ công.~~
+  **Gỡ 2026-08-12:** sweep **chỉ hủy + restamp**, **không** tạo buổi bù nối đuôi; đã xóa
+  `makeupForSessionId` / `isMakeup` / API `addMakeup` / nhánh `roomConflict` tạo bù. Lý do: cùng ADR
+  0038 — buổi bù lệch trục unit. Muốn bù dạy → thêm khung lịch tuần hoặc xếp ngoài hệ thống.
 
 **Consequences.** Lương/KPI có công thức tường minh, kiểm chứng được, audit trail đầy đủ (snapshot
 mọi input); loại bỏ hoàn toàn nhập tay dễ sai/khó audit. Session-done engine phụ thuộc worker sweep

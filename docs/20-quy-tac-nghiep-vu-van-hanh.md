@@ -155,14 +155,16 @@ Cơ chế: khớp **IP client với dải mạng cơ sở** (không phải GPS) 
   `collectTeacherHours` cho KPI GV, §4): trễ ≤24h → **1.0** (đủ); ≤48h → **0.5**; >48h → **0**. Session
   có `endTime` trước mốc kích hoạt engine (`SESSION_DONE_ACTIVATED_AT`) là lịch sử — backfill 1 lần,
   credit **luôn 1.0** không phân biệt trễ.
-- **Auto-cancel 0-HS + buổi bù nối đuôi khóa:** session `planned`/`confirmed` quá `endTime + 24h` mà
-  **0 điểm danh `present`** → tự `cancelled`. Nếu session có `scheduleSlotId` (không phải buổi thêm
-  thủ công `addMakeup`), sweep **tự tạo buổi bù** nối vào **cuối** chuỗi slot lặp lại đó (cùng
-  `scheduleSlotId`, 7 ngày sau buổi cuối cùng đã có trong slot — **có thể kéo dài lịch học qua
-  `ClassBatch.endDate`** khi lớp nợ buổi). `ClassSession.makeupForSessionId` trỏ ngược về buổi gốc.
-- **Conflict phòng → bỏ qua, chờ người xử lý:** nếu phòng của lớp bận vào ngày bù dự kiến, sweep
-  **không tạo** buổi bù tự động, báo `roomConflict: true` trong kết quả — UI hiển thị buổi đã hủy
-  chưa có buổi bù để GĐĐT xếp lịch thủ công.
+- **Auto-cancel 0-HS (chỉ hủy + restamp, không tạo buổi bù):** session `planned`/`confirmed` quá
+  `endTime + 24h` mà **0 điểm danh `present`** → tự `cancelled`. Sweep **không** tạo buổi bù nối đuôi
+  lịch; **không** còn `ClassSession.makeupForSessionId` / `isMakeup` / API `classSession.addMakeup`.
+  Dãy buổi non-cancelled còn lại được **restamp** theo trục unit (gap-aware).
+
+> **2026-08-12 — gỡ tạo buổi bù tự động / tay.** Bản trước mô tả: sweep tự tạo buổi bù cuối slot
+> (có thể kéo dài qua `ClassBatch.endDate`), cột `makeupForSessionId`, API `addMakeup`, và
+> `roomConflict: true` để GĐĐT xếp bù thủ công khi phòng bận. **Đã gỡ toàn bộ** — buổi bù chiếm chỗ
+> non-cancelled làm lệch gán unit (xem TL19 §4, docs/22 ADR 0038). Học bù thật xếp **ngoài hệ thống**
+> hoặc bằng **thêm khung lịch tuần** — không tái tạo buổi rời / nhánh conflict phòng cho bù.
 
 ## 5. Đổi quà (Rewards) — GIỮ; sao thưởng
 

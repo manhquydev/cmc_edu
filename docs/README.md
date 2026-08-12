@@ -91,7 +91,7 @@ Tài liệu Harness của dự án (không do core quản lý): `HARNESS.md`,
 | **B** | Cổng tiền do **GĐKD** (ke_toan deferred); SoD + Reconciliation agent (HOTL) + ngưỡng → GĐĐT |
 | **C** | IA = **5 nhóm chức năng**, lọc theo vai trò (≤7 mục) |
 | **D** | ERP = **4 vai trò active + IT** (GĐKD·GĐĐT·sale·giáo viên); LMS = phụ huynh/học sinh; 5 role gác |
-| **0038** | Mở bài tập theo tiến độ: buổi dạy unit kết thúc (ICT) — Tier A cả lớp / Tier B buổi bù riêng HS |
+| **0038** | Mở bài tập theo tiến độ — **Tier A**: unit mở cho cả lớp khi buổi dạy unit đó đã kết thúc (ICT). *(2026-08-12: **Tier B** buổi bù riêng HS đã gỡ cùng nghiệp vụ buổi bù; open-tier chỉ còn Tier A)* |
 | **0039** | Chấm công qua khớp **IP dải cơ sở** (CIDR) — ip/manual; không GPS |
 | **0040** | Ca **sale vs giáo viên** khác nhau qua `ShiftGroup.selectionMode` (SINGLE/MULTIPLE) |
 | **0041** | Provisioning **atomic + idempotent** (tách khỏi transaction tiền); không student mồ côi |

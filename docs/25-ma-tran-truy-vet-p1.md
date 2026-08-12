@@ -45,7 +45,7 @@ run 2026-07-12 sau HR remediation phase 6) · `ADR/QĐ` · `Oversight`.
 | **P3-08** | GĐKD / GĐĐT | "Tất toán KPI hàng loạt (branch-scope)" | `kpi.bulkApprove` (kpi.bulkApprove) | `/hr/kpi` | `apps/api/src/kpi/lifecycle.test.ts` · `apps/e2e/tests/kpi-lifecycle.spec.ts` | **ADR0044** · docs/20 §4 | HITL |
 | **P3-09** | sale / giao_vien / GĐKD / GĐĐT | "Tính lại điểm KPI tự động (công thức PHẦN NHÂN)" | `kpi.refresh` (kpi.refresh) | `/hr/kpi` · `/hr/my` | `apps/api/src/kpi/auto-score.test.ts` · `apps/api/src/kpi/lifecycle.test.ts` · `apps/e2e/tests/kpi-lifecycle.spec.ts` | **ADR0044** | auto |
 | **P3-10** | hệ thống | "Đánh giá buổi học hoàn thành (session-done)" | (internal sweep worker; không có procedure gọi trực tiếp) | — (feed vào `/hr/kpi`, `/teaching/*`) | `apps/api/src/class/session-done.test.ts` · `apps/api/src/worker/session-done-sweep.test.ts` | **ADR0044** | auto |
-| **P3-11** | hệ thống | "Tự huỷ buổi 0 điểm danh + xếp buổi bù nối đuôi" | (internal sweep worker; không có procedure gọi trực tiếp) | `/admin/classes/:id` | `apps/api/src/worker/session-done-sweep.test.ts` | **ADR0044** | auto |
+| **P3-11** | hệ thống | "Tự huỷ buổi 0 điểm danh + restamp unit (không xếp buổi bù — gỡ nối đuôi 2026-08-12)" | (internal sweep worker; không có procedure gọi trực tiếp) | `/admin/classes/:id` | `apps/api/src/worker/session-done-sweep.test.ts` | **ADR0044** | auto |
 | **P4-01** | học viên / nhân viên | "Đổi quà bằng sao" | `rewards.redeem/approve/deliver` | `/admin/engagement/rewards` | `apps/api/src/rewards/redeem-refund.test.ts` | TL20§5 | HITL |
 | **P4-02** | GĐ | "Cấu hình quà đổi sao" | `gift.upsert/list` (GĐ) | `/admin/engagement/rewards` | `apps/api/src/rewards/redeem-refund.test.ts` | TL20§5 | người |
 | **P4-03** | nhân viên | "Lên lịch & nhắc họp PH" | `parentMeeting.schedule/complete` | `/crm/post-sale-meeting` *(UI EmptyState — chưa gọi API)* | `apps/api/src/meeting/parent-meeting.test.ts` | TL20§6 | HITL |
@@ -69,7 +69,7 @@ run 2026-07-12 sau HR remediation phase 6) · `ADR/QĐ` · `Oversight`.
 | QĐ 0033 (định danh phone) | P1-04, P1-07 | ✓ |
 | I3 (revert O4 khi phiếu duy nhất) | P1-08 | ✓ |
 | GuardianLinkRequest | P1-06 | ✓ |
-| **ADR 0038 (mở bài tập Tier A/B)** | P2-02, P2-03 | ✓ |
+| **ADR 0038 (mở bài tập Tier A; Tier B gỡ 2026-08-12)** | P2-02, P2-03 | ✓ |
 | **TL08 §7 (dữ liệu trẻ — người chốt)** | P2-07, P2-08 | ✓ |
 | TL19 §3/§6 (bài PDF, chấm, sao) | P2-04, P2-05, P2-06 | ✓ |
 | QĐ 0036 (mã lớp) + auto-sinh buổi | P2-01 | ✓ |

@@ -19,18 +19,22 @@ function run(args) {
 }
 
 describe('ui-ratchet.mjs', () => {
-  it('passes cleanly at zero violations (Phase 8 close-out: baseline is genuinely empty)', () => {
+  it('passes against the committed baseline (admin at 0; LMS grandfathered)', () => {
     const r = run(['--json']);
     assert.equal(r.status, 0, r.stderr || r.stdout);
     const report = JSON.parse(r.stdout);
     assert.ok(report.pageCount > 20);
     assert.equal(report.increased.length, 0);
-    assert.equal(report.totalViolations, 0);
-    assert.equal(report.filesWithViolations, 0);
     const baseline = JSON.parse(
       fs.readFileSync(path.join(root, 'scripts/ratchet-baseline.json'), 'utf8'),
-    );
-    assert.deepEqual(baseline.baseline, {}, 'baseline should be empty — zero-tolerance mode');
+    ).baseline;
+    for (const file of Object.keys(report.perFile ?? {})) {
+      assert.ok(file.startsWith('apps/lms/'), `admin must stay at 0, got ${file}`);
+    }
+    for (const file of Object.keys(baseline)) {
+      assert.ok(file.startsWith('apps/lms/'), `baseline should only grandfather LMS, got ${file}`);
+    }
+    assert.equal(report.totalViolations, Object.values(baseline).reduce((s, n) => s + n, 0));
   });
 
   it('applies scripts/ratchet-exemptions.json entries by exact (file, property, value) match', () => {

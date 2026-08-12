@@ -61,7 +61,7 @@ export default function HomeworkResultsPage() {
                   <Badge label="Chờ chấm" variant="neutral" />
                 )}
               </HStack>
-              <Text type="supporting" size="2xs">
+              <Text type="supporting" size="sm">
                 {item.submittedAt
                   ? `Nộp ngày ${new Date(item.submittedAt).toLocaleDateString('vi-VN')}`
                   : 'Chưa nộp'}

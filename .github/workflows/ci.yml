@@ -118,6 +118,16 @@ jobs:
       - name: UI inline-style ratchet
         run: pnpm check:ui-ratchet && pnpm test:ui-ratchet
 
+      # Role/aria substring smoke for @cmc/ui composites. Script existed with
+      # tests but was not wired — a dead gate. Blocking: do not continue-on-error.
+      - name: UI a11y role smoke
+        run: pnpm check:ui-a11y-roles && pnpm test:ui-a11y-roles
+
+      # Live-instruction drift: docs/index/TL12/kit must not point at retired
+      # chrome (AppFrame, premium.css, sh-*). Script: scripts/check-doc-authority.mjs.
+      - name: Doc authority
+        run: pnpm check:doc-authority && pnpm test:doc-authority
+
       - name: Test
         run: pnpm test
 

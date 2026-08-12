@@ -146,11 +146,11 @@ export default function ExercisePage() {
           <Heading level={4} style={{ margin: 0 }}>{slot.title}</Heading>
           <Badge label={`${slot.starReward} sao`} variant="blue" />
         </HStack>
-        <Text type="supporting" size="2xs" display="block" style={{ marginBottom: 8 }}>
+        <Text type="supporting" size="sm" display="block" style={{ marginBottom: 8 }}>
           Điểm tối đa: {slot.maxScore}
         </Text>
         {/* Delivery instance — distinguishes re-deliveries of the same catalog exercise. */}
-        <Text type="supporting" size="2xs" display="block" style={{ marginBottom: 24 }}>
+        <Text type="supporting" size="sm" display="block" style={{ marginBottom: 24 }}>
           {deliveryLabel(slot.sessionExerciseId)} · đây là lần làm gắn với buổi đã phát bài (không
           phải bài cũ)
         </Text>

@@ -89,7 +89,7 @@
 | Compact | list/table/ops | row py ~8–10px | Phiếu thu, users, classes, grading queue |
 | Touch | attendance, punch | min 44×44 targets | Teacher tablet flows |
 
-Implement via CSS modifiers later: `.tpl-wrap--compact`, `DataTable density="compact"`.
+Implement via CSS modifiers later: `.console-wrap--compact`, `DataTable density="compact"`.
 
 ---
 
@@ -131,7 +131,7 @@ Do **not** `npx shadcn add`. Map concepts:
 
 | shadcn / styling skill | CMC implementation |
 |------------------------|--------------------|
-| Button variants (default/secondary/ghost/destructive) | Astryx `Button` via `@cmc/ui` · shell `.sh-cta` / add `.sh-cta--ghost` |
+| Button variants (default/secondary/ghost/destructive) | Astryx `Button` via `@cmc/ui` |
 | AlertDialog | `ConfirmDialog` (Astryx AlertDialog) |
 | Dialog | Astryx `Dialog` + `DialogHeader` |
 | Toast / sonner | **TO BUILD** `ToastProvider` + `toast()` in `@cmc/ui` |
@@ -143,7 +143,7 @@ Do **not** `npx shadcn add`. Map concepts:
 | Badge | Astryx `Badge` + `StatusBadge` |
 | Tabs | `CmcTabs` |
 | Form labels | Astryx Field + `TextField` / `PasswordInput` |
-| Page layout | `AppFrame` + `SideNav` + `ListPage` / `DetailPage` / `FormPage` |
+| Page layout | `ConsoleNavbar` + `ListPage` / `DetailPage` / `FormPage` |
 | Master-detail | `MasterDetail` |
 | Filter bar | `FilterBar` |
 
@@ -151,20 +151,18 @@ Do **not** `npx shadcn add`. Map concepts:
 
 1. **Toast** — success/error/info, aria-live polite, auto-dismiss 3–5s  
 2. **EmptyState** usage standard — always pass `action` when next step exists  
-3. **Button role CSS** — `.sh-cta--secondary`, `.sh-cta--ghost`  
-4. **useActionMutation** (admin) — loading + toast + optional confirm  
-5. **formatRole / statusLabel** — product language  
-6. Density compact for DataTable / ListPage  
+3. **useActionMutation** (admin) — loading + toast + optional confirm  
+4. **formatRole / statusLabel** — product language  
+5. Density compact for DataTable / ListPage  
 
 ---
 
 ## Layout system
 
 ```text
-AppFrame
-├── SideNav (248px) — modules + permission children
-└── Main
-    ├── Topbar (60px blur) — title | 1 primary | badge | logout secondary
+.o_web_client
+├── ConsoleNavbar (46px)
+└── main.console-main
     └── Content (canvas) — ListPage / FormPage / cockpit grid
 ```
 

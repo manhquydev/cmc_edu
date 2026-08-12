@@ -87,7 +87,7 @@ function ExerciseList() {
               <Text weight="bold" size="sm">{item.title}</Text>
               <Badge label={`Mở — ${item.starReward} sao`} variant="green" />
             </HStack>
-            <Text type="supporting" size="2xs">
+            <Text type="supporting" size="sm">
               Điểm tối đa: {item.maxScore}
               {multi
                 ? ` · Lần phát ${ordinal}/${totalForCatalog} (làm mới, không phải bài cũ)`

@@ -25,6 +25,8 @@
     "test:ui-a11y-roles": "node --test scripts/check-ui-a11y-roles.test.mjs",
     "check:ui-ratchet": "node scripts/ui-ratchet.mjs",
     "test:ui-ratchet": "node --test scripts/ui-ratchet.test.mjs",
+    "check:doc-authority": "node scripts/check-doc-authority.mjs",
+    "test:doc-authority": "node --test scripts/check-doc-authority.test.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

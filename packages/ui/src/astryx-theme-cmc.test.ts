@@ -13,11 +13,14 @@ describe('Astryx CMC theme bridge', () => {
     expect(css).not.toMatch(/--radius-inner\s*:/);
   });
 
-  it('pins every Astryx --font-size-* step to a real CMC type-scale token', () => {
-    // console.css and Astryx both declare a custom property literally named
-    // --font-size-lg (etc) — left unmapped, Astryx text inside .o_web_client
-    // silently inherits console.css's Odoo value via plain name collision,
-    // not deliberate CMC theming. Every step must be pinned explicitly.
+  it('declares every Astryx --font-size-* step for surfaces outside the admin shell', () => {
+    // Inside .o_web_client (admin), console.css sets these properties on the
+    // element itself, so they win over the theme ancestor — that cascade is
+    // pinned in console-precedence.test.ts.
+    // Outside the shell (LMS), these CMC mappings are what resolve. Declaring
+    // them here keeps the LMS type scale from silently falling through to
+    // Astryx defaults. They do not, and cannot, override console.css inside
+    // the admin shell: .o_web_client is nested in [data-astryx-theme].
     for (const step of ['4xs', '3xs', '2xs', 'xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl']) {
       expect(css).toMatch(new RegExp(`--font-size-${step}\\s*:`));
     }

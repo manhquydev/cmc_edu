@@ -133,7 +133,7 @@ function SimpleTable({
                   borderBottom: '1px solid var(--cmc-border)',
                   fontWeight: 600,
                   fontSize: 'var(--cmc-fs-meta)',
-                  color: 'var(--cmc-text-supporting)',
+                  color: 'var(--cmc-text-muted)',
                 }}
               >
                 {h}

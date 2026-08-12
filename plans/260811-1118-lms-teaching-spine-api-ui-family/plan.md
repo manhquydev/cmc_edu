@@ -1,7 +1,7 @@
 ---
 title: "LMS teaching spine API UI family"
 description: "Plan 2/3: class engine full, enrollment ops, family auth, attendance/journal, exercise delivery, teacher/admin/family UI. Blocked by foundation spike."
-status: completed
+status: in_progress
 priority: P1
 effort: "4–6 tuần"
 tags: [lms, teaching, family, ui]
@@ -54,10 +54,18 @@ Daily teaching loop on monorepo without money bridge yet (admin can grant units 
 
 ## Success criteria
 
-- [x] Teacher can run teaching loop on monorepo APIs/UI spines (staging UAT still human)  
-- [x] Family can homework when entitled (open-tier default; delivery when flag off)  
+- [ ] Teacher can run teaching loop on monorepo APIs/UI spines (staging UAT still human) — **PARTIAL**: API loop có; thiếu UI grant/archive/sequence; staging teaching-day chưa chạy
+- [ ] Family can homework when entitled (open-tier default; delivery when flag off) — **PARTIAL**: `LMS_ENTITLEMENT_GATE` default OFF nên "when entitled" chưa có hiệu lực
 - [x] Open-tier path flag-off ready  
 - [x] Server kill-switch for dual homework models  
+
+> **Đính chính 2026-08-12.** Plan này từng khai `status: completed`. Đo lại bằng code
+> (`plans/reports/review-260812-1407-lms-merge-thuc-trang.md`) cho thấy `phase-07` success
+> criteria vẫn `[ ]` ngay trong file của nó, và **phase-04 không gộp PH/HS** — Notes của
+> chính phase đó ghi "Parent login remains OTP-primary; student password path exists".
+> Chủ hệ thống đã chốt mô hình tài khoản gia đình ngày 2026-08-12
+> (`plans/reports/decisions-owner-260812-cau-6-7.md`); phần danh tính là việc **chưa làm**,
+> không phải việc đã xong.
 
 ## Progress (2026-08-11 cook)
 

@@ -13,6 +13,8 @@
 > **Updated 2026-08-06 (design3 admin shell):** `apps/admin` production chrome is the **CMC Console** UI language (Odoo-inspired) — root `.o_web_client`, top **ConsoleNavbar** + app-switcher, content in `main.console-main`. `AppFrame`/`SideNav` are **not** used on admin; LMS uses `apps/lms/src/app.css` (`lms-*`; `premium.css` deleted). Design authority: `docs/design-system-console.md`. Lab route `/design3` was deleted after promote.
 >
 > **Updated 2026-08-07 (FilterBar + list search + ui-e2e):** G1 **FilterBar** is the list filter host on ControlBar (debounced text; select `hasClear` for default-domain filters). Optional tRPC **`search`** on major list procedures (users, facilities, courses, classBatch, pickList, grading queue, …). ListPage FilterBar adoption ~**20/23** (holdouts: leaderboard, class-placement, refund). **CI:** `typecheck-and-test` + `ui-e2e` green on `develop` PR #75 (`eaa223a`). **Acceptance re-measure** @ same SHA (CI journey artifact, `gitDirty:false`): **31/38 proven**, 7 `no-ui-path` — no journey regression from FilterBar ship. Evidence: `plans/reports/ship-20260807-filterbar-search.md`, `plans/reports/cook-260807-0902-design3-validation-acceptance.md`. Still open: human visual smoke; 6 untriaged API orphans (pre-existing tool exit 1).
+>
+> **Updated 2026-08-12 (truth sync — post P1 wave / PR #110 + hardening):** Required CI on **develop and main** (branch-protected): **`typecheck-and-test` + `ui-e2e`** both block merge (since 2026-08-02; not advisory). Acceptance ledger is a **measured snapshot** — live source is always `pnpm acceptance:report` + latest CI `ui-e2e` journey artifact. Snapshot after P1-08 journey + form-depth/LMS-foundation wave: **36/42 flows proven** (was 31/38 in older photos; manifest/journey count evolved). Residual dual-HITL UI: teaching exercises list only (GAP #3). See `plans/reports/scout-260812-1054-develop-consolidated-state.md` and `plans/reports/INDEX-live-260812.md`.
 
 ---
 
@@ -457,7 +459,7 @@ if (!canApprove) throw forbidden('Insufficient role for approval.');
 - Branches: ≥80%  
 - Special: finance ≥90/80, provisioning ≥90/75
 
-**CI Integration:** chỉ job `typecheck-and-test` chặn merge (typecheck → lint → unit/integration RLS → gate coverage payroll). Các job `e2e`, `ui-e2e`, `acceptance:report` và drift ma trận màn×vai chạy **cảnh báo** (`continue-on-error: true`), chưa chặn merge — xem `.github/workflows/ci.yml`.
+**CI Integration (as-built 2026-08-12):** **Required checks that block merge** on `develop` and `main` (branch protection): **`typecheck-and-test`** (typecheck → lint → unit/integration RLS → payroll gate coverage) **and `ui-e2e`**. Both have blocked since **2026-08-02**. Other jobs (`e2e` API, `acceptance:report` tool exit, screen×role drift) may still warn without blocking — see `.github/workflows/` and `AGENTS.md`.
 
 **Test Organization:**
 - `*.test.ts` colocated with source  
@@ -472,7 +474,7 @@ if (!canApprove) throw forbidden('Insufficient role for approval.');
 |-----------|--------|--------|--------|
 | **Real OAuth2/SSO** | Stub (fail-closed) | Auth only; no tenant isolation risk | P2+ |
 | **Email/SMS Transport** | ConsoleTransport (dev); Brevo/Graph impl ready | Parents don't receive emails until env wired | Comms phase |
-| **LMS Frontend** | Not started | No user-facing enrollment | Frontend phase |
+| **LMS Frontend** | **Shipped** (`apps/lms` SPA: parent OTP + student password, exercises, gifts, parent evidence/report) | Not a greenfield; residual: unit-range UX, full teaching dual-gate for homework flag, Brevo OTP ops | Evolve parity with foundation ADR 0045 |
 | **Admin Dashboard** | Facility management built (PR #34) | Super-admin CRUD + audit log viewer live | Complete (M0) |
 | **MCP Server SDK** | Skeleton (stub comment) | Protocol/tool metadata; real transport TBD | Agent phase (TBD) |
 | **LLM Client** | Built & tested (packages/llm) | OpenAI-compatible client + PII guard | Complete (M0) |
@@ -503,20 +505,19 @@ if (!canApprove) throw forbidden('Insufficient role for approval.');
 
 ---
 
-## CI & Security (as of 2026-08-02)
+## CI & Security (as of 2026-08-12)
 
 **Continuous Integration:**
-- **Blocking Gate:** `typecheck-and-test` (TypeScript validation + pnpm test suite)
-- **UI e2e:** `ui-e2e` runs on all pushes (continue-on-error; see PROMOTION_CRITERIA in .github/workflows/ci.yml)
-  - **Status 2026-08-02:** ui-chromium 40/40 specs green in CI — first genuinely-green run after regression fix #46
-  - All 31/38 journey UI flows + 9 regression/API specs restored after commit 01f6e4c tightened contracts
+- **Required (block merge) on develop + main:** `typecheck-and-test` **and** `ui-e2e` (both enforced since 2026-08-02 branch protection; re-confirmed 2026-08-12)
+- **UI e2e:** full `ui-chromium` project + business money/state gate; journey ledger feeds acceptance photos
+  - Acceptance counts in docs are **snapshots** — re-measure with `pnpm acceptance:report` + CI artifact (e.g. post P1 wave photo **36/42** proven)
 - **Security Scanning:**
   - **GitHub native:** Secret scanning + push protection enabled; `.gitleaks.toml` configured (0 real secrets, 2 test-fixture false-positives allowlisted)
   - **Dependabot:** `.github/dependabot.yml` configured (auto-pull minor/patch; manual review for majors)
   - **Trivy (IaC):** Report-only config/misconfig scan over Dockerfile/compose/nginx (`.github/workflows/ci.yml` security-scan job); continue-on-error, not blocking
   - **CodeQL:** GitHub default setup enabled (javascript-typescript + actions) — first scan 2026-08-02: 20 alerts triaged (6 HIGH false-positive/by-design, 4 MEDIUM workflow-permission real, 10 LOW)
 - **Pre-commit:** Husky + lint-staged; eslint scoped via eslint.config.js (one-door @cmc/ui rule)
-- **Branch Protection:** main requires `typecheck-and-test` check (enforced 2026-08-02, PR #39)
+- **Branch Protection:** develop **and** main require `typecheck-and-test` + `ui-e2e`
 - **Dependency Hardening:**
   - pnpm overrides patch fast-uri + brace-expansion HIGH advisories (no direct upgrade path)
   - GitHub Actions SHA-pinned in ci.yml (no @v4 refs; explicit commit SHAs)
@@ -647,5 +648,5 @@ This implementation strictly follows the frozen design:
 
 ---
 
-**Last Updated:** 2026-08-02 (security guardrails #39 + ui-e2e regression fix #46 + branch protection + CI/security section)  
+**Last Updated:** 2026-08-12 (truth sync: CI dual required checks, LMS SPA shipped, acceptance snapshot 36/42 note, ADR banners via docs/truth-sync-adr-index)  
 **Aligns with:** main branch commit c9af5f1

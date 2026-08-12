@@ -4,7 +4,15 @@ Date: 2026-07-05
 
 ## Status
 
-Accepted (formalize `lib/exercise-open.ts`).
+Accepted (formalize `lib/exercise-open.ts` / `apps/api/src/exercise/open-tier.ts`).
+
+> **Status sync 2026-08-12 (as-built):** Tier A/B below remains the **default** homework open path when
+> `LMS_OPEN_TIER_ENABLED` is on (default). Extensions live in code:
+> - **Kill-switch** `LMS_OPEN_TIER_ENABLED=0|false|off` → open set comes from **SessionExercise delivery**
+>   (`lms-ops/exercise-delivery`), not Tier A/B.
+> - **Optional dual-gate on homework** `LMS_ENTITLEMENT_GATE=1|true|on` (default **off**) intersects open
+>   units with `EnrollmentUnitRange` — see [ADR 0045](./0045-course-unit-entitlement-and-dual-gates.md).
+>   Production homework dual-gate is **deferred** until flag defaults on + product OK.
 
 ## Context
 

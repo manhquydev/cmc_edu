@@ -459,11 +459,27 @@ export interface SeedClassBatchOptions {
  * (default package size 4, plus renewals) do not fail with
  * "orderGlobal N is not in program …".
  */
+/**
+ * Default framework level code for synthetic test units (CSV-verbatim, not a rank).
+ * UCREA starts at `U2`; Bright I.G / Black Hole use their first CSV bands.
+ */
+function defaultFrameworkLevel(program: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE'): string {
+  switch (program) {
+    case 'UCREA':
+      return 'U2';
+    case 'BRIGHT_IG':
+      return 'J';
+    case 'BLACK_HOLE':
+      return 'B';
+  }
+}
+
 export async function ensureProgramUnitAxis(
   program: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE' = 'UCREA',
   maxOrder = 16,
 ): Promise<{ id: string; orderGlobal: number }[]> {
   const out: { id: string; orderGlobal: number }[] = [];
+  const level = defaultFrameworkLevel(program);
   for (let orderGlobal = 1; orderGlobal <= maxOrder; orderGlobal++) {
     const existing = await testDb().curriculumUnit.findUnique({
       where: { program_orderGlobal: { program, orderGlobal } },
@@ -476,7 +492,7 @@ export async function ensureProgramUnitAxis(
     const created = await testDb().curriculumUnit.create({
       data: {
         program,
-        level: 1,
+        level,
         monthIndex: Math.min(orderGlobal, 12),
         unitType: 'LESSON',
         title: `Test ${program} unit ${orderGlobal}`,
@@ -546,7 +562,11 @@ export async function seedClassBatch(
 
 export interface SeedCurriculumUnitOptions {
   program?: 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE';
-  level?: number;
+  /**
+   * Framework level code (CSV-verbatim), e.g. `U2`, `U3`, `J`, `G`, `B`, `P`.
+   * Defaults to the program's first band (`U2` / `J` / `B`) — not a numeric rank.
+   */
+  level?: string;
   monthIndex?: number;
   unitType?: 'LESSON' | 'REVIEW';
   title?: string;
@@ -577,7 +597,7 @@ export async function seedCurriculumUnit(
   const row = await testDb().curriculumUnit.create({
     data: {
       program,
-      level: opts.level ?? 1,
+      level: opts.level ?? defaultFrameworkLevel(program),
       monthIndex: opts.monthIndex ?? orderGlobal,
       unitType: opts.unitType ?? 'LESSON',
       title: opts.title ?? `Seed Unit ${randomUUID().slice(0, 8)}`,
@@ -605,19 +625,20 @@ export interface SeedClassSessionOptions {
   facilityId: string;
   classBatchId: string;
   curriculumUnitId?: string | null;
-  isMakeup?: boolean;
   status?: 'planned' | 'confirmed' | 'cancelled' | 'done';
   sessionDate?: Date;
   startTime?: Date;
   endTime?: Date;
+  /** When omitted, leaves `scheduleSlotId` null (ad-hoc / open-tier seed). */
+  scheduleSlotId?: string | null;
 }
 
 /** T2-II (open-tier / grading tests): seeds a plain `ClassSession` directly
- * (bypasses generation), with the extra knobs (`curriculumUnitId`,
- * `isMakeup`, `endTime`) ADR 0038's Tier A/B gate reads. */
+ * (bypasses generation), with the extra knobs (`curriculumUnitId`, `endTime`)
+ * ADR 0038 Tier A reads. */
 export async function seedClassSession(
   opts: SeedClassSessionOptions,
-): Promise<{ id: string; classBatchId: string; curriculumUnitId: string | null; isMakeup: boolean; status: string }> {
+): Promise<{ id: string; classBatchId: string; curriculumUnitId: string | null; status: string }> {
   return testDbBypass((tx) =>
     tx.classSession.create({
       data: {
@@ -627,10 +648,10 @@ export async function seedClassSession(
         startTime: opts.startTime ?? new Date('2026-08-03T11:00:00.000Z'),
         endTime: opts.endTime ?? new Date('2026-08-03T12:30:00.000Z'),
         status: opts.status ?? 'planned',
-        isMakeup: opts.isMakeup ?? false,
         curriculumUnitId: opts.curriculumUnitId ?? null,
+        ...(opts.scheduleSlotId !== undefined ? { scheduleSlotId: opts.scheduleSlotId } : {}),
       },
-      select: { id: true, classBatchId: true, curriculumUnitId: true, isMakeup: true, status: true },
+      select: { id: true, classBatchId: true, curriculumUnitId: true, status: true },
     }),
   );
 }
@@ -643,7 +664,7 @@ export interface SeedActiveEnrollmentOptions {
    * Plan 2 dual-gate: when a session is unit-stamped, attendance.mark requires
    * EnrollmentUnitRange cover. Default is no range (tests that grant ranges
    * explicitly stay free of accidental overlap). Pass a range when the helper
-   * is used as a dual-gate-ready active student (e.g. open-tier Tier B mark).
+   * is used as a dual-gate-ready active student.
    */
   unitRange?: { fromOrderGlobal: number; toOrderGlobal: number };
 }

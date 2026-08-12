@@ -1,23 +1,20 @@
 // exercise.openForStudent / exercise.listForStudent — T2-II (US-015, docs/26
-// WF-P2-03, ADR 0038 verbatim, TL19 §4).
+// WF-P2-03, ADR 0038 Tier A, TL19 §4).
 //
-// ADR 0038 decision, restated:
+// Open-tier decision, restated:
 //   - Base: Exercise `status = published` AND student is NOT `blocked_lms`.
 //   - Tier A (opens for the whole batch): a `curriculumUnitId` opens when a
-//     NON-makeup ClassSession teaching that unit has ENDED — the ICT wall-
-//     clock `endTime` (already stored as the correct UTC instant by
+//     ClassSession teaching that unit has ENDED — the ICT wall-clock
+//     `endTime` (already stored as the correct UTC instant by
 //     ../class/ict-time.ts) is in the past, and the session is not
 //     `cancelled`.
-//   - Tier B (opens ONLY for one student): a MAKEUP ClassSession the student
-//     attended `present`/`late` opens that unit for THAT student alone,
-//     keyed on `Attendance.studentId` — it never opens the unit for the rest
-//     of the batch (a makeup session teaches one absent student, not the
-//     class).
+// Makeup Tier B is intentionally removed: the product no longer creates
+// makeup sessions, so attendance-on-makeup is dead code.
 // `Exercise`/`CurriculumUnit` are GLOBAL tables (no facilityId, no RLS — QĐ
-// 0021/0022); `Enrollment`/`ClassSession`/`Attendance` are facility-scoped —
-// this module resolves the student's OWN facility first, then runs the
-// facility-scoped lookups through `withFacility` (never a bypass — a
-// student's open-tier gate is always evaluated within their own facility).
+// 0021/0022); `Enrollment`/`ClassSession` are facility-scoped — this module
+// resolves the student's OWN facility first, then runs the facility-scoped
+// lookups through `withFacility` (never a bypass — a student's open-tier
+// gate is always evaluated within their own facility).
 
 import type { PrismaClient, Prisma } from '@cmc/db';
 import { withFacility } from '@cmc/db';
@@ -87,9 +84,9 @@ export function isEntitlementGateOnOpenTier(): boolean {
   return v === '1' || v === 'true' || v === 'on';
 }
 
-/** ADR 0038 Tier A + Tier B, resolved to the set of `curriculumUnitId`s open
- * for `studentId` right now. Empty set for a `blocked_lms` student (the base
- * condition) without running either tier's query. */
+/** ADR 0038 Tier A, resolved to the set of `curriculumUnitId`s open for
+ * `studentId` right now. Empty set for a `blocked_lms` student (the base
+ * condition) without running the tier query. */
 async function resolveOpenCurriculumUnitIds(
   tx: Prisma.TransactionClient,
   student: LmsStudent,
@@ -98,7 +95,7 @@ async function resolveOpenCurriculumUnitIds(
     return new Set();
   }
   // When open-tier kill-switch is OFF, homework opens only via SessionExercise
-  // delivery (dual-gate roster membership), not ADR 0038 Tier A/B.
+  // delivery (dual-gate roster membership), not ADR 0038 Tier A.
   if (!isOpenTierEnabled()) {
     const { deliveredExerciseIdsForStudent } = await import('../lms-ops/exercise-delivery.js');
     const exerciseIds = await deliveredExerciseIdsForStudent(tx, student);
@@ -125,13 +122,12 @@ async function resolveOpenCurriculumUnitIds(
 
   const openUnitIds = new Set<string>();
 
-  // Tier A: any non-makeup, non-cancelled session in one of this student's
-  // active classes, teaching a unit, that has already ENDED (ICT).
+  // Tier A: any non-cancelled session in one of this student's active classes,
+  // teaching a unit, that has already ENDED (ICT).
   if (classBatchIds.length > 0) {
     const tierASessions = await tx.classSession.findMany({
       where: {
         classBatchId: { in: classBatchIds },
-        isMakeup: false,
         status: { not: 'cancelled' },
         curriculumUnitId: { not: null },
         endTime: { lt: new Date() },
@@ -141,32 +137,6 @@ async function resolveOpenCurriculumUnitIds(
     for (const session of tierASessions) {
       if (session.curriculumUnitId) openUnitIds.add(session.curriculumUnitId);
     }
-  }
-
-  // Tier B: makeup sessions THIS student attended present/late — keyed on
-  // Attendance.studentId, so this query is inherently per-student already
-  // (no batch-wide leak possible from this branch).
-  //
-  // Metric & Data Integrity remediation (scenario audit): mirror Tier A's
-  // `endTime < now` gate — a makeup session marked present in advance (or
-  // live, mid-session) must not open the unit before the session has
-  // actually ended, same reasoning as Tier A.
-  const tierBAttendances = await tx.attendance.findMany({
-    where: {
-      studentId: student.id,
-      status: { in: ['present', 'late'] },
-      classSession: {
-        isMakeup: true,
-        status: { not: 'cancelled' },
-        curriculumUnitId: { not: null },
-        endTime: { lt: new Date() },
-      },
-    },
-    select: { classSession: { select: { curriculumUnitId: true } } },
-  });
-  for (const attendance of tierBAttendances) {
-    const unitId = attendance.classSession.curriculumUnitId;
-    if (unitId) openUnitIds.add(unitId);
   }
 
   if (!entitlementOn || openUnitIds.size === 0) {

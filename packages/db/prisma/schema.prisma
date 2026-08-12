@@ -740,7 +740,6 @@ model ClassSession {
   startTime          DateTime      @db.Timestamptz(3)
   endTime            DateTime      @db.Timestamptz(3)
   status             SessionStatus @default(planned)
-  isMakeup           Boolean       @default(false)
   /// T2-I (`classSession.assignUnit`, docs/26 WF-P2-01 remainder): the
   /// curriculum unit taught in this session. Nullable — not every session has
   /// a unit assigned yet. References the GLOBAL `CurriculumUnit` catalog (no
@@ -750,12 +749,6 @@ model ClassSession {
   /// the session transitioned to `done` — the LATEST of the 3 done-condition
   /// timestamps, frozen once set (a `done` session never re-evaluates).
   doneAt             DateTime?     @db.Timestamptz(3)
-  /// HR remediation phase 1 (R2 #2 — idempotent makeup generation): when this
-  /// session is an auto-generated makeup for a 0-present auto-cancelled
-  /// session, points at that original session. Self-FK, UNIQUE — enforces at
-  /// most one makeup session per original (the sweep worker's idempotency
-  /// guard, phase 7), not a general many-makeups-per-session relation.
-  makeupForSessionId String?       @unique
   createdAt          DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime      @updatedAt @db.Timestamptz(3)
 
@@ -766,11 +759,6 @@ model ClassSession {
   qualitativeAssessments QualitativeAssessment[]
   sessionEvidence        SessionEvidence?
   deliveredExercise      SessionExercise?
-  /// Self 1:1 relation: the original session this row is a makeup for
-  /// (nullable — most sessions are not makeups), and the reverse pointer
-  /// (the makeup session generated FROM this row, if any).
-  makeupForSession       ClassSession?           @relation("SessionMakeup", fields: [makeupForSessionId], references: [id])
-  makeupSession          ClassSession?           @relation("SessionMakeup")
 
   // Re-generate idempotency (WF-P2-01 acceptance: "re-generate không nhân
   // đôi"): at most one session per (classBatch, slot, calendar day).
@@ -789,15 +777,20 @@ model ClassSession {
 /// Curriculum "bài học" catalog (docs/19 §1). **GLOBAL, no `facilityId`, no
 /// RLS** (QĐ 0021) — the curriculum is shared system-wide across every
 /// facility, unlike `Course`/`Room`/`ClassBatch` above.
+/// Source of truth: `prisma/data/CMC_EDU_Khung_Chuong_Trinh.csv` (96 units
+/// after grouping multi-topic CSV rows by program + order_global).
 model CurriculumUnit {
   id          String   @id @default(uuid())
   program     Program
-  level       Int
+  /// Framework level code kept verbatim from CSV (`U2`, `U3`, `J`, `G`, `B`, `P`…).
+  level       String
+  /// 1-based sequence within `(program, level)` — derived at import (CSV has no column).
   monthIndex  Int
   unitType    UnitType
   title       String
-  /// Contiguous teaching order within a program (LMS entitlement axis).
-  /// Unique with program — sold unit ranges store these integers.
+  /// Teaching order within a program (LMS entitlement axis). Stored verbatim
+  /// from CSV `order_global` — sold unit ranges store these integers.
+  /// Unique with program. Gaps are intentional (e.g. Bright I.G review removals).
   orderGlobal Int
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
 

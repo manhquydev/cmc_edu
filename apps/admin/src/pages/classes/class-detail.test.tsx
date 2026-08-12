@@ -10,9 +10,8 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // Also locks the class-management UI gap fix: curriculum-unit assignment
 // (`classSession.assignUnit` — the ONLY writer of `curriculumUnitId`, which
 // gates whether a student can ever open an exercise, class-session-router.ts),
-// the "Thêm buổi bù" makeup-session dialog (`classSession.addMakeup`), and
-// the cancel-session confirmation step (`classSession.cancel` must only fire
-// after the ConfirmDialog confirm click).
+// and the cancel-session confirmation step (`classSession.cancel` must only
+// fire after the ConfirmDialog confirm click).
 const { CLASS, TEACHERS, SESSIONS, UNITS } = vi.hoisted(() => ({
   CLASS: {
     id: 'cb-1',
@@ -33,8 +32,8 @@ const { CLASS, TEACHERS, SESSIONS, UNITS } = vi.hoisted(() => ({
     ],
   },
   SESSIONS: [
-    { id: 'sess-1', sessionDate: '2026-01-05T00:00:00.000Z', startTime: '2026-01-05T08:00:00.000Z', endTime: '2026-01-05T09:00:00.000Z', status: 'done', isMakeup: false, curriculumUnitId: null },
-    { id: 'sess-2', sessionDate: '2026-01-06T00:00:00.000Z', startTime: '2026-01-06T08:00:00.000Z', endTime: '2026-01-06T09:00:00.000Z', status: 'planned', isMakeup: false, curriculumUnitId: null },
+    { id: 'sess-1', sessionDate: '2026-01-05T00:00:00.000Z', startTime: '2026-01-05T08:00:00.000Z', endTime: '2026-01-05T09:00:00.000Z', status: 'done', curriculumUnitId: null },
+    { id: 'sess-2', sessionDate: '2026-01-06T00:00:00.000Z', startTime: '2026-01-06T08:00:00.000Z', endTime: '2026-01-06T09:00:00.000Z', status: 'planned', curriculumUnitId: null },
   ],
   UNITS: {
     items: [
@@ -46,7 +45,6 @@ const { CLASS, TEACHERS, SESSIONS, UNITS } = vi.hoisted(() => ({
 
 const assignTeacherMutate = vi.fn();
 const assignUnitMutate = vi.fn();
-const addMakeupMutate = vi.fn();
 const cancelMutate = vi.fn();
 const pickListSpy = vi.fn();
 
@@ -80,8 +78,6 @@ vi.mock('../../lib/trpc.js', async () => {
         mutationResult({ mutate: (...a: unknown[]) => { cancelMutate(...a); opts?.onSuccess?.(); } }),
       'classSession.assignUnit.useMutation': (opts: { onSuccess?: () => void }) =>
         mutationResult({ mutate: (...a: unknown[]) => { assignUnitMutate(...a); opts?.onSuccess?.(); } }),
-      'classSession.addMakeup.useMutation': (opts: { onSuccess?: () => void }) =>
-        mutationResult({ mutate: (...a: unknown[]) => { addMakeupMutate(...a); opts?.onSuccess?.(); } }),
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -95,7 +91,6 @@ describe('ClassDetailPage', () => {
   beforeEach(() => {
     assignTeacherMutate.mockClear();
     assignUnitMutate.mockClear();
-    addMakeupMutate.mockClear();
     cancelMutate.mockClear();
   });
 
@@ -186,34 +181,5 @@ describe('ClassDetailPage', () => {
     const dialog = screen.getByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
     expect(cancelMutate).not.toHaveBeenCalled();
-  });
-
-  // `classSession.addMakeup` — the only creator of an ad-hoc makeup session.
-  it('opens the makeup-session dialog and calls classSession.addMakeup.mutate with the entered date/time', () => {
-    renderWithProviders(<ClassDetailPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
-    fireEvent.click(screen.getByRole('button', { name: '+ Thêm buổi bù' }));
-
-    // `isRequired` appends a " ∙ Required" badge inside the <label>, so the
-    // accessible name is not an exact match — same reasoning as
-    // finance/receipt-create.test.tsx's `/^Họ tên học viên/` pattern.
-    fireEvent.change(screen.getByLabelText(/^Ngày \(YYYY-MM-DD\)/), { target: { value: '2026-02-01' } });
-    fireEvent.change(screen.getByLabelText(/^Giờ bắt đầu \(HH:mm\)/), { target: { value: '18:00' } });
-    fireEvent.change(screen.getByLabelText(/^Giờ kết thúc \(HH:mm\)/), { target: { value: '19:30' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm buổi bù' }));
-
-    expect(addMakeupMutate).toHaveBeenCalledWith({
-      classBatchId: 'cb-1',
-      sessionDate: '2026-02-01',
-      startTime: '18:00',
-      endTime: '19:30',
-    });
-  });
-
-  it('disables the makeup-session submit button until date/time are validly filled', () => {
-    renderWithProviders(<ClassDetailPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
-    fireEvent.click(screen.getByRole('button', { name: '+ Thêm buổi bù' }));
-    expect(screen.getByRole('button', { name: 'Thêm buổi bù' })).toBeDisabled();
   });
 });

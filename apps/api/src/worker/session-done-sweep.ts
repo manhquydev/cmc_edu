@@ -49,9 +49,7 @@ export async function runDoneSweep(db: PrismaClient, now: Date = new Date()): Pr
 
 export interface CancelSweepOutcome {
   sessionId: string;
-  /** Always null after Plan 2 no-makeup cutover (field kept for callers). */
-  makeupSessionId: string | null;
-  /** Always false — makeup/tail-append removed. */
+  /** Always false — room conflict only applied to the removed makeup path. */
   roomConflict: boolean;
   restamped: number;
 }
@@ -149,7 +147,6 @@ async function cancelZeroPresentWithRestamp(
         facilityId: session.facilityId,
         classBatchId: session.classBatchId,
         restamped,
-        makeup: false,
       },
     },
   });
@@ -186,7 +183,6 @@ async function cancelZeroPresentWithRestamp(
 
   return {
     sessionId,
-    makeupSessionId: null,
     roomConflict: false,
     restamped,
   };

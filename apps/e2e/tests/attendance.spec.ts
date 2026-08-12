@@ -1,11 +1,14 @@
 // Critical-path e2e #2 (docs/26 phase-02, TL19 §5): GĐĐT creates a class +
-// session, a teacher marks attendance on a valid session (gate 1 pass), and
-// marking a cancelled session is rejected (gate 1 BAD_REQUEST). The active
-// Enrollment this exercises is seeded directly (../src/db.ts's
-// `seedActiveEnrollment`) rather than re-running the full CRM/receipt
-// pipeline — that pipeline is already covered end to end by
+// weekly sessions, a teacher marks attendance on a valid planned session
+// (gate 1 pass), and marking a cancelled session is rejected (gate 1
+// BAD_REQUEST). The active Enrollment this exercises is seeded directly
+// (../src/db.ts's `seedActiveEnrollment`) rather than re-running the full
+// CRM/receipt pipeline — that pipeline is already covered end to end by
 // ./enrollment.spec.ts; this spec's job is the attendance gate + session
 // lifecycle, same scoping apps/api/src/attendance/gate.test.ts uses.
+//
+// Sessions come from classBatch.create's auto weekly materialization
+// (schedule slots) — not ad-hoc makeup sessions (product removed that path).
 
 import { test, expect } from '@playwright/test';
 import { TRPCClientError } from '@trpc/client';
@@ -35,6 +38,7 @@ test.describe('attendance marking + session lifecycle', () => {
     });
 
     const course = await gddt.course.create.mutate({ program: 'UCREA', name: 'E2E Attendance Course' });
+    // Saturday slot across August → several weekly planned sessions.
     const classBatch = await gddt.classBatch.create.mutate({
       courseId: course.id,
       startDate: '2026-08-01',
@@ -43,22 +47,17 @@ test.describe('attendance marking + session lifecycle', () => {
       slots: [{ weekday: 6, startTime: '08:00', endTime: '09:00' }],
     });
     const classBatchId = classBatch.classBatch.id;
+    expect(classBatch.sessionsCreated).toBeGreaterThanOrEqual(2);
 
-    const validSession = await gddt.classSession.addMakeup.mutate({
-      classBatchId,
-      sessionDate: '2026-08-10',
-      startTime: '08:00',
-      endTime: '09:00',
-    });
+    const sessions = await gddt.classSession.list.query({ classBatchId });
+    const planned = sessions.filter((s) => s.status === 'planned');
+    expect(planned.length).toBeGreaterThanOrEqual(2);
+
+    const validSession = planned[0]!;
+    const toCancel = planned[1]!;
     expect(validSession.status).toBe('planned');
 
-    const cancelledSession = await gddt.classSession.addMakeup.mutate({
-      classBatchId,
-      sessionDate: '2026-08-11',
-      startTime: '08:00',
-      endTime: '09:00',
-    });
-    const cancelled = await gddt.classSession.cancel.mutate({ sessionId: cancelledSession.id });
+    const cancelled = await gddt.classSession.cancel.mutate({ sessionId: toCancel.id });
     expect(cancelled.status).toBe('cancelled');
 
     const { enrollmentId } = await seedActiveEnrollment({ facilityId, classBatchId });
@@ -73,7 +72,7 @@ test.describe('attendance marking + session lifecycle', () => {
     let caughtError: unknown;
     try {
       await teacher.attendance.mark.mutate({
-        sessionId: cancelledSession.id,
+        sessionId: cancelled.id,
         enrollmentId,
         status: 'present',
       });

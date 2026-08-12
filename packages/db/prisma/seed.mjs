@@ -24,6 +24,7 @@ import {
   SYNTHETIC_SEED_FACILITY_NAME,
   SYNTHETIC_SEED_FACILITY_CODE,
 } from './seed-constants.mjs';
+import { importCurriculumUnits } from './import-curriculum-units.mjs';
 
 // Idempotent find-or-create by name. `code` (system-wide unique, NOT NULL, no
 // DB default since migration 20260706170000) MUST be supplied on a direct
@@ -61,34 +62,14 @@ async function main() {
   }
 }
 
-// T2-I (docs/19 §1, QĐ 0021): a minimal UCREA unit set so
-// `classSession.assignUnit`/`exercise.create` have something real to
-// reference in dev/manual smoke-testing. CurriculumUnit is a GLOBAL catalog
-// (no facilityId) — idempotent by "does any row already exist" (unlike the
-// facility seed above, there is no natural unique field to find-or-create by).
+// Full framework catalog from prisma/data/CMC_EDU_Khung_Chuong_Trinh.csv
+// (96 units after grouping multi-topic rows). GLOBAL, no facilityId (QĐ 0021).
+// Idempotent upsert on (program, orderGlobal) — see import-curriculum-units.mjs.
 async function seedCurriculumUnits(db) {
-  // Cover LMS_DEFAULT_UNIT_COUNT_ON_RECEIPT (default 4) for UCREA grants.
-  const rows = [
-    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'Bài 1: Làm quen', orderGlobal: 1 },
-    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'Bài 2', orderGlobal: 2 },
-    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'Bài 3', orderGlobal: 3 },
-    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'Bài 4', orderGlobal: 4 },
-  ];
-  let created = 0;
-  for (const row of rows) {
-    const existing = await db.curriculumUnit.findUnique({
-      where: { program_orderGlobal: { program: row.program, orderGlobal: row.orderGlobal } },
-      select: { id: true },
-    });
-    if (existing) continue;
-    await db.curriculumUnit.create({ data: row });
-    created += 1;
-  }
-  const total = await db.curriculumUnit.count({ where: { program: 'UCREA' } });
+  const result = await importCurriculumUnits(db);
   console.log(
-    created > 0
-      ? `Seeded ${created} CurriculumUnit rows (UCREA total ${total}).`
-      : `CurriculumUnit UCREA 1–4 already present (total ${total}).`,
+    `CurriculumUnit seed: created=${result.created} updated=${result.updated} ` +
+      `total=${result.total} (UCREA=${result.counts.UCREA} BRIGHT_IG=${result.counts.BRIGHT_IG} BLACK_HOLE=${result.counts.BLACK_HOLE}).`,
   );
 }
 

@@ -8,10 +8,7 @@ import {
   CmcTabs,
   ConfirmDialog,
   DataTable,
-  DateField,
   DetailPage,
-  Dialog,
-  DialogHeader,
   EmptyState,
   EntityHeader,
   HighlightStrip,
@@ -25,7 +22,6 @@ import {
   Stack,
   StatusBadge,
   Text,
-  TimeField,
   WorkflowStatusbar,
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
@@ -68,9 +64,6 @@ function classStatusSteps(status: string): {
         : 0;
   return { steps, activeIndex };
 }
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 // HR remediation phase 5 (R2 #C5): teacher picker — AppUser role giao_vien.
 function TeacherPicker({ classBatchId, currentTeacherId }: { classBatchId: string; currentTeacherId: string | null }) {
@@ -175,7 +168,6 @@ interface SessionTabRow {
   startTime: string | Date;
   endTime: string | Date;
   status: string;
-  isMakeup: boolean;
   curriculumUnitId: string | null;
   [key: string]: unknown;
 }
@@ -183,7 +175,7 @@ interface SessionTabRow {
 interface CurriculumUnitRow {
   id: string;
   program: string;
-  level: number;
+  level: string;
   monthIndex: number;
   unitType: string;
   title: string;
@@ -261,29 +253,6 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
     },
   });
 
-  const [makeupOpen, setMakeupOpen] = useState(false);
-  const [makeupForm, setMakeupForm] = useState({ sessionDate: '', startTime: '', endTime: '' });
-  const addMakeupMut = trpc.classSession.addMakeup.useMutation({
-    onSuccess: () => {
-      void utils.classSession.list.invalidate({ classBatchId });
-      setMakeupOpen(false);
-      setMakeupForm({ sessionDate: '', startTime: '', endTime: '' });
-    },
-  });
-
-  function closeMakeupDialog() {
-    if (addMakeupMut.isPending) return;
-    setMakeupOpen(false);
-    setMakeupForm({ sessionDate: '', startTime: '', endTime: '' });
-    addMakeupMut.reset();
-  }
-
-  const makeupValid =
-    DATE_RE.test(makeupForm.sessionDate) &&
-    TIME_RE.test(makeupForm.startTime) &&
-    TIME_RE.test(makeupForm.endTime) &&
-    makeupForm.startTime < makeupForm.endTime;
-
   const units = ((unitsData?.items ?? []) as CurriculumUnitRow[]);
   const unitOptions = units
     .filter((u) => !program || u.program === program)
@@ -333,10 +302,7 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
       render: (v, row) =>
         dim(
           row.status,
-          <HStack gap={0.5}>
-            <Badge label={String(v)} variant={SESSION_STATUS_VARIANT[String(v)] ?? 'neutral'} />
-            {row.isMakeup && <Badge label="makeup" variant="warning" />}
-          </HStack>,
+          <Badge label={String(v)} variant={SESSION_STATUS_VARIANT[String(v)] ?? 'neutral'} />,
         ),
     },
     {
@@ -396,13 +362,9 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
   return (
     <div style={{ padding: 'var(--cmc-space-3)' }}>
       <Stack gap={2}>
-        <HStack justify="between" align="center">
-          <Text type="supporting" size="xsm">
-            Buổi học được sinh tự động khi tạo lớp (theo khung giờ đã chọn). Dùng nút bên phải để thêm buổi bù
-            phát sinh ngoài lịch.
-          </Text>
-          <Button label="+ Thêm buổi bù" size="sm" variant="secondary" onClick={() => setMakeupOpen(true)} />
-        </HStack>
+        <Text type="supporting" size="xsm">
+          Buổi học được sinh tự động khi tạo lớp (theo khung giờ đã chọn).
+        </Text>
 
         {cancelError && (
           <Banner status="error" title="Lỗi huỷ buổi học" description={cancelError} />
@@ -413,86 +375,20 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
           data={(data as SessionTabRow[] | undefined) ?? []}
           loading={isLoading}
           error={error?.message}
-          empty='Chưa có buổi học nào. Dùng nút "+ Thêm buổi bù" để thêm một buổi.'
+          empty="Chưa có buổi học nào."
         />
       </Stack>
 
       <ConfirmDialog
         opened={cancelTarget !== null}
         title="Huỷ buổi học"
-        message="Huỷ buổi học này? Buổi đã huỷ không tính điểm danh; unit các buổi còn lại sẽ được restamp (không tạo buổi bù)."
+        message="Huỷ buổi học này? Buổi đã huỷ không tính điểm danh; unit các buổi còn lại sẽ được restamp."
         confirmLabel="Huỷ buổi"
         confirmColor="red"
         loading={cancelMut.isPending}
         onConfirm={() => cancelTarget && cancelMut.mutate({ sessionId: cancelTarget })}
         onCancel={() => setCancelTarget(null)}
       />
-
-      {/* Makeup session dialog — `classSession.addMakeup` (isMakeup=true),
-          scoped to this batch's own room (server resolves it, not the form). */}
-      <Dialog
-        isOpen={makeupOpen}
-        onOpenChange={(next) => {
-          if (!next) closeMakeupDialog();
-        }}
-        purpose="form"
-        width={400}
-      >
-        <DialogHeader
-          title="Thêm buổi bù"
-          onOpenChange={(next) => {
-            if (!next) closeMakeupDialog();
-          }}
-        />
-        <Stack gap={2} padding={4}>
-          <DateField
-            label="Ngày (YYYY-MM-DD)"
-            value={makeupForm.sessionDate}
-            onChange={(v) => setMakeupForm((f) => ({ ...f, sessionDate: v }))}
-          />
-          <HStack gap={1}>
-            <div style={{ flex: 1 }}>
-              <TimeField
-                label="Giờ bắt đầu (HH:mm)"
-                value={makeupForm.startTime}
-                onChange={(v) => setMakeupForm((f) => ({ ...f, startTime: v }))}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <TimeField
-                label="Giờ kết thúc (HH:mm)"
-                value={makeupForm.endTime}
-                onChange={(v) => setMakeupForm((f) => ({ ...f, endTime: v }))}
-              />
-            </div>
-          </HStack>
-          {addMakeupMut.error && (
-            <Banner status="error" title="Lỗi thêm buổi bù" description={addMakeupMut.error.message} />
-          )}
-          <HStack justify="end" gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
-            <Button
-              label="Hủy"
-              variant="secondary"
-              onClick={closeMakeupDialog}
-              isDisabled={addMakeupMut.isPending}
-            />
-            <Button
-              label="Thêm buổi bù"
-              variant="primary"
-              isLoading={addMakeupMut.isPending}
-              isDisabled={!makeupValid}
-              onClick={() =>
-                addMakeupMut.mutate({
-                  classBatchId,
-                  sessionDate: makeupForm.sessionDate,
-                  startTime: makeupForm.startTime,
-                  endTime: makeupForm.endTime,
-                })
-              }
-            />
-          </HStack>
-        </Stack>
-      </Dialog>
     </div>
   );
 }

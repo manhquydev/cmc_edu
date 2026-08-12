@@ -12,7 +12,6 @@ const SESSION = {
   startTime: '2026-08-03T11:00:00.000Z',
   endTime: '2026-08-03T12:30:00.000Z',
   status: 'confirmed',
-  isMakeup: false,
   curriculumUnitId: null,
   batchCode: 'CMC-UCREA-001',
   program: 'UCREA',

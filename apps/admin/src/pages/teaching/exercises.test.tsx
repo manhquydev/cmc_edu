@@ -9,7 +9,7 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 interface UnitItem {
   id: string;
   program: string;
-  level: number;
+  level: string;
   monthIndex: number;
   title: string;
 }

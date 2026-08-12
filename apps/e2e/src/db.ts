@@ -775,16 +775,16 @@ export async function ensureUcreaCurriculumAxis(): Promise<void> {
   const db = getDb();
   const rows: Array<{
     program: 'UCREA';
-    level: number;
+    level: string;
     monthIndex: number;
     unitType: 'LESSON';
     title: string;
     orderGlobal: number;
   }> = [
-    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 1', orderGlobal: 1 },
-    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 2', orderGlobal: 2 },
-    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 3', orderGlobal: 3 },
-    { program: 'UCREA', level: 1, monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 4', orderGlobal: 4 },
+    { program: 'UCREA', level: 'U2', monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 1', orderGlobal: 1 },
+    { program: 'UCREA', level: 'U2', monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 2', orderGlobal: 2 },
+    { program: 'UCREA', level: 'U2', monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 3', orderGlobal: 3 },
+    { program: 'UCREA', level: 'U2', monthIndex: 1, unitType: 'LESSON', title: 'E2E UCREA 4', orderGlobal: 4 },
   ];
   for (const row of rows) {
     const existing = await db.curriculumUnit.findUnique({
@@ -814,7 +814,7 @@ export async function seedCurriculumUnit(title?: string): Promise<{ unitId: stri
   const unit = await getDb().curriculumUnit.create({
     data: {
       program: 'UCREA',
-      level: 1,
+      level: 'U2',
       monthIndex: 1,
       unitType: 'LESSON',
       title: unitTitle,

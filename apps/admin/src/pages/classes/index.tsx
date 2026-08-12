@@ -326,7 +326,7 @@ function ClassListContent() {
     program: string;
     title: string;
     orderGlobal: number;
-    level: number;
+    level: string;
     monthIndex: number;
   }>)
     .filter((u) => selectedCourseProgram != null && u.program === selectedCourseProgram)

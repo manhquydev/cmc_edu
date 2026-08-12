@@ -25,7 +25,12 @@ const exerciseTypeSchema = z.enum(['homework', 'test_entrance', 'test_periodic']
 export interface CurriculumUnitDto {
   id: string;
   program: string;
-  level: number;
+  /**
+   * Framework level code kept verbatim from the curriculum CSV
+   * (e.g. UCREA `U2`/`U3`/`U4`, Bright I.G `J`/`C`/…, Black Hole `B`/`G`/`P`/`R`).
+   * Not a numeric rank — sequence within a level is `monthIndex`.
+   */
+  level: string;
   monthIndex: number;
   unitType: string;
   title: string;
@@ -36,7 +41,7 @@ export interface CurriculumUnitDto {
 function toCurriculumUnitDto(row: {
   id: string;
   program: string;
-  level: number;
+  level: string;
   monthIndex: number;
   unitType: string;
   title: string;

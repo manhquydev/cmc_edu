@@ -145,8 +145,19 @@ Sale chọn gói (12tr)
 | Giảm giá **không đổi số unit** | Số unit đến từ gói; thương lượng chỉ chạm tiền |
 | Vẫn áp ngưỡng duyệt hai mắt > 20 triệu | Hai cơ chế độc lập, cộng dồn |
 
-**Câu còn mở:** có biên độ tự quyết cho sale không (ví dụ dưới 5% thì khỏi duyệt)? Nếu có thì
-giảm tải cho GĐKD; nếu không thì mọi lần giảm đều qua hàng chờ.
+> ✅ **CHỐT 13/08/2026: KHÔNG có biên độ miễn duyệt.**
+>
+> Ranh giới **không nằm ở số tiền** mà ở chỗ **giá đó có do danh mục sinh ra không**:
+> - Hệ tính ra được (gói có sẵn, hoặc N unit × đơn giá) ⇒ bán thẳng, GĐKD đã duyệt sẵn khi tạo gói.
+> - Bất kỳ giá nào khác ⇒ **luôn phải duyệt**, chênh 1% hay 30% như nhau.
+>
+> Nhờ vậy không cần cấu hình ngưỡng, không có vùng xám kiểu "giảm 9,9% để né duyệt".
+>
+> **Hệ quả:** sale **không bao giờ gõ được số tiền tự do** vào phiếu thu — ô tiền do hệ điền;
+> muốn khác thì mở luồng đề xuất giá. Luồng xin–duyệt là **bắt buộc**, không hoãn được.
+> Ngưỡng duyệt hai mắt trên 20 triệu vẫn áp **độc lập và cộng dồn**.
+>
+> Xem `decisions-owner-260813-cau-10.md`.
 
 ---
 
@@ -312,7 +323,9 @@ trình · tự động gia hạn · lịch sử bảng giá theo thời gian (ch
 2. ~~**Cách hiểu dải unit của gói**~~ — **ĐÃ CHỐT 12/08: cách B**. Dải chỉ để **định cỡ và định giá**;
    gói nghĩa là "N unit", cấp từ vị trí học sinh đang đứng. Đặt tên gói theo **số unit**, không theo
    dải. Xem `decisions-owner-260812-cau-8-9.md`.
-3. **Biên độ tự quyết của sale** — có mức giảm nào khỏi cần duyệt không? *(vẫn mở)*
+3. ~~**Biên độ tự quyết của sale**~~ — **ĐÃ CHỐT 13/08: KHÔNG có biên độ miễn duyệt.** Giá nào hệ
+   tính ra được (gói có sẵn, hoặc N unit × đơn giá) thì bán thẳng; **mọi giá khác đều phải duyệt,
+   không ngưỡng**. Xem `decisions-owner-260813-cau-10.md`.
 4. **Một gói có được thu làm nhiều lần không** (trả góp)? Nếu có, mô hình phiếu thu phải đổi.
 5. **Gói và bảng giá dùng chung toàn hệ thống hay riêng từng cơ sở?**
 6. **2–3 gói có thật** đang bán, để làm dữ liệu mẫu kiểm chứng mô hình.

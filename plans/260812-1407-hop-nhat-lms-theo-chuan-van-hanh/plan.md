@@ -107,7 +107,7 @@ vụ tiền** nên phần này **không có bản mẫu để chép** — phải
 | 2 | ~~Quy tắc `level`~~ — **ĐÃ CHỐT 12/08: đổi kiểu cột `level` sang chuỗi**, giữ nguyên bản khung chương trình | ~~1~~ | ✅ |
 | 3 | Ánh xạ `blocked_lms` → giá trị nào trong bộ 6 | 1 | Sản phẩm (đề xuất `on_hold`) |
 | 3b | ~~Tiến trình unit đi theo unit có thật~~ — **ĐÃ LÀM XONG** trong PR #117: bốn hàm thuần nhận trục unit có thật, mọi phép tiến k unit là dịch k vị trí. Có integration test trên trục Bright I.G có lỗ hổng thật | ~~2, 4, 5~~ | ✅ |
-| 4 | **Câu hỏi về gói bán** — đã chốt: phạm vi gói, quyền thương lượng, cách hoàn tiền, cách hiểu dải unit (cách B). **Còn mở:** biên độ tự quyết giảm giá của sale · trả góp · gói dùng chung hay riêng cơ sở · bảng gói thật | 4 | Chủ hệ thống |
+| 4 | **Câu hỏi về gói bán** — đã chốt: phạm vi gói, quyền thương lượng, cách hoàn tiền, cách hiểu dải unit (cách B), **không có biên độ miễn duyệt** (13/08). **Còn mở:** trả góp · gói dùng chung hay riêng cơ sở · bảng gói thật | 4 | Chủ hệ thống |
 | 5 | Chốt: cấp bù unit quá khứ có bước xem trước hay xác nhận hai lớp | 4 | Sản phẩm |
 | 6 | Chốt: một khoá quyền gộp cấp/thu/gỡ, hay tách khoá | 4 | Sản phẩm |
 
@@ -132,6 +132,7 @@ vụ tiền** nên phần này **không có bản mẫu để chép** — phải
 | Hoàn tiền giữa khóa | **Xây đầy đủ** dù thực tế ít khi duyệt |
 | Thời lượng buổi | **Giữ 110** cho Bright I.G và Black Hole (UCREA 90) — tài liệu đúng, CSV không sai |
 | "Dải unit" của gói bán | **Cách B** — dải chỉ để định cỡ và định giá; gói nghĩa là "N unit", cấp từ vị trí học sinh đang đứng |
+| Giảm giá của sale *(13/08)* | **Không có biên độ miễn duyệt.** Giá hệ tính ra được thì bán thẳng; **mọi giá khác đều phải duyệt, không ngưỡng**. Sale không gõ được số tiền tự do vào phiếu thu |
 
 ---
 

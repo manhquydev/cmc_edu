@@ -346,6 +346,9 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
   await privileged.finalGrade.deleteMany({ where: { facilityId } });
   await privileged.starTransaction.deleteMany({ where: { facilityId } });
   await privileged.submission.deleteMany({ where: { facilityId } });
+  // B4 homework delivery: SessionExercise/ClassExerciseItem before ClassSession/Batch.
+  await privileged.sessionExercise.deleteMany({ where: { facilityId } });
+  await privileged.classExerciseItem.deleteMany({ where: { facilityId } });
   // phase-10: AfterSaleCase / ParentMeeting / TestAppointment now carry a
   // RESTRICT FK to Student (Reward already did) — delete them before the
   // student.deleteMany below, or that delete fails with a FK violation.
@@ -841,7 +844,17 @@ export async function cleanupCurriculumUnits(...unitIds: string[]): Promise<void
   });
   const exerciseIds = exercises.map((e) => e.id);
   if (exerciseIds.length > 0) {
-    await db.submission.deleteMany({ where: { exerciseId: { in: exerciseIds } } });
+    // B4: Submission → SessionExercise → Exercise (not exerciseId on Submission).
+    const deliveries = await db.sessionExercise.findMany({
+      where: { exerciseId: { in: exerciseIds } },
+      select: { id: true },
+    });
+    const deliveryIds = deliveries.map((d) => d.id);
+    if (deliveryIds.length > 0) {
+      await db.submission.deleteMany({ where: { sessionExerciseId: { in: deliveryIds } } });
+      await db.sessionExercise.deleteMany({ where: { id: { in: deliveryIds } } });
+    }
+    await db.classExerciseItem.deleteMany({ where: { exerciseId: { in: exerciseIds } } });
     await db.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
   }
   await db.curriculumUnit.deleteMany({ where: { id: { in: unitIds } } });
@@ -871,30 +884,61 @@ export async function seedPublishedExercise(opts?: {
   return { unitId, exerciseId: exercise.id };
 }
 
-/** Seeds a Submission in 'submitted' state directly in the DB (bypassing the
- * LMS open-tier gate) — use when the spec targets `submission.grade` rather
- * than the student submission flow. */
+/**
+ * Seeds a Submission in 'submitted' state for grading specs (bypasses LMS
+ * open/delivery gates). B4: rows attach to **SessionExercise** (delivery),
+ * not catalog Exercise — mirrors apps/api teacher-scoping / grade tests:
+ * create a minimal ClassSession + SessionExercise for `exerciseId`, then the
+ * Submission. Pass `sessionExerciseId` to reuse an existing delivery.
+ */
 export async function seedSubmittedSubmission(opts: {
   facilityId: string;
   studentId: string;
   exerciseId: string;
-}): Promise<{ submissionId: string }> {
+  /** Required when creating a new delivery (links the session to a class). */
+  classBatchId: string;
+  /** Optional existing SessionExercise id — skips session/delivery create. */
+  sessionExerciseId?: string;
+}): Promise<{ submissionId: string; sessionExerciseId: string }> {
   return withFacility(
     getDb(),
     null,
     async (tx) => {
+      let sessionExerciseId = opts.sessionExerciseId;
+      if (!sessionExerciseId) {
+        const past = new Date('2020-01-01T12:00:00.000Z');
+        const session = await tx.classSession.create({
+          data: {
+            facilityId: opts.facilityId,
+            classBatchId: opts.classBatchId,
+            sessionDate: past,
+            startTime: past,
+            endTime: past,
+            status: 'planned',
+          },
+        });
+        const delivery = await tx.sessionExercise.create({
+          data: {
+            facilityId: opts.facilityId,
+            classSessionId: session.id,
+            exerciseId: opts.exerciseId,
+            position: 1,
+          },
+        });
+        sessionExerciseId = delivery.id;
+      }
       const submission = await tx.submission.create({
         data: {
           facilityId: opts.facilityId,
           studentId: opts.studentId,
-          exerciseId: opts.exerciseId,
+          sessionExerciseId,
           annotationLayer: {},
           status: 'submitted',
           submittedAt: new Date(),
           version: 1,
         },
       });
-      return { submissionId: submission.id };
+      return { submissionId: submission.id, sessionExerciseId };
     },
     { bypass: true },
   );
@@ -913,11 +957,18 @@ export async function cleanupExercises(...exerciseIds: string[]): Promise<void> 
     where: { id: { in: exerciseIds } },
     select: { id: true, curriculumUnitId: true },
   });
-  // Submissions FK-reference these exercises. This runs in a spec's afterAll,
-  // which fires before the global teardown's cleanupFacility — so the rows are
-  // still present here and must be cleared first or the Exercise delete trips
-  // Submission_exerciseId_fkey.
-  await db.submission.deleteMany({ where: { exerciseId: { in: exerciseIds } } });
+  // B4: Submission → SessionExercise → Exercise. Spec afterAll runs before
+  // global cleanupFacility, so clear deliveries (and their submissions) first.
+  const deliveries = await db.sessionExercise.findMany({
+    where: { exerciseId: { in: exerciseIds } },
+    select: { id: true },
+  });
+  const deliveryIds = deliveries.map((d) => d.id);
+  if (deliveryIds.length > 0) {
+    await db.submission.deleteMany({ where: { sessionExerciseId: { in: deliveryIds } } });
+    await db.sessionExercise.deleteMany({ where: { id: { in: deliveryIds } } });
+  }
+  await db.classExerciseItem.deleteMany({ where: { exerciseId: { in: exerciseIds } } });
   await db.exercise.deleteMany({ where: { id: { in: exerciseIds } } });
   const unitIds = [...new Set(exercises.map((e) => e.curriculumUnitId))];
   if (unitIds.length > 0) {

@@ -34,6 +34,7 @@ describe('submission.listForChild (gap-closure 260710-0005 Phase 2)', () => {
   let classBatch: { id: string; courseId: string };
   let unit: { id: string };
   let exercise: { id: string; maxScore: number; starReward: number };
+  let sessionExerciseId: string;
   let parent: { id: string; phone: string };
   const seededUnitIds: string[] = [];
   const parentPhonesToClean: string[] = [];
@@ -66,7 +67,9 @@ describe('submission.listForChild (gap-closure 260710-0005 Phase 2)', () => {
       curriculumUnitId: unit.id,
       endTime: PAST,
     });
-    await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
+    const delivered = await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
+    if (!delivered.delivered) throw new Error('expected delivery');
+    sessionExerciseId = delivered.sessionExercise.id;
 
     const phone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
     parent = await seedParentAccount(phone);
@@ -91,8 +94,8 @@ describe('submission.listForChild (gap-closure 260710-0005 Phase 2)', () => {
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
-    await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: { done: true } });
-    await student.submission.submit({ exerciseId: exercise.id });
+    await student.submission.saveDraft({ sessionExerciseId: sessionExerciseId, annotationLayer: { done: true } });
+    await student.submission.submit({ sessionExerciseId: sessionExerciseId });
     return { studentId: enrollment.studentId };
   }
 
@@ -127,7 +130,7 @@ describe('submission.listForChild (gap-closure 260710-0005 Phase 2)', () => {
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
-    await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: {} });
+    await student.submission.saveDraft({ sessionExerciseId: sessionExerciseId, annotationLayer: {} });
 
     const parentCaller = appRouter.createCaller(buildLmsContext({ parentAccountId: parent.id, kind: 'parent' }));
     const result = await parentCaller.submission.listForChild({ studentId: enrollment.studentId });

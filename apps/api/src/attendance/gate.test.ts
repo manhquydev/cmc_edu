@@ -355,7 +355,11 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
         curriculumUnitId: unit.id,
         endTime: new Date('2020-01-01T00:00:00.000Z'),
       });
-      await gddt.lmsOps.deliverSessionExercise({ classSessionId: openSession.id });
+      const delivered = await gddt.lmsOps.deliverSessionExercise({
+        classSessionId: openSession.id,
+      });
+      if (!delivered.delivered) throw new Error('expected delivery');
+      const sessionExerciseId = delivered.sessionExercise.id;
 
       const enrollment = await seedEnrolledStudentWithGuardian({
         facilityId: facility.id,
@@ -387,8 +391,11 @@ describe('attendance.mark/markAll/listBySession + classSession lifecycle (T1, TL
       const student = appRouter.createCaller(
         buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
       );
-      await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: { done: true } });
-      const submitted = await student.submission.submit({ exerciseId: exercise.id });
+      await student.submission.saveDraft({
+        sessionExerciseId,
+        annotationLayer: { done: true },
+      });
+      const submitted = await student.submission.submit({ sessionExerciseId });
       await teacher.submission.grade({ submissionId: submitted.id, score: 10 });
 
       const before = await testDbBypass((tx) =>

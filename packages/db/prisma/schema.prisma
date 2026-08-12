@@ -824,7 +824,6 @@ model Exercise {
   updatedAt        DateTime       @updatedAt @db.Timestamptz(3)
 
   curriculumUnit   CurriculumUnit      @relation(fields: [curriculumUnitId], references: [id])
-  submissions      Submission[]
   classExerciseItems ClassExerciseItem[]
   sessionDeliveries  SessionExercise[]
 
@@ -860,6 +859,7 @@ model ClassExerciseItem {
 
 /// One delivered homework instance for a class session (at most one per session).
 /// Cancelled sessions never get a delivery (worker skips them).
+/// Student submissions attach here (one per student per delivery — B4).
 model SessionExercise {
   id             String   @id @default(uuid())
   facilityId     String
@@ -871,6 +871,7 @@ model SessionExercise {
 
   classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
   exercise     Exercise     @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  submissions  Submission[]
 
   @@index([facilityId])
   @@index([exerciseId])
@@ -885,13 +886,15 @@ model SessionExercise {
 // all three (docs/decisions/0042).
 // ---------------------------------------------------------------------------
 
-/// Student's PDF-annotation submission for one Exercise (docs/19 §3,
-/// WF-P2-05). One row per (exerciseId, studentId) — re-drafting updates the
-/// SAME row (`version` increments), it never creates a second Submission.
+/// Student's PDF-annotation submission for one **delivery** of homework
+/// (`SessionExercise` — B4 / class-unit-spec). One row per
+/// (sessionExerciseId, studentId) — re-drafting updates the SAME row
+/// (`version` increments). Same catalog exercise delivered on two sessions
+/// yields two independent submissions (retake / spiral class).
 model Submission {
   id                     String           @id @default(uuid())
   facilityId             String
-  exerciseId             String
+  sessionExerciseId      String
   studentId              String
   /// The student's PDF annotation overlay (docs/19 §3) — capped at 1MB by the
   /// application (`submission.saveDraft`), not enforced at the DB layer.
@@ -917,13 +920,13 @@ model Submission {
   createdAt              DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt              DateTime         @updatedAt @db.Timestamptz(3)
 
-  exercise Exercise @relation(fields: [exerciseId], references: [id])
-  student  Student  @relation(fields: [studentId], references: [id])
+  sessionExercise SessionExercise @relation(fields: [sessionExerciseId], references: [id])
+  student         Student         @relation(fields: [studentId], references: [id])
 
-  @@unique([exerciseId, studentId])
+  @@unique([sessionExerciseId, studentId])
   @@index([facilityId])
   @@index([studentId])
-  @@index([exerciseId])
+  @@index([sessionExerciseId])
 }
 
 /// Per-(student, class, ICT-month) grade aggregate — the phase-03 spec's

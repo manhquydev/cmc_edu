@@ -32,6 +32,7 @@ describe('submission.saveTeacherAnnotation (phase-01a C3)', () => {
   let classBatch: { id: string; courseId: string };
   let unit: { id: string };
   let exercise: { id: string; maxScore: number; starReward: number };
+  let sessionExerciseId: string;
   let parent: { id: string; phone: string };
   const seededUnitIds: string[] = [];
 
@@ -73,7 +74,9 @@ describe('submission.saveTeacherAnnotation (phase-01a C3)', () => {
       curriculumUnitId: unit.id,
       endTime: PAST,
     });
-    await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
+    const delivered = await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
+    if (!delivered.delivered) throw new Error('expected delivery');
+    sessionExerciseId = delivered.sessionExercise.id;
 
     const phone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
     parent = await seedParentAccount(phone);
@@ -97,8 +100,8 @@ describe('submission.saveTeacherAnnotation (phase-01a C3)', () => {
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
     const studentLayer = { pen: 'red', strokes: [1, 2, 3] };
-    await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: studentLayer });
-    const submitted = await student.submission.submit({ exerciseId: exercise.id });
+    await student.submission.saveDraft({ sessionExerciseId: sessionExerciseId, annotationLayer: studentLayer });
+    const submitted = await student.submission.submit({ sessionExerciseId: sessionExerciseId });
     return { submissionId: submitted.id, studentLayer };
   }
 
@@ -141,7 +144,7 @@ describe('submission.saveTeacherAnnotation (phase-01a C3)', () => {
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
-    const draft = await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: {} });
+    const draft = await student.submission.saveDraft({ sessionExerciseId: sessionExerciseId, annotationLayer: {} });
 
     await expect(
       teacher.submission.saveTeacherAnnotation({

@@ -38,6 +38,7 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
   let classBatch: { id: string; courseId: string };
   let unit: { id: string };
   let exercise: { id: string; maxScore: number; starReward: number };
+  let sessionExerciseId: string;
   let parent: { id: string; phone: string };
   const seededUnitIds: string[] = [];
 
@@ -79,7 +80,9 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
       curriculumUnitId: unit.id,
       endTime: PAST,
     });
-    await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
+    const delivered = await gddt.lmsOps.deliverSessionExercise({ classSessionId: session.id });
+    if (!delivered.delivered) throw new Error('expected delivery');
+    sessionExerciseId = delivered.sessionExercise.id;
 
     // Real ParentAccount for Guardian FK (F1 remediation).
     const phone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
@@ -114,8 +117,8 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
-    await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: { done: true } });
-    const submitted = await student.submission.submit({ exerciseId: exercise.id });
+    await student.submission.saveDraft({ sessionExerciseId: sessionExerciseId, annotationLayer: { done: true } });
+    const submitted = await student.submission.submit({ sessionExerciseId: sessionExerciseId });
     return { submissionId: submitted.id, studentId: enrollment.studentId, enrollmentId: enrollment.id };
   }
 
@@ -199,7 +202,7 @@ describe('submission.grade / listForGrading (US-017, TL19 §6)', () => {
     const student = appRouter.createCaller(
       buildLmsContext({ parentAccountId: parent.id, studentId: enrollment.studentId, kind: 'student' }),
     );
-    const draft = await student.submission.saveDraft({ exerciseId: exercise.id, annotationLayer: {} });
+    const draft = await student.submission.saveDraft({ sessionExerciseId: sessionExerciseId, annotationLayer: {} });
 
     await expect(teacher.submission.grade({ submissionId: draft.id, score: 5 })).rejects.toMatchObject({
       code: 'BAD_REQUEST',

@@ -114,6 +114,24 @@ Chủ hệ thống đã chốt 13/08: **thêm cột giáo viên trên buổi**, 
 | Đổi giáo viên một buổi | Chỉ buổi đó đổi; lớp và buổi khác không đổi; có bản ghi vết |
 | Migration an toàn | Chạy trên dữ liệu mẫu có buổi trùng ⇒ dừng với thông báo rõ, **không** ghi nửa chừng |
 
+## Việc còn nợ sau A1 — đừng đọc nhầm là xong
+
+A1 dựng **nền**, không dựng **màn**. Bốn thủ tục mới đều **chưa có giao diện nào gọi**
+(`grep -rF "schedule.addSlot" apps/admin/src apps/lms/src` → 0, cả bốn):
+
+| Thủ tục | Trạng thái |
+|---|---|
+| `schedule.addSlot` · `updateSlot` · `archiveSlot` | API + test có thật, **chưa màn nào gọi** |
+| `classSession.assignTeacher` | Như trên |
+
+⇒ Câu *"trung tâm không đổi được lịch học"* ở đầu phase này **chưa được sửa xong**. Nền đã đúng
+và an toàn, nhưng người vận hành vẫn chưa bấm được. Cả bốn đã ghi vào `DOCUMENTED_GAPS` của
+báo cáo nghiệm thu kèm lệnh kiểm chứng — **không** khai phủ giả để làm xanh bánh xe chắn.
+
+**Màn đổi lịch lớp là việc kế tiếp.** Nó cần một đường đọc khung lịch nữa: hiện `classBatch.get`
+và `list` **không trả về khung**, nên ngay cả khi có màn thì cũng chưa lấy được danh sách khung
+để hiển thị.
+
 ## Rủi ro
 
 | Rủi ro | Giảm thiểu |

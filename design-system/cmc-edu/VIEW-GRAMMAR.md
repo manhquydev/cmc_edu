@@ -11,7 +11,7 @@
 > `addons/web/static/src/webclient/` · `search/control_panel/` · `views/{list,form,kanban}/`
 
 > **Admin shell (design3, 2026-08):** production chrome is **ConsoleNavbar + `.o_web_client` + `main.console-main`**.  
-> `AppFrame` / `SideNav` were removed (2026-08-10, 0 real consumers in admin or LMS) — do not reintroduce as admin shell; LMS chrome is `lms-*` in app.css.
+> The previous admin/LMS shell frame + `SideNav` were removed (2026-08-10, 0 real consumers in admin or LMS) — do not reintroduce as admin shell; LMS chrome is `lms-*` in `apps/lms/src/app.css`.
 
 ---
 
@@ -19,7 +19,7 @@
 
 ```text
 Admin (design3):  ConsoleNavbar + main.console-main
-LMS (TL12):       AppFrame + SideNav
+LMS (TL12):       lms-* chrome (`apps/lms/src/app.css`)
   └── exactly one page frame:
         DashboardPage | ListPage | DetailPage | FormPage | SettingsShell
 ```

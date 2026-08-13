@@ -20,6 +20,8 @@ const ALLOWLIST = [
   'design-system/cmc-edu/STRUCTURE.md',
   'design-system/cmc-edu/PAGE-FRAMES.md',
   'design-system/cmc-edu/MASTER.md',
+  'design-system/cmc-edu/STYLING-BRIDGE.md',
+  'design-system/cmc-edu/VIEW-GRAMMAR.md',
   'packages/ui/llms.txt',
   'packages/ui/src/index.ts',
 ];

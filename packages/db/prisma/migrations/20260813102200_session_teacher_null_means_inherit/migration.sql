@@ -1,6 +1,16 @@
--- Undo the A1 backfill that copied ClassBatch.teacherId onto every session.
--- NULL on ClassSession.teacherId now means "inherit the class teacher".
--- Keep rows that already differ from the class (a real per-session override).
+-- Repair pass for environments that applied the FIRST revision of the sibling
+-- migration (20260813093900), which backfilled ClassBatch.teacherId onto every
+-- session. That revision no longer backfills, so on a fresh database this
+-- statement matches zero rows and is a no-op — it exists only so an already
+-- migrated dev database converges on the same meaning.
+--
+-- NULL on ClassSession.teacherId means "inherit the class teacher". Copying the
+-- class teacher onto each session freezes a guess: a later
+-- classBatch.assignTeacher would then leave every existing session pointing at
+-- the old teacher forever.
+--
+-- Rows whose teacher already differs from the class are real per-session
+-- overrides (a substitute teacher) and are left untouched.
 
 UPDATE "ClassSession" AS cs
 SET "teacherId" = NULL

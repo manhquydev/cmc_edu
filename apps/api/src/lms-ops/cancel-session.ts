@@ -18,6 +18,7 @@ export interface CancelSessionResult {
     endTime: Date;
     status: string;
     curriculumUnitId: string | null;
+    teacherId: string | null;
   };
   restamped: number;
 }
@@ -159,6 +160,7 @@ export async function cancelSessionWithRestamp(
       endTime: updated.endTime,
       status: updated.status,
       curriculumUnitId: updated.curriculumUnitId,
+      teacherId: updated.teacherId,
     },
     restamped,
   };

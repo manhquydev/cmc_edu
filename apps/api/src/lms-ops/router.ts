@@ -20,6 +20,7 @@ import { badRequest, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 import { nextClassBatchCode } from '../class/class-code.js';
 import { MAX_CLASS_SPAN_DAYS, planClassSessions, spanDaysInclusive } from '../class/generate-sessions.js';
+import { insertMissingPlannedSessions } from '../class/insert-planned-sessions.js';
 import { assertNoRoomConflict } from '../class/room-conflict.js';
 import { onRoster } from './on-roster.js';
 import { restampBatchSessions } from './stamp-sessions.js';
@@ -190,19 +191,11 @@ export const lmsOpsRouter = router({
           await assertNoRoomConflict(tx, facilityId, input.roomId, planned, classBatch.id);
         }
 
-        if (planned.length > 0) {
-          await tx.classSession.createMany({
-            data: planned.map((p) => ({
-              facilityId,
-              classBatchId: classBatch.id,
-              scheduleSlotId: p.scheduleSlotId ?? null,
-              sessionDate: p.sessionDate,
-              startTime: p.startTime,
-              endTime: p.endTime,
-            })),
-            skipDuplicates: true,
-          });
-        }
+        const inserted = await insertMissingPlannedSessions(tx, {
+          facilityId,
+          classBatchId: classBatch.id,
+          planned,
+        });
 
         const stamped = await restampBatchSessions(tx, {
           classBatchId: classBatch.id,
@@ -214,7 +207,7 @@ export const lmsOpsRouter = router({
         return {
           classBatchId: classBatch.id,
           code: classBatch.code,
-          sessionsCreated: planned.length,
+          sessionsCreated: inserted.created,
           sessionsStamped: stamped,
           startUnitOrderGlobal: startUnit.orderGlobal,
         };

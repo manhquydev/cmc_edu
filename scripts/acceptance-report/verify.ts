@@ -57,6 +57,20 @@ const INFRA_PROCEDURE_WHITELIST = new Set([
 // this map only annotates them with a reason so the tool distinguishes triaged gaps
 // from brand-new un-triaged orphans that need a decision.
 const DOCUMENTED_GAPS: Record<string, string> = {
+  // A1 nền lịch buổi (2026-08-13): bốn thủ tục dưới đây là NỀN cho việc đổi lịch
+  // học của một lớp — trước A1 khung lịch chỉ tạo được một lần lúc lập lớp và
+  // không có đường nào sửa hay gỡ. API đã có và có test, nhưng CHƯA MÀN NÀO GỌI:
+  // `grep -rF "schedule.addSlot" apps/admin/src apps/lms/src` → 0 (cả bốn).
+  // Không khai chúng vào luồng nào để bánh xe chắn orphan không đếm phủ không
+  // tồn tại. Màn đổi lịch lớp là việc kế tiếp — tới lúc đó thì gỡ khỏi map này.
+  'schedule.addSlot':
+    'Thêm khung lịch cho lớp đang chạy; API + test có thật, chưa màn nào gọi (A1, 2026-08-13)',
+  'schedule.updateSlot':
+    'Sửa khung lịch của lớp; API + test có thật, chưa màn nào gọi (A1, 2026-08-13)',
+  'schedule.archiveSlot':
+    'Lưu trữ khung lịch (thay cho xoá, giữ dấu vết buổi cũ); API + test có thật, chưa màn nào gọi (A1, 2026-08-13)',
+  'classSession.assignTeacher':
+    'Đổi giáo viên cho một buổi (dạy thay); nhãn hiển thị, chưa phải nguồn quyền/chấm công; chưa màn nào gọi (A1, 2026-08-13)',
   // P2-04 chuyển soạn bài sang thư mục. curriculumUnit.list vẫn phục vụ màn lớp
   // (neo unit / assignUnit) nhưng chưa có luồng riêng khai procedure này.
   'curriculumUnit.list':

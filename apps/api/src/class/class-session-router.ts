@@ -17,6 +17,7 @@ import {
   isValidDateOnly,
 } from '@cmc/domain-time';
 import { spanDaysInclusive } from './generate-sessions.js';
+import { resolveTeacher } from './resolve-teacher.js';
 import { cancelSessionWithRestamp } from '../lms-ops/cancel-session.js';
 import {
   evaluateSessionDoneProgress,
@@ -35,6 +36,11 @@ const assignUnitInput = z.object({
   curriculumUnitId: z.string().uuid(),
 });
 
+const assignSessionTeacherInput = z.object({
+  sessionId: z.string().uuid(),
+  teacherAppUserId: z.string().uuid(),
+});
+
 export interface ClassSessionDto {
   id: string;
   classBatchId: string;
@@ -44,18 +50,23 @@ export interface ClassSessionDto {
   endTime: Date;
   status: string;
   curriculumUnitId: string | null;
+  teacherId: string | null;
 }
 
-function toClassSessionDto(row: {
-  id: string;
-  classBatchId: string;
-  scheduleSlotId: string | null;
-  sessionDate: Date;
-  startTime: Date;
-  endTime: Date;
-  status: string;
-  curriculumUnitId: string | null;
-}): ClassSessionDto {
+function toClassSessionDto(
+  row: {
+    id: string;
+    classBatchId: string;
+    scheduleSlotId: string | null;
+    sessionDate: Date;
+    startTime: Date;
+    endTime: Date;
+    status: string;
+    curriculumUnitId: string | null;
+    teacherId: string | null;
+  },
+  classTeacherId: string | null = null,
+): ClassSessionDto {
   return {
     id: row.id,
     classBatchId: row.classBatchId,
@@ -65,6 +76,7 @@ function toClassSessionDto(row: {
     endTime: row.endTime,
     status: row.status,
     curriculumUnitId: row.curriculumUnitId,
+    teacherId: row.teacherId ?? classTeacherId,
   };
 }
 
@@ -137,9 +149,10 @@ export const classSessionRouter = router({
       return withFacility(ctx.db, facilityId, async (tx) => {
         const rows = await tx.classSession.findMany({
           where: { classBatchId: input.classBatchId, facilityId },
+          include: { classBatch: { select: { teacherId: true } } },
           orderBy: { sessionDate: 'asc' },
         });
-        return rows.map(toClassSessionDto);
+        return rows.map((row) => toClassSessionDto(row, row.classBatch.teacherId));
       });
     }),
 
@@ -170,10 +183,9 @@ export const classSessionRouter = router({
           throw notFound('ClassSession not found.');
         }
         return {
-          ...toClassSessionDto(row),
+          ...toClassSessionDto(row, row.classBatch.teacherId),
           batchCode: row.classBatch.code,
           program: row.classBatch.program,
-          teacherId: row.classBatch.teacherId,
           courseId: row.classBatch.courseId,
           batchStatus: row.classBatch.status,
         };
@@ -280,7 +292,7 @@ export const classSessionRouter = router({
           curriculumUnitId: row.curriculumUnitId,
           batchCode: row.classBatch.code,
           program: row.classBatch.program,
-          teacherId: row.classBatch.teacherId,
+          teacherId: row.teacherId ?? row.classBatch.teacherId,
           courseId: row.classBatch.courseId,
           batchStatus: row.classBatch.status,
         }));
@@ -301,7 +313,11 @@ export const classSessionRouter = router({
           actorUserId: ctx.subject.userId,
           auditAction: 'classSession.cancel',
         });
-        return toClassSessionDto(session);
+        const batch = await tx.classBatch.findFirst({
+          where: { id: session.classBatchId, facilityId },
+          select: { teacherId: true },
+        });
+        return toClassSessionDto(session, batch?.teacherId ?? null);
       });
     }),
 
@@ -327,8 +343,11 @@ export const classSessionRouter = router({
           where: { id: session.id },
           data: { status: 'confirmed' },
         });
-
-        return toClassSessionDto(updated);
+        const batch = await tx.classBatch.findFirst({
+          where: { id: updated.classBatchId, facilityId },
+          select: { teacherId: true },
+        });
+        return toClassSessionDto(updated, batch?.teacherId ?? null);
       });
     }),
 
@@ -361,8 +380,45 @@ export const classSessionRouter = router({
           where: { id: session.id },
           data: { curriculumUnitId: input.curriculumUnitId },
         });
+        const batch = await tx.classBatch.findFirst({
+          where: { id: updated.classBatchId, facilityId },
+          select: { teacherId: true },
+        });
+        return toClassSessionDto(updated, batch?.teacherId ?? null);
+      });
+    }),
 
-        return toClassSessionDto(updated);
+  // Display-only override of the session teacher (NULL still means inherit
+  // the class teacher). Not the source for attendance, KPI, or payroll —
+  // those keep reading ClassBatch.teacherAppUserId.
+  // Reuses class.create (same key as classBatch.assignTeacher). Lane B owns
+  // the auth registry, so A1 does not add a session-specific permission.
+  // Auto AuditLog middleware covers the mutation.
+  assignTeacher: requirePermission('class', 'create')
+    .input(assignSessionTeacherInput)
+    .mutation(async ({ ctx, input }): Promise<ClassSessionDto> => {
+      const { facilityId } = scoped(ctx);
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const session = await tx.classSession.findFirst({
+          where: { id: input.sessionId, facilityId },
+        });
+        if (!session) {
+          throw notFound('ClassSession not found.');
+        }
+        assertSessionActive(session, { alsoBlockDone: true });
+
+        const teacher = await resolveTeacher(tx, input.teacherAppUserId, facilityId);
+
+        const updated = await tx.classSession.update({
+          where: { id: session.id },
+          data: { teacherId: teacher.id },
+        });
+        const batch = await tx.classBatch.findFirst({
+          where: { id: updated.classBatchId, facilityId },
+          select: { teacherId: true },
+        });
+        return toClassSessionDto(updated, batch?.teacherId ?? null);
       });
     }),
 });

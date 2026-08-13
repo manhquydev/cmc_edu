@@ -3,7 +3,7 @@ import { Banner } from '@astryxdesign/core/Banner';
 import { Skeleton } from '@astryxdesign/core/Skeleton';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Text } from '@astryxdesign/core/Text';
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { EmptyState } from './empty-state.js';
 
 export interface TableColumn<T = Record<string, unknown>> {
@@ -31,6 +31,33 @@ export interface DataTableProps<T extends Record<string, unknown>> {
 }
 
 const SKELETON_ROWS = 5;
+
+const ROW_OPEN_INTERACTIVE =
+  'button, a, input, select, textarea, label, [role="button"], [role="checkbox"]';
+
+/** True when the event originated on an interactive descendant, not the wrapper. */
+function isInteractiveDescendant(
+  target: EventTarget | null,
+  currentTarget: EventTarget,
+): boolean {
+  if (!(target instanceof Element) || !(currentTarget instanceof Element)) {
+    return false;
+  }
+  const hit = target.closest(ROW_OPEN_INTERACTIVE);
+  return hit != null && hit !== currentTarget && currentTarget.contains(hit);
+}
+
+function isPlainLabel(value: unknown): value is string | number {
+  return typeof value === 'string' || typeof value === 'number';
+}
+
+/** Accessible name from rendered cell text, never `String(object)`. */
+function rowOpenLabel(content: ReactNode, raw: unknown): string {
+  const fromRender = isPlainLabel(content) ? String(content).trim() : '';
+  const fromRaw = isPlainLabel(raw) ? String(raw).trim() : '';
+  const text = fromRender || fromRaw;
+  return text === '' ? 'Mở dòng' : `Mở dòng ${text}`;
+}
 
 export function DataTable<T extends Record<string, unknown>>({
   columns,
@@ -128,7 +155,7 @@ export function DataTable<T extends Record<string, unknown>>({
           },
         ]
       : []),
-    ...columns.map((col) => ({
+    ...columns.map((col, colIndex) => ({
       key: col.key,
       header: col.label,
       width: typeof col.width === 'number' ? pixel(col.width) : proportional(1),
@@ -141,19 +168,28 @@ export function DataTable<T extends Record<string, unknown>>({
           </Text>
         );
         if (!onRowClick) return content;
-        // Row open must not steal clicks from buttons/inputs in the cell
+        // One keyboard entry per row (first non-checkbox cell). Other cells
+        // stay mouse-only so we do not multiply tab stops.
+        const isKeyboardEntry = colIndex === 0;
+        // Row open must not steal clicks/keys from buttons/inputs in the cell
         // (e.g. aftersale "Tiếp nhận", KPI "Xác nhận", parents "Duyệt").
         return (
           <div
+            {...(isKeyboardEntry
+              ? {
+                  role: 'button' as const,
+                  tabIndex: 0,
+                  'aria-label': rowOpenLabel(content, row[col.key]),
+                  onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+                    if (e.key !== 'Enter' && e.key !== ' ') return;
+                    if (isInteractiveDescendant(e.target, e.currentTarget)) return;
+                    e.preventDefault();
+                    onRowClick(row);
+                  },
+                }
+              : {})}
             onClick={(e) => {
-              const t = e.target as HTMLElement | null;
-              if (
-                t?.closest(
-                  'button, a, input, select, textarea, label, [role="button"], [role="checkbox"]',
-                )
-              ) {
-                return;
-              }
+              if (isInteractiveDescendant(e.target, e.currentTarget)) return;
               onRowClick(row);
             }}
             style={{ cursor: 'pointer' }}

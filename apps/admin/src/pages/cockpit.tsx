@@ -208,17 +208,9 @@ function SaleInbox() {
           <button
             key={level}
             type="button"
-            className={dueLevelClassName(level)}
+            className={`${dueLevelClassName(level)} cmc-due-chip`}
             data-testid={`crm-due-count-${level}`}
             onClick={() => navigate(`/crm?due=${level}`)}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--cmc-border)',
-              borderRadius: 'var(--cmc-radius-pill)',
-              padding: '4px 10px',
-              cursor: 'pointer',
-              fontWeight: 600,
-            }}
           >
             {label} {count}
           </button>

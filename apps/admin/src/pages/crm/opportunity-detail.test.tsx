@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, act } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
@@ -97,6 +97,18 @@ const assignState: { isPending: boolean; error: { message: string } | null } = {
 };
 const assignableStaffState: { data: { userId: string; fullName: string }[] } = { data: [] };
 const assignableStaffQuerySpy = vi.fn();
+const timelineState: {
+  items: Array<{
+    id: string;
+    kind: string;
+    actor: string;
+    payload: unknown;
+    createdAt: string;
+    label: string;
+  }>;
+  nextCursor: string | null;
+  dataUpdatedAt: number;
+} = { items: [], nextCursor: null, dataUpdatedAt: 1 };
 
 vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
@@ -114,7 +126,10 @@ vi.mock('../../lib/trpc.js', async () => {
         return queryResult(listState.items.find((item) => item.id === input.opportunityId));
       },
       'crm.opportunityTimeline.useQuery': () =>
-        queryResult({ items: [], nextCursor: null, historySince: null }),
+        queryResult(
+          { items: timelineState.items, nextCursor: timelineState.nextCursor, historySince: null },
+          { dataUpdatedAt: timelineState.dataUpdatedAt },
+        ),
       'crm.opportunityAddNote.useMutation': () => mutationResult(),
       'crm.opportunityAdvance.useMutation': () =>
         mutationResult({
@@ -147,6 +162,7 @@ vi.mock('../../lib/trpc.js', async () => {
   };
 });
 
+import { trpc } from '../../lib/trpc.js';
 import OpportunityDetailPage from './opportunity-detail.js';
 
 function renderDetail(opportunityId: string) {
@@ -187,6 +203,10 @@ describe('OpportunityDetailPage', () => {
     markLostState.error = null;
     completeState.error = null;
     noShowState.error = null;
+    timelineState.items = [];
+    timelineState.nextCursor = null;
+    timelineState.dataUpdatedAt = 1;
+    (trpc.useUtils().crm.opportunityTimeline.fetch as ReturnType<typeof vi.fn>).mockReset();
   });
 
   it('queries crm.opportunityGet by route id so a lost or later-page opportunity resolves', () => {
@@ -198,6 +218,48 @@ describe('OpportunityDetailPage', () => {
   it('renders the record timeline chatter on the detail page', () => {
     renderDetail(OPP_O1.id);
     expect(screen.getByTestId('record-timeline')).toBeInTheDocument();
+  });
+
+  it('drops loaded timeline pages when the first page refetches', async () => {
+    timelineState.items = [
+      {
+        id: 'e1',
+        kind: 'created',
+        actor: 'u1',
+        payload: null,
+        createdAt: '2026-08-13T03:00:00.000Z',
+        label: 'Tạo cơ hội',
+      },
+    ];
+    timelineState.nextCursor = 'c1';
+    timelineState.dataUpdatedAt = 1;
+    (trpc.useUtils().crm.opportunityTimeline.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      items: [
+        {
+          id: 'e2',
+          kind: 'note',
+          actor: 'u1',
+          payload: { body: 'Ghi chú trang 2' },
+          createdAt: '2026-08-12T03:00:00.000Z',
+          label: 'Ghi chú',
+        },
+      ],
+      nextCursor: null,
+      historySince: null,
+    });
+
+    renderDetail(OPP_O1.id);
+    expect(screen.getByText('Tạo cơ hội')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Xem thêm' }));
+    expect(await screen.findByText('Ghi chú trang 2')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đánh dấu mất' }));
+    expect(screen.getByText('Ghi chú trang 2')).toBeInTheDocument();
+
+    timelineState.dataUpdatedAt = 2;
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    expect(screen.queryByText('Ghi chú trang 2')).not.toBeInTheDocument();
+    expect(screen.getByText('Tạo cơ hội')).toBeInTheDocument();
   });
 
   it('shows a "Chuyển lên" action for an advanceable stage and calls opportunityAdvance.mutate with the next stage', () => {

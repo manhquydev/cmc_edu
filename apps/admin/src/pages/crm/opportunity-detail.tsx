@@ -159,7 +159,11 @@ export default function OpportunityDetailPage() {
     { enabled: Boolean(id) },
   );
 
-  const { data: timeline, isFetching: timelineFetching } = trpc.crm.opportunityTimeline.useQuery(
+  const {
+    data: timeline,
+    isFetching: timelineFetching,
+    dataUpdatedAt: timelineUpdatedAt,
+  } = trpc.crm.opportunityTimeline.useQuery(
     { opportunityId: id ?? '' },
     { enabled: Boolean(id) },
   );
@@ -189,7 +193,10 @@ export default function OpportunityDetailPage() {
   useEffect(() => {
     setMoreItems([]);
     setMoreNextCursor(null);
-  }, [id]);
+    // `timelineUpdatedAt` changes when the first page refetches after
+    // invalidate (add-note / advance / mark-lost / assign). Do not depend on
+    // the `timeline` object: jsdom mocks return a new object every render.
+  }, [id, timelineUpdatedAt]);
   const {
     markLostMutation,
     assignMutation,

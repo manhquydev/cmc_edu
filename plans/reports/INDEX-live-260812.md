@@ -2,7 +2,7 @@
 
 **Role:** Pointer only. Historical `plans/*` and old reports stay; do **not** mass-delete.  
 **Residual UI truth:** prefer this INDEX + post-merge scouts over older coord tables.  
-**Scout (consolidated develop):** [`scout-260812-1054-develop-consolidated-state.md`](./scout-260812-1054-develop-consolidated-state.md)  
+**Scout (consolidated develop):** [`scout-260813-1326-ship-to-develop.md`](./scout-260813-1326-ship-to-develop.md) · earlier: [`scout-260812-1054-develop-consolidated-state.md`](./scout-260812-1054-develop-consolidated-state.md)  
 **ADR vs as-built map:** [`analysis-260812-1013-adr-journal-vs-business.md`](./analysis-260812-1013-adr-journal-vs-business.md)  
 **Earlier residual matrix (pre-S1 form-depth):** [`scout-260812-ui-workspace-residual-matrix.md`](./scout-260812-ui-workspace-residual-matrix.md)
 
@@ -22,6 +22,10 @@
 
 Session brief (pre-scout): [`brainstorm-advise-260812-herdr-ui-workspace-coord.md`](./brainstorm-advise-260812-herdr-ui-workspace-coord.md)  
 Retire candidates (read-only): [`proposal-260812-docs-retire-list.md`](./proposal-260812-docs-retire-list.md)
+
+**Design system (2026-08-13):** audit Console/LMS **10/20**; cook A–D **đã vào develop** (#124–#125, #127–#129, #132–#135). Collision 17 tên biến **giữ cố ý**, pin bằng test (không xóa). TL12 pointer trên `docs/README.md` đã gỡ ở #125. Plan: [`260813-0120-design-system-hardening/plan.md`](../260813-0120-design-system-hardening/plan.md) · synthesis: [`audit-260813-0052-ds-impeccable-synthesis.md`](./audit-260813-0052-ds-impeccable-synthesis.md).
+
+**Meter + teaching loop (#136, `develop@2e6aef3`):** `pnpm verify:system`; GĐĐT break-glass Phát bài + grant/cắt range; gallery bốn họ. P2-05 student path vẫn `no-ui-path`. Plan: [`260813-1211-hoan-thien-san-pham-meter-va-diem-nghen/plan.md`](../260813-1211-hoan-thien-san-pham-meter-va-diem-nghen/plan.md).
 
 ---
 
@@ -71,20 +75,21 @@ Base integration tip when this INDEX was truth-synced: `develop@71dc552` (merge 
 | `resolve-after-sale-case-dialog` | **KEEP** form-owned | stale comments only |
 | check-in `manualPunch` | **DONE** demote — list `Mở phiếu` → `/hr/checkin/:ticketId` + `manualPunch.get` (`d52caa4`) | — |
 | engagement rewards | **DONE** demote — form `/admin/engagement/rewards/:rewardId` + `rewards.get` (`da3b8a8`) | — |
-| teaching exercises | **GAP #3** — list `Công bố`/`Đóng`; no detail form | **only residual list-HITL UI** |
+| teaching exercises | **DONE** demote — list index-only `Mở phiếu`; HITL on `exercise-detail.tsx` (#123) | — |
 
 ### Notes
 
 - Check-in list is index-only; form owns Duyệt/Từ chối (`check-in-ticket-detail.tsx`, route `hr/checkin/:ticketId`).
 - Rewards list index-only; form owns lifecycle.
-- **Only residual dual-HITL product UI:** teaching exercises (`apps/admin/src/pages/teaching/exercises.tsx`).
+- Exercises list index-only; form owns Công bố/Đóng (`exercise-detail.tsx`).
+- Dual-HITL **KEEP** (owner lock): parents link-request list; KPI bulk period.
 - TEKY `#00a09d` gone after `2947d6a`.
 
 ---
 
 ## Residual next steps
 
-1. **GAP #3** exercises form-depth (resource-centric) — remaining list HITL.
-2. LMS student/spine journeys still open in acceptance (P2 teaching flows) — product/UI, not INDEX.
+1. P2-05 student open/submit still `no-ui-path` after #136 — remaining cook in `260813-1211` phase 02.
+2. Class lifecycle / family identity: `260813-0813` A2–B1 (A1 landed #131).
 3. Promote develop → main only with human OK after green required checks.
 4. Keep historical `plans/*`; never mass-delete.

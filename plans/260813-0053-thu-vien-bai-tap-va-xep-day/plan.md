@@ -1,7 +1,7 @@
 ---
 title: "Thư viện bài tập và xếp dãy bài cho lớp"
 description: "Đợt 2 B5+B6: gỡ ràng buộc unit khỏi Exercise, thêm thư mục và tên bài, bỏ fallback phát bài theo unit, dựng màn thư viện và màn xếp dãy."
-status: pending
+status: completed
 priority: P1
 effort: "1.5–2.5 tuần"
 tags: [lms, exercise, library, sequence]
@@ -9,6 +9,10 @@ created: 2026-08-13
 ---
 
 # Thư viện bài tập + xếp dãy bài (Đợt 2: B5 + B6)
+
+> **SHIPPED** trên `develop` (#123, 2026-08-13). Plan này đóng — không cook lại.
+> YAML `pending` cũ là nhãn nói dối; meter phase 01 của
+> `plans/260813-1211-hoan-thien-san-pham-meter-va-diem-nghen` đánh dấu completed.
 
 > **Bản này đã qua red-team (2 lăng kính) và validate (2 lăng kính) và bị sửa đáng kể.**
 > Nhật ký phân xử ở cuối file.

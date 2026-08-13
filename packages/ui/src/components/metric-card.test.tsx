@@ -38,5 +38,6 @@ describe('MetricCard', () => {
   it('wraps the card in a link to href', () => {
     const { container } = renderCard(base);
     expect(container.querySelector('a[href="/finance"]')).toBeInTheDocument();
+    expect(container.querySelector('.console-mc--static')).toBeNull();
   });
 });

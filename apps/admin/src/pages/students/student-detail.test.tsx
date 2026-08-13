@@ -1,12 +1,16 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // Locks H1: after student.get settles with null, list location.state must not
 // mask the not-found EmptyState (warm-path bug from deep-link review).
 
 const STUDENT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
+const meState = vi.hoisted(() => ({
+  roles: ['giam_doc_kinh_doanh'] as string[],
+}));
 
 const getState = vi.hoisted(() => ({
   data: null as null | { id: string; fullName: string; lifecycle: string; parentPhone: string | null },
@@ -24,7 +28,7 @@ vi.mock('../../lib/trpc.js', async () => {
       'session.me.useQuery': () => ({
         data: {
           userId: 'u1',
-          roles: ['giam_doc_kinh_doanh'],
+          roles: meState.roles,
           facilityId: 'f1',
           config: { approvalSecondEyeThreshold: 20_000_000 },
         },
@@ -73,6 +77,7 @@ const { default: StudentDetailPage } = await import('./student-detail.js');
 
 describe('StudentDetailPage — query vs location.state', () => {
   beforeEach(() => {
+    meState.roles = ['giam_doc_kinh_doanh'];
     getState.data = null;
     getState.isLoading = false;
     getState.isFetching = false;
@@ -123,5 +128,20 @@ describe('StudentDetailPage — query vs location.state', () => {
     expect(screen.getAllByText('Đổi trạng thái').length).toBeGreaterThanOrEqual(1);
     // Permission gate still shows apply controls for GĐKD
     expect(screen.getByRole('button', { name: 'Áp dụng' })).toBeTruthy();
+  });
+
+  it('hides grant form for sale on the Lớp học tab', async () => {
+    meState.roles = ['sale'];
+    getState.data = {
+      id: STUDENT_ID,
+      fullName: 'From Server',
+      lifecycle: 'active',
+      parentPhone: null,
+    };
+    renderWithProviders(<StudentDetailPage />);
+    const tab = screen.getAllByText('Lớp học')[0]!;
+    fireEvent.click(tab.closest('button') ?? tab);
+    expect(await screen.findByText('Không có quyền cấp unit')).toBeTruthy();
+    expect(screen.queryByText('Cấp / cắt range')).toBeNull();
   });
 });

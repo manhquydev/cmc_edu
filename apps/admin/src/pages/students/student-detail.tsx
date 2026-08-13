@@ -20,6 +20,7 @@ import {
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { EnrollmentRangesPanel } from './enrollment-ranges-panel.js';
 
 interface StudentState {
   id: string;
@@ -112,6 +113,7 @@ export default function StudentDetailPage() {
   });
 
   const canSetLifecycle = canDo('student', 'setLifecycle');
+  const canGrantUnits = canDo('enrollment', 'grantUnits');
   const displayName = student?.fullName ?? (!querySettled ? 'Đang tải…' : 'Chi tiết học viên');
   const notFound =
     Boolean(id) && querySettled && student == null && (getQ.isError || getQ.isSuccess);
@@ -211,11 +213,15 @@ export default function StudentDetailPage() {
       label: 'Lớp học',
       content: (
         <div className="console-detail-panel">
-          <EmptyState
-            title="Chưa có dữ liệu"
-            description="Danh sách lớp học theo học viên đang được phát triển."
-            icon={<LineIcon name="layers" size={28} />}
-          />
+          {canGrantUnits && id ? (
+            <EnrollmentRangesPanel studentId={id} />
+          ) : (
+            <EmptyState
+              title="Không có quyền cấp unit"
+              description="Chỉ GĐĐT (enrollment.grantUnits) xem và cấp range."
+              icon={<LineIcon name="layers" size={28} />}
+            />
+          )}
         </div>
       ),
     },

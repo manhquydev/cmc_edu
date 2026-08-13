@@ -128,6 +128,11 @@ jobs:
       - name: Doc authority
         run: pnpm check:doc-authority && pnpm test:doc-authority
 
+      # Operator scorecard helpers (SHA + @cmc/ui inventory). Does not replace
+      # typecheck/lint/frames and never runs business:verify --strict.
+      - name: System verify helpers
+        run: pnpm test:verify-system
+
       - name: Test
         run: pnpm test
 

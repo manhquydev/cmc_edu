@@ -1,9 +1,23 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
+const meState = vi.hoisted(() => ({
+  roles: ['giao_vien'] as string[],
+}));
+
+const deliverMutate = vi.hoisted(() => vi.fn());
+const deliverState = vi.hoisted(() => ({
+  delivered: false,
+  ended: true,
+  hasUnit: true,
+  cancelled: false,
+  hasDelivery: false,
+  sequenceLength: 1,
+  nextPositionExists: true,
+}));
 const SESSION = {
   id: 'sess-1',
   classBatchId: 'batch-1',
@@ -39,16 +53,29 @@ vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
   return {
     trpc: buildTrpcMock({
-      'session.me.useQuery': queryResult({
-        userId: 'u1',
-        roles: ['giao_vien'],
-        facilityId: 'f1',
-        config: { approvalSecondEyeThreshold: 20_000_000 },
-      }),
+      'session.me.useQuery': () =>
+        queryResult({
+          userId: 'u1',
+          roles: meState.roles,
+          facilityId: 'f1',
+          config: { approvalSecondEyeThreshold: 20_000_000 },
+        }),
       'classSession.get.useQuery': (_input: unknown, opts?: { enabled?: boolean }) =>
         opts?.enabled === false ? queryResult(undefined) : queryResult(SESSION),
       'classSession.doneProgress.useQuery': (_i: unknown, opts?: { enabled?: boolean }) =>
         opts?.enabled === false ? queryResult(undefined) : queryResult(PROGRESS),
+      'lmsOps.sessionDeliveryStatus.useQuery': (_input: unknown, opts?: { enabled?: boolean }) =>
+        opts?.enabled === false ? queryResult(undefined) : queryResult({ classSessionId: 'sess-1', classBatchId: 'batch-1', ...deliverState }),
+      'lmsOps.deliverSessionExercise.useMutation': (opts?: {
+        onSuccess?: (res: { delivered: boolean; reason?: string }) => void;
+      }) =>
+        mutationResult({
+          mutate: (...args: unknown[]) => {
+            deliverMutate(...args);
+            void opts?.onSuccess?.({ delivered: false, reason: 'no_sequence_or_exhausted' });
+          },
+          isSuccess: false,
+        }),
       'classBatch.listStudents.useQuery': queryResult([]),
       'attendance.listBySession.useQuery': queryResult({ items: [] }),
       'attendance.markAll.useMutation': () => mutationResult({ mutate: vi.fn() }),
@@ -80,6 +107,13 @@ function renderSession(route: string) {
 describe('SessionDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    meState.roles = ['giao_vien'];
+    deliverState.hasDelivery = false;
+    deliverState.ended = true;
+    deliverState.hasUnit = true;
+    deliverState.cancelled = false;
+    deliverState.sequenceLength = 1;
+    deliverState.nextPositionExists = true;
   });
 
   it('renders session identity and hub tabs', async () => {
@@ -103,5 +137,32 @@ describe('SessionDetailPage', () => {
   it('exposes Copy link for classSession deep share', async () => {
     renderSession('/teaching/sessions/sess-1?tab=overview');
     expect(await screen.findByRole('button', { name: /Copy link|Đã copy/ })).toBeTruthy();
+  });
+
+  it('hides Phát bài for giao_vien on the default attendance tab', async () => {
+    renderSession('/teaching/sessions/sess-1');
+    expect(await screen.findByRole('heading', { name: 'CMC-UCREA-001' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Phát bài' })).toBeNull();
+  });
+
+  it('hides Phát bài for giao_vien on the overview tab', async () => {
+    renderSession('/teaching/sessions/sess-1?tab=overview');
+    expect(await screen.findByRole('heading', { name: 'CMC-UCREA-001' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Phát bài' })).toBeNull();
+  });
+
+  it('shows Phát bài on EntityHeader for GĐĐT even on attendance tab', async () => {
+    meState.roles = ['giam_doc_dao_tao'];
+    renderSession('/teaching/sessions/sess-1');
+    expect(await screen.findByRole('button', { name: 'Phát bài' })).toBeTruthy();
+  });
+
+  it('shows error Banner, not success, when deliver returns delivered:false', async () => {
+    meState.roles = ['giam_doc_dao_tao'];
+    renderSession('/teaching/sessions/sess-1');
+    fireEvent.click(await screen.findByRole('button', { name: 'Phát bài' }));
+    expect(await screen.findByText('Không phát được bài')).toBeTruthy();
+    expect(screen.getByText('Dãy bài trống hoặc đã hết vị trí.')).toBeTruthy();
+    expect(screen.queryByText('Đã phát bài')).toBeNull();
   });
 });

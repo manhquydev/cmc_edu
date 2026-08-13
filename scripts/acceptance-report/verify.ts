@@ -71,47 +71,25 @@ const DOCUMENTED_GAPS: Record<string, string> = {
     'Lưu trữ khung lịch (thay cho xoá, giữ dấu vết buổi cũ); API + test có thật, chưa màn nào gọi (A1, 2026-08-13)',
   'classSession.assignTeacher':
     'Đổi giáo viên cho một buổi (dạy thay); nhãn hiển thị, chưa phải nguồn quyền/chấm công; chưa màn nào gọi (A1, 2026-08-13)',
-  // P2-04 chuyển soạn bài sang thư mục. curriculumUnit.list vẫn phục vụ màn lớp
-  // (neo unit / assignUnit) nhưng chưa có luồng riêng khai procedure này.
-  'curriculumUnit.list':
-    'Danh mục unit còn dùng ở màn lớp; P2-04 soạn bài đã đổi sang exerciseFolder.* (2026-08-13)',
+  // Legacy calendar-only writer. Admin create-class UI calls
+  // lmsOps.createClassWithUnits (classes/index.tsx:260). Keep visible until a
+  // flow still uses this procedure as its UI path.
+  'classBatch.create':
+    'Legacy calendar-only create; UI is lmsOps.createClassWithUnits (classes/index.tsx:260). API + e2e still call this path.',
   // Procedure đổi tên / chuyển thư mục có thật. rg "exercise.update" trên
   // apps/admin/src + apps/lms/src = 0 (chỉ Prisma update status trong test API).
   // P2-04 không khai để bánh xe chắn orphan không đếm phủ không tồn tại.
   'exercise.update':
     'API đổi tên/chuyển thư mục bài có thật; chưa màn nào gọi (rg exercise.update apps/admin+lms = 0, 2026-08-13)',
-  // PO quyết 2026-07-18: khoá học hiện import data, nhưng cần MÀN HÌNH tạo/quản lý
-  // cho GĐĐT tự xử lý (không phụ thuộc IT chạy code) → tính năng tương lai cần xây;
-  // trang /admin/courses hiện chỉ có danh sách (course.list), thiếu form tạo.
-  'course.create': 'Tạo/quản lý khoá học cho GĐĐT — cần màn hình mới (hiện chỉ import data + trang danh sách; PO xác nhận là tính năng tương lai 2026-07-18)',
   // Triage 2026-07-24: P1-07 khai procedure này nhưng không màn LMS nào gọi
   // (`rg "enrollment\.mine" apps/lms/src` → 0 matches). Bỏ khỏi khai của luồng
   // để lời khai khớp thực tế; giữ ở đây để capability vẫn HIỆN, không bị whitelist
   // nuốt mất — trang phụ huynh hiện chưa có chỗ nào liệt kê lớp của con.
   'enrollment.mine': 'Danh sách lớp của con cho phụ huynh — procedure có thật nhưng chưa màn LMS nào gọi (triage 2026-07-24)',
-  // LMS foundation unit-range spike (lmsOps namespace): real server capabilities
-  // for class/unit grants, enrollment archive, delivery, session cancel+restamp.
-  // `lmsOps.assignExerciseSequence` / `listExerciseSequence` đã có màn
-  // /teaching/classes/:classBatchId/exercise-sequence và được P2-09 khai —
-  // không còn trong map này. Các procedure còn lại chưa có UI/journey.
-  'lmsOps.addWithUnits':
-    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
   'lmsOps.archiveEnrollment':
-    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
-  'lmsOps.cancelSessionAndRestamp':
-    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
-  'lmsOps.createClassWithUnits':
-    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
-  'lmsOps.deliverSessionExercise':
-    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
-  'lmsOps.grantPast':
-    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
-  'lmsOps.revokeFromNext':
-    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
-  'lmsOps.rosterForSession':
-    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
+    'LMS foundation: archives Enrollment (not a unit range). No ops UI yet.',
   'lmsOps.unarchiveEnrollment':
-    'LMS foundation unit-range spike; no student-facing UI/journey yet; excluded from acceptance until wired',
+    'LMS foundation: restore archived Enrollment. No ops UI yet.',
 };
 
 /**

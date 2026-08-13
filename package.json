@@ -27,6 +27,8 @@
     "test:ui-ratchet": "node --test scripts/ui-ratchet.test.mjs",
     "check:doc-authority": "node scripts/check-doc-authority.mjs",
     "test:doc-authority": "node --test scripts/check-doc-authority.test.mjs",
+    "verify:system": "node scripts/verify-system.mjs",
+    "test:verify-system": "node --test scripts/verify-system.test.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

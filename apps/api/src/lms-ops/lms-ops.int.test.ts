@@ -502,4 +502,24 @@ describe('lmsOps foundation spike', () => {
     roster = await gddt.lmsOps.rosterForSession({ classSessionId: futureSessionId });
     expect(roster.students.map((s) => s.studentId)).toContain(active.studentId);
   });
+
+  it('sessionDeliveryStatus and listEnrollmentsForStudent forbid sale', async () => {
+    const { randomUUID } = await import('node:crypto');
+    await expect(
+      sale.lmsOps.sessionDeliveryStatus({ classSessionId: randomUUID() }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(
+      sale.lmsOps.listEnrollmentsForStudent({ studentId: randomUUID() }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('listEnrollmentsForStudent returns no rows for a student without enrollment', async () => {
+    const student = await testDbBypass((tx) =>
+      tx.student.create({
+        data: { facilityId: facility.id, fullName: 'No class student' },
+      }),
+    );
+    const result = await gddt.lmsOps.listEnrollmentsForStudent({ studentId: student.id });
+    expect(result.enrollments).toEqual([]);
+  });
 });

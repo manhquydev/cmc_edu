@@ -2,7 +2,7 @@
  * Teacher Session Detail hub — ClassSession as work object (RCWS).
  * /teaching/sessions/:sessionId?tab=overview|attendance|assessment|evidence
  */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Badge,
@@ -57,6 +57,7 @@ export default function SessionDetailPage() {
   const navigate = useNavigate();
   const { canDo } = useSession();
   const canCancelRestamp = canDo('schedule', 'generate');
+  const canDeliver = canDo('exercise', 'manage');
 
   const rawTab = searchParams.get('tab');
   const activeTab: TabId = isTab(rawTab) ? rawTab : 'attendance';
@@ -75,7 +76,13 @@ export default function SessionDetailPage() {
     { enabled: Boolean(sessionId) },
   );
 
+  const { data: delivery } = trpc.lmsOps.sessionDeliveryStatus.useQuery(
+    { classSessionId: sessionId ?? '' },
+    { enabled: Boolean(sessionId) && canDeliver },
+  );
+
   const utils = trpc.useUtils();
+  const [deliverFalseReason, setDeliverFalseReason] = useState<string | null>(null);
   const cancelRestamp = trpc.lmsOps.cancelSessionAndRestamp.useMutation({
     onSuccess: async () => {
       await utils.classSession.get.invalidate({ sessionId: sessionId ?? '' });
@@ -85,8 +92,21 @@ export default function SessionDetailPage() {
     },
   });
 
+  const deliverMut = trpc.lmsOps.deliverSessionExercise.useMutation({
+    onSuccess: async (res) => {
+      if (res.delivered === false) {
+        setDeliverFalseReason(res.reason);
+        return;
+      }
+      setDeliverFalseReason(null);
+      await utils.lmsOps.sessionDeliveryStatus.invalidate({ classSessionId: sessionId ?? '' });
+    },
+  });
+
   useEffect(() => {
     cancelRestamp.reset();
+    deliverMut.reset();
+    setDeliverFalseReason(null);
   }, [sessionId]);
 
   function setTab(id: string) {
@@ -175,6 +195,15 @@ export default function SessionDetailPage() {
   const timeRange = fmtRange(session.startTime, session.endTime);
   const shortId = session.id.slice(0, 8);
   const statusLabel = session.status;
+  const deliverReady = Boolean(
+    delivery &&
+      !delivery.cancelled &&
+      delivery.ended &&
+      delivery.hasUnit &&
+      !delivery.hasDelivery &&
+      delivery.sequenceLength > 0 &&
+      delivery.nextPositionExists,
+  );
 
   const overview = (
     <div className="console-detail-panel">
@@ -342,6 +371,16 @@ export default function SessionDetailPage() {
           meta={<span style={{ fontSize: 'var(--cmc-font-size-data)' }}>{progressLabel}</span>}
           actions={
             <HStack gap={1} wrap="wrap">
+              {canDeliver ? (
+                <Button
+                  label={delivery?.hasDelivery ? 'Đã phát bài' : 'Phát bài'}
+                  size="sm"
+                  variant="primary"
+                  isDisabled={!deliverReady || deliverMut.isPending}
+                  isLoading={deliverMut.isPending}
+                  onClick={() => deliverMut.mutate({ classSessionId: session.id })}
+                />
+              ) : null}
               <Button
                 label="Điểm danh"
                 size="sm"
@@ -373,7 +412,31 @@ export default function SessionDetailPage() {
       }
       tabs={<CmcTabs tabs={tabs} activeTab={activeTab} onTabChange={setTab} />}
     >
-      {null}
+      {canDeliver && (deliverMut.isError || deliverFalseReason || (deliverMut.isSuccess && !deliverFalseReason)) ? (
+        <Stack gap={2} style={{ paddingInline: 'var(--cmc-space-3)', paddingBottom: 'var(--cmc-space-2)' }}>
+          {deliverMut.isError ? (
+            <Banner
+              status="error"
+              title="Không phát được bài"
+              description={deliverMut.error.message}
+            />
+          ) : null}
+          {deliverFalseReason ? (
+            <Banner
+              status="error"
+              title="Không phát được bài"
+              description={
+                deliverFalseReason === 'no_sequence_or_exhausted'
+                  ? 'Dãy bài trống hoặc đã hết vị trí.'
+                  : deliverFalseReason
+              }
+            />
+          ) : null}
+          {deliverMut.isSuccess && !deliverFalseReason ? (
+            <Banner status="success" title="Đã phát bài" />
+          ) : null}
+        </Stack>
+      ) : null}
     </DetailPage>
   );
 }

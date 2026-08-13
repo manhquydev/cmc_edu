@@ -18,12 +18,15 @@
  *
  * jsdom does not resolve var() on used properties (color/font-size stay
  * as the var() string). Custom-property getPropertyValue still returns
- * the specified value, so this suite pins those specified values (and
- * follows one var() hop when the specified value is a token ref).
+ * the specified value. Color pins therefore parse that specified var()
+ * (winner + fallback hex) and hop once to the winner token's hex on the
+ * same node. Text-role pins read the console.css remaps on the shell —
+ * not the vendor theme-neutral mapping file.
  *
  * LIMITATION: jsdom silently drops @import of node_modules
  * (astryx-theme-cmc.css:16-17). The upstream --text-* family therefore
- * resolves empty here; the mapping suite below pins those remaps from source.
+ * resolves empty here; the vendor mapping suite still pins that file
+ * from source. Console remaps are pinned separately on .o_web_client.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -143,6 +146,47 @@ function expectHexColor(el: Element, name: string, hex: string, rgb: string): vo
   ).toBe(rgb);
 }
 
+/** First `var()` hop: winner token and optional fallback (rest after the first comma). */
+function parseCssVar(specified: string): { name: string; fallback: string | null } {
+  const match = specified.match(/^var\((--[a-z0-9-]+)(?:,\s*(.+))?\)$/i);
+  if (!match) {
+    throw new Error(`expected var(--token[, fallback]), got ${JSON.stringify(specified)}`);
+  }
+  return { name: match[1], fallback: match[2] ?? null };
+}
+
+/**
+ * Pin a console color role by resolved value, not by substring.
+ * Mutating the fallback hex or flipping the winner token must fail.
+ */
+function expectResolvedConsoleColor(
+  el: Element,
+  name: string,
+  winner: string,
+  hex: string,
+  rgb: string,
+): void {
+  const specified = prop(el, name);
+  const parsed = parseCssVar(specified);
+  expect(
+    parsed.name,
+    `${name} winner must be ${winner}; specified ${JSON.stringify(specified)}`,
+  ).toBe(winner);
+  expect(
+    parsed.fallback,
+    `${name} fallback hex must be ${hex}; specified ${JSON.stringify(specified)}`,
+  ).toBe(hex);
+  const resolved = prop(el, parsed.name);
+  expect(
+    resolved,
+    `${name} ${parsed.name} resolves to ${JSON.stringify(resolved)}; expected ${JSON.stringify(hex)}`,
+  ).toBe(hex);
+  expect(
+    hexAsRgb(resolved),
+    `${name} resolved ${JSON.stringify(resolved)} as used color; expected ${JSON.stringify(rgb)}`,
+  ).toBe(rgb);
+}
+
 describe('console / Astryx / CMC precedence', () => {
   let sheets: HTMLStyleElement[];
   let shellChild: HTMLElement;
@@ -181,18 +225,27 @@ describe('console / Astryx / CMC precedence', () => {
 
     expectHexColor(shellChild, '--console-gray-900', '#212529', 'rgb(33, 37, 41)');
     expectHexColor(shellChild, '--console-gray-600', '#6c757d', 'rgb(108, 117, 125)');
-    expect(
-      prop(shellChild, '--color-text-primary'),
-      `--color-text-primary must reference --console-gray-900; got ${JSON.stringify(prop(shellChild, '--color-text-primary'))}`,
-    ).toMatch(/--console-gray-900/);
-    expect(
-      prop(shellChild, '--color-text-secondary'),
-      `--color-text-secondary must reference --console-gray-600; got ${JSON.stringify(prop(shellChild, '--color-text-secondary'))}`,
-    ).toMatch(/--console-gray-600/);
-    expect(
-      prop(shellChild, '--color-text-disabled'),
-      `--color-text-disabled must reference --console-gray-600; got ${JSON.stringify(prop(shellChild, '--color-text-disabled'))}`,
-    ).toMatch(/--console-gray-600/);
+    expectResolvedConsoleColor(
+      shellChild,
+      '--color-text-primary',
+      '--console-gray-900',
+      '#212529',
+      'rgb(33, 37, 41)',
+    );
+    expectResolvedConsoleColor(
+      shellChild,
+      '--color-text-secondary',
+      '--console-gray-600',
+      '#6c757d',
+      'rgb(108, 117, 125)',
+    );
+    expectResolvedConsoleColor(
+      shellChild,
+      '--color-text-disabled',
+      '--console-gray-600',
+      '#6c757d',
+      'rgb(108, 117, 125)',
+    );
 
     // jsdom serialization of this family list (double quotes, no spaces) is a
     // jsdom artifact, not a CSS contract — a jsdom bump that changes serialize
@@ -207,6 +260,24 @@ describe('console / Astryx / CMC precedence', () => {
       prop(shellChild, '--font-family-heading'),
       `--font-family-heading shell=${JSON.stringify(prop(shellChild, '--font-family-heading'))} outside=${JSON.stringify(prop(outsideChild, '--font-family-heading'))}`,
     ).toBe(consoleFont);
+
+    // Console remaps (not vendor theme-neutral). Changing these in
+    // console.css must fail this suite.
+    expect(prop(shellChild, '--text-heading-3-weight')).toBe('600');
+    expect(prop(shellChild, '--text-label-size')).toBe('var(--font-size-sm)');
+    expectSpecified(
+      shellChild,
+      '--text-label-size',
+      SHELL_FONT_SIZE.sm,
+      specifiedPx(outsideChild, '--text-label-size'),
+    );
+    expect(prop(shellChild, '--text-supporting-size')).toBe('var(--font-size-xs)');
+    expectSpecified(
+      shellChild,
+      '--text-supporting-size',
+      SHELL_FONT_SIZE.xs,
+      specifiedPx(outsideChild, '--text-supporting-size'),
+    );
   });
 
   it('lets CMC / Astryx win the same families on descendants outside .o_web_client', () => {

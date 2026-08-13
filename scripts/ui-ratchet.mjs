@@ -91,7 +91,7 @@ const FAMILY = {
     'borderBottomLeftRadius', 'borderBottomRightRadius',
   ]),
   color: new Set([
-    'color', 'backgroundColor', 'borderColor', 'borderTopColor', 'borderRightColor',
+    'color', 'background', 'backgroundColor', 'borderColor', 'borderTopColor', 'borderRightColor',
     'borderBottomColor', 'borderLeftColor', 'outlineColor', 'fill', 'stroke',
   ]),
 };

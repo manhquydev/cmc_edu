@@ -69,18 +69,18 @@ describe('ui-ratchet.mjs', () => {
         // something the script infers. Neither has an exemption entry for THIS file, so both
         // count (proves exemption matching is per file+property+value, not by value alone).
         `const __ratchetTestSynthetic = (
-          <div style={{ display: 'flex', width: 320, borderRadius: 'var(--cmc-radius-card)', padding: 8, fontSize: 13 }} />
+          <div style={{ display: 'flex', width: 320, borderRadius: 'var(--cmc-radius-card)', padding: 8, fontSize: 13, background: '#ff0000' }} />
         );\n${original}`,
       );
       const r = run(['--json']);
       const report = JSON.parse(r.stdout);
       const counts = report.perFile[path.relative(root, targetFile)];
       assert.ok(counts, 'synthetic injected style block should be counted');
-      assert.equal(counts.total, 2);
+      assert.equal(counts.total, 3);
       assert.equal(counts.spacing, 1); // padding:8 (no exemption entry for this file/property)
       assert.equal(counts.typography, 1); // fontSize:13
       assert.equal(counts.radius, 0); // var() — already tokenized
-      assert.equal(counts.color, 0);
+      assert.equal(counts.color, 1); // background:'#ff0000' — literal, not only backgroundColor
     } finally {
       fs.writeFileSync(targetFile, original);
     }

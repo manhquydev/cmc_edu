@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Inline-style ratchet for CMC admin pages (`apps/admin/src/pages`).
+ * Inline-style ratchet for CMC admin pages (`apps/admin/src/pages`) and
+ * LMS (`apps/lms/src`).
  *
  * Counts raw literal values in `style={{ ... }}` objects for the property
  * families that actually have a token scale (spacing, fontSize, radius,
@@ -34,20 +35,21 @@
  * count, 1 otherwise. --write-baseline never fails; it (re)writes
  * scripts/ratchet-baseline.json from the current count and exits 0.
  *
- * Explicit exemptions (Phase 8 close-out): scripts/ratchet-exemptions.json
- * lists individually-justified (file, property, exact literal value) triples
- * that have no matching CMC token — each one reviewed and reasoned, not a
- * silent baseline number. These are subtracted before counting, so the
- * baseline is genuinely {} (every file at 0) and the existing "fails if a
- * file's count goes up" comparison becomes zero-tolerance for anything NOT
- * on that explicit list — no separate "hard forbid" mode needed.
+ * Explicit exemptions: scripts/ratchet-exemptions.json lists individually-
+ * justified (file, property, exact literal value) triples that have no
+ * matching CMC token. These are subtracted before counting. Admin pages
+ * closed out at 0 — any new unexempted admin literal fails immediately.
+ * LMS counts live in ratchet-baseline.json (grandfather existing, block new).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const pagesRoot = path.join(root, 'apps/admin/src/pages');
+const scanRoots = [
+  path.join(root, 'apps/admin/src/pages'),
+  path.join(root, 'apps/lms/src'),
+];
 const baselinePath = path.join(root, 'scripts/ratchet-baseline.json');
 const exemptionsPath = path.join(root, 'scripts/ratchet-exemptions.json');
 
@@ -222,7 +224,7 @@ function countFile(file, relPath) {
   return counts;
 }
 
-const files = walk(pagesRoot);
+const files = scanRoots.flatMap((dir) => walk(dir));
 const perFile = {};
 let totalViolations = 0;
 for (const file of files) {
@@ -241,14 +243,14 @@ if (writeBaseline) {
       {
         _comment:
           'Per-file count of raw literal values in tokenizable inline-style properties ' +
-          '(spacing/fontSize/radius/color) under apps/admin/src/pages, as measured by ' +
+          '(spacing/fontSize/radius/color) under apps/admin/src/pages and apps/lms/src, as measured by ' +
           'scripts/ui-ratchet.mjs, AFTER excluding scripts/ratchet-exemptions.json entries. ' +
-          'Phase 8 close-out reached 0 here (plans/260809-2040-erp-ui-clean-sync-complete/' +
-          'phase-08-close-out.md) — this is now zero-tolerance: any unexempted literal in a ' +
-          'tokenizable property fails CI immediately, there is no grandfathered allowance ' +
-          'left to raise. Genuine debt with no matching token lives in ratchet-exemptions.json ' +
-          'instead, one entry per literal with a stated reason — add there (not here) only ' +
-          'after confirming no token fits; do not use this file to silence new violations.',
+          'Admin pages closed out at 0 (plans/260809-2040-erp-ui-clean-sync-complete/' +
+          'phase-08-close-out.md) — any new unexempted admin literal fails immediately. ' +
+          'LMS counts are grandfathered here (block new drift, tolerate existing). Genuine ' +
+          'debt with no matching token lives in ratchet-exemptions.json instead, one entry ' +
+          'per literal with a stated reason — add there (not here) only after confirming no ' +
+          'token fits; do not use this file to silence new violations.',
         baseline,
       },
       null,
@@ -284,7 +286,7 @@ const report = {
 if (asJson) {
   console.log(JSON.stringify({ ...report, perFile }, null, 2));
 } else {
-  console.log('UI inline-style ratchet (apps/admin/src/pages)\n');
+  console.log('UI inline-style ratchet (apps/admin/src/pages + apps/lms/src)\n');
   console.log(`  Pages scanned:        ${files.length}`);
   console.log(`  Files with violations: ${Object.keys(perFile).length}`);
   console.log(`  Total violations:      ${totalViolations}`);

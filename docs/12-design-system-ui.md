@@ -5,8 +5,8 @@
 > trạng thái component, pattern trang, semantics màu, accessibility.
 > Áp cùng nguyên tắc UX (TL2) và routing (TL6).
 
-> **Superseded for `apps/admin` (rolled out, 2026-08-06).** Admin uses the Odoo
-> backend UI language — see [docs/design-system-console.md](./design-system-console.md).
+> **Superseded for `apps/admin` (rolled out, 2026-08-06).** Admin uses CMC Console
+> (`docs/design-system-console.md`).
 > This TL12 document remains authoritative for **LMS** (student/parent) and for
 > shared base tokens (`--cmc-*`, Inter, accent `#0071E3`, light-only). Do not
 > apply TL12-era page chrome notes to
@@ -24,10 +24,10 @@ phẳng, whitespace rộng nhưng bảng vẫn đọc được, typography mang 
 giờ ship một tầng design-language đơn vị cao mức trên Astryx base — **LOCKED: light mode only, 
 monochrome outline icons (no emoji), one accent #0071E3, warm canvas #F7F6F3, restraint + whitespace + 
 typography**. Bao gồm: typed `tokens.premium` object, shared `LineIcon` monochrome set (Feather outline), 
-composites (`MetricCard`, `Panel`, `TaskRow`, `FunnelBar`), app shell (`AppFrame` + `SideNav`), 
-page templates (`ListPage`, `DetailPage`, `FormPage`). Admin: `@cmc/ui/console.css`. LMS: `apps/lms/src/app.css` (`lms-*`; shared `@cmc/ui` components may still document legacy class notes) 
-at app root (`--sh-*`, `--tpl-*` CSS classes). Admin shell + cockpit + finance cockpit migrated onto 
-these components; LMS shares base tokens + icons.
+composites (`MetricCard`, `Panel`, `TaskRow`, `FunnelBar`),
+page templates (`ListPage`, `DetailPage`, `FormPage`). Admin shell = `.o_web_client` + `ConsoleNavbar`.
+LMS = `lms-*` in `apps/lms/src/app.css`. **Do not** emit `ck-*` / `tpl-*` / `sh-*` / `premium-`.
+Admin: `@cmc/ui/console.css`. LMS shares base tokens + icons.
 
 ## 2. Tokens (nguồn: `packages/ui/src/tokens.css`)
 
@@ -77,14 +77,14 @@ styled via **CMC Console** (`@cmc/ui/console.css`) on admin; LMS uses app-local 
 
 **Principles:** Light mode only · Monochrome outline icons (Feather set via `LineIcon` component, 
 no emoji) · One accent (`#0071E3`) · Warm canvas (`#F7F6F3`) · Notion-subtle elevation · Inter 
-type scale · radius pill (12px) · blur-nav sticky · near-black numerals.
+type scale · near-black numerals.
 
 **Shared icon language:** `LineIcon` component + `IconName` union — replaced all emoji across shell 
 + content layers. Monochrome outline (no fill), pairs seamlessly with text. **Icon set now includes 
 5 premium keys** (globe, clock, trophy, gift, star) added 2026-07 alongside existing Feather base. 
 All icons forward `data-icon` attribute for testing/analytics.
 
-**Composites (render props-only → CSS `.premium-` classes):**
+**Composites (render props-only → CSS `.console-*` classes on admin).** LMS does not use that prefix.
 - `MetricCard`: số liệu dạng card (metric + trend + label) — dùng trong dashboard. Hỗ trợ `Tone` 
   type (neutral/positive/warning).
 - `Panel`: container căn bản với elevation + padding, thay box mặc định. Dùng khi cần surface raised.
@@ -92,14 +92,9 @@ All icons forward `data-icon` attribute for testing/analytics.
   Router ancestor).
 - `FunnelBar`: horizontal bar chart một dòng (width/color/label) — cho funnel/conversion views.
 
-**App frame (light-mode admin shell):**
-- `AppFrame` + `SideNav`: bao frame toàn trang — sticky blurred topbar (pill CTA, centered breadcrumb), 
-  left sidebar tree nav (active module + nav entries), main content slot.
-  - Props: `activeModuleId` (current selected module), `NavModule[]` (tree structure), 
-    `onNavigate` callback (router-free — caller owns push/navigate).
-  - Exported: `NavModule`, `NavEntry` types; `activeModuleId()` helper.
-  - Test: 40+ vitest cases encode shell invariants (frame layout, nav tree, active state, blur effect).
-  
+**Admin shell:** `apps/admin/src/shell/shell.tsx` = `.o_web_client` + `ConsoleNavbar` + `main.console-main`.
+Astryx `SideNav` in `packages/ui/src/primitives.ts` is a one-door re-export, **not** admin chrome.
+
 **Page templates (thin slot-based composition, Phases 3–4; 21/21 non-blocked screens now adopted):**
 - `ListPage`: header + filter bar + table → standard list archetype. Props: `header` (PageHeader 
   slot), `filter` (FilterBar), `table` (DataTable slot), no data fetching.
@@ -108,12 +103,10 @@ All icons forward `data-icon` attribute for testing/analytics.
 - `FormPage`: form container → form archetype. Caller owns validation/submit logic.
   Admin templates use `.console-*` under `@cmc/ui/console.css` (legacy `.tpl-*` retired).
 
-**Adoption Status (2026-07-12):** Toàn bộ 21/21 màn admin ERP non-blocked (8 phase TDD, engaged 
-via phase-00-phase-07) đã migrate từ legacy component lên premium template/composite architecture. 
-Áp dụng: ListPage, DetailPage, FormPage + MetricCard, Panel, TaskRow, FunnelBar + LineIcon 
-monochrome + premium token. Xem `plans/260711-1720-premium-erp-screen-buildout/plan.md`. 
-12 exemplar screen cũ (cockpit, finance-receipt-*, student-*, grading, etc.) đã xây sẵn premium 
-(không đổi lần này). 1 màn stub (leaderboard) chờ backend + spec; network-ip/shift-config đã shipped PR #34.
+**Adoption Status (historical 2026-07):** snapshot of the 2026-07 ERP screen
+buildout — **not** current adoption SoT. Admin chrome authority is
+[docs/design-system-console.md](./design-system-console.md). Leaderboard remains
+a backend/UX holdout; network-ip/shift-config shipped.
 
 **Deployment:** Admin imports `@cmc/ui/console.css` once. LMS does not import console.css; uses `apps/lms/src/app.css`. 
 Classes encode paddings, gaps, shadows, blur effects — no inline styles in components.

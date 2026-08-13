@@ -20,6 +20,7 @@ describe('check-ui-frames.mjs', () => {
     assert.equal(r.status, 0, r.stderr || r.stdout);
     const report = JSON.parse(r.stdout);
     assert.ok(report.pageCount > 20);
+    assert.ok(report.roots?.includes('apps/lms/src'), 'LMS must stay in the scan');
     assert.ok(typeof report.counts.ListPage === 'number');
     assert.ok(report.bulkCount >= 5, `expected ≥5 bulk lists, got ${report.bulkCount}`);
     assert.equal(report.metrics.bulkListsOk, true);

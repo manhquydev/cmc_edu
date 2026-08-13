@@ -10,9 +10,10 @@
 
 ```text
 ┌─────────────────────────────────────────────────────────┐
-│ AppFrame + SideNav + Topbar          ← shell toàn app   │
+│ ConsoleNavbar                        ← shell toàn app   │
 ├─────────────────────────────────────────────────────────┤
-│ tpl-wrap (canvas ấm, padding thống nhất)                │
+│ main.console-main                                       │
+│   .console-wrap (canvas ấm, padding thống nhất)         │
 │   ┌─ Page template (1 trong 4 archetype) ─────────────┐ │
 │   │  DashboardPage | ListPage | DetailPage | FormPage │ │
 │   │  + atoms: PageHeader, Panel, MetricCard, …        │ │
@@ -22,9 +23,9 @@
 
 | Tầng | Component | CSS | Ghi chú |
 |------|-----------|-----|---------|
-| Shell | `AppFrame`, `SideNav` | `.sh-*` | Nav, brand, topbar actions |
+| Shell | `ConsoleNavbar` | `.console-*` | Nav, brand, systray |
 | Page frame | 4 templates dưới | `.console-*` | Cùng canvas/padding |
-| Atoms | MetricCard, Panel, DataTable… | `.ck-*` | Không page-local layout |
+| Atoms | MetricCard, Panel, DataTable… | `.console-*` | Không page-local layout |
 
 **Quy tắc:** màn mới **bắt buộc** dùng 1 trong 4 template. Cấm invent layout full-page mới.
 
@@ -65,7 +66,7 @@
 [ DataTable | board | EmptyState ]
 ```
 
-`density="ops"` → `.tpl-wrap--ops` (padding chặt hơn).  
+`density="ops"` → `.console-wrap--ops` (padding chặt hơn).  
 **Grammar đầy đủ:** [VIEW-GRAMMAR.md](./VIEW-GRAMMAR.md).
 
 > **Luật `subtitle`:** cùng luật siết ở §A trên — mang thông tin không suy ra
@@ -150,9 +151,9 @@ Greeting: `Xin chào · {formatRoles}` — không raw role key.
 | shadcn pattern | CMC |
 |----------------|-----|
 | Card dashboard | MetricCard / Panel |
-| Button variants | Astryx Button + `.sh-cta*` |
+| Button variants | Astryx Button |
 | Empty | EmptyState |
-| Layout shell | AppFrame + DashboardPage/ListPage… |
+| Layout shell | ConsoleNavbar + DashboardPage/ListPage… |
 
 ---
 

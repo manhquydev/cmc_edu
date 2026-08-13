@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Frame adoption audit for CMC admin pages.
+ * Frame adoption audit for CMC admin pages plus LMS (`apps/lms/src`).
  * Exit 0 always when only reporting; use --strict to fail dual-title / bulk gates.
  *
  * Usage: node scripts/check-ui-frames.mjs [--json] [--strict]
@@ -10,7 +10,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const pagesRoot = path.join(root, 'apps/admin/src/pages');
+const scanRoots = [
+  path.join(root, 'apps/admin/src/pages'),
+  path.join(root, 'apps/lms/src'),
+];
 const strict = process.argv.includes('--strict');
 const asJson = process.argv.includes('--json');
 
@@ -29,7 +32,7 @@ function walk(dir, out = []) {
   return out;
 }
 
-const files = walk(pagesRoot).filter((f) => !EXEMPT.has(path.basename(f)));
+const files = scanRoots.flatMap((dir) => walk(dir)).filter((f) => !EXEMPT.has(path.basename(f)));
 
 const frames = [
   'ListPage',
@@ -119,6 +122,7 @@ for (const file of files) {
 
 const report = {
   generatedAt: new Date().toISOString(),
+  roots: ['apps/admin/src/pages', 'apps/lms/src'],
   pageCount: files.length,
   counts,
   bulkEnabledFiles: bulkFiles,
@@ -150,7 +154,7 @@ const report = {
 if (asJson) {
   console.log(JSON.stringify(report, null, 2));
 } else {
-  console.log('UI frame adoption (admin pages, excl design-lab/tests)\n');
+  console.log('UI frame adoption (admin pages + apps/lms/src, excl design-lab/tests)\n');
   for (const [k, v] of Object.entries(counts)) console.log(`  ${k.padEnd(16)} ${v}`);
   console.log(`\nBulk-enabled lists: ${bulkFiles.length}`);
   for (const f of bulkFiles) console.log(`  - ${f}`);

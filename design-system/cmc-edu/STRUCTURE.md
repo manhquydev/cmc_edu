@@ -1,6 +1,6 @@
 # CMC EDU — Unified component structure
 
-> **Authority:** `packages/ui/src/tokens.css` structural tokens + `console.css (admin) or apps/lms/src/app.css (LMS)` `.ck-*`.  
+> **Authority:** `packages/ui/src/tokens.css` structural tokens + `console.css` (admin `.console-*`) / `apps/lms/src/app.css` (`lms-*`).  
 > **Goal:** One system for the whole admin app — no “mixed toolkit” look.
 
 ---
@@ -14,8 +14,6 @@
 | **Quiet raised** | raised + `shadow-xs` | PageHeader sticky |
 | **Sunken** | `--cmc-surface-sunken` / surface-2 | Fields, filter chrome, weekend cols |
 | **Float** | raised + radius-lg + shadow-md/lg | Toast, dialog, sticky form actions |
-
-Utility classes: `.ck-surface`, `.ck-surface--quiet`, `.ck-surface--float`.
 
 ---
 
@@ -37,7 +35,7 @@ Utility classes: `.ck-surface`, `.ck-surface--quiet`, `.ck-surface--float`.
 - **Truncate:** long text → ellipsis + `title` tooltip; never uneven multi-line siblings of same role.
 - **Equal siblings:** same component class = same min-height / slot geometry.
 
-Utilities: `.ck-keyline`, `.ck-truncate`, `.ck-label-upper`, `.ck-title-1line`, `.ck-meta-1line`.
+Do not introduce a parallel surface-utility family — raised surfaces use `--cmc-raised-*`.
 
 ---
 
@@ -67,7 +65,7 @@ Utilities: `.ck-keyline`, `.ck-truncate`, `.ck-label-upper`, `.ck-title-1line`, 
 
 | Zone | Components |
 |------|------------|
-| Chrome | AppFrame, SideNav, PageHeader |
+| Chrome | ConsoleNavbar, PageHeader — see [docs/design-system-console.md](../../docs/design-system-console.md) |
 | Control | TextInput, Button, FilterBar, chips |
 | Raised content | MetricCard, Panel, WorkInbox, Table shell, WeekSchedule |
 | List atom | TaskRow, SessionCard, FunnelBar row |

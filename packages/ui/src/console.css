@@ -1391,7 +1391,7 @@ button.console-kanban-card {
 * Panel,
 TaskRow,
 FunnelBar (promoted from the cockpit pilot). Import ONCE per
- * app root: `import '@cmc/ui/console.css'`. Remaining `sh-*` owned by SideNav/AppFrame. Consumes --cmc-* tokens (tokens.css
+ * app root: `import '@cmc/ui/console.css'`. Consumes --cmc-* tokens (tokens.css
  * must load first). Classnames are stable (.console-*); components reference them so
  * there is no per-render inline <style> duplication.
  *

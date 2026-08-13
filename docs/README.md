@@ -12,7 +12,7 @@
 |---|---|
 | **PO / Lead** (nắm toàn cảnh) | TL00 → TL16 (quyết định) → TL31 (lộ trình) → TL15 (trạng thái) |
 | **Backend dev** | TL01 (bất biến) → TL10 (data) → TL11 (API) → TL22 (ADR rule) → Workflow cụm liên quan |
-| **Frontend dev** | TL02 (UX) → TL06 (URL) → TL12 (design) → TL18 (stack) → Workflow cụm liên quan |
+| **Frontend dev** | TL02 (UX) → TL06 (URL) → [design-system-console.md](./design-system-console.md) (admin) + TL12 (LMS/tokens) → TL18 (stack) → Workflow cụm liên quan |
 | **AI engineer** | TL04 (chiến lược) → TL13 (LLM integration) → TL08 §7 (dữ liệu trẻ) → TL30 (threat) |
 | **QA / Security** | TL25 (traceability) → TL29 (test) → TL30 (threat) → TL01 (bất biến) |
 | **Bắt đầu build** | **TL31 (Phased Build Plan) → P0**, dùng TL25 + TL29 làm acceptance |
@@ -38,7 +38,7 @@
 - **TL02** `02-thiet-ke-lai-giao-dien-ux` — Thiết kế lại UX (task-first)
 - **TL06** `06-kien-truc-url-routing` — Kiến trúc URL & routing (path-based, deep-link)
 - **TL11** `11-api-contract` — API contract (tRPC procedure + lỗi + phân trang)
-- **TL12** `12-design-system-ui` — Design system & đặc tả UI
+- **TL12** `12-design-system-ui` — LMS + shared --cmc-* (admin chrome: design-system-console.md)
 - **TL13** `13-ai-agent-llm-integration` — Tích hợp AI agent (LLM qua API, guardrail, eval)
 
 ### Vai trò · Bất biến · Nợ · Chiến lược AI

@@ -33,8 +33,6 @@ All raised composites share:
 - `--cmc-row-h` / `--cmc-head-h` / `--cmc-chip-h*` / `--cmc-cta-h*`
 - 1-line title/meta truncate (+ title tooltip)
 
-Utilities: `.ck-surface`, `.ck-truncate`, `.ck-label-upper`, `.ck-title-1line`, `.ck-meta-1line`, `.ck-keyline`.
-
 Full rules: `design-system/cmc-edu/STRUCTURE.md`.
 
 ## Page frames (mandatory)
@@ -76,7 +74,7 @@ Port patterns only from Shopify / GitHub / Cal / Airbnb DESIGN.md:
 - Skip: their brand colors, sharp 3–6px radius as default, marketing sparsity, dual CTA accents
 
 
-CSS: import `@cmc/ui/tokens.css` then `astryx-theme-cmc.css` then `premium.css` once at app root.
+CSS: admin imports `@cmc/ui/tokens.css` then `astryx-theme-cmc.css` then `console.css` once at app root. LMS uses `apps/lms/src/app.css` (does not import `console.css`).
 
 ## Living inventory
 

@@ -52,6 +52,7 @@ anchor history.
 | Navbar | `ConsoleNavbar` / `ConsoleNavbarProps` — `packages/ui/src/console/console-navbar.tsx` |
 | Kanban | `KanbanBoard` / `KanbanColumn` / `KanbanCard` — `packages/ui/src/console/console-kanban.tsx` |
 | Templates | `ListPage`, `DetailPage`, `FormPage`, `DashboardPage`, `ControlBar`, `FilterBar`, … under `packages/ui/src/components/` |
+| Astryx one-door | `packages/ui/src/primitives.ts` — Text/Button/… plus the SideNav re-export (`:35–41`). This is **not** the admin shell. Do not use SideNav for new chrome. |
 | Package export | `packages/ui/package.json` → `"./console.css"` |
 | Maintainer map | [design-system/cmc-edu/CONSOLE-COMPONENT-MAP.md](../design-system/cmc-edu/CONSOLE-COMPONENT-MAP.md) |
 
@@ -63,6 +64,20 @@ label** (e.g. cockpit → “Tổng quan”).
 Legacy `ck-*` / `tpl-*` retired (Phase 2). `sh-*` classes and the `SideNav` /
 `AppFrame` components they styled were removed (2026-08-10) — 0 real
 consumers in admin or LMS, superseded by `ConsoleNavbar`.
+
+---
+
+## Token precedence (intentional)
+
+Inside `.o_web_client`, `console.css` **intentionally** wins over the Astryx
+API (`--font-size-*`, `--color-text-*`, `--font-family-*`, `--text-*`) so the
+admin shell stays at Odoo-like density. That override is design, not a
+cascade accident.
+
+Outside the shell (LMS), Astryx / CMC tokens win. LMS does not import
+`@cmc/ui/console.css`.
+
+This rule is locked by `packages/ui/src/console/console-precedence.test.ts`.
 
 ---
 
@@ -112,7 +127,7 @@ uses flat band + `padding: 8px` — locked by `console-cp-sheet.test.ts`.
 
 - LMS `lms-*` redesign
 - Renaming `.o_web_client`
-- Renaming `FilterBar` (locked by `scripts/check-ui-frames.mjs`)
+- Renaming `FilterBar` (product hold — the frames gate **counts** it; it does not lock the name)
 - Full Odoo Search OS (facets / GroupBy / Favorites) — parked
 - Automated visual-regression CI (screenshot policy gated; Phase 4 is ephemeral)
 
@@ -125,10 +140,14 @@ FilterBar (backend + UX blockers).
 
 | Layer | Evidence |
 |-------|----------|
-| Unit locks | `console-tokens.test.ts`, `console-cp-sheet.test.ts`, `console-shell-stacking.test.ts`, `console-float-layer.test.ts`, `console-list-sticky.test.ts` |
+| Unit locks | `console-tokens.test.ts`, `console-cp-sheet.test.ts`, `console-shell-stacking.test.ts`, `console-float-layer.test.ts`, `console-list-sticky.test.ts`, `console-precedence.test.ts` |
 | E2e | `PLAYWRIGHT_UI=1` ui-chromium; admin-shell brand + sticky thead |
 | Visual smoke | Phase 4 report (real staff-login, synth DB) |
 | Pin / LGPL | CSS header + tokens test |
+| CI drift gates (wired in `.github/workflows/ci.yml` `typecheck-and-test`) | `pnpm check:ui-frames` = `scripts/check-ui-frames.mjs --strict`; `pnpm check:ui-ratchet` = `scripts/ui-ratchet.mjs`; `pnpm check:ui-a11y-roles` = `scripts/check-ui-a11y-roles.mjs`; `pnpm check:doc-authority` = `scripts/check-doc-authority.mjs` |
+
+FilterBar is **counted**, not rename-locked. FilterBar holdouts: leaderboard,
+refund, **class-placement**.
 
 ---
 

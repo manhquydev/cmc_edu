@@ -1,4 +1,16 @@
 {
-  "_comment": "Per-file count of raw literal values in tokenizable inline-style properties (spacing/fontSize/radius/color) under apps/admin/src/pages, as measured by scripts/ui-ratchet.mjs, AFTER excluding scripts/ratchet-exemptions.json entries. Phase 8 close-out reached 0 here (plans/260809-2040-erp-ui-clean-sync-complete/phase-08-close-out.md) — this is now zero-tolerance: any unexempted literal in a tokenizable property fails CI immediately, there is no grandfathered allowance left to raise. Genuine debt with no matching token lives in ratchet-exemptions.json instead, one entry per literal with a stated reason — add there (not here) only after confirming no token fits; do not use this file to silence new violations.",
-  "baseline": {}
+  "_comment": "Per-file count of raw literal values in tokenizable inline-style properties (spacing/fontSize/radius/color) under apps/admin/src/pages and apps/lms/src, as measured by scripts/ui-ratchet.mjs, AFTER excluding scripts/ratchet-exemptions.json entries. Admin pages closed out at 0 (plans/260809-2040-erp-ui-clean-sync-complete/phase-08-close-out.md) — any new unexempted admin literal fails immediately. LMS counts are grandfathered here (block new drift, tolerate existing). Genuine debt with no matching token lives in ratchet-exemptions.json instead, one entry per literal with a stated reason — add there (not here) only after confirming no token fits; do not use this file to silence new violations.",
+  "baseline": {
+    "apps/lms/src/pages/login.tsx": 3,
+    "apps/lms/src/pages/parent/consent-settings.tsx": 5,
+    "apps/lms/src/pages/parent/home.tsx": 8,
+    "apps/lms/src/pages/parent/homework-results.tsx": 3,
+    "apps/lms/src/pages/parent/report-card.tsx": 11,
+    "apps/lms/src/pages/parent/reset-child-password.tsx": 4,
+    "apps/lms/src/pages/parent/session-evidence.tsx": 6,
+    "apps/lms/src/pages/student/change-password.tsx": 1,
+    "apps/lms/src/pages/student/exercise.tsx": 10,
+    "apps/lms/src/pages/student/gifts.tsx": 8,
+    "apps/lms/src/pages/student/home.tsx": 2
+  }
 }

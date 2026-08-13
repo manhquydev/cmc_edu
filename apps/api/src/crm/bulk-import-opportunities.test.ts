@@ -130,6 +130,18 @@ describe('crm.opportunityBulkPreview / Confirm', () => {
     expect(created.length).toBe(4);
     const bulkCreated = created.filter((o) => o.source === 'fanpage');
     expect(bulkCreated).toHaveLength(3);
+
+    const importEvents = await testDbBypass((tx) =>
+      tx.recordEvent.findMany({
+        where: {
+          facilityId: facility.id,
+          kind: 'created',
+          entityId: { in: bulkCreated.map((o) => o.id) },
+        },
+      }),
+    );
+    expect(importEvents).toHaveLength(3);
+    expect(importEvents.every((e) => e.payload && typeof e.payload === 'object' && 'source' in e.payload && e.payload.source === 'import')).toBe(true);
   });
 
   it('does not leak or create into another facility', async () => {

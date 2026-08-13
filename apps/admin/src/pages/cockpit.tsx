@@ -1,12 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 import { formatRoles } from '@cmc/auth';
+import { classifyDueLevel } from '@cmc/domain-time';
 import {
   Button,
   DashboardPage,
+  HStack,
   MetricCard,
   ShortcutChip,
   StageFunnel,
   WorkInbox,
+  dueLevelClassName,
+  dueLevelTone,
   type TaskRowProps,
   type Tone,
 } from '@cmc/ui';
@@ -152,7 +156,8 @@ function SaleInbox() {
     { refetchOnWindowFocus: false },
   );
   const dueQ = trpc.crm.opportunityDueFollowUps.useQuery(undefined, {
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
   });
   const open = (data?.items ?? []).filter((o) => !o.closedAt).slice(0, 12);
   const enrollItems: TaskRowProps[] = open.map((o) => ({
@@ -162,15 +167,21 @@ function SaleInbox() {
     tone: 'success' as Tone,
     tag: 'O4',
   }));
-  const dueItems: TaskRowProps[] = (dueQ.data?.items ?? []).map((o) => ({
-    title: o.nextActionNote ?? `Nhắc việc — ${o.contact.name}`,
-    meta: o.nextActionAt
-      ? `${o.contact.name} · hạn ${new Date(o.nextActionAt).toLocaleDateString('vi-VN')}`
-      : o.contact.name,
-    href: `/crm/opportunities/${o.id}`,
-    tone: 'warning' as Tone,
-    tag: 'Nhắc',
-  }));
+  const dueItems: TaskRowProps[] = (dueQ.data?.items ?? []).map((o) => {
+    const level = o.nextActionAt
+      ? classifyDueLevel(new Date(o.nextActionAt), new Date())
+      : 'today';
+    return {
+      title: o.nextActionNote ?? `Nhắc việc — ${o.contact.name}`,
+      meta: o.nextActionAt
+        ? `${o.contact.name} · hạn ${new Date(o.nextActionAt).toLocaleDateString('vi-VN')}`
+        : o.contact.name,
+      href: `/crm/opportunities/${o.id}`,
+      tone: dueLevelTone(level),
+      tag: 'Nhắc',
+    };
+  });
+  const dueCounts = dueQ.data?.counts ?? { late: 0, today: 0, future: 0 };
 
   const sections =
     dueItems.length > 0
@@ -186,6 +197,33 @@ function SaleInbox() {
 
   return (
     <div data-testid="crm-due-followups">
+      <HStack gap={2} wrap="wrap" style={{ marginBottom: 'var(--cmc-space-3)' }}>
+        {(
+          [
+            ['late', 'Quá hạn', dueCounts.late],
+            ['today', 'Hôm nay', dueCounts.today],
+            ['future', 'Sắp tới', dueCounts.future],
+          ] as const
+        ).map(([level, label, count]) => (
+          <button
+            key={level}
+            type="button"
+            className={dueLevelClassName(level)}
+            data-testid={`crm-due-count-${level}`}
+            onClick={() => navigate(`/crm?due=${level}`)}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--cmc-border)',
+              borderRadius: 'var(--cmc-radius-pill)',
+              padding: '4px 10px',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            {label} {count}
+          </button>
+        ))}
+      </HStack>
       <WorkInbox
         title="Việc cần bạn xử lý"
         count={total}

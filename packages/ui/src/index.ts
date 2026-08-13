@@ -92,6 +92,8 @@ export type { IconName } from './components/line-icon.js';
 // react-router `Link`s (a declared peer) so they need a Router ancestor.
 // Require `@cmc/ui/console.css` imported once at the app root.
 export type { Tone } from './components/tone.js';
+export { dueLevelClassName, dueLevelTone } from './components/due-level.js';
+export type { DueLevel } from './components/due-level.js';
 export { MetricCard } from './components/metric-card.js';
 export type { MetricCardProps } from './components/metric-card.js';
 export { Panel } from './components/panel.js';
@@ -225,6 +227,11 @@ export { StatActions } from './components/stat-actions.js';
 export type { StatActionsProps, StatActionItem } from './components/stat-actions.js';
 export { WorkflowStatusbar } from './components/workflow-statusbar.js';
 export type { WorkflowStatusbarProps } from './components/workflow-statusbar.js';
+export { RecordTimeline } from './components/record-timeline.js';
+export type {
+  RecordTimelineProps,
+  RecordTimelineItem,
+} from './components/record-timeline.js';
 export { SettingsShell } from './components/settings-shell.js';
 export type { SettingsShellProps, SettingsNavItem } from './components/settings-shell.js';
 export { CommandPalette, useCommandPaletteHotkey } from './components/command-palette.js';

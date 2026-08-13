@@ -4,15 +4,17 @@
 // the one-step-at-a-time rule, the lost-opp rejection, and the FOR UPDATE
 // serialization can never drift between the two doors.
 //
-// Deliberately PURE (no audit write): the tRPC middleware audits
-// `crm.opportunityAdvance` automatically, and the appointment path writes its
-// own CRM stage-change audit row so history stays complete regardless of which
-// door advanced the opp. Adding an audit write here would double-count the
-// manual door.
+// No AuditLog write here: the tRPC middleware audits `crm.opportunityAdvance`
+// automatically, and the appointment path writes its own CRM stage-change
+// audit row so history stays complete regardless of which door advanced the
+// opp. Adding an audit write here would double-count the manual door.
+// RecordEvent `stage_advanced` IS emitted here (one place covers all three
+// advance doors); that is business history, not the compliance audit trail.
 
 import type { Prisma } from '@cmc/db';
 import { badRequest, notFound } from '../errors.js';
 import { isOpportunityLost } from './opportunity-lost.js';
+import { emitRecordEvent } from './record-event.js';
 
 /** Linear advance order (WF-P1-01) — O5 is reached only via receiptApprove. */
 export const ADVANCE_ORDER = ['O1_LEAD', 'O2_CONTACTED', 'O3_TEST_SCHEDULED', 'O4_TESTED'] as const;
@@ -21,14 +23,16 @@ export const ADVANCE_ORDER = ['O1_LEAD', 'O2_CONTACTED', 'O3_TEST_SCHEDULED', 'O
  * Advances the opportunity exactly one stage toward `toStage`, inside the
  * caller's transaction. Locks the row FOR UPDATE (serializes against a
  * concurrent markLost / a second advance door), rejects a lost opp, and rejects
- * any non-adjacent target. Returns the updated row plus the prior stage (for the
- * caller's audit). Throws NOT_FOUND / BAD_REQUEST on the respective failures.
+ * any non-adjacent target. Emits RecordEvent `stage_advanced` (not AuditLog).
+ * Returns the updated row plus the prior stage (for the caller's audit).
+ * Throws NOT_FOUND / BAD_REQUEST on the respective failures.
  */
 export async function advanceOpportunityOneStep(
   tx: Prisma.TransactionClient,
   facilityId: string,
   opportunityId: string,
   toStage: string,
+  actor: string,
 ) {
   const rows = await tx.$queryRaw<{ id: string; stage: string; closedAt: Date | null }[]>`
     SELECT "id", "stage", "closedAt" FROM "Opportunity"
@@ -57,6 +61,14 @@ export async function advanceOpportunityOneStep(
   const updated = await tx.opportunity.update({
     where: { id: opportunity.id },
     data: { stage: nextStage, stageChangedAt: new Date() },
+  });
+  await emitRecordEvent(tx, {
+    facilityId,
+    entity: 'Opportunity',
+    entityId: opportunity.id,
+    kind: 'stage_advanced',
+    actor,
+    payload: { fromStage: opportunity.stage, toStage: nextStage },
   });
   return { opportunity: updated, fromStage: opportunity.stage } as const;
 }

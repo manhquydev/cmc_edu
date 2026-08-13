@@ -866,6 +866,16 @@ button.console-kanban-card {
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   }
 }
+/* Chatter/timeline column: stay stacked until 1200px so the form keeps width
+   on laptop-narrow; do not change the global 1040px split for other pages. */
+@media (min-width: 1040px) {.console-detail-split--timeline {
+    grid-template-columns: 1fr;
+  }
+}
+@media (min-width: 1200px) {.console-detail-split--timeline {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+}
 /* Tab panel inset — consistent with keyline */
 .console-detail-panel {
   padding: var(--cmc-space-3) 0 0;
@@ -2557,3 +2567,70 @@ cards equal height */
 .o_web_client .console-sc--attention .console-sc-dot { background: var(--cmc-warning); }
 .o_web_client .console-sc--live .console-sc-chip { color: var(--cmc-success-ink); }
 .o_web_client .console-sc--attention .console-sc-chip { color: var(--cmc-warning-ink); }
+
+/* Record chatter / timeline (Con A) */
+.console-record-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cmc-gap-cluster);
+  min-width: 0;
+}
+.console-record-timeline-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cmc-space-2);
+  align-items: flex-start;
+}
+.console-record-timeline-field {
+  font-size: var(--cmc-fs-label);
+  font-weight: 500;
+  color: var(--cmc-text);
+}
+.console-record-timeline-textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  resize: vertical;
+  padding: var(--cmc-space-2);
+  border: 1px solid var(--cmc-border);
+  border-radius: var(--cmc-radius-control);
+  background: var(--cmc-surface-raised);
+  color: var(--cmc-text);
+  font: inherit;
+  font-size: var(--cmc-fs-body);
+}
+.console-record-timeline-epoch {
+  margin: 0;
+  font-size: var(--cmc-fs-meta);
+  color: var(--cmc-text-muted);
+}
+.console-record-timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.console-record-timeline-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-block: var(--cmc-space-2);
+  border-bottom: 1px solid var(--cmc-border-subtle);
+}
+.console-record-timeline-item:last-child { border-bottom: none; }
+.console-record-timeline-label {
+  font-size: var(--cmc-fs-body);
+  font-weight: 500;
+  color: var(--cmc-text);
+}
+.console-record-timeline-meta {
+  font-size: var(--cmc-fs-meta);
+  color: var(--cmc-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.console-record-timeline-body {
+  margin: 0;
+  font-size: var(--cmc-fs-body);
+  color: var(--cmc-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+

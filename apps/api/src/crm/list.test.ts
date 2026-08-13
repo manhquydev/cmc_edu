@@ -4,6 +4,7 @@
 // permission gate, and RLS.
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { addDaysToDateOnly, ictDateOnlyOf, ictToUtc } from '@cmc/domain-time';
 import { appRouter } from '../router.js';
 import { buildStaffContext, cleanupFacility, createTestFacility, testDbBypass } from '../test/db.js';
 
@@ -183,5 +184,51 @@ describe('crm.opportunityList (K11)', () => {
 
     const listB = await saleB.crm.opportunityList({});
     expect(listB.items.some((o) => o.id === opp.id)).toBe(false);
+  });
+
+  it('filters by ICT due bucket (late / today / future)', async () => {
+    const now = new Date();
+    const today = ictDateOnlyOf(now);
+    const lateAt = ictToUtc(addDaysToDateOnly(today, -1), '12:00');
+    const todayAt = ictToUtc(today, '12:00');
+    const futureAt = ictToUtc(addDaysToDateOnly(today, 2), '12:00');
+
+    const lateOpp = await saleA.crm.opportunityCreate({
+      contactName: 'Due Late',
+      phone: '0901000400',
+    });
+    const todayOpp = await saleA.crm.opportunityCreate({
+      contactName: 'Due Today',
+      phone: '0901000401',
+    });
+    const futureOpp = await saleA.crm.opportunityCreate({
+      contactName: 'Due Future',
+      phone: '0901000402',
+    });
+
+    await saleA.crm.opportunitySetNextAction({
+      opportunityId: lateOpp.id,
+      nextActionAt: lateAt.toISOString(),
+      nextActionNote: 'Late',
+    });
+    await saleA.crm.opportunitySetNextAction({
+      opportunityId: todayOpp.id,
+      nextActionAt: todayAt.toISOString(),
+      nextActionNote: 'Today',
+    });
+    await saleA.crm.opportunitySetNextAction({
+      opportunityId: futureOpp.id,
+      nextActionAt: futureAt.toISOString(),
+      nextActionNote: 'Future',
+    });
+
+    const lateList = await saleA.crm.opportunityList({ due: 'late', pageSize: 100 });
+    expect(lateList.items.map((o) => o.id)).toEqual([lateOpp.id]);
+
+    const todayList = await saleA.crm.opportunityList({ due: 'today', pageSize: 100 });
+    expect(todayList.items.map((o) => o.id)).toEqual([todayOpp.id]);
+
+    const futureList = await saleA.crm.opportunityList({ due: 'future', pageSize: 100 });
+    expect(futureList.items.map((o) => o.id)).toEqual([futureOpp.id]);
   });
 });

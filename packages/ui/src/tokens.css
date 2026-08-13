@@ -150,3 +150,8 @@
   /* Breakpoints (documented for CSS media; not used as CSS vars in older Safari) */
   /* mobile ≤767 · tablet 768–1099 · desktop ≥1100 */
 }
+
+/* CRM next-action due levels — colour only. Classification is in @cmc/domain-time. */
+.cmc-due-late { color: var(--cmc-danger); }
+.cmc-due-today { color: var(--cmc-warning); }
+.cmc-due-future { color: var(--cmc-brand); }

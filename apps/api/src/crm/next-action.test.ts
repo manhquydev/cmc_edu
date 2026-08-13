@@ -1,6 +1,7 @@
 // P4 next-action + due follow-ups + coordination with rotting (P2).
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { addDaysToDateOnly, ictDateOnlyOf, ictToUtc } from '@cmc/domain-time';
 import { appRouter } from '../router.js';
 import {
   buildStaffContext,
@@ -147,36 +148,103 @@ describe('crm next-action (P4)', () => {
     expect(ids.has(won.id)).toBe(false);
   });
 
+  it('counts late/today/future via separate queries (future is counted even though items exclude it)', async () => {
+    const now = new Date();
+    const today = ictDateOnlyOf(now);
+    const lateAt = ictToUtc(addDaysToDateOnly(today, -1), '12:00');
+    const todayAt = new Date(Math.min(now.getTime(), ictToUtc(today, '12:00').getTime()));
+    const futureAt = ictToUtc(addDaysToDateOnly(today, 2), '12:00');
+
+    const lateOpp = await sale.crm.opportunityCreate({
+      contactName: 'Count Late',
+      phone: nextPhone(),
+    });
+    const todayOpp = await sale.crm.opportunityCreate({
+      contactName: 'Count Today',
+      phone: nextPhone(),
+    });
+    const futureOpp = await sale.crm.opportunityCreate({
+      contactName: 'Count Future',
+      phone: nextPhone(),
+    });
+
+    await sale.crm.opportunitySetNextAction({
+      opportunityId: lateOpp.id,
+      nextActionAt: lateAt.toISOString(),
+      nextActionNote: 'Late',
+    });
+    await sale.crm.opportunitySetNextAction({
+      opportunityId: todayOpp.id,
+      nextActionAt: todayAt.toISOString(),
+      nextActionNote: 'Today',
+    });
+    await sale.crm.opportunitySetNextAction({
+      opportunityId: futureOpp.id,
+      nextActionAt: futureAt.toISOString(),
+      nextActionNote: 'Future',
+    });
+
+    const due = await sale.crm.opportunityDueFollowUps();
+    expect(due.counts).toEqual({ late: 1, today: 1, future: 1 });
+    const ids = new Set(due.items.map((i) => i.id));
+    expect(ids.has(lateOpp.id)).toBe(true);
+    expect(ids.has(futureOpp.id)).toBe(false);
+  });
+
+  it('counts 51 late follow-ups even though items are capped at 50', async () => {
+    const now = new Date();
+    const today = ictDateOnlyOf(now);
+    const lateAt = ictToUtc(addDaysToDateOnly(today, -1), '12:00');
+    await testDbBypass(async (tx) => {
+      for (let i = 0; i < 51; i += 1) {
+        const contact = await tx.contact.create({
+          data: {
+            facilityId: facility.id,
+            name: `Late Batch ${i}`,
+            phone: `093311${String(i).padStart(4, '0')}`,
+          },
+        });
+        await tx.opportunity.create({
+          data: {
+            facilityId: facility.id,
+            contactId: contact.id,
+            stage: 'O1_LEAD',
+            assignedToId: saleAppUserId,
+            nextActionAt: lateAt,
+            nextActionNote: 'Late batch',
+          },
+        });
+      }
+    });
+
+    const due = await sale.crm.opportunityDueFollowUps();
+    expect(due.counts.late).toBe(51);
+    expect(due.items).toHaveLength(50);
+  });
+
   it('future nextActionAt suppresses isRotting', async () => {
-    const prev = process.env.ROTTING_THRESHOLD_DAYS;
-    process.env.ROTTING_THRESHOLD_DAYS = '7';
-    try {
-      const opp = await sale.crm.opportunityCreate({
-        contactName: 'Worked Rotting',
-        phone: nextPhone(),
-      });
-      await testDbBypass((tx) =>
-        tx.opportunity.update({
-          where: { id: opp.id },
-          data: { stageChangedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
-        }),
-      );
+    const opp = await sale.crm.opportunityCreate({
+      contactName: 'Worked Rotting',
+      phone: nextPhone(),
+    });
+    await testDbBypass((tx) =>
+      tx.opportunity.update({
+        where: { id: opp.id },
+        data: { stageChangedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
+      }),
+    );
 
-      let list = await sale.crm.opportunityList({ pageSize: 100 });
-      expect(list.items.find((i) => i.id === opp.id)?.isRotting).toBe(true);
+    let list = await sale.crm.opportunityList({ pageSize: 100 });
+    expect(list.items.find((i) => i.id === opp.id)?.isRotting).toBe(true);
 
-      await sale.crm.opportunitySetNextAction({
-        opportunityId: opp.id,
-        nextActionAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-        nextActionNote: 'Working it',
-      });
+    await sale.crm.opportunitySetNextAction({
+      opportunityId: opp.id,
+      nextActionAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+      nextActionNote: 'Working it',
+    });
 
-      list = await sale.crm.opportunityList({ pageSize: 100 });
-      expect(list.items.find((i) => i.id === opp.id)?.isRotting).toBe(false);
-    } finally {
-      if (prev === undefined) delete process.env.ROTTING_THRESHOLD_DAYS;
-      else process.env.ROTTING_THRESHOLD_DAYS = prev;
-    }
+    list = await sale.crm.opportunityList({ pageSize: 100 });
+    expect(list.items.find((i) => i.id === opp.id)?.isRotting).toBe(false);
   });
 
   it('rejects next action on lost opportunity', async () => {

@@ -370,6 +370,9 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
   await privileged.qualitativeAssessment.deleteMany({ where: { facilityId } });
   await privileged.reconciliationFlag.deleteMany({ where: { facilityId } });
   await privileged.refundRecord.deleteMany({ where: { facilityId } });
+  // RecordEvent is append-only (no cmc_app DELETE) and FKs Facility — delete
+  // before opportunity/facility, same privileged path as RefundRecord.
+  await privileged.recordEvent.deleteMany({ where: { facilityId } });
 
   await db.guardian.deleteMany({ where: { facilityId } });
   await db.guardianLinkRequest.deleteMany({ where: { facilityId } });

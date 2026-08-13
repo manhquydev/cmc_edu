@@ -61,6 +61,17 @@ describe('testAppointment entrance↔opportunity + periodic↔student (phase-07)
     expect(appt.opportunityId).toBe(opp.id);
     expect(appt.studentId).toBeNull();
     expect(await stageOf(opp.id)).toBe('O3_TEST_SCHEDULED');
+
+    const scheduledEvents = await testDbBypass((tx) =>
+      tx.recordEvent.findMany({
+        where: { entityId: opp.id, kind: 'stage_advanced' },
+        orderBy: { createdAt: 'desc' },
+      }),
+    );
+    expect(scheduledEvents[0]?.payload).toEqual({
+      fromStage: 'O2_CONTACTED',
+      toStage: 'O3_TEST_SCHEDULED',
+    });
   });
 
   it('entrance complete advances the opp O3 → O4', async () => {
@@ -75,6 +86,17 @@ describe('testAppointment entrance↔opportunity + periodic↔student (phase-07)
     const done = await sale.testAppointment.complete({ appointmentId: appt.id, notes: 'Passed.' });
     expect(done.status).toBe('done');
     expect(await stageOf(opp.id)).toBe('O4_TESTED');
+
+    const advanced = await testDbBypass((tx) =>
+      tx.recordEvent.findMany({
+        where: { entityId: opp.id, kind: 'stage_advanced' },
+        orderBy: { createdAt: 'desc' },
+      }),
+    );
+    expect(advanced[0]?.payload).toEqual({
+      fromStage: 'O3_TEST_SCHEDULED',
+      toStage: 'O4_TESTED',
+    });
   });
 
   it('a never-enrolled lead can be scheduled, tested, and reach O4 purely via the appointment lifecycle', async () => {

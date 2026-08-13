@@ -127,7 +127,7 @@ export const testAppointmentRouter = router({
 
           // Sync O2 -> O3 (idempotent: only when the opp is still at O2).
           if (opp.stage === 'O2_CONTACTED') {
-            await advanceOpportunityOneStep(tx, facilityId, opp.id, 'O3_TEST_SCHEDULED');
+            await advanceOpportunityOneStep(tx, facilityId, opp.id, 'O3_TEST_SCHEDULED', actor);
             await auditStageAdvance(tx, actor, opp.id, 'O2_CONTACTED', 'O3_TEST_SCHEDULED', appt.id);
           }
           return appt;
@@ -188,7 +188,7 @@ export const testAppointmentRouter = router({
           `;
           const opp = oppRows[0];
           if (opp && opp.stage === 'O3_TEST_SCHEDULED' && !isOpportunityLost(opp)) {
-            await advanceOpportunityOneStep(tx, facilityId, opp.id, 'O4_TESTED');
+            await advanceOpportunityOneStep(tx, facilityId, opp.id, 'O4_TESTED', actor);
             await auditStageAdvance(tx, actor, opp.id, 'O3_TEST_SCHEDULED', 'O4_TESTED', updated.id);
           }
         }

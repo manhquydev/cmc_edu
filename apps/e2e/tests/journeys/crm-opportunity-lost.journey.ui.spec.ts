@@ -76,15 +76,7 @@ test.describe('P1-01 journey — phễu tuyển sinh: tạo cơ hội rồi đá
     // The dialog closes on success.
     await expect(page.getByRole('combobox', { name: /Lý do mất/ })).toHaveCount(0);
 
-    // Reload before asserting the lost state. Marking lost from the detail page
-    // invalidates only crm.opportunityList (the board), not crm.opportunityGet
-    // (this page) — use-opportunity-actions.ts markLostMutation.onSuccess — so
-    // the detail stays visually open until a refetch. A reload forces
-    // opportunityGet to refetch, which also makes this a stronger check: the
-    // close survives a fresh load from the server, it is not an in-memory flash.
-    // (The stale-detail behaviour is recorded as a product finding.)
-    await page.reload();
-
+    // Fail-if-reverted gate for detail invalidation: mark-lost must refresh opportunityGet without a page reload.
     // Falsification of the close: once lost, the opportunity offers "reopen" and
     // no longer offers "mark lost" — the state actually changed in the database.
     await expect(page.getByRole('button', { name: 'Mở lại cơ hội' })).toBeVisible();

@@ -87,6 +87,10 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   // CRM recruitment report (read-only). Door opens for GĐKD + sale; sale
   // own-only filtering for byAssignee KPI is procedure-layer (like opportunityAssign).
   'crm.report': ['giam_doc_kinh_doanh', 'sale'],
+  // Con A record timeline: anyone who can list opportunities can read the
+  // chatter and add a note (Odoo habit; no per-owner restriction).
+  'crm.opportunityTimeline': ['giam_doc_kinh_doanh', 'sale'],
+  'crm.opportunityAddNote': ['giam_doc_kinh_doanh', 'sale'],
   'finance.receiptCreate': ['giam_doc_kinh_doanh', 'sale'],
   // Money gate (ADR-B, docs/16): approver must differ from the drafting sale
   // rep for basic separation of duties — `sale` MUST NOT appear here.

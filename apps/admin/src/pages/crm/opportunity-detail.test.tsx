@@ -16,6 +16,10 @@ interface OpportunityRow {
   contact: { id: string; name: string; phone: string };
   source?: string | null;
   assignedTo?: { userId: string; fullName: string } | null;
+  nextActionAt?: string | null;
+  nextActionNote?: string | null;
+  isRotting?: boolean;
+  rottingDays?: number | null;
 }
 
 const OPP_O1: OpportunityRow = {
@@ -73,7 +77,10 @@ const noShowMutate = vi.fn();
 // Error-visibility remediation: advance/reopen/complete/no-show previously had
 // nowhere on the page to show a rejection — these states let a test simulate
 // each mutation's `.error` the same way `assignState` already does below.
-const advanceState: { error: { message: string } | null } = { error: null };
+const advanceState: { error: { message: string } | null; isPending: boolean } = {
+  error: null,
+  isPending: false,
+};
 const markLostState: { error: { message: string } | null } = { error: null };
 const completeState: { error: { message: string } | null } = { error: null };
 const noShowState: { error: { message: string } | null } = { error: null };
@@ -106,8 +113,15 @@ vi.mock('../../lib/trpc.js', async () => {
         listQuerySpy(input);
         return queryResult(listState.items.find((item) => item.id === input.opportunityId));
       },
+      'crm.opportunityTimeline.useQuery': () =>
+        queryResult({ items: [], nextCursor: null, historySince: null }),
+      'crm.opportunityAddNote.useMutation': () => mutationResult(),
       'crm.opportunityAdvance.useMutation': () =>
-        mutationResult({ mutate: advanceMutate, error: advanceState.error }),
+        mutationResult({
+          mutate: advanceMutate,
+          error: advanceState.error,
+          isPending: advanceState.isPending,
+        }),
       'crm.opportunityMarkLost.useMutation': () =>
         mutationResult({ mutate: markLostMutate, error: markLostState.error }),
       'crm.opportunityAssign.useMutation': () =>
@@ -169,6 +183,7 @@ describe('OpportunityDetailPage', () => {
     assignableStaffState.data = [];
     assignableStaffQuerySpy.mockClear();
     advanceState.error = null;
+    advanceState.isPending = false;
     markLostState.error = null;
     completeState.error = null;
     noShowState.error = null;
@@ -178,6 +193,11 @@ describe('OpportunityDetailPage', () => {
     renderDetail(OPP_LOST.id);
     expect(listQuerySpy).toHaveBeenCalledWith({ opportunityId: OPP_LOST.id });
     expect(screen.getByRole('heading', { name: 'Phạm Thị D' })).toBeInTheDocument();
+  });
+
+  it('renders the record timeline chatter on the detail page', () => {
+    renderDetail(OPP_O1.id);
+    expect(screen.getByTestId('record-timeline')).toBeInTheDocument();
   });
 
   it('shows a "Chuyển lên" action for an advanceable stage and calls opportunityAdvance.mutate with the next stage', () => {
@@ -211,6 +231,17 @@ describe('OpportunityDetailPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Chuyển lên' }));
       expect(screen.getByText('Thao tác thất bại')).toBeInTheDocument();
       expect(screen.getByText('Không thể chuyển giai đoạn.')).toBeInTheDocument();
+    });
+
+    it('maps English Invalid stage transition to Vietnamese stale-cache copy', () => {
+      advanceState.error = {
+        message: 'Invalid stage transition from O1_LEAD to O3_TEST_SCHEDULED; opportunities advance one stage at a time.',
+      };
+      renderDetail(OPP_O1.id);
+      expect(screen.getByText('Thao tác thất bại')).toBeInTheDocument();
+      expect(
+        screen.getByText('Không thể chuyển giai đoạn — dữ liệu đã đổi, đang tải lại.'),
+      ).toBeInTheDocument();
     });
 
     it('surfaces a reopen (opportunityMarkLost) error in the shared action banner', () => {
@@ -283,6 +314,26 @@ describe('OpportunityDetailPage', () => {
   it('renders the lost banner with the mapped Vietnamese lostReason label', () => {
     renderDetail(OPP_LOST.id);
     expect(screen.getByText('Lý do: Không phản hồi')).toBeInTheDocument();
+  });
+
+  it('shows rotting days on the header badge', () => {
+    listState.items = [{ ...OPP_O1, isRotting: true, rottingDays: 9 }];
+    renderDetail(OPP_O1.id);
+    expect(screen.getByTestId('crm-rotting-badge')).toHaveTextContent('Nguội 9 ngày');
+  });
+
+  it('colours the next-action date from the raw due instant', () => {
+    listState.items = [
+      {
+        ...OPP_O1,
+        nextActionAt: '2020-01-15T00:00:00.000Z',
+        nextActionNote: 'Gọi lại',
+      },
+    ];
+    renderDetail(OPP_O1.id);
+    const block = screen.getByTestId('crm-next-action');
+    expect(block.querySelector('.cmc-due-late')).not.toBeNull();
+    expect(block).toHaveTextContent('Gọi lại');
   });
 
   it('does not render pictographic emoji anywhere on the action bar', () => {
@@ -474,6 +525,83 @@ describe('OpportunityDetailPage', () => {
       renderDetail(OPP_O2.id);
       expect(screen.getByText('Bạn chỉ có thể nhận cơ hội cho chính mình.')).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Hoàng Văn G' })).toBeInTheDocument();
+    });
+  });
+
+  describe('statusbar one-step advance (canStepClick)', () => {
+    it('enables the adjacent next step (O2), disables past/current and O5, and advances on click', () => {
+      renderDetail(OPP_O1.id);
+      const next = screen.getByRole('button', { name: /Đã liên hệ/ });
+      const current = screen.getByRole('button', { name: /Tiếp cận/ });
+      const enrolled = screen.getByRole('button', { name: 'Đã ghi danh' });
+      expect(next).not.toBeDisabled();
+      expect(current).toBeDisabled();
+      expect(enrolled).toBeDisabled();
+
+      fireEvent.click(next);
+      expect(advanceMutate).toHaveBeenCalledWith({
+        opportunityId: OPP_O1.id,
+        toStage: 'O2_CONTACTED',
+      });
+
+      fireEvent.click(current);
+      expect(advanceMutate).toHaveBeenCalledTimes(1);
+    });
+
+    it('disables the next step for a sale when the opportunity is owned by someone else', () => {
+      listState.items = [
+        { ...OPP_O1, assignedTo: { userId: 'u2', fullName: 'Người Khác' } },
+      ];
+      sessionState.roles = ['sale'];
+      renderDetail(OPP_O1.id);
+      expect(screen.getByRole('button', { name: /Đã liên hệ/ })).toBeDisabled();
+    });
+
+    it('enables the next step for a manager even when owned by someone else', () => {
+      listState.items = [
+        { ...OPP_O1, assignedTo: { userId: 'u2', fullName: 'Người Khác' } },
+      ];
+      sessionState.roles = ['giam_doc_kinh_doanh'];
+      renderDetail(OPP_O1.id);
+      const next = screen.getByRole('button', { name: /Đã liên hệ/ });
+      expect(next).not.toBeDisabled();
+      fireEvent.click(next);
+      expect(advanceMutate).toHaveBeenCalledWith({
+        opportunityId: OPP_O1.id,
+        toStage: 'O2_CONTACTED',
+      });
+    });
+
+    it('disables every statusbar step while advance is pending', () => {
+      advanceState.isPending = true;
+      renderDetail(OPP_O1.id);
+      expect(screen.getByRole('button', { name: /Đã liên hệ/ })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Tiếp cận/ })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Đã ghi danh' })).toBeDisabled();
+    });
+
+    it('disables every statusbar step on a lost opportunity', () => {
+      renderDetail(OPP_LOST.id);
+      // Current/done steps append sr-only state ("Đang thực hiện" / "Đã hoàn thành")
+      // to the accessible name — match by prefix like ProgressSteps tests.
+      expect(screen.getByRole('button', { name: /Đã liên hệ/ })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Tiếp cận/ })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Đã ghi danh' })).toBeDisabled();
+    });
+
+    it('does not enable O5 on an O4 opportunity (money gate)', () => {
+      renderDetail(OPP_O4.id);
+      expect(screen.getByRole('button', { name: 'Đã ghi danh' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Đã kiểm tra/ })).toBeDisabled();
+    });
+
+    it('enables the next step for a sale who owns the opportunity', () => {
+      listState.items = [
+        { ...OPP_O1, assignedTo: { userId: 'u1', fullName: 'Chính mình' } },
+      ];
+      sessionState.roles = ['sale'];
+      renderDetail(OPP_O1.id);
+      expect(screen.getByRole('button', { name: /Đã liên hệ/ })).not.toBeDisabled();
     });
   });
 });

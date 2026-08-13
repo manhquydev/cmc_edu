@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Badge,
   Banner,
@@ -13,6 +13,7 @@ import {
   KeyValueList,
   LineIcon,
   PageHeader,
+  RecordTimeline,
   SectionBlock,
   Selector,
   Spinner,
@@ -21,8 +22,11 @@ import {
   Text,
   TextInput,
   WorkflowStatusbar,
+  dueLevelClassName,
 } from '@cmc/ui';
+import type { RecordTimelineItem } from '@cmc/ui';
 import type { ComponentProps } from 'react';
+import { classifyDueLevel } from '@cmc/domain-time';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
@@ -64,12 +68,40 @@ function fmtAppointmentTime(v: string): string {
   });
 }
 
+const STAGE_IDS = [
+  'O1_LEAD',
+  'O2_CONTACTED',
+  'O3_TEST_SCHEDULED',
+  'O4_TESTED',
+  'O5_ENROLLED',
+] as const;
+
 const STAGE_LABELS: Record<string, string> = {
   O1_LEAD: 'Tiếp cận',
   O2_CONTACTED: 'Đã liên hệ',
   O3_TEST_SCHEDULED: 'Đặt lịch kiểm tra',
   O4_TESTED: 'Đã kiểm tra',
   O5_ENROLLED: 'Đã ghi danh',
+};
+
+const INVALID_STAGE_TRANSITION_PREFIX = 'Invalid stage transition';
+const ADVANCE_STALE_MESSAGE =
+  'Không thể chuyển giai đoạn — dữ liệu đã đổi, đang tải lại.';
+
+function mapAdvanceErrorMessage(message: string): string {
+  if (message.includes(INVALID_STAGE_TRANSITION_PREFIX)) return ADVANCE_STALE_MESSAGE;
+  return message;
+}
+
+type TimelinePage = {
+  items: RecordTimelineItem[];
+  nextCursor: string | null;
+  historySince: Date | string | null;
+};
+
+/** tRPC `.fetch` on this procedure trips TS2589; keep the cast at the helper. */
+type TimelineQueryUtils = {
+  fetch: (input: { opportunityId: string; cursor: string }) => Promise<TimelinePage>;
 };
 
 // Astryx Badge has no 'indigo' variant — approximated onto 'purple' (closest
@@ -127,10 +159,37 @@ export default function OpportunityDetailPage() {
     { enabled: Boolean(id) },
   );
 
+  const { data: timeline, isFetching: timelineFetching } = trpc.crm.opportunityTimeline.useQuery(
+    { opportunityId: id ?? '' },
+    { enabled: Boolean(id) },
+  );
+
   const utils = trpc.useUtils();
+  // Intentionally not in useOpportunityActions: pipeline.tsx wires this
+  // procedure with search-aware optimistic updates. The detail page only
+  // needs a full list + Get refetch so the statusbar moves immediately.
   const advanceMutation = trpc.crm.opportunityAdvance.useMutation({
-    onSuccess: () => void utils.crm.opportunityList.invalidate(),
+    onSuccess: () => {
+      void utils.crm.opportunityList.invalidate();
+      void utils.crm.opportunityGet.invalidate();
+      void utils.crm.opportunityTimeline.invalidate();
+    },
+    onError: () => {
+      void utils.crm.opportunityGet.invalidate();
+    },
   });
+  const addNoteMutation = trpc.crm.opportunityAddNote.useMutation({
+    onSuccess: () => {
+      void utils.crm.opportunityTimeline.invalidate();
+    },
+  });
+  const [moreItems, setMoreItems] = useState<RecordTimelineItem[]>([]);
+  const [moreNextCursor, setMoreNextCursor] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMoreItems([]);
+    setMoreNextCursor(null);
+  }, [id]);
   const {
     markLostMutation,
     assignMutation,
@@ -232,6 +291,19 @@ export default function OpportunityDetailPage() {
   // — only a closedAt WITHOUT O5 is a genuine loss (matches the backend's
   // `isOpportunityLost`/`LOST_WHERE` fragment in apps/api/src/crm/router.ts).
   const isLost = Boolean(opp.closedAt) && opp.stage !== 'O5_ENROLLED';
+  const firstPage = timeline as
+    | {
+        items: RecordTimelineItem[];
+        nextCursor: string | null;
+        historySince: Date | string | null;
+      }
+    | undefined;
+  const timelineItems = [...(firstPage?.items ?? []), ...moreItems];
+  const timelineNextCursor =
+    moreItems.length > 0 ? moreNextCursor : (firstPage?.nextCursor ?? null);
+  const historySince = firstPage?.historySince
+    ? new Date(firstPage.historySince)
+    : null;
   const stageLabel = STAGE_LABELS[opp.stage] ?? opp.stage;
   const stageVariant = STAGE_COLOR[opp.stage] ?? 'blue';
   const nextStage = ADVANCE_NEXT[opp.stage];
@@ -250,10 +322,39 @@ export default function OpportunityDetailPage() {
   // here for the "Mở lại cơ hội" (reopen) call, i.e. while that dialog is
   // closed, so a failure isn't shown twice at once.
   const actionError =
-    advanceMutation.error?.message ??
+    (advanceMutation.error?.message
+      ? mapAdvanceErrorMessage(advanceMutation.error.message)
+      : undefined) ??
     (!markLostOpen ? markLostMutation.error?.message : undefined) ??
     completeMutation.error?.message ??
     noShowMutation.error?.message;
+
+  const statusbarActiveIndex = Math.max(
+    0,
+    STAGE_IDS.indexOf(opp.stage as (typeof STAGE_IDS)[number]),
+  );
+  // UX-only copy of opportunityAdvance ownership (server enforces).
+  // Server compares AppUser.id; the client only has assignedTo.userId and
+  // me.userId (apps/admin/src/lib/session-context.tsx).
+  const canAdvanceOwnedRow =
+    isManager || !opp.assignedTo || opp.assignedTo.userId === me?.userId;
+  const canStatusbarStepClick = (i: number): boolean => {
+    const adjacentNext = ADVANCE_NEXT[opp.stage];
+    return (
+      !isLost &&
+      !advanceMutation.isPending &&
+      adjacentNext !== undefined &&
+      i === statusbarActiveIndex + 1 &&
+      STAGE_IDS[i] === adjacentNext &&
+      canAdvanceOwnedRow
+    );
+  };
+  const onStatusbarStepClick = (i: number) => {
+    if (!canStatusbarStepClick(i)) return;
+    const toStage = ADVANCE_NEXT[opp.stage];
+    if (!toStage) return;
+    advanceMutation.mutate({ opportunityId: opp.id, toStage });
+  };
 
   const entityActions = (
     <HStack gap={2} style={{ flexWrap: 'wrap' }}>
@@ -329,15 +430,25 @@ export default function OpportunityDetailPage() {
             subtitle={formatContactPhone(opp.contact.phone)}
             initials={initialsFromName(opp.contact.name)}
             badges={
-              <Badge
-                label={isLost ? 'Lost' : stageLabel}
-                variant={isLost ? 'error' : stageVariant}
-                style={
-                  !isLost && opp.stage !== 'O5_ENROLLED'
-                    ? { background: 'var(--cmc-brand)', color: 'var(--cmc-surface)' }
-                    : undefined
-                }
-              />
+              <>
+                <Badge
+                  label={isLost ? 'Lost' : stageLabel}
+                  variant={isLost ? 'error' : stageVariant}
+                  style={
+                    !isLost && opp.stage !== 'O5_ENROLLED'
+                      ? { background: 'var(--cmc-brand)', color: 'var(--cmc-surface)' }
+                      : undefined
+                  }
+                />
+                {!isLost && opp.isRotting ? (
+                  <span data-testid="crm-rotting-badge">
+                    <Badge
+                      label={`Nguội ${opp.rottingDays ?? 0} ngày`}
+                      variant="warning"
+                    />
+                  </span>
+                ) : null}
+              </>
             }
             meta={
               <span>
@@ -388,27 +499,10 @@ export default function OpportunityDetailPage() {
         }
         statusbar={
           <WorkflowStatusbar
-            steps={(
-              [
-                'O1_LEAD',
-                'O2_CONTACTED',
-                'O3_TEST_SCHEDULED',
-                'O4_TESTED',
-                'O5_ENROLLED',
-              ] as const
-            ).map((s) => ({ id: s, label: STAGE_LABELS[s] ?? s }))}
-            activeIndex={Math.max(
-              0,
-              (
-                [
-                  'O1_LEAD',
-                  'O2_CONTACTED',
-                  'O3_TEST_SCHEDULED',
-                  'O4_TESTED',
-                  'O5_ENROLLED',
-                ] as const
-              ).indexOf(opp.stage as 'O1_LEAD'),
-            )}
+            steps={STAGE_IDS.map((s) => ({ id: s, label: STAGE_LABELS[s] ?? s }))}
+            activeIndex={statusbarActiveIndex}
+            onStepClick={onStatusbarStepClick}
+            canStepClick={canStatusbarStepClick}
           />
         }
       >
@@ -429,7 +523,7 @@ export default function OpportunityDetailPage() {
             />
           )}
 
-          <div className="console-detail-split">
+          <div className="console-detail-split console-detail-split--timeline">
             <div className="console-detail-stack">
               <SectionBlock
                 title="Việc cần làm tiếp theo"
@@ -440,7 +534,11 @@ export default function OpportunityDetailPage() {
                     <Stack gap={2}>
                       <Text size="sm">
                         Hẹn:{' '}
-                        <strong>
+                        <strong
+                          className={dueLevelClassName(
+                            classifyDueLevel(new Date(opp.nextActionAt), new Date()),
+                          )}
+                        >
                           {new Date(opp.nextActionAt).toLocaleDateString('vi-VN', {
                             timeZone: 'Asia/Ho_Chi_Minh',
                           })}
@@ -646,76 +744,25 @@ export default function OpportunityDetailPage() {
               </SectionBlock>
             </div>
 
-            <SectionBlock title="Timeline" description="Tiến độ qua các giai đoạn cơ hội.">
-              <Stack gap={0}>
-                {(
-                  [
-                    'O1_LEAD',
-                    'O2_CONTACTED',
-                    'O3_TEST_SCHEDULED',
-                    'O4_TESTED',
-                    'O5_ENROLLED',
-                  ] as const
-                ).map((stage, idx, arr) => {
-                  const stageOrder = arr.indexOf(opp.stage as (typeof arr)[number]);
-                  const done = idx <= stageOrder;
-                  const isCurrent = opp.stage === stage;
-                  const stepColor = isCurrent
-                    ? 'var(--cmc-brand)'
-                    : done
-                      ? 'var(--cmc-text)'
-                      : 'var(--cmc-text-muted)';
-                  return (
-                    <HStack
-                      key={stage}
-                      gap={3}
-                      style={{
-                        paddingBlock: 'var(--cmc-space-2)',
-                        borderBottom:
-                          idx < arr.length - 1 ? '1px solid var(--cmc-border)' : undefined,
-                        background: isCurrent ? 'var(--cmc-brand-muted)' : undefined,
-                        borderRadius: isCurrent ? 'var(--cmc-radius-control)' : undefined,
-                        paddingInline: isCurrent ? 'var(--cmc-space-2)' : undefined,
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          flexShrink: 0,
-                          background: done
-                            ? isCurrent
-                              ? 'var(--cmc-brand)'
-                              : 'var(--cmc-success)'
-                            : 'var(--cmc-border)',
-                        }}
-                      />
-                      <span
-                        style={{ fontSize: 'var(--cmc-fs-body)', fontWeight: isCurrent ? 600 : 400, color: stepColor }}
-                      >
-                        {STAGE_LABELS[stage]}
-                      </span>
-                    </HStack>
-                  );
-                })}
-                {isLost && (
-                  <HStack gap={3} style={{ paddingBlock: 'var(--cmc-space-2)' }}>
-                    <div
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        background: 'var(--cmc-danger)',
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span style={{ fontSize: 'var(--cmc-fs-body)', fontWeight: 600, color: 'var(--cmc-danger)' }}>
-                      Đã đóng (Lost)
-                    </span>
-                  </HStack>
-                )}
-              </Stack>
+            <SectionBlock title="Dòng thời gian" description="Toàn bộ đời bản ghi — ghi chú không sửa được.">
+              <RecordTimeline
+                items={timelineItems}
+                nextCursor={timelineNextCursor}
+                pending={addNoteMutation.isPending || timelineFetching}
+                historySince={historySince}
+                onAddNote={(body) =>
+                  addNoteMutation.mutate({ opportunityId: opp.id, body })
+                }
+                onLoadMore={() => {
+                  if (!id || !timelineNextCursor) return;
+                  void (utils.crm.opportunityTimeline as unknown as TimelineQueryUtils)
+                    .fetch({ opportunityId: id, cursor: timelineNextCursor })
+                    .then((page) => {
+                      setMoreItems((prev) => [...prev, ...page.items]);
+                      setMoreNextCursor(page.nextCursor);
+                    });
+                }}
+              />
             </SectionBlock>
           </div>
         </div>

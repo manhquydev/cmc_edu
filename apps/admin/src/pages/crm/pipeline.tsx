@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { classifyDueLevel } from '@cmc/domain-time';
 import { links } from '@cmc/links';
 import {
   Badge,
@@ -18,6 +19,7 @@ import {
   Skeleton,
   Stack,
   Text,
+  dueLevelClassName,
   type FilterDef,
   type TableColumn,
 } from '@cmc/ui';
@@ -36,6 +38,9 @@ const PAGE_SIZE = 20;
 type LostVisibility = 'exclude' | 'include' | 'only';
 /** TL6: `?view=table|kanban` — default kanban preserves current ops habit. */
 type PipelineView = 'kanban' | 'table';
+type DueFilter = 'late' | 'today' | 'future';
+
+const DUE_FILTERS: DueFilter[] = ['late', 'today', 'future'];
 
 const LOST_FILTER_OPTIONS: { value: LostVisibility; label: string }[] = [
   { value: 'exclude', label: 'Đang chăm sóc' },
@@ -89,8 +94,10 @@ interface OpportunityItem {
   contact: { id: string; name: string; phone: string };
   source?: string | null;
   assignedTo?: { userId: string; fullName: string } | null;
+  nextActionAt?: string | Date | null;
   /** Derived server-side (P2) — open opp past rotting threshold. */
   isRotting?: boolean;
+  rottingDays?: number | null;
 }
 
 // Owner-badge initials — first letter of the first word + first letter of
@@ -101,6 +108,21 @@ function getOwnerInitials(fullName: string): string {
   if (parts.length === 0) return '';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function rottingBadgeLabel(days: number | null | undefined): string {
+  return `Nguội ${days ?? 0} ngày`;
+}
+
+function NextActionChip({ at }: { at: string | Date | null | undefined }) {
+  if (!at) return null;
+  const instant = new Date(at);
+  const level = classifyDueLevel(instant, new Date());
+  return (
+    <span className={dueLevelClassName(level)} data-testid="crm-next-action-chip">
+      {instant.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+    </span>
+  );
 }
 
 function isLostOpp(opp: OpportunityItem): boolean {
@@ -157,7 +179,7 @@ function OpportunityKanbanCard({
               {lost ? <Badge label="Lost" variant="error" /> : null}
               {!lost && opp.isRotting ? (
                 <span data-testid="crm-rotting-badge">
-                  <Badge label="Đang nguội" variant="warning" />
+                  <Badge label={rottingBadgeLabel(opp.rottingDays)} variant="warning" />
                 </span>
               ) : null}
             </HStack>
@@ -168,6 +190,7 @@ function OpportunityKanbanCard({
         colorIndex={colorIndex}
       >
         <Stack gap={1} style={{ marginTop: 'var(--cmc-space-2)' }}>
+          {opp.nextActionAt ? <NextActionChip at={opp.nextActionAt} /> : null}
           {opp.assignedTo ? (
             <div
               title={opp.assignedTo.fullName}
@@ -252,6 +275,10 @@ export default function CrmPipelinePage() {
     stageFromUrl && STAGES.some((s) => s.key === stageFromUrl)
       ? (stageFromUrl as (typeof STAGES)[number]['key'])
       : undefined;
+  const dueFromUrl = searchParams.get('due');
+  const dueFilter: DueFilter | undefined = DUE_FILTERS.includes(dueFromUrl as DueFilter)
+    ? (dueFromUrl as DueFilter)
+    : undefined;
 
   const rawView = searchParams.get('view');
   const view: PipelineView = rawView === 'table' ? 'table' : 'kanban';
@@ -279,7 +306,7 @@ export default function CrmPipelinePage() {
   // a now-out-of-range page.
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, lostFilter, stageFilter]);
+  }, [debouncedSearch, lostFilter, stageFilter, dueFilter]);
 
   // Single source of truth for the current query input — shared by kanban and
   // list views (Phase 4: no independent sort/page per view). Optimistic
@@ -287,6 +314,7 @@ export default function CrmPipelinePage() {
   const listInput = {
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
     ...(stageFilter ? { stage: stageFilter } : {}),
+    ...(dueFilter ? { due: dueFilter } : {}),
     lost: lostFilter,
     page,
     pageSize: PAGE_SIZE,
@@ -296,7 +324,7 @@ export default function CrmPipelinePage() {
   // search/stage/page. Only interpolate it into empty-copy when the
   // visible set is the same domain those totals describe.
   const filtersActive =
-    Boolean(debouncedSearch) || lostFilter !== 'exclude' || Boolean(stageFilter);
+    Boolean(debouncedSearch) || lostFilter !== 'exclude' || Boolean(stageFilter) || Boolean(dueFilter);
 
   const { data, isLoading, error } = trpc.crm.opportunityList.useQuery(listInput);
 
@@ -390,11 +418,16 @@ export default function CrmPipelinePage() {
         render: (_v, row) =>
           !isLostOpp(row) && row.isRotting ? (
             <span data-testid="crm-rotting-badge">
-              <Badge label="Đang nguội" variant="warning" />
+              <Badge label={rottingBadgeLabel(row.rottingDays)} variant="warning" />
             </span>
           ) : (
             '—'
           ),
+      },
+      {
+        key: 'nextActionAt',
+        label: 'Việc tiếp',
+        render: (_v, row) => (row.nextActionAt ? <NextActionChip at={row.nextActionAt} /> : '—'),
       },
       {
         key: 'owner',

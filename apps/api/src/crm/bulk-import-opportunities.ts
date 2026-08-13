@@ -6,6 +6,7 @@
 import { withFacility, type Prisma, type PrismaClient } from '@cmc/db';
 import { normalizeContactPhone } from './normalize-contact-phone.js';
 import { findOrCreateContact } from './find-or-create-contact.js';
+import { emitRecordEvent } from './record-event.js';
 
 export const BULK_IMPORT_MAX_ROWS = 500;
 
@@ -361,6 +362,7 @@ export async function confirmBulkImport(
     text: string;
     defaultSource?: string | null;
     assignedToId: string | null;
+    actor: string;
   },
 ): Promise<{
   results: BulkImportResultRow[];
@@ -413,6 +415,14 @@ export async function confirmBulkImport(
             assignedToId: opts.assignedToId,
             source: row.source ?? opts.defaultSource ?? null,
           },
+        });
+        await emitRecordEvent(tx, {
+          facilityId: opts.facilityId,
+          entity: 'Opportunity',
+          entityId: opportunity.id,
+          kind: 'created',
+          actor: opts.actor,
+          payload: { source: 'import' },
         });
         return { kind: 'created' as const, opportunityId: opportunity.id };
       });

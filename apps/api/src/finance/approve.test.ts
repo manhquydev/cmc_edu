@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { normalizeLoginPhone } from '@cmc/domain-identity';
 import { appRouter } from '../router.js';
 import { APPROVAL_SECOND_EYE_THRESHOLD, enqueueReceiptEmail } from './router.js';
+import { financePayloadLeaksMoney } from '../crm/record-event.js';
 import {
   buildStaffContext,
   cleanupFacility,
@@ -128,6 +129,13 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     );
     expect(opportunity.stage).toBe('O5_ENROLLED');
     expect(opportunity.closedAt).not.toBeNull();
+
+    const enrolled = await testDbBypass((tx) =>
+      tx.recordEvent.findMany({ where: { entityId: opportunityId, kind: 'enrolled' } }),
+    );
+    expect(enrolled).toHaveLength(1);
+    expect(financePayloadLeaksMoney(enrolled[0]?.payload)).toBe(false);
+    expect(JSON.stringify(enrolled[0]?.payload ?? {})).not.toMatch(/amount|receiptId|approver/i);
   });
 
   it('Metric & Data Integrity remediation (scenario audit): a SECOND approval on the same opportunity does NOT overwrite closedAt', async () => {
@@ -154,6 +162,11 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     );
     expect(opportunity.stage).toBe('O5_ENROLLED');
     expect(opportunity.closedAt?.getTime()).toBe(originalClosedAt?.getTime());
+
+    const enrolled = await testDbBypass((tx) =>
+      tx.recordEvent.findMany({ where: { entityId: first.opportunityId, kind: 'enrolled' } }),
+    );
+    expect(enrolled).toHaveLength(1);
   });
 
   it('rejects approving a receipt whose opportunity was marked lost after the draft was created — receipt stays draft (phase-02)', async () => {
@@ -244,6 +257,16 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     expect(opp.closedAt).not.toBeNull();
     expect(opp.lostReason).toBeNull();
     expect(opp.source).toBe('walkin'); // phase-10: auto-created walk-in opp tagged
+
+    const events = await testDbBypass((tx) =>
+      tx.recordEvent.findMany({
+        where: { entityId: linked.opportunityId!, entity: 'Opportunity' },
+        orderBy: { createdAt: 'asc' },
+      }),
+    );
+    expect(events.map((e) => e.kind)).toEqual(['created', 'enrolled']);
+    expect(events[0]?.payload).toEqual({ source: 'walkin' });
+    expect(financePayloadLeaksMoney(events[1]?.payload)).toBe(false);
   });
 
   it('walk-in: an UNLINKED receipt for a phone with an OPEN opp links AND advances that opp to O5 (no strand at O2) (phase-05)', async () => {

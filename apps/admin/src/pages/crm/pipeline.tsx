@@ -339,11 +339,10 @@ export default function CrmPipelinePage() {
 
   const items = (data?.items ?? []) as OpportunityItem[];
 
-  // Group the current page's opportunities by stage — for CARD PLACEMENT
-  // only. Counts shown to the user (funnel bars, per-stage panel headers)
-  // come from the server-aggregated `stageCounts`/`lostCount` below, NOT
-  // from these buckets — a page-scoped `.length` silently under/over-counts
-  // once results span more than one page (the F7 bug this phase fixes).
+  // Group the current page's opportunities by stage — card placement and
+  // the column badge (visible cards on this page). Funnel bars still read
+  // the server-aggregated `stageCounts`/`lostCount` (facility-wide, F7).
+  // Putting that facility total on the column header is the count lie.
   const byStage = new Map<StageKey, OpportunityItem[]>(STAGES.map((s) => [s.key, []]));
   for (const item of items) {
     const bucket = byStage.get(item.stage as StageKey);
@@ -501,11 +500,17 @@ export default function CrmPipelinePage() {
             <KanbanBoard>
               {STAGES.map((stage) => {
                 const stageItems = byStage.get(stage.key) ?? [];
-                const count = stageCounts[stage.key] ?? 0;
+                const facilityCount = stageCounts[stage.key] ?? 0;
                 return (
-                  <KanbanColumn key={stage.key} title={stage.label} count={count}>
+                  <KanbanColumn key={stage.key} title={stage.label} count={stageItems.length}>
                     {stageItems.length === 0 ? (
-                      <div className="console-kanban-empty">Chưa có</div>
+                      facilityCount > 0 ? (
+                        <div className="console-kanban-empty">
+                          Không có trên trang này · {facilityCount} ở giai đoạn
+                        </div>
+                      ) : (
+                        <div className="console-kanban-empty">Chưa có</div>
+                      )
                     ) : (
                       stageItems.map((opp) => (
                         <OpportunityKanbanCard

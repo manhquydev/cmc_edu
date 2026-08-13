@@ -7,11 +7,15 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // (Astryx Spinner needs it under jsdom).
 
 // Locks the CRM pipeline dashboard (phase-03 Kanban→premium upgrade, phase-06
-// F7 fix). Backend (`crm.opportunityList` + `crm.opportunityAdvance`) already
-// exists (apps/api/src/crm/router.ts) — this test drives the UI contract:
+// F7 fix, phase-C column-count truth). Backend (`crm.opportunityList` +
+// `crm.opportunityAdvance`) already exists (apps/api/src/crm/router.ts) —
+// this test drives the UI contract:
 // - stage grouping/ordering (from `items`, current page only)
-// - funnel/column COUNTS from the server-aggregated `stageCounts`/`lostCount`
-//   (facility-wide, NOT derived by counting `items` — the F7 bug)
+// - funnel COUNTS from the server-aggregated `stageCounts`/`lostCount`
+//   (facility-wide, NOT derived by counting `items` — the F7 contract)
+// - kanban column badge = cards currently rendered in that column
+//   (page-scoped). Mixing funnel totals into the column badge is the
+//   count lie this suite now forbids.
 // - the lost-visibility filter (`lost: 'exclude'|'include'|'only'`)
 // - real page/pageSize pagination
 // - the stage-advance action calling `opportunityAdvance.mutate` with a
@@ -150,19 +154,51 @@ describe('CrmPipelinePage', () => {
     expect(counts).toEqual(['5', '1', '2', '0', '3']);
   });
 
-  it('renders per-stage column headers using stageCounts (not the current page item count)', () => {
+  function kanbanColumn(container: HTMLElement, title: string): HTMLElement {
+    const header = Array.from(container.querySelectorAll('.console-kanban-col-header')).find(
+      (el) => el.querySelector('span:first-child')?.textContent === title,
+    );
+    const col = header?.closest('.console-kanban-col');
+    if (!(col instanceof HTMLElement)) throw new Error(`missing kanban column: ${title}`);
+    return col;
+  }
+
+  it('renders the O1 column badge from visible cards, not facility-wide stageCounts (funnel stays 5)', () => {
     const { container } = renderWithProviders(<CrmPipelinePage />);
-    // O1_LEAD stageCounts=5 while only 1 item is on the current page —
-    // KanbanColumn title + count badge (not a page-scoped card count).
+    // Default mock: stageCounts.O1=5, one O1 card on this page.
     // Scope to columns: funnel bars also render the same stage labels.
     const colTitles = Array.from(
       container.querySelectorAll('.console-kanban-col-header > span:first-child'),
     ).map((el) => el.textContent);
     expect(colTitles).toEqual(STAGE_LABEL_ORDER);
-    const counts = Array.from(container.querySelectorAll('.console-kanban-col-count')).map(
+    const colCounts = Array.from(container.querySelectorAll('.console-kanban-col-count')).map(
       (el) => el.textContent,
     );
-    expect(counts).toEqual(['5', '1', '2', '0', '3']);
+    expect(colCounts).toEqual(['1', '2', '0', '0', '0']);
+    expect(kanbanColumn(container, 'Tiếp cận').querySelector('.console-kanban-col-count')?.textContent).toBe(
+      '1',
+    );
+    const funnelCounts = Array.from(container.querySelectorAll('.console-fn-count')).map(
+      (el) => el.textContent,
+    );
+    expect(funnelCounts).toEqual(['5', '1', '2', '0', '3']);
+  });
+
+  it('shows a page-scoped empty copy when the stage has facility cards but none on this page', () => {
+    const { container } = renderWithProviders(<CrmPipelinePage />);
+    // Default mock: stageCounts.O3=2, zero O3 items on this page.
+    const o3 = kanbanColumn(container, 'Đặt lịch kiểm tra');
+    expect(o3.querySelector('.console-kanban-empty')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      'Không có trên trang này · 2 ở giai đoạn',
+    );
+    expect(o3.textContent).not.toMatch(/Chưa có/);
+  });
+
+  it('shows "Chưa có" when the stage has zero facility cards and zero items', () => {
+    const { container } = renderWithProviders(<CrmPipelinePage />);
+    // Default mock: stageCounts.O4=0, zero O4 items.
+    const o4 = kanbanColumn(container, 'Đã kiểm tra');
+    expect(o4.querySelector('.console-kanban-empty')?.textContent).toBe('Chưa có');
   });
 
   it('renders the lostCount from the server response', () => {

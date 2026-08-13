@@ -35,11 +35,9 @@ ALTER TABLE "ScheduleSlot" ADD COLUMN "archivedAt" TIMESTAMPTZ(3);
 
 -- Wave-A default is SELECT/INSERT only. Archive/update of a slot is UPDATE.
 GRANT UPDATE ON "ScheduleSlot" TO "cmc_app";
+-- App convention: never DELETE a ScheduleSlot (archive via archivedAt).
+-- Do not REVOKE DELETE — the test harness cleanupFacility still needs it.
 
 ALTER TABLE "ClassSession" ADD COLUMN "teacherId" TEXT;
-
-UPDATE "ClassSession" AS cs
-SET "teacherId" = cb."teacherId"
-FROM "ClassBatch" AS cb
-WHERE cs."classBatchId" = cb."id"
-  AND cb."teacherId" IS NOT NULL;
+-- NULL means inherit ClassBatch.teacherId. Do not copy the class teacher
+-- here: that freezes a guess and breaks later classBatch.assignTeacher.

@@ -751,8 +751,9 @@ model ClassSession {
   /// the session transitioned to `done` — the LATEST of the 3 done-condition
   /// timestamps, frozen once set (a `done` session never re-evaluates).
   doneAt             DateTime?     @db.Timestamptz(3)
-  /// Plain scalar — references AppUser.id, same shape as ClassBatch.teacherId.
-  /// Defaults from the class at materialize time; one session may be reassigned.
+  /// Plain scalar — AppUser.id of a session-specific teacher. NULL means
+  /// inherit ClassBatch.teacherId. Display label only: attendance, KPI and
+  /// payroll still read ClassBatch.teacherAppUserId. Not an authorization source.
   teacherId          String?
   createdAt          DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime      @updatedAt @db.Timestamptz(3)

@@ -9,13 +9,14 @@ function sessionClockKey(sessionDate: Date, startTime: Date): string {
  * Persist planned sessions that do not already exist for the same
  * (class, ICT day, start instant). Callers must build `startTime`/`endTime`
  * via `ictToUtc(date, 'HH:mm')` so the unique key compares bit-identically.
+ *
+ * New rows leave `teacherId` NULL: that means inherit ClassBatch.teacherId.
  */
 export async function insertMissingPlannedSessions(
   tx: Prisma.TransactionClient,
   args: {
     facilityId: string;
     classBatchId: string;
-    teacherId: string | null;
     planned: readonly PlannedSession[];
   },
 ): Promise<{ created: number; alreadyExisting: number }> {
@@ -24,12 +25,12 @@ export async function insertMissingPlannedSessions(
   }
 
   const existing = await tx.classSession.findMany({
-    where: { classBatchId: args.classBatchId },
+    where: { facilityId: args.facilityId, classBatchId: args.classBatchId },
     select: { sessionDate: true, startTime: true },
   });
   const seen = new Set(existing.map((row) => sessionClockKey(row.sessionDate, row.startTime)));
 
-  const toCreate = [];
+  const toCreate: PlannedSession[] = [];
   for (const planned of args.planned) {
     const key = sessionClockKey(planned.sessionDate, planned.startTime);
     if (seen.has(key)) continue;
@@ -37,8 +38,9 @@ export async function insertMissingPlannedSessions(
     toCreate.push(planned);
   }
 
+  let created = 0;
   if (toCreate.length > 0) {
-    await tx.classSession.createMany({
+    const result = await tx.classSession.createMany({
       data: toCreate.map((planned) => ({
         facilityId: args.facilityId,
         classBatchId: args.classBatchId,
@@ -46,16 +48,16 @@ export async function insertMissingPlannedSessions(
         sessionDate: planned.sessionDate,
         startTime: planned.startTime,
         endTime: planned.endTime,
-        teacherId: args.teacherId,
       })),
       // Lookup is the count source. skipDuplicates is only the race net if
       // two regenerate calls both miss the same (class, day, start).
       skipDuplicates: true,
     });
+    created = result.count;
   }
 
   return {
-    created: toCreate.length,
-    alreadyExisting: args.planned.length - toCreate.length,
+    created,
+    alreadyExisting: args.planned.length - created,
   };
 }

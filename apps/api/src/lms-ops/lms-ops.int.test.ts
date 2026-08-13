@@ -109,7 +109,9 @@ describe('lmsOps foundation spike', () => {
       }),
     );
     expect(sessions.length).toBe(result.sessionsCreated);
-    expect(sessions.every((row) => row.teacherId === teacher.id)).toBe(true);
+    expect(sessions.every((row) => row.teacherId === null)).toBe(true);
+    const listed = await gddt.classSession.list({ classBatchId: result.classBatchId });
+    expect(listed.every((row) => row.teacherId === teacher.id)).toBe(true);
 
     const regen = await gddt.schedule.generateSessions({ classBatchId: result.classBatchId });
     expect(regen.sessionsCreated).toBe(0);

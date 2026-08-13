@@ -194,7 +194,6 @@ export const lmsOpsRouter = router({
         const inserted = await insertMissingPlannedSessions(tx, {
           facilityId,
           classBatchId: classBatch.id,
-          teacherId: classBatch.teacherId,
           planned,
         });
 

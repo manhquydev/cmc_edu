@@ -8,6 +8,7 @@ import {
   createTestFacility,
   seedAppUser,
   testDb,
+  testDbBypass,
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
@@ -122,6 +123,24 @@ describe('classSession.assignTeacher', () => {
     await expect(
       giaoVien.classSession.assignTeacher({ sessionId: targetId, teacherAppUserId: substituteId }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('refuses to change the teacher of a cancelled or done session', async () => {
+    const cancelledId = sessionIds[0]!;
+    const doneId = sessionIds[1]!;
+    await testDbBypass((tx) =>
+      tx.classSession.update({ where: { id: cancelledId }, data: { status: 'cancelled' } }),
+    );
+    await testDbBypass((tx) =>
+      tx.classSession.update({ where: { id: doneId }, data: { status: 'done', doneAt: new Date() } }),
+    );
+
+    await expect(
+      gddt.classSession.assignTeacher({ sessionId: cancelledId, teacherAppUserId: substituteId }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(
+      gddt.classSession.assignTeacher({ sessionId: doneId, teacherAppUserId: substituteId }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
   it('rejects an unknown session and a non-teacher staff member', async () => {

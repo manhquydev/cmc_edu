@@ -35,12 +35,26 @@ const scheduleSlotIdInput = z.object({
   scheduleSlotId: z.string().uuid(),
 });
 
+const slotPatternInput = {
+  weekday: z.number().int().min(0).max(6),
+  startTime: timeOfDaySchema,
+  endTime: timeOfDaySchema,
+};
+
 const updateSlotInput = z
   .object({
     scheduleSlotId: z.string().uuid(),
-    weekday: z.number().int().min(0).max(6),
-    startTime: timeOfDaySchema,
-    endTime: timeOfDaySchema,
+    ...slotPatternInput,
+  })
+  .refine((slot) => slot.startTime < slot.endTime, {
+    message: 'slot startTime must be before endTime.',
+    path: ['endTime'],
+  });
+
+const addSlotInput = z
+  .object({
+    classBatchId: z.string().uuid(),
+    ...slotPatternInput,
   })
   .refine((slot) => slot.startTime < slot.endTime, {
     message: 'slot startTime must be before endTime.',
@@ -110,7 +124,12 @@ export const scheduleRouter = router({
           throw badRequest(`Class span exceeds the ${MAX_CLASS_SPAN_DAYS}-day limit.`);
         }
 
-        const planned = planClassSessions(startDateOnly, endDateOnly, classBatch.scheduleSlots);
+        // Regenerate only from today (ICT) forward. classBatch.create still
+        // plans from startDate — a new class has no history to protect.
+        const todayIct = ictDateOnlyOf(new Date());
+        const planFrom =
+          compareDateOnly(startDateOnly, todayIct) > 0 ? startDateOnly : todayIct;
+        const planned = planClassSessions(planFrom, endDateOnly, classBatch.scheduleSlots);
 
         // Same room-conflict invariant as create (G1 review M1), excluding this
         // batch's own sessions so a regenerate never conflicts with itself.
@@ -121,7 +140,6 @@ export const scheduleRouter = router({
         const inserted = await insertMissingPlannedSessions(tx, {
           facilityId,
           classBatchId: classBatch.id,
-          teacherId: classBatch.teacherId,
           planned,
         });
 
@@ -184,6 +202,32 @@ export const scheduleRouter = router({
           data: { archivedAt: new Date() },
         });
         return toScheduleSlotDto(archived);
+      });
+    }),
+
+  addSlot: requirePermission('schedule', 'generate')
+    .input(addSlotInput)
+    .mutation(async ({ ctx, input }): Promise<ScheduleSlotDto> => {
+      const { facilityId } = scoped(ctx);
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const classBatch = await tx.classBatch.findFirst({
+          where: { id: input.classBatchId, facilityId },
+        });
+        if (!classBatch) {
+          throw notFound('ClassBatch not found.');
+        }
+
+        const created = await tx.scheduleSlot.create({
+          data: {
+            facilityId,
+            classBatchId: classBatch.id,
+            weekday: input.weekday,
+            startTime: input.startTime,
+            endTime: input.endTime,
+          },
+        });
+        return toScheduleSlotDto(created);
       });
     }),
 });

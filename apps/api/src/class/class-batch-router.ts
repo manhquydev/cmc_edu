@@ -211,7 +211,6 @@ export const classBatchRouter = router({
         const inserted = await insertMissingPlannedSessions(tx, {
           facilityId,
           classBatchId: classBatch.id,
-          teacherId: classBatch.teacherId,
           planned,
         });
 

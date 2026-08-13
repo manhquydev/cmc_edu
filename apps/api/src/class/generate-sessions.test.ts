@@ -12,6 +12,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { withFacility } from '@cmc/db';
+import { ictDateOnlyOf, weekdayOf } from '@cmc/domain-time';
 import { appRouter } from '../router.js';
 import {
   buildStaffContext,
@@ -442,37 +443,106 @@ describe('classBatch.create / schedule.generateSessions (WF-P2-01, US-011)', () 
     expect(items.some((r) => r.id === room.id)).toBe(true);
   });
 
-  it('copies class teacher onto new sessions and leaves sessions null when the class has none', async () => {
+  it('leaves session.teacherId null so a later class teacher is inherited on every read', async () => {
     const teacher = await seedAppUser({
       facilityId: facility.id,
-      userId: 'gv-session-copy-1',
+      userId: 'gv-session-inherit-1',
       position: 'giao_vien',
       roles: ['giao_vien'],
     });
-    const withTeacher = await gddt.classBatch.create({
+    const created = await gddt.classBatch.create({
+      courseId,
+      startDate: '2099-03-01',
+      endDate: '2099-03-08',
+      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+    });
+    const stored = await testDbBypass((tx) =>
+      tx.classSession.findMany({ where: { classBatchId: created.classBatch.id } }),
+    );
+    expect(stored.length).toBeGreaterThan(0);
+    expect(stored.every((row) => row.teacherId === null)).toBe(true);
+
+    const listedBefore = await gddt.classSession.list({ classBatchId: created.classBatch.id });
+    expect(listedBefore.every((row) => row.teacherId === null)).toBe(true);
+
+    await gddt.classBatch.assignTeacher({
+      classBatchId: created.classBatch.id,
+      teacherAppUserId: teacher.id,
+    });
+
+    const listedAfter = await gddt.classSession.list({ classBatchId: created.classBatch.id });
+    expect(listedAfter.every((row) => row.teacherId === teacher.id)).toBe(true);
+    const first = await gddt.classSession.get({ sessionId: listedAfter[0]!.id });
+    expect(first.teacherId).toBe(teacher.id);
+    const inRange = await gddt.classSession.listInRange({ from: '2099-03-01', to: '2099-03-08' });
+    expect(inRange.filter((row) => row.classBatchId === created.classBatch.id).every((row) => row.teacherId === teacher.id)).toBe(
+      true,
+    );
+
+    const storedStill = await testDbBypass((tx) =>
+      tx.classSession.findMany({ where: { classBatchId: created.classBatch.id } }),
+    );
+    expect(storedStill.every((row) => row.teacherId === null)).toBe(true);
+  });
+
+  it('addSlot after archiving every slot lets generateSessions run again', async () => {
+    const created = await gddt.classBatch.create({
+      courseId,
+      startDate: '2099-03-02',
+      endDate: '2099-03-31',
+      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+    });
+    const slots = await testDbBypass((tx) =>
+      tx.scheduleSlot.findMany({ where: { classBatchId: created.classBatch.id } }),
+    );
+    for (const slot of slots) {
+      await gddt.schedule.archiveSlot({ scheduleSlotId: slot.id });
+    }
+
+    const empty = await gddt.schedule.generateSessions({ classBatchId: created.classBatch.id });
+    expect(empty.sessionsCreated).toBe(0);
+
+    const added = await gddt.schedule.addSlot({
+      classBatchId: created.classBatch.id,
+      weekday: 3,
+      startTime: '18:00',
+      endTime: '19:30',
+    });
+    expect(added.archivedAt).toBeNull();
+    expect(added.weekday).toBe(3);
+
+    const regen = await gddt.schedule.generateSessions({ classBatchId: created.classBatch.id });
+    expect(regen.sessionsCreated).toBeGreaterThan(0);
+  });
+
+  it('generateSessions does not create sessions before today ICT after a weekday change', async () => {
+    const created = await gddt.classBatch.create({
       courseId,
       startDate: '2026-08-03',
-      endDate: '2026-08-03',
+      endDate: '2026-12-31',
       slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
-      teacherId: teacher.id,
     });
-    const stamped = await testDbBypass((tx) =>
-      tx.classSession.findMany({ where: { classBatchId: withTeacher.classBatch.id } }),
+    const original = await testDbBypass((tx) =>
+      tx.classSession.findFirstOrThrow({ where: { classBatchId: created.classBatch.id } }),
     );
-    expect(stamped).toHaveLength(1);
-    expect(stamped[0]!.teacherId).toBe(teacher.id);
+    await gddt.schedule.updateSlot({
+      scheduleSlotId: original.scheduleSlotId!,
+      weekday: 3,
+      startTime: '18:00',
+      endTime: '19:30',
+    });
 
-    const orphan = await gddt.classBatch.create({
-      courseId,
-      startDate: '2026-08-04',
-      endDate: '2026-08-04',
-      slots: [{ weekday: 2, startTime: '18:00', endTime: '19:30' }],
-    });
-    const unstamped = await testDbBypass((tx) =>
-      tx.classSession.findMany({ where: { classBatchId: orphan.classBatch.id } }),
+    await gddt.schedule.generateSessions({ classBatchId: created.classBatch.id });
+
+    const todayIct = ictDateOnlyOf(new Date());
+    const all = await testDbBypass((tx) =>
+      tx.classSession.findMany({ where: { classBatchId: created.classBatch.id } }),
     );
-    expect(unstamped).toHaveLength(1);
-    expect(unstamped[0]!.teacherId).toBeNull();
+    const wednesdayMeetings = all.filter((row) => weekdayOf(ictDateOnlyOf(row.sessionDate)) === 3);
+    expect(wednesdayMeetings.length).toBeGreaterThan(0);
+    for (const row of wednesdayMeetings) {
+      expect(ictDateOnlyOf(row.sessionDate) >= todayIct).toBe(true);
+    }
   });
 
   it('archiveSlot keeps the row and the session FK; regenerate after a same-time replacement slot does not duplicate', async () => {

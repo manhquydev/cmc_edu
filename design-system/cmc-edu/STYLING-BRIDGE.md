@@ -67,37 +67,22 @@ not a defect. A defect is a value that belongs to *neither* table.
 
 ## Button hierarchy (styling skill variants)
 
+Use Astryx `Button` from `@cmc/ui` (one-door). Do **not** invent CSS modifier
+classes for button chrome. Admin tokens live in `packages/ui/src/console.css`
+under `.o_web_client` — authority: `docs/design-system-console.md`. Interactive
+accent remains `--cmc-brand` / `#0071E3`.
+
 | shadcn | CMC implementation target |
 |--------|---------------------------|
-| `default` | Astryx `Button variant="primary"` · `.sh-cta` |
-| `secondary` | `variant="secondary"` · **add** `.sh-cta--secondary` (outline/soft) |
-| `ghost` | **add** `.sh-cta--ghost` for Đăng xuất / minor topbar |
-| `destructive` | ConfirmDialog destructive · Button danger where Astryx allows |
-| `outline` | secondary + border |
-| `link` | Text + brand color + chevron (TaskRow / MetricCard ctx) |
+| `default` | Astryx `Button variant="primary"` |
+| `secondary` | `Button variant="secondary"` (outline/soft) |
+| `ghost` | `Button variant="ghost"` for Đăng xuất / minor systray |
+| `destructive` | `ConfirmDialog` (default confirm is destructive) or `Button variant="destructive"` |
+| `outline` | `Button variant="secondary"` |
+| `link` | Text + `--cmc-brand` + chevron (TaskRow / MetricCard ctx) |
 
-### Shell CSS snippet (to implement)
-
-```css
-/* console.css (admin) / app.css (LMS) */
-.sh-cta--secondary {
-  background: transparent;
-  color: var(--cmc-text-2);
-  border: 1px solid var(--cmc-border);
-}
-.sh-cta--secondary:hover { background: var(--cmc-surface-sunken); }
-.sh-cta--ghost {
-  background: transparent;
-  color: var(--cmc-text-muted);
-  border: none;
-}
-.sh-cta--ghost:hover { background: var(--cmc-surface-sunken); color: var(--cmc-text); }
-.sh-cta:active, .sh-cta--secondary:active, .sh-cta--ghost:active {
-  transform: scale(0.98);
-}
-.sh-item:active { background: var(--cmc-surface-sunken); }
-.ck-mc:active { box-shadow: none; background: var(--cmc-surface-sunken); }
-```
+Press/active feedback is owned by Astryx Button and console tokens. Do not add
+retired shell CTA modifiers.
 
 ---
 
@@ -157,7 +142,7 @@ Align copy with AlertDialog skill patterns; prefer `intent` over color string wh
 
 | Breakpoint | ERP admin behavior |
 |------------|-------------------|
-| &lt;768 | SideNav collapse (if not yet: accept horizontal scroll avoidance); stack cockpit |
+| &lt;768 | ConsoleNavbar sections overflow-x; stack cockpit; avoid page-level horizontal scroll |
 | 768–1039 | Single column body |
 | ≥1040 | Cockpit 1.4fr / 1fr |
 | LMS | Keep mobile frame separate (YAGNI) |

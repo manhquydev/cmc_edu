@@ -42,6 +42,8 @@ const RULES = [
   { file: 'design-system/cmc-edu/STRUCTURE.md', forbid: FORBID },
   { file: 'design-system/cmc-edu/PAGE-FRAMES.md', forbid: FORBID },
   { file: 'design-system/cmc-edu/MASTER.md', forbid: FORBID },
+  { file: 'design-system/cmc-edu/STYLING-BRIDGE.md', forbid: FORBID },
+  { file: 'design-system/cmc-edu/VIEW-GRAMMAR.md', forbid: FORBID },
   { file: 'packages/ui/llms.txt', forbid: FORBID },
   { file: 'packages/ui/src/index.ts', forbid: FORBID },
 ];

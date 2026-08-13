@@ -1,6 +1,7 @@
 // LMS foundation spike integration: createClassWithUnits + addWithUnits + rosterForSession.
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { addDaysToDateOnly, ictDateOnlyOf, weekdayOf } from '@cmc/domain-time';
 import { appRouter } from '../router.js';
 import {
   buildStaffContext,
@@ -14,6 +15,14 @@ import {
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
+
+function upcomingMonday(weeksAhead = 0): string {
+  let date = ictDateOnlyOf(new Date());
+  while (weekdayOf(date) !== 1) {
+    date = addDaysToDateOnly(date, 1);
+  }
+  return addDaysToDateOnly(date, weeksAhead * 7);
+}
 
 describe('lmsOps foundation spike', () => {
   let facility: { id: string };
@@ -93,11 +102,13 @@ describe('lmsOps foundation spike', () => {
       position: 'giao_vien',
       roles: ['giao_vien'],
     });
+    const monday0 = upcomingMonday();
+    const monday3 = upcomingMonday(3);
     const result = await gddt.lmsOps.createClassWithUnits({
       courseId,
       startUnitId: unitIds[0]!,
-      startDate: '2026-09-07',
-      endDate: '2026-09-28',
+      startDate: monday0,
+      endDate: monday3,
       slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
       teacherId: teacher.id,
     });

@@ -12,7 +12,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { withFacility } from '@cmc/db';
-import { ictDateOnlyOf, weekdayOf } from '@cmc/domain-time';
+import { addDaysToDateOnly, ictDateOnlyOf, weekdayOf } from '@cmc/domain-time';
 import { appRouter } from '../router.js';
 import {
   buildStaffContext,
@@ -25,6 +25,21 @@ import {
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
+
+const MONDAY = 1;
+
+function nextWeekdayOnOrAfter(fromDate: string, weekday: number): string {
+  let date = fromDate;
+  while (weekdayOf(date) !== weekday) {
+    date = addDaysToDateOnly(date, 1);
+  }
+  return date;
+}
+
+/** Next Monday on or after today ICT, then shift by whole weeks. */
+function upcomingMonday(weeksAhead = 0): string {
+  return addDaysToDateOnly(nextWeekdayOnOrAfter(ictDateOnlyOf(new Date()), MONDAY), weeksAhead * 7);
+}
 
 describe('classBatch.create / schedule.generateSessions (WF-P2-01, US-011)', () => {
   let facility: { id: string };
@@ -111,11 +126,12 @@ describe('classBatch.create / schedule.generateSessions (WF-P2-01, US-011)', () 
   // ---- Edge case 2: re-generate idempotent ----
 
   it('schedule.generateSessions re-run is idempotent: no duplicate sessions -- edge case 2', async () => {
+    const monday = upcomingMonday();
     const created = await gddt.classBatch.create({
       courseId,
-      startDate: '2026-08-03',
-      endDate: '2026-08-09',
-      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+      startDate: monday,
+      endDate: monday,
+      slots: [{ weekday: MONDAY, startTime: '18:00', endTime: '19:30' }],
     });
     expect(created.sessionsCreated).toBe(1);
 
@@ -129,18 +145,20 @@ describe('classBatch.create / schedule.generateSessions (WF-P2-01, US-011)', () 
   });
 
   it('schedule.generateSessions adds only the new sessions when the range is extended -- edge case 2', async () => {
+    const monday0 = upcomingMonday();
+    const monday2 = upcomingMonday(2);
     const created = await gddt.classBatch.create({
       courseId,
-      startDate: '2026-08-03',
-      endDate: '2026-08-03',
-      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+      startDate: monday0,
+      endDate: monday0,
+      slots: [{ weekday: MONDAY, startTime: '18:00', endTime: '19:30' }],
     });
     expect(created.sessionsCreated).toBe(1);
 
-    // Mondays in the extended range (Aug 3..17): Aug 3 (existing), 10, 17 -- 2 new.
+    // Three Mondays in [monday0, monday2]: first already exists, two new.
     const regen = await gddt.schedule.generateSessions({
       classBatchId: created.classBatch.id,
-      endDate: '2026-08-17',
+      endDate: monday2,
     });
     expect(regen.sessionsCreated).toBe(2);
 
@@ -227,25 +245,27 @@ describe('classBatch.create / schedule.generateSessions (WF-P2-01, US-011)', () 
 
   it('schedule.generateSessions enforces the room conflict on extend -- G1 review M1', async () => {
     const room = await gddt.room.create({ code: 'R201', name: 'Room 201' });
-    // Class A holds the room on 2026-08-10 (Mon) 18:00-19:30.
+    const monday0 = upcomingMonday();
+    const monday1 = upcomingMonday(1);
+    // Class A holds the room on the next Monday after monday0.
     await gddt.classBatch.create({
       courseId,
-      startDate: '2026-08-10',
-      endDate: '2026-08-10',
+      startDate: monday1,
+      endDate: monday1,
       roomId: room.id,
-      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+      slots: [{ weekday: MONDAY, startTime: '18:00', endTime: '19:30' }],
     });
-    // Class B initially only 2026-08-03 (Mon) -- no conflict at create time.
+    // Class B initially only monday0 -- no conflict at create time.
     const b = await gddt.classBatch.create({
       courseId,
-      startDate: '2026-08-03',
-      endDate: '2026-08-03',
+      startDate: monday0,
+      endDate: monday0,
       roomId: room.id,
-      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+      slots: [{ weekday: MONDAY, startTime: '18:00', endTime: '19:30' }],
     });
-    // Extending B to 2026-08-10 collides with class A in the same room.
+    // Extending B to monday1 collides with class A in the same room.
     await expect(
-      gddt.schedule.generateSessions({ classBatchId: b.classBatch.id, endDate: '2026-08-10' }),
+      gddt.schedule.generateSessions({ classBatchId: b.classBatch.id, endDate: monday1 }),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
   });
 
@@ -516,11 +536,12 @@ describe('classBatch.create / schedule.generateSessions (WF-P2-01, US-011)', () 
   });
 
   it('generateSessions does not create sessions before today ICT after a weekday change', async () => {
+    const todayIct = ictDateOnlyOf(new Date());
     const created = await gddt.classBatch.create({
       courseId,
-      startDate: '2026-08-03',
-      endDate: '2026-12-31',
-      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+      startDate: addDaysToDateOnly(todayIct, -28),
+      endDate: addDaysToDateOnly(todayIct, 56),
+      slots: [{ weekday: MONDAY, startTime: '18:00', endTime: '19:30' }],
     });
     const original = await testDbBypass((tx) =>
       tx.classSession.findFirstOrThrow({ where: { classBatchId: created.classBatch.id } }),
@@ -534,7 +555,6 @@ describe('classBatch.create / schedule.generateSessions (WF-P2-01, US-011)', () 
 
     await gddt.schedule.generateSessions({ classBatchId: created.classBatch.id });
 
-    const todayIct = ictDateOnlyOf(new Date());
     const all = await testDbBypass((tx) =>
       tx.classSession.findMany({ where: { classBatchId: created.classBatch.id } }),
     );
@@ -546,11 +566,12 @@ describe('classBatch.create / schedule.generateSessions (WF-P2-01, US-011)', () 
   });
 
   it('archiveSlot keeps the row and the session FK; regenerate after a same-time replacement slot does not duplicate', async () => {
+    const monday = upcomingMonday();
     const created = await gddt.classBatch.create({
       courseId,
-      startDate: '2026-08-03',
-      endDate: '2026-08-03',
-      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+      startDate: monday,
+      endDate: monday,
+      slots: [{ weekday: MONDAY, startTime: '18:00', endTime: '19:30' }],
     });
     const original = await testDbBypass((tx) =>
       tx.classSession.findFirstOrThrow({ where: { classBatchId: created.classBatch.id } }),

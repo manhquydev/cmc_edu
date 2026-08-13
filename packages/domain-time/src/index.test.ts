@@ -90,6 +90,15 @@ describe('ictToUtc', () => {
     expect(result.getUTCDate()).toBe(31);
     expect(result.getUTCHours()).toBe(17);
     expect(result.getUTCMinutes()).toBe(0);
+    expect(result.getUTCSeconds()).toBe(0);
+    expect(result.getUTCMilliseconds()).toBe(0);
+  });
+
+  it('zeros seconds and milliseconds so session unique keys compare bit-identically', () => {
+    const result = ictToUtc('2026-08-03', '18:00');
+    expect(result.getUTCSeconds()).toBe(0);
+    expect(result.getUTCMilliseconds()).toBe(0);
+    expect(result.toISOString()).toBe('2026-08-03T11:00:00.000Z');
   });
 
   it('throws RangeError on malformed date or time', () => {

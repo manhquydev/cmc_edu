@@ -17,6 +17,7 @@ import {
   isValidDateOnly,
 } from '@cmc/domain-time';
 import { spanDaysInclusive } from './generate-sessions.js';
+import { resolveTeacher } from './resolve-teacher.js';
 import { cancelSessionWithRestamp } from '../lms-ops/cancel-session.js';
 import {
   evaluateSessionDoneProgress,
@@ -35,6 +36,11 @@ const assignUnitInput = z.object({
   curriculumUnitId: z.string().uuid(),
 });
 
+const assignSessionTeacherInput = z.object({
+  sessionId: z.string().uuid(),
+  teacherAppUserId: z.string().uuid(),
+});
+
 export interface ClassSessionDto {
   id: string;
   classBatchId: string;
@@ -44,6 +50,7 @@ export interface ClassSessionDto {
   endTime: Date;
   status: string;
   curriculumUnitId: string | null;
+  teacherId: string | null;
 }
 
 function toClassSessionDto(row: {
@@ -55,6 +62,7 @@ function toClassSessionDto(row: {
   endTime: Date;
   status: string;
   curriculumUnitId: string | null;
+  teacherId: string | null;
 }): ClassSessionDto {
   return {
     id: row.id,
@@ -65,6 +73,7 @@ function toClassSessionDto(row: {
     endTime: row.endTime,
     status: row.status,
     curriculumUnitId: row.curriculumUnitId,
+    teacherId: row.teacherId,
   };
 }
 
@@ -173,7 +182,6 @@ export const classSessionRouter = router({
           ...toClassSessionDto(row),
           batchCode: row.classBatch.code,
           program: row.classBatch.program,
-          teacherId: row.classBatch.teacherId,
           courseId: row.classBatch.courseId,
           batchStatus: row.classBatch.status,
         };
@@ -280,7 +288,7 @@ export const classSessionRouter = router({
           curriculumUnitId: row.curriculumUnitId,
           batchCode: row.classBatch.code,
           program: row.classBatch.program,
-          teacherId: row.classBatch.teacherId,
+          teacherId: row.teacherId,
           courseId: row.classBatch.courseId,
           batchStatus: row.classBatch.status,
         }));
@@ -362,6 +370,32 @@ export const classSessionRouter = router({
           data: { curriculumUnitId: input.curriculumUnitId },
         });
 
+        return toClassSessionDto(updated);
+      });
+    }),
+
+  // Reuses class.create (same key as classBatch.assignTeacher). Lane B owns
+  // the auth registry, so A1 does not add a session-specific permission.
+  // Auto AuditLog middleware covers the mutation.
+  assignTeacher: requirePermission('class', 'create')
+    .input(assignSessionTeacherInput)
+    .mutation(async ({ ctx, input }): Promise<ClassSessionDto> => {
+      const { facilityId } = scoped(ctx);
+
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const session = await tx.classSession.findFirst({
+          where: { id: input.sessionId, facilityId },
+        });
+        if (!session) {
+          throw notFound('ClassSession not found.');
+        }
+
+        const teacher = await resolveTeacher(tx, input.teacherAppUserId, facilityId);
+
+        const updated = await tx.classSession.update({
+          where: { id: session.id },
+          data: { teacherId: teacher.id },
+        });
         return toClassSessionDto(updated);
       });
     }),

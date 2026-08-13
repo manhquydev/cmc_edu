@@ -3,12 +3,13 @@
 
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
-import type { Prisma } from '@cmc/db';
 import { badRequest, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 import { nextClassBatchCode } from './class-code.js';
 import { MAX_CLASS_SPAN_DAYS, planClassSessions, spanDaysInclusive } from './generate-sessions.js';
+import { insertMissingPlannedSessions } from './insert-planned-sessions.js';
 import { PROGRAM_VALUES } from './program.js';
+import { resolveTeacher } from './resolve-teacher.js';
 import { assertNoRoomConflict } from './room-conflict.js';
 import { compareDateOnly, ictToUtc, isValidDateOnly, isValidTimeOfDay } from '@cmc/domain-time';
 
@@ -112,30 +113,6 @@ function toClassBatchDto(row: {
   };
 }
 
-/**
- * Resolves an AppUser id into the teacher a ClassBatch may point at.
- *
- * `ClassBatch.teacherAppUserId` is the source that credits teaching hours into
- * payroll and KPI, so a non-teacher assigned here is paid for classes they
- * never ran. Both writers (`create`'s teacherId resolve and `assignTeacher`)
- * go through this — a dropdown that only lists teachers is a convenience, not
- * an enforcement point.
- */
-async function resolveTeacher(
-  tx: Prisma.TransactionClient,
-  teacherAppUserId: string,
-  facilityId: string,
-): Promise<{ id: string }> {
-  const teacher = await tx.appUser.findFirst({ where: { id: teacherAppUserId, facilityId } });
-  if (!teacher) {
-    throw notFound('Teacher (AppUser) not found in this facility.');
-  }
-  if (!teacher.roles.includes('giao_vien')) {
-    throw badRequest('That staff member is not a teacher (role giao_vien required).');
-  }
-  return teacher;
-}
-
 export const classBatchRouter = router({
   // Reads and writes are separate keys. `list`/`get` originally reused
   // `class.create` because the P2-Foundation spec named only 4 permissions --
@@ -231,24 +208,17 @@ export const classBatchRouter = router({
           await assertNoRoomConflict(tx, facilityId, input.roomId, planned, classBatch.id);
         }
 
-        if (planned.length > 0) {
-          await tx.classSession.createMany({
-            data: planned.map((p) => ({
-              facilityId,
-              classBatchId: classBatch.id,
-              scheduleSlotId: p.scheduleSlotId ?? null,
-              sessionDate: p.sessionDate,
-              startTime: p.startTime,
-              endTime: p.endTime,
-            })),
-            skipDuplicates: true,
-          });
-        }
+        const inserted = await insertMissingPlannedSessions(tx, {
+          facilityId,
+          classBatchId: classBatch.id,
+          teacherId: classBatch.teacherId,
+          planned,
+        });
 
         return {
           classBatch: toClassBatchDto(classBatch),
           slotsCreated: slots.length,
-          sessionsCreated: planned.length,
+          sessionsCreated: inserted.created,
         };
       });
     }),

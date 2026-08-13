@@ -1,12 +1,11 @@
-// Core auto-generation logic for `classBatch.create` and
-// `schedule.generateSessions` (docs/26 WF-P2-01). Pure function -- no Prisma
-// import -- computing every (date, slot) pair to materialize as a
-// `ClassSession`; both callers persist the result via
-// `classSession.createMany({ skipDuplicates: true })`, which is what makes
-// re-generation idempotent (the DB unique index on
-// `[classBatchId, scheduleSlotId, sessionDate]` is the actual de-dupe
-// mechanism -- this function does not need to know which sessions already
-// exist).
+// Core auto-generation logic for `classBatch.create`,
+// `schedule.generateSessions`, and `lmsOps.createClassWithUnits`. Pure
+// function -- no Prisma import -- computing every (date, slot) pair to
+// materialize as a `ClassSession`. Callers persist via
+// `insertMissingPlannedSessions`, which looks up existing rows by
+// (classBatchId, sessionDate, startTime) before insert. `startTime`/`endTime`
+// MUST be built with `ictToUtc(date, 'HH:mm')` so that unique-key comparison
+// is bit-identical (seconds and milliseconds stay 0).
 
 import { addDaysToDateOnly, compareDateOnly, ictToUtc, weekdayOf } from '@cmc/domain-time';
 

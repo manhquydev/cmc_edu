@@ -1155,6 +1155,7 @@ export async function seedClassBatch(opts: SeedClassBatchOptions): Promise<SeedC
               sessionDate: p.sessionDate,
               startTime: p.startTime,
               endTime: p.endTime,
+              teacherId: classBatch.teacherId,
             },
           }),
         );

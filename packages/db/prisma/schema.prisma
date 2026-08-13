@@ -704,7 +704,7 @@ model ClassBatch {
 /// to for a recurring weekly slot; `ClassSession` (below) carries the actual
 /// dated instants. Facility-scoped (denormalized from `ClassBatch`), RLS.
 model ScheduleSlot {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   facilityId   String
   classBatchId String
   /// 0 = Sunday .. 6 = Saturday (JS `Date#getDay()` convention).
@@ -713,7 +713,9 @@ model ScheduleSlot {
   startTime    String
   /// `HH:mm`, 24h, ICT wall-clock.
   endTime      String
-  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  /// Soft-archive only — never DELETE a slot. Existing sessions keep the FK.
+  archivedAt   DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
 
   classBatch    ClassBatch     @relation(fields: [classBatchId], references: [id])
   classSessions ClassSession[]
@@ -749,6 +751,9 @@ model ClassSession {
   /// the session transitioned to `done` — the LATEST of the 3 done-condition
   /// timestamps, frozen once set (a `done` session never re-evaluates).
   doneAt             DateTime?     @db.Timestamptz(3)
+  /// Plain scalar — references AppUser.id, same shape as ClassBatch.teacherId.
+  /// Defaults from the class at materialize time; one session may be reassigned.
+  teacherId          String?
   createdAt          DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime      @updatedAt @db.Timestamptz(3)
 
@@ -760,9 +765,10 @@ model ClassSession {
   sessionEvidence        SessionEvidence?
   deliveredExercise      SessionExercise?
 
-  // Re-generate idempotency (WF-P2-01 acceptance: "re-generate không nhân
-  // đôi"): at most one session per (classBatch, slot, calendar day).
-  @@unique([classBatchId, scheduleSlotId, sessionDate])
+  // Calendar identity (not slot-row identity): at most one session per
+  // (class, ICT day, start instant). Slot id is not part of the key — two
+  // slots with the same weekday+HH:mm must not produce two meetings.
+  @@unique([classBatchId, sessionDate, startTime])
   @@index([facilityId])
   @@index([classBatchId])
   @@index([scheduleSlotId])

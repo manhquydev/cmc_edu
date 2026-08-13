@@ -1,6 +1,6 @@
 ---
 title: "A1: Nền lịch buổi an toàn"
-status: pending
+status: completed
 lane: A
 dependencies: []
 ---

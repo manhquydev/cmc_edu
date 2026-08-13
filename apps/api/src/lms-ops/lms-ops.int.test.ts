@@ -8,6 +8,7 @@ import {
   cleanupFacility,
   createTestFacility,
   seedActiveEnrollment,
+  seedAppUser,
   seedCurriculumUnit,
   testDbBypass,
 } from '../test/db.js';
@@ -83,6 +84,39 @@ describe('lmsOps foundation spike', () => {
       }),
     );
     expect(sessions.every((s) => s.curriculumUnitId != null)).toBe(true);
+  });
+
+  it('createClassWithUnits copies the class teacher and regenerate does not duplicate day+time', async () => {
+    const teacher = await seedAppUser({
+      facilityId: facility.id,
+      userId: 'lmsops-gv-1',
+      position: 'giao_vien',
+      roles: ['giao_vien'],
+    });
+    const result = await gddt.lmsOps.createClassWithUnits({
+      courseId,
+      startUnitId: unitIds[0]!,
+      startDate: '2026-09-07',
+      endDate: '2026-09-28',
+      slots: [{ weekday: 1, startTime: '18:00', endTime: '19:30' }],
+      teacherId: teacher.id,
+    });
+
+    const sessions = await testDbBypass((tx) =>
+      tx.classSession.findMany({
+        where: { classBatchId: result.classBatchId },
+        select: { teacherId: true },
+      }),
+    );
+    expect(sessions.length).toBe(result.sessionsCreated);
+    expect(sessions.every((row) => row.teacherId === teacher.id)).toBe(true);
+
+    const regen = await gddt.schedule.generateSessions({ classBatchId: result.classBatchId });
+    expect(regen.sessionsCreated).toBe(0);
+    const total = await testDbBypass((tx) =>
+      tx.classSession.count({ where: { classBatchId: result.classBatchId } }),
+    );
+    expect(total).toBe(sessions.length);
   });
 
   it('roster: range cover/miss; reserved+range never on roster; sale cannot grantUnits', async () => {

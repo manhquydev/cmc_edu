@@ -292,6 +292,12 @@ export default function CrmPipelinePage() {
     pageSize: PAGE_SIZE,
   };
 
+  // stageCounts is facility-wide, always excludes lost, and ignores
+  // search/stage/page. Only interpolate it into empty-copy when the
+  // visible set is the same domain those totals describe.
+  const filtersActive =
+    Boolean(debouncedSearch) || lostFilter !== 'exclude' || Boolean(stageFilter);
+
   const { data, isLoading, error } = trpc.crm.opportunityList.useQuery(listInput);
 
   const advanceMutation = trpc.crm.opportunityAdvance.useMutation({
@@ -504,7 +510,9 @@ export default function CrmPipelinePage() {
                 return (
                   <KanbanColumn key={stage.key} title={stage.label} count={stageItems.length}>
                     {stageItems.length === 0 ? (
-                      facilityCount > 0 ? (
+                      filtersActive ? (
+                        <div className="console-kanban-empty">Không khớp bộ lọc</div>
+                      ) : facilityCount > 0 ? (
                         <div className="console-kanban-empty">
                           Không có trên trang này · {facilityCount} ở giai đoạn
                         </div>

@@ -201,6 +201,71 @@ describe('CrmPipelinePage', () => {
     expect(o4.querySelector('.console-kanban-empty')?.textContent).toBe('Chưa có');
   });
 
+  describe('filter-aware empty-state (facilityCount is not a filtered total)', () => {
+    const emptyCopy = (col: HTMLElement) =>
+      col.querySelector('.console-kanban-empty')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+    it('lost=only + total>0 + empty O2 (facilityCount O2=0) uses neutral copy, not "Chưa có"', () => {
+      const OPP_LOST_O1: OpportunityRow = {
+        ...OPP_O1,
+        closedAt: '2026-07-01T00:00:00.000Z',
+      };
+      listState.data = {
+        items: [OPP_LOST_O1],
+        total: 4,
+        page: 1,
+        pageSize: 20,
+        stageCounts: { ...STAGE_COUNTS_MOCK, O2_CONTACTED: 0 },
+        lostCount: 4,
+      };
+      const { container } = renderWithProviders(<CrmPipelinePage />);
+      fireEvent.click(screen.getByRole('combobox', { name: 'Hiển thị' }));
+      fireEvent.click(screen.getByRole('option', { name: 'Đã mất' }));
+      const o2 = kanbanColumn(container, 'Đã liên hệ');
+      expect(emptyCopy(o2)).toBe('Không khớp bộ lọc');
+      expect(emptyCopy(o2)).not.toMatch(/Chưa có/);
+      expect(emptyCopy(o2)).not.toMatch(/\d/);
+    });
+
+    it('search active + unmatched column does not interpolate facility N', () => {
+      vi.useFakeTimers();
+      const { container } = renderWithProviders(<CrmPipelinePage />);
+      fireEvent.change(screen.getByPlaceholderText('Tìm theo tên hoặc SĐT…'), {
+        target: { value: 'Nguyễn' },
+      });
+      act(() => vi.advanceTimersByTime(300));
+      // Default mock: O3 has facilityCount=2 and zero items on this page.
+      const o3 = kanbanColumn(container, 'Đặt lịch kiểm tra');
+      const copy = emptyCopy(o3);
+      expect(copy).toBe('Không khớp bộ lọc');
+      expect(copy).not.toMatch(/\d/);
+      expect(copy).not.toContain(String(STAGE_COUNTS_MOCK.O3_TEST_SCHEDULED));
+    });
+
+    it('?stage= URL filter + unmatched column does not interpolate facility N', () => {
+      const { container } = renderWithProviders(<CrmPipelinePage />, {
+        route: '/crm?stage=O1_LEAD',
+      });
+      const o3 = kanbanColumn(container, 'Đặt lịch kiểm tra');
+      const copy = emptyCopy(o3);
+      expect(copy).toBe('Không khớp bộ lọc');
+      expect(copy).not.toMatch(/\d/);
+      expect(copy).not.toContain(String(STAGE_COUNTS_MOCK.O3_TEST_SCHEDULED));
+    });
+
+    it('no filter, facilityCount>0, this page 0 → still "Không có trên trang này · N"', () => {
+      const { container } = renderWithProviders(<CrmPipelinePage />);
+      const o3 = kanbanColumn(container, 'Đặt lịch kiểm tra');
+      expect(emptyCopy(o3)).toBe('Không có trên trang này · 2 ở giai đoạn');
+    });
+
+    it('no filter, facilityCount=0 → "Chưa có"', () => {
+      const { container } = renderWithProviders(<CrmPipelinePage />);
+      const o4 = kanbanColumn(container, 'Đã kiểm tra');
+      expect(emptyCopy(o4)).toBe('Chưa có');
+    });
+  });
+
   it('renders the lostCount from the server response', () => {
     listState.data = { ...listState.data!, lostCount: 4 };
     renderWithProviders(<CrmPipelinePage />);

@@ -454,6 +454,38 @@ button.console-kanban-card {
   cursor: pointer;
   appearance: none;
 }
+/* WCAG 2.4.7 — keyboard focus rings. Additive :focus-visible only.
+   Prefixed with .o_web_client so specificity ties/beats the Astryx
+   [data-astryx-theme] :is(...):focus-visible rule (0,3,0) and wins
+   by source order. Navbar chrome sits on --console-brand-purple
+   (#71639e); --cmc-brand (#0071e3) is ~1.07:1 there, so use
+   --console-gray-100 (~5:1). Light tiles/cards/switcher keep
+   --cmc-brand (≥4.5:1 on #fff). View-switcher clips overflow, so
+   its ring is inset. */
+.o_web_client .console-app-switcher-toggle:focus-visible {
+  outline: 2px solid var(--console-gray-100);
+  outline-offset: 2px;
+}
+.o_web_client .console-menu-item:focus-visible {
+  outline: 2px solid var(--console-gray-100);
+  outline-offset: 2px;
+}
+.o_web_client .console-systray-badge:focus-visible {
+  outline: 2px solid var(--console-gray-100);
+  outline-offset: 2px;
+}
+.o_web_client .console-app-switcher-tile:focus-visible {
+  outline: 2px solid var(--cmc-brand);
+  outline-offset: 2px;
+}
+.o_web_client button.console-kanban-card:focus-visible {
+  outline: 2px solid var(--cmc-brand);
+  outline-offset: 2px;
+}
+.o_web_client .console-view-switcher button:focus-visible {
+  outline: 2px solid var(--cmc-brand);
+  outline-offset: -2px;
+}
 /* ------------------------------------------------------------------ */
 /* Shell content landmark (Phase 2) — replaces .sh-main / .sh-content   */
 /* ------------------------------------------------------------------ */

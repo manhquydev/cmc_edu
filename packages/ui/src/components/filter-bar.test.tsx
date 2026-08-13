@@ -41,6 +41,16 @@ describe('FilterBar', () => {
     expect(screen.getByRole('search', { name: 'Bộ lọc' })).toBeInTheDocument();
   });
 
+  it('sizes fields with CSS classes, not inline width', () => {
+    const { container } = renderBar({ value: { status: '', from: '', q: '' }, onChange: () => {} });
+    const fields = container.querySelectorAll('.console-filter-field');
+    expect(fields.length).toBe(3);
+    for (const el of fields) {
+      expect((el as HTMLElement).style.width).toBe('');
+    }
+    expect(container.querySelector('.console-filter-field--text')).not.toBeNull();
+  });
+
   it('fires onChange when a select option is chosen', () => {
     const onChange = vi.fn();
     renderBar({ value: { status: '', from: '', q: '' }, onChange });

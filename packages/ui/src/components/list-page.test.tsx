@@ -32,6 +32,7 @@ describe('ListPage', () => {
     );
     expect(queryByText('TABLE')).toBeNull();
     expect(getByText('Không có dữ liệu')).toBeInTheDocument();
+    expect(document.querySelector('.console-empty-ops')).not.toBeNull();
   });
 
   it('renders a custom empty node when provided', () => {

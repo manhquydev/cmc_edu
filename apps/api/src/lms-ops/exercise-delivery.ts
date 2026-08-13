@@ -206,6 +206,53 @@ export async function deliverForSession(
   return created;
 }
 
+export interface SessionDeliveryStatus {
+  classSessionId: string;
+  classBatchId: string;
+  cancelled: boolean;
+  ended: boolean;
+  hasUnit: boolean;
+  hasDelivery: boolean;
+  sequenceLength: number;
+  nextPositionExists: boolean;
+}
+
+/** Read-only guards for the GĐĐT break-glass button. Does not deliver. */
+export async function deliveryStatusForSession(
+  tx: Tx,
+  opts: { facilityId: string; classSessionId: string; now?: Date },
+): Promise<SessionDeliveryStatus> {
+  const now = opts.now ?? new Date();
+  const session = await tx.classSession.findFirst({
+    where: { id: opts.classSessionId, facilityId: opts.facilityId },
+    select: {
+      id: true,
+      classBatchId: true,
+      status: true,
+      endTime: true,
+      curriculumUnitId: true,
+      deliveredExercise: { select: { id: true } },
+    },
+  });
+  if (!session) throw notFound('ClassSession not found.');
+  const sequence = await sequenceForBatch(tx, session.classBatchId);
+  const deliveredPositions = await deliveredPositionsForBatch(tx, session.classBatchId);
+  const nextPos =
+    sequence.length === 0
+      ? null
+      : nextDeliverablePosition(deliveredPositions, sequence[sequence.length - 1]!.position);
+  return {
+    classSessionId: session.id,
+    classBatchId: session.classBatchId,
+    cancelled: session.status === 'cancelled',
+    ended: session.endTime.getTime() <= now.getTime(),
+    hasUnit: session.curriculumUnitId != null,
+    hasDelivery: session.deliveredExercise != null,
+    sequenceLength: sequence.length,
+    nextPositionExists: nextPos != null,
+  };
+}
+
 /**
  * Worker entry: deliver for all non-cancelled sessions that have ended and
  * still lack SessionExercise. Uses bypass so multi-facility is covered.

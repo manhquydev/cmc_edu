@@ -27,6 +27,7 @@ import { restampBatchSessions } from './stamp-sessions.js';
 import { cancelSessionWithRestamp } from './cancel-session.js';
 import {
   deliverForSession,
+  deliveryStatusForSession,
   deliveredCountForBatch,
   sequenceForBatch,
   writeSequenceUpdate,
@@ -699,6 +700,69 @@ export const lmsOpsRouter = router({
           },
         });
         return { delivered: true as const, sessionExercise: delivered };
+      });
+    }),
+
+  /** GĐĐT break-glass button guards. Same key as deliver. */
+  sessionDeliveryStatus: requirePermission('exercise', 'manage')
+    .input(z.object({ classSessionId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, (tx) =>
+        deliveryStatusForSession(tx, {
+          facilityId,
+          classSessionId: input.classSessionId,
+        }),
+      );
+    }),
+
+  /** Enrollments + ranges for grant UI. Not hung on student.get. */
+  listEnrollmentsForStudent: requirePermission('enrollment', 'grantUnits')
+    .input(z.object({ studentId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const student = await tx.student.findFirst({
+          where: { id: input.studentId, facilityId },
+          select: { id: true },
+        });
+        if (!student) throw notFound('Student not found.');
+        const enrollments = await tx.enrollment.findMany({
+          where: { studentId: input.studentId, facilityId },
+          select: {
+            id: true,
+            classBatchId: true,
+            status: true,
+            archivedAt: true,
+            classBatch: {
+              select: { code: true, currentUnitId: true, program: true },
+            },
+            unitRanges: {
+              select: {
+                id: true,
+                fromOrderGlobal: true,
+                toOrderGlobal: true,
+                sourceReceiptId: true,
+              },
+              orderBy: { fromOrderGlobal: 'asc' },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+        const rows = [];
+        for (const e of enrollments) {
+          const currentOrder = await resolveClassCurrentOrder(tx, e.classBatch);
+          rows.push({
+            enrollmentId: e.id,
+            classBatchId: e.classBatchId,
+            batchCode: e.classBatch.code,
+            status: e.status,
+            archivedAt: e.archivedAt,
+            currentOrderGlobal: currentOrder,
+            ranges: e.unitRanges,
+          });
+        }
+        return { studentId: input.studentId, enrollments: rows };
       });
     }),
 });

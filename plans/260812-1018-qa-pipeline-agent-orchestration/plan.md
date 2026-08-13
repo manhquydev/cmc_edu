@@ -1,5 +1,8 @@
 # QA Pipeline + Agent Orchestration — cmc_edu
 
+**Status:** ignore-stale (2026-08-13). `develop` đã branch-protected (`strict` + `enforce_admins: true`).
+Leftover **F8** (API job `e2e` `continue-on-error`) → plan `260812-1145` P1b. Không cook lại protect-develop.
+
 **Status:** v2 (post red-team) — awaiting user **chốt** on §5 → implement §6
 **Date:** 2026-08-12
 **Owner:** Herdr orchestrator (claude, w3:pB)

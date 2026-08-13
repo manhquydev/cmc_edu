@@ -167,3 +167,11 @@ describe('DataTable row keyboard', () => {
     expect(onRowClick).toHaveBeenLastCalledWith(ROWS[1]);
   });
 });
+
+describe('DataTable empty', () => {
+  it('uses ops EmptyState density', () => {
+    render(<DataTable columns={[{ key: 'name', label: 'Tên' }]} data={[]} />);
+    expect(screen.getByText('Không có dữ liệu')).toBeTruthy();
+    expect(document.querySelector('.console-empty-ops')).not.toBeNull();
+  });
+});

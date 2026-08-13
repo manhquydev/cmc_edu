@@ -73,6 +73,7 @@ export function WorkInbox({
             description={emptyDescription}
             icon={<LineIcon name="check-circle" size={22} />}
             action={emptyAction}
+            density="ops"
           />
         </div>
       ) : sections && sections.length > 0 ? (

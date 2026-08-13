@@ -128,6 +128,10 @@ export const flows: FlowEntry[] = [
         'student.lookup',
         'student.getManyByIds',
         'student.resetPassword',
+        'lmsOps.listEnrollmentsForStudent',
+        'lmsOps.addWithUnits',
+        'lmsOps.grantPast',
+        'lmsOps.revokeFromNext',
       ],
       uiRoutes: ['/admin/students', '/admin/students/:id'],
       models: ['Enrollment', 'Student'],
@@ -311,7 +315,7 @@ export const flows: FlowEntry[] = [
       // schedule.generateSessions = phần "tự sinh lịch buổi". classSession.* = quản lý buổi
       // trong lớp; course.list/room.* = thực thể nền chọn khi tạo lớp (E1).
       trpc: [
-        'classBatch.create',
+        'lmsOps.createClassWithUnits',
         'classBatch.get',
         'classBatch.list',
         'classBatch.assignTeacher',
@@ -321,29 +325,27 @@ export const flows: FlowEntry[] = [
         'classSession.assignUnit',
         'classSession.confirm',
         'classSession.cancel',
+        'lmsOps.cancelSessionAndRestamp',
+        'lmsOps.sessionDeliveryStatus',
+        'lmsOps.deliverSessionExercise',
         // Form-depth / calendar reads on the same class-session surface (E1):
         // get = session detail; listInRange = teaching schedule; doneProgress =
         // hub badges on session panels.
         'classSession.get',
         'classSession.listInRange',
         'classSession.doneProgress',
+        'course.create',
         'course.list',
+        'curriculumUnit.list',
         'room.create',
         'room.list',
       ],
-      uiRoutes: ['/admin/classes', '/admin/classes/:id'],
+      uiRoutes: ['/admin/classes', '/admin/classes/:id', '/admin/courses'],
       models: ['ClassBatch', 'ClassSession', 'ScheduleSlot', 'Course', 'Room'],
     },
-    // Không màn nào tạo lớp / tự sinh lịch buổi qua UI (tự kiểm 2026-07-25):
-    //   rg "classBatch\.create|schedule\.generateSessions|course\.create" apps/admin/src apps/lms/src → 0 matches
-    // /admin/classes chỉ LIỆT KÊ + xem chi tiết; không có form tạo. Seed lớp
-    // (seedClassBatch) chính là cơ chế P2-01 tồn tại để chứng minh (auto sinh
-    // buổi) → user V5 chốt: dữ liệu trơ thì seed, cơ chế thì không → không viết
-    // journey. Chờ plan sửa xây màn tạo lớp.
-    statusReason: {
-      code: 'no-ui-path',
-      detail: 'Không có UI tạo lớp/sinh lịch: rg classBatch.create|schedule.generateSessions apps/admin+lms = 0; /admin/classes chỉ xem.',
-    },
+    // UI tạo lớp = lmsOps.createClassWithUnits (classes/index.tsx:260).
+    // classBatch.create vẫn là API legacy (e2e/tests) → DOCUMENTED_GAPS.
+    // Chưa có journey UI cho form tạo.
   },
   {
     id: 'P2-02',
@@ -352,20 +354,19 @@ export const flows: FlowEntry[] = [
     actorRoles: ['giao_vien'],
     expected: {
       // listBySession = màn điểm danh của 1 buổi; listForChild = lịch sử điểm danh HV (E1).
-      trpc: ['attendance.mark', 'attendance.markAll', 'attendance.listBySession', 'attendance.listForChild'],
-      uiRoutes: ['/teaching/attendance'],
+      trpc: [
+        'attendance.mark',
+        'attendance.markAll',
+        'attendance.listBySession',
+        'attendance.listForChild',
+        'lmsOps.rosterForSession',
+      ],
+      uiRoutes: ['/teaching/attendance', '/teaching/sessions/:sessionId'],
       models: ['Attendance'],
     },
-    // Màn điểm danh CÓ trong nav (GV) nhưng đòi `?session=<id>` mà KHÔNG link
-    // in-app nào mang theo — vào từ menu là gặp empty-state "Vui lòng cung cấp
-    // ?session". Tự kiểm 2026-07-25: rg "attendance\?session=" apps/admin/src →
-    // chỉ có trong *.test.tsx, không có trong mã nguồn màn. User V5 từ chối S2
-    // (cho journey goto thẳng ?session) → không tới được trạng thái dùng được
-    // bằng menu → no-ui-path. Chờ plan sửa thêm session-picker / link mang session.
-    statusReason: {
-      code: 'no-ui-path',
-      detail: 'Màn điểm danh đòi ?session= nhưng không link in-app nào mang theo (rg attendance?session= chỉ ở test); S2 goto bị từ chối.',
-    },
+    // Hub `/teaching/sessions/:id?tab=attendance` là màn điểm danh (calendar
+    // `schedule-fc-events.ts:106`, class-detail navigate, attendance.tsx
+    // deep-link). Picker còn trên `/teaching/attendance`. Thiếu journey.
   },
   {
     id: 'P2-03',
@@ -378,16 +379,12 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/student/home', '/student/exercise/:sessionExerciseId'],
       models: ['Exercise'],
     },
-    // "Mở bài theo tiến độ" cần gán unit vào buổi để mở tier cho học viên —
-    // không màn nào làm việc đó. Tự kiểm 2026-07-25: rg
-    // "classSession\.assignUnit|assignUnit" apps/admin/src apps/lms/src → 0
-    // matches. (Câu cũ nói `curriculumUnitId` nằm ở form tạo bài P2-04 nay đã
-    // lỗi thời — 2026-08-13 bài tập thôi gắn unit, form chọn THƯ MỤC.)
-    // User V5 từ chối S3 (seed session→unit) vì đó là
-    // cơ chế open-tier chính P2-03 phải chứng minh → no-ui-path.
+    // Staff `classSession.assignUnit` đã có UI (class-detail.tsx:208) nhưng
+    // open-tier học viên cần SessionExercise + EnrollmentUnitRange
+    // (open-tier.ts). Không giặt no-ui-path bằng picker unit của GĐĐT.
     statusReason: {
       code: 'no-ui-path',
-      detail: 'Open-tier (gán unit vào buổi) không có UI: rg classSession.assignUnit apps/admin+lms = 0; S3 seed session→unit bị từ chối.',
+      detail: 'Open-tier = delivery + unit range, không phải assignUnit. Giữ no-ui-path đến journey học viên không seed SessionExercise.',
     },
   },
   {
@@ -555,8 +552,8 @@ export const flows: FlowEntry[] = [
       uiRoutes: ['/teaching/classes/:classBatchId/exercise-sequence'],
       models: ['ClassExerciseItem'],
     },
-    // Có UI + procedure. CHƯA có journey e2e — không khai journey giả.
-    // Ledger sẽ là built-unproven / no-journey cho đến khi có spec.
+    // Có UI + procedure. Journey: GĐĐT mở workspace xếp dãy (không seed SessionExercise).
+    journey: 'apps/e2e/tests/journeys/exercise-sequence.journey.ui.spec.ts',
   },
 
   // ─────────────────────────────── P3 — Nhân sự & lương ───────────────────────────────

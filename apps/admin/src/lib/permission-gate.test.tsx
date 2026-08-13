@@ -44,6 +44,7 @@ describe('PermissionGate', () => {
     expect(screen.getByText('Không có quyền truy cập')).toBeTruthy();
     expect(screen.getByText(/course\.manage/)).toBeTruthy();
     expect(screen.queryByText('NỘI DUNG TRANG')).toBeNull();
+    expect(document.querySelector('.console-empty-ops')).toBeNull();
   });
 
   it('lets the owning role through', () => {

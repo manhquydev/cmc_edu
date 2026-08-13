@@ -43,7 +43,7 @@ export function ListPage({
     <div className={wrapClass}>
       <ControlBar header={header} filters={filters} footer={controlFooter} />
       <div className="console-list-body">
-        {isEmpty ? (empty ?? <EmptyState title="Không có dữ liệu" />) : children}
+        {isEmpty ? (empty ?? <EmptyState title="Không có dữ liệu" density="ops" />) : children}
       </div>
     </div>
   );

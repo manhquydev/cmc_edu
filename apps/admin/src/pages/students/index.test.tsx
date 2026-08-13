@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // Locks students list FilterBar → student.lookup (name/phone) contract.
@@ -96,5 +98,20 @@ describe('StudentListPage', () => {
     expect(bulkBtn).not.toBeDisabled();
     fireEvent.click(bulkBtn);
     expect(writeText).toHaveBeenCalled();
+  });
+
+  it('pins FilterBar text field width 180px on the real students ListPage', () => {
+    const css = readFileSync(resolve(process.cwd(), '../../packages/ui/src/console.css'), 'utf8');
+    const sheet = document.createElement('style');
+    sheet.textContent = css;
+    document.head.appendChild(sheet);
+    try {
+      renderWithProviders(<StudentListPage />, { route: '/admin/students' });
+      const textField = document.querySelector('.console-filter-field--text') as HTMLElement | null;
+      expect(textField).not.toBeNull();
+      expect(getComputedStyle(textField!).width).toBe('180px');
+    } finally {
+      sheet.remove();
+    }
   });
 });

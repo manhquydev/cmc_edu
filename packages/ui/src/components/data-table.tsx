@@ -97,7 +97,7 @@ export function DataTable<T extends Record<string, unknown>>({
   if (data.length === 0) {
     return (
       <div className="console-list">
-        <EmptyState title={empty} />
+        <EmptyState title={empty} density="ops" />
       </div>
     );
   }

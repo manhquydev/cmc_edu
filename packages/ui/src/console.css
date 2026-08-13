@@ -576,6 +576,15 @@ button.console-kanban-card {
 }
 .console-mc:hover { box-shadow: var(--cmc-shadow-md); border-color: var(--cmc-accent-soft); }
 .console-mc:active { transform: scale(0.995); }
+/* KPI tile (StatCard) — same chrome, no link hover/scale/brand. */
+.console-mc.console-mc--static { cursor: default; }
+.console-mc.console-mc--static:hover,
+.console-mc.console-mc--static:active {
+  box-shadow: var(--cmc-raised-shadow);
+  border: var(--cmc-raised-border);
+  transform: none;
+}
+.console-mc.console-mc--static:hover .console-mc-ctx { color: var(--cmc-text-muted); }
 .console-mc-top {
   display: flex; align-items: center; justify-content: space-between;
   gap: 8px; min-height: var(--cmc-line-label); margin-bottom: var(--cmc-space-3);
@@ -725,6 +734,13 @@ button.console-kanban-card {
   border: var(--cmc-raised-border);
   border-radius: var(--cmc-raised-radius);
   box-sizing: border-box;
+}
+.console-filter-bar > .console-filter-field {
+  width: 160px;
+  min-width: 0;
+}
+.console-filter-bar > .console-filter-field--text {
+  width: 180px;
 }
 /* Shared recipe for DateField/TimeField/DateTimeField — Odoo-like dense
    date/time control (native type=date|time|datetime-local); not date-specific
@@ -1405,6 +1421,12 @@ button.console-kanban-card {
   box-shadow: none;
   min-height: 112px;
 }
+.o_web_client .console-mc.console-mc--static:hover,
+.o_web_client .console-mc.console-mc--static:active {
+  box-shadow: none;
+  border: 1px solid var(--console-gray-300, #dee2e6);
+  transform: none;
+}
 .o_web_client .console-eh {
   border-radius: var(--console-radius-lg, 6px);
   border: 1px solid var(--console-gray-300, #dee2e6);
@@ -1733,6 +1755,11 @@ hover lift.
 monochrome icon */
 .o_web_client .console-empty { padding: 32px var(--cmc-pad-card-x); text-align: center; color: var(--cmc-text-muted);
   font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+/* Ops list empty only — do not restyle every EmptyState under .o_web_client. */
+.console-empty-ops {
+  padding: 20px var(--cmc-pad-card-x);
+  text-align: center;
+}
 /* Table shell — one raised family with Panel/Metric (flush table inside) */
 
 /* Filter bar — slot chrome on warm surface-2 (not a third competing card) */
@@ -1748,6 +1775,8 @@ monochrome icon */
   white-space: nowrap; max-width: 100%;
   overflow: hidden; text-overflow: ellipsis;
 }
+.console-badge-soft--sm { font-size: 0.9em; }
+.console-badge-soft--lg { font-size: 1.15em; }
 /* Toast — float layer (dialog radius + shadow-lg) */
 /* Float band: above .console-navbar (1000),
 below .console-cmd (1200). Odoo notifications ≈1055. */

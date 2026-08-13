@@ -88,6 +88,7 @@ export function StageFunnel({
             description={emptyDescription}
             icon={<LineIcon name="filter" size={22} />}
             action={emptyAction}
+            density="ops"
           />
         </div>
       ) : (

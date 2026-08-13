@@ -56,6 +56,10 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
     <div className="console-filter-bar" role="search" aria-label="Bộ lọc">
       {filters.map((f) => {
         const val = currentValues[f.key] ?? '';
+        const wrapClass =
+          f.type === 'text'
+            ? 'console-filter-field console-filter-field--text'
+            : 'console-filter-field';
         if (f.type === 'select') {
           const allowClear = f.hasClear !== false;
           const opts = f.options ?? [];
@@ -63,7 +67,7 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
           // selects (hasClear:false) keep a non-null selected option.
           if (allowClear) {
             return (
-              <div key={f.key} style={{ width: 160 }}>
+              <div key={f.key} className={wrapClass}>
                 <Selector
                   size="sm"
                   label={f.label}
@@ -78,7 +82,7 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
           }
           const nonNullValue = val || opts[0]?.value || '';
           return (
-            <div key={f.key} style={{ width: 160 }}>
+            <div key={f.key} className={wrapClass}>
               <Selector
                 size="sm"
                 label={f.label}
@@ -92,7 +96,7 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
         }
         if (f.type === 'date') {
           return (
-            <div key={f.key} style={{ width: 160 }}>
+            <div key={f.key} className={wrapClass}>
               <DateField
                 id={`console-filter-${f.key}`}
                 label={f.label}
@@ -104,7 +108,7 @@ export function FilterBar({ filters, value: externalValue, onChange: externalOnC
           );
         }
         return (
-          <div key={f.key} style={{ width: 180 }}>
+          <div key={f.key} className={wrapClass}>
             <TextInput
               size="sm"
               label={f.label}

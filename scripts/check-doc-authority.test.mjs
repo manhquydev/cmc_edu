@@ -88,6 +88,6 @@ describe('check-doc-authority.mjs', () => {
     const report = JSON.parse(r.stdout);
     assert.equal(report.ok, true);
     assert.equal(report.failCount, 0);
-    assert.ok(report.checkCount >= 8);
+    assert.equal(report.checkCount, 10);
   });
 });

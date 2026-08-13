@@ -77,7 +77,7 @@ accent remains `--cmc-brand` / `#0071E3`.
 | `default` | Astryx `Button variant="primary"` |
 | `secondary` | `Button variant="secondary"` (outline/soft) |
 | `ghost` | `Button variant="ghost"` for Đăng xuất / minor systray |
-| `destructive` | ConfirmDialog (`actionVariant="destructive"`) or `Button variant="destructive"` |
+| `destructive` | `ConfirmDialog` (default confirm is destructive) or `Button variant="destructive"` |
 | `outline` | `Button variant="secondary"` |
 | `link` | Text + `--cmc-brand` + chevron (TaskRow / MetricCard ctx) |
 
@@ -142,7 +142,7 @@ Align copy with AlertDialog skill patterns; prefer `intent` over color string wh
 
 | Breakpoint | ERP admin behavior |
 |------------|-------------------|
-| &lt;768 | ConsoleNavbar sections collapse/overflow; stack cockpit; avoid horizontal scroll |
+| &lt;768 | ConsoleNavbar sections overflow-x; stack cockpit; avoid page-level horizontal scroll |
 | 768–1039 | Single column body |
 | ≥1040 | Cockpit 1.4fr / 1fr |
 | LMS | Keep mobile frame separate (YAGNI) |

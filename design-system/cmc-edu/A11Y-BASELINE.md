@@ -59,6 +59,7 @@ What this baseline **does not** claim or automate:
 | **Login auto-focus** | Email field is not auto-focused on mount; first Tab may need to enter the card. |
 | **Focus trap coverage** | CommandPalette / ConfirmDialog traps depend on Astryx Dialog behavior — not re-asserted by the role smoke script. |
 | **Table action cells** | Row action buttons vary by product page; no global “actions column” a11y contract beyond DataTable selection checkboxes. |
+| **DataTable row open is mouse-only** | `onRowClick` (receipt-list, classes, users, students) has no keyboard equivalent; WCAG 2.1.1 gap identified 2026-08-13 by independent review. Planned fix = real “Open” link column in `data-table.tsx` (not roving-tabindex): `plans/260813-0120-design-system-hardening/phase-D-a11y-datatable-keyboard.md`. Low urgency (mouse-operated internal ERP); escalate if a keyboard-dependent operator or compliance requirement appears. |
 | **Contrast / reduced-motion** | Tokens aim for readable contrast and `prefers-reduced-motion` in MASTER; not measured by this smoke. |
 | **LMS surface** | This baseline targets admin Soft Ops composites. LMS mobile paths are out of scope here. |
 | **Depth gates ≠ a11y** | `check-ui-frames --strict` gates dual-title + bulk adoption only — not roles. |

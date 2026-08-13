@@ -461,7 +461,7 @@ if (!canApprove) throw forbidden('Insufficient role for approval.');
 - Branches: ≥80%  
 - Special: finance ≥90/80, provisioning ≥90/75
 
-**CI Integration (as-built 2026-08-12):** **Required checks that block merge** on `develop` and `main` (branch protection): **`typecheck-and-test`** (typecheck → lint → unit/integration RLS → payroll gate coverage) **and `ui-e2e`**. Both have blocked since **2026-08-02**. Other jobs (`e2e` API, `acceptance:report` tool exit, screen×role drift) may still warn without blocking — see `.github/workflows/` and `AGENTS.md`.
+**CI Integration (as-built 2026-08-12; UI drift gates re-confirmed 2026-08-13):** **Required checks that block merge** on `develop` and `main` (branch protection): **`typecheck-and-test`** (typecheck → lint → **UI drift gates** → unit/integration RLS → payroll gate coverage) **and `ui-e2e`**. The UI drift gates inside `typecheck-and-test` are `check:ui-frames` (`--strict`), `check:ui-ratchet` (inline-style baseline, counts `background`/`backgroundColor`), `check:ui-a11y-roles` (revived to blocking 2026-08-13), and `check:doc-authority` (retired-chrome allowlist) — each blocking, none `continue-on-error`. Both required jobs have blocked since **2026-08-02**. Other jobs (`e2e` API, `acceptance:report` tool exit, screen×role drift) may still warn without blocking — see `.github/workflows/` and `AGENTS.md`.
 
 **Test Organization:**
 - `*.test.ts` colocated with source  

@@ -29,15 +29,16 @@
   --radius-element: var(--console-radius, 4px);
   --_button-radius: var(--console-radius, 4px);
   --radius-container: var(--console-radius, 4px);
-  --radius-page: var(--console-radius-lg, 6px);
+  --radius-page: var(--console-radius, 4px);
   /* Flatten CMC soft-ops 12/16/20 so Astryx !important field shells + buttons
-     inherit Community geometry. Search + status capsules stay 999 via rules. */
+     inherit Community soft-square (4px). Search + list status capsules stay
+     999 via dedicated rules — not via --cmc-radius-pill remapped globally. */
   --cmc-radius-xs: var(--console-radius-sm, 3px);
   --cmc-radius-control: var(--console-radius, 4px);
   --cmc-radius-card: var(--console-radius, 4px);
   --cmc-radius-md: var(--console-radius, 4px);
-  --cmc-radius-lg: var(--console-radius-lg, 6px);
-  --cmc-radius-dialog: var(--console-radius-lg, 6px);
+  --cmc-radius-lg: var(--console-radius, 4px);
+  --cmc-radius-dialog: var(--console-radius, 4px);
   --cmc-raised-radius: var(--console-radius, 4px);
   --cmc-shadow-xs: none;
   --cmc-shadow-sm: none;
@@ -84,10 +85,10 @@
   --console-font-size-sm: 13px;
   --console-font-size-xs: 12px;
 
-  /* Radius — controls/cards/sheet 4px soft-square; search + status = capsule */
+  /* Radius — soft-square 4px (OpenEduCat “bo vuông”); search + status = capsule */
   --console-radius: 4px;
   --console-radius-sm: 3px;
-  --console-radius-lg: 6px;
+  --console-radius-lg: 4px;
   --console-search-radius: 999px;
 
   /* Spacing */
@@ -738,7 +739,7 @@ button.console-kanban-card {
   flex-shrink: 0; font-size: var(--cmc-fs-label); font-weight: 600;
   height: var(--cmc-chip-h-sm); padding: 0 9px;
   display: inline-flex; align-items: center;
-  border-radius: var(--cmc-radius-pill);
+  border-radius: var(--console-radius, 4px);
   background: var(--cmc-brand-muted); color: var(--cmc-brand);
   white-space: nowrap;
 }
@@ -910,7 +911,7 @@ button.console-kanban-card {
   background: var(--cmc-surface-raised, #fff);
   border: 1px solid var(--cmc-border-subtle, var(--console-gray-300, #dee2e6));
   border-radius: var(--console-radius, 4px);
-  padding: 16px var(--cmc-keyline-x, 16px);
+  padding: 24px 32px;
   box-sizing: border-box;
 }
 .console-detail-entity {
@@ -990,7 +991,7 @@ button.console-kanban-card {
 .console-dash-chip {
   display: inline-flex; align-items: center; gap: 8px;
   height: 36px; padding: 0 14px;
-  border-radius: var(--cmc-radius-pill);
+  border-radius: var(--console-radius, 4px);
   background: var(--cmc-surface-raised);
   color: var(--cmc-text-2);
   font-size: 13px; font-weight: 500; font-family: inherit;
@@ -1047,7 +1048,7 @@ button.console-kanban-card {
 .console-dash-chip {
   display: inline-flex; align-items: center; gap: 8px;
   height: 36px; padding: 0 14px;
-  border-radius: var(--cmc-radius-pill);
+  border-radius: var(--console-radius, 4px);
   background: var(--cmc-surface-raised);
   color: var(--cmc-text-2);
   font-size: 13px; font-weight: 500; font-family: inherit;
@@ -1204,7 +1205,7 @@ button.console-kanban-card {
   display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap;
 }
 .console-eh-avatar {
-  width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0;
+  width: 48px; height: 48px; border-radius: var(--console-radius, 4px); flex-shrink: 0;
   background: linear-gradient(145deg, var(--cmc-brand-muted), color-mix(in srgb, var(--cmc-brand) 18%, #fff));
   color: var(--cmc-brand-ink);
   font-size: 18px; font-weight: 700; letter-spacing: -0.02em;
@@ -1248,7 +1249,7 @@ button.console-kanban-card {
   border-color: color-mix(in srgb, var(--cmc-warning) 22%, var(--cmc-border-subtle));
 }
 .console-callout-icon {
-  flex-shrink: 0; width: 28px; height: 28px; border-radius: 9px;
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: var(--console-radius, 4px);
   display: flex; align-items: center; justify-content: center;
   background: var(--cmc-surface-raised); color: var(--cmc-text-muted);
   box-shadow: var(--cmc-shadow-xs);
@@ -1641,8 +1642,15 @@ button.console-kanban-card {
   border: 1px solid var(--console-gray-300, #dee2e6);
   border-radius: var(--console-radius, 4px);
   box-shadow: none;
-  padding: 14px 16px 16px;
-  gap: 14px;
+  padding: 24px 32px;
+  gap: 16px;
+}
+/* Nested section cards inside sheet: soft-square, no bubble chrome */
+.o_web_client .console-form-sheet .console-pnl,
+.o_web_client .console-form-sheet .console-sb,
+.o_web_client .console-form-sheet .console-mc {
+  border-radius: var(--console-radius, 4px);
+  box-shadow: none;
 }
 /* Summary band = HighlightStrip / metrics above the white sheet — never sticky
    (tall composite). Thin WorkflowStatusbar lives in `.console-detail-statusbar`. */
@@ -1697,7 +1705,7 @@ button.console-kanban-card {
   transform: none;
 }
 .o_web_client .console-eh {
-  border-radius: var(--console-radius-lg, 6px);
+  border-radius: var(--console-radius, 4px);
   border: 1px solid var(--console-gray-300, #dee2e6);
   box-shadow: none;
 }
@@ -1795,7 +1803,7 @@ FunnelBar (promoted from the cockpit pilot). Import ONCE per
   flex-shrink: 0; font-size: var(--console-font-size-xs, 12px); font-weight: 500;
   height: 20px; padding: 0 8px;
   display: inline-flex; align-items: center;
-  border-radius: var(--cmc-radius-pill);
+  border-radius: var(--console-radius, 4px);
   background: var(--console-gray-200, #e9ecef); color: var(--console-gray-900, #212529);
   white-space: nowrap;
 }
@@ -1851,7 +1859,7 @@ hover lift.
   flex-shrink: 0; align-self: center;
   min-width: 28px; height: 28px; padding: 0 6px;
   display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 9px;
+  border-radius: var(--console-radius, 4px);
   font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
   background: var(--cmc-surface-sunken); color: var(--cmc-text-muted);
   font-variant-numeric: tabular-nums;
@@ -1976,7 +1984,7 @@ hover lift.
 /* Conversion strip (split layout) */
 .o_web_client .console-cstrip { padding: 4px var(--cmc-pad-card-x) 16px; display: flex; flex-direction: column; gap: 14px; }
 .o_web_client .console-cstrip-track {
-  display: flex; height: 44px; border-radius: 14px; overflow: hidden;
+  display: flex; height: 44px; border-radius: var(--console-radius, 4px); overflow: hidden;
   background: var(--cmc-surface-sunken);
   box-shadow: inset 0 1px 2px rgba(28, 25, 20, 0.04);
   gap: 2px; padding: 3px;
@@ -1984,11 +1992,11 @@ hover lift.
 .o_web_client .console-cstrip-seg-link,
 .o_web_client .console-cstrip-seg-wrap {
   display: flex; min-width: 0; text-decoration: none; color: inherit;
-  border-radius: 11px; overflow: hidden;
+  border-radius: var(--console-radius-sm, 3px); overflow: hidden;
 }
 .o_web_client .console-cstrip-seg {
   display: flex; align-items: center; justify-content: center;
-  flex: 1; width: 100%; min-width: 28px; border-radius: 11px;
+  flex: 1; width: 100%; min-width: 28px; border-radius: var(--console-radius-sm, 3px);
   background: color-mix(in srgb, var(--cmc-brand) 22%, var(--cmc-surface-raised));
   color: var(--cmc-brand-ink);
   transition: filter var(--cmc-transition), background var(--cmc-transition);
@@ -2436,7 +2444,7 @@ Linear steppers.
   border-color: color-mix(in srgb, var(--cmc-warning) 22%, var(--cmc-border-subtle));
 }
 .o_web_client .console-callout-icon {
-  flex-shrink: 0; width: 28px; height: 28px; border-radius: 9px;
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: var(--console-radius, 4px);
   display: flex; align-items: center; justify-content: center;
   background: var(--cmc-surface-raised); color: var(--cmc-text-muted);
   box-shadow: var(--cmc-shadow-xs);
@@ -2454,7 +2462,7 @@ Linear steppers.
 /* Avatar */
 .o_web_client .console-av {
   display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 999px; overflow: hidden; flex-shrink: 0;
+  border-radius: var(--console-radius, 4px); overflow: hidden; flex-shrink: 0;
   background: linear-gradient(145deg, var(--cmc-brand-muted), color-mix(in srgb, var(--cmc-brand) 16%, #fff));
   color: var(--cmc-brand-ink); font-weight: 700; letter-spacing: -0.02em;
   vertical-align: middle;
@@ -2508,7 +2516,7 @@ never reflows rows.
   --console-sc-line-h: 15px;
   --console-sc-sec-h: 32px; /* two lines default */
   --console-sc-cta-h: 28px;
-  --console-sc-radius: 14px;
+  --console-sc-radius: 4px;
   --console-sc-min-h: calc(
     var(--console-sc-pad-y) * 2 + var(--console-sc-gap) * 3
     + var(--console-sc-top-h) + var(--console-sc-title-h)
@@ -2553,7 +2561,7 @@ never reflows rows.
   --console-sc-line-h: 14px;
   --console-sc-sec-h: 14px; /* single P1/P2 line */
   --console-sc-cta-h: 26px;
-  --console-sc-radius: 12px;
+  --console-sc-radius: 4px;
 }
 .o_web_client .console-sc.is-link { cursor: pointer; }
 .o_web_client .console-sc.is-link:hover {
@@ -2751,7 +2759,7 @@ cards equal height */
 .console-callout--danger .console-callout-icon { color: var(--cmc-danger); }
 .console-av--sm { width: 28px; height: 28px; font-size: 11px; }
 .console-av--md { width: 36px; height: 36px; font-size: 13px; }
-.console-av--lg { width: 48px; height: 48px; font-size: 16px; border-radius: 14px; }
+.console-av--lg { width: 48px; height: 48px; font-size: 16px; border-radius: var(--console-radius, 4px); }
 .o_web_client .console-badge-soft--success { background-color: #28a745; color: #fff; }
 .o_web_client .console-badge-soft--warning { background-color: #ffac00; color: #fff; }
 .o_web_client .console-badge-soft--danger { background-color: #dc3545; color: #fff; }
@@ -3105,11 +3113,20 @@ cards equal height */
   width: 24px;
   height: 24px;
   margin-inline: 4px;
-  border-radius: 4px;
+  border-radius: var(--console-radius, 4px);
   background: rgba(0, 0, 0, 0.18);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
+  line-height: 1;
+}
+/* Pack systray: DB/role is plain text (not a pill Badge). */
+.o_web_client .console-systray-db {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
+  padding: 0 6px;
   line-height: 1;
 }
 .o_web_client .console-systray-count {

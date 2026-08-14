@@ -1,5 +1,4 @@
 import {
-  Badge,
   BreadcrumbHrefProvider,
   CommandPalette,
   LineIcon,
@@ -109,7 +108,9 @@ export function Shell() {
           <LineIcon name="plus" size={15} strokeWidth={2.25} />
         </button>
       )}
-      {me && me.roles[0] && <Badge label={formatRole(me.roles[0])} variant="neutral" />}
+      {me && me.roles[0] && (
+        <span className="console-systray-db">{formatRole(me.roles[0])}</span>
+      )}
       <RoleSwitcher />
       {me && (
         <span className="console-systray-avatar" title={me.userId} aria-hidden>

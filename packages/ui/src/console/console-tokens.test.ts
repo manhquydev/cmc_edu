@@ -92,6 +92,8 @@ describe('console.css scope + token surface', () => {
     expect(css.includes('--console-statusbar-current: #e0d9f1')).toBe(true);
     expect(css.includes('--console-search-height: 35px')).toBe(true);
     expect(css.includes('--console-search-radius: 999px')).toBe(true);
+    expect(css.includes('--console-radius: 4px')).toBe(true);
+    expect(css.includes('--console-radius-lg: 4px')).toBe(true);
     expect(css.includes('--cmc-radius-control: var(--console-radius')).toBe(true);
     expect(css.includes('--_button-radius: var(--console-radius')).toBe(true);
     expect(css.includes('flex-wrap: nowrap')).toBe(true);
@@ -109,6 +111,18 @@ describe('console.css scope + token surface', () => {
     expect(css).toMatch(
       /\.o_web_client \.console-steps-num[\s\S]{0,280}clip:\s*rect\(0,\s*0,\s*0,\s*0\)/,
     );
+  });
+
+  it('pins soft-square geometry (not bubble 12–16 / avatar circle)', () => {
+    expect(css).toMatch(
+      /\.o_web_client \.console-form-sheet[\s\S]{0,220}padding:\s*24px\s+32px/,
+    );
+    expect(css).toMatch(
+      /\.o_web_client \.console-av[\s\S]{0,180}border-radius:\s*var\(--console-radius,\s*4px\)/,
+    );
+    expect(css.includes('--console-sc-radius: 4px')).toBe(true);
+    expect(css.includes('--console-sc-radius: 14px')).toBe(false);
+    expect(css.includes('.console-systray-db')).toBe(true);
   });
 
   it('wires kanban narrow viewport width to --console-kanban-card-width-sm', () => {

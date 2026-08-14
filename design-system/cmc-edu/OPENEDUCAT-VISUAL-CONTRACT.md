@@ -47,6 +47,7 @@ Use these names in `console.css`. Hex = Odoo 18 Community + PNG measurement.
 | `--console-dropdown-hover` | `#ebebeb` | App switcher row |
 | `--console-radius` | `4px` | Buttons, cards, sheet, facet chips, tags except capsules |
 | `--console-radius-sm` | `3px` | Checkbox, view-switcher button |
+| `--console-radius-lg` | `4px` | Dialogs / large surfaces (same soft-square as controls — not 6–16px bubble) |
 | `--console-search-radius` | `999px` | Search bar only (pack 02/03/15 — pill, not 4px) |
 | `--console-navbar-height` | `46px` | |
 | `--console-cp-height` | `58px` | Control panel |

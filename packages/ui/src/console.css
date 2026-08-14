@@ -3167,4 +3167,209 @@ cards equal height */
   flex-wrap: nowrap;
 }
 
+/* ============================================================================
+ * Design-lab semantic vocabulary (bridge wave D3).
+ *
+ * The gallery in design-lab/system/ speaks in roles ("the muted ink", "the row
+ * height") instead of raw values. This block lets a production component use
+ * that vocabulary while resolving to the values OpenEduCat already ships, so
+ * new UI stops inventing hex codes without repainting the existing shell.
+ *
+ * Three rules keep this block safe:
+ *   1. It is purely additive. Every name below is undefined everywhere else in
+ *      the loaded CSS graph (verified against packages/ui/src/*.css and the
+ *      Astryx theme), so no existing rule changes value.
+ *   2. It resolves to --console-* / --cmc-* values, never to the gallery's own
+ *      values. OPENEDUCAT-VISUAL-CONTRACT.md stays authority: radii are 4/6px
+ *      here, not the gallery's 6/8px. See design-lab/system/CONFLICT-LEDGER.md.
+ *   3. It stays scoped to .o_web_client. A document-global selector here would
+ *      leak into the LMS, and a test in console-tokens.test.ts forbids one.
+ *
+ * Deliberately absent: shell topology (--size-nav-width, --size-rail-width).
+ * The gallery's 240px rail is an exploration; the admin Product OS is the 46px
+ * navbar plus 58px control panel, and replacing it needs an owner decision.
+ * ========================================================================== */
+.o_web_client {
+  /* surfaces */
+  --surface-page: var(--console-gray-100);
+  --surface-default: #fff;
+  --surface-sunken: var(--console-gray-100);
+  --surface-nav: var(--console-gray-100);
+  --surface-hover: var(--console-row-hover);
+  --surface-selected: var(--cmc-brand-muted);
+  --surface-action: var(--console-brand-purple);
+  --surface-action-hover: var(--console-brand-purple-dark);
+  --surface-action-subtle: var(--cmc-brand-muted);
+  --surface-action-muted: var(--console-statusbar-current);
+  --surface-critical: var(--console-danger);
+  --surface-critical-subtle: color-mix(in srgb, var(--console-danger) 10%, #fff);
+  --surface-caution-subtle: color-mix(in srgb, var(--console-warning) 14%, #fff);
+  --surface-positive-subtle: color-mix(in srgb, var(--console-success) 10%, #fff);
+  --surface-info-subtle: color-mix(in srgb, var(--console-info) 10%, #fff);
+
+  /* text */
+  --text-default: var(--console-gray-900);
+  --text-muted: var(--console-gray-600);
+  --text-faint: var(--console-gray-600);
+  --text-disabled: color-mix(in srgb, var(--console-gray-600) 62%, #fff);
+  --text-on-action: #fff;
+  --text-action: var(--console-brand-purple);
+  --text-action-strong: var(--cmc-brand-ink);
+  --text-critical: var(--console-danger);
+  --text-caution: #a06a00;
+  --text-positive: #1e7e34;
+  --text-info: #117a8b;
+
+  /* categorical ink + tint — taxonomy such as subject or role, never state.
+     No OpenEduCat equivalent exists, so these are new values. */
+  --category-a-ink: #475569;
+  --category-a-tint: #f1f5f9;
+  --category-b-ink: #0f766e;
+  --category-b-tint: #f0fdfa;
+  --category-c-ink: #86198f;
+  --category-c-tint: #fdf4ff;
+  --category-d-ink: #9a3412;
+  --category-d-tint: #fff7ed;
+
+  /* borders */
+  --border-default: var(--console-gray-300);
+  --border-strong: color-mix(in srgb, var(--console-gray-300) 55%, var(--console-gray-600));
+  --border-action: var(--console-brand-purple);
+  --border-critical: var(--console-danger);
+
+  /* spacing — geometry, which the visual contract does not govern */
+  --space-hair: 4px;
+  --space-tight: 8px;
+  --space-snug: 12px;
+  --space-base: var(--console-spacer);
+  --space-wide: 20px;
+  --space-loose: 24px;
+  --space-gutter: 28px;
+  --space-section: 40px;
+
+  /* sizes — density remaps these, nothing else */
+  --size-row: var(--console-list-row-height);
+  --size-cell-pad-x: var(--console-list-cell-padding-x);
+  --size-control: var(--console-btn-height);
+  --size-control-sm: 26px;
+  --size-control-lg: 36px;
+  --size-field: var(--console-search-height);
+  --size-nav-item: 32px;
+  --size-tab: 40px;
+  --size-utility-bar: var(--console-cp-height);
+
+  /* type roles */
+  --font-size-metric: 28px;
+  --font-size-page-title: 26px;
+  --font-size-entity-title: 22px;
+  --font-size-section-title: 18px;
+  --font-size-body-lg: 15px;
+  --font-size-body: var(--console-font-size-base);
+  --font-size-ui: var(--console-font-size-sm);
+  --font-size-meta: var(--console-font-size-xs);
+  --font-size-label: 11px;
+  --font-weight-body: 400;
+  --font-weight-medium: 500;
+  --font-weight-emphasis: 550;
+  --font-weight-title: 600;
+  --tracking-tight: -0.03em;
+  --tracking-snug: -0.02em;
+  --tracking-wide: 0.04em;
+  --leading-body: 1.45;
+  --leading-title: 1.15;
+
+  /* shape — contract values, not gallery values */
+  --radius-control: var(--console-radius);
+  --radius-panel: var(--console-radius-lg);
+  --radius-pill: 999px;
+  --radius-contract: var(--console-radius);
+
+  /* focus — same outline mechanism as --cmc-focus-ring, expressed as parts so a
+     component can offset it without restating the color */
+  --focus-outline-width: 2px;
+  --focus-outline-color: var(--console-brand-purple);
+  --focus-outline-offset: 2px;
+
+  /* motion */
+  --motion-state: 120ms ease;
+  --motion-overlay: 160ms ease;
+}
+
+/* A sortable header is a button, and the cell around it carries aria-sort. The
+   chevron points down for descending and up for ascending; when the column is
+   sortable but not the active sort it stays quiet rather than disappearing, so
+   the affordance is discoverable. */
+.o_web_client .console-list-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.o_web_client .console-list-sort svg {
+  opacity: 0.35;
+  transition: opacity var(--motion-state), transform var(--motion-state);
+}
+.o_web_client .console-list-sort:hover svg {
+  opacity: 0.7;
+}
+.o_web_client .console-list-sort[data-sort='ascending'] svg,
+.o_web_client .console-list-sort[data-sort='descending'] svg {
+  opacity: 1;
+}
+.o_web_client .console-list-sort[data-sort='ascending'] svg {
+  transform: rotate(180deg);
+}
+
+/* The wider-selection offer is a sentence, not a second toolbar. */
+.o_web_client .console-bulk-scope {
+  font-size: var(--console-font-size-xs);
+  color: var(--console-gray-600);
+}
+.o_web_client .console-bulk-widen {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--console-brand-purple);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Density is an operator preference that remaps measurements only. It never
+   touches the type ramp, and it never touches --console-* chrome, except for the
+   list row height it is explicitly asked to change. */
+.o_web_client .console-list[data-density='compact'] {
+  --console-list-row-height: 32px;
+  --size-row: 32px;
+}
+.o_web_client .console-list[data-density='comfortable'] {
+  --console-list-row-height: 48px;
+  --size-row: 48px;
+}
+.o_web_client[data-density='compact'] {
+  --size-row: 32px;
+  --size-cell-pad-x: 8px;
+  --size-control: 26px;
+  --size-field: 30px;
+  --size-nav-item: 28px;
+  --space-loose: 16px;
+  --space-gutter: 20px;
+  --space-section: 28px;
+}
+.o_web_client[data-density='comfortable'] {
+  --size-row: 48px;
+  --size-cell-pad-x: 16px;
+  --size-control: 34px;
+  --size-field: 38px;
+  --size-nav-item: 36px;
+  --space-loose: 28px;
+  --space-gutter: 40px;
+  --space-section: 48px;
+}
+
 

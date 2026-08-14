@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CRM · Pipeline · CMC EDU Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../tokens.css" />
+    <link rel="stylesheet" href="../system.css" />
+    <link rel="stylesheet" href="../modules.css" />
+  </head>
+  <body data-page="crm" data-root="../">
+    <div class="app">
+      <aside class="sidebar" data-shell aria-label="Điều hướng hệ thống thiết kế"></aside>
+
+      <main class="main">
+        <div class="utility">
+          <nav class="crumbs" aria-label="Breadcrumb">
+            <a href="../index.html">system</a>
+            <span aria-hidden="true">/</span>
+            <span>module</span>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">CRM</span>
+          </nav>
+          <div class="utility-right">
+            <div class="btn-group" data-density-group role="group" aria-label="Mật độ hiển thị">
+              <button type="button" data-density-set="compact" aria-pressed="false">Gọn</button>
+              <button type="button" data-density-set="default" aria-pressed="true">Chuẩn</button>
+              <button type="button" data-density-set="comfortable" aria-pressed="false">Thoáng</button>
+            </div>
+          </div>
+        </div>
+
+        <header class="page-head">
+          <div>
+            <h1>CRM · từ lead tới ghi danh</h1>
+            <p class="subtitle">
+              Năm giai đoạn O1→O5 là xương sống của module. Ngữ pháp riêng ở đây: bảng kanban kéo
+              thả, nhắc theo hạn ba mức, và nhập lead hàng loạt có bước đối chiếu trùng.
+            </p>
+          </div>
+          <p class="synth-banner">
+            Trang production: <code>crm/pipeline.tsx</code>, <code>crm/opportunity-detail.tsx</code>,
+            <code>crm/aftersale.tsx</code>, <code>crm/bulk-import.tsx</code>.
+          </p>
+        </header>
+
+        <nav class="toc filter-bar" aria-label="Mục trong trang" style="padding: 12px 0">
+          <a class="saved-view" href="#contract">Hợp đồng module</a>
+          <a class="saved-view" href="#board">Bảng kanban O1→O5</a>
+          <a class="saved-view" href="#due">Nhắc theo hạn</a>
+          <a class="saved-view" href="#import">Nhập hàng loạt</a>
+          <a class="saved-view" href="#aftersale">Hậu mãi</a>
+          <a class="saved-view" href="#empty">Trạng thái rỗng</a>
+        </nav>
+
+        <section class="section" id="contract" aria-labelledby="contract-h">
+          <h2 id="contract-h">Hợp đồng module</h2>
+          <p class="section-desc">
+            Mỗi module khai báo: khung trang được dùng, vai trò được đọc, và ánh xạ trạng thái sang
+            từ vựng sáu tông dùng chung. Không module nào tự phát minh tông màu riêng.
+          </p>
+          <div class="spec">
+            <div class="spec-body">
+              <table class="token-table">
+                <thead>
+                  <tr>
+                    <th>Khoản</th>
+                    <th>Giá trị</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Khung trang</td>
+                    <td>
+                      <code>ListPage</code> (pipeline, hậu mãi) · <code>DetailPage</code> (cơ hội) ·
+                      <code>FormPage</code> (tạo lead, nhập hàng loạt)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Vai trò đọc</td>
+                    <td>
+                      <span class="badge" data-category="a">sale</span>
+                      <span class="badge" data-category="a">giám đốc kinh doanh</span>
+                      <span class="badge" data-category="a">super admin</span> — giáo viên không đọc CRM
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Ánh xạ trạng thái</td>
+                    <td>
+                      O1–O4 → <code>info</code> · O5 → <code>success</code> · mất cơ hội →
+                      <code>danger</code> · nháp → <code>neutral</code>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Pattern riêng</td>
+                    <td>Bảng kanban giai đoạn · nhắc ba mức hạn · trình nhập có bước đối chiếu</td>
+                  </tr>
+                  <tr>
+                    <td>Ranh giới</td>
+                    <td>
+                      Sale soạn phiếu thu nhưng không duyệt và không đọc danh sách phiếu — xem
+                      <a href="finance.html">module Tài chính</a>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="board" aria-labelledby="board-h">
+          <h2 id="board-h">Bảng kanban giai đoạn</h2>
+          <p class="section-desc">
+            Chỉ có ở CRM. Cột là giai đoạn, thẻ là cơ hội, kéo thả đổi giai đoạn và ghi vào lịch sử.
+            Tổng giá trị mỗi cột nằm ở góc phải đầu cột để nhìn ra chỗ nghẽn.
+          </p>
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Kéo một thẻ sang cột khác</h3>
+              <span class="chip">kéo thả · đồng bộ với danh sách</span>
+            </div>
+            <div class="spec-body">
+              <div class="board">
+                <section class="board-col" aria-label="O1 Tiếp cận">
+                  <div class="board-col-head">
+                    <span class="funnel-index" aria-hidden="true">1</span>
+                    <span class="board-col-name">O1 Tiếp cận</span>
+                    <span class="board-col-sum">48 · 402tr</span>
+                  </div>
+                  <div class="board-col-body">
+                    <article class="board-card">
+                      <span class="board-card-title">Phạm Quốc Huy</span>
+                      <span class="board-card-meta">Facebook Ads · 6.500.000</span>
+                      <span class="board-card-meta"><span class="badge" data-tone="warning">Gọi hôm nay</span></span>
+                    </article>
+                    <article class="board-card">
+                      <span class="board-card-title">Vũ Hà My</span>
+                      <span class="board-card-meta">Giới thiệu · 4.800.000</span>
+                    </article>
+                  </div>
+                </section>
+                <section class="board-col" aria-label="O2 Đã liên hệ">
+                  <div class="board-col-head">
+                    <span class="funnel-index" aria-hidden="true">2</span>
+                    <span class="board-col-name">O2 Đã liên hệ</span>
+                    <span class="board-col-sum">31 · 268tr</span>
+                  </div>
+                  <div class="board-col-body">
+                    <article class="board-card">
+                      <span class="board-card-title">Ngô Bảo Trân</span>
+                      <span class="board-card-meta">Zalo OA · 7.200.000</span>
+                    </article>
+                  </div>
+                </section>
+                <section class="board-col" aria-label="O3 Đặt lịch kiểm tra">
+                  <div class="board-col-head">
+                    <span class="funnel-index" aria-hidden="true">3</span>
+                    <span class="board-col-name">O3 Đặt lịch KT</span>
+                    <span class="board-col-sum">14 · 121tr</span>
+                  </div>
+                  <div class="board-col-body">
+                    <article class="board-card">
+                      <span class="board-card-title">Lý Gia Hân</span>
+                      <span class="board-card-meta">KT 15/08 17:00 · phòng 204</span>
+                      <span class="board-card-meta"><span class="badge" data-tone="info">Đã hẹn</span></span>
+                    </article>
+                    <div class="board-drop">Thả vào đây để chuyển giai đoạn</div>
+                  </div>
+                </section>
+                <section class="board-col" aria-label="O4 Đã kiểm tra">
+                  <div class="board-col-head">
+                    <span class="funnel-index" aria-hidden="true">4</span>
+                    <span class="board-col-name">O4 Đã kiểm tra</span>
+                    <span class="board-col-sum">9 · 76tr</span>
+                  </div>
+                  <div class="board-col-body">
+                    <article class="board-card">
+                      <span class="board-card-title">Đặng Tuấn Kiệt</span>
+                      <span class="board-card-meta">Điểm 7.5 · đề xuất Toán 7A</span>
+                    </article>
+                  </div>
+                </section>
+                <section class="board-col" aria-label="O5 Đã ghi danh">
+                  <div class="board-col-head">
+                    <span class="funnel-index" aria-hidden="true">5</span>
+                    <span class="board-col-name">O5 Đã ghi danh</span>
+                    <span class="board-col-sum">6 · 52tr</span>
+                  </div>
+                  <div class="board-col-body">
+                    <article class="board-card">
+                      <span class="board-card-title">Nguyễn Minh Anh</span>
+                      <span class="board-card-meta">Phiếu PT-019 chờ duyệt</span>
+                      <span class="board-card-meta"><span class="badge" data-tone="success">Ghi danh</span></span>
+                    </article>
+                  </div>
+                </section>
+              </div>
+            </div>
+            <p class="spec-note">
+              Kanban không thay bảng danh sách, nó là chế độ xem thứ hai của cùng bộ lọc. Thanh điều
+              khiển giữ nguyên; chỉ vùng nội dung đổi. Người dùng bàn phím vẫn đổi giai đoạn từ trang
+              chi tiết.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="due" aria-labelledby="due-h">
+          <h2 id="due-h">Nhắc theo hạn: ba mức, không phải bảy màu</h2>
+          <p class="section-desc">
+            <code>classifyDueLevel</code> chia nhắc việc thành quá hạn, hôm nay, tương lai. Ba mức
+            đó ánh xạ thẳng vào ba tông và không sinh thêm mức nào khác.
+          </p>
+          <div class="spec">
+            <div class="spec-body">
+              <div class="table-wrap">
+                <table class="data-table" style="min-width: 640px">
+                  <thead>
+                    <tr>
+                      <th class="col-code" scope="col">Cơ hội</th>
+                      <th scope="col">Việc nhắc</th>
+                      <th class="col-status" scope="col">Giai đoạn</th>
+                      <th class="col-due" scope="col">Hạn</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở cơ hội O3-9918">
+                      <td class="col-code">O3-9918</td>
+                      <td>
+                        <span class="row-title">Gọi xác nhận buổi kiểm tra</span>
+                        <span class="row-meta">Lý Gia Hân · sale Mai</span>
+                      </td>
+                      <td class="col-status"><span class="badge" data-tone="info">O3</span></td>
+                      <td class="col-due" data-tone="danger">Quá 2 ngày</td>
+                    </tr>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở cơ hội O1-9931">
+                      <td class="col-code">O1-9931</td>
+                      <td>
+                        <span class="row-title">Gọi lần đầu</span>
+                        <span class="row-meta">Phạm Quốc Huy · Facebook Ads</span>
+                      </td>
+                      <td class="col-status"><span class="badge" data-tone="info">O1</span></td>
+                      <td class="col-due" data-tone="warning">Hôm nay 17:00</td>
+                    </tr>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở cơ hội O4-9902">
+                      <td class="col-code">O4-9902</td>
+                      <td>
+                        <span class="row-title">Chốt học phí sau kiểm tra</span>
+                        <span class="row-meta">Đặng Tuấn Kiệt · điểm 7.5</span>
+                      </td>
+                      <td class="col-status"><span class="badge" data-tone="info">O4</span></td>
+                      <td class="col-due">18/08</td>
+                    </tr>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở cơ hội O2-9887">
+                      <td class="col-code">O2-9887</td>
+                      <td>
+                        <span class="row-title">Gửi lại thông tin khóa</span>
+                        <span class="row-meta">Ngô Bảo Trân · Zalo OA</span>
+                      </td>
+                      <td class="col-status"><span class="badge" data-tone="danger">Mất cơ hội</span></td>
+                      <td class="col-due">—</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <p class="spec-note">
+              Cột hạn dùng chữ tương đối ("Quá 2 ngày", "Hôm nay 17:00") vì người đọc cần khoảng cách
+              tới hạn, không cần ngày tuyệt đối. Ngày tuyệt đối nằm ở trang chi tiết.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="import" aria-labelledby="import-h">
+          <h2 id="import-h">Nhập lead hàng loạt</h2>
+          <p class="section-desc">
+            Việc nhập file là thao tác khó hoàn tác, nên nó phải có bước xem trước và bước đối chiếu
+            trùng số điện thoại trong 90 ngày trước khi ghi.
+          </p>
+          <div class="two-col">
+            <div class="spec">
+              <div class="spec-head">
+                <h3 class="spec-name">Bước 1 · Tải tệp</h3>
+              </div>
+              <div class="spec-body">
+                <div class="dropzone">
+                  <strong>Kéo tệp CSV vào đây</strong>
+                  <span>Hoặc chọn tệp · tối đa 2.000 dòng · cột bắt buộc: họ tên, điện thoại</span>
+                  <button type="button" class="btn btn-secondary btn-sm">Chọn tệp</button>
+                </div>
+                <div style="margin-top: 12px">
+                  <div class="progress" aria-hidden="true"><span style="width: 64%"></span></div>
+                  <p class="field-hint" style="margin-top: 6px">leads-thang8.csv · 1.284/2.000 dòng đã đọc</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="spec">
+              <div class="spec-head">
+                <h3 class="spec-name">Bước 2 · Đối chiếu trùng</h3>
+              </div>
+              <div class="spec-body">
+                <div class="callout" data-tone="warning" style="margin-bottom: 12px">
+                  <p class="callout-title">37 dòng trùng số điện thoại</p>
+                  <p>Đã có cơ hội mở trong 90 ngày. Chọn cách xử lý trước khi ghi.</p>
+                </div>
+                <div class="field-row">
+                  <label class="check"><input type="radio" name="dup" checked /> Bỏ qua dòng trùng</label>
+                  <label class="check"><input type="radio" name="dup" /> Ghi thành ghi chú vào cơ hội cũ</label>
+                </div>
+                <div class="sticky-actions" style="border-top: 0">
+                  <button type="button" class="btn btn-secondary">Tải danh sách trùng</button>
+                  <button type="button" class="btn btn-primary" data-loading-demo>Ghi 1.247 lead</button>
+                </div>
+              </div>
+              <p class="spec-note">
+                Nút hành động nêu đúng con số sẽ được ghi, không phải "Xác nhận". Người bấm phải biết
+                mình đang tạo bao nhiêu bản ghi.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="aftersale" aria-labelledby="as-h">
+          <h2 id="as-h">Hậu mãi</h2>
+          <p class="section-desc">
+            Vụ việc hậu mãi và lịch gặp phụ huynh dùng lại khung danh sách và cổng phê duyệt, chỉ đổi
+            từ vựng. Đây là ví dụ về việc không tạo pattern mới khi pattern cũ đã đủ.
+          </p>
+          <div class="spec">
+            <div class="spec-body">
+              <div class="highlight-strip" style="--highlight-cols: 3">
+                <div class="highlight-item">
+                  <div class="highlight-label">Vụ việc đang mở</div>
+                  <div class="highlight-value">9</div>
+                </div>
+                <div class="highlight-item">
+                  <div class="highlight-label">Quá hạn phản hồi</div>
+                  <div class="highlight-value" style="color: var(--text-critical)">3</div>
+                </div>
+                <div class="highlight-item">
+                  <div class="highlight-label">Gặp phụ huynh tuần này</div>
+                  <div class="highlight-value">6</div>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table" style="min-width: 640px">
+                  <thead>
+                    <tr>
+                      <th class="col-code" scope="col">Vụ việc</th>
+                      <th scope="col">Nội dung</th>
+                      <th class="col-status" scope="col">Trạng thái</th>
+                      <th class="col-due" scope="col">Hạn phản hồi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở vụ việc AS-0042">
+                      <td class="col-code">AS-0042</td>
+                      <td>
+                        <span class="row-title">Phụ huynh phản ánh đổi giáo viên</span>
+                        <span class="row-meta">Toán 7A · mức độ cao</span>
+                      </td>
+                      <td class="col-status"><span class="badge" data-tone="danger">Quá hạn</span></td>
+                      <td class="col-due" data-tone="danger">Quá 1 ngày</td>
+                    </tr>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở vụ việc AS-0041">
+                      <td class="col-code">AS-0041</td>
+                      <td>
+                        <span class="row-title">Xin chuyển buổi học bù</span>
+                        <span class="row-meta">Tiếng Anh 6B</span>
+                      </td>
+                      <td class="col-status"><span class="badge" data-tone="brand">Chờ xử lý</span></td>
+                      <td class="col-due" data-tone="warning">Hôm nay</td>
+                    </tr>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở vụ việc AS-0038">
+                      <td class="col-code">AS-0038</td>
+                      <td>
+                        <span class="row-title">Đã họp phụ huynh, chốt phương án</span>
+                        <span class="row-meta">Toán 7A</span>
+                      </td>
+                      <td class="col-status"><span class="badge" data-tone="success">Đã đóng</span></td>
+                      <td class="col-due">10/08</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= Empty states ================= -->
+        <section class="section" id="empty" aria-labelledby="empty-h">
+          <h2 id="empty-h">Bảng kanban khi chưa có gì</h2>
+          <p class="section-desc">Tuần đầu mở cơ sở, bảng trống là trạng thái bình thường chứ không phải lỗi. Mỗi kiểu rỗng nói một câu khác nhau và luôn chỉ ra bước tiếp theo.</p>
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Ba kiểu rỗng của pipeline</h3>
+              <span class="chip">cột rỗng ≠ bảng rỗng</span>
+            </div>
+            <div class="spec-body" style="display: grid; gap: var(--space-base)">
+              <div class="state-block" data-kind="first-run">
+                <h3>Chưa có lead nào ở cơ sở này</h3>
+                <p>Cơ sở Quận 7 vừa mở tuần này. Lead đầu tiên vào từ biểu mẫu web, cuộc gọi tới, hoặc nhập hàng loạt từ hội thảo.</p>
+                <div class="state-actions">
+                  <button type="button" class="btn btn-primary btn-sm">Thêm lead thủ công</button>
+                  <button type="button" class="btn btn-secondary btn-sm">Nhập từ tệp CSV</button>
+                </div>
+              </div>
+              <div class="state-block" data-kind="filtered">
+                <h3>Không lead nào khớp bộ lọc</h3>
+                <p>Đang lọc <strong>sale Mai</strong> + <strong>giai đoạn O4</strong> + <strong>quá hạn</strong>. Bỏ điều kiện người phụ trách để thấy 38 lead của O4.</p>
+                <div class="state-actions">
+                  <button type="button" class="btn btn-secondary btn-sm">Bỏ lọc người phụ trách</button>
+                  <button type="button" class="btn btn-quiet btn-sm">Bỏ tất cả bộ lọc</button>
+                </div>
+              </div>
+              <div class="state-block" data-kind="done">
+                <h3>Cột O3 đã sạch</h3>
+                <p>Không còn lead nào chờ tư vấn. Việc tiếp theo nằm ở O4: bốn lead đang chờ chốt ghi danh.</p>
+                <div class="state-actions">
+                  <button type="button" class="btn btn-secondary btn-sm">Sang cột O4</button>
+                </div>
+              </div>
+            </div>
+            <p class="spec-note">Cột rỗng trong một bảng có dữ liệu chỉ cần một dòng chữ mờ giữa cột. Cả bảng rỗng mới cần khối trạng thái đầy đủ.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" data-open="false">
+      <p class="toast-title" data-toast-title>Đã lưu</p>
+      <p class="toast-meta" data-toast-meta></p>
+    </div>
+
+    <dialog id="palette-dialog" class="palette" aria-label="Command palette">
+      <div class="palette-input">
+        <span>Tìm nhanh…</span><kbd style="margin-left: auto">Esc</kbd>
+      </div>
+      <ul class="palette-list">
+        <li class="palette-item" aria-selected="true">Tạo cơ hội mới <span class="palette-scope">CRM</span></li>
+        <li class="palette-item">Nhập lead hàng loạt <span class="palette-scope">CRM</span></li>
+      </ul>
+    </dialog>
+
+    <script src="../shell.js"></script>
+  </body>
+</html>

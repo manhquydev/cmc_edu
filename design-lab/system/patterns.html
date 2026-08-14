@@ -1,0 +1,1185 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pattern dùng chung · CMC EDU Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./tokens.css" />
+    <link rel="stylesheet" href="./system.css" />
+  </head>
+  <body data-page="patterns" data-root="">
+    <div class="app">
+      <aside class="sidebar" data-shell aria-label="Điều hướng hệ thống thiết kế"></aside>
+
+      <main class="main">
+        <div class="utility">
+          <nav class="crumbs" aria-label="Breadcrumb">
+            <span>system</span>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Pattern dùng chung</span>
+          </nav>
+          <div class="utility-right">
+            <div class="btn-group" data-density-group role="group" aria-label="Mật độ hiển thị">
+              <button type="button" data-density-set="compact" aria-pressed="false">Gọn</button>
+              <button type="button" data-density-set="default" aria-pressed="true">Chuẩn</button>
+              <button type="button" data-density-set="comfortable" aria-pressed="false">Thoáng</button>
+            </div>
+            <a class="btn btn-secondary btn-sm" href="./modules/crm.html">Vào module</a>
+          </div>
+        </div>
+
+        <header class="page-head">
+          <div>
+            <h1>Pattern dùng chung mọi module</h1>
+            <p class="subtitle">
+              Tầng giữa: nằm trên atom, nằm dưới trang. Bốn khung trang production
+              (<code>DashboardPage</code>, <code>ListPage</code>, <code>DetailPage</code>,
+              <code>FormPage</code>) đều lắp từ những mảnh ở đây.
+            </p>
+          </div>
+          <p class="synth-banner">Dữ liệu minh họa. Mọi mã phiếu, tên, số tiền là ví dụ.</p>
+        </header>
+
+        <nav class="toc filter-bar" aria-label="Mục trong trang" style="padding: 12px 0">
+          <a class="saved-view" href="#list">Khung danh sách</a>
+          <a class="saved-view" href="#sod">Quyền và dữ liệu</a>
+          <a class="saved-view" href="#confirm">Xác nhận hành động</a>
+          <a class="saved-view" href="#master-detail">Danh sách ↔ chi tiết</a>
+          <a class="saved-view" href="#dashboard">Khung bảng điều khiển</a>
+          <a class="saved-view" href="#detail">Khung chi tiết</a>
+          <a class="saved-view" href="#form">Khung biểu mẫu</a>
+          <a class="saved-view" href="#gate">Cổng phê duyệt</a>
+          <a class="saved-view" href="#feedback">Phản hồi & palette</a>
+        </nav>
+
+        <!-- ================= List archetype ================= -->
+        <section class="section" id="list" aria-labelledby="list-h">
+          <h2 id="list-h">Khung danh sách</h2>
+          <p class="section-desc">
+            Cột sống của console. Thanh điều khiển, khung nhìn đã lưu, bộ lọc phản chiếu vào URL,
+            bảng có header dính và cột đầu ghim, thanh hành động hàng loạt xuất hiện khi có lựa chọn.
+          </p>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Khung nhìn đã lưu và trạng thái URL</h3>
+              <span class="chip">bộ lọc sống trong URL</span>
+            </div>
+            <div class="spec-body">
+              <div class="saved-views" role="group" aria-label="Khung nhìn đã lưu">
+                <button
+                  type="button"
+                  class="saved-view"
+                  aria-pressed="true"
+                  data-query="?view=cho-duyet&co_so=q1&sort=han:asc&page=1"
+                >
+                  <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M8 1.8l1.9 4 4.3.6-3.1 3 .8 4.3L8 11.7l-3.9 2 .8-4.3-3.1-3 4.3-.6L8 1.8z" />
+                  </svg>
+                  Chờ tôi duyệt
+                </button>
+                <button
+                  type="button"
+                  class="saved-view"
+                  aria-pressed="false"
+                  data-query="?view=qua-han&sort=han:desc&page=1"
+                >
+                  Quá hạn toàn hệ
+                </button>
+                <button
+                  type="button"
+                  class="saved-view"
+                  aria-pressed="false"
+                  data-query="?view=vuot-nguong&min=20000000&page=1"
+                >
+                  Vượt ngưỡng hai mắt
+                </button>
+                <button type="button" class="btn btn-quiet btn-sm">+ Lưu khung nhìn</button>
+              </div>
+              <p class="url-state" data-url-state style="margin-top: 12px">
+                ?view=cho-duyet&co_so=q1&sort=han:asc&page=1
+              </p>
+            </div>
+            <p class="spec-note">
+              Khung nhìn = cột + bộ lọc + sắp xếp, đặt tên. Vì trạng thái nằm trong URL, mở một bản
+              ghi rồi quay lại không mất công lọc, và dán link cho đồng nghiệp là dán đúng cảnh đó.
+            </p>
+          </div>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Thanh điều khiển và bộ lọc đang áp dụng</h3>
+            </div>
+            <div class="spec-body">
+              <div class="control-bar">
+                <div class="control-bar-top">
+                  <h4 class="control-bar-title">Phiếu thu</h4>
+                  <div class="demo-row">
+                    <div class="btn-group" role="group" aria-label="Chế độ xem">
+                      <button type="button" aria-pressed="true">Danh sách</button>
+                      <button type="button" aria-pressed="false">Bảng kanban</button>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm">Xuất CSV</button>
+                    <button type="button" class="btn btn-primary">Tạo phiếu thu</button>
+                  </div>
+                </div>
+                <div class="filter-bar" role="search" aria-label="Bộ lọc phiếu thu">
+                  <input class="input" placeholder="Tìm mã phiếu, tên học viên…" style="min-width: 240px" />
+                  <select class="select" aria-label="Cơ sở">
+                    <option>Tất cả cơ sở</option>
+                    <option selected>Quận 1</option>
+                    <option>Quận 7</option>
+                  </select>
+                  <select class="select" aria-label="Trạng thái">
+                    <option>Mọi trạng thái</option>
+                    <option selected>Chờ duyệt</option>
+                  </select>
+                  <select class="select" aria-label="Kỳ">
+                    <option selected>Tháng 8/2026</option>
+                  </select>
+                </div>
+                <div class="filter-state">
+                  <span>Đang áp dụng:</span>
+                  <span class="chip" data-applied="true"
+                    >Quận 1
+                    <button type="button" class="chip-dismiss" aria-label="Bỏ lọc cơ sở Quận 1">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6"/></svg>
+                    </button>
+                  </span>
+                  <span class="chip" data-applied="true"
+                    >Chờ duyệt
+                    <button type="button" class="chip-dismiss" aria-label="Bỏ lọc trạng thái chờ duyệt">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6"/></svg>
+                    </button>
+                  </span>
+                  <button type="button" class="btn btn-quiet btn-sm">Bỏ tất cả</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Bảng dữ liệu: chọn, sắp xếp, ghim cột, hành động hàng loạt</h3>
+              <span class="chip">tick vào ô chọn để thấy thanh hàng loạt</span>
+            </div>
+            <div class="spec-body">
+              <div class="bulk-bar" data-bulk-for="receipts" hidden>
+                <span><strong class="bulk-count">0</strong> dòng đã chọn</span>
+                <span class="bulk-scope" data-bulk-scope hidden>
+                  Đang chọn 20 dòng của trang này.
+                  <a href="#list">Chọn tất cả 312 dòng khớp bộ lọc?</a>
+                </span>
+                <span class="bulk-spacer"></span>
+                <button type="button" class="btn btn-secondary btn-sm">Gán người duyệt</button>
+                <button type="button" class="btn btn-secondary btn-sm">Xuất CSV</button>
+                <button type="button" class="btn btn-danger btn-sm">Hủy phiếu…</button>
+              </div>
+
+              <div class="table-wrap" style="--table-max-h: 320px">
+                <table class="data-table" data-selectable-table="receipts" style="min-width: 900px">
+                  <thead>
+                    <tr>
+                      <th class="col-select freeze-col" scope="col">
+                        <input type="checkbox" aria-label="Chọn tất cả dòng trên trang" />
+                      </th>
+                      <th class="col-code" scope="col">Mã</th>
+                      <th scope="col" data-sortable>
+                        <button type="button" class="sort-btn">
+                          Học viên
+                          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 9V3M3 6l3-3 3 3"/></svg>
+                        </button>
+                      </th>
+                      <th scope="col">Cơ sở</th>
+                      <th class="col-status" scope="col">Trạng thái</th>
+                      <th class="col-amount" scope="col" data-sortable aria-sort="descending">
+                        <button type="button" class="sort-btn">
+                          Số tiền
+                          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 9V3M3 6l3-3 3 3"/></svg>
+                        </button>
+                      </th>
+                      <th class="col-due" scope="col" data-sortable>
+                        <button type="button" class="sort-btn">
+                          Hạn
+                          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 9V3M3 6l3-3 3 3"/></svg>
+                        </button>
+                      </th>
+                      <th class="col-actions" scope="col"><span class="sr-only">Hành động</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="col-select freeze-col">
+                        <input type="checkbox" aria-label="Chọn phiếu PT-2408-021" />
+                      </td>
+                      <td class="col-code">PT-021</td>
+                      <td>
+                        <span class="row-title">Lê Khánh Linh</span>
+                        <span class="row-meta">Toán 7A · sale Mai</span>
+                      </td>
+                      <td>Quận 1</td>
+                      <td class="col-status"><span class="badge" data-tone="danger">Quá hạn</span></td>
+                      <td class="col-amount">21.000.000</td>
+                      <td class="col-due" data-tone="danger">−1 ngày</td>
+                      <td class="col-actions">
+                        <span class="row-actions">
+                          <button type="button" class="btn btn-quiet btn-sm" data-toast="Mở phiếu PT-2408-021" data-toast-meta="Vượt ngưỡng — cần hai mắt">Mở</button>
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="col-select freeze-col">
+                        <input type="checkbox" aria-label="Chọn phiếu PT-2408-019" />
+                      </td>
+                      <td class="col-code">PT-019</td>
+                      <td>
+                        <span class="row-title">Nguyễn Minh Anh</span>
+                        <span class="row-meta">Toán 7A · sale Mai</span>
+                      </td>
+                      <td>Quận 1</td>
+                      <td class="col-status"><span class="badge" data-tone="brand">Chờ duyệt</span></td>
+                      <td class="col-amount">8.500.000</td>
+                      <td class="col-due" data-tone="warning">Hôm nay</td>
+                      <td class="col-actions">
+                        <span class="row-actions">
+                          <button type="button" class="btn btn-quiet btn-sm" data-toast="Mở phiếu PT-2408-019">Mở</button>
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="col-select freeze-col">
+                        <input type="checkbox" aria-label="Chọn phiếu PT-2408-018" />
+                      </td>
+                      <td class="col-code">PT-018</td>
+                      <td>
+                        <span class="row-title">Trần Gia Bảo</span>
+                        <span class="row-meta">Tiếng Anh 6B · sale Dũng</span>
+                      </td>
+                      <td>Quận 7</td>
+                      <td class="col-status"><span class="badge" data-tone="success">Đã thu</span></td>
+                      <td class="col-amount">6.200.000</td>
+                      <td class="col-due">12/08</td>
+                      <td class="col-actions">
+                        <span class="row-actions">
+                          <button type="button" class="btn btn-quiet btn-sm" data-toast="Mở phiếu PT-2408-018">Mở</button>
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="col-select freeze-col">
+                        <input type="checkbox" aria-label="Chọn phiếu PT-2408-017" />
+                      </td>
+                      <td class="col-code">PT-017</td>
+                      <td>
+                        <span class="row-title">Phạm Quốc Huy</span>
+                        <span class="row-meta">Chưa xếp lớp</span>
+                      </td>
+                      <td>Quận 1</td>
+                      <td class="col-status"><span class="badge" data-tone="neutral">Nháp</span></td>
+                      <td class="col-amount">4.800.000</td>
+                      <td class="col-due">18/08</td>
+                      <td class="col-actions">
+                        <span class="row-actions">
+                          <button type="button" class="btn btn-quiet btn-sm" data-toast="Mở phiếu PT-2408-017">Mở</button>
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="col-select freeze-col">
+                        <input type="checkbox" aria-label="Chọn phiếu PT-2408-016" />
+                      </td>
+                      <td class="col-code">PT-016</td>
+                      <td>
+                        <span class="row-title">Đỗ Thảo Nguyên</span>
+                        <span class="row-meta">Tiếng Anh 6B</span>
+                      </td>
+                      <td>Quận 7</td>
+                      <td class="col-status"><span class="badge" data-tone="info">Đang xử lý</span></td>
+                      <td class="col-amount">7.400.000</td>
+                      <td class="col-due">20/08</td>
+                      <td class="col-actions">
+                        <span class="row-actions">
+                          <button type="button" class="btn btn-quiet btn-sm" data-toast="Mở phiếu PT-2408-016">Mở</button>
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="pager">
+                <span>Hiển thị 1–5 trong 312 phiếu</span>
+                <div class="pager-nav">
+                  <button type="button" class="btn btn-ghost btn-sm" disabled>Trước</button>
+                  <span class="page-current" aria-current="page">1</span>
+                  <button type="button" class="btn btn-ghost btn-sm">2</button>
+                  <button type="button" class="btn btn-ghost btn-sm">3</button>
+                  <button type="button" class="btn btn-ghost btn-sm">Sau</button>
+                </div>
+              </div>
+            </div>
+            <p class="spec-note">
+              Phân trang có tổng số, không cuộn vô hạn: nhân viên cần biết mình đang ở đâu trong
+              hàng đợi. Hành động chính của dòng luôn hiện để người mới tìm được; chỉ hành động
+              phụ mới ẩn tới khi hover hoặc focus.
+            </p>
+          </div>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Ba trạng thái rỗng của cùng một danh sách</h3>
+              <span class="chip">không bao giờ chỉ "Không có dữ liệu"</span>
+            </div>
+            <div class="spec-body" style="display: grid; gap: var(--space-base)">
+              <div class="state-block" data-kind="first-run">
+                <h3>Chưa có phiếu thu nào</h3>
+                <p>
+                  Cơ sở Quận 1 vừa mở. Phiếu đầu tiên sinh ra khi sale ghi danh một học viên vào
+                  lớp đang tuyển.
+                </p>
+                <div class="state-actions">
+                  <button type="button" class="btn btn-primary btn-sm">Ghi danh học viên</button>
+                  <button type="button" class="btn btn-secondary btn-sm">Xem lớp đang tuyển</button>
+                </div>
+              </div>
+              <div class="state-block" data-kind="filtered">
+                <h3>Không phiếu nào khớp bộ lọc này</h3>
+                <p>
+                  Đang lọc <strong>Quá hạn</strong> + <strong>Quận 7</strong> +
+                  <strong>trên 20.000.000đ</strong>. Bỏ một điều kiện để thấy 312 phiếu của bộ lọc
+                  rộng hơn.
+                </p>
+                <div class="state-actions">
+                  <button type="button" class="btn btn-secondary btn-sm">Bỏ lọc cơ sở</button>
+                  <button type="button" class="btn btn-quiet btn-sm">Bỏ tất cả bộ lọc</button>
+                </div>
+              </div>
+              <div class="state-block" data-kind="done">
+                <h3>Hết phiếu chờ bạn duyệt</h3>
+                <p>
+                  Bốn phiếu vượt ngưỡng đã có hai mắt trong hôm nay. Việc tiếp theo của bạn nằm ở
+                  hàng đợi đối soát.
+                </p>
+                <div class="state-actions">
+                  <button type="button" class="btn btn-secondary btn-sm">Sang đối soát</button>
+                </div>
+              </div>
+            </div>
+            <p class="spec-note">
+              Ba trạng thái, ba câu chuyện khác nhau: chưa từng có · bộ lọc quá hẹp · đã xong.
+              Trạng thái rỗng nào cũng phải chỉ ra đường đi tiếp, nên nó là một phần của
+              <code>ListPage</code> chứ không phải chuỗi văn bản mặc định.
+            </p>
+          </div>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Tải thất bại và dữ liệu cũ</h3>
+              <span class="chip">mất mạng là chuyện thường ở cơ sở</span>
+            </div>
+            <div class="spec-body" style="display: grid; gap: var(--space-snug)">
+              <div class="retry-strip">
+                <p><strong>Không tải được danh sách phiếu.</strong> Máy chủ không phản hồi.</p>
+                <span class="retry-spacer"></span>
+                <button type="button" class="btn btn-secondary btn-sm" data-retry="retry-target">
+                  Thử lại
+                </button>
+              </div>
+              <div class="retry-strip" data-kind="stale">
+                <p>
+                  Đang hiển thị số liệu lúc <strong>14:02</strong>. Bản mới chưa tải được, con số có
+                  thể đã đổi.
+                </p>
+                <span class="retry-spacer"></span>
+                <button type="button" class="btn btn-quiet btn-sm" data-retry="retry-target">
+                  Làm mới
+                </button>
+              </div>
+              <div id="retry-target" hidden>
+                <div class="state-block" data-kind="done">
+                  <h3>Đã tải lại xong</h3>
+                  <p>Bộ lọc, thứ tự sắp xếp và trang hiện tại được giữ nguyên sau khi thử lại.</p>
+                </div>
+              </div>
+            </div>
+            <p class="spec-note">
+              Lỗi tải không được thay cả trang bằng một màn hình trắng. Dải lỗi giữ nguyên bộ lọc và
+              nêu hành động khôi phục; dữ liệu cũ được dán nhãn thay vì lặng lẽ giả vờ là mới.
+            </p>
+          </div>
+        </section>
+
+        <!-- ================= SoD twin ================= -->
+        <section class="section" id="sod" aria-labelledby="sod-h">
+          <h2 id="sod-h">Quyền viết lại dữ liệu, không viết lại giao diện</h2>
+          <p class="section-desc">
+            Quy tắc khó nhất của sản phẩm: sale soạn phiếu thu nhưng không được duyệt, và không
+            được liệt kê phiếu thu. Cùng một khung danh sách, đổi vai là đổi nội dung: dòng biến
+            mất, số tiền bị che, hành động nêu tên người có quyền.
+          </p>
+
+          <div class="spec" data-role-view="gdkd">
+            <div class="spec-head">
+              <h3 class="spec-name">Cùng một khung, hai sự thật</h3>
+              <div class="btn-group" role="group" aria-label="Xem như vai">
+                <button type="button" data-role-set="gdkd" aria-pressed="true">Giám đốc kinh doanh</button>
+                <button type="button" data-role-set="sale" aria-pressed="false">Sale</button>
+              </div>
+            </div>
+            <div class="spec-body">
+              <div class="role-twin">
+                <span data-role-only="gdkd">
+                  Vai này thấy hàng đợi phiếu thu và duyệt được trong ngưỡng của mình.
+                </span>
+                <span data-role-only="sale">
+                  Vai này không có mục "Phiếu thu" trong điều hướng. Hàng đợi ở đây là ghi danh
+                  đang chờ, không phải tiền.
+                </span>
+              </div>
+
+              <div class="table-wrap">
+                <table class="data-table" style="min-width: 720px">
+                  <thead>
+                    <tr>
+                      <th class="col-code" scope="col">Mã</th>
+                      <th scope="col">Học viên</th>
+                      <th scope="col" data-role-only="gdkd">Trạng thái phiếu</th>
+                      <th scope="col" data-role-only="sale">Bước ghi danh</th>
+                      <th class="col-amount" scope="col">Số tiền</th>
+                      <th class="col-actions" scope="col"><span class="sr-only">Hành động</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="col-code">PT-021</td>
+                      <td>
+                        <span class="row-title">Lê Khánh Linh</span>
+                        <span class="row-meta">Toán 7A</span>
+                      </td>
+                      <td data-role-only="gdkd">
+                        <span class="badge" data-tone="brand">Chờ mắt thứ hai</span>
+                      </td>
+                      <td data-role-only="sale">
+                        <span class="badge" data-tone="info">Đã nộp bản nháp</span>
+                      </td>
+                      <td class="col-amount">
+                        <span data-role-only="gdkd">21.000.000</span>
+                        <span class="masked" data-role-only="sale" aria-label="Số tiền bị che vì bạn không có quyền xem">••••••</span>
+                      </td>
+                      <td class="col-actions">
+                        <span class="row-actions">
+                          <button type="button" class="btn btn-quiet btn-sm" data-role-only="gdkd" data-toast="Mở phiếu PT-2408-021">Duyệt</button>
+                          <button
+                            type="button"
+                            class="btn btn-quiet btn-sm"
+                            data-role-only="sale"
+                            aria-disabled="true"
+                            aria-describedby="sod-why-021"
+                          >
+                            Duyệt
+                          </button>
+                        </span>
+                      </td>
+                    </tr>
+                    <tr data-role-only="gdkd">
+                      <td class="col-code">PT-019</td>
+                      <td>
+                        <span class="row-title">Nguyễn Minh Anh</span>
+                        <span class="row-meta">Toán 7A</span>
+                      </td>
+                      <td><span class="badge" data-tone="success">Đã thu</span></td>
+                      <td class="col-amount">8.500.000</td>
+                      <td class="col-actions">
+                        <span class="row-actions">
+                          <button type="button" class="btn btn-quiet btn-sm" data-toast="Mở phiếu PT-2408-019">Mở</button>
+                        </span>
+                      </td>
+                    </tr>
+                    <tr data-role-only="sale">
+                      <td class="col-code">GD-114</td>
+                      <td>
+                        <span class="row-title">Phạm Quốc Huy</span>
+                        <span class="row-meta">Chưa xếp lớp</span>
+                      </td>
+                      <td><span class="badge" data-tone="warning">Thiếu giấy tờ</span></td>
+                      <td class="col-amount">
+                        <span class="masked" aria-label="Số tiền bị che vì bạn không có quyền xem">••••••</span>
+                      </td>
+                      <td class="col-actions">
+                        <span class="row-actions">
+                          <button type="button" class="btn btn-quiet btn-sm" data-toast="Mở hồ sơ ghi danh GD-114">Bổ sung</button>
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <span class="blocked-reason" id="sod-why-021" data-role-only="sale">
+                Sale soạn phiếu nên không được tính là một mắt. Giám đốc kinh doanh hoặc kế toán
+                trưởng của cơ sở là người duyệt.
+              </span>
+            </div>
+            <p class="spec-note">
+              Chú ý điều <em>không</em> đổi: thanh điều hướng, thanh tiện ích, chiều cao dòng, thứ tự
+              cột. Chỉ số dòng, một cột, và nội dung ô tiền là khác. Nếu phải ẩn cả một khu vực,
+              hãy ẩn cùng mục điều hướng chứ đừng để lại một tab rỗng.
+            </p>
+          </div>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Ba hình dạng của từ chối quyền</h3>
+              <span class="chip">che · chặn · khước từ</span>
+            </div>
+            <div class="spec-body" style="display: grid; gap: var(--space-base)">
+              <div class="deny-panel">
+                <h3>Bạn không mở được phiếu thu của cơ sở Quận 7</h3>
+                <p>
+                  Bạn đang ở phạm vi <strong>Quận 1</strong>. Đường liên kết này thuộc cơ sở khác,
+                  nên hệ thống không tải nội dung thay vì hiển thị một trang rỗng.
+                </p>
+                <div class="deny-who">
+                  <span>Người mở được:</span>
+                  <span class="badge" data-category="a">Giám đốc kinh doanh Quận 7</span>
+                  <span class="badge" data-category="a">Quản trị hệ thống</span>
+                </div>
+                <div class="state-actions" style="justify-content: flex-start">
+                  <button type="button" class="btn btn-secondary btn-sm">Về hàng đợi Quận 1</button>
+                  <button type="button" class="btn btn-quiet btn-sm">Yêu cầu quyền xem</button>
+                </div>
+              </div>
+              <div class="kv" style="grid-template-columns: 200px minmax(0, 1fr)">
+                <dt>Số tiền</dt>
+                <dd>
+                  <span class="masked" aria-label="Số tiền bị che vì bạn không có quyền xem">••••••</span>
+                  <span class="blocked-reason">Ô vẫn giữ chỗ để bảng không nhảy cột.</span>
+                </dd>
+                <dt>Hành động bị chặn</dt>
+                <dd>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    aria-disabled="true"
+                    aria-describedby="deny-why-lock"
+                  >
+                    Chốt kỳ lương
+                  </button>
+                  <span class="blocked-reason" id="deny-why-lock">
+                    Chỉ giám đốc đào tạo chốt được kỳ lương, và chỉ sau khi mọi buổi dạy đã có
+                    bằng chứng.
+                  </span>
+                </dd>
+              </div>
+            </div>
+            <p class="spec-note">
+              Nút bị chặn dùng <code>aria-disabled</code> chứ không phải <code>disabled</code>: nó
+              vẫn nhận được focus nên lý do tới được bàn phím và trình đọc màn hình.
+            </p>
+          </div>
+        </section>
+
+        <!-- ================= Confirm gate ================= -->
+        <section class="section" id="confirm" aria-labelledby="confirm-h">
+          <h2 id="confirm-h">Xác nhận trước hành động không lùi được</h2>
+          <p class="section-desc">
+            Dấu ba chấm ở cuối nhãn là một lời hứa: bấm vào sẽ có bước xác nhận. Hộp xác nhận nêu
+            hậu quả bằng ngôn ngữ nghiệp vụ, không phải "Bạn có chắc không?".
+          </p>
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Hủy phiếu thu đã ghi sổ</h3>
+              <span class="chip">sổ chỉ ghi thêm, không xóa</span>
+            </div>
+            <div class="spec-body" style="display: flex; gap: var(--space-tight); flex-wrap: wrap">
+              <button type="button" class="btn btn-danger btn-sm" data-confirm="confirm-void">
+                Hủy phiếu…
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" data-confirm="confirm-publish">
+                Công bố toàn bộ điểm…
+              </button>
+            </div>
+            <p class="spec-note">
+              Hành động phá huỷ nằm bên phải, nút thoát nằm trước nó, và nút thoát là nơi focus rơi
+              vào khi hộp mở. <code>Esc</code> luôn thoát được.
+            </p>
+          </div>
+
+          <dialog class="confirm" id="confirm-void" aria-labelledby="confirm-void-h">
+            <h3 id="confirm-void-h">Hủy phiếu PT-2408-021?</h3>
+            <p>Phiếu 21.000.000đ của Lê Khánh Linh, đã ghi sổ lúc 14:02 hôm nay.</p>
+            <p class="confirm-consequence">
+              Sổ quỹ chỉ ghi thêm. Hủy phiếu tạo một bút toán đảo chiều mang tên bạn, không xóa
+              bản ghi cũ, và ghi danh của học viên sẽ trở lại trạng thái chờ thu.
+            </p>
+            <div class="confirm-actions">
+              <button type="button" class="btn btn-secondary btn-sm" data-confirm-cancel autofocus>
+                Giữ nguyên phiếu
+              </button>
+              <button
+                type="button"
+                class="btn btn-danger btn-sm"
+                data-confirm-accept
+                data-toast="Đã tạo bút toán đảo cho PT-2408-021"
+                data-toast-meta="Ghi danh của Lê Khánh Linh trở lại trạng thái chờ thu"
+              >
+                Hủy phiếu và ghi bút toán đảo
+              </button>
+            </div>
+          </dialog>
+
+          <dialog class="confirm" id="confirm-publish" aria-labelledby="confirm-publish-h">
+            <h3 id="confirm-publish-h">Công bố điểm cho 24 học viên?</h3>
+            <p>Bảng điểm giữa kỳ lớp Toán 7A, 24 học viên, 3 cột điểm.</p>
+            <p class="confirm-consequence">
+              Sau khi công bố, phụ huynh nhìn thấy ngay và mỗi lần sửa sau đó đều để lại dấu trong
+              sổ vết. Ba học viên chưa có điểm sẽ hiện là "chưa nhập".
+            </p>
+            <div class="confirm-actions">
+              <button type="button" class="btn btn-secondary btn-sm" data-confirm-cancel autofocus>
+                Ở lại bản nháp
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                data-confirm-accept
+                data-toast="Đã công bố điểm giữa kỳ Toán 7A"
+                data-toast-meta="21 học viên có điểm, 3 học viên đang là chưa nhập"
+              >
+                Công bố cho phụ huynh
+              </button>
+            </div>
+          </dialog>
+        </section>
+
+        <!-- ================= Master detail ================= -->
+        <section class="section" id="master-detail" aria-labelledby="md-h">
+          <h2 id="md-h">Danh sách cạnh chi tiết</h2>
+          <p class="section-desc">
+            Triage nhanh: chọn dòng, chi tiết mở ngay bên phải, không rời trang. Dùng thay cho
+            hộp thoại khi công việc là duyệt liên tiếp nhiều bản ghi.
+          </p>
+          <div class="spec">
+            <div class="spec-body" data-plain="true">
+              <div class="drawer-demo">
+                <div class="table-wrap">
+                  <table class="data-table" data-drawer-table="triage" style="min-width: 420px">
+                    <thead>
+                      <tr>
+                        <th class="col-code" scope="col">Mã</th>
+                        <th scope="col">Việc</th>
+                        <th class="col-status" scope="col">TT</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr tabindex="0" data-clickable="true">
+                        <td class="col-code" data-cell="code">PT-021</td>
+                        <td>
+                          <span class="row-title" data-cell="title">Duyệt phiếu 21.000.000 ₫</span>
+                          <span class="row-meta" data-cell="meta">Lê Khánh Linh · Quận 1</span>
+                        </td>
+                        <td class="col-status">
+                          <span data-cell="status"><span class="badge" data-tone="danger">Quá hạn</span></span>
+                        </td>
+                      </tr>
+                      <tr tabindex="0" data-clickable="true">
+                        <td class="col-code" data-cell="code">PT-019</td>
+                        <td>
+                          <span class="row-title" data-cell="title">Duyệt phiếu 8.500.000 ₫</span>
+                          <span class="row-meta" data-cell="meta">Nguyễn Minh Anh · Quận 1</span>
+                        </td>
+                        <td class="col-status">
+                          <span data-cell="status"><span class="badge" data-tone="brand">Chờ duyệt</span></span>
+                        </td>
+                      </tr>
+                      <tr tabindex="0" data-clickable="true">
+                        <td class="col-code" data-cell="code">TR-118</td>
+                        <td>
+                          <span class="row-title" data-cell="title">Gọi xác nhận buổi học thử</span>
+                          <span class="row-meta" data-cell="meta">Phạm Quốc Huy · 17:00</span>
+                        </td>
+                        <td class="col-status">
+                          <span data-cell="status"><span class="badge" data-tone="warning">Hôm nay</span></span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <aside class="drawer" data-drawer-for="triage" aria-label="Chi tiết việc đang chọn">
+                  <div class="drawer-head">
+                    <div>
+                      <h4 class="drawer-title" data-field="title">—</h4>
+                      <p class="entity-meta" data-field="meta">—</p>
+                    </div>
+                    <span data-field="status"></span>
+                  </div>
+                  <dl class="kv" style="grid-template-columns: 96px minmax(0, 1fr)">
+                    <dt>Mã</dt>
+                    <dd><code data-field="code">—</code></dd>
+                    <dt>Người tạo</dt>
+                    <dd>Sale Mai</dd>
+                    <dt>Ghi chú</dt>
+                    <dd>Phụ huynh đã nhắc, ưu tiên xử lý trước 17:00.</dd>
+                  </dl>
+                  <div class="demo-row" style="margin-top: 16px">
+                    <button type="button" class="btn btn-primary btn-sm" data-toast="Đã duyệt" data-toast-meta="Ghi vào sổ audit, không sửa được">Duyệt</button>
+                    <button type="button" class="btn btn-ghost btn-sm">Việc tiếp theo</button>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= Dashboard ================= -->
+        <section class="section" id="dashboard" aria-labelledby="dash-h">
+          <h2 id="dash-h">Khung bảng điều khiển</h2>
+          <p class="section-desc">
+            Trả lời "việc gì đang chờ tôi", không phải "công ty đang thế nào". Chỉ số nào không hành
+            động được thì không có chỗ ở đây.
+          </p>
+          <div class="spec">
+            <div class="spec-body" data-plain="true">
+              <div class="metrics" aria-label="Chỉ số nhanh">
+                <div class="metric">
+                  <p class="metric-label"><span class="metric-dot" data-tone="danger"></span> Phiếu quá hạn</p>
+                  <p class="metric-value">7</p>
+                  <p class="metric-delta" data-tone="down">+2 so với hôm qua</p>
+                </div>
+                <div class="metric">
+                  <p class="metric-label"><span class="metric-dot" data-tone="warning"></span> Hết hạn hôm nay</p>
+                  <p class="metric-value">12</p>
+                  <p class="metric-delta">Trong 8 giờ làm việc</p>
+                </div>
+                <div class="metric">
+                  <p class="metric-label"><span class="metric-dot" data-tone="success"></span> Đã duyệt tuần này</p>
+                  <p class="metric-value">41</p>
+                  <p class="metric-delta" data-tone="up">+18% so với tuần trước</p>
+                </div>
+              </div>
+
+              <div class="workspace" style="padding-top: 22px">
+                <div class="queue">
+                  <div class="queue-head">
+                    <h3>Việc cần bạn xử lý</h3>
+                    <span class="count-chip">5</span>
+                    <a class="view-all" href="#list">Xem tất cả</a>
+                  </div>
+                  <div class="table-wrap">
+                    <table class="data-table" style="min-width: 520px">
+                      <thead>
+                        <tr>
+                          <th class="col-code" scope="col">Mã</th>
+                          <th scope="col">Việc</th>
+                          <th class="col-status" scope="col">TT</th>
+                          <th class="col-due" scope="col">Hạn</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr tabindex="0" data-clickable="true" data-toast="Mở phiếu PT-2408-021">
+                          <td class="col-code">PT-021</td>
+                          <td>
+                            <span class="row-title">Duyệt phiếu thu</span>
+                            <span class="row-meta">Lê Khánh Linh · vượt ngưỡng</span>
+                          </td>
+                          <td class="col-status"><span class="badge" data-tone="danger">Quá hạn</span></td>
+                          <td class="col-due" data-tone="danger">−1 ngày</td>
+                        </tr>
+                        <tr tabindex="0" data-clickable="true" data-toast="Mở việc TR-118">
+                          <td class="col-code">TR-118</td>
+                          <td>
+                            <span class="row-title">Gọi xác nhận buổi học thử</span>
+                            <span class="row-meta">CRM · giai đoạn O3</span>
+                          </td>
+                          <td class="col-status"><span class="badge" data-tone="warning">Hôm nay</span></td>
+                          <td class="col-due" data-tone="warning">17:00</td>
+                        </tr>
+                        <tr tabindex="0" data-clickable="true" data-toast="Mở việc LOP-07">
+                          <td class="col-code">LOP-07</td>
+                          <td>
+                            <span class="row-title">Xếp lớp bổ sung</span>
+                            <span class="row-meta">Toán 7 · 3 học viên chờ</span>
+                          </td>
+                          <td class="col-status"><span class="badge" data-tone="info">Đang xử lý</span></td>
+                          <td class="col-due">Mai</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <aside class="rail" aria-label="Ngữ cảnh">
+                  <section class="rail-panel">
+                    <h3>Phễu ghi danh</h3>
+                    <ol class="funnel">
+                      <li class="funnel-row">
+                        <span class="funnel-index">1</span>
+                        <div>
+                          <span class="funnel-label">O1 Tiếp cận</span>
+                          <div class="funnel-trap" aria-hidden="true"></div>
+                        </div>
+                        <span class="funnel-count">48</span>
+                      </li>
+                      <li class="funnel-row">
+                        <span class="funnel-index">2</span>
+                        <div>
+                          <span class="funnel-label">O2 Đã liên hệ</span>
+                          <div class="funnel-trap" aria-hidden="true"></div>
+                        </div>
+                        <span class="funnel-count">31</span>
+                      </li>
+                      <li class="funnel-row" data-emphasize="true">
+                        <span class="funnel-index">3</span>
+                        <div>
+                          <span class="funnel-label">O3 Đặt lịch KT</span>
+                          <div class="funnel-trap" aria-hidden="true"></div>
+                        </div>
+                        <span class="funnel-count">14</span>
+                      </li>
+                      <li class="funnel-row">
+                        <span class="funnel-index">4</span>
+                        <div>
+                          <span class="funnel-label">O4 Đã kiểm tra</span>
+                          <div class="funnel-trap" aria-hidden="true"></div>
+                        </div>
+                        <span class="funnel-count">9</span>
+                      </li>
+                      <li class="funnel-row">
+                        <span class="funnel-index">5</span>
+                        <div>
+                          <span class="funnel-label">O5 Đã ghi danh</span>
+                          <div class="funnel-trap" aria-hidden="true"></div>
+                        </div>
+                        <span class="funnel-count">6</span>
+                      </li>
+                    </ol>
+                  </section>
+                  <div class="callout" data-tone="info">
+                    <p class="callout-title">Quyền định hình nội dung</p>
+                    <p>
+                      Cùng bộ khung này, vai trò <strong>sale</strong> không thấy cột số tiền và
+                      không có danh sách phiếu thu — phân quyền hiện trong dữ liệu, không hiện bằng
+                      chrome khác.
+                    </p>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= Detail ================= -->
+        <section class="section" id="detail" aria-labelledby="detail-h">
+          <h2 id="detail-h">Khung chi tiết</h2>
+          <p class="section-desc">
+            Statusbar giữ hình học chevron của hợp đồng OpenEduCat, dải điểm nhấn thay cho thẻ card,
+            tab tách thông tin khỏi lịch sử.
+          </p>
+          <div class="spec">
+            <div class="spec-body" data-plain="true">
+              <div class="sheet">
+                <div class="statusbar" role="list" aria-label="Tiến trình phiếu thu">
+                  <span class="statusbar-step" role="listitem">Nháp</span>
+                  <span class="statusbar-step" role="listitem" aria-current="step">Chờ duyệt</span>
+                  <span class="statusbar-step" role="listitem">Đã duyệt</span>
+                  <span class="statusbar-step" role="listitem">Đã thu</span>
+                </div>
+                <div class="entity-header">
+                  <div>
+                    <h3>Phiếu thu PT-2408-019</h3>
+                    <p class="entity-meta">Nguyễn Minh Anh · cơ sở Quận 1 · sale phụ trách Mai</p>
+                  </div>
+                  <div class="demo-row">
+                    <button type="button" class="btn btn-secondary">In phiếu</button>
+                    <button type="button" class="btn btn-primary" data-toast="Đã duyệt phiếu PT-2408-019">Duyệt</button>
+                  </div>
+                </div>
+                <div class="highlight-strip">
+                  <div class="highlight-item">
+                    <div class="highlight-label">Số tiền</div>
+                    <div class="highlight-value">8.500.000 ₫</div>
+                  </div>
+                  <div class="highlight-item">
+                    <div class="highlight-label">Hạn thanh toán</div>
+                    <div class="highlight-value">15/08/2026</div>
+                  </div>
+                  <div class="highlight-item">
+                    <div class="highlight-label">Phương thức</div>
+                    <div class="highlight-value">Chuyển khoản</div>
+                  </div>
+                  <div class="highlight-item">
+                    <div class="highlight-label">Ngưỡng hai mắt</div>
+                    <div class="highlight-value">Dưới 20.000.000</div>
+                  </div>
+                </div>
+                <div class="tabs" role="tablist" aria-label="Phần chi tiết">
+                  <button type="button" class="tab" role="tab" aria-selected="true">Thông tin</button>
+                  <button type="button" class="tab" role="tab" aria-selected="false">Lịch sử</button>
+                  <button type="button" class="tab" role="tab" aria-selected="false">Đính kèm</button>
+                </div>
+                <div class="subsection">
+                  <h4>Chi tiết</h4>
+                  <dl class="kv">
+                    <dt>Mã học viên</dt>
+                    <dd>HV-1002</dd>
+                    <dt>Khóa học</dt>
+                    <dd>Toán chuyên sâu lớp 7 · kỳ 8/2026</dd>
+                    <dt>Người tạo</dt>
+                    <dd>Sale Mai · 12/08/2026 14:20</dd>
+                    <dt>Ghi chú nội bộ</dt>
+                    <dd>Phụ huynh xin duyệt trước 17:00 để kịp chuyển khoản trong ngày.</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= Form ================= -->
+        <section class="section" id="form" aria-labelledby="form-h">
+          <h2 id="form-h">Khung biểu mẫu</h2>
+          <p class="section-desc">
+            Chia mục theo nghĩa nghiệp vụ, hai cột trên desktop, hành động chính dính đáy để không
+            phải cuộn tìm nút lưu.
+          </p>
+          <div class="spec">
+            <div class="spec-body" data-plain="true">
+              <div class="sheet">
+                <div class="entity-header">
+                  <div>
+                    <h3>Tạo cơ hội mới</h3>
+                    <p class="entity-meta">CRM · nguồn Facebook Ads · giai đoạn O1</p>
+                  </div>
+                  <span class="badge" data-tone="neutral">Nháp</span>
+                </div>
+                <div class="subsection">
+                  <h4>Liên hệ</h4>
+                  <div class="field-grid">
+                    <label class="field">
+                      <span class="field-label">Họ tên phụ huynh <span class="field-req">*</span></span>
+                      <input class="input" placeholder="Nguyễn Thị…" />
+                    </label>
+                    <label class="field">
+                      <span class="field-label">Số điện thoại <span class="field-req">*</span></span>
+                      <input class="input" inputmode="tel" placeholder="0…" />
+                      <span class="field-hint">Dùng để đối chiếu trùng lead trong 90 ngày.</span>
+                    </label>
+                    <label class="field">
+                      <span class="field-label">Họ tên học viên</span>
+                      <input class="input" placeholder="Nguyễn Minh…" />
+                    </label>
+                    <label class="field">
+                      <span class="field-label">Ngày sinh</span>
+                      <input class="input" type="date" />
+                    </label>
+                  </div>
+                </div>
+                <div class="subsection">
+                  <h4>Nhu cầu</h4>
+                  <div class="field-grid">
+                    <label class="field">
+                      <span class="field-label">Cơ sở quan tâm</span>
+                      <select class="select">
+                        <option>Quận 1</option>
+                        <option>Quận 7</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span class="field-label">Khóa quan tâm</span>
+                      <select class="select">
+                        <option>Toán 7</option>
+                        <option>Tiếng Anh 6</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label class="field" style="margin-top: 16px">
+                    <span class="field-label">Nội dung tư vấn</span>
+                    <textarea class="textarea" rows="3" placeholder="Ghi lại nhu cầu và cam kết đã nói với phụ huynh…"></textarea>
+                  </label>
+                  <div class="field-row" style="margin-top: 12px">
+                    <label class="check"><input type="checkbox" checked /> Đặt nhắc gọi lại sau 2 ngày</label>
+                    <label class="check"><input type="checkbox" /> Gửi thông tin khóa học qua Zalo</label>
+                  </div>
+                </div>
+                <div class="callout" data-tone="warning" style="margin-top: 20px">
+                  <p class="callout-title">Phân tách nhiệm vụ</p>
+                  <p>
+                    Sale tạo cơ hội và soạn phiếu thu, nhưng không duyệt được phiếu và không đọc được
+                    danh sách phiếu. Biểu mẫu này vì thế không có ô số tiền đã duyệt.
+                  </p>
+                </div>
+                <div class="sticky-actions">
+                  <button type="button" class="btn btn-secondary">Hủy</button>
+                  <button type="button" class="btn btn-primary" data-loading-demo>Lưu cơ hội</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= Gate ================= -->
+        <section class="section" id="gate" aria-labelledby="gate-h">
+          <h2 id="gate-h">Cổng phê duyệt</h2>
+          <p class="section-desc">
+            Tiền và audit phải nói rõ cổng của mình: nháp hay đã duyệt, dưới hay trên ngưỡng hai mắt,
+            ai được hành động. Đây là pattern riêng, không phải một callout màu vàng.
+          </p>
+          <div class="two-col">
+            <div class="spec">
+              <div class="spec-head">
+                <h3 class="spec-name">Trên ngưỡng: cần hai mắt</h3>
+              </div>
+              <div class="spec-body" data-plain="true">
+                <div class="gate">
+                  <div class="gate-head">
+                    <span class="gate-amount">21.000.000 ₫</span>
+                    <span class="badge" data-tone="danger">Vượt ngưỡng</span>
+                    <span class="gate-threshold">Ngưỡng hai mắt 20.000.000 ₫</span>
+                  </div>
+                  <div class="gate-body">
+                    <ol class="gate-eyes">
+                      <li class="gate-eye" data-done="true">
+                        <span class="gate-eye-mark" aria-hidden="true">✓</span>
+                        <span>Giám đốc kinh doanh · Trần Quốc Anh</span>
+                        <span class="ledger-time">14/08 09:12</span>
+                      </li>
+                      <li class="gate-eye">
+                        <span class="gate-eye-mark" aria-hidden="true">2</span>
+                        <span>Cần thêm giám đốc đào tạo</span>
+                        <span class="badge" data-tone="brand">Đang chờ</span>
+                      </li>
+                    </ol>
+                  </div>
+                  <div class="gate-actions">
+                    <button type="button" class="btn btn-ghost btn-sm">Xem phiếu</button>
+                    <button type="button" class="btn btn-primary btn-sm" disabled>
+                      Bạn đã duyệt mắt thứ nhất
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p class="spec-note">
+                Nút bị chặn nói lý do bị chặn, không chỉ là mờ đi. Người đọc phải biết ai mở được cổng.
+              </p>
+            </div>
+
+            <div class="spec">
+              <div class="spec-head">
+                <h3 class="spec-name">Dưới ngưỡng: một mắt là đủ</h3>
+              </div>
+              <div class="spec-body" data-plain="true">
+                <div class="gate">
+                  <div class="gate-head">
+                    <span class="gate-amount">8.500.000 ₫</span>
+                    <span class="badge" data-tone="brand">Chờ duyệt</span>
+                    <span class="gate-threshold">Dưới ngưỡng 20.000.000 ₫</span>
+                  </div>
+                  <div class="gate-body">
+                    <ol class="gate-eyes">
+                      <li class="gate-eye">
+                        <span class="gate-eye-mark" aria-hidden="true">1</span>
+                        <span>Một giám đốc duyệt là hoàn tất</span>
+                        <span class="badge" data-tone="neutral">Chưa duyệt</span>
+                      </li>
+                      <li class="gate-eye" data-blocked="true">
+                        <span class="gate-eye-mark" aria-hidden="true">!</span>
+                        <span>Sale Mai (người soạn) không được tự duyệt</span>
+                        <span class="ledger-time">SoD</span>
+                      </li>
+                    </ol>
+                  </div>
+                  <div class="gate-actions">
+                    <button type="button" class="btn btn-ghost btn-sm">Trả lại sale</button>
+                    <button type="button" class="btn btn-primary btn-sm" data-toast="Đã duyệt phiếu PT-2408-019" data-toast-meta="Ghi append-only vào AuditLog">Duyệt phiếu</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= Feedback ================= -->
+        <section class="section" id="feedback" aria-labelledby="fb-h">
+          <h2 id="fb-h">Phản hồi và điều hướng nhanh</h2>
+          <p class="section-desc">
+            Một overlay duy nhất có đổ bóng trong toàn hệ: thứ đang nổi trên mặt phẳng. Toast xác
+            nhận hành động vừa xảy ra; palette là đường đi bàn phím cho người dùng thành thạo.
+          </p>
+          <div class="two-col">
+            <div class="spec">
+              <div class="spec-head">
+                <h3 class="spec-name">Toast</h3>
+              </div>
+              <div class="spec-body">
+                <div class="demo-row">
+                  <button type="button" class="btn btn-secondary" data-toast="Đã duyệt phiếu PT-2408-019" data-toast-meta="Ghi vào AuditLog, không sửa được">
+                    Hiện toast thành công
+                  </button>
+                  <button type="button" class="btn btn-secondary" data-toast="Không thể hủy phiếu đã thu" data-toast-meta="Tạo phiếu hoàn tiền thay vì hủy">
+                    Hiện toast lỗi
+                  </button>
+                </div>
+              </div>
+              <p class="spec-note">
+                Toast nêu việc đã xảy ra và hệ quả. Với việc không hoàn tác được, nói ra điều đó ngay
+                trong toast.
+              </p>
+            </div>
+
+            <div class="spec">
+              <div class="spec-head">
+                <h3 class="spec-name">Command palette (⌘K)</h3>
+              </div>
+              <div class="spec-body" data-plain="true">
+                <div class="palette">
+                  <div class="palette-input">
+                    <span>duyệt phiếu</span>
+                    <kbd style="margin-left: auto">Esc</kbd>
+                  </div>
+                  <ul class="palette-list">
+                    <li class="palette-item" aria-selected="true">
+                      Duyệt phiếu thu chờ tôi <span class="palette-scope">Tài chính</span>
+                    </li>
+                    <li class="palette-item">
+                      Phiếu vượt ngưỡng hai mắt <span class="palette-scope">Tài chính</span>
+                    </li>
+                    <li class="palette-item">
+                      Điểm danh lớp Toán 7A <span class="palette-scope">Giảng dạy</span>
+                    </li>
+                    <li class="palette-item">Sổ audit hôm nay <span class="palette-scope">Audit</span></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" data-open="false">
+      <p class="toast-title" data-toast-title>Đã lưu</p>
+      <p class="toast-meta" data-toast-meta></p>
+    </div>
+
+    <dialog id="palette-dialog" class="palette" aria-label="Command palette">
+      <div class="palette-input">
+        <span>Tìm nhanh…</span>
+        <kbd style="margin-left: auto">Esc</kbd>
+      </div>
+      <ul class="palette-list">
+        <li class="palette-item" aria-selected="true">
+          Duyệt phiếu thu <span class="palette-scope">Tài chính</span>
+        </li>
+        <li class="palette-item">Điểm danh lớp Toán 7A <span class="palette-scope">Giảng dạy</span></li>
+        <li class="palette-item">Tạo cơ hội mới <span class="palette-scope">CRM</span></li>
+        <li class="palette-item">Sổ audit <span class="palette-scope">Audit</span></li>
+      </ul>
+    </dialog>
+
+    <script src="./shell.js"></script>
+  </body>
+</html>

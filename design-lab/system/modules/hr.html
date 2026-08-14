@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nhân sự · KPI · CMC EDU Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../tokens.css" />
+    <link rel="stylesheet" href="../system.css" />
+    <link rel="stylesheet" href="../modules.css" />
+  </head>
+  <body data-page="hr" data-root="../">
+    <div class="app">
+      <aside class="sidebar" data-shell aria-label="Điều hướng hệ thống thiết kế"></aside>
+
+      <main class="main">
+        <div class="utility">
+          <nav class="crumbs" aria-label="Breadcrumb">
+            <a href="../index.html">system</a>
+            <span aria-hidden="true">/</span>
+            <span>module</span>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Nhân sự</span>
+          </nav>
+          <div class="utility-right">
+            <div class="btn-group" data-density-group role="group" aria-label="Mật độ hiển thị">
+              <button type="button" data-density-set="compact" aria-pressed="false">Gọn</button>
+              <button type="button" data-density-set="default" aria-pressed="true">Chuẩn</button>
+              <button type="button" data-density-set="comfortable" aria-pressed="false">Thoáng</button>
+            </div>
+          </div>
+        </div>
+
+        <header class="page-head">
+          <div>
+            <h1>Nhân sự · ca, chấm công, KPI, lương</h1>
+            <p class="subtitle">
+              Ba lưới khóa vào một kỳ: ca làm việc theo tuần, chấm công theo ngày, và bảng lương chốt
+              theo tháng. Ngữ pháp riêng là khái niệm <em>kỳ đã chốt</em> — sau khi chốt, mọi ô thành
+              chỉ đọc và mọi thay đổi phải đi qua điều chỉnh có ghi sổ.
+            </p>
+          </div>
+          <p class="synth-banner">
+            Trang production: <code>attendance/shifts.tsx</code>,
+            <code>attendance/check-in-out.tsx</code>, <code>hr/kpi.tsx</code>,
+            <code>hr/payroll.tsx</code>, <code>hr/my-hr.tsx</code>.
+          </p>
+        </header>
+
+        <nav class="toc filter-bar" aria-label="Mục trong trang" style="padding: 12px 0">
+          <a class="saved-view" href="#contract">Hợp đồng module</a>
+          <a class="saved-view" href="#punch">Chấm công</a>
+          <a class="saved-view" href="#kpi">Điểm KPI</a>
+          <a class="saved-view" href="#payroll">Bảng lương và kỳ đã chốt</a>
+        </nav>
+
+        <section class="section" id="contract" aria-labelledby="contract-h">
+          <h2 id="contract-h">Hợp đồng module</h2>
+          <div class="spec">
+            <div class="spec-body">
+              <table class="token-table">
+                <tbody>
+                  <tr>
+                    <td>Khung trang</td>
+                    <td>
+                      <code>ListPage</code> (ca, KPI) · <code>DetailPage</code> (phiếu chấm công, KPI
+                      cá nhân) · <code>DashboardPage</code> (bảng lương, hồ sơ của tôi)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Vai trò đọc</td>
+                    <td>
+                      Nhân viên đọc dữ liệu <strong>của chính mình</strong> ở "Hồ sơ của tôi"; hai giám
+                      đốc và super admin đọc toàn cơ sở
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Pattern riêng</td>
+                    <td>Cặp chấm công vào/ra · thanh điểm KPI có ngưỡng · trạng thái kỳ đã chốt</td>
+                  </tr>
+                  <tr>
+                    <td>Nguyên tắc</td>
+                    <td>
+                      Dữ liệu lương của người khác không bao giờ lộ trong bảng chung: che
+                      <code>••••</code>, không bỏ cột.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="punch" aria-labelledby="punch-h">
+          <h2 id="punch-h">Chấm công: một cặp, không phải hai cột rời</h2>
+          <p class="section-desc">
+            Vào và ra là một cặp. Thiếu một nửa là lỗi cần xử lý, không phải ô trống — nên nó hiện
+            thành trạng thái <code>danger</code> ngay trong ô, không chờ tới báo cáo cuối tháng.
+          </p>
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Tuần 33 · giáo viên Trần Thu Hà</h3>
+            </div>
+            <div class="spec-body">
+              <div class="table-wrap">
+                <table class="data-table kpi-table" style="min-width: 720px">
+                  <thead>
+                    <tr>
+                      <th scope="col">Ngày</th>
+                      <th scope="col">Ca</th>
+                      <th scope="col">Vào</th>
+                      <th scope="col">Ra</th>
+                      <th scope="col" data-numeric="true">Giờ tính</th>
+                      <th class="col-status" scope="col">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>T2 11/08</td>
+                      <td>Chiều 17:00–21:00</td>
+                      <td><span class="punch">16:52</span></td>
+                      <td><span class="punch">21:04</span></td>
+                      <td data-numeric="true">4,0</td>
+                      <td class="col-status"><span class="badge" data-tone="success">Đủ cặp</span></td>
+                    </tr>
+                    <tr>
+                      <td>T4 13/08</td>
+                      <td>Chiều 17:00–21:00</td>
+                      <td><span class="punch">17:18</span></td>
+                      <td><span class="punch">21:02</span></td>
+                      <td data-numeric="true">3,7</td>
+                      <td class="col-status"><span class="badge" data-tone="warning">Vào muộn 18′</span></td>
+                    </tr>
+                    <tr>
+                      <td>T5 14/08</td>
+                      <td>Chiều 17:00–21:00</td>
+                      <td><span class="punch">16:58</span></td>
+                      <td><span class="punch" data-missing="true">thiếu quét ra</span></td>
+                      <td data-numeric="true">—</td>
+                      <td class="col-status"><span class="badge" data-tone="danger">Thiếu nửa cặp</span></td>
+                    </tr>
+                    <tr>
+                      <td>T6 15/08</td>
+                      <td>Sáng 08:00–12:00</td>
+                      <td><span class="punch">07:55</span></td>
+                      <td><span class="punch">12:01</span></td>
+                      <td data-numeric="true">4,0</td>
+                      <td class="col-status"><span class="badge" data-tone="success">Đủ cặp</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="callout" data-tone="danger" style="margin-top: 16px">
+                <p class="callout-title">1 ngày thiếu nửa cặp</p>
+                <p>
+                  Ngày 14/08 chưa có giờ ra nên chưa tính giờ. Tạo phiếu điều chỉnh kèm lý do — phiếu
+                  này ghi vào sổ audit và cần giám đốc xác nhận.
+                </p>
+              </div>
+              <div class="demo-row" style="margin-top: 12px">
+                <button type="button" class="btn btn-primary btn-sm" data-toast="Đã tạo phiếu điều chỉnh" data-toast-meta="Chờ giám đốc xác nhận · ghi vào audit">Tạo phiếu điều chỉnh</button>
+                <button type="button" class="btn btn-ghost btn-sm">Xem quy định ca</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="kpi" aria-labelledby="kpi-h">
+          <h2 id="kpi-h">Điểm KPI có ngưỡng, không có gradient</h2>
+          <p class="section-desc">
+            Thanh điểm chuyển tông ở ngưỡng nghiệp vụ, không chuyển màu liên tục. Người đọc cần biết
+            "dưới ngưỡng hay không", không cần thấy phổ màu.
+          </p>
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Kỳ 8/2026 · cơ sở Quận 1</h3>
+              <span class="chip">ngưỡng đạt 70 · xuất sắc 90</span>
+            </div>
+            <div class="spec-body">
+              <div class="table-wrap">
+                <table class="data-table kpi-table" style="min-width: 760px">
+                  <thead>
+                    <tr>
+                      <th scope="col">Nhân sự</th>
+                      <th scope="col">Vai trò</th>
+                      <th scope="col" style="width: 200px">Điểm tổng</th>
+                      <th scope="col" data-numeric="true">Buổi dạy</th>
+                      <th scope="col" data-numeric="true">Bằng chứng thiếu</th>
+                      <th class="col-status" scope="col">Xếp loại</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở KPI Trần Thu Hà">
+                      <td><span class="row-title">Trần Thu Hà</span><span class="row-meta">NV-0114</span></td>
+                      <td>Giáo viên</td>
+                      <td>
+                        <div class="kpi-bar">
+                          <div class="kpi-track"><span class="kpi-fill" data-level="over" style="width: 94%"></span></div>
+                          <span class="kpi-score">94</span>
+                        </div>
+                      </td>
+                      <td data-numeric="true">22</td>
+                      <td data-numeric="true">1</td>
+                      <td class="col-status"><span class="badge" data-tone="success">Xuất sắc</span></td>
+                    </tr>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở KPI Lê Minh Tú">
+                      <td><span class="row-title">Lê Minh Tú</span><span class="row-meta">NV-0121</span></td>
+                      <td>Giáo viên</td>
+                      <td>
+                        <div class="kpi-bar">
+                          <div class="kpi-track"><span class="kpi-fill" data-level="met" style="width: 76%"></span></div>
+                          <span class="kpi-score">76</span>
+                        </div>
+                      </td>
+                      <td data-numeric="true">18</td>
+                      <td data-numeric="true">4</td>
+                      <td class="col-status"><span class="badge" data-tone="success">Đạt</span></td>
+                    </tr>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở KPI Nguyễn Mai">
+                      <td><span class="row-title">Nguyễn Mai</span><span class="row-meta">NV-0132</span></td>
+                      <td>Sale</td>
+                      <td>
+                        <div class="kpi-bar">
+                          <div class="kpi-track"><span class="kpi-fill" data-level="under" style="width: 58%"></span></div>
+                          <span class="kpi-score">58</span>
+                        </div>
+                      </td>
+                      <td data-numeric="true">—</td>
+                      <td data-numeric="true">—</td>
+                      <td class="col-status"><span class="badge" data-tone="danger">Dưới ngưỡng</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <p class="spec-note">
+              Cột không áp dụng cho vai trò thì để dấu <code>—</code>, không để 0. Số 0 là một phép đo;
+              gạch ngang nghĩa là phép đo không tồn tại.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="payroll" aria-labelledby="pay-h">
+          <h2 id="pay-h">Bảng lương và kỳ đã chốt</h2>
+          <p class="section-desc">
+            Trước khi chốt, ô sửa được. Sau khi chốt, toàn bảng thành chỉ đọc và mỗi điều chỉnh sinh
+            một dòng sổ mới. Trạng thái này phải nhìn thấy từ đầu trang, không nằm trong menu.
+          </p>
+          <div class="two-col">
+            <div class="spec">
+              <div class="spec-head">
+                <h3 class="spec-name">Kỳ 8/2026 · đang mở</h3>
+                <span class="badge" data-tone="brand">Chưa chốt</span>
+              </div>
+              <div class="spec-body">
+                <div class="table-wrap">
+                  <table class="data-table kpi-table" style="min-width: 400px">
+                    <thead>
+                      <tr>
+                        <th scope="col">Nhân sự</th>
+                        <th scope="col" data-numeric="true">Giờ</th>
+                        <th scope="col" data-numeric="true">Lương (₫)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Trần Thu Hà</td>
+                        <td data-numeric="true">88,0</td>
+                        <td data-numeric="true"><span class="amount">17.600.000</span></td>
+                      </tr>
+                      <tr>
+                        <td>Lê Minh Tú</td>
+                        <td data-numeric="true">72,0</td>
+                        <td data-numeric="true"><span class="amount">13.680.000</span></td>
+                      </tr>
+                      <tr>
+                        <td>Nguyễn Mai</td>
+                        <td data-numeric="true">160,0</td>
+                        <td data-numeric="true"><span class="amount">14.200.000</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="sticky-actions" style="border-top: 0">
+                  <button type="button" class="btn btn-secondary">Xuất bảng</button>
+                  <button type="button" class="btn btn-primary" data-toast="Đã chốt kỳ 8/2026" data-toast-meta="Bảng thành chỉ đọc · điều chỉnh phải ghi sổ">Chốt kỳ</button>
+                </div>
+              </div>
+              <p class="spec-note">
+                Nút "Chốt kỳ" là hành động khó đảo, nên toast nói rõ hệ quả ngay khi nó xảy ra.
+              </p>
+            </div>
+
+            <div class="spec">
+              <div class="spec-head">
+                <h3 class="spec-name">Kỳ 7/2026 · đã chốt</h3>
+                <span class="append-only">chỉ đọc</span>
+              </div>
+              <div class="spec-body">
+                <div class="callout" style="margin-bottom: 12px">
+                  <p class="callout-title">Kỳ đã chốt ngày 05/08/2026 bởi Giám đốc kinh doanh</p>
+                  <p>Không sửa trực tiếp. Mọi thay đổi ghi thành dòng điều chỉnh riêng.</p>
+                </div>
+                <ol class="ledger">
+                  <li class="ledger-entry">
+                    <span class="ledger-dot" data-category="a" aria-hidden="true">₫</span>
+                    <div>
+                      <div class="ledger-head">
+                        <span class="ledger-actor">Điều chỉnh giờ Trần Thu Hà</span>
+                        <span class="ledger-time">08/08/2026 11:20</span>
+                      </div>
+                      <p class="ledger-body">
+                        Bổ sung buổi 14/07 sau khi nộp bằng chứng muộn:
+                        <span class="amount" data-sign="in">+800.000</span>
+                      </p>
+                    </div>
+                  </li>
+                  <li class="ledger-entry">
+                    <span class="ledger-dot" data-tone="success" aria-hidden="true">✓</span>
+                    <div>
+                      <div class="ledger-head">
+                        <span class="ledger-actor">Giám đốc kinh doanh xác nhận điều chỉnh</span>
+                        <span class="ledger-time">08/08/2026 14:02</span>
+                      </div>
+                      <p class="ledger-body">Trả cùng kỳ 8/2026.</p>
+                    </div>
+                  </li>
+                </ol>
+                <div class="table-wrap" style="margin-top: 16px">
+                  <table class="data-table kpi-table" style="min-width: 360px">
+                    <thead>
+                      <tr>
+                        <th scope="col">Nhân sự</th>
+                        <th scope="col" data-numeric="true">Lương đã chốt (₫)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Trần Thu Hà</td>
+                        <td data-numeric="true"><span class="amount">16.400.000</span></td>
+                      </tr>
+                      <tr>
+                        <td>Lê Minh Tú</td>
+                        <td data-numeric="true"><span class="amount-masked">••••••••</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="field-hint" style="margin-top: 8px">
+                  Dòng che là lương người khác khi bạn đang xem bằng vai trò không có quyền đọc lương
+                  toàn cơ sở.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" data-open="false">
+      <p class="toast-title" data-toast-title>Đã lưu</p>
+      <p class="toast-meta" data-toast-meta></p>
+    </div>
+
+    <dialog id="palette-dialog" class="palette" aria-label="Command palette">
+      <div class="palette-input"><span>Tìm nhanh…</span><kbd style="margin-left: auto">Esc</kbd></div>
+      <ul class="palette-list">
+        <li class="palette-item" aria-selected="true">Chấm công của tôi <span class="palette-scope">Nhân sự</span></li>
+        <li class="palette-item">Bảng lương kỳ này <span class="palette-scope">Nhân sự</span></li>
+      </ul>
+    </dialog>
+
+    <script src="../shell.js"></script>
+  </body>
+</html>

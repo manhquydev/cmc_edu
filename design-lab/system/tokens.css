@@ -1,0 +1,296 @@
+/* ============================================================================
+   CMC EDU lab design tokens — three layers
+   Layer 1 primitives (private, prefix _p)  → never referenced by components
+   Layer 2 semantic (public)                → the API components consume
+   Layer 3 component                        → per-pattern overrides, sparingly
+   Context axes: density (compact|default|comfortable) · surface (console|print)
+   Bridge target: packages/ui/src/console.css — see BRIDGE.md
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- Layer 1 */
+:root {
+  /* brand ramp */
+  --_p-purple-900: #241f30;
+  --_p-purple-700: #463c60;
+  --_p-purple-600: #5a4f7e;
+  --_p-purple-500: #71639e;
+  --_p-purple-300: #a498c4;
+  --_p-purple-100: #e3deee;
+  --_p-purple-050: #f0edf6;
+
+  /* neutral ramp */
+  --_p-neutral-950: #09090b;
+  --_p-neutral-900: #18181b;
+  --_p-neutral-700: #3f3f46;
+  --_p-neutral-550: #63636b;
+  --_p-neutral-500: #71717a;
+  --_p-neutral-400: #a1a1aa;
+  --_p-neutral-300: #d4d4d8;
+  --_p-neutral-200: #e4e4e7;
+  --_p-neutral-100: #f4f4f5;
+  --_p-neutral-075: #f7f7f8;
+  --_p-neutral-050: #fafafa;
+  --_p-neutral-000: #ffffff;
+
+  /* status ramps — 700 is the ink tier (passes AA on its own 050 tint) */
+  --_p-red-700: #b91c1c;
+  --_p-red-600: #dc2626;
+  --_p-red-050: #fef2f2;
+  --_p-amber-700: #b45309;
+  --_p-amber-600: #d97706;
+  --_p-amber-050: #fffbeb;
+  --_p-green-700: #15803d;
+  --_p-green-600: #16a34a;
+  --_p-green-050: #f0fdf4;
+  --_p-blue-700: #1d4ed8;
+  --_p-blue-600: #2563eb;
+  --_p-blue-050: #eff6ff;
+
+  /* categorical ramp — identity and taxonomy, never state */
+  --_p-cat-slate: #475569;
+  --_p-cat-slate-050: #f1f5f9;
+  --_p-cat-teal: #0f766e;
+  --_p-cat-teal-050: #f0fdfa;
+  --_p-cat-plum: #86198f;
+  --_p-cat-plum-050: #fdf4ff;
+  --_p-cat-clay: #9a3412;
+  --_p-cat-clay-050: #fff7ed;
+
+  /* raw scales */
+  --_p-space-1: 4px;
+  --_p-space-2: 8px;
+  --_p-space-3: 12px;
+  --_p-space-4: 16px;
+  --_p-space-5: 20px;
+  --_p-space-6: 24px;
+  --_p-space-7: 28px;
+  --_p-space-8: 40px;
+  --_p-space-9: 48px;
+
+  --_p-radius-sm: 4px;
+  --_p-radius-md: 6px;
+  --_p-radius-lg: 8px;
+  --_p-radius-pill: 999px;
+
+  --_p-font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --_p-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --_p-fs-11: 11px;
+  --_p-fs-12: 12px;
+  --_p-fs-13: 13px;
+  --_p-fs-14: 14px;
+  --_p-fs-15: 15px;
+  --_p-fs-18: 18px;
+  --_p-fs-22: 22px;
+  --_p-fs-26: 26px;
+  --_p-fs-28: 28px;
+
+  --_p-weight-regular: 400;
+  --_p-weight-medium: 500;
+  --_p-weight-strong: 550;
+  --_p-weight-bold: 600;
+}
+
+/* ---------------------------------------------------------------- Layer 2 */
+:root {
+  /* surfaces */
+  --surface-page: var(--_p-neutral-075);
+  --surface-default: var(--_p-neutral-000);
+  --surface-sunken: var(--_p-neutral-050);
+  --surface-nav: var(--_p-neutral-050);
+  --surface-hover: rgb(24 24 27 / 4%);
+  --surface-selected: var(--_p-purple-050);
+  --surface-action: var(--_p-purple-500);
+  --surface-action-hover: var(--_p-purple-600);
+  --surface-action-subtle: var(--_p-purple-050);
+  --surface-action-muted: var(--_p-purple-100);
+  --surface-critical: var(--_p-red-600);
+  --surface-critical-subtle: var(--_p-red-050);
+  --surface-caution-subtle: var(--_p-amber-050);
+  --surface-positive-subtle: var(--_p-green-050);
+  --surface-info-subtle: var(--_p-blue-050);
+
+  /* text — every readable tier clears AA on page and default surfaces.
+     --text-disabled is the only sub-AA ink and is reserved for disabled
+     controls and placeholders, which WCAG exempts. */
+  --text-default: var(--_p-neutral-900);
+  --text-muted: var(--_p-neutral-550);
+  --text-faint: var(--_p-neutral-500);
+  --text-disabled: var(--_p-neutral-400);
+  --text-on-action: var(--_p-neutral-000);
+  --text-action: var(--_p-purple-500);
+  --text-action-strong: var(--_p-purple-600);
+  --text-critical: var(--_p-red-700);
+  --text-caution: var(--_p-amber-700);
+  --text-positive: var(--_p-green-700);
+  --text-info: var(--_p-blue-700);
+
+  /* categorical ink + tint — subject, role, action-type. Not a state. */
+  --category-a-ink: var(--_p-cat-slate);
+  --category-a-tint: var(--_p-cat-slate-050);
+  --category-b-ink: var(--_p-cat-teal);
+  --category-b-tint: var(--_p-cat-teal-050);
+  --category-c-ink: var(--_p-cat-plum);
+  --category-c-tint: var(--_p-cat-plum-050);
+  --category-d-ink: var(--_p-cat-clay);
+  --category-d-tint: var(--_p-cat-clay-050);
+
+  /* borders */
+  --border-default: var(--_p-neutral-200);
+  --border-strong: var(--_p-neutral-300);
+  --border-action: var(--_p-purple-500);
+  --border-critical: var(--_p-red-600);
+
+  /* spacing (group-internal → group-separating) */
+  --space-hair: var(--_p-space-1);
+  --space-tight: var(--_p-space-2);
+  --space-snug: var(--_p-space-3);
+  --space-base: var(--_p-space-4);
+  --space-wide: var(--_p-space-5);
+  --space-loose: var(--_p-space-6);
+  --space-gutter: var(--_p-space-7);
+  --space-section: var(--_p-space-8);
+
+  /* sizes — density remaps these, nothing else */
+  --size-row: 40px;
+  --size-cell-pad-x: var(--_p-space-3);
+  --size-control: 30px;
+  --size-control-sm: 26px;
+  --size-control-lg: 36px;
+  --size-field: 34px;
+  --size-nav-item: 32px;
+  --size-tab: 40px;
+  --size-utility-bar: 48px;
+  --size-nav-width: 240px;
+  --size-rail-width: 300px;
+
+  /* type roles */
+  --font-family-ui: var(--_p-font-sans);
+  --font-family-data: var(--_p-font-mono);
+  --font-size-metric: var(--_p-fs-28);
+  --font-size-page-title: var(--_p-fs-26);
+  --font-size-entity-title: var(--_p-fs-22);
+  --font-size-section-title: var(--_p-fs-18);
+  --font-size-body-lg: var(--_p-fs-15);
+  --font-size-body: var(--_p-fs-14);
+  --font-size-ui: var(--_p-fs-13);
+  --font-size-meta: var(--_p-fs-12);
+  --font-size-label: var(--_p-fs-11);
+  --font-weight-body: var(--_p-weight-regular);
+  --font-weight-medium: var(--_p-weight-medium);
+  --font-weight-emphasis: var(--_p-weight-strong);
+  --font-weight-title: var(--_p-weight-bold);
+  --tracking-tight: -0.03em;
+  --tracking-snug: -0.02em;
+  --tracking-wide: 0.04em;
+  --leading-body: 1.45;
+  --leading-title: 1.15;
+
+  /* shape.
+     The names here are deliberately not the names production uses. Production
+     defines --radius-container as the OpenEduCat 4px contract value, so the lab
+     panel radius is called --radius-panel: one vocabulary can then be aliased
+     onto the other without a same-name/different-value clash. When this bridges,
+     the contract value wins and panels render at 4-6px, not 8px. */
+  --radius-control: var(--_p-radius-md);
+  --radius-panel: var(--_p-radius-lg);
+  --radius-pill: var(--_p-radius-pill);
+  --radius-contract: var(--_p-radius-sm); /* OpenEduCat production radius */
+
+  /* elevation & motion.
+     Focus is an outline, not a box-shadow: a shadow ring is clipped by any
+     ancestor that scrolls or hides overflow, and it disappears entirely in
+     forced-colors mode. */
+  --shadow-overlay: 0 8px 24px rgb(24 24 27 / 10%);
+  --focus-outline-width: 2px;
+  --focus-outline-color: var(--surface-action);
+  --focus-outline-offset: 2px;
+  --motion-state: 120ms ease;
+  --motion-overlay: 160ms ease;
+}
+
+/* ------------------------------------------------------- Density contexts */
+[data-density="compact"] {
+  --size-row: 32px;
+  --size-cell-pad-x: var(--_p-space-2);
+  --size-nav-item: 28px;
+  --size-control: 26px;
+  --size-field: 30px;
+  --space-loose: var(--_p-space-4);
+  --space-gutter: var(--_p-space-5);
+  --space-section: var(--_p-space-7);
+}
+
+[data-density="comfortable"] {
+  --size-row: 48px;
+  --size-cell-pad-x: var(--_p-space-4);
+  --size-nav-item: 36px;
+  --size-control: 34px;
+  --size-field: 38px;
+  --space-loose: var(--_p-space-7);
+  --space-gutter: var(--_p-space-8);
+  --space-section: var(--_p-space-9);
+}
+
+/* -------------------------------------------------------- Print surface */
+@media print {
+  :root {
+    --surface-page: var(--_p-neutral-000);
+    --surface-sunken: var(--_p-neutral-000);
+    --surface-nav: var(--_p-neutral-000);
+    --border-default: var(--_p-neutral-400);
+    --border-strong: var(--_p-neutral-550);
+    --text-muted: var(--_p-neutral-700);
+    --text-faint: var(--_p-neutral-550);
+    --shadow-overlay: none;
+  }
+}
+
+/* ---------------------------------------------------------------- Layer 3 */
+:root {
+  /* button */
+  --btn-height: var(--size-control);
+  --btn-radius: var(--radius-control);
+  --btn-pad-x: var(--space-snug);
+  --btn-font-size: var(--font-size-ui);
+  --btn-primary-bg: var(--surface-action);
+  --btn-primary-bg-hover: var(--surface-action-hover);
+  --btn-primary-text: var(--text-on-action);
+  --btn-secondary-bg: var(--surface-page);
+  --btn-secondary-border: var(--border-default);
+  --btn-danger-bg: var(--surface-critical);
+
+  /* table */
+  --table-row-height: var(--size-row);
+  --table-cell-pad-x: var(--size-cell-pad-x);
+  --table-header-bg: var(--surface-sunken);
+  --table-row-hover-bg: var(--surface-sunken);
+  --table-row-selected-bg: var(--surface-selected);
+  --table-border: var(--border-default);
+  --table-radius: var(--radius-panel);
+
+  /* nav */
+  --nav-item-height: var(--size-nav-item);
+  --nav-item-radius: var(--radius-control);
+  --nav-item-active-bg: var(--surface-selected);
+  --nav-group-label-size: var(--font-size-label);
+
+  /* field */
+  --field-height: var(--size-field);
+  --field-radius: var(--radius-control);
+  --field-border: var(--border-default);
+  --field-border-invalid: var(--border-critical);
+
+  /* badge — 22px is the OpenEduCat chrome contract height, not a scale step */
+  --badge-height: 22px;
+  --badge-radius: var(--radius-pill);
+  --badge-font-size: var(--font-size-meta);
+
+  /* statusbar (OpenEduCat chevron geometry, lab fill) */
+  --statusbar-height: 33px;
+  --statusbar-notch: 10px;
+  --statusbar-bg: var(--surface-sunken);
+  --statusbar-border: var(--border-default);
+  --statusbar-current-bg: var(--surface-action-muted);
+  --statusbar-current-border: var(--border-action);
+}

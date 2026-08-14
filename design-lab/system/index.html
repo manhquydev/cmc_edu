@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tokens & nền tảng · CMC EDU Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./tokens.css" />
+    <link rel="stylesheet" href="./system.css" />
+  </head>
+  <body data-page="foundations" data-root="">
+    <div class="app">
+      <aside class="sidebar" data-shell aria-label="Điều hướng hệ thống thiết kế"></aside>
+
+      <main class="main">
+        <div class="utility">
+          <nav class="crumbs" aria-label="Breadcrumb">
+            <span>design-lab</span>
+            <span aria-hidden="true">/</span>
+            <span>system</span>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Nền tảng</span>
+          </nav>
+          <div class="utility-right">
+            <div class="btn-group" data-density-group role="group" aria-label="Mật độ hiển thị">
+              <button type="button" data-density-set="compact" aria-pressed="false">Gọn</button>
+              <button type="button" data-density-set="default" aria-pressed="true">Chuẩn</button>
+              <button type="button" data-density-set="comfortable" aria-pressed="false">Thoáng</button>
+            </div>
+            <a class="btn btn-secondary btn-sm" href="./patterns.html">Pattern dùng chung</a>
+          </div>
+        </div>
+
+        <header class="page-head">
+          <div>
+            <h1>Nền tảng hệ thống giao diện</h1>
+            <p class="subtitle">
+              Ba tầng token, một bộ trạng thái, một thang mật độ. Mọi thứ phía sau, gồm pattern dùng
+              chung và ngữ pháp từng module, chỉ tiêu thụ tầng semantic chứ không dùng giá trị thô.
+            </p>
+          </div>
+          <p class="synth-banner">
+            Dữ liệu minh họa, không phải số liệu trung tâm. Tiếng Việt · Inter · brand
+            <code>#71639e</code>.
+          </p>
+        </header>
+
+        <nav class="toc filter-bar" aria-label="Mục trong trang" style="padding: 12px 0">
+          <a class="saved-view" href="#layers">Ba tầng token</a>
+          <a class="saved-view" href="#color">Màu semantic</a>
+          <a class="saved-view" href="#type">Chữ</a>
+          <a class="saved-view" href="#density">Mật độ</a>
+          <a class="saved-view" href="#space">Khoảng cách & hình khối</a>
+          <a class="saved-view" href="#states">Trạng thái</a>
+          <a class="saved-view" href="#a11y">Tiếp cận</a>
+        </nav>
+
+        <!-- ================= Layers ================= -->
+        <section class="section" id="layers" aria-labelledby="layers-h">
+          <h2 id="layers-h">Ba tầng token</h2>
+          <p class="section-desc">
+            Primitive giữ giá trị thô và ở chế độ riêng tư. Semantic là API mà component dùng: đây là
+            tầng đổi được theme, mật độ, tương phản. Component token chỉ dùng khi một pattern cần tinh
+            chỉnh riêng.
+          </p>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Đường đi của một giá trị</h3>
+              <span class="layer-tag" data-layer="2">semantic là API</span>
+            </div>
+            <div class="spec-body">
+              <table class="token-table">
+                <thead>
+                  <tr>
+                    <th>Tầng</th>
+                    <th>Token</th>
+                    <th>Trỏ tới</th>
+                    <th>Ai dùng</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="layer-tag" data-layer="1">1 primitive</span></td>
+                    <td><code>--_p-purple-500</code></td>
+                    <td><code>#71639e</code></td>
+                    <td>Chỉ tầng semantic. Không dùng trực tiếp.</td>
+                  </tr>
+                  <tr>
+                    <td><span class="layer-tag" data-layer="2">2 semantic</span></td>
+                    <td><code>--surface-action</code></td>
+                    <td><code>var(--_p-purple-500)</code></td>
+                    <td>Mọi component. Đây là hợp đồng công khai.</td>
+                  </tr>
+                  <tr>
+                    <td><span class="layer-tag" data-layer="3">3 component</span></td>
+                    <td><code>--btn-primary-bg</code></td>
+                    <td><code>var(--surface-action)</code></td>
+                    <td>Riêng nút. Dùng tiết chế.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="spec-note">
+              Đổi theme = đổi ánh xạ tầng 2. Component không cần sửa. Đó là lý do bridge sang
+              <code>packages/ui/src/console.css</code> chỉ là việc đặt alias, không phải viết lại.
+            </p>
+          </div>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Trục ngữ cảnh đã mở sẵn</h3>
+            </div>
+            <div class="spec-body">
+              <table class="token-table">
+                <thead>
+                  <tr>
+                    <th>Trục</th>
+                    <th>Giá trị</th>
+                    <th>Đổi những gì</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>density</td>
+                    <td><code>compact</code> · <code>default</code> · <code>comfortable</code></td>
+                    <td><code>--size-row</code>, padding ô, chiều cao nav. không đổi thang chữ</td>
+                  </tr>
+                  <tr>
+                    <td>surface</td>
+                    <td><code>console</code> · <code>print</code></td>
+                    <td>Bỏ nền xám, bỏ đổ bóng, viền đậm hơn khi in</td>
+                  </tr>
+                  <tr>
+                    <td>theme</td>
+                    <td><code>lab</code> · <code>openeducat-contract</code> (dành sẵn)</td>
+                    <td>
+                      Bán kính <code>4px</code> và chrome statusbar của hợp đồng production
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= Color ================= -->
+        <section class="section" id="color" aria-labelledby="color-h">
+          <h2 id="color-h">Màu semantic</h2>
+          <p class="section-desc">
+            Một tím thương hiệu dành cho hành động và vị trí hiện tại. Trạng thái là mực đậm trên
+            nền nhạt cùng tông, không bao giờ mượn màu thương hiệu.
+          </p>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Nền và mực</h3>
+            </div>
+            <div class="spec-body">
+              <div class="swatch-row">
+                <div class="swatch">
+                  <div class="swatch-color" style="background: var(--surface-page)"></div>
+                  <div class="swatch-meta"><strong>surface-page</strong>nền ứng dụng</div>
+                </div>
+                <div class="swatch">
+                  <div class="swatch-color" style="background: var(--surface-default)"></div>
+                  <div class="swatch-meta"><strong>surface-default</strong>mặt làm việc</div>
+                </div>
+                <div class="swatch">
+                  <div class="swatch-color" style="background: var(--surface-sunken)"></div>
+                  <div class="swatch-meta"><strong>surface-sunken</strong>header bảng, nav</div>
+                </div>
+                <div class="swatch">
+                  <div class="swatch-color" style="background: var(--surface-action)"></div>
+                  <div class="swatch-meta"><strong>surface-action</strong>hành động chính</div>
+                </div>
+                <div class="swatch">
+                  <div class="swatch-color" style="background: var(--surface-selected)"></div>
+                  <div class="swatch-meta"><strong>surface-selected</strong>đang chọn</div>
+                </div>
+                <div class="swatch">
+                  <div class="swatch-color" style="background: var(--text-default)"></div>
+                  <div class="swatch-meta"><strong>text-default</strong>mực chính</div>
+                </div>
+                <div class="swatch">
+                  <div class="swatch-color" style="background: var(--border-default)"></div>
+                  <div class="swatch-meta"><strong>border-default</strong>đường kẻ 1px</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Từ vựng trạng thái dùng chung toàn hệ</h3>
+            </div>
+            <div class="spec-body">
+              <table class="token-table">
+                <thead>
+                  <tr>
+                    <th>Tông</th>
+                    <th>Nhãn</th>
+                    <th>Nghĩa trong CMC EDU</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="badge" data-tone="danger">Quá hạn</span></td>
+                    <td>danger</td>
+                    <td>Quá hạn, vượt ngưỡng hai mắt, thiếu bằng chứng buổi học, vắng</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge" data-tone="warning">Hôm nay</span></td>
+                    <td>warning</td>
+                    <td>Đến hạn hôm nay, chờ vào điểm, đi muộn, sắp hết tồn quà</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge" data-tone="success">Đã thu</span></td>
+                    <td>success</td>
+                    <td>Hoàn tất, đã ghi danh, có mặt, đã duyệt</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge" data-tone="info">Đang xử lý</span></td>
+                    <td>info</td>
+                    <td>Trạng thái trung tính đang chạy: O2–O4, bài đã giao</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge" data-tone="neutral">Nháp</span></td>
+                    <td>neutral</td>
+                    <td>Nháp, chưa phân loại, cấu hình</td>
+                  </tr>
+                  <tr>
+                    <td><span class="badge" data-tone="brand">Chờ duyệt</span></td>
+                    <td>brand</td>
+                    <td>Chờ hệ thống hoặc người khác hành động. tông thứ sáu, riêng biệt</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="spec-note">
+              Cùng một trạng thái phải cùng một tông ở mọi module. Lệch tông giữa Tài chính và Giảng
+              dạy là thuế nhận thức trả bằng thời gian nhân viên.
+            </p>
+          </div>
+        </section>
+
+        <!-- ================= Type ================= -->
+        <section class="section" id="type" aria-labelledby="type-h">
+          <h2 id="type-h">Chữ</h2>
+          <p class="section-desc">
+            Một họ chữ Inter cho tất cả, phủ đủ dấu tiếng Việt. Nhấn mạnh bằng trọng lượng 550, không
+            bằng cỡ chữ. Mọi con số dùng <code>tabular-nums</code>.
+          </p>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Thang chữ</h3>
+            </div>
+            <div class="spec-body">
+              <table class="token-table">
+                <thead>
+                  <tr>
+                    <th>Vai trò</th>
+                    <th>Mẫu</th>
+                    <th>Token</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>metric</td>
+                    <td>
+                      <span
+                        style="
+                          font-size: var(--font-size-metric);
+                          font-weight: var(--font-weight-title);
+                          letter-spacing: var(--tracking-tight);
+                          font-variant-numeric: tabular-nums;
+                        "
+                        >8.500.000&nbsp;₫</span
+                      >
+                    </td>
+                    <td><code>--font-size-metric</code> 28/600</td>
+                  </tr>
+                  <tr>
+                    <td>page title</td>
+                    <td>
+                      <span
+                        style="
+                          font-size: var(--font-size-page-title);
+                          font-weight: var(--font-weight-title);
+                          letter-spacing: var(--tracking-tight);
+                        "
+                        >Phiếu thu chờ duyệt</span
+                      >
+                    </td>
+                    <td><code>--font-size-page-title</code> 26/600</td>
+                  </tr>
+                  <tr>
+                    <td>entity title</td>
+                    <td>
+                      <span
+                        style="font-size: var(--font-size-entity-title); font-weight: var(--font-weight-title)"
+                        >Nguyễn Minh Anh</span
+                      >
+                    </td>
+                    <td><code>--font-size-entity-title</code> 22/600</td>
+                  </tr>
+                  <tr>
+                    <td>section title</td>
+                    <td>
+                      <span
+                        style="font-size: var(--font-size-section-title); font-weight: var(--font-weight-title)"
+                        >Việc cần xử lý</span
+                      >
+                    </td>
+                    <td><code>--font-size-section-title</code> 18/600</td>
+                  </tr>
+                  <tr>
+                    <td>body</td>
+                    <td>Lớp Toán 7A · cơ sở Quận 1 · giáo viên Trần Thu Hà</td>
+                    <td><code>--font-size-body</code> 14/400</td>
+                  </tr>
+                  <tr>
+                    <td>emphasis</td>
+                    <td>
+                      <span style="font-weight: var(--font-weight-emphasis)"
+                        >Phiếu PT-2408-019 vượt ngưỡng</span
+                      >
+                    </td>
+                    <td><code>--font-weight-emphasis</code> 550</td>
+                  </tr>
+                  <tr>
+                    <td>meta</td>
+                    <td>
+                      <span style="font-size: var(--font-size-meta); color: var(--text-muted)"
+                        >Cập nhật 14/08/2026 09:45</span
+                      >
+                    </td>
+                    <td><code>--font-size-meta</code> 12/400</td>
+                  </tr>
+                  <tr>
+                    <td>label</td>
+                    <td>
+                      <span
+                        style="
+                          font-size: var(--font-size-label);
+                          font-weight: var(--font-weight-title);
+                          letter-spacing: var(--tracking-wide);
+                          text-transform: uppercase;
+                          color: var(--text-faint);
+                        "
+                        >Tài chính</span
+                      >
+                    </td>
+                    <td><code>--font-size-label</code> 11/600. chỉ cho nhãn nhóm nav</td>
+                  </tr>
+                  <tr>
+                    <td>data / mã</td>
+                    <td><code>PT-2408-019 · HV-1002 · O4-9918</code></td>
+                    <td><code>--font-family-data</code> 12 tabular</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="spec-note">
+              Nhãn 11px in hoa chỉ dùng làm mốc cấu trúc trong sidebar. Không dùng làm nhãn trang trí
+              phía trên tiêu đề. tiêu đề tự đứng được.
+            </p>
+          </div>
+        </section>
+
+        <!-- ================= Density ================= -->
+        <section class="section" id="density" aria-labelledby="density-h">
+          <h2 id="density-h">Mật độ là tính năng</h2>
+          <p class="section-desc">
+            Kiểm toán đọc từng dòng và người xử lý hàng loạt cần hai chiều cao dòng khác nhau. Ba chế
+            độ đổi <em>khoảng cách</em>, không đổi cỡ chữ. Chuẩn là 40px để khớp hợp đồng OpenEduCat.
+          </p>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Đổi mật độ ở thanh trên và xem bảng phản hồi</h3>
+              <span class="chip">lưu vào localStorage</span>
+            </div>
+            <div class="spec-body">
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th class="col-code">Mã</th>
+                      <th>Học viên</th>
+                      <th class="col-status">Trạng thái</th>
+                      <th class="col-amount">Số tiền</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="col-code">PT-019</td>
+                      <td><span class="row-title">Nguyễn Minh Anh</span></td>
+                      <td class="col-status"><span class="badge" data-tone="brand">Chờ duyệt</span></td>
+                      <td class="col-amount">8.500.000</td>
+                    </tr>
+                    <tr>
+                      <td class="col-code">PT-020</td>
+                      <td><span class="row-title">Trần Gia Bảo</span></td>
+                      <td class="col-status"><span class="badge" data-tone="success">Đã thu</span></td>
+                      <td class="col-amount">6.200.000</td>
+                    </tr>
+                    <tr>
+                      <td class="col-code">PT-021</td>
+                      <td><span class="row-title">Lê Khánh Linh</span></td>
+                      <td class="col-status"><span class="badge" data-tone="danger">Quá hạn</span></td>
+                      <td class="col-amount">21.000.000</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <table class="token-table" style="margin-top: 16px">
+                <thead>
+                  <tr>
+                    <th>Chế độ</th>
+                    <th><code>--size-row</code></th>
+                    <th>Dùng khi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Gọn</td>
+                    <td>32px</td>
+                    <td>Duyệt hàng loạt, soi bất thường, xem nhiều dòng cùng lúc</td>
+                  </tr>
+                  <tr>
+                    <td>Chuẩn</td>
+                    <td>40px</td>
+                    <td>Mặc định. Khớp chiều cao dòng của hợp đồng OpenEduCat</td>
+                  </tr>
+                  <tr>
+                    <td>Thoáng</td>
+                    <td>48px</td>
+                    <td>Đọc kỹ từng bản ghi, đối chiếu tiền, dùng cảm ứng</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= Space & shape ================= -->
+        <section class="section" id="space" aria-labelledby="space-h">
+          <h2 id="space-h">Khoảng cách và hình khối</h2>
+          <p class="section-desc">
+            Dữ liệu dày bên trong một nhóm, khoảng trống rộng giữa các nhóm. Đường kẻ 1px làm mọi
+            việc phân tách; hộp có viền chỉ dành cho container thật.
+          </p>
+
+          <div class="two-col">
+            <div class="spec">
+              <div class="spec-head">
+                <h3 class="spec-name">Khoảng cách</h3>
+              </div>
+              <div class="spec-body">
+                <table class="token-table">
+                  <tbody>
+                    <tr>
+                      <td><code>--space-hair</code> 4</td>
+                      <td>giữa nhãn và giá trị</td>
+                    </tr>
+                    <tr>
+                      <td><code>--space-tight</code> 8</td>
+                      <td>giữa control cùng nhóm</td>
+                    </tr>
+                    <tr>
+                      <td><code>--space-snug</code> 12</td>
+                      <td>padding ô bảng, khe filter</td>
+                    </tr>
+                    <tr>
+                      <td><code>--space-base</code> 16</td>
+                      <td>padding panel</td>
+                    </tr>
+                    <tr>
+                      <td><code>--space-loose</code> 24</td>
+                      <td>giữa khối nội dung</td>
+                    </tr>
+                    <tr>
+                      <td><code>--space-gutter</code> 28</td>
+                      <td>lề trang, khe cột chính ↔ rail</td>
+                    </tr>
+                    <tr>
+                      <td><code>--space-section</code> 40</td>
+                      <td>giữa các mục lớn</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="spec">
+              <div class="spec-head">
+                <h3 class="spec-name">Bán kính và độ nổi</h3>
+              </div>
+              <div class="spec-body">
+                <table class="token-table">
+                  <tbody>
+                    <tr>
+                      <td><code>--radius-control</code> 6</td>
+                      <td>nút, ô nhập, nav item</td>
+                    </tr>
+                    <tr>
+                      <td><code>--radius-panel</code> 8</td>
+                      <td>bảng, panel, toast</td>
+                    </tr>
+                    <tr>
+                      <td><code>--radius-pill</code> 999</td>
+                      <td>badge, chip, avatar</td>
+                    </tr>
+                    <tr>
+                      <td><code>--radius-contract</code> 4</td>
+                      <td>hình học OpenEduCat: statusbar, kbd</td>
+                    </tr>
+                    <tr>
+                      <td><code>--shadow-overlay</code></td>
+                      <td>chỉ overlay nổi: toast, command palette</td>
+                    </tr>
+                    <tr>
+                      <td><code>--motion-state</code> 120ms</td>
+                      <td>hover, chọn dòng</td>
+                    </tr>
+                    <tr>
+                      <td><code>--motion-overlay</code> 160ms</td>
+                      <td>toast vào/ra</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="spec-note">
+                Mặt phẳng ở trạng thái nghỉ không có đổ bóng. Chiều sâu đến từ một bậc tông và đường
+                kẻ.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= States ================= -->
+        <section class="section" id="states" aria-labelledby="states-h">
+          <h2 id="states-h">Trạng thái</h2>
+          <p class="section-desc">
+            Mỗi control tương tác phải có đủ bảy trạng thái. Thiếu một cái là component chưa xong.
+          </p>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Nút</h3>
+            </div>
+            <div class="spec-body">
+              <div class="demo-row" style="margin-bottom: 12px">
+                <button type="button" class="btn btn-primary">Duyệt phiếu</button>
+                <button type="button" class="btn btn-secondary">Lưu nháp</button>
+                <button type="button" class="btn btn-ghost">Xuất CSV</button>
+                <button type="button" class="btn btn-quiet">Bỏ qua</button>
+                <button type="button" class="btn btn-danger">Từ chối</button>
+                <button type="button" class="btn btn-primary" disabled>Không đủ quyền</button>
+                <button type="button" class="btn btn-primary" data-loading-demo>Đang lưu…</button>
+              </div>
+              <table class="token-table">
+                <thead>
+                  <tr>
+                    <th>Trạng thái</th>
+                    <th>Biểu hiện</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>default</td>
+                    <td>Nền <code>--surface-action</code>, chữ trắng, 30px cao</td>
+                  </tr>
+                  <tr>
+                    <td>hover</td>
+                    <td>Tối một bậc sang <code>--surface-action-hover</code>; không dịch chuyển</td>
+                  </tr>
+                  <tr>
+                    <td>focus-visible</td>
+                    <td>Vòng 2px nền + 4px tím, không outline mặc định</td>
+                  </tr>
+                  <tr>
+                    <td>active</td>
+                    <td>Giữ nền hover, không đổ bóng</td>
+                  </tr>
+                  <tr>
+                    <td>disabled</td>
+                    <td>Mờ 45%, con trỏ <code>not-allowed</code>. dùng khi RBAC chặn</td>
+                  </tr>
+                  <tr>
+                    <td>loading</td>
+                    <td>Vòng xoay trong nút, giữ nguyên kích thước, chặn click</td>
+                  </tr>
+                  <tr>
+                    <td>error</td>
+                    <td>Không đổi nút. lỗi hiện ở field hoặc callout, nêu cách sửa</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Ô nhập</h3>
+            </div>
+            <div class="spec-body">
+              <div class="field-grid">
+                <label class="field">
+                  <span class="field-label">Họ tên phụ huynh <span class="field-req">*</span></span>
+                  <input class="input" value="Nguyễn Thị Hạnh" />
+                </label>
+                <label class="field">
+                  <span class="field-label">Cơ sở</span>
+                  <select class="select">
+                    <option>Quận 1</option>
+                    <option>Quận 7</option>
+                  </select>
+                </label>
+                <label class="field" data-invalid="true">
+                  <span class="field-label">Số điện thoại <span class="field-req">*</span></span>
+                  <input class="input" value="09" aria-invalid="true" />
+                  <span class="field-error">Cần 10 số. Nhập lại từ đầu số 0.</span>
+                </label>
+                <label class="field">
+                  <span class="field-label">Mã phiếu</span>
+                  <input class="input" value="PT-2408-019" disabled />
+                  <span class="field-hint">Hệ thống cấp, không sửa được.</span>
+                </label>
+              </div>
+            </div>
+            <p class="spec-note">
+              Thông báo lỗi nêu vấn đề <em>và</em> cách khắc phục. "Không hợp lệ" là chưa xong.
+            </p>
+          </div>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Ba loại rỗng khác nhau</h3>
+            </div>
+            <div class="spec-body" data-plain="true">
+              <div class="two-col" style="grid-template-columns: repeat(3, minmax(0, 1fr))">
+                <div class="state-block" data-kind="first-run">
+                  <h3>Chưa có phiếu thu nào</h3>
+                  <p>Tạo phiếu đầu tiên cho học viên đã chốt học phí.</p>
+                  <div class="state-actions">
+                    <button type="button" class="btn btn-primary btn-sm">Tạo phiếu thu</button>
+                  </div>
+                </div>
+                <div class="state-block" data-kind="filtered">
+                  <h3>Không có dòng nào khớp bộ lọc</h3>
+                  <p>Đang lọc: cơ sở Quận 7 · quá hạn · tháng 8. Bỏ một điều kiện để xem thêm.</p>
+                  <div class="state-actions">
+                    <button type="button" class="btn btn-secondary btn-sm">Bỏ bộ lọc</button>
+                  </div>
+                </div>
+                <div class="state-block" data-kind="done">
+                  <h3>Bạn đã xử lý hết việc</h3>
+                  <p>Không còn phiếu chờ duyệt trong hôm nay. Việc mới sẽ hiện ở đây.</p>
+                  <div class="state-actions">
+                    <a class="btn btn-ghost btn-sm" href="./patterns.html">Xem toàn bộ danh sách</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="spec-note">
+              "Không có dữ liệu" là câu trả lời sai cho cả ba tình huống. Mỗi loại rỗng phải cho một
+              đường đi tiếp.
+            </p>
+          </div>
+
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Đang tải: khung xương, không phải vòng xoay giữa trang</h3>
+            </div>
+            <div class="spec-body">
+              <div class="skeleton-table">
+                <div class="skeleton-row">
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-line"></div>
+                </div>
+                <div class="skeleton-row">
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-line" style="width: 72%"></div>
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-line" style="width: 60%"></div>
+                </div>
+                <div class="skeleton-row">
+                  <div class="skeleton-line"></div>
+                  <div class="skeleton-line" style="width: 84%"></div>
+                  <div class="skeleton-line" style="width: 70%"></div>
+                  <div class="skeleton-line"></div>
+                </div>
+              </div>
+            </div>
+            <p class="spec-note">Khung xương phải giữ đúng hình dạng bảng thật để không giật layout.</p>
+          </div>
+        </section>
+
+        <!-- ================= A11y ================= -->
+        <section class="section" id="a11y" aria-labelledby="a11y-h">
+          <h2 id="a11y-h">Tiếp cận</h2>
+          <p class="section-desc">
+            <code>design-system/cmc-edu/A11Y-BASELINE.md</code> là nguồn đúng và đang ở trạng thái
+            "một phần" cho tới khi có lượt kiểm bàn phím bằng người thật. Lab tuân theo cùng ràng
+            buộc đó.
+          </p>
+          <div class="spec">
+            <div class="spec-body">
+              <table class="token-table">
+                <thead>
+                  <tr>
+                    <th>Yêu cầu</th>
+                    <th>Cách lab đáp ứng</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Vòng focus 2px tím, lệch 2px</td>
+                    <td>
+                      <code>outline</code> thật (không phải box-shadow) cho mọi
+                      <code>:focus-visible</code>, nên không bị cắt bởi vùng cuộn
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Chế độ tương phản bắt buộc</td>
+                    <td>
+                      <code>forced-colors</code> đổi vòng focus sang màu
+                      <code>Highlight</code> của hệ điều hành
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Bảng đọc được bằng trình đọc</td>
+                    <td>
+                      <code>&lt;table&gt;</code> ngữ nghĩa, <code>th scope</code>,
+                      <code>aria-sort</code> trên cột sắp xếp
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Landmark cho filter và phân trang</td>
+                    <td><code>aria-label</code> trên vùng filter, pager, rail</td>
+                  </tr>
+                  <tr>
+                    <td>Đường đi bàn phím</td>
+                    <td>Dòng bảng nhận <code>Tab</code> + <code>Enter</code>; ⌘K mở palette</td>
+                  </tr>
+                  <tr>
+                    <td><code>prefers-reduced-motion</code></td>
+                    <td>Tắt shimmer, tắt chuyển động, giữ trạng thái</td>
+                  </tr>
+                  <tr>
+                    <td>Không dùng emoji thay icon</td>
+                    <td>Icon là SVG vẽ tay, cùng nét 1.4px</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" data-open="false">
+      <p class="toast-title" data-toast-title>Đã lưu</p>
+      <p class="toast-meta" data-toast-meta></p>
+    </div>
+
+    <dialog id="palette-dialog" class="palette" aria-label="Command palette">
+      <div class="palette-input">
+        <span>Tìm nhanh…</span>
+        <kbd style="margin-left: auto">Esc</kbd>
+      </div>
+      <ul class="palette-list">
+        <li class="palette-item" aria-selected="true">
+          Duyệt phiếu thu <span class="palette-scope">Tài chính</span>
+        </li>
+        <li class="palette-item">Điểm danh lớp Toán 7A <span class="palette-scope">Giảng dạy</span></li>
+        <li class="palette-item">Tạo lead mới <span class="palette-scope">CRM</span></li>
+        <li class="palette-item">Xem sổ audit <span class="palette-scope">Audit</span></li>
+      </ul>
+    </dialog>
+
+    <script src="./shell.js"></script>
+  </body>
+</html>

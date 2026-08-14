@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bản in · CMC EDU Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../tokens.css" />
+    <link rel="stylesheet" href="../system.css" />
+    <link rel="stylesheet" href="../modules.css" />
+  </head>
+  <body data-page="print" data-root="../">
+    <div class="app">
+      <aside class="sidebar" data-shell aria-label="Điều hướng hệ thống thiết kế"></aside>
+
+      <main class="main">
+        <div class="utility no-print">
+          <nav class="crumbs" aria-label="Breadcrumb">
+            <a href="../index.html">system</a>
+            <span aria-hidden="true">/</span>
+            <span>module</span>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Bản in</span>
+          </nav>
+          <div class="utility-right">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()">
+              Xem bản in
+            </button>
+          </div>
+        </div>
+
+        <header class="page-head no-print">
+          <div>
+            <h1>Bản in · mặt phẳng thứ hai của hệ</h1>
+            <p class="subtitle">
+              Phiếu thu được in ra và giao cho phụ huynh, nên bản in là một bề mặt thật, không phải
+              ảnh chụp màn hình. Nó dùng cùng token nhưng đổi ngữ cảnh <code>surface</code>: bỏ nền
+              xám, bỏ đổ bóng, viền đậm hơn để mực in nhìn thấy được.
+            </p>
+          </div>
+          <p class="synth-banner">
+            Mẫu minh họa. Nội dung pháp lý và thông tin đơn vị phải do phía nghiệp vụ cấp.
+          </p>
+        </header>
+
+        <section class="section no-print" aria-labelledby="rules-h">
+          <h2 id="rules-h">Quy tắc bề mặt in</h2>
+          <div class="spec">
+            <div class="spec-body">
+              <table class="token-table">
+                <thead>
+                  <tr>
+                    <th>Trên màn hình</th>
+                    <th>Khi in</th>
+                    <th>Vì sao</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>--surface-page</code> xám nhạt</td>
+                    <td>trắng</td>
+                    <td>Nền xám ăn mực và làm mờ chữ</td>
+                  </tr>
+                  <tr>
+                    <td><code>--border-default</code> #e4e4e7</td>
+                    <td>xám đậm</td>
+                    <td>Đường kẻ 1px nhạt biến mất khi in laser</td>
+                  </tr>
+                  <tr>
+                    <td><code>--shadow-overlay</code></td>
+                    <td>không</td>
+                    <td>Đổ bóng không có nghĩa trên giấy</td>
+                  </tr>
+                  <tr>
+                    <td>Sidebar, thanh tiện ích, nút</td>
+                    <td>ẩn</td>
+                    <td>Chrome không thuộc chứng từ</td>
+                  </tr>
+                  <tr>
+                    <td>Số tiền trong bảng không có ₫</td>
+                    <td>có ₫ và có dòng chữ</td>
+                    <td>Chứng từ cần đọc được ngoài ngữ cảnh ứng dụng</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="spec-note">
+              Toàn bộ chuyển đổi này là một khối <code>@media print</code> trong
+              <code>tokens.css</code> và <code>modules.css</code> — không có bản sao HTML thứ hai cho
+              trang in.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="receipt" aria-labelledby="rc-h">
+          <h2 id="rc-h" class="no-print">Phiếu thu</h2>
+          <div class="receipt">
+            <div class="receipt-head">
+              <div class="receipt-org">
+                CMC EDU · Cơ sở Quận 1
+                <span>128 Nguyễn Thị Minh Khai, Quận 1, TP.HCM · 028 xxxx 1188</span>
+              </div>
+              <div class="receipt-no">
+                PHIẾU THU<br />
+                PT-2408-019<br />
+                14/08/2026
+              </div>
+            </div>
+
+            <dl class="kv" style="grid-template-columns: 132px minmax(0, 1fr)">
+              <dt>Học viên</dt>
+              <dd>Nguyễn Minh Anh · HV-1002</dd>
+              <dt>Phụ huynh</dt>
+              <dd>Nguyễn Thị Hạnh</dd>
+              <dt>Kỳ thu</dt>
+              <dd>Tháng 8/2026</dd>
+              <dt>Hình thức</dt>
+              <dd>Chuyển khoản</dd>
+            </dl>
+
+            <table class="receipt-lines">
+              <thead>
+                <tr>
+                  <th scope="col">Nội dung</th>
+                  <th scope="col" data-numeric="true">SL</th>
+                  <th scope="col" data-numeric="true">Đơn giá</th>
+                  <th scope="col" data-numeric="true">Thành tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Học phí Toán chuyên sâu lớp 7 · 12 buổi</td>
+                  <td data-numeric="true">1</td>
+                  <td data-numeric="true">7.200.000</td>
+                  <td data-numeric="true">7.200.000</td>
+                </tr>
+                <tr>
+                  <td>Tài liệu học kỳ</td>
+                  <td data-numeric="true">1</td>
+                  <td data-numeric="true">450.000</td>
+                  <td data-numeric="true">450.000</td>
+                </tr>
+                <tr>
+                  <td>Phí kiểm tra đầu vào</td>
+                  <td data-numeric="true">1</td>
+                  <td data-numeric="true">850.000</td>
+                  <td data-numeric="true">850.000</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="receipt-total">
+              <div>
+                <div style="font-weight: var(--font-weight-title)">Tổng thu</div>
+                <div style="font-size: var(--font-size-meta); color: var(--text-muted)">
+                  Tám triệu năm trăm nghìn đồng
+                </div>
+              </div>
+              <span class="amount" data-scale="lead">8.500.000 ₫</span>
+            </div>
+
+            <p style="margin: 0; font-size: var(--font-size-meta); color: var(--text-muted)">
+              Người duyệt: Giám đốc kinh doanh Trần Quốc Anh · 14/08/2026 09:12. Phiếu đã duyệt không
+              sửa được; mọi điều chỉnh ghi thành phiếu hoàn tiền riêng.
+            </p>
+
+            <div class="receipt-sign">
+              <div>Người nộp tiền</div>
+              <div>Người thu tiền</div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" data-open="false">
+      <p class="toast-title" data-toast-title>Đã lưu</p>
+      <p class="toast-meta" data-toast-meta></p>
+    </div>
+
+    <script src="../shell.js"></script>
+  </body>
+</html>

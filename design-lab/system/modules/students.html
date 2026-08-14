@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Học viên · CMC EDU Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../tokens.css" />
+    <link rel="stylesheet" href="../system.css" />
+    <link rel="stylesheet" href="../modules.css" />
+  </head>
+  <body data-page="students" data-root="../">
+    <div class="app">
+      <aside class="sidebar" data-shell aria-label="Điều hướng hệ thống thiết kế"></aside>
+
+      <main class="main">
+        <div class="utility">
+          <nav class="crumbs" aria-label="Breadcrumb">
+            <a href="../index.html">system</a>
+            <span aria-hidden="true">/</span>
+            <span>module</span>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Học viên</span>
+          </nav>
+          <div class="utility-right">
+            <div class="btn-group" data-density-group role="group" aria-label="Mật độ hiển thị">
+              <button type="button" data-density-set="compact" aria-pressed="false">Gọn</button>
+              <button type="button" data-density-set="default" aria-pressed="true">Chuẩn</button>
+              <button type="button" data-density-set="comfortable" aria-pressed="false">Thoáng</button>
+            </div>
+          </div>
+        </div>
+
+        <header class="page-head">
+          <div>
+            <h1>Học viên · một người, nhiều mặt</h1>
+            <p class="subtitle">
+              Học viên là thực thể được nhiều module tham chiếu, nên trang chi tiết phải kể được cả
+              vòng đời: ghi danh, lớp, phụ huynh liên kết, quyền mở đơn vị học, và tiền đã thu — mỗi
+              phần dưới quyền đọc riêng.
+            </p>
+          </div>
+          <p class="synth-banner">
+            Trang production: <code>students/index.tsx</code>,
+            <code>students/student-detail.tsx</code>,
+            <code>students/enrollment-ranges-panel.tsx</code>, <code>parents/parent-detail.tsx</code>.
+          </p>
+        </header>
+
+        <nav class="toc filter-bar" aria-label="Mục trong trang" style="padding: 12px 0">
+          <a class="saved-view" href="#contract">Hợp đồng module</a>
+          <a class="saved-view" href="#profile">Hồ sơ học viên</a>
+          <a class="saved-view" href="#ranges">Quyền mở đơn vị học</a>
+          <a class="saved-view" href="#parent">Liên kết phụ huynh</a>
+          <a class="saved-view" href="#placement">Xếp lớp</a>
+        </nav>
+
+        <section class="section" id="contract" aria-labelledby="contract-h">
+          <h2 id="contract-h">Hợp đồng module</h2>
+          <div class="spec">
+            <div class="spec-body">
+              <table class="token-table">
+                <tbody>
+                  <tr>
+                    <td>Khung trang</td>
+                    <td><code>ListPage</code> · <code>DetailPage</code> nhiều tab · <code>FormPage</code></td>
+                  </tr>
+                  <tr>
+                    <td>Vai trò đọc</td>
+                    <td>
+                      Mọi vai trò nội bộ đọc được hồ sơ cơ bản; tab tiền chỉ hiện cho hai giám đốc và
+                      super admin
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Pattern riêng</td>
+                    <td>
+                      Dải quyền mở đơn vị học (thanh khoảng) · liên kết phụ huynh có bước duyệt · xếp
+                      lớp hai danh sách
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Nguyên tắc</td>
+                    <td>
+                      Tab bị chặn thì <strong>không hiện tab</strong>, không hiện tab rỗng. Còn số
+                      tiền trong bảng thì che bằng <code>••••</code> để giữ hình dạng cột.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="profile" aria-labelledby="prof-h">
+          <h2 id="prof-h">Hồ sơ học viên</h2>
+          <p class="section-desc">
+            Dải điểm nhấn trả lời bốn câu hỏi hay hỏi nhất về một học viên, rồi tab mới đi vào chi
+            tiết. Không dùng thẻ card cho phần này.
+          </p>
+          <div class="spec">
+            <div class="spec-body" data-plain="true">
+              <div class="sheet">
+                <div class="entity-header">
+                  <div style="display: flex; gap: 12px; align-items: center">
+                    <span class="avatar" style="width: 40px; height: 40px" aria-hidden="true">MA</span>
+                    <div>
+                      <h3>Nguyễn Minh Anh</h3>
+                      <p class="entity-meta">HV-1002 · lớp 7 · cơ sở Quận 1 · ghi danh 12/08/2026</p>
+                    </div>
+                  </div>
+                  <div class="demo-row">
+                    <span class="point-pill">1.240 điểm</span>
+                    <button type="button" class="btn btn-secondary">Chuyển cơ sở</button>
+                    <button type="button" class="btn btn-primary" data-toast="Mở form ghi danh khóa mới">Ghi danh khóa</button>
+                  </div>
+                </div>
+                <div class="highlight-strip">
+                  <div class="highlight-item">
+                    <div class="highlight-label">Lớp đang học</div>
+                    <div class="highlight-value">Toán 7A</div>
+                  </div>
+                  <div class="highlight-item">
+                    <div class="highlight-label">Tỷ lệ có mặt</div>
+                    <div class="highlight-value">92%</div>
+                  </div>
+                  <div class="highlight-item">
+                    <div class="highlight-label">Điểm gần nhất</div>
+                    <div class="highlight-value">8,5</div>
+                  </div>
+                  <div class="highlight-item">
+                    <div class="highlight-label">Học phí còn lại</div>
+                    <div class="highlight-value">2.400.000 ₫</div>
+                  </div>
+                </div>
+                <div class="tabs" role="tablist" aria-label="Phần hồ sơ">
+                  <button type="button" class="tab" role="tab" aria-selected="true">Tổng quan</button>
+                  <button type="button" class="tab" role="tab" aria-selected="false">Lớp & buổi học</button>
+                  <button type="button" class="tab" role="tab" aria-selected="false">Điểm</button>
+                  <button type="button" class="tab" role="tab" aria-selected="false">Phụ huynh</button>
+                  <button type="button" class="tab" role="tab" aria-selected="false">Học phí</button>
+                </div>
+                <div class="subsection two-col">
+                  <div>
+                    <h4>Thông tin</h4>
+                    <dl class="kv" style="grid-template-columns: 132px minmax(0, 1fr)">
+                      <dt>Ngày sinh</dt>
+                      <dd>04/09/2013</dd>
+                      <dt>Phụ huynh chính</dt>
+                      <dd>Nguyễn Thị Hạnh · 0912 xxx 448</dd>
+                      <dt>Nguồn</dt>
+                      <dd>Facebook Ads · cơ hội O5-9871</dd>
+                      <dt>Sale phụ trách</dt>
+                      <dd>Mai</dd>
+                    </dl>
+                  </div>
+                  <div class="rail-panel">
+                    <h4>Việc liên quan còn mở</h4>
+                    <ol class="ledger">
+                      <li class="ledger-entry">
+                        <span class="ledger-dot" data-category="a" aria-hidden="true">₫</span>
+                        <div>
+                          <div class="ledger-head">
+                            <span class="ledger-actor">Phiếu PT-2408-019 chờ duyệt</span>
+                          </div>
+                          <p class="ledger-body">8.500.000 ₫ · hạn 15/08</p>
+                        </div>
+                      </li>
+                      <li class="ledger-entry">
+                        <span class="ledger-dot" aria-hidden="true">L</span>
+                        <div>
+                          <div class="ledger-head">
+                            <span class="ledger-actor">Chờ mở đơn vị 12–18</span>
+                          </div>
+                          <p class="ledger-body">Cần giám đốc đào tạo cấp quyền</p>
+                        </div>
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="ranges" aria-labelledby="rng-h">
+          <h2 id="rng-h">Quyền mở đơn vị học</h2>
+          <p class="section-desc">
+            Giám đốc đào tạo cấp quyền theo khoảng đơn vị, không theo từng bài. Pattern riêng: thanh
+            khoảng liên tục, thấy ngay chỗ hở giữa hai lần cấp.
+          </p>
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Khóa Toán 7 · 24 đơn vị</h3>
+            </div>
+            <div class="spec-body">
+              <div class="table-wrap">
+                <table class="data-table" style="min-width: 640px">
+                  <thead>
+                    <tr>
+                      <th scope="col">Khoảng đơn vị</th>
+                      <th scope="col">Tiến độ</th>
+                      <th scope="col">Người cấp</th>
+                      <th class="col-status" scope="col">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="row-title">Đơn vị 1–6</span><span class="row-meta">Cấp 05/08</span></td>
+                      <td>
+                        <div class="kpi-bar">
+                          <div class="kpi-track"><span class="kpi-fill" data-level="over" style="width: 100%"></span></div>
+                          <span class="kpi-score">6/6</span>
+                        </div>
+                      </td>
+                      <td>GĐ đào tạo Lan</td>
+                      <td class="col-status"><span class="badge" data-tone="success">Hoàn tất</span></td>
+                    </tr>
+                    <tr>
+                      <td><span class="row-title">Đơn vị 7–11</span><span class="row-meta">Cấp 12/08</span></td>
+                      <td>
+                        <div class="kpi-bar">
+                          <div class="kpi-track"><span class="kpi-fill" style="width: 60%"></span></div>
+                          <span class="kpi-score">3/5</span>
+                        </div>
+                      </td>
+                      <td>GĐ đào tạo Lan</td>
+                      <td class="col-status"><span class="badge" data-tone="info">Đang học</span></td>
+                    </tr>
+                    <tr>
+                      <td><span class="row-title">Đơn vị 12–18</span><span class="row-meta">Chưa cấp</span></td>
+                      <td>
+                        <div class="kpi-bar">
+                          <div class="kpi-track"></div>
+                          <span class="kpi-score">0/7</span>
+                        </div>
+                      </td>
+                      <td>—</td>
+                      <td class="col-status"><span class="badge" data-tone="brand">Chờ cấp quyền</span></td>
+                    </tr>
+                    <tr style="color: var(--text-muted)">
+                      <td><span class="row-title">Đơn vị 19–24</span><span class="row-meta">Ngoài kỳ hiện tại</span></td>
+                      <td>
+                        <div class="kpi-bar">
+                          <div class="kpi-track"></div>
+                          <span class="kpi-score">0/6</span>
+                        </div>
+                      </td>
+                      <td>—</td>
+                      <td class="col-status"><span class="badge" data-tone="neutral">Chưa mở</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="demo-row" style="margin-top: 12px">
+                <button type="button" class="btn btn-primary btn-sm" data-toast="Đã cấp quyền đơn vị 12–18" data-toast-meta="Học viên thấy nội dung ngay trong LMS">Cấp đơn vị 12–18</button>
+                <span class="field-hint">Chỉ giám đốc đào tạo. Sale và giáo viên chỉ xem.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="parent" aria-labelledby="par-h">
+          <h2 id="par-h">Liên kết phụ huynh có bước duyệt</h2>
+          <p class="section-desc">
+            Phụ huynh tự yêu cầu liên kết từ app; nhân viên duyệt hoặc từ chối kèm lý do. Từ chối
+            không kèm lý do là một trạng thái không được phép tồn tại.
+          </p>
+          <div class="two-col">
+            <div class="spec">
+              <div class="spec-head"><h3 class="spec-name">Yêu cầu đang chờ</h3></div>
+              <div class="spec-body">
+                <div class="table-wrap">
+                  <table class="data-table" style="min-width: 380px">
+                    <thead>
+                      <tr>
+                        <th scope="col">Phụ huynh</th>
+                        <th scope="col">Học viên</th>
+                        <th class="col-actions" scope="col"><span class="sr-only">Hành động</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <span class="row-title">Nguyễn Thị Hạnh</span>
+                          <span class="row-meta">0912 xxx 448 · gửi 13/08</span>
+                        </td>
+                        <td>Nguyễn Minh Anh</td>
+                        <td class="col-actions">
+                          <span class="row-actions">
+                            <button type="button" class="btn btn-quiet btn-sm" data-toast="Đã duyệt liên kết">Duyệt</button>
+                          </span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <span class="row-title">Trần Văn Dũng</span>
+                          <span class="row-meta">0908 xxx 112 · gửi 14/08</span>
+                        </td>
+                        <td>Trần Gia Bảo</td>
+                        <td class="col-actions">
+                          <span class="row-actions">
+                            <button type="button" class="btn btn-quiet btn-sm" data-toast="Đã duyệt liên kết">Duyệt</button>
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="spec">
+              <div class="spec-head"><h3 class="spec-name">Từ chối phải nêu lý do</h3></div>
+              <div class="spec-body">
+                <label class="field">
+                  <span class="field-label">Lý do từ chối <span class="field-req">*</span></span>
+                  <select class="select">
+                    <option>Số điện thoại không khớp hồ sơ</option>
+                    <option>Không phải người giám hộ đã đăng ký</option>
+                    <option>Trùng yêu cầu đã duyệt</option>
+                  </select>
+                </label>
+                <label class="field" style="margin-top: 12px">
+                  <span class="field-label">Ghi chú gửi phụ huynh</span>
+                  <textarea class="textarea" rows="2">Vui lòng liên hệ lễ tân để đối chiếu giấy tờ giám hộ.</textarea>
+                </label>
+                <div class="sticky-actions" style="border-top: 0">
+                  <button type="button" class="btn btn-secondary">Hủy</button>
+                  <button type="button" class="btn btn-danger" data-toast="Đã từ chối liên kết" data-toast-meta="Phụ huynh nhận được lý do trong app">Từ chối</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="placement" aria-labelledby="pl-h">
+          <h2 id="pl-h">Xếp lớp</h2>
+          <p class="section-desc">
+            Hai danh sách cạnh nhau: chờ xếp và lớp đích, cùng số chỗ còn lại. Không dùng hộp thoại,
+            vì việc này làm theo lô.
+          </p>
+          <div class="spec">
+            <div class="spec-body" data-plain="true">
+              <div class="drawer-demo">
+                <div class="table-wrap">
+                  <table class="data-table" data-selectable-table="placement" style="min-width: 420px">
+                    <thead>
+                      <tr>
+                        <th class="col-select" scope="col"><input type="checkbox" aria-label="Chọn tất cả học viên chờ xếp" /></th>
+                        <th scope="col">Chờ xếp lớp (3)</th>
+                        <th scope="col">Điểm KT</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="col-select"><input type="checkbox" aria-label="Chọn Đặng Tuấn Kiệt" /></td>
+                        <td><span class="row-title">Đặng Tuấn Kiệt</span><span class="row-meta">Ghi danh 13/08</span></td>
+                        <td>7,5</td>
+                      </tr>
+                      <tr>
+                        <td class="col-select"><input type="checkbox" aria-label="Chọn Vũ Hà My" /></td>
+                        <td><span class="row-title">Vũ Hà My</span><span class="row-meta">Ghi danh 14/08</span></td>
+                        <td>8,0</td>
+                      </tr>
+                      <tr>
+                        <td class="col-select"><input type="checkbox" aria-label="Chọn Lý Gia Hân" /></td>
+                        <td><span class="row-title">Lý Gia Hân</span><span class="row-meta">Ghi danh 14/08</span></td>
+                        <td>6,0</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <aside class="drawer" aria-label="Lớp đích">
+                  <div class="drawer-head">
+                    <div>
+                      <h4 class="drawer-title">Toán 7A</h4>
+                      <p class="entity-meta">17:30 T2/T4 · P.204 · GV Thu Hà</p>
+                    </div>
+                    <span class="badge" data-tone="warning">Còn 2 chỗ</span>
+                  </div>
+                  <dl class="kv" style="grid-template-columns: 108px minmax(0, 1fr)">
+                    <dt>Sĩ số</dt>
+                    <dd>18 / 20</dd>
+                    <dt>Trình độ</dt>
+                    <dd>Điểm KT 6,5 – 8,5</dd>
+                    <dt>Bắt đầu</dt>
+                    <dd>19/08/2026</dd>
+                  </dl>
+                  <div class="callout" data-tone="warning" style="margin-top: 12px">
+                    <p>Chọn 3 học viên nhưng chỉ còn 2 chỗ. Bỏ một người hoặc mở lớp Toán 7B.</p>
+                  </div>
+                  <div class="demo-row" style="margin-top: 12px">
+                    <button type="button" class="btn btn-primary btn-sm" disabled>Xếp vào lớp</button>
+                    <button type="button" class="btn btn-ghost btn-sm">Mở lớp mới</button>
+                  </div>
+                </aside>
+              </div>
+            </div>
+            <p class="spec-note">
+              Ràng buộc sĩ số hiện <em>trước</em> khi bấm, kèm hai đường ra. Chặn im lặng rồi báo lỗi
+              sau khi bấm là đẩy việc suy luận sang người dùng.
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" data-open="false">
+      <p class="toast-title" data-toast-title>Đã lưu</p>
+      <p class="toast-meta" data-toast-meta></p>
+    </div>
+
+    <dialog id="palette-dialog" class="palette" aria-label="Command palette">
+      <div class="palette-input"><span>Tìm nhanh…</span><kbd style="margin-left: auto">Esc</kbd></div>
+      <ul class="palette-list">
+        <li class="palette-item" aria-selected="true">Tìm học viên <span class="palette-scope">Học viên</span></li>
+        <li class="palette-item">Xếp lớp chờ <span class="palette-scope">Ghi danh</span></li>
+      </ul>
+    </dialog>
+
+    <script src="../shell.js"></script>
+  </body>
+</html>

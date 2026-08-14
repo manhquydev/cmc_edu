@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Audit · Sổ ghi · CMC EDU Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../tokens.css" />
+    <link rel="stylesheet" href="../system.css" />
+    <link rel="stylesheet" href="../modules.css" />
+  </head>
+  <body data-page="audit" data-root="../" data-density-default="compact">
+    <div class="app">
+      <aside class="sidebar" data-shell aria-label="Điều hướng hệ thống thiết kế"></aside>
+
+      <main class="main">
+        <div class="utility">
+          <nav class="crumbs" aria-label="Breadcrumb">
+            <a href="../index.html">system</a>
+            <span aria-hidden="true">/</span>
+            <span>module</span>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Audit & quản trị</span>
+          </nav>
+          <div class="utility-right">
+            <div class="btn-group" data-density-group role="group" aria-label="Mật độ hiển thị">
+              <button type="button" data-density-set="compact" aria-pressed="true">Gọn</button>
+              <button type="button" data-density-set="default" aria-pressed="false">Chuẩn</button>
+              <button type="button" data-density-set="comfortable" aria-pressed="false">Thoáng</button>
+            </div>
+          </div>
+        </div>
+
+        <header class="page-head">
+          <div>
+            <h1>Audit & quản trị · đọc dày, không sửa</h1>
+            <p class="subtitle">
+              Module duy nhất mà mật độ gọn là mặc định hợp lý: việc ở đây là quét nhiều dòng để tìm
+              một dòng. Không có hành động ghi nào trên sổ; hành động duy nhất là lọc, mở, và xuất.
+            </p>
+          </div>
+          <p class="synth-banner">
+            Trang production: <code>admin/audit-log.tsx</code>, <code>admin/users.tsx</code>,
+            <code>admin/facilities.tsx</code>, <code>admin/shift-config.tsx</code>,
+            <code>admin/network-ip.tsx</code>.
+          </p>
+        </header>
+
+        <nav class="toc filter-bar" aria-label="Mục trong trang" style="padding: 12px 0">
+          <a class="saved-view" href="#contract">Hợp đồng module</a>
+          <a class="saved-view" href="#log">Sổ audit</a>
+          <a class="saved-view" href="#trace">Truy vết một bản ghi</a>
+          <a class="saved-view" href="#rbac">Người dùng & quyền</a>
+        </nav>
+
+        <section class="section" id="contract" aria-labelledby="contract-h">
+          <h2 id="contract-h">Hợp đồng module</h2>
+          <div class="spec">
+            <div class="spec-body">
+              <table class="token-table">
+                <tbody>
+                  <tr>
+                    <td>Khung trang</td>
+                    <td><code>ListPage</code> chỉ đọc · <code>DetailPage</code> (người dùng, cơ sở, ca)</td>
+                  </tr>
+                  <tr>
+                    <td>Vai trò đọc</td>
+                    <td><span class="badge" data-category="a">super admin</span> — sổ audit không mở cho vai trò khác</td>
+                  </tr>
+                  <tr>
+                    <td>Mật độ mặc định</td>
+                    <td><code>compact</code> · 32px — khác với mọi module còn lại, và đó là quyết định có chủ đích</td>
+                  </tr>
+                  <tr>
+                    <td>Pattern riêng</td>
+                    <td>Sổ chỉ đọc có khối diff · dòng thời gian truy vết · lưới quyền theo vai trò</td>
+                  </tr>
+                  <tr>
+                    <td>Không có</td>
+                    <td>Không có nút sửa, nút xóa, hay hành động hàng loạt trên sổ</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="log" aria-labelledby="log-h">
+          <h2 id="log-h">Sổ audit</h2>
+          <p class="section-desc">
+            Bảng dày, cột tác nhân ghim bên trái, thời gian chữ đơn cách để so sánh theo chiều dọc. Bộ
+            lọc theo tác nhân, loại hành động và khoảng thời gian là ba thứ luôn được dùng.
+          </p>
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">14/08/2026 · toàn cơ sở</h3>
+              <span class="chip">chỉ đọc</span>
+            </div>
+            <div class="spec-body">
+              <div class="filter-bar" role="search" aria-label="Bộ lọc sổ audit" style="margin-bottom: 12px">
+                <input class="input" placeholder="Tìm tác nhân, mã bản ghi…" style="min-width: 220px" />
+                <select class="select" aria-label="Loại hành động">
+                  <option>Mọi hành động</option>
+                  <option>Duyệt phiếu</option>
+                  <option>Hoàn tiền</option>
+                  <option>Đổi quyền</option>
+                </select>
+                <select class="select" aria-label="Khoảng thời gian">
+                  <option>Hôm nay</option>
+                  <option>7 ngày</option>
+                  <option>Kỳ 8/2026</option>
+                </select>
+                <button type="button" class="btn btn-secondary btn-sm">Xuất CSV</button>
+              </div>
+              <div class="table-wrap" style="--table-max-h: 360px">
+                <table class="data-table" style="min-width: 900px">
+                  <thead>
+                    <tr>
+                      <th class="freeze-col" scope="col" style="width: 168px">Tác nhân</th>
+                      <th scope="col" style="width: 132px">Hành động</th>
+                      <th scope="col" style="width: 128px">Bản ghi</th>
+                      <th scope="col">Thay đổi</th>
+                      <th class="col-due" scope="col" style="width: 88px">Giờ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở dòng audit AL-88412">
+                      <td class="freeze-col">
+                        <span class="row-title">Trần Quốc Anh</span>
+                        <span class="row-meta">GĐ kinh doanh</span>
+                      </td>
+                      <td><span class="badge" data-category="a">Duyệt phiếu</span></td>
+                      <td class="col-code">PT-2408-019</td>
+                      <td><code>trạng thái: chờ duyệt → đã duyệt</code></td>
+                      <td class="col-due">09:12:04</td>
+                    </tr>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở dòng audit AL-88411">
+                      <td class="freeze-col">
+                        <span class="row-title">Nguyễn Mai</span>
+                        <span class="row-meta">Sale</span>
+                      </td>
+                      <td><span class="badge" data-category="b">Tự duyệt</span></td>
+                      <td class="col-code">PT-2408-019</td>
+                      <td><span class="badge" data-tone="danger">Bị chặn</span> <code>tự duyệt phiếu mình soạn</code></td>
+                      <td class="col-due">09:08:47</td>
+                    </tr>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở dòng audit AL-88409">
+                      <td class="freeze-col">
+                        <span class="row-title">Hệ thống</span>
+                        <span class="row-meta">worker đối soát</span>
+                      </td>
+                      <td><span class="badge" data-category="c">Đối soát</span></td>
+                      <td class="col-code">PT-2408-011</td>
+                      <td><code>lệch đối soát: −300.000</code></td>
+                      <td class="col-due">08:30:02</td>
+                    </tr>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở dòng audit AL-88402">
+                      <td class="freeze-col">
+                        <span class="row-title">Super admin</span>
+                        <span class="row-meta">quản trị hệ thống</span>
+                      </td>
+                      <td><span class="badge" data-category="d">Đổi quyền</span></td>
+                      <td class="col-code">NV-0132</td>
+                      <td><code>vai trò: Sale → Sale, Giám đốc kinh doanh</code></td>
+                      <td class="col-due">08:02:19</td>
+                    </tr>
+                    <tr tabindex="0" data-clickable="true" data-toast="Mở dòng audit AL-88398">
+                      <td class="freeze-col">
+                        <span class="row-title">Trần Thu Hà</span>
+                        <span class="row-meta">Giáo viên</span>
+                      </td>
+                      <td><span class="badge" data-category="a">Điểm danh</span></td>
+                      <td class="col-code">BUOI-7A-1408</td>
+                      <td><code>Lê Khánh Linh: vắng → có mặt</code></td>
+                      <td class="col-due">07:44:55</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <p class="spec-note">
+              Hành động <em>bị chặn</em> cũng được ghi. Sổ audit chứng minh phân tách nhiệm vụ hoạt
+              động, nên nó phải lưu cả lần thử không thành.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="trace" aria-labelledby="trace-h">
+          <h2 id="trace-h">Truy vết một bản ghi</h2>
+          <p class="section-desc">
+            Từ một phiếu, dựng lại toàn bộ vòng đời theo thứ tự thời gian. Đây là dạng đọc thứ hai của
+            cùng dữ liệu: bảng để quét, dòng thời gian để hiểu.
+          </p>
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">PT-2408-019 · từ soạn tới thu</h3>
+            </div>
+            <div class="spec-body">
+              <ol class="ledger">
+                <li class="ledger-entry">
+                  <span class="ledger-dot" aria-hidden="true">1</span>
+                  <div>
+                    <div class="ledger-head">
+                      <span class="ledger-actor">Sale Mai soạn phiếu</span>
+                      <span class="ledger-time">12/08/2026 14:20:11</span>
+                    </div>
+                    <p class="ledger-body">Từ cơ hội O5-9871 · 8.500.000 ₫ · hạn 15/08</p>
+                  </div>
+                </li>
+                <li class="ledger-entry">
+                  <span class="ledger-dot" data-tone="danger" aria-hidden="true">✕</span>
+                  <div>
+                    <div class="ledger-head">
+                      <span class="ledger-actor">Sale Mai thử tự duyệt</span>
+                      <span class="ledger-time">14/08/2026 09:08:47</span>
+                    </div>
+                    <p class="ledger-body">
+                      Bị chặn bởi phân tách nhiệm vụ: người soạn không được duyệt.
+                    </p>
+                  </div>
+                </li>
+                <li class="ledger-entry">
+                  <span class="ledger-dot" data-tone="success" aria-hidden="true">✓</span>
+                  <div>
+                    <div class="ledger-head">
+                      <span class="ledger-actor">GĐ kinh doanh Trần Quốc Anh duyệt</span>
+                      <span class="ledger-time">14/08/2026 09:12:04</span>
+                    </div>
+                    <p class="ledger-body">Dưới ngưỡng hai mắt nên một mắt là đủ.</p>
+                    <div class="ledger-diff">
+                      <span><span data-change="from">trạng thái: chờ duyệt</span> → <span data-change="to">đã duyệt</span></span>
+                      <span><span data-change="from">người duyệt: —</span> → <span data-change="to">NV-0101</span></span>
+                    </div>
+                  </div>
+                </li>
+                <li class="ledger-entry">
+                  <span class="ledger-dot" data-category="a" aria-hidden="true">₫</span>
+                  <div>
+                    <div class="ledger-head">
+                      <span class="ledger-actor">Đối soát khớp với sao kê</span>
+                      <span class="ledger-time">15/08/2026 08:30:02</span>
+                    </div>
+                    <p class="ledger-body">
+                      Ngân hàng ghi <span class="amount" data-sign="in">+8.500.000</span> · trạng thái
+                      chuyển sang đã thu.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="rbac" aria-labelledby="rbac-h">
+          <h2 id="rbac-h">Người dùng & quyền</h2>
+          <p class="section-desc">
+            Lưới vai trò × năng lực. Ô là ba trạng thái: có, không, và bỏ qua mọi cổng (chỉ super
+            admin). Trạng thái thứ ba phải nhìn khác hai cái kia vì nó là rủi ro.
+          </p>
+          <div class="spec">
+            <div class="spec-body">
+              <div class="matrix-wrap" style="max-height: none">
+                <table class="matrix">
+                  <thead>
+                    <tr>
+                      <th class="matrix-student" scope="col">Năng lực</th>
+                      <th scope="col">Super<br />admin</th>
+                      <th scope="col">GĐ kinh<br />doanh</th>
+                      <th scope="col">GĐ đào<br />tạo</th>
+                      <th scope="col">Sale</th>
+                      <th scope="col">Giáo<br />viên</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <th class="matrix-student" scope="row">Đọc danh sách phiếu thu</th>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                    </tr>
+                    <tr>
+                      <th class="matrix-student" scope="row">Duyệt phiếu thu</th>
+                      <td><span class="rbac-mark" data-grant="bypass">Bypass</span></td>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                    </tr>
+                    <tr>
+                      <th class="matrix-student" scope="row">Soạn phiếu thu</th>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                    </tr>
+                    <tr>
+                      <th class="matrix-student" scope="row">Đọc pipeline CRM</th>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                    </tr>
+                    <tr>
+                      <th class="matrix-student" scope="row">Điểm danh</th>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                    </tr>
+                    <tr>
+                      <th class="matrix-student" scope="row">Cấp quyền đơn vị học</th>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                    </tr>
+                    <tr>
+                      <th class="matrix-student" scope="row">Đọc sổ audit</th>
+                      <td><span class="rbac-mark" data-grant="yes">Có</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                      <td><span class="rbac-mark" data-grant="no">Không</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="mark-legend">
+                <span><span class="rbac-mark" data-grant="yes" aria-hidden="true">Có</span> Có quyền</span>
+                <span><span class="rbac-mark" data-grant="no" aria-hidden="true">Không</span> Không có quyền</span>
+                <span><span class="rbac-mark" data-grant="bypass" aria-hidden="true">Bypass</span> Bỏ qua mọi cổng, kể cả cổng tiền</span>
+              </p>
+            </div>
+            <p class="spec-note">
+              Ô Bypass mang tông nguy hiểm vì đó là điều người kiểm toán cần thấy trước nhất. Đây
+              cũng là lưới dùng để giải thích cho khách hàng vì sao sale không thấy danh sách phiếu.
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" data-open="false">
+      <p class="toast-title" data-toast-title>Đã lưu</p>
+      <p class="toast-meta" data-toast-meta></p>
+    </div>
+
+    <dialog id="palette-dialog" class="palette" aria-label="Command palette">
+      <div class="palette-input"><span>Tìm nhanh…</span><kbd style="margin-left: auto">Esc</kbd></div>
+      <ul class="palette-list">
+        <li class="palette-item" aria-selected="true">Sổ audit hôm nay <span class="palette-scope">Audit</span></li>
+        <li class="palette-item">Lưới quyền theo vai trò <span class="palette-scope">Quản trị</span></li>
+      </ul>
+    </dialog>
+
+    <script src="../shell.js"></script>
+  </body>
+</html>

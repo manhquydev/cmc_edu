@@ -1,0 +1,42 @@
+{
+  "title": "Chọn bố cục cockpit",
+  "question": "Ba cách sắp xếp cùng một thế giới Linear + Stripe. Chọn một, hoặc bảo tôi gộp / chỉnh.",
+  "options": [
+    {
+      "id": "comp-a",
+      "label": "Bốn thẻ + hai cột",
+      "kicker": "CLASSIC",
+      "lineage": "Stripe Dashboard classic",
+      "thesis": "Bốn MetricCard trên, hàng đợi 1.4fr bên trái, pipeline 1fr bên phải — đúng khung DashboardPage hiện có.",
+      "viewport": "Navbar tím · role switcher · 4 cards · WorkInbox | StageFunnel.",
+      "risk": "Dễ thành hero-metric template nếu thẻ quá to; cần siết chiều cao thẻ và ưu tiên hàng đợi.",
+      "hero": ".impeccable/mocks/comp-a.webp",
+      "sketch": ".impeccable/mocks/comp-a.webp"
+    },
+    {
+      "id": "comp-b",
+      "label": "Inbox-first",
+      "kicker": "LINEAR",
+      "lineage": "Linear inbox density",
+      "thesis": "Hàng đợi việc chiếm gần hết viewport; số liệu chỉ là một strip 64px; pipeline và lịch là rail hẹp.",
+      "viewport": "Navbar · strip 5 số · WorkInbox full-bleed · rail Pipeline + Lịch.",
+      "risk": "Role nào ít việc (sale trống O4) sẽ lộ empty lớn — empty state phải có CTA mạnh.",
+      "hero": ".impeccable/mocks/comp-b.webp",
+      "sketch": ".impeccable/mocks/comp-b.webp"
+    },
+    {
+      "id": "comp-c",
+      "label": "Bảng dữ liệu + sidebar",
+      "kicker": "STRIPE TABLE",
+      "lineage": "Stripe tabular ops",
+      "thesis": "Hàng đợi là bảng 40px rows với mã chứng từ tabular; sidebar trái điều hướng; funnel sticky phải.",
+      "viewport": "Left nav · title + tabs · 3 ruled metrics · DataTable | Funnel.",
+      "risk": "Khác shell ConsoleNavbar hiện tại (top nav); nếu giữ top nav thì phải bỏ sidebar để không đôi chrome.",
+      "hero": ".impeccable/mocks/comp-c.webp",
+      "sketch": ".impeccable/mocks/comp-c.webp"
+    }
+  ],
+  "reroll": false,
+  "canon": false,
+  "steer": true
+}

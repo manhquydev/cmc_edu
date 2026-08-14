@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Giảng dạy · Lớp · CMC EDU Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../tokens.css" />
+    <link rel="stylesheet" href="../system.css" />
+    <link rel="stylesheet" href="../modules.css" />
+  </head>
+  <body data-page="teaching" data-root="../">
+    <div class="app">
+      <aside class="sidebar" data-shell aria-label="Điều hướng hệ thống thiết kế"></aside>
+
+      <main class="main">
+        <div class="utility">
+          <nav class="crumbs" aria-label="Breadcrumb">
+            <a href="../index.html">system</a>
+            <span aria-hidden="true">/</span>
+            <span>module</span>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Giảng dạy</span>
+          </nav>
+          <div class="utility-right">
+            <div class="btn-group" data-density-group role="group" aria-label="Mật độ hiển thị">
+              <button type="button" data-density-set="compact" aria-pressed="false">Gọn</button>
+              <button type="button" data-density-set="default" aria-pressed="true">Chuẩn</button>
+              <button type="button" data-density-set="comfortable" aria-pressed="false">Thoáng</button>
+            </div>
+          </div>
+        </div>
+
+        <header class="page-head">
+          <div>
+            <h1>Giảng dạy · lưới thời gian và lưới người</h1>
+            <p class="subtitle">
+              Module có nhiều ngữ pháp riêng nhất, vì công việc ở đây không phải danh sách: thời khóa
+              biểu là lưới ngày × giờ, điểm danh là lưới học viên × buổi, vào điểm là lưới học viên ×
+              bài. Cả ba đều nhập bằng bàn phím nhanh hơn bằng chuột.
+            </p>
+          </div>
+          <p class="synth-banner">
+            Trang production: <code>teaching/schedule.tsx</code>,
+            <code>teaching/attendance.tsx</code>, <code>teaching/grading.tsx</code>,
+            <code>teaching/session-evidence.tsx</code>.
+          </p>
+        </header>
+
+        <nav class="toc filter-bar" aria-label="Mục trong trang" style="padding: 12px 0">
+          <a class="saved-view" href="#contract">Hợp đồng module</a>
+          <a class="saved-view" href="#schedule">Thời khóa biểu</a>
+          <a class="saved-view" href="#attendance">Điểm danh</a>
+          <a class="saved-view" href="#grading">Vào điểm</a>
+          <a class="saved-view" href="#evidence">Bằng chứng buổi học</a>
+          <a class="saved-view" href="#empty">Trạng thái rỗng</a>
+        </nav>
+
+        <section class="section" id="contract" aria-labelledby="contract-h">
+          <h2 id="contract-h">Hợp đồng module</h2>
+          <div class="spec">
+            <div class="spec-body">
+              <table class="token-table">
+                <tbody>
+                  <tr>
+                    <td>Khung trang</td>
+                    <td>
+                      <code>DashboardPage</code> (thời khóa biểu) · <code>DetailPage</code> (buổi học,
+                      lớp) · <code>ListPage</code> (bài tập) · <code>FormPage</code> (vào điểm)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Vai trò đọc</td>
+                    <td>
+                      <span class="badge" data-category="a">giáo viên</span> (lớp của mình) ·
+                      <span class="badge" data-category="a">giám đốc đào tạo</span> (toàn cơ sở) ·
+                      <span class="badge" data-category="a">super admin</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Pattern riêng</td>
+                    <td>
+                      Lưới ngày × giờ · ma trận điểm danh 3 trạng thái · lưới vào điểm có nháp và bước
+                      công bố · khối bằng chứng
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Ánh xạ trạng thái</td>
+                    <td>
+                      có mặt → <code>success</code> · muộn → <code>warning</code> · vắng →
+                      <code>danger</code> · chưa ghi → <code>neutral</code>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Ranh giới</td>
+                    <td>
+                      Giáo viên không đọc CRM và không đọc tiền. Điểm nháp không hiện cho phụ huynh
+                      cho tới khi công bố.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="schedule" aria-labelledby="sch-h">
+          <h2 id="sch-h">Thời khóa biểu tuần</h2>
+          <p class="section-desc">
+            Lưới ngày × giờ, mỗi buổi mang tên lớp, phòng và giáo viên. Màu phân biệt môn là màu
+            trạng thái nhạt, không phải bảng màu thứ hai. hệ chỉ có một dải màu.
+          </p>
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Tuần 33 · cơ sở Quận 1</h3>
+              <span class="chip">xung đột phòng có viền đỏ</span>
+            </div>
+            <div class="spec-body">
+              <div class="schedule-wrap">
+                <div class="schedule" role="table" aria-label="Thời khóa biểu tuần 33">
+                  <div class="schedule-head">Giờ</div>
+                  <div class="schedule-head">Thứ 2</div>
+                  <div class="schedule-head">Thứ 3</div>
+                  <div class="schedule-head">Thứ 4</div>
+                  <div class="schedule-head">Thứ 5</div>
+                  <div class="schedule-head">Thứ 6</div>
+                  <div class="schedule-head">Thứ 7</div>
+
+                  <div class="schedule-time">17:30</div>
+                  <div class="schedule-slot">
+                    <div class="session" data-category="a">
+                      <span class="session-name">Toán 7A</span>
+                      <span class="session-meta">P.204 · Thu Hà</span>
+                    </div>
+                  </div>
+                  <div class="schedule-slot"></div>
+                  <div class="schedule-slot">
+                    <div class="session" data-category="a">
+                      <span class="session-name">Toán 7A</span>
+                      <span class="session-meta">P.204 · Thu Hà</span>
+                    </div>
+                  </div>
+                  <div class="schedule-slot"></div>
+                  <div class="schedule-slot">
+                    <div class="session" data-category="b">
+                      <span class="session-name">Tiếng Anh 6B</span>
+                      <span class="session-meta">P.201 · Minh Tú</span>
+                    </div>
+                  </div>
+                  <div class="schedule-slot"></div>
+
+                  <div class="schedule-time">19:00</div>
+                  <div class="schedule-slot">
+                    <div class="session" data-category="b">
+                      <span class="session-name">Tiếng Anh 6B</span>
+                      <span class="session-meta">P.201 · Minh Tú</span>
+                    </div>
+                  </div>
+                  <div class="schedule-slot">
+                    <div class="session" data-category="c">
+                      <span class="session-name">Lý 9</span>
+                      <span class="session-meta">P.305 · Quang</span>
+                    </div>
+                  </div>
+                  <div class="schedule-slot"></div>
+                  <div class="schedule-slot">
+                    <div class="session" data-category="d" data-conflict="true">
+                      <span class="session-name">Hóa 9 · trùng phòng</span>
+                      <span class="session-meta">P.305 · chờ xếp lại</span>
+                    </div>
+                  </div>
+                  <div class="schedule-slot"></div>
+                  <div class="schedule-slot">
+                    <div class="session" data-category="a">
+                      <span class="session-name">Toán 7A bù</span>
+                      <span class="session-meta">P.204 · Thu Hà</span>
+                    </div>
+                  </div>
+
+                  <div class="schedule-time">08:30</div>
+                  <div class="schedule-slot"></div>
+                  <div class="schedule-slot"></div>
+                  <div class="schedule-slot"></div>
+                  <div class="schedule-slot"></div>
+                  <div class="schedule-slot"></div>
+                  <div class="schedule-slot">
+                    <div class="session" data-category="c">
+                      <span class="session-name">Lý 9</span>
+                      <span class="session-meta">P.305 · Quang</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p class="mark-legend">
+                <span><span class="badge" data-tone="brand">Toán</span></span>
+                <span><span class="badge" data-tone="info">Tiếng Anh</span></span>
+                <span><span class="badge" data-tone="success">Lý</span></span>
+                <span><span class="badge" data-tone="warning">Hóa</span></span>
+                <span>Viền đỏ = trùng phòng hoặc trùng giáo viên</span>
+              </p>
+            </div>
+            <p class="spec-note">
+              Ô trống vẫn là ô có viền: lưới phải đọc được cả chỗ chưa xếp, vì việc của giám đốc đào
+              tạo là tìm chỗ trống. Trên mobile lưới đổi sang danh sách theo ngày.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="attendance" aria-labelledby="att-h">
+          <h2 id="att-h">Ma trận điểm danh</h2>
+          <p class="section-desc">
+            Học viên × buổi. Ô là nút ba trạng thái: bấm để xoay có mặt → muộn → vắng → chưa ghi. Tên
+            học viên ghim bên trái khi cuộn ngang, tiêu đề buổi ghim khi cuộn dọc.
+          </p>
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Toán 7A · tháng 8/2026</h3>
+              <span class="chip">bấm vào ô để đổi trạng thái</span>
+            </div>
+            <div class="spec-body">
+              <div class="matrix-wrap">
+                <table class="matrix">
+                  <thead>
+                    <tr>
+                      <th class="matrix-student" scope="col">Học viên</th>
+                      <th scope="col">05/08</th>
+                      <th scope="col">07/08</th>
+                      <th scope="col">12/08</th>
+                      <th scope="col">14/08</th>
+                      <th scope="col">19/08</th>
+                      <th scope="col">Vắng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <th class="matrix-student" scope="row">Nguyễn Minh Anh</th>
+                      <td><button type="button" class="mark" data-state="present" data-student="Nguyễn Minh Anh" aria-label="Nguyễn Minh Anh. có mặt">C</button></td>
+                      <td><button type="button" class="mark" data-state="present" data-student="Nguyễn Minh Anh" aria-label="Nguyễn Minh Anh. có mặt">C</button></td>
+                      <td><button type="button" class="mark" data-state="late" data-student="Nguyễn Minh Anh" aria-label="Nguyễn Minh Anh. muộn">M</button></td>
+                      <td><button type="button" class="mark" data-state="present" data-student="Nguyễn Minh Anh" aria-label="Nguyễn Minh Anh. có mặt">C</button></td>
+                      <td><button type="button" class="mark" data-student="Nguyễn Minh Anh" aria-label="Nguyễn Minh Anh – chưa ghi">–</button></td>
+                      <td>0</td>
+                    </tr>
+                    <tr>
+                      <th class="matrix-student" scope="row">Trần Gia Bảo</th>
+                      <td><button type="button" class="mark" data-state="present" data-student="Trần Gia Bảo" aria-label="Trần Gia Bảo. có mặt">C</button></td>
+                      <td><button type="button" class="mark" data-state="absent" data-student="Trần Gia Bảo" aria-label="Trần Gia Bảo – vắng">V</button></td>
+                      <td><button type="button" class="mark" data-state="present" data-student="Trần Gia Bảo" aria-label="Trần Gia Bảo. có mặt">C</button></td>
+                      <td><button type="button" class="mark" data-state="present" data-student="Trần Gia Bảo" aria-label="Trần Gia Bảo. có mặt">C</button></td>
+                      <td><button type="button" class="mark" data-student="Trần Gia Bảo" aria-label="Trần Gia Bảo – chưa ghi">–</button></td>
+                      <td>1</td>
+                    </tr>
+                    <tr>
+                      <th class="matrix-student" scope="row">Lê Khánh Linh</th>
+                      <td><button type="button" class="mark" data-state="absent" data-student="Lê Khánh Linh" aria-label="Lê Khánh Linh – vắng">V</button></td>
+                      <td><button type="button" class="mark" data-state="absent" data-student="Lê Khánh Linh" aria-label="Lê Khánh Linh – vắng">V</button></td>
+                      <td><button type="button" class="mark" data-state="late" data-student="Lê Khánh Linh" aria-label="Lê Khánh Linh. muộn">M</button></td>
+                      <td><button type="button" class="mark" data-state="present" data-student="Lê Khánh Linh" aria-label="Lê Khánh Linh. có mặt">C</button></td>
+                      <td><button type="button" class="mark" data-student="Lê Khánh Linh" aria-label="Lê Khánh Linh – chưa ghi">–</button></td>
+                      <td style="color: var(--text-critical); font-weight: var(--font-weight-emphasis)">2</td>
+                    </tr>
+                    <tr>
+                      <th class="matrix-student" scope="row">Phạm Quốc Huy</th>
+                      <td><button type="button" class="mark" data-state="present" data-student="Phạm Quốc Huy" aria-label="Phạm Quốc Huy. có mặt">C</button></td>
+                      <td><button type="button" class="mark" data-state="present" data-student="Phạm Quốc Huy" aria-label="Phạm Quốc Huy. có mặt">C</button></td>
+                      <td><button type="button" class="mark" data-state="present" data-student="Phạm Quốc Huy" aria-label="Phạm Quốc Huy. có mặt">C</button></td>
+                      <td><button type="button" class="mark" data-state="late" data-student="Phạm Quốc Huy" aria-label="Phạm Quốc Huy. muộn">M</button></td>
+                      <td><button type="button" class="mark" data-student="Phạm Quốc Huy" aria-label="Phạm Quốc Huy – chưa ghi">–</button></td>
+                      <td>0</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="mark-legend">
+                <span><span class="mark" data-state="present" aria-hidden="true">C</span> Có mặt</span>
+                <span><span class="mark" data-state="late" aria-hidden="true">M</span> Muộn</span>
+                <span><span class="mark" data-state="absent" aria-hidden="true">V</span> Vắng</span>
+                <span><span class="mark" aria-hidden="true">–</span> Chưa ghi</span>
+              </p>
+            </div>
+            <p class="spec-note">
+              Mỗi ô là <code>&lt;button&gt;</code> có <code>aria-label</code> đủ nghĩa ("Trần Gia Bảo
+              – vắng"), nên trình đọc màn hình không phải suy ra từ vị trí. Cột "Vắng" tổng hợp ở
+              cuối để giáo viên thấy ai cần liên hệ phụ huynh.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="grading" aria-labelledby="grade-h">
+          <h2 id="grade-h">Vào điểm: nháp trước, công bố sau</h2>
+          <p class="section-desc">
+            Điểm gõ vào là nháp và tự lưu. Học viên và phụ huynh chưa thấy gì cho tới khi giáo viên
+            bấm công bố. Ranh giới nháp/công bố là điều quan trọng nhất phải hiện rõ trên trang.
+          </p>
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Toán 7A · bài kiểm tra giữa kỳ</h3>
+              <span class="chip">gõ điểm để thấy nháp và chữ điểm tự đổi</span>
+            </div>
+            <div class="spec-body">
+              <div class="table-wrap" style="border-bottom-left-radius: 0; border-bottom-right-radius: 0">
+                <table class="data-table kpi-table" style="min-width: 640px">
+                  <thead>
+                    <tr>
+                      <th class="col-code" scope="col">Mã HV</th>
+                      <th scope="col">Học viên</th>
+                      <th scope="col" data-numeric="true" style="width: 108px">Điểm /10</th>
+                      <th scope="col" style="width: 88px">Chữ</th>
+                      <th scope="col">Nhận xét</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="col-code">HV-1002</td>
+                      <td><span class="row-title">Nguyễn Minh Anh</span></td>
+                      <td data-numeric="true">
+                        <input class="grade-input" type="number" step="0.25" max="10" value="8.5" aria-label="Điểm Nguyễn Minh Anh" />
+                      </td>
+                      <td><span class="grade-letter" data-band="high">A</span></td>
+                      <td><input class="input" style="height: 26px" value="Nắm chắc phần hàm số" aria-label="Nhận xét Nguyễn Minh Anh" /></td>
+                    </tr>
+                    <tr>
+                      <td class="col-code">HV-1004</td>
+                      <td><span class="row-title">Trần Gia Bảo</span></td>
+                      <td data-numeric="true">
+                        <input class="grade-input" type="number" step="0.25" max="10" value="6.75" aria-label="Điểm Trần Gia Bảo" />
+                      </td>
+                      <td><span class="grade-letter" data-band="mid">B</span></td>
+                      <td><input class="input" style="height: 26px" placeholder="Thêm nhận xét…" aria-label="Nhận xét Trần Gia Bảo" /></td>
+                    </tr>
+                    <tr>
+                      <td class="col-code">HV-1011</td>
+                      <td><span class="row-title">Lê Khánh Linh</span></td>
+                      <td data-numeric="true">
+                        <input class="grade-input" type="number" step="0.25" max="10" value="4.5" aria-label="Điểm Lê Khánh Linh" />
+                      </td>
+                      <td><span class="grade-letter" data-band="low">D</span></td>
+                      <td><input class="input" style="height: 26px" value="Cần học lại chương 2" aria-label="Nhận xét Lê Khánh Linh" /></td>
+                    </tr>
+                    <tr>
+                      <td class="col-code">HV-1019</td>
+                      <td><span class="row-title">Phạm Quốc Huy</span></td>
+                      <td data-numeric="true">
+                        <input class="grade-input" type="number" step="0.25" max="10" aria-label="Điểm Phạm Quốc Huy" />
+                      </td>
+                      <td><span class="grade-letter">–</span></td>
+                      <td><input class="input" style="height: 26px" placeholder="Thêm nhận xét…" aria-label="Nhận xét Phạm Quốc Huy" /></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="publish-bar" data-publish-bar>
+                <span><strong data-dirty-count>0</strong> ô nháp đã tự lưu · chưa hiện cho phụ huynh</span>
+                <span class="bulk-spacer"></span>
+                <button type="button" class="btn btn-ghost btn-sm">Nhập từ CSV</button>
+                <button type="button" class="btn btn-secondary btn-sm">Công bố 1 học viên…</button>
+                <button type="button" class="btn btn-primary btn-sm" data-toast="Đã công bố 3 điểm" data-toast-meta="Phụ huynh nhận thông báo, điểm đã công bố không sửa lặng lẽ">
+                  Công bố tất cả
+                </button>
+              </div>
+            </div>
+            <p class="spec-note">
+              Chữ điểm tự suy từ số, không phải cột nhập thứ hai. hai nguồn sự thật cho cùng một
+              con số là lỗi thiết kế. Sau khi công bố, mỗi lần sửa đều ghi vào sổ audit.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="evidence" aria-labelledby="ev-h">
+          <h2 id="ev-h">Bằng chứng buổi học</h2>
+          <p class="section-desc">
+            Giáo viên nộp ảnh bảng, bài làm, hoặc ghi chú buổi học. Thiếu bằng chứng là trạng thái
+            <code>danger</code> vì nó chặn tính lương và chặn xác nhận buổi dạy.
+          </p>
+          <div class="two-col">
+            <div class="spec">
+              <div class="spec-head">
+                <h3 class="spec-name">Đã nộp</h3>
+              </div>
+              <div class="spec-body">
+                <div class="evidence">
+                  <figure class="evidence-item" style="margin: 0">
+                    <div class="evidence-thumb" aria-hidden="true">
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M3 17l5-4 4 3 3-2 6 5"/></svg>
+                    </div>
+                    <figcaption class="evidence-meta">
+                      <strong>bang-toan7a-1408.jpg</strong>1,2 MB · 19:04
+                    </figcaption>
+                  </figure>
+                  <figure class="evidence-item" style="margin: 0">
+                    <div class="evidence-thumb" aria-hidden="true">
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M14 3v5h5"/><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-5Z"/></svg>
+                    </div>
+                    <figcaption class="evidence-meta">
+                      <strong>bai-lam-nhom-2.pdf</strong>840 KB · 19:06
+                    </figcaption>
+                  </figure>
+                </div>
+                <div class="progress" style="margin-top: 12px" aria-hidden="true"><span style="width: 100%"></span></div>
+                <p class="field-hint" style="margin-top: 6px">Đủ bằng chứng · đã xác nhận buổi 14/08</p>
+              </div>
+            </div>
+
+            <div class="spec">
+              <div class="spec-head">
+                <h3 class="spec-name">Chưa nộp. chặn tính lương</h3>
+              </div>
+              <div class="spec-body">
+                <div class="callout" data-tone="danger" style="margin-bottom: 12px">
+                  <p class="callout-title">Buổi 12/08 thiếu bằng chứng</p>
+                  <p>
+                    Buổi dạy chưa được xác nhận nên chưa vào bảng lương kỳ 8/2026. Nộp trước 20/08.
+                  </p>
+                </div>
+                <div class="dropzone" data-active="true">
+                  <strong>Thả ảnh hoặc PDF vào đây</strong>
+                  <span>Tối đa 10 tệp · mỗi tệp dưới 10 MB</span>
+                  <button type="button" class="btn btn-secondary btn-sm">Chọn tệp</button>
+                </div>
+              </div>
+              <p class="spec-note">
+                Thông báo nêu hệ quả cụ thể (chưa vào bảng lương) và hạn chót. "Thiếu dữ liệu" không
+                khiến ai hành động.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= Empty states ================= -->
+        <section class="section" id="empty" aria-labelledby="empty-h">
+          <h2 id="empty-h">Lưới điểm danh khi chưa có gì</h2>
+          <p class="section-desc">Lớp mới mở, buổi chưa tới giờ, hoặc lớp đã điểm danh xong: ba tình huống rất khác nhau và không được dùng cùng một câu.</p>
+          <div class="spec">
+            <div class="spec-head">
+              <h3 class="spec-name">Ba kiểu rỗng của buổi dạy</h3>
+              <span class="chip">chưa tới giờ ≠ chưa điểm danh</span>
+            </div>
+            <div class="spec-body" style="display: grid; gap: var(--space-base)">
+              <div class="state-block" data-kind="first-run">
+                <h3>Lớp chưa có học viên nào</h3>
+                <p>Toán 8C đã lên lịch nhưng chưa xếp học viên. Lưới điểm danh xuất hiện khi có ít nhất một học viên trong lớp.</p>
+                <div class="state-actions">
+                  <button type="button" class="btn btn-primary btn-sm">Xếp học viên vào lớp</button>
+                  <button type="button" class="btn btn-secondary btn-sm">Xem danh sách chờ xếp</button>
+                </div>
+              </div>
+              <div class="state-block" data-kind="filtered">
+                <h3>Buổi này chưa tới giờ</h3>
+                <p>Buổi 14/08 bắt đầu 18:00. Lưới mở trước giờ dạy 30 phút để giáo viên chuẩn bị.</p>
+                <div class="state-actions">
+                  <button type="button" class="btn btn-secondary btn-sm">Xem buổi gần nhất đã dạy</button>
+                </div>
+              </div>
+              <div class="state-block" data-kind="done">
+                <h3>Đã điểm danh đủ 24 học viên</h3>
+                <p>Buổi 12/08 đã chốt và có bằng chứng. Việc còn lại của bạn là bảng điểm giữa kỳ đang ở bản nháp.</p>
+                <div class="state-actions">
+                  <button type="button" class="btn btn-secondary btn-sm">Sang bảng điểm</button>
+                </div>
+              </div>
+            </div>
+            <p class="spec-note">Bằng chứng buổi dạy gắn với lương, nên trạng thái “chưa tới giờ” phải khác hẳn “chưa điểm danh”, không được gộp làm một.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" data-open="false">
+      <p class="toast-title" data-toast-title>Đã lưu</p>
+      <p class="toast-meta" data-toast-meta></p>
+    </div>
+
+    <dialog id="palette-dialog" class="palette" aria-label="Command palette">
+      <div class="palette-input"><span>Tìm nhanh…</span><kbd style="margin-left: auto">Esc</kbd></div>
+      <ul class="palette-list">
+        <li class="palette-item" aria-selected="true">Điểm danh lớp hôm nay <span class="palette-scope">Giảng dạy</span></li>
+        <li class="palette-item">Vào điểm giữa kỳ <span class="palette-scope">Giảng dạy</span></li>
+      </ul>
+    </dialog>
+
+    <script src="../shell.js"></script>
+  </body>
+</html>

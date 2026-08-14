@@ -227,6 +227,57 @@ describe('ReceiptDetailPage', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
+  // A blocked approval used to render nothing at all: no button, no reason, so
+  // the operator could not tell a missing permission from a finished receipt.
+  // Each block now names the rule and the authority to go to.
+  it('names the separation-of-duties rule when the viewer drafted the receipt', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      canApprove: false,
+      approvalBlock: 'self-created' as const,
+    };
+    renderDetail();
+    expect(screen.getByText('Bạn soạn phiếu này nên không duyệt được nó')).toBeInTheDocument();
+    expect(screen.getByText(/người soạn phiếu không được là người duyệt/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Duyệt & Kích hoạt' })).not.toBeInTheDocument();
+  });
+
+  it('names who can approve when the role cannot approve at all', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      canApprove: false,
+      approvalBlock: 'no-permission' as const,
+    };
+    renderDetail();
+    expect(screen.getByText('Bạn không có quyền duyệt phiếu thu')).toBeInTheDocument();
+    expect(screen.getByText(/Giám đốc kinh doanh, Giám đốc đào tạo/)).toBeInTheDocument();
+  });
+
+  it('explains the threshold, and that it is one signer rather than two', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      netAmount: 21_000_000,
+      canApprove: false,
+      approvalBlock: 'needs-second-eye' as const,
+    };
+    renderDetail();
+    expect(
+      screen.getByText('Phiếu vượt ngưỡng nên cần người duyệt cấp cao hơn'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/không phải hai chữ ký/i)).toBeInTheDocument();
+  });
+
+  it('stays silent about approval blocks once the receipt has left draft', () => {
+    receiptState.data = {
+      ...RECEIPT,
+      status: 'approved',
+      canApprove: false,
+      approvalBlock: 'no-permission' as const,
+    };
+    renderDetail();
+    expect(screen.queryByText('Bạn không có quyền duyệt phiếu thu')).not.toBeInTheDocument();
+  });
+
   it('shows refund ledger and Ghi hoàn tiền when viewerCanRefund on approved receipt', () => {
     receiptState.data = {
       ...RECEIPT,

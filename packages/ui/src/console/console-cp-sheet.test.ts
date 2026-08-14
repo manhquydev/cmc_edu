@@ -45,7 +45,7 @@ describe('console.css ControlBar densify + form sheet', () => {
     const body = ruleBlock('.o_web_client .console-control-bar');
     expect(body, 'expected shell control-bar rule').toBeTruthy();
     expect(body).toMatch(/padding\s*:\s*8px/);
-    expect(body).toMatch(/gap\s*:\s*8px/);
+    expect(body).toMatch(/gap\s*:\s*12px/);
   });
 
   it('flattens EntityHeader chrome inside form sheet under shell', () => {

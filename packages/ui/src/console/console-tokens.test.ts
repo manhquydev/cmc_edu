@@ -107,7 +107,7 @@ describe('console.css scope + token surface', () => {
       /\.o_web_client \.console-search-box[\s\S]{0,900}border-radius:\s*999px\s*!important/,
     );
     expect(css).toMatch(
-      /\.o_web_client \.console-steps-num[\s\S]{0,80}display:\s*none/,
+      /\.o_web_client \.console-steps-num[\s\S]{0,280}clip:\s*rect\(0,\s*0,\s*0,\s*0\)/,
     );
   });
 

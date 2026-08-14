@@ -42,7 +42,7 @@ describe('DetailPage', () => {
     expect(container.querySelector('.console-detail-tabs')).toBeTruthy();
   });
 
-  it('uses Odoo form sheet dual-layer: summary outside sheet, entity/tabs/body inside', () => {
+  it('uses Odoo form sheet dual-layer: summary + statusbar inside sheet', () => {
     const { container, getByText } = render(
       <DetailPage
         header={<div>HEADER</div>}
@@ -59,16 +59,17 @@ describe('DetailPage', () => {
     expect(bg).toBeTruthy();
     expect(sheet).toBeTruthy();
     expect(bg!.contains(sheet!)).toBe(true);
-    // summary stays on the canvas; statusbar is the first row of the white sheet (pack 14)
-    expect(sheet!.contains(getByText('SUMMARY'))).toBe(false);
+    // pack 14: no canvas card above sheet — summary lives inside white sheet after statusbar
+    expect(sheet!.contains(getByText('SUMMARY'))).toBe(true);
     expect(sheet!.contains(getByText('STATUSBAR'))).toBe(true);
-    expect(bg!.contains(getByText('SUMMARY'))).toBe(true);
     expect(container.querySelector('.console-detail-statusbar')).toContainElement(getByText('STATUSBAR'));
     expect(sheet!.contains(getByText('ENTITY'))).toBe(true);
     expect(sheet!.contains(getByText('TABS'))).toBe(true);
     expect(sheet!.contains(getByText('CONTENT'))).toBe(true);
     // header stays outside sheet_bg
     expect(bg!.contains(getByText('HEADER'))).toBe(false);
+    // statusbar is first child of sheet when present
+    expect(sheet!.firstElementChild).toHaveClass('console-detail-statusbar');
   });
 
   it('omits statusbar slot when not provided', () => {

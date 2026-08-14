@@ -85,7 +85,7 @@
   --console-font-size-sm: 13px;
   --console-font-size-xs: 12px;
 
-  /* Radius — soft-square 4px (OpenEduCat “bo vuông”); search + status = capsule */
+  /* Radius — soft-square 4px (OpenEduCat soft-square); search + status = capsule */
   --console-radius: 4px;
   --console-radius-sm: 3px;
   --console-radius-lg: 4px;
@@ -1652,11 +1652,20 @@ button.console-kanban-card {
   border-radius: var(--console-radius, 4px);
   box-shadow: none;
 }
-/* Summary band = HighlightStrip / metrics above the white sheet — never sticky
-   (tall composite). Thin WorkflowStatusbar lives in `.console-detail-statusbar`. */
-.o_web_client .console-form-sheet-bg > .console-detail-summary {
-  padding: 0 0 4px;
+/* Summary band = HighlightStrip / metrics — inside white sheet (pack 14), not a
+   floating card on the gray canvas. Keep thin WorkflowStatusbar first. */
+.o_web_client .console-form-sheet > .console-detail-summary {
+  padding: 0 0 12px;
   background: transparent;
+}
+/* Flatten HighlightStrip card chrome when used as form overview */
+.o_web_client .console-form-sheet .console-highlight,
+.o_web_client .console-detail-summary .console-highlight {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 /* Odoo `.o_form_statusbar` analogue — first row of the white sheet (pack 14). */
 .console-detail-statusbar {

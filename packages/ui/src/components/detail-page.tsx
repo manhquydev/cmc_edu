@@ -12,8 +12,8 @@ export interface DetailPageProps {
    */
   entity?: ReactNode;
   /**
-   * Optional overview band: HighlightStrip / Metric / Callout — **not sticky**.
-   * Prefer thin workflow chrome in `statusbar` instead of packing it here.
+   * Optional overview band: HighlightStrip / StatActions — sits **inside** the
+   * white sheet (after statusbar), not as a card on the gray canvas (pack 14).
    */
   summary?: ReactNode;
   /**
@@ -39,9 +39,9 @@ export interface DetailPageProps {
  * ```
  * [ PageHeader — CP-like crumbs ]
  * [ .console-form-sheet-bg ]
- *   [ summary — HighlightStrip / metrics (scrolls) ]
  *   [ .console-form-sheet ]
  *     [ statusbar — right-aligned chevrons, first row of the white sheet ]
+ *     [ summary — key fields / StatActions (no raised card on canvas) ]
  *     [ EntityHeader ]
  *     [ CmcTabs? ]
  *     [ body ]
@@ -60,18 +60,18 @@ export function DetailPage({
 }: DetailPageProps) {
   const wrap = density === 'ops' ? 'console-wrap console-wrap--ops console-detail' : 'console-wrap console-detail';
   const hasBody = children != null && children !== false && children !== true;
-  const hasSheet = entity != null || tabs != null || hasBody;
+  const hasSheet = entity != null || tabs != null || hasBody || summary != null;
 
   return (
     <div className={wrap}>
       {header}
       <div className="console-form-sheet-bg">
-        {summary != null ? <div className="console-detail-summary">{summary}</div> : null}
         {hasSheet ? (
           <div className="console-form-sheet">
             {statusbar != null ? (
               <div className="console-detail-statusbar">{statusbar}</div>
             ) : null}
+            {summary != null ? <div className="console-detail-summary">{summary}</div> : null}
             {entity != null ? <div className="console-detail-entity">{entity}</div> : null}
             {tabs != null ? <div className="console-detail-tabs">{tabs}</div> : null}
             {hasBody ? <div className="console-detail-body">{children}</div> : null}

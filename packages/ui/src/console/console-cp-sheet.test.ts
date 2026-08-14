@@ -57,9 +57,8 @@ describe('console.css ControlBar densify + form sheet', () => {
   });
 
   it('sticks thin .console-detail-statusbar on md+ only (not .console-detail-summary)', () => {
-    const summary = ruleBlock('.o_web_client .console-form-sheet-bg > .console-detail-summary');
-    expect(summary).toBeTruthy();
-    expect(summary).not.toMatch(/position\s*:\s*sticky/);
+    expect(css.includes('.o_web_client .console-form-sheet > .console-detail-summary')).toBe(true);
+    expect(css.includes('.o_web_client .console-form-sheet-bg > .console-detail-summary')).toBe(false);
 
     expect(css.includes('.o_web_client .console-form-sheet > .console-detail-statusbar')).toBe(true);
     const mediaIdx = css.indexOf('@media (min-width: 768px)');
@@ -69,5 +68,14 @@ describe('console.css ControlBar densify + form sheet', () => {
     expect(stickySlice.includes('.console-detail-statusbar')).toBe(true);
     expect(stickySlice).toMatch(/position\s*:\s*sticky/);
     expect(stickySlice).toMatch(/top\s*:\s*0/);
+  });
+
+  it('flattens HighlightStrip card chrome inside form sheet (pack 14)', () => {
+    expect(css.includes('.o_web_client .console-form-sheet .console-highlight')).toBe(true);
+    const idx = css.indexOf('.o_web_client .console-form-sheet .console-highlight');
+    const slice = css.slice(idx, idx + 280);
+    expect(slice).toMatch(/border\s*:\s*0/);
+    expect(slice).toMatch(/box-shadow\s*:\s*none/);
+    expect(slice).toMatch(/background\s*:\s*transparent/);
   });
 });

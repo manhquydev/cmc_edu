@@ -13,7 +13,7 @@ Thêm `KanbanRecordGrid` (thẻ người 3 cột) tách khỏi `KanbanBoard` (pi
 - [x] CRM pipeline **không** đổi sang grid
 - [x] Form New = class `console-btn-outline-primary`
 - [x] WorkflowStatusbar height 33px, current `--console-statusbar-current`
-- [ ] StatActions ngồi CP phải, trước pager — mới densify CSS; pages vẫn để StatActions trong sheet
+- [ ] StatActions ngồi CP phải, trước pager — mới densify CSS; pages vẫn để StatActions trong sheet (**summary-in-sheet DONE 2026-08-14**; StatActions CP vẫn mở)
 - [x] Notebook underline 2px purple (`.console-notebook`)
 - [ ] eLearning-style card (ribbon PUBLISHED) — chưa có UI courses kiểu pack `29`
 
@@ -27,4 +27,5 @@ Thêm `KanbanRecordGrid` (thẻ người 3 cột) tách khỏi `KanbanBoard` (pi
 ## Acceptance
 
 - [ ] Screenshot students kanban vs `02` at 1280
-- [ ] Admission-register-like form vs `14`: ribbon phải, sheet, không search trên CP
+- [x] Form summary không còn card trên canvas — inside sheet + flatten HighlightStrip (`live-ui-audit-260814-1130`)
+- [ ] Admission-register-like form vs `14`: ribbon phải, sheet, StatActions CP phải (residual)

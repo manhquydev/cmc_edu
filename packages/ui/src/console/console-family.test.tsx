@@ -107,7 +107,12 @@ describe('console family computed pins', () => {
     );
     const num = mount.querySelector('.console-steps-num') as HTMLElement;
     expect(num).toBeTruthy();
-    expect(getComputedStyle(num).display).toBe('none');
+    // Visually hidden (sr-only clip) — stays in DOM for a11y/tests, not display:none
+    const numStyle = getComputedStyle(num);
+    expect(numStyle.position).toBe('absolute');
+    expect(numStyle.width).toBe('1px');
+    expect(numStyle.height).toBe('1px');
+    expect(numStyle.clip).toMatch(/rect\(0(px)?, 0(px)?, 0(px)?, 0(px)?\)/);
     const current = mount.querySelector('.is-current .console-steps-btn') as HTMLElement;
     expect(getComputedStyle(current).backgroundColor).toBe('rgb(224, 217, 241)');
   });

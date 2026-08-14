@@ -48,6 +48,16 @@ describe('console.css ControlBar densify + form sheet', () => {
     expect(body).toMatch(/gap\s*:\s*12px/);
   });
 
+  it('locks OpenEduCat one-row CP ~58px under shell (pack §3)', () => {
+    const body = ruleBlock('.o_web_client .console-control-bar');
+    expect(body, 'expected shell control-bar rule').toBeTruthy();
+    expect(body).toMatch(/flex-direction\s*:\s*row/);
+    expect(body).toMatch(/flex-wrap\s*:\s*nowrap/);
+    expect(body).toMatch(/height\s*:\s*var\(--console-cp-height,\s*58px\)/);
+    expect(body).toMatch(/max-height\s*:\s*var\(--console-cp-height,\s*58px\)/);
+    expect(body).toMatch(/min-height\s*:\s*var\(--console-cp-height,\s*58px\)/);
+  });
+
   it('flattens EntityHeader chrome inside form sheet under shell', () => {
     const body = ruleBlock('.o_web_client .console-form-sheet .console-eh');
     expect(body, 'expected in-sheet entity header rule').toBeTruthy();

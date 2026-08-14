@@ -311,6 +311,33 @@ describe('console / Astryx / CMC precedence', () => {
       `--font-family-body shell=${JSON.stringify(prop(shellChild, '--font-family-body'))} outside=${JSON.stringify(prop(outsideChild, '--font-family-body'))}`,
     ).not.toBe(prop(outsideChild, '--font-family-body'));
   });
+
+  it('remaps admin primary accent to Community purple; LMS outside keeps CMC blue', () => {
+    // OpenEduCat contract §2: primary under .o_web_client = #71639e.
+    // Astryx Button primary paints background from --color-accent.
+    expectHexColor(shellChild, '--console-brand-purple', '#71639e', 'rgb(113, 99, 158)');
+    expect(
+      prop(shellChild, '--cmc-brand'),
+      `--cmc-brand shell=${JSON.stringify(prop(shellChild, '--cmc-brand'))}`,
+    ).toBe('var(--console-brand-purple)');
+    expect(
+      specifiedPx(shellChild, '--cmc-brand'),
+      `--cmc-brand resolved shell=${JSON.stringify(specifiedPx(shellChild, '--cmc-brand'))}`,
+    ).toBe('#71639e');
+    expect(
+      prop(shellChild, '--color-accent'),
+      `--color-accent shell=${JSON.stringify(prop(shellChild, '--color-accent'))}`,
+    ).toBe('var(--console-brand-purple)');
+    expect(
+      specifiedPx(shellChild, '--color-accent'),
+      `--color-accent resolved shell=${JSON.stringify(specifiedPx(shellChild, '--color-accent'))}`,
+    ).toBe('#71639e');
+
+    // tokens.css LMS / non-shell surface must stay Apple-blue.
+    expectHexColor(outsideChild, '--cmc-brand', '#0071e3', 'rgb(0, 113, 227)');
+    expect(prop(outsideChild, '--color-accent')).toBe('var(--cmc-brand)');
+    expect(specifiedPx(outsideChild, '--color-accent')).toBe('#0071e3');
+  });
 });
 
 describe('upstream Astryx theme-neutral --text-* mapping', () => {

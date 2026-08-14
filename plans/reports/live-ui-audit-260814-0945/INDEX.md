@@ -17,16 +17,31 @@ Automated list pass: **57 findings** (0 critical · **33 P0** · **20 P1** · 4 
 
 ## Verdict (tình trạng thật)
 
+### Re-measure 2026-08-14 11:21 (+07) — sau rebuild tip #139
+
+`LOCAL_SIM_LIVE=1 node scripts/live-openeducat-ui-audit.mjs` trên image rebuild từ `develop@52602de`:
+
+| Gate | Result |
+|------|--------|
+| List/kanban CP height | **13/13 = 58px** (MATCH pack ~58) |
+| Solid `#0071E3` buttons | **0** trên smoke walk |
+| Primary New/Tạo/Thêm | `rgb(113,99,158)` = `#71639e` (courses/classes/users/CRM/finance/exercises) |
+| Remaining findings | 1 P0 design-gallery statusbar out-of-sheet · 6 P1 search pill/row · 4 warn no detail link |
+
+**P0 Control panel + P0 primary tím = MATCH** trên list/kanban. Audit 09:45 bên dưới là baseline **trước** merge #139 (image cũ, `flex-direction: column`, accent tokens unset).
+
+### Baseline 09:45 (pre-#139) — giữ để đối chiếu
+
 Chrome **tím Community** đã có. Statusbar chevron **đã vào đúng chỗ pack** (trong sheet, lavender, 33px) trên opportunity / class / receipt.
 
-Phần còn lại của admin **chưa phải OpenEduCat OS**:
+Phần còn lại của admin **khi đó chưa phải OpenEduCat OS**:
 
-1. **Control panel không phải 1 hàng 58px** — đo 89–219px trên hầu hết list (P0 systemic).  
-2. **Primary CTA vẫn Apple-blue `#0071E3`** trên New / Tạo / Thêm / Ghi danh / Lưu việc… (P0 systemic).  
-3. **Form còn “CMC ops card”** phía trên sheet + pad sheet 14/16 ≠ pack 24–32 (P1).  
+1. **Control panel không phải 1 hàng 58px** — đo 89–219px trên hầu hết list (P0 systemic) — **đã đóng sau #139 + rebuild**.  
+2. **Primary CTA vẫn Apple-blue `#0071E3`** — **đã đóng sau #139 + rebuild**.  
+3. **Form còn “CMC ops card”** phía trên sheet + pad sheet 14/16 ≠ pack 24–32 (P1) — vẫn mở.  
 4. Nhiều màn pack **không có analogue** (product gap), không phải CSS bug.
 
-Sát pack = chưa. Statusbar là điểm sáng; list OS + nút tím là trần chặn tiếp theo.
+Trần chặn tiếp theo: **P1 search pill / row density** + form chrome leftover.
 
 ---
 
@@ -153,17 +168,18 @@ Confirmed in detail by [form+statusbar](091f4480-ef35-4325-a0de-5c3c4d7d1222): `
 
 ## Việc nên làm tiếp (theo impact)
 
-1. **P0 CP one-row 58px** — list-only slot (đã ghi ở walk 260813; vẫn đúng).  
-2. **P0 remap primary** dưới `.o_web_client` → `--console-brand-purple` (New / Tạo / Thêm / primary form).  
-3. **P1 form:** bỏ hoặc hạ summary card khỏi form grammar pack; pad sheet 24–32; StatActions lên CP phải nếu muốn sát 14.  
-4. **Không** giả Discuss badge / Settings sidebar / SIS photo nếu chưa có product.
+1. ~~**P0 CP one-row 58px**~~ — **DONE** (re-measure 11:21; unit pin `console-cp-sheet`).  
+2. ~~**P0 remap primary**~~ — **DONE** (re-measure 11:21; unit pin `console-precedence`).  
+3. **P1 search:** pill 35px / radius 999 trên list còn `0px`/`4px` (classes/users/CRM/payroll).  
+4. **P1 form:** bỏ hoặc hạ summary card khỏi form grammar pack; pad sheet 24–32; StatActions lên CP phải nếu muốn sát 14.  
+5. **Không** giả Discuss badge / Settings sidebar / SIS photo nếu chưa có product.
 
 ## Success metrics (khi nào gọi là sát hơn)
 
-- [ ] ≥8 list pages: CP height ∈ 54–62px  
-- [ ] 0 solid `#0071E3` buttons under `.o_web_client` trên smoke walk  
+- [x] ≥8 list pages: CP height ∈ 54–62px — **13/13 @ 58** (11:21)  
+- [x] 0 solid `#0071E3` buttons under `.o_web_client` trên smoke walk — **0** (11:21)  
 - [ ] Search list: height 35±3, radius ≥999 hoặc pill  
-- [ ] Form CRM/class/receipt: statusbar in-sheet + lavender (đã đạt)  
+- [x] Form CRM/class/receipt: statusbar in-sheet + lavender (đã đạt; detail links warn trên re-run rỗng)  
 - [ ] Side-by-side 1280 crop vs pack `03` / `14` “arm’s length” pass
 
 ---

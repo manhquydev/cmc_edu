@@ -32,11 +32,14 @@ import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 const facilityId = process.env.E2E_FACILITY_ID!;
 const PERIOD = '2026-06';
 
-/** Switches the KPI inbox's status filter. It is an Astryx Selector with a
- *  visible label, so the trigger resolves by that label and the choice by its
- *  option text. */
+/** Switches the KPI inbox's status filter. Extra filters live under the
+ *  Odoo-style "Bộ lọc nâng cao" caret (FilterBar menuFilters). */
 async function selectStatusFilter(page: import('@playwright/test').Page, label: string): Promise<void> {
-  await page.getByRole('combobox', { name: 'Trạng thái' }).click();
+  const combo = page.getByRole('combobox', { name: 'Trạng thái' });
+  if (!(await combo.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Bộ lọc nâng cao' }).click();
+  }
+  await combo.click();
   await page.getByRole('option', { name: label }).click();
 }
 

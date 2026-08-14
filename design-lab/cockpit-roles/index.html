@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CMC EDU — Tổng quan (mẫu thiết kế)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!--
+      THESIS: Five role cockpits share one Stripe/Linear ops shell; permission rewrites the table, never the chrome — SoD is visible the moment you switch to Sale.
+      OWN-WORLD: Near-white ground, hairline #e4e4e7 rules, near-black text, purple #71639e only for navbar-active / tab underline / primary / funnel bars; 40px tabular rows; Inter; no cards-as-structure, no gradients, no glass.
+      STORY: Staff opens Tổng quan, sees what waits for them, clicks the first row. Role switcher proves five jobs, not five skins.
+      FIRST VIEWPORT: 240px left nav · utility chips · title · underline tabs · 3 ruled metrics · data table | sticky funnel.
+      FORM: Category-standard (canon) ops dashboard · craft bar Linear + Stripe Dashboard · seed key ed8c2275 (assigned direction superseded by user canon choice).
+      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+    -->
+    <div class="app" id="app">
+      <aside class="sidebar" aria-label="Điều hướng chính">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-name">CMC EDU</span>
+        </div>
+
+        <button type="button" class="search-trigger" aria-label="Tìm kiếm (⌘K)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.4" />
+            <path d="M10.5 10.5L13.5 13.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+          </svg>
+          <span>Tìm kiếm…</span>
+          <kbd>⌘K</kbd>
+        </button>
+
+        <nav class="nav" id="nav" aria-label="Modules"></nav>
+
+        <div class="sidebar-user" id="sidebar-user">
+          <div class="avatar" id="avatar" aria-hidden="true"></div>
+          <div class="sidebar-user-text">
+            <div class="sidebar-user-name" id="user-name"></div>
+            <div class="sidebar-user-role" id="user-role"></div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="main">
+        <header class="utility">
+          <nav class="crumbs" aria-label="Breadcrumb">
+            <a href="#">Trang chủ</a>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Tổng quan</span>
+          </nav>
+          <div class="utility-right">
+            <label class="chip-select">
+              <span class="chip-label">Vai trò</span>
+              <select id="role-select" aria-label="Chọn vai trò xem mẫu"></select>
+            </label>
+            <span class="chip" id="facility-chip">Cơ sở Quận 1</span>
+            <time class="chip" id="today" datetime=""></time>
+            <button type="button" class="btn btn-primary" id="primary-cta"></button>
+          </div>
+        </header>
+
+        <div class="page-head">
+          <div>
+            <h1>Tổng quan</h1>
+            <p class="subtitle" id="subtitle"></p>
+          </div>
+          <p class="synth-banner" role="note">
+            Dữ liệu minh họa (synthetic) — không phải số liệu thật của trung tâm.
+          </p>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Góc nhìn tổng quan" id="tabs"></div>
+
+        <section class="metrics" aria-label="Chỉ số nhanh" id="metrics"></section>
+
+        <div class="workspace">
+          <section class="queue" aria-labelledby="queue-title">
+            <div class="queue-head">
+              <h2 id="queue-title">Việc cần bạn xử lý</h2>
+              <span class="count-chip" id="queue-count">0</span>
+              <a class="view-all" href="#" id="queue-view-all">Xem tất cả</a>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead id="table-head"></thead>
+                <tbody id="table-body"></tbody>
+              </table>
+            </div>
+            <footer class="pager" aria-label="Phân trang">
+              <label>
+                Hiển thị
+                <select id="page-size" aria-label="Số dòng mỗi trang">
+                  <option>10</option>
+                  <option>25</option>
+                  <option>50</option>
+                </select>
+              </label>
+              <div class="pager-nav">
+                <button type="button" class="btn btn-ghost" disabled>Trước</button>
+                <span aria-current="page" class="page-current">1</span>
+                <button type="button" class="btn btn-ghost">Sau</button>
+              </div>
+            </footer>
+          </section>
+
+          <aside class="rail" aria-label="Ngữ cảnh">
+            <section class="rail-panel" aria-labelledby="funnel-title">
+              <h2 id="funnel-title"></h2>
+              <ol class="funnel" id="funnel"></ol>
+              <a class="view-all" href="#" id="funnel-link"></a>
+            </section>
+            <section class="rail-panel" aria-labelledby="side-title">
+              <h2 id="side-title"></h2>
+              <ul class="side-list" id="side-list"></ul>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <script src="./app.js" type="module"></script>
+    <div class="toast" id="toast" role="status" aria-live="polite" data-open="false">
+      <p class="toast-kicker" id="toast-kicker">Mở việc</p>
+      <p class="toast-title" id="toast-title"></p>
+      <p class="toast-meta" id="toast-meta"></p>
+    </div>
+  </body>
+</html>

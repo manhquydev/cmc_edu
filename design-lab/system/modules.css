@@ -1,0 +1,733 @@
+/* Module grammar — patterns that only exist inside one CMC EDU domain.
+   Depends on tokens.css + system.css. Still token-only, no raw hexes. */
+
+/* ===================================================== CRM · pipeline board */
+.board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 248px;
+  gap: var(--space-snug);
+  overflow-x: auto;
+  padding-bottom: var(--space-tight);
+  align-items: start;
+}
+.board-col {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-panel);
+  background: var(--surface-page);
+  min-width: 0;
+}
+.board-col-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-tight) var(--space-snug);
+  border-bottom: 1px solid var(--border-default);
+  position: sticky;
+  top: 0;
+  background: var(--surface-page);
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+}
+.board-col-name {
+  font-size: var(--font-size-meta);
+  font-weight: var(--font-weight-title);
+}
+.board-col-sum {
+  margin-left: auto;
+  font-size: var(--font-size-label);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.board-col-body {
+  display: grid;
+  gap: 6px;
+  padding: var(--space-tight);
+  min-height: 72px;
+}
+.board-card {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--surface-default);
+  padding: var(--space-tight) 10px;
+  display: grid;
+  gap: var(--space-hair);
+  cursor: grab;
+}
+.board-card:hover {
+  border-color: var(--border-strong);
+}
+.board-card[data-dragging="true"] {
+  border-color: var(--border-action);
+  background: var(--surface-selected);
+}
+.board-card-title {
+  font-size: var(--font-size-ui);
+  font-weight: var(--font-weight-emphasis);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.board-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-label);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.board-drop {
+  border: 1px dashed var(--border-action);
+  border-radius: var(--radius-control);
+  background: var(--surface-action-subtle);
+  min-height: 46px;
+  display: grid;
+  place-items: center;
+  font-size: var(--font-size-label);
+  color: var(--text-action-strong);
+}
+
+/* ================================================= Teaching · week schedule */
+.schedule {
+  display: grid;
+  grid-template-columns: 68px repeat(6, minmax(0, 1fr));
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+  background: var(--surface-default);
+  min-width: 720px;
+}
+.schedule-wrap {
+  overflow-x: auto;
+}
+.schedule-head {
+  padding: var(--space-tight) 10px;
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  font-size: var(--font-size-meta);
+  font-weight: var(--font-weight-emphasis);
+  color: var(--text-muted);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.schedule-head:last-child,
+.schedule-slot:last-child,
+.schedule-time:last-child {
+  border-right: 0;
+}
+.schedule-time {
+  padding: var(--space-tight) 10px;
+  border-bottom: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  background: var(--surface-sunken);
+  font-size: var(--font-size-label);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.schedule-slot {
+  border-bottom: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  padding: var(--space-hair);
+  min-height: 58px;
+}
+.session {
+  border-radius: var(--radius-control);
+  padding: 5px 7px;
+  display: grid;
+  gap: 1px;
+  border: 1px solid transparent;
+  font-size: var(--font-size-label);
+  height: 100%;
+  align-content: start;
+}
+.session-name {
+  font-size: var(--font-size-meta);
+  font-weight: var(--font-weight-emphasis);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-meta {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.session[data-category="a"] {
+  background: var(--surface-action-subtle);
+  border-color: color-mix(in srgb, var(--surface-action) 30%, var(--border-default));
+}
+.session[data-category="b"] {
+  background: var(--surface-info-subtle);
+  border-color: color-mix(in srgb, var(--text-info) 25%, var(--border-default));
+}
+.session[data-category="c"] {
+  background: var(--surface-positive-subtle);
+  border-color: color-mix(in srgb, var(--text-positive) 25%, var(--border-default));
+}
+.session[data-category="d"] {
+  background: var(--surface-caution-subtle);
+  border-color: color-mix(in srgb, var(--text-caution) 25%, var(--border-default));
+}
+.session[data-conflict="true"] {
+  border-color: var(--border-critical);
+  box-shadow: inset 0 0 0 1px var(--border-critical);
+}
+
+/* ================================================ Teaching · attendance grid */
+.matrix-wrap {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-panel);
+  overflow: auto;
+  background: var(--surface-default);
+  max-height: 420px;
+}
+.matrix {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  min-width: 720px;
+}
+.matrix th,
+.matrix td {
+  border-bottom: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  height: var(--size-row);
+  padding: 0 var(--space-tight);
+  font-size: var(--font-size-meta);
+  text-align: center;
+  white-space: nowrap;
+}
+.matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-weight: var(--font-weight-emphasis);
+}
+.matrix .matrix-student {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface-default);
+  text-align: left;
+  min-width: 208px;
+  border-right: 1px solid var(--border-strong);
+  font-size: var(--font-size-ui);
+  font-weight: var(--font-weight-medium);
+}
+.matrix thead .matrix-student {
+  z-index: 3;
+  background: var(--surface-sunken);
+}
+.matrix tbody tr:hover .matrix-student,
+.matrix tbody tr:hover td {
+  background: var(--surface-sunken);
+}
+.matrix tbody tr:last-child th,
+.matrix tbody tr:last-child td {
+  border-bottom: 0;
+}
+.mark {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--surface-default);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-title);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+}
+.mark[data-state="present"] {
+  background: var(--surface-positive-subtle);
+  border-color: color-mix(in srgb, var(--text-positive) 30%, var(--border-default));
+  color: var(--text-positive);
+}
+.mark[data-state="absent"] {
+  background: var(--surface-critical-subtle);
+  border-color: color-mix(in srgb, var(--text-critical) 30%, var(--border-default));
+  color: var(--text-critical);
+}
+.mark[data-state="late"] {
+  background: var(--surface-caution-subtle);
+  border-color: color-mix(in srgb, var(--text-caution) 30%, var(--border-default));
+  color: var(--text-caution);
+}
+/* Permission is not attendance. The RBAC matrix keeps its own alphabet so
+   "V" never means "vắng" in one grid and "không có quyền" in another, and so a
+   gate bypass reads as the most dangerous cell on the page. */
+.rbac-mark {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  height: 22px;
+  padding: 0 var(--space-hair);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  background: var(--surface-page);
+  color: var(--text-muted);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-emphasis);
+}
+.rbac-mark[data-grant="yes"] {
+  background: var(--surface-positive-subtle);
+  border-color: color-mix(in srgb, var(--text-positive) 30%, var(--border-default));
+  color: var(--text-positive);
+}
+.rbac-mark[data-grant="no"] {
+  background: var(--surface-page);
+  border-color: var(--border-default);
+  color: var(--text-faint);
+}
+.rbac-mark[data-grant="bypass"] {
+  background: var(--surface-critical-subtle);
+  border-color: var(--border-critical);
+  color: var(--text-critical);
+  font-weight: var(--font-weight-title);
+}
+.mark-legend {
+  display: flex;
+  gap: var(--space-snug);
+  flex-wrap: wrap;
+  font-size: var(--font-size-meta);
+  color: var(--text-muted);
+  margin-top: var(--space-tight);
+  align-items: center;
+}
+
+/* ==================================================== Teaching · gradebook */
+.grade-input {
+  width: 56px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-default);
+}
+.grade-input[data-dirty="true"] {
+  border-color: var(--border-action);
+  background: var(--surface-action-subtle);
+}
+.grade-letter {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: var(--radius-contract);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-title);
+  background: var(--surface-page);
+  color: var(--text-muted);
+}
+.grade-letter[data-band="high"] {
+  background: var(--surface-positive-subtle);
+  color: var(--text-positive);
+}
+.grade-letter[data-band="mid"] {
+  background: var(--surface-caution-subtle);
+  color: var(--text-caution);
+}
+.grade-letter[data-band="low"] {
+  background: var(--surface-critical-subtle);
+  color: var(--text-critical);
+}
+.publish-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-snug);
+  padding: var(--space-tight) var(--space-snug);
+  border: 1px solid var(--border-default);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-panel) var(--radius-panel);
+  background: var(--surface-sunken);
+  font-size: var(--font-size-meta);
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.publish-bar .bulk-spacer {
+  flex: 1;
+}
+
+/* ==================================================== Finance/Audit · ledger */
+.ledger {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+.ledger-entry {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: var(--space-snug);
+  padding-bottom: var(--space-base);
+  position: relative;
+}
+.ledger-entry::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 20px;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-default);
+}
+.ledger-entry:last-child {
+  padding-bottom: 0;
+}
+.ledger-entry:last-child::before {
+  display: none;
+}
+.ledger-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  display: grid;
+  place-items: center;
+  background: var(--surface-page);
+  border: 1px solid var(--border-default);
+  color: var(--text-muted);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-title);
+  z-index: 1;
+}
+.ledger-dot[data-tone="success"] {
+  background: var(--surface-positive-subtle);
+  border-color: color-mix(in srgb, var(--text-positive) 30%, var(--border-default));
+  color: var(--text-positive);
+}
+.ledger-dot[data-tone="danger"] {
+  background: var(--surface-critical-subtle);
+  border-color: color-mix(in srgb, var(--text-critical) 30%, var(--border-default));
+  color: var(--text-critical);
+}
+/* A money event is a kind of entry, not an outcome, so it reads categorical. */
+.ledger-dot[data-category="a"] {
+  background: var(--category-a-tint);
+  border-color: var(--category-a-ink);
+  color: var(--category-a-ink);
+}
+.ledger-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-tight);
+  flex-wrap: wrap;
+}
+.ledger-actor {
+  font-size: var(--font-size-ui);
+  font-weight: var(--font-weight-emphasis);
+}
+.ledger-time {
+  font-size: var(--font-size-meta);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.ledger-body {
+  margin: var(--space-hair) 0 0;
+  font-size: var(--font-size-ui);
+  color: var(--text-muted);
+}
+.ledger-diff {
+  margin-top: 6px;
+  display: grid;
+  gap: 2px;
+  font-family: var(--font-family-data);
+  font-size: var(--font-size-meta);
+  background: var(--surface-page);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  padding: var(--space-tight) 10px;
+}
+.ledger-diff span[data-change="from"] {
+  color: var(--text-critical);
+}
+.ledger-diff span[data-change="to"] {
+  color: var(--text-positive);
+}
+.append-only {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-size-label);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  font-weight: var(--font-weight-title);
+}
+
+/* ============================================ Money emphasis (Finance/HR) */
+.amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-emphasis);
+}
+.amount[data-scale="lead"] {
+  font-size: var(--font-size-entity-title);
+  font-weight: var(--font-weight-title);
+  letter-spacing: var(--tracking-snug);
+}
+.amount[data-sign="out"] {
+  color: var(--text-critical);
+}
+.amount[data-sign="in"] {
+  color: var(--text-positive);
+}
+.amount-masked {
+  color: var(--text-faint);
+  letter-spacing: 0.08em;
+}
+
+/* ============================================== Evidence / upload (Teaching) */
+.evidence {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: var(--space-tight);
+}
+.evidence-item {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+  background: var(--surface-default);
+}
+.evidence-thumb {
+  height: 76px;
+  background: var(--surface-page);
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border-default);
+}
+.evidence-meta {
+  padding: 6px var(--space-tight);
+  font-size: var(--font-size-label);
+  color: var(--text-muted);
+}
+.evidence-meta strong {
+  display: block;
+  color: var(--text-default);
+  font-size: var(--font-size-meta);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dropzone {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-page);
+  min-height: 106px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding: var(--space-snug);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-size-meta);
+}
+.dropzone[data-active="true"] {
+  border-color: var(--border-action);
+  background: var(--surface-action-subtle);
+  color: var(--text-action-strong);
+}
+.progress {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border-default);
+  overflow: hidden;
+}
+.progress > span {
+  display: block;
+  height: 100%;
+  background: var(--surface-action);
+}
+
+/* ================================================== HR · KPI / payroll table */
+.kpi-table th[data-numeric="true"],
+.kpi-table td[data-numeric="true"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  gap: var(--space-tight);
+  align-items: center;
+}
+.kpi-track {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--border-default);
+  overflow: hidden;
+}
+.kpi-fill {
+  display: block;
+  height: 100%;
+  background: var(--surface-action);
+}
+/* Meeting the business threshold is a pass, so it is never painted as caution.
+   Only falling under the threshold is a problem. */
+.kpi-fill[data-level="under"] {
+  background: var(--text-critical);
+}
+.kpi-fill[data-level="met"] {
+  background: var(--surface-action);
+}
+.kpi-fill[data-level="over"] {
+  background: var(--text-positive);
+}
+.kpi-score {
+  font-size: var(--font-size-meta);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-muted);
+}
+.punch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-size-meta);
+  font-variant-numeric: tabular-nums;
+}
+.punch[data-missing="true"] {
+  color: var(--text-critical);
+  font-weight: var(--font-weight-emphasis);
+}
+
+/* ======================================== Engagement · reward / point stack */
+.reward-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+}
+.reward-cell {
+  padding: var(--space-snug) var(--space-base);
+  border-right: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-default);
+  display: grid;
+  gap: var(--space-hair);
+}
+.reward-name {
+  font-size: var(--font-size-ui);
+  font-weight: var(--font-weight-emphasis);
+}
+.reward-cost {
+  font-size: var(--font-size-meta);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.reward-stock {
+  font-size: var(--font-size-label);
+  color: var(--text-faint);
+}
+.point-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 var(--space-tight);
+  border-radius: var(--radius-pill);
+  background: var(--surface-action-subtle);
+  color: var(--text-action-strong);
+  font-size: var(--font-size-meta);
+  font-weight: var(--font-weight-title);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==================================================== Print · receipt sheet */
+.receipt {
+  width: 100%;
+  max-width: 520px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-panel);
+  background: var(--surface-default);
+  padding: var(--space-loose);
+  display: grid;
+  gap: var(--space-base);
+}
+.receipt-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-snug);
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: var(--space-snug);
+}
+.receipt-org {
+  font-weight: var(--font-weight-title);
+}
+.receipt-org span {
+  display: block;
+  font-size: var(--font-size-meta);
+  font-weight: var(--font-weight-body);
+  color: var(--text-muted);
+}
+.receipt-no {
+  text-align: right;
+  font-family: var(--font-family-data);
+  font-size: var(--font-size-meta);
+  color: var(--text-muted);
+}
+.receipt-lines {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-ui);
+}
+.receipt-lines th,
+.receipt-lines td {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-default);
+  text-align: left;
+}
+.receipt-lines th {
+  font-size: var(--font-size-meta);
+  color: var(--text-muted);
+  font-weight: var(--font-weight-emphasis);
+}
+.receipt-lines td[data-numeric="true"],
+.receipt-lines th[data-numeric="true"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.receipt-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-snug);
+  border-top: 1px solid var(--border-strong);
+  padding-top: var(--space-snug);
+}
+.receipt-sign {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-base);
+  font-size: var(--font-size-meta);
+  color: var(--text-muted);
+  text-align: center;
+}
+.receipt-sign > div {
+  padding-top: var(--space-section);
+  border-top: 1px dotted var(--border-strong);
+}
+
+@media print {
+  .sidebar,
+  .utility,
+  .no-print {
+    display: none !important;
+  }
+  .app {
+    grid-template-columns: 1fr;
+  }
+  .receipt {
+    border: 0;
+    max-width: none;
+    padding: 0;
+  }
+}

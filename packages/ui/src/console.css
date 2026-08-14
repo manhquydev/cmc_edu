@@ -2979,10 +2979,11 @@ cards equal height */
   max-width: 40%;
   height: 22px;
   padding: 0 6px 0 8px;
-  background: var(--console-facet-bg, #eaebf0);
+  background: var(--surface-action-subtle, var(--cmc-brand-muted));
+  border: 1px solid var(--border-action, var(--console-brand-purple));
   border-radius: var(--console-radius, 4px);
   font-size: var(--console-font-size-xs, 12px);
-  color: var(--console-gray-900, #212529);
+  color: var(--text-action, var(--console-brand-purple));
   white-space: nowrap;
 }
 .o_web_client .console-search-facet-clear {
@@ -3333,11 +3334,11 @@ cards equal height */
   cursor: pointer;
 }
 .o_web_client .console-list-sort svg {
-  opacity: 0.35;
+  opacity: 0.55;
   transition: opacity var(--motion-state), transform var(--motion-state);
 }
 .o_web_client .console-list-sort:hover svg {
-  opacity: 0.7;
+  opacity: 0.85;
 }
 .o_web_client .console-list-sort[data-sort='ascending'] svg,
 .o_web_client .console-list-sort[data-sort='descending'] svg {

@@ -54,6 +54,26 @@ const STUDENT_FILTERS: FilterDef[] = [
   },
 ];
 
+/** Mirrors `LOOKUP_LIMIT` in `apps/api/src/student/router.ts` — a capped lookup. */
+const LOOKUP_LIMIT = 20;
+
+/**
+ * `student.lookup` answers one question: does anyone match this string. It never
+ * says how many students the facility has, so an empty result cannot claim
+ * `first-run` (nothing ever created) or `filtered` (rows exist outside the
+ * filter). A bare string publishes no `kind` and therefore claims neither.
+ */
+const NO_MATCH_EMPTY =
+  'Không tìm thấy học viên khớp từ khóa này. Thử tên đầy đủ hơn hoặc SĐT phụ huynh.';
+
+/**
+ * A full result set is the cap talking, not a match count — the pager's
+ * `1–10 / 20` would otherwise read as "20 students match".
+ */
+const CAP_NOTICE =
+  `Đã tới giới hạn ${LOOKUP_LIMIT} kết quả tra cứu — có thể còn học viên khớp ` +
+  'chưa hiện ở đây. Thu hẹp từ khóa để chắc chắn.';
+
 type StudentView = 'table' | 'kanban';
 
 export default function StudentListPage() {
@@ -85,6 +105,9 @@ export default function StudentListPage() {
 
   const allRows = (data as StudentRow[] | undefined) ?? [];
   const rows = allRows.slice((page - 1) * pageSize, page * pageSize);
+  // At the cap the result set may be truncated, so the pager total (20) is a
+  // ceiling, not a count of matches. Say so instead of letting "/ 20" imply one.
+  const cappedResults = allRows.length >= LOOKUP_LIMIT;
 
   function handleFilterChange(next: Record<string, string>) {
     setFilters({ q: next.q ?? '' });
@@ -98,7 +121,7 @@ export default function StudentListPage() {
       header={
         <PageHeader
           title="Học viên"
-          subtitle="Tối đa 20 kết quả mỗi lần tra cứu"
+          subtitle={`Tối đa ${LOOKUP_LIMIT} kết quả mỗi lần tra cứu`}
           breadcrumbs={[{ label: 'Quản trị' }, { label: 'Học viên' }]}
         />
       }
@@ -118,34 +141,48 @@ export default function StudentListPage() {
       }
       controlFooter={
         submitted.length >= 2 ? (
-          <div className="console-cp-footer-cluster">
-            <BulkActionBar
-              selectionCount={selectedIds.length}
-              onClear={() => setSelectedIds([])}
-            >
-              <Button
-                label="Sao chép tên"
-                size="sm"
-                variant="secondary"
-                isDisabled={selectedIds.length === 0}
-                onClick={() => {
-                  const names = allRows
-                    .filter((r) => selectedIds.includes(r.id))
-                    .map((r) => r.fullName);
-                  void navigator.clipboard?.writeText(names.join(', '));
-                  toastSuccess(`Đã sao chép ${names.length} tên học viên`);
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--cmc-space-1)',
+              width: '100%',
+            }}
+          >
+            <div className="console-cp-footer-cluster">
+              <BulkActionBar
+                selectionCount={selectedIds.length}
+                onClear={() => setSelectedIds([])}
+              >
+                <Button
+                  label="Sao chép tên"
+                  size="sm"
+                  variant="secondary"
+                  isDisabled={selectedIds.length === 0}
+                  onClick={() => {
+                    const names = allRows
+                      .filter((r) => selectedIds.includes(r.id))
+                      .map((r) => r.fullName);
+                    void navigator.clipboard?.writeText(names.join(', '));
+                    toastSuccess(`Đã sao chép ${names.length} tên học viên`);
+                  }}
+                />
+              </BulkActionBar>
+              <ListPagination
+                page={page}
+                pageSize={pageSize}
+                total={allRows.length}
+                onPageChange={(p) => {
+                  setPage(p);
+                  setSelectedIds([]);
                 }}
               />
-            </BulkActionBar>
-            <ListPagination
-              page={page}
-              pageSize={pageSize}
-              total={allRows.length}
-              onPageChange={(p) => {
-                setPage(p);
-                setSelectedIds([]);
-              }}
-            />
+            </div>
+            {cappedResults ? (
+              <Text type="supporting" size="sm">
+                {CAP_NOTICE}
+              </Text>
+            ) : null}
           </div>
         ) : undefined
       }
@@ -157,25 +194,40 @@ export default function StudentListPage() {
           </Text>
         </HStack>
       ) : view === 'kanban' ? (
-        <KanbanRecordGrid>
-          {rows.map((row) => (
-            <KanbanRecordCard
-              key={row.id}
-              title={row.fullName}
-              subtitle={LIFECYCLE_LABELS[row.lifecycle] ?? row.lifecycle}
-              onClick={() =>
-                void navigate(links.student(row.id), { state: { student: row } })
-              }
-            />
-          ))}
-        </KanbanRecordGrid>
+        // A failed lookup is not an absence, so it never borrows the empty copy.
+        error ? (
+          <HStack padding={4}>
+            <Text type="supporting" size="sm">
+              {`Không tải được danh sách học viên: ${error.message}`}
+            </Text>
+          </HStack>
+        ) : rows.length === 0 && !isLoading ? (
+          <HStack padding={4}>
+            <Text type="supporting" size="sm">
+              {NO_MATCH_EMPTY}
+            </Text>
+          </HStack>
+        ) : (
+          <KanbanRecordGrid>
+            {rows.map((row) => (
+              <KanbanRecordCard
+                key={row.id}
+                title={row.fullName}
+                subtitle={LIFECYCLE_LABELS[row.lifecycle] ?? row.lifecycle}
+                onClick={() =>
+                  void navigate(links.student(row.id), { state: { student: row } })
+                }
+              />
+            ))}
+          </KanbanRecordGrid>
+        )
       ) : (
         <DataTable<StudentRow>
           columns={COLUMNS}
           data={rows}
           loading={isLoading}
           error={error?.message}
-          empty="Không tìm thấy học viên"
+          empty={NO_MATCH_EMPTY}
           onRowClick={(row) =>
             void navigate(links.student(row.id), { state: { student: row } })
           }

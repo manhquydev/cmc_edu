@@ -56,6 +56,144 @@ describe('crm.opportunityList (K11)', () => {
     }
   });
 
+  it('defaults to createdAt desc with id asc ties, keeping tied pagination stable', async () => {
+    const tiedCreatedAt = new Date('2026-08-01T00:00:00.000Z');
+    const opportunities: { id: string }[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      opportunities.push(
+        await saleA.crm.opportunityCreate({
+          contactName: `Stable Sort ${i}`,
+          phone: `090100050${i}`,
+        }),
+      );
+    }
+    await testDbBypass((tx) =>
+      tx.opportunity.updateMany({
+        where: { id: { in: opportunities.map((opportunity) => opportunity.id) } },
+        data: { createdAt: tiedCreatedAt },
+      }),
+    );
+
+    const page1 = await saleA.crm.opportunityList({ page: 1, pageSize: 2 });
+    const page2 = await saleA.crm.opportunityList({ page: 2, pageSize: 2 });
+    const expectedIds = opportunities.map((opportunity) => opportunity.id).sort();
+
+    expect([...page1.items, ...page2.items].map((opportunity) => opportunity.id)).toEqual(
+      expectedIds,
+    );
+  });
+
+  it('sorts createdAt in both allowed directions', async () => {
+    const older = await saleA.crm.opportunityCreate({
+      contactName: 'Created Older',
+      phone: '0901000510',
+    });
+    const newer = await saleA.crm.opportunityCreate({
+      contactName: 'Created Newer',
+      phone: '0901000511',
+    });
+    await testDbBypass(async (tx) => {
+      await tx.opportunity.update({
+        where: { id: older.id },
+        data: { createdAt: new Date('2026-07-01T00:00:00.000Z') },
+      });
+      await tx.opportunity.update({
+        where: { id: newer.id },
+        data: { createdAt: new Date('2026-08-01T00:00:00.000Z') },
+      });
+    });
+
+    const ascending = await saleA.crm.opportunityList({
+      sort: { field: 'createdAt', direction: 'asc' },
+    });
+    const descending = await saleA.crm.opportunityList({
+      sort: { field: 'createdAt', direction: 'desc' },
+    });
+
+    expect(ascending.items.map((opportunity) => opportunity.id)).toEqual([older.id, newer.id]);
+    expect(descending.items.map((opportunity) => opportunity.id)).toEqual([newer.id, older.id]);
+  });
+
+  it('sorts stage in both allowed directions', async () => {
+    const o1 = await saleA.crm.opportunityCreate({
+      contactName: 'Stage Sort O1',
+      phone: '0901000520',
+    });
+    const o3 = await saleA.crm.opportunityCreate({
+      contactName: 'Stage Sort O3',
+      phone: '0901000521',
+    });
+    await testDbBypass((tx) =>
+      tx.opportunity.update({
+        where: { id: o3.id },
+        data: { stage: 'O3_TEST_SCHEDULED' },
+      }),
+    );
+
+    const ascending = await saleA.crm.opportunityList({
+      sort: { field: 'stage', direction: 'asc' },
+    });
+    const descending = await saleA.crm.opportunityList({
+      sort: { field: 'stage', direction: 'desc' },
+    });
+
+    expect(ascending.items.map((opportunity) => opportunity.id)).toEqual([o1.id, o3.id]);
+    expect(descending.items.map((opportunity) => opportunity.id)).toEqual([o3.id, o1.id]);
+  });
+
+  it('sorts nextActionAt in both directions with PostgreSQL default null placement', async () => {
+    const early = await saleA.crm.opportunityCreate({
+      contactName: 'Next Action Early',
+      phone: '0901000530',
+    });
+    const late = await saleA.crm.opportunityCreate({
+      contactName: 'Next Action Late',
+      phone: '0901000531',
+    });
+    const none = await saleA.crm.opportunityCreate({
+      contactName: 'Next Action None',
+      phone: '0901000532',
+    });
+    await testDbBypass(async (tx) => {
+      await tx.opportunity.update({
+        where: { id: early.id },
+        data: { nextActionAt: new Date('2026-08-01T00:00:00.000Z') },
+      });
+      await tx.opportunity.update({
+        where: { id: late.id },
+        data: { nextActionAt: new Date('2026-08-02T00:00:00.000Z') },
+      });
+    });
+
+    const ascending = await saleA.crm.opportunityList({
+      sort: { field: 'nextActionAt', direction: 'asc' },
+    });
+    const descending = await saleA.crm.opportunityList({
+      sort: { field: 'nextActionAt', direction: 'desc' },
+    });
+
+    expect(ascending.items.map((opportunity) => opportunity.id)).toEqual([
+      early.id,
+      late.id,
+      none.id,
+    ]);
+    expect(descending.items.map((opportunity) => opportunity.id)).toEqual([
+      none.id,
+      late.id,
+      early.id,
+    ]);
+  });
+
+  it('rejects sort fields outside the frozen whitelist', async () => {
+    const invalidInput = {
+      sort: { field: 'contactName', direction: 'asc' },
+    } as unknown as Parameters<Caller['crm']['opportunityList']>[0];
+
+    await expect(saleA.crm.opportunityList(invalidInput)).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+  });
+
   it('filters by stage', async () => {
     const opp = await saleA.crm.opportunityCreate({ contactName: 'Stage Filter Contact', phone: '0901000210' });
     await saleA.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O2_CONTACTED' });

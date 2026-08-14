@@ -128,9 +128,36 @@ const opportunityListInput = z.object({
   lost: z.enum(['exclude', 'include', 'only']).default('exclude'),
   /** ICT-calendar next-action bucket. Absent = no due filter. */
   due: z.enum(['late', 'today', 'future']).optional(),
+  sort: z
+    .object({
+      field: z.enum(['createdAt', 'nextActionAt', 'stage']),
+      direction: z.enum(['asc', 'desc']),
+    })
+    .optional(),
   page: z.number().int().positive().default(1),
   pageSize: z.number().int().positive().max(100).default(20),
 });
+
+type OpportunityListSort = NonNullable<z.infer<typeof opportunityListInput>['sort']>;
+
+function opportunityListOrderBy(
+  sort: OpportunityListSort | undefined,
+): Prisma.OpportunityOrderByWithRelationInput[] {
+  if (!sort) return [{ createdAt: 'desc' }, { id: 'asc' }];
+
+  switch (sort.field) {
+    case 'createdAt':
+      return [{ createdAt: sort.direction }, { id: 'asc' }];
+    case 'nextActionAt':
+      return [{ nextActionAt: sort.direction }, { id: 'asc' }];
+    case 'stage':
+      return [{ stage: sort.direction }, { id: 'asc' }];
+    default: {
+      const _exhaustive: never = sort.field;
+      return _exhaustive;
+    }
+  }
+}
 
 function nextActionDueWhere(due: DueLevel, now: Date): Prisma.OpportunityWhereInput {
   const { startToday, startTomorrow } = ictDueBounds(now);
@@ -570,7 +597,7 @@ export const crmRouter = router({
           tx.opportunity.findMany({
             where,
             include: { contact: { select: { id: true, name: true, phone: true } } },
-            orderBy: { createdAt: 'desc' },
+            orderBy: opportunityListOrderBy(input.sort),
             skip: (input.page - 1) * input.pageSize,
             take: input.pageSize,
           }),

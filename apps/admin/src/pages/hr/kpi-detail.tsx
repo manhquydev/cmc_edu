@@ -25,6 +25,7 @@ import {
   TextArea,
   WorkflowStatusbar,
 } from '@cmc/ui';
+import type { SoftTone } from '@cmc/ui';
 import { kpiScoresPath, UUID_RE } from '@cmc/links';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { useSession } from '../../lib/session-context.js';
@@ -36,6 +37,12 @@ const STATUS_LABELS: Record<string, string> = {
   confirmed: 'Đã xác nhận',
   approved: 'Đã duyệt',
 };
+
+// `submitted` is the only KPI state waiting on someone else (the manager).
+// `draft` stays on the default neutral map — the employee is still editing it.
+function kpiStatusTone(status: string): SoftTone | undefined {
+  return status === 'submitted' ? 'brand' : undefined;
+}
 
 function statusSteps(status: string): { steps: { id: string; label: string }[]; activeIndex: number } {
   const steps = [
@@ -201,6 +208,7 @@ export default function KpiDetailPage() {
             <StatusBadge
               status={data.status}
               label={STATUS_LABELS[data.status] ?? data.status}
+              tone={kpiStatusTone(data.status)}
             />
           }
           meta={
@@ -250,6 +258,7 @@ export default function KpiDetailPage() {
                 <StatusBadge
                   status={data.status}
                   label={STATUS_LABELS[data.status] ?? data.status}
+                  tone={kpiStatusTone(data.status)}
                 />
               ),
             },
@@ -294,6 +303,7 @@ export default function KpiDetailPage() {
                     <StatusBadge
                       status={data.status}
                       label={STATUS_LABELS[data.status] ?? data.status}
+                      tone={kpiStatusTone(data.status)}
                     />
                   ),
                 },

@@ -225,6 +225,81 @@ async function main() {
   await trpc(gddt, 'finance.receiptApprove', { receiptId: receipt.receipt.id }, 'mutation');
   console.log('receipt approved -> student, parent, enrollment and LMS accounts provisioned');
 
+  // ── Stable draft fixture for the finance approval queue ──────────────────
+  const draftStudentName = '[SEED] Phiếu nháp chờ duyệt';
+  const draftPageSize = 100;
+  let draftPage = 1;
+  let existingDraft:
+    | { id: string; code: string; studentName: string; status: string }
+    | undefined;
+  do {
+    const draftList = await trpc<{
+      items: Array<{ id: string; code: string; studentName: string; status: string }>;
+      total: number;
+    }>(
+      gddt,
+      'finance.receiptList',
+      { status: 'draft', page: draftPage, pageSize: draftPageSize },
+      'query',
+    );
+    existingDraft = draftList.items.find(
+      (candidate) =>
+        candidate.status === 'draft' && candidate.studentName === draftStudentName,
+    );
+    if (existingDraft || draftPage * draftPageSize >= draftList.total) break;
+    draftPage += 1;
+  } while (!existingDraft);
+
+  if (existingDraft) {
+    console.log(`draft receipt already ready: ${existingDraft.code}`);
+  } else {
+    const draftParentPhone = '0912345679';
+    const draftOpportunity = await trpc<{ id: string }>(
+      sale,
+      'crm.opportunityCreate',
+      {
+        contactName: '[SEED] PH phiếu nháp chờ duyệt',
+        phone: draftParentPhone,
+        email: 'draft.receipt.seed@example.com',
+      },
+      'mutation',
+    );
+    for (const toStage of ['O2_CONTACTED', 'O3_TEST_SCHEDULED', 'O4_TESTED']) {
+      await trpc(
+        sale,
+        'crm.opportunityAdvance',
+        { opportunityId: draftOpportunity.id, toStage },
+        'mutation',
+      );
+    }
+    const draftReceipt = await trpc<{
+      status: string;
+      receipt?: { id: string; code: string };
+      message?: string;
+    }>(
+      sale,
+      'finance.receiptCreate',
+      {
+        opportunityId: draftOpportunity.id,
+        studentName: draftStudentName,
+        parentPhone: draftParentPhone,
+        parentEmail: 'draft.receipt.seed@example.com',
+        classBatchId: batch.classBatch.id,
+        amount: 7_500_000,
+      },
+      'mutation',
+    );
+    if (
+      (draftReceipt.status !== 'success' && draftReceipt.status !== 'warning') ||
+      !draftReceipt.receipt
+    ) {
+      throw new Error(
+        `draft receiptCreate: ${draftReceipt.status} ${draftReceipt.message ?? ''}`,
+      );
+    }
+    console.log(`draft receipt ready: ${draftReceipt.receipt.code} (left unapproved)`);
+  }
+
   console.log(`credentials in ${ACCOUNTS_FILE}`);
 }
 

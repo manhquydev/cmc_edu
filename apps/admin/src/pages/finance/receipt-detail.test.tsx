@@ -142,6 +142,31 @@ describe('ReceiptDetailPage', () => {
     expect(screen.getAllByText('SO0001').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('gives every draft status badge the brand tone (waiting on an approver)', () => {
+    const { container } = renderDetail();
+    const drafts = Array.from(container.querySelectorAll('.console-badge-soft')).filter(
+      (el) => el.textContent === 'Nháp',
+    );
+    // EntityHeader badge + HighlightStrip + KeyValueList all show the status.
+    expect(drafts.length).toBeGreaterThanOrEqual(3);
+    for (const badge of drafts) {
+      expect(badge).toHaveClass('console-badge-soft--brand');
+    }
+  });
+
+  it('keeps an approved receipt on the mapped success tone', () => {
+    receiptState.data = { ...RECEIPT, status: 'approved' };
+    const { container } = renderDetail();
+    const approved = Array.from(container.querySelectorAll('.console-badge-soft')).filter(
+      (el) => el.textContent === 'Đã duyệt',
+    );
+    expect(approved.length).toBeGreaterThanOrEqual(1);
+    for (const badge of approved) {
+      expect(badge).toHaveClass('console-badge-soft--success');
+      expect(badge).not.toHaveClass('console-badge-soft--brand');
+    }
+  });
+
   it('shows "Không tìm thấy phiếu thu" when receiptGet errors (e.g. missing permission)', () => {
     receiptState.data = undefined;
     receiptState.error = { message: 'Missing permission finance.receiptGet.' };

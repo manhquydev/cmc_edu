@@ -1,5 +1,7 @@
 import { EmptyState as AstryxEmptyState } from '@astryxdesign/core/EmptyState';
 import type { ReactNode } from 'react';
+import { LineIcon } from './line-icon.js';
+import type { IconName } from './line-icon.js';
 
 /**
  * Why a list is empty changes what the operator should do next, so it changes
@@ -12,6 +14,13 @@ import type { ReactNode } from 'react';
  * `error` stays separate because it is a failure, not an absence.
  */
 export type EmptyStateKind = 'first-run' | 'filtered' | 'done' | 'error';
+
+const DEFAULT_ICON_NAMES: Record<EmptyStateKind, IconName> = {
+  'first-run': 'plus',
+  filtered: 'search',
+  done: 'check-circle',
+  error: 'alert',
+};
 
 export interface EmptyStateProps {
   title: string;
@@ -35,12 +44,20 @@ export function EmptyState({
   density = 'default',
   kind,
 }: EmptyStateProps) {
+  const resolvedIcon =
+    icon !== undefined ? icon : kind ? <LineIcon name={DEFAULT_ICON_NAMES[kind]} /> : undefined;
+
   return (
     <div
       className={density === 'ops' ? 'console-empty-ops' : undefined}
       data-empty-kind={kind}
     >
-      <AstryxEmptyState title={title} description={description} icon={icon} actions={action} />
+      <AstryxEmptyState
+        title={title}
+        description={description}
+        icon={resolvedIcon}
+        actions={action}
+      />
     </div>
   );
 }

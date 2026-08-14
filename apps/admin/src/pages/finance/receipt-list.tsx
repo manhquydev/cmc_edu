@@ -13,7 +13,7 @@ import {
   StatusBadge,
   useToast,
 } from '@cmc/ui';
-import type { FilterDef, TableColumn } from '@cmc/ui';
+import type { FilterDef, TableColumn, TableEmptySpec, TableSort } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { EnrollPicker } from '../../lib/enroll-picker.js';
 
@@ -39,11 +39,12 @@ interface ReceiptRow {
 
 const COLUMNS: TableColumn<ReceiptRow>[] = [
   { key: 'code', label: 'Mã phiếu', width: 120 },
-  { key: 'studentName', label: 'Học viên' },
+  { key: 'studentName', label: 'Học viên', sortable: true },
   {
     key: 'netAmount',
     label: 'Số tiền',
     width: 150,
+    sortable: true,
     render: (v) => (
       <span style={{ fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--cmc-font-sans)' }}>
         {Number(v).toLocaleString('vi-VN')} đ
@@ -65,9 +66,12 @@ const COLUMNS: TableColumn<ReceiptRow>[] = [
     key: 'createdAt',
     label: 'Ngày tạo',
     width: 120,
+    sortable: true,
     render: (v) => new Date(v as string).toLocaleDateString('vi-VN'),
   },
 ];
+
+const PAGE_SIZE = 50;
 
 const FILTERS: FilterDef[] = [
   {
@@ -98,6 +102,7 @@ export default function ReceiptListPage() {
   const [enrollPickerOpen, setEnrollPickerOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [sort, setSort] = useState<TableSort>({ key: 'createdAt', direction: 'descending' });
   const { success: toastSuccess } = useToast();
 
   // Controlled filters: local state is source of truth for query + UI.
@@ -123,10 +128,10 @@ export default function ReceiptListPage() {
   const { data, isLoading, error } = trpc.finance.receiptList.useQuery({
     status,
     page,
-    pageSize: 50,
+    pageSize: PAGE_SIZE,
   });
 
-  const rows: ReceiptRow[] = (data?.items ?? []).filter((r) => {
+  const filtered: ReceiptRow[] = (data?.items ?? []).filter((r) => {
     if (!q) return true;
     const lower = q.toLowerCase();
     return (
@@ -134,6 +139,50 @@ export default function ReceiptListPage() {
       r.code.toLowerCase().includes(lower)
     );
   }) as ReceiptRow[];
+
+  const rows = [...filtered].sort((a, b) => {
+    const left = a[sort.key];
+    const right = b[sort.key];
+    const cmp =
+      typeof left === 'number' && typeof right === 'number'
+        ? left - right
+        : String(left ?? '').localeCompare(String(right ?? ''), 'vi');
+    return sort.direction === 'ascending' ? cmp : -cmp;
+  });
+
+  const hasActiveFilter = status != null || q !== '';
+  // An empty queue means three different things, and the operator needs to know
+  // which one: nothing was ever issued, the filter is too narrow, or the work is
+  // finished. Only the filtered case can be recovered from inside this page.
+  const emptySpec: TableEmptySpec = hasActiveFilter
+    ? {
+        kind: 'filtered',
+        title: 'Không phiếu nào khớp bộ lọc này',
+        description:
+          'Bỏ một điều kiện để thấy các phiếu còn lại. Số phiếu thật của kỳ này không đổi khi bạn lọc.',
+        action: (
+          <Button
+            label="Bỏ tất cả bộ lọc"
+            size="sm"
+            variant="secondary"
+            onClick={() => handleFilterChange({ status: '', q: '' })}
+          />
+        ),
+      }
+    : {
+        kind: 'first-run',
+        title: 'Chưa có phiếu thu nào',
+        description:
+          'Phiếu thu sinh ra khi một học viên được ghi danh vào lớp. Bắt đầu từ ghi danh, hoặc tạo phiếu trực tiếp.',
+        action: (
+          <Button
+            label="+ Ghi danh"
+            size="sm"
+            variant="secondary"
+            onClick={() => setEnrollPickerOpen(true)}
+          />
+        ),
+      };
 
   useEffect(() => {
     setPage(1);
@@ -191,6 +240,16 @@ export default function ReceiptListPage() {
             <BulkActionBar
               selectionCount={selectedIds.length}
               onClear={() => setSelectedIds([])}
+              pageSize={rows.length}
+              totalMatching={data?.total ?? rows.length}
+              onSelectAllMatching={() => {
+                // Honest about the limit: only loaded rows can be selected, so
+                // this never claims to have selected records it cannot name.
+                setSelectedIds(rows.map((r) => r.id));
+                toastSuccess(
+                  `Đã chọn ${rows.length} dòng đang tải. Sang trang khác để chọn thêm.`,
+                );
+              }}
             >
               <Button
                 label="Sao chép mã phiếu"
@@ -208,7 +267,7 @@ export default function ReceiptListPage() {
             </BulkActionBar>
             <ListPagination
               page={page}
-              pageSize={50}
+              pageSize={PAGE_SIZE}
               total={data?.total ?? rows.length}
               onPageChange={(p) => {
                 setPage(p);
@@ -223,10 +282,12 @@ export default function ReceiptListPage() {
           data={rows}
           loading={isLoading}
           error={error?.message}
-          empty="Chưa có phiếu thu nào"
+          empty={emptySpec}
           onRowClick={(row) => void navigate(links.receipt(row.id))}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
+          sort={sort}
+          onSortChange={setSort}
         />
       </ListPage>
     </>

@@ -1,7 +1,7 @@
 ---
 phase: 1
 title: "Kickoff gate"
-status: pending
+status: completed
 priority: P1
 effort: "30m"
 dependencies: []

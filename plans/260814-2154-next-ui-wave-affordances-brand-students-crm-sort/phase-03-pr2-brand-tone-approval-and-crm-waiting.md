@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "PR2 brand tone approval and CRM waiting"
-status: pending
+status: completed
 priority: P1
 effort: "1d"
 dependencies: [2]

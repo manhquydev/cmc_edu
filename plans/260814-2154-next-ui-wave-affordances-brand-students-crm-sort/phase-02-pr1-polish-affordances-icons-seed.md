@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "PR1 polish affordances icons seed"
-status: pending
+status: completed
 priority: P1
 effort: "1-1.5d"
 dependencies: [1]

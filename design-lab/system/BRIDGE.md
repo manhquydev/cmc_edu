@@ -96,7 +96,7 @@ The type ramp does not change and 40px stays the default row.
 | 5 | List molecules: control bar, filters, saved views, bulk bar with across-filter selection, sticky header | **Partly landed** (D4): across-filter selection and sortable headers with `aria-sort`; saved views not started |
 | 6 | Archetype spacing + empty kinds | **Partly landed** (D4 + cook): empty kinds on receipts + CRM list + courses; archetype spacing untouched |
 | 7 | Gate + statusbar | **Partly landed** (D5): the receipt approval gate now names the rule and the authority. Statusbar geometry untouched, and stays untouched. |
-| 8 | Module grammar, one module per PR | **CRM partial** (cook 260814): pipeline list empty grammar + aftersale under-claim; kanban empty matrix preserved. Next modules = separate PRs. |
+| 8 | Module grammar, one module per PR | **CRM partial** (cook 260814) + Students honesty (#144); **Classes empty recipe** = plan `260814-2346`. Next modules = separate PRs. |
 | 9 | Role cockpits / admin home shells | **Not authorized.** Requires the Q-shell decision. |
 
 ## ListPage adoption recipe

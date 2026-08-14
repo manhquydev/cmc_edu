@@ -23,7 +23,7 @@ import {
   TextInput,
   useToast,
 } from '@cmc/ui';
-import type { FilterDef, TableColumn } from '@cmc/ui';
+import type { FilterDef, TableColumn, TableEmptySpec } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 const CLASS_FILTERS: FilterDef[] = [
@@ -228,6 +228,36 @@ function ClassListContent() {
     startUnitOrderGlobal?: number;
   } | null>(null);
 
+  const rows = (data?.items as ClassRow[] | undefined) ?? [];
+  const total = data?.total ?? rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  useEffect(() => {
+    if (!data) return;
+    if (page > totalPages) setPage(totalPages);
+  }, [data, page, totalPages]);
+
+  // Applied search only — raw searchInput would lie during debounce.
+  const filtersActive = Boolean(debouncedSearch);
+  const listEmpty: string | TableEmptySpec =
+    total > 0
+      ? 'Không có dòng trên trang này'
+      : !filtersActive
+        ? {
+            kind: 'first-run',
+            title: 'Chưa có lớp học nào',
+            description: 'Tạo lớp đầu tiên cho cơ sở trước khi xếp học viên.',
+            action: (
+              <Button
+                label="Thêm lớp học đầu tiên"
+                size="sm"
+                variant="primary"
+                onClick={() => setCreateOpen(true)}
+              />
+            ),
+          }
+        : 'Không có lớp học khớp bộ lọc hiện tại';
+
   // Dropdowns instead of pasted UUIDs (spec requirement). S6 fix: search-aware
   // now (course.list already supports it) instead of a static pageSize:100
   // fetch — course #101+ was previously unreachable in the create dialog.
@@ -419,8 +449,7 @@ function ClassListContent() {
                 variant="secondary"
                 isDisabled={selectedIds.length === 0}
                 onClick={() => {
-                  const items = (data?.items as ClassRow[] | undefined) ?? [];
-                  const codes = items
+                  const codes = rows
                     .filter((r) => selectedIds.includes(r.id))
                     .map((r) => r.code);
                   void navigator.clipboard?.writeText(codes.join(', '));
@@ -442,10 +471,10 @@ function ClassListContent() {
       >
         <DataTable<ClassRow>
           columns={COLUMNS}
-          data={(data?.items as ClassRow[] | undefined) ?? []}
+          data={rows}
           loading={isLoading}
           error={error?.message}
-          empty="Chưa có lớp học nào"
+          empty={listEmpty}
           onRowClick={(row) => void navigate(links.classBatch(row.id))}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}

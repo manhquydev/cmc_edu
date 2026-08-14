@@ -1,7 +1,7 @@
 ---
 phase: 5
 title: "PR4 CRM opportunity list orderBy"
-status: in_progress
+status: completed
 priority: P1
 effort: "1-1.5d"
 dependencies: [3]

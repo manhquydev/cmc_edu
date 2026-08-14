@@ -1,16 +1,19 @@
 ---
 title: "Next UI wave: affordances, brand tone, students, CRM sort"
 description: "Successor to 260814-1656. Four PR-sized phases after red-team R1: shared ListPage polish; approval-gated brand (receipts draft + KPI submitted) + CRM waiting stages; Students empty recipe (no bulk widen); CRM orderBy whitelist with tie-breaker."
-status: active
+status: completed
 priority: P1
 effort: "4-6d"
 tags: [ui, listpage, bridge, crm, students]
 created: 2026-08-14
+# Completed: merged to develop as PR #144 (adc49c9), 2026-08-14.
 blockedBy: []
 blocks: []
 ---
 
 # Next UI wave: affordances, brand tone, students, CRM sort
+
+> **COMPLETED** — shipped in PR #144. Successor cook target: `plans/260814-2346-classes-listpage-empty-recipe-after-144/`.
 
 ## Overview
 

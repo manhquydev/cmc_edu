@@ -247,3 +247,61 @@ describe('ClassListPage — Tạo lớp', () => {
     expect(navigateSpy).toHaveBeenCalledWith('/admin/classes/cb-new');
   });
 });
+
+describe('ClassListPage — ListPage empty recipe', () => {
+  beforeEach(() => {
+    classBatchListSpy.mockClear();
+    CLASSES.items = [];
+    CLASSES.total = 0;
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    CLASSES.items = [];
+    CLASSES.total = 0;
+    vi.useRealTimers();
+  });
+
+  it('shows first-run empty when facility has no classes; CTA opens create dialog', () => {
+    const { container } = renderListPage();
+    expect(container.querySelector('[data-empty-kind="first-run"]')).not.toBeNull();
+    expect(screen.getByText('Chưa có lớp học nào')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm lớp học đầu tiên' }));
+    expect(screen.getByText('Tạo lớp học (unit-aware)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ Tạo lớp' })).toBeInTheDocument();
+  });
+
+  it('uses a neutral string when search returns zero — never filtered kind', async () => {
+    const { container } = renderListPage();
+    fireEvent.change(screen.getByLabelText('Tìm kiếm'), { target: { value: 'ZZZ-NONE' } });
+    await vi.advanceTimersByTimeAsync(350);
+    await waitFor(() => {
+      expect(classBatchListSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ search: 'ZZZ-NONE' }),
+      );
+    });
+    expect(screen.getByText('Không có lớp học khớp bộ lọc hiện tại')).toBeInTheDocument();
+    expect(container.querySelector('[data-empty-kind="filtered"]')).toBeNull();
+    expect(container.querySelector('[data-empty-kind="first-run"]')).toBeNull();
+  });
+
+  it('does not offer dishonest select-all-matching when page is fully selected', () => {
+    CLASSES.items = [
+      {
+        id: 'cb-1',
+        code: 'HN-UCREA-001',
+        program: 'UCREA',
+        status: 'active',
+        startDate: new Date('2026-01-01'),
+        endDate: new Date('2026-06-01'),
+        teacherId: null,
+      },
+    ];
+    CLASSES.total = 1;
+    renderListPage();
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]!);
+    expect(screen.getByRole('button', { name: 'Sao chép mã lớp' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Chọn tất cả .* dòng khớp bộ lọc/ })).toBeNull();
+  });
+});

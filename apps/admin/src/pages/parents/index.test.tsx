@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, within, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { screen, fireEvent, within, act, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // Gap-closure: parents provisioned automatically by receipt approval never
@@ -91,6 +91,11 @@ vi.mock('../../lib/trpc.js', async () => {
 
 import ParentListPage from './index.js';
 
+function expectKindlessEmpty() {
+  expect(document.querySelector('[data-empty-kind]')).toBeNull();
+  expect(screen.queryByText(/Tạo |Thêm .*đầu tiên/)).toBeNull();
+}
+
 describe('ParentListPage', () => {
   beforeEach(() => {
     sessionRoles = ['sale'];
@@ -99,6 +104,10 @@ describe('ParentListPage', () => {
     parentListQuerySpy.mockClear();
     updateEmailMutateSpy.mockClear();
     updateEmailOnSuccess = undefined;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders the link-request queue by default', () => {
@@ -164,5 +173,72 @@ describe('ParentListPage', () => {
 
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByLabelText(/Email đăng nhập LMS/)).toHaveValue('existing@test.com');
+  });
+
+  it('under-claims on the requests queue when zero rows (kindless)', () => {
+    pendingLinksState.data = { items: [], total: 0 };
+    renderWithProviders(<ParentListPage />);
+    expect(
+      screen.getByText('Không có yêu cầu liên kết nào cho bộ lọc trạng thái hiện tại.'),
+    ).toBeInTheDocument();
+    expectKindlessEmpty();
+  });
+
+  it('under-claims missing-email empty on the directory tab (sale)', () => {
+    parentListState.data = { items: [], total: 0, page: 1, pageSize: 20 };
+    renderWithProviders(<ParentListPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả phụ huynh' }));
+    expect(screen.getByRole('search', { name: 'Bộ lọc' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Không có phụ huynh nào đang thiếu email LMS trong cơ sở này.'),
+    ).toBeInTheDocument();
+    expectKindlessEmpty();
+  });
+
+  it('names the missing-email constraint when search returns zero under default filter', async () => {
+    vi.useFakeTimers();
+    parentListState.data = { items: [], total: 0, page: 1, pageSize: 20 };
+    renderWithProviders(<ParentListPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả phụ huynh' }));
+    fireEvent.change(screen.getByLabelText('Tìm kiếm'), { target: { value: '84909999999' } });
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(
+      screen.getByText(/Không tìm thấy phụ huynh chưa có email khớp từ khóa/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/chuyển Email LMS sang Tất cả/)).toBeInTheDocument();
+    expectKindlessEmpty();
+  });
+
+  it('under-claims search-zero when Email LMS is Tất cả', async () => {
+    vi.useFakeTimers();
+    parentListState.data = { items: [], total: 0, page: 1, pageSize: 20 };
+    renderWithProviders(<ParentListPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả phụ huynh' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Email LMS' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Tất cả' }));
+    fireEvent.change(screen.getByLabelText('Tìm kiếm'), { target: { value: '84908888888' } });
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(
+      screen.getByText('Không tìm thấy phụ huynh khớp từ khóa này. Thử SĐT hoặc email khác.'),
+    ).toBeInTheDocument();
+    expectKindlessEmpty();
+  });
+
+  it('under-claims facility-empty when Email LMS is Tất cả and search is blank', async () => {
+    parentListState.data = { items: [], total: 0, page: 1, pageSize: 20 };
+    renderWithProviders(<ParentListPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả phụ huynh' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Email LMS' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Tất cả' }));
+    await waitFor(() => {
+      expect(
+        screen.getByText('Chưa có tài khoản phụ huynh nào trong cơ sở này.'),
+      ).toBeInTheDocument();
+    });
+    expectKindlessEmpty();
   });
 });

@@ -108,6 +108,34 @@ const PARENT_DIR_FILTERS: FilterDef[] = [
 
 const ALL_PARENTS_PAGE_SIZE = 20;
 
+/**
+ * Empty copy is kindless on purpose — same contract as Students `NO_MATCH_EMPTY`.
+ * `DataTable` already wraps bare strings in EmptyState without publishing
+ * `data-empty-kind`. Do not pass `TableEmptySpec` here: we cannot claim
+ * `first-run` (no create surface) or `filtered` (list totals are filter-scoped).
+ */
+const REQUESTS_EMPTY =
+  'Không có yêu cầu liên kết nào cho bộ lọc trạng thái hiện tại.';
+
+const PARENTS_MISSING_EMAIL_EMPTY =
+  'Không có phụ huynh nào đang thiếu email LMS trong cơ sở này.';
+
+const PARENTS_MISSING_EMAIL_SEARCH_EMPTY =
+  'Không tìm thấy phụ huynh chưa có email khớp từ khóa. Thử SĐT/email khác, hoặc chuyển Email LMS sang Tất cả.';
+
+const PARENTS_ALL_EMPTY = 'Chưa có tài khoản phụ huynh nào trong cơ sở này.';
+
+const PARENTS_ALL_SEARCH_EMPTY =
+  'Không tìm thấy phụ huynh khớp từ khóa này. Thử SĐT hoặc email khác.';
+
+function allParentsEmptyCopy(emailFilter: EmailFilter, search: string): string {
+  const searching = search.length > 0;
+  if (emailFilter === 'missing') {
+    return searching ? PARENTS_MISSING_EMAIL_SEARCH_EMPTY : PARENTS_MISSING_EMAIL_EMPTY;
+  }
+  return searching ? PARENTS_ALL_SEARCH_EMPTY : PARENTS_ALL_EMPTY;
+}
+
 const BASE_COLUMNS: TableColumn<LinkRow>[] = [
   { key: 'studentName', label: 'Học viên' },
   { key: 'parentPhone', label: 'SĐT phụ huynh', width: 160 },
@@ -252,7 +280,7 @@ function LinkRequestsTab({
         data={rows}
         loading={isLoading}
         error={error?.message}
-        empty="Không có yêu cầu nào"
+        empty={REQUESTS_EMPTY}
       />
 
       {/* Approve modal with relation selector.
@@ -420,11 +448,7 @@ function AllParentsTab({
         data={rows}
         loading={isLoading}
         error={error?.message}
-        empty={
-          emailFilter === 'missing'
-            ? 'Không có phụ huynh nào đang thiếu email'
-            : 'Không có phụ huynh nào'
-        }
+        empty={allParentsEmptyCopy(emailFilter, debouncedSearch)}
         onRowClick={(row) => navigate(links.parentAccount(row.id))}
       />
 

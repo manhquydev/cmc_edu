@@ -1,0 +1,10 @@
+{
+  "prompt": "canon Linear+Stripe cockpit composition c",
+  "approved": true,
+  "approvedAt": "2026-08-14",
+  "craftBar": [
+    "Linear",
+    "Stripe Dashboard"
+  ],
+  "composition": "table-plus-sidebar"
+}

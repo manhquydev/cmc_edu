@@ -1,0 +1,494 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-14T07:31:00.000Z",
+  "title": "Design System: CMC EDU — Cockpit",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Cockpit Purple",
+        "canonical": "oklch(52% 0.08 300)",
+        "tonalRamp": [
+          "#2a2438",
+          "#3d3554",
+          "#5a4f7e",
+          "#71639e",
+          "#8a7bb3",
+          "#b0a5cc",
+          "#d4cde3",
+          "#f0edf6"
+        ]
+      },
+      "primary-dark": {
+        "role": "primary",
+        "displayName": "Cockpit Purple Deep",
+        "canonical": "oklch(44% 0.07 300)",
+        "tonalRamp": [
+          "#241f30",
+          "#352e48",
+          "#463c60",
+          "#5a4f7e",
+          "#71639e",
+          "#9587b5",
+          "#c4bbd8",
+          "#ebe7f3"
+        ]
+      },
+      "primary-soft": {
+        "role": "primary",
+        "displayName": "Purple Veil",
+        "canonical": "oklch(95% 0.02 300)",
+        "tonalRamp": [
+          "#71639e",
+          "#8a7bb3",
+          "#a498c4",
+          "#bdb4d4",
+          "#d4cde3",
+          "#e3deee",
+          "#f0edf6",
+          "#f8f6fb"
+        ]
+      },
+      "bg": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "canonical": "oklch(97% 0.002 280)",
+        "tonalRamp": [
+          "#18181b",
+          "#3f3f46",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#e4e4e7",
+          "#f4f4f5",
+          "#f7f7f8"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "canonical": "oklch(100% 0 0)",
+        "tonalRamp": [
+          "#18181b",
+          "#3f3f46",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#e4e4e7",
+          "#fafafa",
+          "#ffffff"
+        ]
+      },
+      "sidebar": {
+        "role": "neutral",
+        "displayName": "Sidebar Wash",
+        "canonical": "oklch(98.5% 0.001 280)",
+        "tonalRamp": [
+          "#18181b",
+          "#3f3f46",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#e4e4e7",
+          "#f4f4f5",
+          "#fafafa"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(18% 0.01 280)",
+        "tonalRamp": [
+          "#09090b",
+          "#18181b",
+          "#27272a",
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8"
+        ]
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "canonical": "oklch(55% 0.01 280)",
+        "tonalRamp": [
+          "#27272a",
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#e4e4e7",
+          "#f4f4f5"
+        ]
+      },
+      "text-tertiary": {
+        "role": "neutral",
+        "displayName": "Ink Faint",
+        "canonical": "oklch(72% 0.01 280)",
+        "tonalRamp": [
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#e4e4e7",
+          "#f4f4f5",
+          "#fafafa"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(91% 0.005 280)",
+        "tonalRamp": [
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#e4e4e7",
+          "#f4f4f5",
+          "#fafafa",
+          "#ffffff"
+        ]
+      },
+      "border-strong": {
+        "role": "neutral",
+        "displayName": "Hairline Strong",
+        "canonical": "oklch(86% 0.005 280)",
+        "tonalRamp": [
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#e4e4e7",
+          "#f4f4f5",
+          "#fafafa"
+        ]
+      },
+      "danger": {
+        "role": "status",
+        "displayName": "Danger",
+        "canonical": "oklch(55% 0.2 25)",
+        "tonalRamp": [
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#ef4444",
+          "#fca5a5",
+          "#fecaca",
+          "#fef2f2"
+        ]
+      },
+      "danger-soft": {
+        "role": "status",
+        "displayName": "Danger Soft",
+        "canonical": "oklch(97% 0.02 25)",
+        "tonalRamp": [
+          "#dc2626",
+          "#ef4444",
+          "#f87171",
+          "#fca5a5",
+          "#fecaca",
+          "#fee2e2",
+          "#fef2f2",
+          "#fffbfb"
+        ]
+      },
+      "warning": {
+        "role": "status",
+        "displayName": "Warning",
+        "canonical": "oklch(68% 0.15 70)",
+        "tonalRamp": [
+          "#78350f",
+          "#92400e",
+          "#b45309",
+          "#d97706",
+          "#f59e0b",
+          "#fcd34d",
+          "#fde68a",
+          "#fffbeb"
+        ]
+      },
+      "warning-soft": {
+        "role": "status",
+        "displayName": "Warning Soft",
+        "canonical": "oklch(97% 0.03 95)",
+        "tonalRamp": [
+          "#d97706",
+          "#f59e0b",
+          "#fbbf24",
+          "#fcd34d",
+          "#fde68a",
+          "#fef3c7",
+          "#fffbeb",
+          "#fffef8"
+        ]
+      },
+      "success": {
+        "role": "status",
+        "displayName": "Success",
+        "canonical": "oklch(62% 0.17 145)",
+        "tonalRamp": [
+          "#14532d",
+          "#166534",
+          "#15803d",
+          "#16a34a",
+          "#22c55e",
+          "#86efac",
+          "#bbf7d0",
+          "#f0fdf4"
+        ]
+      },
+      "success-soft": {
+        "role": "status",
+        "displayName": "Success Soft",
+        "canonical": "oklch(98% 0.02 145)",
+        "tonalRamp": [
+          "#16a34a",
+          "#22c55e",
+          "#4ade80",
+          "#86efac",
+          "#bbf7d0",
+          "#dcfce7",
+          "#f0fdf4",
+          "#f7fef9"
+        ]
+      },
+      "info": {
+        "role": "status",
+        "displayName": "Info",
+        "canonical": "oklch(55% 0.18 260)",
+        "tonalRamp": [
+          "#1e3a8a",
+          "#1e40af",
+          "#1d4ed8",
+          "#2563eb",
+          "#3b82f6",
+          "#93c5fd",
+          "#bfdbfe",
+          "#eff6ff"
+        ]
+      },
+      "info-soft": {
+        "role": "status",
+        "displayName": "Info Soft",
+        "canonical": "oklch(97% 0.02 260)",
+        "tonalRamp": [
+          "#2563eb",
+          "#3b82f6",
+          "#60a5fa",
+          "#93c5fd",
+          "#bfdbfe",
+          "#dbeafe",
+          "#eff6ff",
+          "#f8fbff"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Metric values in the ruled quick-stats band — the largest number on the page."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page title. One per screen."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headers — queue title, rail panel headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default UI text and table cells."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Nav group labels and small eyebrow captions (uppercase)."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Record codes in the first table column only."
+      }
+    },
+    "shadows": [
+      {
+        "name": "toast-lift",
+        "value": "0 8px 24px rgb(24 24 27 / 10%)",
+        "purpose": "The only visible elevation — floating status toast."
+      },
+      {
+        "name": "shadow-xs",
+        "value": "0 1px 2px rgb(24 24 27 / 4%)",
+        "purpose": "Defined token held in reserve; not used at rest on surfaces."
+      },
+      {
+        "name": "focus-ring",
+        "value": "0 0 0 2px #ffffff, 0 0 0 4px #71639e",
+        "purpose": "Global :focus-visible ring — surface halo + purple ring."
+      }
+    ],
+    "motion": [
+      {
+        "name": "row-hover",
+        "value": "background 120ms ease",
+        "purpose": "Table row hover / selection feedback."
+      },
+      {
+        "name": "toast",
+        "value": "opacity 160ms ease, transform 160ms ease",
+        "purpose": "Toast enter/exit; honor prefers-reduced-motion."
+      },
+      {
+        "name": "shimmer",
+        "value": "1.2s ease-in-out infinite",
+        "purpose": "Skeleton loading gradient."
+      }
+    ],
+    "breakpoints": [
+      { "name": "rail-tighten", "value": "1100px" },
+      { "name": "single-column", "value": "860px" },
+      { "name": "rail-stack", "value": "640px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid Cockpit Purple — one primary action per view.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Lưu</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;height:30px;padding:0 12px;border:0;border-radius:6px;background:#71639e;color:#fff;font:550 13px/1 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}.ds-btn-primary:hover{background:#5a4f7e}.ds-btn-primary:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #71639e}.ds-btn-primary:disabled{opacity:.45;cursor:not-allowed}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Hairline secondary control for pager and secondary actions.",
+      "html": "<button class=\"ds-btn-ghost\" type=\"button\">Xem thêm</button>",
+      "css": ".ds-btn-ghost{display:inline-flex;align-items:center;justify-content:center;height:30px;padding:0 12px;border:1px solid #e4e4e7;border-radius:6px;background:transparent;color:#71717a;font:550 13px/1 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}.ds-btn-ghost:hover{background:#f7f7f8;color:#18181b}.ds-btn-ghost:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #71639e}"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-brand",
+      "description": "Ink-on-tint status pill via data-tone; brand tone means waiting on the system.",
+      "html": "<span class=\"ds-badge\" data-tone=\"warning\">Chờ duyệt</span> <span class=\"ds-badge\" data-tone=\"brand\">Ưu tiên</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font:550 12px/1 Inter,ui-sans-serif,system-ui,sans-serif}.ds-badge[data-tone=\"warning\"]{background:#fffbeb;color:#d97706}.ds-badge[data-tone=\"brand\"]{background:#f0edf6;color:#5a4f7e}.ds-badge[data-tone=\"danger\"]{background:#fef2f2;color:#dc2626}.ds-badge[data-tone=\"success\"]{background:#f0fdf4;color:#16a34a}"
+    },
+    {
+      "name": "Nav Item Active",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Active sidebar row — Purple Veil fill, ink text at 550.",
+      "html": "<button class=\"ds-nav-item is-active\" type=\"button\" aria-current=\"page\">Tổng quan</button>",
+      "css": ".ds-nav-item{display:flex;align-items:center;width:100%;height:32px;padding:0 10px;border:0;border-radius:6px;background:transparent;color:#71717a;font:500 14px/1 Inter,ui-sans-serif,system-ui,sans-serif;text-align:left;cursor:pointer}.ds-nav-item:hover{background:rgb(24 24 27 / 4%);color:#18181b}.ds-nav-item.is-active{background:#f0edf6;color:#18181b;font-weight:550}"
+    },
+    {
+      "name": "Search Trigger",
+      "kind": "input",
+      "refersTo": "search-trigger",
+      "description": "34px button-as-input with ⌘K hint.",
+      "html": "<button class=\"ds-search\" type=\"button\"><span>Tìm kiếm…</span><kbd>⌘K</kbd></button>",
+      "css": ".ds-search{display:flex;align-items:center;gap:8px;width:100%;height:34px;padding:0 10px;border:1px solid #e4e4e7;border-radius:6px;background:#fff;color:#71717a;font:400 14px/1 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer;text-align:left}.ds-search span{flex:1}.ds-search kbd{font-size:11px;font-weight:500;color:#a1a1aa;background:#f7f7f8;border:1px solid #e4e4e7;border-radius:4px;padding:1px 5px}.ds-search:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #71639e}"
+    },
+    {
+      "name": "Context Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Utility-bar context pill — facility, date, role.",
+      "html": "<span class=\"ds-chip\">Cơ sở Q.1</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid #e4e4e7;border-radius:999px;background:#f7f7f8;color:#71717a;font:500 12px/1 Inter,ui-sans-serif,system-ui,sans-serif;white-space:nowrap}"
+    },
+    {
+      "name": "Ruled Metric",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Signature quick-stat cell — hairline dividers, no cards.",
+      "html": "<div class=\"ds-metric\"><p class=\"ds-metric-label\"><span class=\"ds-dot\"></span> Việc quá hạn</p><p class=\"ds-metric-value\">7</p><p class=\"ds-metric-delta\">+2 so với hôm qua</p></div>",
+      "css": ".ds-metric{padding:18px 20px;border-right:1px solid #e4e4e7;font-family:Inter,ui-sans-serif,system-ui,sans-serif}.ds-metric-label{display:flex;align-items:center;gap:8px;margin:0 0 8px;font:500 12px/1.2 Inter,ui-sans-serif,system-ui,sans-serif;color:#71717a}.ds-dot{width:7px;height:7px;border-radius:999px;background:#dc2626}.ds-metric-value{margin:0;font:600 28px/1.1 Inter,ui-sans-serif,system-ui,sans-serif;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:#18181b}.ds-metric-delta{margin:8px 0 0;font:400 12px/1.2 Inter,ui-sans-serif,system-ui,sans-serif;color:#dc2626;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Funnel Trap",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Signature sticky-rail trapezoid stage bar.",
+      "html": "<div class=\"ds-funnel-row\" data-emphasize=\"true\"><span class=\"ds-funnel-index\">3</span><div><span class=\"ds-funnel-label\">Trial</span><div class=\"ds-funnel-trap\" aria-hidden=\"true\"></div></div><span class=\"ds-funnel-count\">14</span></div>",
+      "css": ".ds-funnel-row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:center;font-family:Inter,ui-sans-serif,system-ui,sans-serif}.ds-funnel-index{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;font:600 11px/1 Inter,ui-sans-serif,system-ui,sans-serif;color:#fff;background:#71639e}.ds-funnel-label{display:block;font:550 12px/1.2 Inter,ui-sans-serif,system-ui,sans-serif;color:#18181b;margin-bottom:4px}.ds-funnel-count{font:600 12px/1 Inter,ui-sans-serif,system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#18181b}.ds-funnel-trap{height:22px;clip-path:polygon(12% 0,calc(100% - 12%) 0,calc(100% - 12% - 8%) 100%,calc(12% + 8%) 100%);background:color-mix(in srgb,#71639e 58%,white);outline:1px solid #5a4f7e;outline-offset:-1px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Ruled Ledger",
+    "overview": "CMC EDU's cockpit is a near-white operations ledger built on the shared craft bar of Linear and the Stripe Dashboard. Structure is drawn by hairlines, not by boxes: a single 240px navigation column, a fluid main worksurface, and a sticky context rail, all separated by 1px #e4e4e7 rules on a #f7f7f8 ground. It reads as an instrument, not a marketing page — dense, quiet, and legible at a glance from three feet away on a 1440px office display.\n\nFive role cockpits share this one shell. The doctrine is that permission rewrites the table, never the chrome: a Sale and a Super admin see the same navbar, the same tabs, the same ruled metrics band — but different rows, different funnel, different queue. The design system's job is to make that shell so calm and consistent that the change in content is the only thing that moves when you switch roles. Separation of duties should be visible in the data, not dramatized by the UI.\n\nRestraint is the whole personality. One purple (#71639e) is the only branded hue and it is rationed to acts of authority — active navigation, the selected tab's underline, the primary button, and the funnel bars. Status is carried by a five-tone ink-on-soft-tint system, never by the brand color. There are no cards used as structure, no gradients, no glassmorphism, and exactly one shadow in the entire build (the toast). This lab world is the forward design system for design-lab/ work; design-system/cmc-edu/OPENEDUCAT-VISUAL-CONTRACT.md remains the authority for production list, form, and statusbar fidelity until a bridge wave lands these tokens into @cmc/ui.",
+    "keyCharacteristics": [
+      "Near-white ground (#f7f7f8) with a subtly cooler #fafafa sidebar and pure-white worksurface.",
+      "Hairline #e4e4e7 rules do all structural separation; boxes appear only for true containers.",
+      "One purple, rationed to authority; a separate five-tone status palette for state.",
+      "Inter throughout, tuned for Vietnamese diacritics; every figure is tabular.",
+      "40px table rows, 32px nav items, 28–30px controls — a tight, instrument-grade density.",
+      "Flat by default: tonal layering and rules convey depth, not elevation."
+    ],
+    "rules": [
+      {
+        "name": "The One Purple Rule",
+        "body": "#71639e is spent only on active nav, the tab underline, the primary button, and the funnel bars (plus its primary-soft tint on counts, brand badges, and the selected row). Never a gradient, never a decorative fill, never a status color.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink-on-Tint Rule",
+        "body": "Every status is a saturated ink sitting on its own soft tint of the same hue. Status never borrows the brand purple, and the brand purple never borrows a status role — a brand-tinted badge means waiting on the system, which is a sixth, distinct tone.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Numbers Rule",
+        "body": "Every figure aligns: metric values, amounts, due times, counts, pager numbers, and record codes all use font-variant-numeric: tabular-nums so columns of numbers read as a ledger.",
+        "section": "typography"
+      },
+      {
+        "name": "The Weight-Not-Size Rule",
+        "body": "Within body text, importance is expressed by stepping weight to 550, never by enlarging the type. The size ramp stays reserved for true hierarchy (title / headline / display).",
+        "section": "typography"
+      },
+      {
+        "name": "The Shared-Chrome Rule",
+        "body": "All five roles render the identical shell — 240px nav, utility bar, tabs, three-metric band, queue + rail. Only the content of the table, funnel, and metrics changes per role. Do not restructure the layout to differentiate a role.",
+        "section": "layout"
+      },
+      {
+        "name": "The Two-Column Cockpit Rule",
+        "body": "The worksurface is always fluid-queue + 300px sticky rail down to 860px, where the rail unstacks beneath the queue rather than shrinking into it.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Surfaces are flat at rest. A drop shadow appears only on a transient, floating element (the toast). Structure and grouping are expressed with 1px hairlines and one-step tonal shifts — never with resting elevation, and never with glass or blur.",
+        "section": "elevation"
+      },
+      {
+        "name": "The No-Cards Rule",
+        "body": "Structure is drawn with hairline rules, not card boxes. Metrics are divided by right-borders; queue rows by bottom-borders. A border-box (8px, 1px hairline) is spent only on genuine containers — the scrollable table wrap, the rail panels, the toast — never to visually chunk content that a rule could separate.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do spend Cockpit Purple (#71639e) only on active nav, the tab underline, the primary button, and funnel bars; keep it under ~10% of any screen.",
+      "Do separate content with 1px #e4e4e7 hairlines and one-step tonal shifts (#fafafa vs #ffffff); rule the metrics band and rows instead of boxing them.",
+      "Do set every figure in tabular-nums and express emphasis by stepping weight to 550, not by enlarging type.",
+      "Do keep all five roles on the identical shell — change the table, funnel, and metrics content, never the chrome.",
+      "Do render status as a saturated ink on its own soft tint via data-tone, keeping brand distinct as waiting on the system.",
+      "Do hold surfaces flat; reserve the single drop shadow for the transient toast and honor prefers-reduced-motion."
+    ],
+    "donts": [
+      "Don't use cards, panels, or shadows to structure content that a hairline rule can separate (The No-Cards Rule).",
+      "Don't introduce gradients, glassmorphism, or blur anywhere in the shell.",
+      "Don't let the LMS/Apple blue (#0071E3) or the status info blue (#2563eb) appear on buttons, links, focus rings, or tabs — those belong to Cockpit Purple.",
+      "Don't color status with the brand purple, or use a status ink for a brand affordance.",
+      "Don't treat this lab world as production authority: OPENEDUCAT-VISUAL-CONTRACT.md governs production list/form/statusbar until a bridge wave ports these tokens into @cmc/ui."
+    ]
+  }
+}

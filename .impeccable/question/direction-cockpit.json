@@ -1,0 +1,54 @@
+{
+  "title": "Chọn thế giới thị giác cho cockpit 5 role",
+  "question": "Xúc xắc chỉ định “Chứng Từ In Sẵn”. Giữ nó, chọn phương án khác, hoặc đổ lại.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Chứng Từ In Sẵn",
+      "kicker": "THE ROLL",
+      "lineage": "Phiếu thu 3 liên & vé in offset hai màu Việt Nam",
+      "thesis": "Mỗi việc chờ bạn là một chứng từ có số, có liên, có ô ký — không phải một thẻ KPI.",
+      "palette": ["#efe9dc", "#1f1c17", "#2f3b6b", "#c0392b", "#71639e"],
+      "materials": ["giấy in ngả vàng", "mực offset hai màu", "số nhảy đỏ", "đường răng cưa"],
+      "viewport": "Tiêu đề role đóng dấu góc phải, dải số liệu in như phần cuống phiếu, hàng đợi việc là chồng chứng từ có serial.",
+      "risk": "Nếu viền guilloche và răng cưa làm quá tay, mật độ dữ liệu bị nhiễu và trang thành đồ trang trí.",
+      "sketch": ".impeccable/sketches/assigned.webp"
+    },
+    {
+      "id": "challenger-rail",
+      "label": "Thanh Vạch Quang Phổ",
+      "lineage": "Bản quang phổ phát xạ trên hộp đèn",
+      "thesis": "Trạng thái không dùng màu: cao thấp, nét liền nét đứt, vạch đơn vạch đôi.",
+      "case": "Fuse rất mạnh về độ rõ trạng thái — quá hạn / hôm nay / vượt ngưỡng đọc được cả khi mù màu; nhưng nhân sự trung tâm không nhận ra thế giới phòng thí nghiệm này là của mình.",
+      "sketch": ".impeccable/sketches/challenger-rail.webp",
+      "hero": "https://impeccable.style/worlds/cards/operate-c-emission-line-rail-hero.webp"
+    },
+    {
+      "id": "challenger-teletext",
+      "label": "Trang Tra Cứu Phát Sóng",
+      "lineage": "Teletext 40×24 ký tự trên nền đen",
+      "thesis": "Mỗi role là một số trang gõ trực tiếp: 101 super admin, 201 GĐKD, 501 giáo viên.",
+      "case": "Fuse khá: đánh số trang khớp với văn hoá đánh số chứng từ, gõ số là điều hướng nhanh nhất; nhưng nền đen + chữ bitmap làm dấu tiếng Việt khó đọc suốt buổi làm việc ban ngày.",
+      "sketch": ".impeccable/sketches/challenger-teletext.webp",
+      "hero": "https://impeccable.style/worlds/cards/broadcast-programming-teletext-service-hero.webp"
+    },
+    {
+      "id": "challenger-cyc",
+      "label": "Dải Sáng Sân Khấu",
+      "lineage": "Phông cyclorama chuyển từ đêm sang ngày",
+      "thesis": "Ca làm việc là dải sáng: chấm công sáng sớm, lớp buổi chiều, chốt phiếu cuối ngày.",
+      "case": "Fuse vừa phải: nhịp một ngày làm việc có thật, nhưng nền tối và chuyển màu liên tục chống lại mật độ số liệu của phiếu thu và bảng điểm danh.",
+      "sketch": ".impeccable/sketches/challenger-cyc.webp",
+      "hero": "https://impeccable.style/worlds/cards/stagecraft-theater-lighting-cyclorama-dawn-hero.webp"
+    }
+  ],
+  "reroll": true,
+  "canon": true,
+  "canonCard": {
+    "label": "Chuẩn mực thông dụng",
+    "thesis": "Dashboard ops mà mọi ERP đều ship: 4 thẻ KPI, một bảng, một funnel — làm ở mức craft cao nhất.",
+    "viewport": "Lưới thẻ KPI trên, hàng đợi việc bên trái, pipeline bên phải, đúng thứ tự người dùng đã quen.",
+    "sketch": ".impeccable/sketches/canon.webp"
+  },
+  "steer": true
+}

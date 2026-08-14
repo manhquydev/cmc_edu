@@ -93,7 +93,7 @@ Phần nguội nâng theo Odoo 19 (quyết định #12): hiện **số ngày**, 
 - [x] Hàm phân mức trong domain-time + test múi giờ
 - [x] Ngưỡng theo giai đoạn + số ngày + gỡ env (3 file test)
 - [x] Counts + filter `due` + áp ba màn
-- [ ] `detect_changes()` + PR
+- [x] `detect_changes()` + PR
 
 ## Implementation status
 

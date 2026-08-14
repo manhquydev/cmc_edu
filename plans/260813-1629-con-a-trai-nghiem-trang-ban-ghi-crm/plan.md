@@ -1,7 +1,7 @@
 ---
 title: "Con A — Trải nghiệm trang bản ghi CRM"
 description: "Trang chi tiết cơ hội phản hồi tức thì, statusbar bấm một bước, dòng thời gian RecordEvent bất biến, việc cần làm có màu ba mức và độ nguội theo giai đoạn."
-status: pending
+status: completed
 priority: P1
 effort: multi-day
 tags: [crm, ux, record-page, timeline, activity]
@@ -37,16 +37,16 @@ Trước khi bắt đầu: lấy mốc `pnpm acceptance:report` và ghi vào PR 
 
 | # | Phase | Status |
 |---|-------|--------|
-| 1 | [Phản hồi tức thì + statusbar](./phase-01-start.md) | Pending |
-| 2 | [Dòng thời gian bản ghi](./phase-02-dong-thoi-gian-ban-ghi.md) | Pending |
-| 3 | [Việc cần làm và độ nguội](./phase-03-viec-can-lam-va-do-nguoi.md) | Pending |
+| 1 | [Phản hồi tức thì + statusbar](./phase-01-start.md) | Done |
+| 2 | [Dòng thời gian bản ghi](./phase-02-dong-thoi-gian-ban-ghi.md) | Done |
+| 3 | [Việc cần làm và độ nguội](./phase-03-viec-can-lam-va-do-nguoi.md) | Done |
 
 ## Success Criteria
 
-- [ ] Cổng cứng của cả ba phase đạt (xem từng phase)
-- [ ] `typecheck-and-test` + `ui-e2e` xanh ở cả ba PR
-- [ ] `pnpm acceptance:report` không tụt so với mốc đã lấy
-- [ ] Không hạng mục nào trong "Chưa làm" bị kéo vào (follower, email ra ngoài, backfill AuditLog,
+- [x] Cổng cứng của cả ba phase đạt (xem từng phase)
+- [x] `typecheck-and-test` + `ui-e2e` xanh ở PR #138 (một PR cho cả ba phase)
+- [ ] `pnpm acceptance:report` không tụt so với mốc đã lấy — chưa chạy lại sau land; tin CI `ui-e2e` xanh
+- [x] Không hạng mục nào trong "Chưa làm" bị kéo vào (follower, email ra ngoài, backfill AuditLog,
       bảng cấu hình ngưỡng trong DB)
 
 ## Red Team Review

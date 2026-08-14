@@ -373,6 +373,45 @@ describe('OpportunityDetailPage', () => {
     expect(screen.queryByRole('button', { name: 'Mở lại cơ hội' })).not.toBeInTheDocument();
   });
 
+  function isPrimaryButton(name: string): boolean {
+    const btn = screen.getByRole('button', { name });
+    const variant = btn.getAttribute('data-variant') ?? btn.className;
+    return /primary/i.test(variant);
+  }
+
+  describe('one prominent CTA per stage', () => {
+    it('makes Chuyển lên primary on O1 and keeps mark-lost secondary', () => {
+      renderDetail(OPP_O1.id);
+      expect(isPrimaryButton('Chuyển lên')).toBe(true);
+      expect(isPrimaryButton('Đánh dấu mất')).toBe(false);
+    });
+
+    it('makes Đặt lịch test primary on O2 and keeps Chuyển lên secondary', () => {
+      renderDetail(OPP_O2.id);
+      expect(isPrimaryButton('Đặt lịch test')).toBe(true);
+      expect(isPrimaryButton('Chuyển lên')).toBe(false);
+    });
+
+    it('makes Tạo phiếu thu primary on O4', () => {
+      renderDetail(OPP_O4.id);
+      expect(isPrimaryButton('Tạo phiếu thu')).toBe(true);
+    });
+
+    it('makes Mở lại cơ hội primary on a lost opportunity', () => {
+      renderDetail(OPP_LOST.id);
+      expect(isPrimaryButton('Mở lại cơ hội')).toBe(true);
+    });
+
+    it('hides Chuyển lên for a sale when the row belongs to someone else', () => {
+      listState.items = [
+        { ...OPP_O1, assignedTo: { userId: 'u2', fullName: 'Người Khác' } },
+      ];
+      sessionState.roles = ['sale'];
+      renderDetail(OPP_O1.id);
+      expect(screen.queryByRole('button', { name: 'Chuyển lên' })).not.toBeInTheDocument();
+    });
+  });
+
   it('renders the lost banner with the mapped Vietnamese lostReason label', () => {
     renderDetail(OPP_LOST.id);
     expect(screen.getByText('Lý do: Không phản hồi')).toBeInTheDocument();

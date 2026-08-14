@@ -55,26 +55,26 @@ vi cũ để 10 caller còn lại không đổi.
 
 ## Requirements
 
-- [ ] Mọi mutation trong `useOpportunityActions` **và** `useTestAppointmentActions` làm mới cả
+- [x] Mọi mutation trong `useOpportunityActions` **và** `useTestAppointmentActions` làm mới cả
       `opportunityList` + `opportunityGet`; các mutation đổi tư cách thành viên của due-list
       (`markLost`, `assign`, `setNextAction`, `clearNextAction` — due-list lọc theo
       `assignedToId` + `closedAt`, `router.ts:594-601`) thêm `DueFollowUps`
-- [ ] `ProgressSteps` nhận cơ chế per-step clickable (prop mới, ví dụ `canStepClick?: (i) => bool`),
+- [x] `ProgressSteps` nhận cơ chế per-step clickable (prop mới, ví dụ `canStepClick?: (i) => bool`),
       **mặc định giữ ngữ nghĩa hiện tại** (`i <= activeIndex`) để 10 caller ngoài CRM không đổi;
       cập nhật `progress-steps.test.tsx`
-- [ ] Trang cơ hội: chỉ bước **liền kề kế tiếp** bấm được; `O5_ENROLLED`, bước lùi, bước xa
+- [x] Trang cơ hội: chỉ bước **liền kề kế tiếp** bấm được; `O5_ENROLLED`, bước lùi, bước xa
       không render như nút bấm được (không con trỏ bàn tay, không sự kiện); khi mutation đang
       pending thì statusbar disable toàn bộ (chống double-click với cache cũ)
-- [ ] Check quyền phía client là **UX-only** — server vẫn là điểm enforcement duy nhất. Phép so
+- [x] Check quyền phía client là **UX-only** — server vẫn là điểm enforcement duy nhất. Phép so
       sánh client: `opp.assignedTo?.userId === me.userId` hoặc role quản lý (lưu ý mapping: server
       so `AppUser.id`, client chỉ có `userId` — `router.ts:204-220` vs `:422-427`,
       `apps/admin/src/lib/session-context.tsx:8,35`); ghi chú trong code rằng đây là bản sao UX
       của luật server
-- [ ] Đường lỗi statusbar: `onError` → invalidate `opportunityGet` (đồng bộ lại màn hình) + thông
+- [x] Đường lỗi statusbar: `onError` → invalidate `opportunityGet` (đồng bộ lại màn hình) + thông
       báo **tiếng Việt** (race hai người cùng tiến, manager giao cho người khác giữa chừng)
-- [ ] Journey `crm-opportunity-lost`: gỡ `page.reload()` + comment workaround, assert dữ liệu đổi
+- [x] Journey `crm-opportunity-lost`: gỡ `page.reload()` + comment workaround, assert dữ liệu đổi
       **không cần reload** — đây là test "fail nếu revert" thật
-- [ ] Mỗi giai đoạn có đúng một hành động chính nổi bật trên header
+- [x] Mỗi giai đoạn có đúng một hành động chính nổi bật trên header
 
 ## Related Code Files
 
@@ -106,12 +106,12 @@ vi cũ để 10 caller còn lại không đổi.
 
 ## Todo
 
-- [ ] Impact 3 symbol + báo bán kính
-- [ ] Sửa invalidation hai hook
-- [ ] API per-step clickable + statusbar một bước + pending/onError
-- [ ] Gỡ reload trong journey, siết assert
-- [ ] Bảng giai đoạn × nút trong PR
-- [ ] `detect_changes()` + PR
+- [x] Impact 3 symbol + báo bán kính
+- [x] Sửa invalidation hai hook
+- [x] API per-step clickable + statusbar một bước + pending/onError
+- [x] Gỡ reload trong journey, siết assert
+- [x] Bảng giai đoạn × nút trong PR
+- [x] `detect_changes()` + PR
 
 ## Success Criteria
 

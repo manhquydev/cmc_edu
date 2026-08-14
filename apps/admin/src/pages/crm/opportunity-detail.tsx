@@ -363,21 +363,34 @@ export default function OpportunityDetailPage() {
     advanceMutation.mutate({ opportunityId: opp.id, toStage });
   };
 
+  // One prominent CTA per stage (phase 1). Visibility of each action is
+  // unchanged (canMarkLost / canScheduleTest / O4 receipt / lost reopen).
+  const showAdvance = !isLost && Boolean(nextStage) && canAdvanceOwnedRow;
+  const primaryAction = isLost
+    ? 'reopen'
+    : opp.stage === 'O4_TESTED'
+      ? 'receipt'
+      : canScheduleTest
+        ? 'schedule'
+        : showAdvance
+          ? 'advance'
+          : null;
+
   const entityActions = (
     <HStack gap={2} style={{ flexWrap: 'wrap' }}>
       {isLost && (
         <Button
           label="Mở lại cơ hội"
-          variant="secondary"
+          variant={primaryAction === 'reopen' ? 'primary' : 'secondary'}
           size="sm"
           isLoading={markLostMutation.isPending}
           onClick={() => markLostMutation.mutate({ opportunityId: opp.id, reopen: true })}
         />
       )}
-      {!isLost && nextStage && (
+      {showAdvance && nextStage && (
         <Button
           label="Chuyển lên"
-          variant="secondary"
+          variant={primaryAction === 'advance' ? 'primary' : 'secondary'}
           size="sm"
           endContent={<LineIcon name="chevron" size={12} />}
           isLoading={advanceMutation.isPending}
@@ -395,7 +408,7 @@ export default function OpportunityDetailPage() {
       {canScheduleTest && (
         <Button
           label="Đặt lịch test"
-          variant="secondary"
+          variant={primaryAction === 'schedule' ? 'primary' : 'secondary'}
           size="sm"
           onClick={() => setScheduleTestOpen(true)}
         />
@@ -403,7 +416,7 @@ export default function OpportunityDetailPage() {
       {opp.stage === 'O4_TESTED' && !isLost && (
         <Button
           label="Tạo phiếu thu"
-          variant="primary"
+          variant={primaryAction === 'receipt' ? 'primary' : 'secondary'}
           size="sm"
           onClick={() => void navigate(`/finance/new?opportunityId=${opp.id}`)}
         />

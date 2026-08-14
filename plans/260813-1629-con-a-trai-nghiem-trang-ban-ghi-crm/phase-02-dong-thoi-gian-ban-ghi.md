@@ -106,7 +106,7 @@ có sẵn, có test hai kịch bản phiếu-thứ-hai và huỷ-một-trong-hai
 - Dữ liệu cũ & rollback:
   - [x] UI hiện dòng mốc **"Lịch sử ghi từ DD/MM/YYYY"** cho bản ghi tồn tại trước migration —
         phân biệt "không có lịch sử" với "lịch sử bắt đầu từ ngày X" (không backfill).
-  - [ ] Ghi nhận tường minh trong PR: revert code sau khi đã ghi event = chấp nhận lỗ hổng
+  - [x] Ghi nhận tường minh trong PR: revert code sau khi đã ghi event = chấp nhận lỗ hổng
         timeline vĩnh viễn (bảng bất biến, không backfill) — bảng giữ nguyên khi revert.
 - UI & e2e:
   - [x] Component `RecordTimeline` trong `packages/ui`, props không nhận `entity` tự do từ URL;

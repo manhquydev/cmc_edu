@@ -55,6 +55,42 @@ function fmt(n: number) {
   return n.toLocaleString('vi-VN') + ' đ';
 }
 
+/**
+ * A hidden button teaches nothing. When the viewer cannot approve, say which
+ * rule stopped them and who holds the authority, so the receipt keeps moving
+ * through a person instead of stalling in silence.
+ */
+function approvalDenial(
+  block: 'no-permission' | 'self-created' | 'needs-second-eye',
+  threshold: number | undefined,
+): { title: string; description: string } {
+  switch (block) {
+    case 'no-permission':
+      return {
+        title: 'Bạn không có quyền duyệt phiếu thu',
+        description:
+          'Người duyệt được là Giám đốc kinh doanh, Giám đốc đào tạo, hoặc Quản trị hệ thống của cơ sở này. Gửi mã phiếu cho họ để duyệt.',
+      };
+    case 'self-created':
+      return {
+        title: 'Bạn soạn phiếu này nên không duyệt được nó',
+        description:
+          'Kiểm soát tiền: người soạn phiếu không được là người duyệt. Một người khác có quyền duyệt phải xác nhận, kể cả khi bạn giữ đủ vai trò.',
+      };
+    case 'needs-second-eye':
+      return {
+        title: 'Phiếu vượt ngưỡng nên cần người duyệt cấp cao hơn',
+        description: threshold
+          ? `Phiếu trên ${fmt(threshold)} chỉ Giám đốc đào tạo hoặc Quản trị hệ thống duyệt được. Đây không phải hai chữ ký: một người đủ quyền là đủ.`
+          : 'Phiếu vượt ngưỡng chỉ Giám đốc đào tạo hoặc Quản trị hệ thống duyệt được.',
+      };
+    default: {
+      const exhaustive: never = block;
+      return exhaustive;
+    }
+  }
+}
+
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Nháp',
   approved: 'Đã duyệt',
@@ -225,10 +261,20 @@ export default function ReceiptDetailPage() {
         )}
 
         {isOverThreshold && (
+          // Needing a higher signer is a state of the receipt, not a mistake, so
+          // it reads as information rather than a caution.
           <Banner
-            status="warning"
+            status="info"
             title="Phiếu vượt ngưỡng — cần GĐĐT/Quản trị hệ thống duyệt"
             description={`Phiếu có giá trị vượt ngưỡng ${fmt(threshold!)} — chỉ Giám đốc Đào tạo (GĐĐT) hoặc Quản trị hệ thống mới được phê duyệt. Không phải "2 chữ ký" — một người đủ quyền duyệt một mình.`}
+          />
+        )}
+
+        {receipt.status === 'draft' && receipt.approvalBlock && (
+          <Banner
+            status="warning"
+            title={approvalDenial(receipt.approvalBlock, threshold).title}
+            description={approvalDenial(receipt.approvalBlock, threshold).description}
           />
         )}
 

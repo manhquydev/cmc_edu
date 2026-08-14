@@ -139,6 +139,17 @@ export interface ReceiptDto {
    * not provided (e.g. post-mutation responses where approval is moot). */
   canApprove: boolean;
   /**
+   * Why `canApprove` is false, so the UI can name the authority the operator
+   * must go to instead of silently hiding the button. `undefined` when approval
+   * is allowed, or when no subject was supplied (approval is moot there).
+   *
+   * - `no-permission`  — the role cannot approve receipts at all.
+   * - `self-created`   — separation of duties: the drafter is never a signer.
+   * - `needs-second-eye` — over threshold, and this role is not an independent
+   *   second eye.
+   */
+  approvalBlock?: 'no-permission' | 'self-created' | 'needs-second-eye';
+  /**
    * Refund ledger — populated by `receiptGet` only. List/create responses
    * omit these (undefined) so list stays cheap; form cold-start uses get.
    */
@@ -194,12 +205,23 @@ function toReceiptDto(
 ): ReceiptDto {
   const netAmount = receipt.netAmount.toNumber();
   let canApprove = false;
+  let approvalBlock: ReceiptDto['approvalBlock'];
   if (subject) {
     const notSelf = receipt.createdById !== subject.userId;
     const secondEyeOk =
       netAmount <= APPROVAL_SECOND_EYE_THRESHOLD ||
       subject.roles.some((r) => SECOND_EYE_ROLES.includes(r));
-    canApprove = notSelf && secondEyeOk && can(subject, 'finance', 'receiptApprove');
+    const permitted = can(subject, 'finance', 'receiptApprove');
+    canApprove = notSelf && secondEyeOk && permitted;
+    // Reported most-specific-first: a drafter who also lacks the role is told
+    // about the role, because that is the thing they would have to change.
+    if (!canApprove) {
+      approvalBlock = !permitted
+        ? 'no-permission'
+        : !notSelf
+          ? 'self-created'
+          : 'needs-second-eye';
+    }
   }
   return {
     id: receipt.id,
@@ -215,6 +237,7 @@ function toReceiptDto(
     netAmount,
     createdAt: receipt.createdAt,
     canApprove,
+    approvalBlock,
   };
 }
 

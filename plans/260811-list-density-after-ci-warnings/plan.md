@@ -1,6 +1,8 @@
 # Plan: CI warning fix + list density queue
 
-**Status:** in progress  
+**Status:** completed (archived 2026-08-14)  
+**Note:** Density default 40px + DataTable density landed with D0–D5 / bridge plan  
+[`260814-1656-ui-bridge-crm-e2e-after-d0-d5`](../260814-1656-ui-bridge-crm-e2e-after-d0-d5/). Do not reopen for Wave 3/5 duplication.  
 **Mode:** ak:cook --auto --tdd --parallel  
 
 ## Brainstorm contract

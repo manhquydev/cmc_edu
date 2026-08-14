@@ -1,11 +1,29 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 const createMutate = vi.fn();
 const listQuerySpy = vi.fn();
 let createOnSuccess: (() => void) | undefined;
+
+const listState: {
+  data:
+    | {
+        items: Array<{ id: string; name: string; program: string; createdAt: Date }>;
+        total: number;
+        page: number;
+        pageSize: number;
+      }
+    | undefined;
+} = {
+  data: {
+    items: [{ id: 'c1', name: 'Existing', program: 'UCREA', createdAt: new Date('2026-01-01') }],
+    total: 1,
+    page: 1,
+    pageSize: 50,
+  },
+};
 
 vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
@@ -13,12 +31,7 @@ vi.mock('../../lib/trpc.js', async () => {
     trpc: buildTrpcMock({
       'course.list.useQuery': (...args: unknown[]) => {
         listQuerySpy(...args);
-        return queryResult({
-          items: [{ id: 'c1', name: 'Existing', program: 'UCREA', createdAt: new Date('2026-01-01') }],
-          total: 1,
-          page: 1,
-          pageSize: 50,
-        });
+        return queryResult(listState.data);
       },
       'course.create.useMutation': (opts: { onSuccess?: () => void }) => {
         createOnSuccess = opts?.onSuccess;
@@ -45,6 +58,12 @@ describe('CourseListPage — Tạo khoá', () => {
     createMutate.mockClear();
     listQuerySpy.mockClear();
     createOnSuccess = undefined;
+    listState.data = {
+      items: [{ id: 'c1', name: 'Existing', program: 'UCREA', createdAt: new Date('2026-01-01') }],
+      total: 1,
+      page: 1,
+      pageSize: 50,
+    };
     vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
@@ -109,8 +128,30 @@ describe('CourseListPage — Tạo khoá', () => {
     expect(invalidateSpy).toHaveBeenCalled();
   });
 
-  it('lists existing courses from course.list', () => {
-    renderWithProviders(<CourseListPage />);
+  it('lists existing courses from course.list with CategoryChip for program', () => {
+    const { container } = renderWithProviders(<CourseListPage />);
     expect(screen.getByText('Existing')).toBeInTheDocument();
+    const chip = container.querySelector('.console-category-chip[data-category="a"]');
+    expect(chip).toBeTruthy();
+    expect(chip).toHaveTextContent('UCREA');
+  });
+
+  it('shows first-run empty when no filters and total is 0', () => {
+    listState.data = { items: [], total: 0, page: 1, pageSize: 20 };
+    renderWithProviders(<CourseListPage />);
+    expect(screen.getByText('Chưa có khoá học nào')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tạo khoá đầu tiên' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: '+ Tạo khoá' })).toHaveLength(1);
+  });
+
+  it('under-claims with a neutral string when filters are active and total is 0', async () => {
+    listState.data = { items: [], total: 0, page: 1, pageSize: 20 };
+    renderWithProviders(<CourseListPage />);
+    fireEvent.change(screen.getByLabelText('Tìm kiếm'), { target: { value: 'nope' } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+    expect(screen.getByText('Không có khoá học khớp bộ lọc hiện tại')).toBeInTheDocument();
+    expect(screen.queryByText('Chưa có khoá học nào')).not.toBeInTheDocument();
   });
 });

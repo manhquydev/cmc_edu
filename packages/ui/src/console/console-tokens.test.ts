@@ -87,6 +87,17 @@ describe('console.css scope + token surface', () => {
     expect(block.includes('var(--cmc-brand)')).toBe(false);
   });
 
+  it('pins Wave 4A brand soft badge as solid Community purple capsule', () => {
+    expect(css.includes('.o_web_client .console-badge-soft--brand')).toBe(true);
+    const brandIdx = css.indexOf('.o_web_client .console-badge-soft--brand');
+    expect(brandIdx).toBeGreaterThan(-1);
+    const brandSlice = css.slice(brandIdx, brandIdx + 120);
+    expect(brandSlice.includes('#71639e')).toBe(true);
+    expect(brandSlice.includes('color: #fff')).toBe(true);
+    expect(css.includes('.o_web_client .console-category-chip--a')).toBe(true);
+    expect(css.includes('.o_web_client .console-category-chip--d')).toBe(true);
+  });
+
   it('pins OpenEduCat remaining chrome tokens', () => {
     expect(css.includes('--console-facet-bg: #eaebf0')).toBe(true);
     expect(css.includes('--console-statusbar-current: #e0d9f1')).toBe(true);

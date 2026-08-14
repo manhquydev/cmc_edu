@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ComponentProps } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -13,7 +13,7 @@ import {
   PageHeader,
   useToast,
 } from '@cmc/ui';
-import type { FilterDef, TableColumn } from '@cmc/ui';
+import type { FilterDef, TableColumn, TableEmptySpec } from '@cmc/ui';
 import { links } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { CreateAfterSaleCaseDialog } from './create-after-sale-case-dialog.js';
@@ -100,6 +100,35 @@ export default function AfterSalePage() {
 
   const rows = (data?.items ?? []) as CaseRow[];
   const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  useEffect(() => {
+    if (!data) return;
+    if (page > totalPages) setPage(totalPages);
+  }, [data, page, totalPages]);
+
+  const statusFilterActive = status !== 'all';
+  // afterSale.list returns only the filtered total — never claim `filtered`
+  // without an unfiltered baseline. Under-claim with a bare string.
+  const listEmpty: string | TableEmptySpec =
+    total > 0
+      ? 'Không có dòng trên trang này'
+      : !statusFilterActive
+        ? {
+            kind: 'first-run',
+            title: 'Chưa có case chăm sóc sau bán nào',
+            description: 'Tạo case khi cần theo dõi học viên sau ghi danh.',
+            action: (
+              <Button
+                label="Thêm case đầu tiên"
+                size="sm"
+                variant="primary"
+                endContent={<LineIcon name="plus" size={14} />}
+                onClick={() => setCreateOpen(true)}
+              />
+            ),
+          }
+        : 'Không có case khớp bộ lọc trạng thái này';
 
   const columns: TableColumn<CaseRow>[] = [
     { key: 'studentName', label: 'Học viên', render: (v) => (v as string | null) ?? '—' },
@@ -203,7 +232,7 @@ export default function AfterSalePage() {
           data={rows}
           loading={isLoading}
           error={error?.message}
-          empty="Chưa có case chăm sóc sau bán nào"
+          empty={listEmpty}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           onRowClick={(row) => navigate(links.afterSaleCase(row.id))}

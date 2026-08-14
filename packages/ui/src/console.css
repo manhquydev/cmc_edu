@@ -2757,6 +2757,28 @@ cards equal height */
 .o_web_client .console-badge-soft--danger { background-color: #dc3545; color: #fff; }
 .o_web_client .console-badge-soft--info { background-color: #17a2b8; color: #fff; }
 .o_web_client .console-badge-soft--neutral { background-color: #6c757d; color: #fff; }
+/* brand = waiting-on-system; solid Community purple capsule (not a pastel tint). */
+.o_web_client .console-badge-soft--brand { background-color: #71639e; color: #fff; }
+
+/* Categorical chips — taxonomy only; tint+ink, never status SoftTones. */
+.o_web_client .console-category-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0 8px;
+  min-height: 20px;
+  border-radius: var(--console-radius, 4px);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.o_web_client .console-category-chip--sm { font-size: 0.9em; min-height: 18px; padding: 0 6px; }
+.o_web_client .console-category-chip--lg { font-size: 1.15em; min-height: 24px; padding: 0 10px; }
+.o_web_client .console-category-chip--a { background-color: #f1f5f9; color: #475569; }
+.o_web_client .console-category-chip--b { background-color: #f0fdfa; color: #0f766e; }
+.o_web_client .console-category-chip--c { background-color: #faf5ff; color: #6b21a8; }
+.o_web_client .console-category-chip--d { background-color: #fff7ed; color: #9a3412; }
 .console-toast--success { border-left-color: var(--cmc-success); }
 .console-toast--error { border-left-color: var(--cmc-danger); }
 .console-toast--info { border-left-color: var(--cmc-brand); }

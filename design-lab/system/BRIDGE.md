@@ -92,12 +92,38 @@ The type ramp does not change and 40px stays the default row.
 | 1 | Lab integrity: undefined spacing token, corrupted rule, flat-by-default leaks, Layer-3 purity, print purity, Inter 550, page-scoped density, focus mechanism | **Landed** (D0), verified in a real browser |
 | 2 | Alias tokens into `console.css` over existing values, no layout rewrite | **Landed** (D3), additive and scoped |
 | 3 | Density on `DataTable` only | **Landed** (D4) via `density` prop |
-| 4 | Atoms: badge tones, button states, tabs indicator | Not started |
+| 4 | Atoms: badge tones, button states, tabs indicator | **4A partial** (2026-08-14): `StatusBadge` + `brand` waiting tone + `CategoryChip` a–d. Button states + tabs indicator = **4B not started**. |
 | 5 | List molecules: control bar, filters, saved views, bulk bar with across-filter selection, sticky header | **Partly landed** (D4): across-filter selection and sortable headers with `aria-sort`; saved views not started |
-| 6 | Archetype spacing + empty kinds | **Partly landed** (D4): the three empty kinds ship on `DataTable`/`EmptyState` and are adopted on the receipt list; archetype spacing untouched |
+| 6 | Archetype spacing + empty kinds | **Partly landed** (D4 + cook): empty kinds on receipts + CRM list + courses; archetype spacing untouched |
 | 7 | Gate + statusbar | **Partly landed** (D5): the receipt approval gate now names the rule and the authority. Statusbar geometry untouched, and stays untouched. |
-| 8 | Module grammar, one module per PR | Not started |
+| 8 | Module grammar, one module per PR | **CRM partial** (cook 260814): pipeline list empty grammar + aftersale under-claim; kanban empty matrix preserved. Next modules = separate PRs. |
 | 9 | Role cockpits / admin home shells | **Not authorized.** Requires the Q-shell decision. |
+
+## ListPage adoption recipe
+
+Use this checklist for each admin list PR. Prefer under-claiming over lying.
+
+1. **Detect applied filters** from the same values that hit the API (debounced search, committed select) — not raw keystrokes.
+2. **Empty kind evidence**
+   - No filters + `total === 0` → `TableEmptySpec` `first-run` with a product-valid create/import action.
+   - Filters on + proven baseline that rows exist outside the filter (unfiltered total, facility counts, etc.) → `filtered` + clear-filters action.
+   - Filters on + **no** baseline → bare **string** empty (neutral). Never invent `filtered` or `done`.
+3. **Page clamp** when `page > totalPages` before choosing empty copy.
+4. **Sort** only if the list API accepts validated sort fields. Otherwise no `sortable: true`.
+5. **Bulk widen** (`onSelectAllMatching`) only if the backend can materialize all matching IDs. Otherwise page-only selection copy.
+6. **Status vs category:** `StatusBadge` / SoftTones for lifecycle; `CategoryChip` for taxonomy. Document any enum→category map in this file (see below). Do not invent maps in cook.
+7. **Tests:** filter off empty; filter on (filtered *or* neutral string); Funnel/board pages must never set `ListPage.isEmpty` if chrome must stay.
+
+### Program → CategoryChip (courses)
+
+| Program | Category |
+|---------|----------|
+| `UCREA` | `a` |
+| `BRIGHT_IG` | `b` |
+| `BLACK_HOLE` | `c` |
+| _(reserved)_ | `d` unused |
+
+Proven on `apps/admin/src/pages/courses/index.tsx`.
 
 ## Out of scope until authorized
 

@@ -1,7 +1,10 @@
 type Status = string;
 
-/** OpenEduCat list capsule (solid fill + white text under `.o_web_client`). */
-type SoftTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+/**
+ * OpenEduCat list capsule tones (solid fill + white text under `.o_web_client`).
+ * `brand` = waiting on the system (not a success/failure state).
+ */
+export type SoftTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'brand';
 
 const STATUS_SOFT: Record<string, SoftTone> = {
   active: 'success',
@@ -20,20 +23,25 @@ const STATUS_SOFT: Record<string, SoftTone> = {
   disabled: 'neutral',
   withdrawn: 'warning',
   warning: 'warning',
+  waiting: 'brand',
+  queued: 'brand',
+  processing: 'brand',
 };
 
 export interface StatusBadgeProps {
   status: Status;
   label?: string;
+  /** Override the status→tone map when the caller already knows the tone. */
+  tone?: SoftTone;
   /** Size axis is CSS (`.console-badge-soft--sm/--lg`). Default md is the unscoped chip. */
   size?: 'sm' | 'md' | 'lg';
 }
 
-export function StatusBadge({ status, label, size = 'md' }: StatusBadgeProps) {
+export function StatusBadge({ status, label, tone, size = 'md' }: StatusBadgeProps) {
   const text = label ?? status;
-  const tone = STATUS_SOFT[status] ?? 'info';
+  const resolved = tone ?? STATUS_SOFT[status] ?? 'info';
   const sizeClass = size === 'md' ? '' : ` console-badge-soft--${size}`;
   return (
-    <span className={`console-badge-soft console-badge-soft--${tone}${sizeClass}`}>{text}</span>
+    <span className={`console-badge-soft console-badge-soft--${resolved}${sizeClass}`}>{text}</span>
   );
 }

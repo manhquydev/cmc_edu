@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import {
   Banner,
   Button,
+  CategoryChip,
   DataTable,
   Dialog,
   DialogHeader,
@@ -18,7 +19,7 @@ import {
   Stack,
   TextInput,
 } from '@cmc/ui';
-import type { FilterDef, TableColumn } from '@cmc/ui';
+import type { CategoryId, FilterDef, TableColumn, TableEmptySpec } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 
 /** Mirrors apps/api/src/class/program.ts PROGRAM_VALUES — keep labels user-facing. */
@@ -27,6 +28,13 @@ const PROGRAM_OPTIONS = [
   { value: 'BRIGHT_IG', label: 'BRIGHT_IG' },
   { value: 'BLACK_HOLE', label: 'BLACK_HOLE' },
 ] as const;
+
+/** Documented in design-lab/system/BRIDGE.md — program → CategoryChip map. */
+const PROGRAM_CATEGORY: Record<(typeof PROGRAM_OPTIONS)[number]['value'], CategoryId> = {
+  UCREA: 'a',
+  BRIGHT_IG: 'b',
+  BLACK_HOLE: 'c',
+};
 
 const COURSE_FILTERS: FilterDef[] = [
   {
@@ -54,7 +62,17 @@ interface CourseRow {
 
 const COLUMNS: TableColumn<CourseRow>[] = [
   { key: 'name', label: 'Tên khoá học' },
-  { key: 'program', label: 'Chương trình', width: 160 },
+  {
+    key: 'program',
+    label: 'Chương trình',
+    width: 160,
+    render: (v) => {
+      const program = String(v);
+      const category = PROGRAM_CATEGORY[program as keyof typeof PROGRAM_CATEGORY];
+      if (!category) return program;
+      return <CategoryChip category={category} label={program} size="sm" />;
+    },
+  },
   {
     key: 'createdAt',
     label: 'Ngày tạo',
@@ -108,6 +126,36 @@ export default function CourseListPage() {
 
   const isFormValid = Boolean(program && name.trim().length > 0);
 
+  const rows = (data?.items as CourseRow[] | undefined) ?? [];
+  const total = data?.total ?? rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  useEffect(() => {
+    if (!data) return;
+    if (page > totalPages) setPage(totalPages);
+  }, [data, page, totalPages]);
+
+  // Use debounced/applied filters only — raw searchInput would lie during debounce.
+  const filtersActive = Boolean(debouncedSearch) || Boolean(programFilter);
+  const listEmpty: string | TableEmptySpec =
+    total > 0
+      ? 'Không có dòng trên trang này'
+      : !filtersActive
+        ? {
+            kind: 'first-run',
+            title: 'Chưa có khoá học nào',
+            description: 'Tạo khoá đầu tiên cho cơ sở trước khi gán vào lớp.',
+            action: (
+              <Button
+                label="Tạo khoá đầu tiên"
+                size="sm"
+                variant="primary"
+                onClick={() => setCreateOpen(true)}
+              />
+            ),
+          }
+        : 'Không có khoá học khớp bộ lọc hiện tại';
+
   function handleCreate() {
     if (!program || !name.trim()) return;
     createMut.mutate({ program: program as 'UCREA' | 'BRIGHT_IG' | 'BLACK_HOLE', name: name.trim() });
@@ -152,10 +200,10 @@ export default function CourseListPage() {
       >
         <DataTable<CourseRow>
           columns={COLUMNS}
-          data={(data?.items as CourseRow[] | undefined) ?? []}
+          data={rows}
           loading={isLoading}
           error={error?.message}
-          empty="Chưa có khoá học nào"
+          empty={listEmpty}
         />
       </ListPage>
 

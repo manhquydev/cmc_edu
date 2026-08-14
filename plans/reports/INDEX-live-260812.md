@@ -25,6 +25,8 @@ Retire candidates (read-only): [`proposal-260812-docs-retire-list.md`](./proposa
 
 **Design system (2026-08-13):** audit Console/LMS **10/20**; cook A–D **đã vào develop** (#124–#125, #127–#129, #132–#135). Collision 17 tên biến **giữ cố ý**, pin bằng test (không xóa). TL12 pointer trên `docs/README.md` đã gỡ ở #125. Plan: [`260813-0120-design-system-hardening/plan.md`](../260813-0120-design-system-hardening/plan.md) · synthesis: [`audit-260813-0052-ds-impeccable-synthesis.md`](./audit-260813-0052-ds-impeccable-synthesis.md).
 
+**Design-lab bridge (2026-08-14):** D0–D5 landed on `develop` (#142). Live cook target: [`260814-1656-ui-bridge-crm-e2e-after-d0-d5/plan.md`](../260814-1656-ui-bridge-crm-e2e-after-d0-d5/plan.md) (Wave 4A + CRM E2E + courses recipe). Authority: [`design-lab/system/BRIDGE.md`](../../design-lab/system/BRIDGE.md) + OpenEduCat visual contract. OpenEduCat *clone execution* plan superseded (residual chrome only).
+
 **Meter + teaching loop (#136, `develop@2e6aef3`):** `pnpm verify:system`; GĐĐT break-glass Phát bài + grant/cắt range; gallery bốn họ. P2-05 student path vẫn `no-ui-path`. Plan: [`260813-1211-hoan-thien-san-pham-meter-va-diem-nghen/plan.md`](../260813-1211-hoan-thien-san-pham-meter-va-diem-nghen/plan.md).
 
 ---

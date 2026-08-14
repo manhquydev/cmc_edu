@@ -13,8 +13,8 @@ Ops Phase 03 evidence is independent and must not delay the PR.
 ## Requirements
 
 - [x] Update `plans/reports/INDEX-live-260812.md` with Wave 8 plan + brainstorm/verify pointers
-- [ ] Open PR → `develop` after product criteria met (Phase 2)
-- [ ] Mark plan completed only after PR opened / CI path started
+- [x] Open PR → `develop` after product criteria met (Phase 2) — https://github.com/manhquydev/cmc_edu/pull/146
+- [x] Mark plan completed only after PR opened / CI path started
 
 ## Implementation Steps
 

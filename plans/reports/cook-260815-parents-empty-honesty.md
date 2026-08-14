@@ -6,9 +6,7 @@
 
 ## Outcome
 
-Phase 2 implemented (pending commit/PR): Parents ListPage empty copy is Students-style
-**kindless** under-claim (no `TableEmptySpec`, no invent create CTA). Matrix
-`missing|all × search` implemented.
+Phase 2 implemented and opened as PR #146 → `develop` (auto-merge squash). Parents ListPage empty copy is Students-style **kindless** under-claim (no `TableEmptySpec`, no invent create CTA). Matrix `missing|all × search` implemented.
 
 ## Evidence
 

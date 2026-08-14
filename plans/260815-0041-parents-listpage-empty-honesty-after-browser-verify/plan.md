@@ -1,7 +1,7 @@
 ---
 title: "Parents ListPage empty honesty after browser verify"
 description: "Wave 8: Parents empty under-claim copy (Students bare-string style). No invent kind/CTA. Ops seed separate non-gate."
-status: pending
+status: completed
 priority: P1
 effort: "S"
 tags: [design-bridge, listpage, parents, empty-state, wave-8]

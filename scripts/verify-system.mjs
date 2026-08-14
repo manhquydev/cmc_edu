@@ -220,6 +220,8 @@ export function buildReport({ skipSlow: skip = false } = {}) {
     ['L2b', 'UI ratchet', ['pnpm', 'check:ui-ratchet']],
     ['L2c', 'UI a11y roles', ['pnpm', 'check:ui-a11y-roles']],
     ['L2d', 'Doc authority', ['pnpm', 'check:doc-authority']],
+    ['L2e', 'URL structure', ['pnpm', 'check:url-structure']],
+    ['L2f', 'URL literals', ['pnpm', 'check:url-literals']],
   ];
   for (const [id, claim, argv] of sourceChecks) {
     const result = run(argv[0], argv.slice(1));

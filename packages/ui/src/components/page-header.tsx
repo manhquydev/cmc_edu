@@ -1,4 +1,3 @@
-import { Stack, HStack } from '@astryxdesign/core/Stack';
 import { Breadcrumbs, BreadcrumbItem } from '@astryxdesign/core/Breadcrumbs';
 import { Text } from '@astryxdesign/core/Text';
 import { Heading } from '@astryxdesign/core/Heading';
@@ -55,7 +54,7 @@ export function PageHeader({ title, subtitle, actions, breadcrumbs }: PageHeader
 
   return (
     <div className="console-page-header">
-      <Stack gap={0.5}>
+      <div className="console-page-header-stack">
         {breadcrumbs && breadcrumbs.length > 0 && (
           <nav className="console-bc" aria-label="Đường dẫn">
             <Breadcrumbs>
@@ -79,27 +78,25 @@ export function PageHeader({ title, subtitle, actions, breadcrumbs }: PageHeader
           </nav>
         )}
         {showMainRow ? (
-          <HStack justify="between" align="end">
+          <div className="console-page-header-main">
             {showTitleBlock ? (
-              <Stack gap={0}>
+              <div className="console-page-header-title">
                 {title ? (
                   <Heading level={4} color="primary">
                     {title}
                   </Heading>
                 ) : null}
                 {subtitle ? (
-                  <Text type="supporting" size="sm">
+                  <Text type="supporting" size="sm" className="console-page-header-subtitle">
                     {subtitle}
                   </Text>
                 ) : null}
-              </Stack>
-            ) : (
-              <span />
-            )}
-            {actions ? <HStack gap={1}>{actions}</HStack> : null}
-          </HStack>
+              </div>
+            ) : null}
+            {actions ? <div className="console-page-header-actions">{actions}</div> : null}
+          </div>
         ) : null}
-      </Stack>
+      </div>
     </div>
   );
 }

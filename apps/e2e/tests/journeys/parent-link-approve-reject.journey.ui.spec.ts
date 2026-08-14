@@ -141,8 +141,12 @@ test.describe('P1-06 journey — liên kết phụ huynh–con: yêu cầu → d
   });
 });
 
-/** Switches the link-request status filter (Astryx Selector, visible "Trạng thái" label). */
+/** Switches the link-request status filter (Astryx Selector under FilterBar menu). */
 async function selectLinkFilter(page: import('@playwright/test').Page, label: string): Promise<void> {
-  await page.getByRole('combobox', { name: 'Trạng thái' }).click();
+  const combo = page.getByRole('combobox', { name: 'Trạng thái' });
+  if (!(await combo.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Bộ lọc nâng cao' }).click();
+  }
+  await combo.click();
   await page.getByRole('option', { name: label, exact: true }).click();
 }

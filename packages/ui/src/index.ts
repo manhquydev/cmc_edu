@@ -172,11 +172,13 @@ export { activeModuleId } from './lib/active-module.js';
 // CMC Console admin UI layer (design3) — requires `@cmc/ui/console.css` + `.o_web_client` scope.
 export { ConsoleNavbar } from './console/console-navbar.js';
 export type { ConsoleNavbarProps } from './console/console-navbar.js';
-export { KanbanBoard, KanbanColumn, KanbanCard } from './console/console-kanban.js';
+export { KanbanBoard, KanbanColumn, KanbanCard, KanbanRecordGrid, KanbanRecordCard } from './console/console-kanban.js';
 export type {
   KanbanBoardProps,
   KanbanColumnProps,
   KanbanCardProps,
+  KanbanRecordGridProps,
+  KanbanRecordCardProps,
 } from './console/console-kanban.js';
 
 // Page templates (P4 template extraction) — thin, slot-based list/detail/form
@@ -186,6 +188,8 @@ export { ListPage } from './components/list-page.js';
 export type { ListPageProps } from './components/list-page.js';
 export { ControlBar } from './components/control-bar.js';
 export type { ControlBarProps } from './components/control-bar.js';
+export { ViewSwitcher } from './components/view-switcher.js';
+export type { ViewSwitcherProps, ViewSwitcherItem } from './components/view-switcher.js';
 export { DetailPage } from './components/detail-page.js';
 export type { DetailPageProps } from './components/detail-page.js';
 export { FormPage } from './components/form-page.js';

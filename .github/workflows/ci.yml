@@ -128,6 +128,11 @@ jobs:
       - name: Doc authority
         run: pnpm check:doc-authority && pnpm test:doc-authority
 
+      # As-built URL contract (router + @cmc/links + nav + flow-manifest).
+      # TL06 paper is advisory. Quoted paper/stale literals fail separately.
+      - name: URL structure contract
+        run: pnpm check:url-structure && pnpm test:url-structure && pnpm check:url-literals && pnpm test:url-literals
+
       # Operator scorecard helpers (SHA + @cmc/ui inventory). Does not replace
       # typecheck/lint/frames and never runs business:verify --strict.
       - name: System verify helpers

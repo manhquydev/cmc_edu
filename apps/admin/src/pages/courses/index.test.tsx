@@ -64,6 +64,7 @@ describe('CourseListPage — Tạo khoá', () => {
       );
     });
     listQuerySpy.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc nâng cao' }));
     fireEvent.click(screen.getByRole('combobox', { name: 'Chương trình' }));
     fireEvent.click(screen.getByRole('option', { name: 'UCREA' }));
     await waitFor(() => {

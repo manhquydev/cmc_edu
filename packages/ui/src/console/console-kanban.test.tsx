@@ -1,6 +1,6 @@
 import { fireEvent, render } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { KanbanBoard, KanbanColumn, KanbanCard } from './console-kanban.js';
+import { KanbanBoard, KanbanColumn, KanbanCard, KanbanRecordGrid, KanbanRecordCard } from './console-kanban.js';
 
 describe('KanbanBoard / KanbanColumn / KanbanCard', () => {
   it('renders columns and cards with titles', () => {
@@ -48,6 +48,20 @@ describe('KanbanBoard / KanbanColumn / KanbanCard', () => {
         <KanbanCard title="B" />
       </KanbanColumn>,
     );
+    expect(container.querySelectorAll('.console-kanban-col-count')).toHaveLength(1);
     expect(container.querySelector('.console-kanban-col-count')).toHaveTextContent('2');
+  });
+
+  it('renders a 3-up people record card with clock affordance', () => {
+    const onClick = vi.fn();
+    const { getByText, container } = render(
+      <KanbanRecordGrid>
+        <KanbanRecordCard title="Nguyễn A" subtitle="Hà Nội" meta="a@x.vn" onClick={onClick} />
+      </KanbanRecordGrid>,
+    );
+    expect(container.querySelector('.console-kanban-record-grid')).toBeTruthy();
+    expect(container.querySelector('.console-kanban-record-clock')).toBeTruthy();
+    fireEvent.click(getByText('Nguyễn A'));
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });

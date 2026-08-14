@@ -10,10 +10,47 @@
  * Import ONCE at admin app root: `import '@cmc/ui/console.css'` (sole admin design-system stylesheet).
  */
 .o_web_client {
-  /* Brand (decorative only — interactive accent stays CMC blue #0071E3) */
+  /* Interactive accent inside admin shell is Community purple; LMS tokens.css unchanged. */
   --console-brand-purple: #71639e;
   --console-brand-purple-dark: #5a4f7e;
   --console-enterprise-purple: #714b67;
+
+  /* Remap CMC brand tokens on the shell so Astryx Button/links/focus inherit purple. */
+  --cmc-brand: var(--console-brand-purple);
+  --cmc-brand-hover: var(--console-brand-purple-dark);
+  --cmc-brand-muted: color-mix(in srgb, var(--console-brand-purple) 16%, #fff);
+  --cmc-brand-ink: #4a3f6e;
+  /* Astryx --color-accent is computed on [data-astryx-theme] (outside this
+     node) from tokens.css --cmc-brand blue. Re-set here so primary buttons/tabs
+     resolve purple inside the admin shell. */
+  --color-accent: var(--console-brand-purple);
+  --color-accent-muted: var(--cmc-brand-muted);
+  --color-text-accent: var(--cmc-brand-ink);
+  --radius-element: var(--console-radius, 4px);
+  --_button-radius: var(--console-radius, 4px);
+  --radius-container: var(--console-radius, 4px);
+  --radius-page: var(--console-radius-lg, 6px);
+  /* Flatten CMC soft-ops 12/16/20 so Astryx !important field shells + buttons
+     inherit Community geometry. Search + status capsules stay 999 via rules. */
+  --cmc-radius-xs: var(--console-radius-sm, 3px);
+  --cmc-radius-control: var(--console-radius, 4px);
+  --cmc-radius-card: var(--console-radius, 4px);
+  --cmc-radius-md: var(--console-radius, 4px);
+  --cmc-radius-lg: var(--console-radius-lg, 6px);
+  --cmc-radius-dialog: var(--console-radius-lg, 6px);
+  --cmc-raised-radius: var(--console-radius, 4px);
+  --cmc-shadow-xs: none;
+  --cmc-shadow-sm: none;
+  --cmc-shadow-md: none;
+  --cmc-shadow-lg: none;
+  --cmc-chip-h-sm: 20px;
+  --cmc-cta-h: var(--console-btn-height, 30px);
+  --cmc-cta-h-sm: var(--console-btn-height, 30px);
+  --cmc-focus-ring: 2px solid var(--console-brand-purple);
+  --cmc-focus-halo: 0 0 0 3px var(--cmc-brand-muted);
+  --cmc-accent-soft: var(--cmc-brand-muted);
+  --cmc-info-soft: var(--cmc-brand-muted);
+  --cmc-info-ink: var(--cmc-brand-ink);
 
   /* Status colors (muted/Bootstrap-derived, keep as-is — do not brighten) */
   --console-success: #28a745;
@@ -36,16 +73,22 @@
   --console-gray-300: #dee2e6;
   --console-gray-600: #6c757d;
   --console-gray-900: #212529;
+  --console-facet-bg: #eaebf0;
+  --console-statusbar-current: #e0d9f1;
+  --console-dropdown-hover: #ebebeb;
+  --console-search-height: 35px;
+  --console-btn-height: 30px;
 
   /* Typography — keep CMC's Inter family, adopt Odoo's size steps + density */
   --console-font-size-base: 14px;
   --console-font-size-sm: 13px;
   --console-font-size-xs: 12px;
 
-  /* Radius — small & consistent, NOT pill-shaped */
+  /* Radius — controls/cards/sheet 4px soft-square; search + status = capsule */
   --console-radius: 4px;
   --console-radius-sm: 3px;
   --console-radius-lg: 6px;
+  --console-search-radius: 999px;
 
   /* Spacing */
   --console-spacer: 16px;
@@ -55,11 +98,14 @@
   --console-navbar-entry-hover-bg: rgba(0, 0, 0, 0.08);
 
   /* Control panel / breadcrumb */
+  --console-cp-height: 58px;
   --console-breadcrumb-padding-x: 0.5rem;
 
   /* List view */
   --console-list-cell-padding-x: 0.3rem;
   --console-list-cell-padding-y: 0.5rem;
+  --console-list-row-height: 40px;
+  --console-row-hover: #f2f2f2;
 
   /* Kanban */
   --console-kanban-bg: var(--console-gray-100);
@@ -216,42 +262,58 @@
 }
 .console-view-switcher {
   display: flex;
-  border: 1px solid var(--console-gray-300);
-  border-radius: var(--console-radius-sm);
-  overflow: hidden;
+  align-items: center;
+  gap: 2px;
 }
 .console-view-switcher button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  background: #fff;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
   border: 0;
+  border-radius: var(--console-radius-sm, 3px);
   color: var(--console-gray-600);
   cursor: pointer;
 }
-.console-view-switcher button + button {
-  border-left: 1px solid var(--console-gray-300);
-}
 .console-view-switcher button.is-active {
-  background: var(--console-gray-100);
-  color: var(--console-brand-purple);
+  background: #edeef1;
+  color: var(--console-gray-900);
 }
 /* ------------------------------------------------------------------ */ /* List view (.o_list_renderer analogue) */ /* ------------------------------------------------------------------ */
 /* Sticky list headers — DataTable (.console-list thead th under overflow:auto). */
-.console-list thead th {
+.o_web_client .console-list thead th {
   position: sticky;
   top: 0;
   z-index: 1;
+  height: var(--console-list-row-height, 40px);
   background: var(--console-gray-100);
   text-align: left;
   padding: var(--console-list-cell-padding-y) var(--console-list-cell-padding-x);
   font-size: var(--console-font-size-sm);
-  color: var(--console-gray-900);
+  font-weight: 500;
+  color: var(--console-gray-600);
   border-bottom: 1px solid var(--console-gray-300);
+  border-left: 0;
+  border-right: 0;
+  vertical-align: middle;
 }
-/* Zebra striping on ungrouped rows, matching Odoo's table-striped default. */
+.o_web_client .console-list tbody td {
+  height: var(--console-list-row-height, 40px);
+  padding: var(--console-list-cell-padding-y) var(--console-list-cell-padding-x);
+  font-size: var(--console-font-size-sm);
+  color: var(--console-gray-900);
+  background: #fff;
+  border-bottom: 1px solid var(--console-gray-300);
+  border-left: 0;
+  border-right: 0;
+  vertical-align: middle;
+}
+.o_web_client .console-list tbody tr:hover td {
+  background: var(--console-row-hover, #f2f2f2);
+}
 
 /* ------------------------------------------------------------------ */
 /* Kanban board (.o_kanban_record analogue) */
@@ -694,6 +756,30 @@ button.console-kanban-card {
   top: 0;
   z-index: 10;
 }
+.console-page-header-main {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.console-page-header-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.console-page-header-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.console-page-header-title {
+  min-width: 0;
+}
 /* Breadcrumbs — parent crumbs are SPA links (gắn kết module → page) */
 .console-bc {
   min-width: 0;
@@ -872,7 +958,8 @@ button.console-kanban-card {
     grid-template-columns: 1fr;
   }
 }
-@media (min-width: 1200px) {.console-detail-split--timeline {
+/* Pack 1280: chatter below sheet. Right rail only at ≥1400. */
+@media (min-width: 1400px) {.console-detail-split--timeline {
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   }
 }
@@ -1225,21 +1312,52 @@ button.console-kanban-card {
   overflow: auto;
   min-width: 0;
 }
-/* Odoo-density control panel: single flat white band (no nested cards) */
+/* Odoo-density control panel: one row ~58px (LEFT header | CENTER filters | RIGHT footer) */
 .o_web_client .console-control-bar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: var(--console-cp-height, 58px);
+  height: var(--console-cp-height, 58px);
+  max-height: var(--console-cp-height, 58px);
+  overflow: visible;
   background: #fff;
   border-bottom: 1px solid var(--console-gray-300, #dee2e6);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: none;
   margin-inline: calc(-1 * 16px);
-  padding: 8px 16px 10px;
-  gap: 8px;
+  padding: 8px 16px;
+  gap: 12px;
   border-radius: 0;
 }
 .o_web_client .console-wrap--ops .console-control-bar {
   margin-inline: calc(-1 * 14px);
   padding-inline: 14px;
+}
+.o_web_client .console-control-bar-header {
+  flex: 0 1 auto;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+.o_web_client .console-control-bar-filters {
+  flex: 1 1 280px;
+  max-width: 520px;
+  margin-inline: auto;
+  padding-top: 0;
+  min-height: 0;
+}
+.o_web_client .console-control-bar-footer {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-top: 0;
+  border-top: 0;
+  justify-content: flex-end;
+  gap: 8px;
 }
 /* Flatten PageHeader / FilterBar when they live inside the CP band */
 .o_web_client .console-control-bar .console-page-header {
@@ -1249,108 +1367,234 @@ button.console-kanban-card {
   box-shadow: none;
   padding: 0;
   min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  overflow: visible;
+}
+.o_web_client .console-control-bar .console-page-header-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  height: 100%;
+  width: 100%;
+  position: relative;
+}
+.o_web_client .console-control-bar .console-bc {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 2px);
+  white-space: nowrap;
+  line-height: 1.2;
+  pointer-events: auto;
+}
+.o_web_client .console-control-bar .console-page-header-subtitle {
+  display: none;
+}
+.o_web_client .console-control-bar .console-page-header-main {
+  justify-content: flex-start;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.o_web_client .console-control-bar .console-page-header-actions {
+  order: -1;
+}
+.o_web_client .console-control-bar .console-page-header-actions button {
+  height: var(--console-btn-height, 30px);
+  min-height: var(--console-btn-height, 30px);
 }
 .o_web_client .console-control-bar .console-filter-bar {
   background: transparent;
   border: 0;
   border-radius: 0;
-  padding: 2px 0 0;
+  padding: 0;
   min-height: 0;
-  gap: 8px;
-}
-.o_web_client .console-control-bar-footer {
-  justify-content: flex-end;
-  gap: 8px;
-  padding-top: 6px;
-  margin-top: 2px;
-  border-top: 1px solid var(--console-gray-200, #e9ecef);
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  width: 100%;
+  gap: 0;
+  position: relative;
+  overflow: visible;
 }
 /* List body sits tight under CP */
 .o_web_client .console-list-body {
   gap: 0;
 }
-/* Chevron ProgressSteps (Odoo statusbar analogue) — horizontal arrow buttons.
-   Arrow width is pinned to a FIXED px here (the em default resolved to 14px
-   on the <li> — base 14px font — but 13px on the <button> — 13px font — so
-   the negative-margin overlap and the clip-path notch disagreed and left a
-   1px seam between every segment; live audit 2026-08-09. Same px on both
-   sides → chevrons interlock seamlessly). Taller 38px bar + 16px arrow for
-   roomier, more readable labels (layout decision 2026-08-09). */
+/* Chevron ProgressSteps — Odoo 19 StatusBarField geometry (LTR).
+   Contract: OPENEDUCAT-VISUAL-CONTRACT.md
+   Content-sized, right-aligned, text-only, 33px.
+   Outer khung: rounded 4px on the bar's left + right ends only; internal
+   joints stay sharp V. Last segment is FLAT (not pointed). Border stroke is
+   the Odoo ::before even-odd clip (white seam; purple on current). */
 .o_web_client .console-steps {
-  --console-statusbar-arrow-width: 16px;
-  --console-statusbar-height: 38px;
+  --console-statusbar-caret: 11px;
+  --console-statusbar-arrow-width: 11px;
+  --console-statusbar-height: 33px;
+  --console-statusbar-radius: 4px;
+  --console-statusbar-border-w: 1px;
+  --sb-pt-tl: 0 0;
+  --sb-pt-tr: calc(100% - var(--console-statusbar-caret)) 0;
+  --sb-pt-mr: 100% 50%;
+  --sb-pt-br: calc(100% - var(--console-statusbar-caret)) 100%;
+  --sb-pt-bl: 0 100%;
+  --sb-pt-ml: var(--console-statusbar-caret) 50%;
+  --sb-in-tl: calc(var(--console-statusbar-border-w) * 1.414) 0;
+  --sb-in-tr: calc(100% - var(--console-statusbar-caret) - var(--console-statusbar-border-w) * 1.414) 0;
+  --sb-in-mr: calc(100% - var(--console-statusbar-border-w) * 1.414) 50%;
+  --sb-in-br: calc(100% - var(--console-statusbar-caret) - var(--console-statusbar-border-w) * 1.414) 100%;
+  --sb-in-bl: calc(var(--console-statusbar-border-w) * 1.414) 100%;
+  --sb-in-ml: calc(var(--console-statusbar-caret) + var(--console-statusbar-border-w) * 1.414) 50%;
   list-style: none;
-  margin: 0 0 16px;
+  margin: 0;
   padding: 0;
   display: flex;
+  justify-content: flex-end;
   height: var(--console-statusbar-height, 33px);
   align-items: stretch;
   gap: 0;
+  width: 100%;
+  overflow: visible;
+  border: 0;
+  background: transparent;
 }
 .o_web_client .console-steps-item {
   position: relative;
   display: flex;
-  flex: 1 1 0;           /* equal segments — bar always filled, never overflows */
+  flex: 0 0 auto;
   min-width: 0;
-  margin-left: calc(var(--console-statusbar-arrow-width) * -1);
+  margin-left: calc(-1 * var(--console-statusbar-caret) - var(--console-statusbar-border-w) * 1.732);
+  filter: drop-shadow(0 1px 1px rgba(33, 37, 41, 0.08));
 }
 .o_web_client .console-steps-item:first-child { margin-left: 0; }
 .o_web_client .console-steps-bridge { display: none; }
 .o_web_client .console-steps-btn {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 0;
+  width: auto;
   height: 100%;
   min-width: 0;
-  padding: 0 calc(var(--console-statusbar-arrow-width) * 1.5);
+  padding: 0 calc(var(--console-statusbar-caret) * 1.7) 0 calc(var(--console-statusbar-caret) * 1.8);
   border: 0;
-  background: var(--console-gray-200, #e9ecef);   /* todo — neutral, not started */
-  color: var(--console-gray-900, #212529);
+  border-radius: 0; /* kill global 12px button radius — only clip-path chamfers the ends */
+  background: var(--console-gray-100, #f8f9fa);
+  color: var(--console-gray-600, #6c757d);
   font-size: var(--console-font-size-sm, 13px);
   font-family: inherit;
   cursor: default;
   clip-path: polygon(
-    0 0, calc(100% - var(--console-statusbar-arrow-width)) 0,
-    100% 50%, calc(100% - var(--console-statusbar-arrow-width)) 100%,
-    0 100%, var(--console-statusbar-arrow-width) 50%
+    var(--sb-pt-tl), var(--sb-pt-tr), var(--sb-pt-mr),
+    var(--sb-pt-br), var(--sb-pt-bl), var(--sb-pt-ml)
   );
-  transition: background-color 150ms ease, color 150ms ease, filter 150ms ease;
+  transition: background-color 150ms ease, color 150ms ease;
 }
+/* Khung: 1px stroke following the chevron (Odoo even-odd ::before) */
+.o_web_client .console-steps-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--console-gray-300, #dee2e6);
+  clip-path: polygon(evenodd,
+    var(--sb-pt-tl), var(--sb-pt-tr), var(--sb-pt-mr),
+    var(--sb-pt-br), var(--sb-pt-bl), var(--sb-pt-ml),
+    var(--sb-pt-tl),
+    var(--sb-in-tl), var(--sb-in-ml), var(--sb-in-bl),
+    var(--sb-in-br), var(--sb-in-mr), var(--sb-in-tr),
+    var(--sb-in-tl)
+  );
+}
+/* Leftmost = flat + 4px round (chamfer in clip-path so the right tip is not clipped) */
 .o_web_client .console-steps-item:first-child .console-steps-btn {
+  --sb-pt-tl: var(--console-statusbar-radius) 0;
+  --sb-pt-bl: var(--console-statusbar-radius) 100%;
+  --sb-pt-ml: 0 50%;
+  --sb-in-ml: var(--sb-in-tl);
+  --sb-in-bl: var(--console-statusbar-radius) 100%;
+  --sb-in-tl: var(--console-statusbar-radius) 0;
+  padding-left: 14px;
   clip-path: polygon(
-    0 0, calc(100% - var(--console-statusbar-arrow-width)) 0,
-    100% 50%, calc(100% - var(--console-statusbar-arrow-width)) 100%, 0 100%
+    var(--console-statusbar-radius) 0,
+    var(--sb-pt-tr), var(--sb-pt-mr), var(--sb-pt-br),
+    var(--console-statusbar-radius) 100%,
+    0 calc(100% - var(--console-statusbar-radius)),
+    0 var(--console-statusbar-radius)
   );
 }
+/* Rightmost = flat + 4px round, no arrow point */
 .o_web_client .console-steps-item:last-child .console-steps-btn {
+  --sb-pt-tr: 100% 0;
+  --sb-pt-br: 100% 100%;
+  --sb-in-tr: var(--sb-pt-tr);
+  --sb-in-mr: var(--sb-pt-mr);
+  --sb-in-br: var(--sb-pt-br);
+  padding-right: 14px;
   clip-path: polygon(
-    0 0, 100% 0, 100% 100%, 0 100%, var(--console-statusbar-arrow-width) 50%
+    var(--sb-pt-tl),
+    calc(100% - var(--console-statusbar-radius)) 0,
+    100% var(--console-statusbar-radius),
+    100% calc(100% - var(--console-statusbar-radius)),
+    calc(100% - var(--console-statusbar-radius)) 100%,
+    var(--sb-pt-bl),
+    var(--sb-pt-ml)
   );
 }
 .o_web_client .console-steps-btn:not(:disabled) { cursor: pointer; }
-.o_web_client .console-steps-btn:not(:disabled):hover { filter: brightness(0.94); }
-.o_web_client .console-steps-btn:not(:disabled):active { filter: brightness(0.86); }
+.o_web_client .console-steps-btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--console-gray-100, #f8f9fa) 70%, #cfd2d8);
+}
+.o_web_client .console-steps-btn:not(:disabled):active {
+  background: color-mix(in srgb, var(--console-gray-100, #f8f9fa) 40%, #c5c8ce);
+}
 .o_web_client .console-steps-btn:focus-visible {
   outline: 2px solid var(--console-brand-purple-dark, #5a4f7e);
-  outline-offset: -2px;
+  outline-offset: 2px;
   z-index: 2;
 }
-/* done — soft brand tint; current — brand fill; both clearly off neutral todo */
 .o_web_client .console-steps-item.is-done .console-steps-btn {
-  background: color-mix(in srgb, var(--console-brand-purple, #71639e) 16%, #fff);
-  color: var(--console-brand-purple-dark, #5a4f7e);
+  background: var(--console-gray-100, #f8f9fa);
+  color: var(--console-gray-600, #6c757d);
 }
-.o_web_client .console-steps-item.is-current .console-steps-btn {
-  background: var(--console-brand-purple, #71639e);
-  color: #fff;
+.o_web_client .console-steps-item.is-current {
   z-index: 1;
 }
-.o_web_client .console-steps-item.is-current .console-steps-label { font-weight: 600; }
+.o_web_client .console-steps-item.is-current .console-steps-btn {
+  background: var(--console-statusbar-current, #e0d9f1);
+  color: var(--console-gray-900, #212529);
+}
+.o_web_client .console-steps-item.is-current .console-steps-btn::before {
+  background: var(--console-brand-purple, #71639e);
+}
+.o_web_client .console-steps-item.is-current .console-steps-btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--console-statusbar-current, #e0d9f1) 70%, #c4b7e0);
+}
+.o_web_client .console-steps-item.is-current .console-steps-label { font-weight: 700; }
+.o_web_client .console-steps-label,
 .o_web_client .console-steps-num {
-  flex: 0 0 auto;
-  width: auto; height: auto; border: 0; background: transparent;
-  font-size: 13px; font-weight: 700; color: inherit;
+  position: relative;
+  z-index: 1;
+}
+/* Label-only chevrons — numbers/checks stay in DOM for tests, hidden visually */
+.o_web_client .console-steps-num {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  background: transparent;
   box-shadow: none;
 }
 .o_web_client .console-steps-label {
@@ -1358,7 +1602,12 @@ button.console-kanban-card {
   text-align: center;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.o_web_client .console-workflow-statusbar { padding: 0; min-width: 0; }
+.o_web_client .console-workflow-statusbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0;
+  min-width: 0;
+}
 /* Dense wrap under Odoo shell */
 .o_web_client .console-wrap {
   background: var(--console-gray-100, #f8f9fa);
@@ -1401,19 +1650,22 @@ button.console-kanban-card {
   padding: 0 0 4px;
   background: transparent;
 }
-/* Odoo `.o_form_statusbar` analogue — sticky md+ only (form_controller.scss). */
+/* Odoo `.o_form_statusbar` analogue — first row of the white sheet (pack 14). */
 .console-detail-statusbar {
   min-width: 0;
 }
-.o_web_client .console-form-sheet-bg > .console-detail-statusbar {
-  padding: 4px 0;
-  background: var(--console-gray-100, #f8f9fa);
-  border-bottom: 1px solid var(--console-gray-300, #dee2e6);
+.o_web_client .console-form-sheet > .console-detail-statusbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 12px;
+  background: transparent;
+  border-bottom: 0;
 }
-@media (min-width: 768px) {.o_web_client .console-form-sheet-bg > .console-detail-statusbar {
+@media (min-width: 768px) {.o_web_client .console-form-sheet > .console-detail-statusbar {
     position: sticky;
     top: 0;
     z-index: 4; /* below .console-control-bar (5) and .console-navbar (1000) */
+    background: #fff;
   }
 }
 /* Entity inside sheet: drop second card chrome */
@@ -1424,6 +1676,13 @@ button.console-kanban-card {
   background: transparent;
   padding: 0 0 8px;
   border-bottom: 1px solid var(--console-gray-200, #e9ecef);
+}
+.o_web_client .console-eh-avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: var(--console-radius, 4px);
+  background: var(--console-gray-200, #e9ecef);
+  color: var(--console-gray-600, #6c757d);
 }
 .o_web_client .console-mc {
   border-radius: var(--console-radius, 4px);
@@ -1533,11 +1792,11 @@ FunnelBar (promoted from the cockpit pilot). Import ONCE per
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .o_web_client .console-row-tag {
-  flex-shrink: 0; font-size: var(--cmc-fs-label); font-weight: 600;
-  height: var(--cmc-chip-h-sm); padding: 0 9px;
+  flex-shrink: 0; font-size: var(--console-font-size-xs, 12px); font-weight: 500;
+  height: 20px; padding: 0 8px;
   display: inline-flex; align-items: center;
   border-radius: var(--cmc-radius-pill);
-  background: var(--cmc-brand-muted); color: var(--cmc-brand);
+  background: var(--console-gray-200, #e9ecef); color: var(--console-gray-900, #212529);
   white-space: nowrap;
 }
 .o_web_client .console-chev { color: var(--cmc-text-faint); flex-shrink: 0; }
@@ -1774,13 +2033,13 @@ monochrome icon */
 
 /* Filter bar — slot chrome on warm surface-2 (not a third competing card) */
 
-/* Soft status badges — pastel fill + ink (less loud in dense tables) */
+/* List status — OpenEduCat capsules: solid fill + white text, ~20px */
 .o_web_client .console-badge-soft {
   display: inline-flex; align-items: center; gap: 4px;
-  height: var(--cmc-chip-h-sm);
+  height: 20px;
   box-sizing: border-box;
-  font-size: var(--cmc-fs-label); font-weight: 600; line-height: 1;
-  padding: 0 9px; border-radius: var(--cmc-radius-pill);
+  font-size: var(--console-font-size-xs, 12px); font-weight: 500; line-height: 1;
+  padding: 0 8px; border-radius: var(--cmc-radius-pill);
   font-family: var(--cmc-font-sans);
   white-space: nowrap; max-width: 100%;
   overflow: hidden; text-overflow: ellipsis;
@@ -1933,9 +2192,9 @@ dialog.console-dialog::backdrop {
 @media (min-width: 1040px) {
 }
 /* Pill primary CTA for form action bars — same shape language as .sh-cta. */
-.o_web_client .fp-action { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 22px;
-  border-radius: var(--cmc-radius-pill); background: var(--cmc-brand); color: #fff;
-  font-size: 14px; font-weight: 600; border: none; cursor: pointer; font-family: inherit;
+.o_web_client .fp-action { display: inline-flex; align-items: center; gap: 6px; height: var(--console-btn-height, 30px); padding: 0 12px;
+  border-radius: var(--console-radius, 4px); background: var(--cmc-brand); color: #fff;
+  font-size: 13px; font-weight: 600; border: none; cursor: pointer; font-family: inherit;
   transition: background var(--cmc-transition); }
 .o_web_client .fp-action:hover { background: var(--cmc-brand-hover); }
 @media (prefers-reduced-motion: reduce) {
@@ -2493,11 +2752,11 @@ cards equal height */
 .console-av--sm { width: 28px; height: 28px; font-size: 11px; }
 .console-av--md { width: 36px; height: 36px; font-size: 13px; }
 .console-av--lg { width: 48px; height: 48px; font-size: 16px; border-radius: 14px; }
-.o_web_client .console-badge-soft--success { background: var(--cmc-success-soft); color: var(--cmc-success-ink); }
-.o_web_client .console-badge-soft--warning { background: var(--cmc-warning-soft); color: var(--cmc-warning-ink); }
-.o_web_client .console-badge-soft--danger { background: var(--cmc-danger-soft); color: var(--cmc-danger-ink); }
-.o_web_client .console-badge-soft--info { background: var(--cmc-info-soft); color: var(--cmc-info-ink); }
-.o_web_client .console-badge-soft--neutral { background: var(--cmc-neutral-soft); color: var(--cmc-neutral-ink); }
+.o_web_client .console-badge-soft--success { background-color: #28a745; color: #fff; }
+.o_web_client .console-badge-soft--warning { background-color: #ffac00; color: #fff; }
+.o_web_client .console-badge-soft--danger { background-color: #dc3545; color: #fff; }
+.o_web_client .console-badge-soft--info { background-color: #17a2b8; color: #fff; }
+.o_web_client .console-badge-soft--neutral { background-color: #6c757d; color: #fff; }
 .console-toast--success { border-left-color: var(--cmc-success); }
 .console-toast--error { border-left-color: var(--cmc-danger); }
 .console-toast--info { border-left-color: var(--cmc-brand); }
@@ -2521,14 +2780,14 @@ cards equal height */
 .o_web_client .console-callout--danger .console-callout-icon { color: var(--cmc-danger); }
 .o_web_client .console-av--sm { width: 28px; height: 28px; font-size: 11px; }
 .o_web_client .console-av--md { width: 36px; height: 36px; font-size: 13px; }
-.o_web_client .console-av--lg { width: 48px; height: 48px; font-size: 16px; border-radius: 14px; }
+.o_web_client .console-av--lg { width: 48px; height: 48px; font-size: 16px; border-radius: var(--console-radius, 4px); }
 .o_web_client .console-sc--planned {
   background: color-mix(in srgb, var(--cmc-surface-sunken) 45%, var(--cmc-surface-raised));
 }
 .o_web_client .console-sc--planned::before { background: var(--cmc-text-faint); }
 .o_web_client .console-sc--active {
   background: color-mix(in srgb, var(--cmc-brand-muted) 55%, var(--cmc-surface-raised));
-  box-shadow: 0 1px 2px rgba(0, 113, 227, 0.06),
+  box-shadow: 0 1px 2px rgba(113, 99, 158, 0.06),
     0 0 0 1px color-mix(in srgb, var(--cmc-brand) 12%, transparent);
 }
 .o_web_client .console-sc--active::before { background: var(--cmc-brand); }
@@ -2536,7 +2795,7 @@ cards equal height */
   background: linear-gradient(145deg,
     color-mix(in srgb, var(--cmc-brand-muted) 70%, #fff) 0%,
     color-mix(in srgb, var(--cmc-success-soft) 35%, #fff) 100%);
-  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.1),
+  box-shadow: 0 2px 8px rgba(113, 99, 158, 0.1),
     0 0 0 1px color-mix(in srgb, var(--cmc-brand) 18%, transparent);
 }
 .o_web_client .console-sc--live::before {
@@ -2633,4 +2892,279 @@ cards equal height */
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* ------------------------------------------------------------------ */
+/* OpenEduCat visual clone — search chrome, SIS grid, form New, systray */
+/* ------------------------------------------------------------------ */
+@media (max-width: 767px) {
+  .o_web_client .console-control-bar {
+    flex-wrap: wrap;
+    height: auto;
+    max-height: none;
+  }
+}
+.o_web_client .console-cp-footer-cluster {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+}
+/* Pill search. Astryx field-shell uses :has(> input) plus eight :not([type])
+   (~0,9,1) and !important; copy that :has chain and add .o_web_client so we win. */
+[data-astryx-theme='neutral'] .o_web_client .console-search-box:is(
+  :has(> input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']):not([type='color']):not([type='file']):not([type='submit']):not([type='button']):not([type='image'])),
+  :has(> textarea)
+),
+[data-astryx-theme='neutral'] .o_web_client .console-search-box,
+.o_web_client .console-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: var(--console-search-height, 35px);
+  padding: 0 8px 0 12px;
+  background: #fff !important;
+  border: 1px solid var(--console-gray-300, #dee2e6) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  box-sizing: border-box;
+}
+.o_web_client .console-search-box .console-search-icon {
+  flex: 0 0 auto;
+  color: var(--console-gray-600, #6c757d);
+}
+.o_web_client .console-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--console-font-size-sm, 13px);
+  color: var(--console-gray-900, #212529);
+  outline: none;
+}
+.o_web_client .console-search-input::placeholder {
+  color: #adb5bd;
+}
+.o_web_client .console-search-facet {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 40%;
+  height: 22px;
+  padding: 0 6px 0 8px;
+  background: var(--console-facet-bg, #eaebf0);
+  border-radius: var(--console-radius, 4px);
+  font-size: var(--console-font-size-xs, 12px);
+  color: var(--console-gray-900, #212529);
+  white-space: nowrap;
+}
+.o_web_client .console-search-facet-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--console-gray-600, #6c757d);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.o_web_client .console-search-box .console-filter-field {
+  width: auto;
+  min-width: 132px;
+}
+.o_web_client .console-search-caret {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--console-gray-600, #6c757d);
+  cursor: pointer;
+  border-radius: var(--console-radius-sm, 3px);
+}
+.o_web_client .console-search-caret[aria-expanded="true"] {
+  background: var(--console-gray-200, #e9ecef);
+}
+.o_web_client .console-search-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 0;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid var(--console-gray-300, #dee2e6);
+  border-radius: var(--console-radius, 4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.o_web_client .console-kanban-record-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+@media (max-width: 1024px) {
+  .o_web_client .console-kanban-record-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .o_web_client .console-kanban-record-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.o_web_client .console-kanban-record-card {
+  display: flex;
+  align-items: stretch;
+  min-height: 88px;
+  padding: 0;
+  background: #fff;
+  border: 1px solid var(--console-gray-300, #dee2e6);
+  border-radius: var(--console-radius, 4px);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+.o_web_client .console-kanban-record-card:hover {
+  background: var(--console-row-hover, #f2f2f2);
+}
+.o_web_client .console-kanban-record-photo {
+  flex: 0 0 88px;
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  background: var(--console-gray-200, #e9ecef);
+  color: var(--console-gray-600, #6c757d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 600;
+}
+.o_web_client .console-kanban-record-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+}
+.o_web_client .console-kanban-record-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--console-gray-900, #212529);
+}
+.o_web_client .console-kanban-record-sub,
+.o_web_client .console-kanban-record-meta {
+  font-size: 12px;
+  color: var(--console-gray-600, #6c757d);
+}
+.o_web_client .console-kanban-record-clock {
+  margin-left: auto;
+  align-self: flex-end;
+  padding: 8px;
+  color: var(--console-gray-600, #6c757d);
+}
+.o_web_client .console-btn-outline-primary {
+  height: var(--console-btn-height, 30px);
+  padding: 0 12px;
+  background: #fff;
+  color: var(--console-brand-purple, #71639e);
+  border: 1px solid var(--console-brand-purple, #71639e);
+  border-radius: var(--console-radius, 4px);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.o_web_client .console-notebook [role="tab"][aria-selected="true"] {
+  box-shadow: inset 0 -2px 0 var(--console-brand-purple, #71639e);
+  color: var(--console-brand-purple, #71639e);
+}
+.o_web_client .console-systray-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-inline: 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.18);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+.o_web_client .console-systray-count {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 7px;
+  background: var(--console-success, #28a745);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+.o_web_client .console-list-config {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--console-gray-600, #6c757d);
+  cursor: pointer;
+  border-radius: var(--console-radius-sm, 3px);
+}
+.o_web_client .console-list {
+  position: relative;
+}
+.o_web_client .console-list-config-menu {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  min-width: 160px;
+  background: #fff;
+  border: 1px solid var(--console-gray-300, #dee2e6);
+  border-radius: var(--console-radius, 4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.o_web_client .console-record-timeline {
+  background: var(--console-gray-100, #f8f9fa);
+  padding: 16px;
+  border-top: 1px solid var(--console-gray-300, #dee2e6);
+}
+.o_web_client .console-stat-actions {
+  flex-wrap: nowrap;
+}
+
 

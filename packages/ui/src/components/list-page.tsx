@@ -9,9 +9,11 @@ export interface ListPageProps {
   filters?: ReactNode;
   /**
    * Optional ControlBar footer (pager, bulk tools).
-   * Rendered under filters inside the sticky control band.
+   * Rendered in the RIGHT zone with `views`.
    */
   controlFooter?: ReactNode;
+  /** View switcher — RIGHT of pager (pack: pager then list/kanban icons). */
+  views?: ReactNode;
   /** List content — typically a `<DataTable>`. Hidden when `isEmpty` is true. */
   children: ReactNode;
   /**
@@ -27,21 +29,37 @@ export interface ListPageProps {
   density?: 'default' | 'ops';
 }
 
-// List-page archetype: canvas wrap + ControlBar + body. Props-only.
+// List-page archetype: canvas wrap + ControlBar (3-zone: header | filters | footer) + body.
 // Requires @cmc/ui/console.css (.console-wrap, .console-list-body).
+function present(node: ReactNode): boolean {
+  return node != null && node !== false;
+}
+
 export function ListPage({
   header,
   filters,
   controlFooter,
+  views,
   children,
   isEmpty,
   empty,
   density = 'default',
 }: ListPageProps) {
   const wrapClass = density === 'ops' ? 'console-wrap console-wrap--ops' : 'console-wrap';
+  const right =
+    present(controlFooter) && present(views) ? (
+      <div className="console-cp-footer-cluster">
+        {controlFooter}
+        {views}
+      </div>
+    ) : present(views) ? (
+      views
+    ) : (
+      controlFooter
+    );
   return (
     <div className={wrapClass}>
-      <ControlBar header={header} filters={filters} footer={controlFooter} />
+      <ControlBar header={header} filters={filters} footer={right} />
       <div className="console-list-body">
         {isEmpty ? (empty ?? <EmptyState title="Không có dữ liệu" density="ops" />) : children}
       </div>

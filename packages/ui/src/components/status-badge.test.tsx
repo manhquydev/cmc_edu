@@ -23,4 +23,13 @@ describe('StatusBadge', () => {
     expect(lg).toHaveClass('console-badge-soft--lg');
     expect(lg.getAttribute('style')).toBeNull();
   });
+
+  it('maps done-family statuses onto the success tone', () => {
+    const { container, rerender } = render(<StatusBadge status="draft" />);
+    expect(container.querySelector('.console-badge-soft')).toHaveClass('console-badge-soft--neutral');
+    rerender(<StatusBadge status="confirmed" />);
+    expect(container.querySelector('.console-badge-soft')).toHaveClass('console-badge-soft--success');
+    rerender(<StatusBadge status="done" />);
+    expect(container.querySelector('.console-badge-soft')).toHaveClass('console-badge-soft--success');
+  });
 });

@@ -65,6 +65,7 @@ describe('GiftsPage', () => {
     expect(giftListQuerySpy).toHaveBeenCalledWith({ includeInactive: true });
     // G1: empty + placeholder = all; real option is only "Đang hiện"
     const search = screen.getByRole('search', { name: 'Bộ lọc' });
+    fireEvent.click(within(search).getByRole('button', { name: 'Bộ lọc nâng cao' }));
     expect(within(search).getByRole('combobox', { name: 'Trạng thái' })).toBeInTheDocument();
     fireEvent.click(within(search).getByRole('combobox', { name: 'Trạng thái' }));
     expect(screen.getByRole('option', { name: 'Đang hiện' })).toBeInTheDocument();
@@ -75,6 +76,7 @@ describe('GiftsPage', () => {
   it('queries includeInactive: false when "Đang hiện" is selected', () => {
     renderWithProviders(<GiftsPage />);
     giftListQuerySpy.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc nâng cao' }));
     fireEvent.click(screen.getByRole('combobox', { name: 'Trạng thái' }));
     fireEvent.click(screen.getByRole('option', { name: 'Đang hiện' }));
     expect(giftListQuerySpy).toHaveBeenCalledWith({ includeInactive: false });

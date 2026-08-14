@@ -57,7 +57,7 @@ export default function DesignShowcasePage() {
               value={3}
               context="Mở sổ"
               icon="receipt"
-              href="/finance/receipts"
+              href="/finance"
             />
           </HStack>
         </Stack>

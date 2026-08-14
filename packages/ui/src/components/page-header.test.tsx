@@ -64,4 +64,15 @@ describe('PageHeader breadcrumbs', () => {
     expect(screen.getByRole('link', { name: 'Pipeline CRM' })).toHaveAttribute('href', '/crm');
     expect(screen.queryByRole('link', { name: 'Nhập hàng loạt' })).toBeNull();
   });
+
+  it('keeps title before actions in the default main-row DOM (Detail/Form)', () => {
+    render(
+      <MemoryRouter>
+        <PageHeader title="Học viên" actions={<button type="button">Tạo mới</button>} />
+      </MemoryRouter>,
+    );
+    const button = screen.getByRole('button', { name: 'Tạo mới' });
+    const heading = screen.getByRole('heading', { name: 'Học viên' });
+    expect(heading.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

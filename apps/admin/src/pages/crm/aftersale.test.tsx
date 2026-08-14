@@ -128,6 +128,7 @@ describe('AfterSalePage', () => {
   it('re-queries with the chosen status when the status filter changes', () => {
     renderWithProviders(<AfterSalePage />);
     listQuerySpy.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc nâng cao' }));
     fireEvent.click(screen.getByRole('combobox', { name: 'Trạng thái' }));
     fireEvent.click(screen.getByRole('option', { name: 'Mở' }));
     expect(listQuerySpy).toHaveBeenCalledWith({ status: 'open', page: 1, pageSize: 20 });

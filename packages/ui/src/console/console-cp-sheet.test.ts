@@ -45,7 +45,7 @@ describe('console.css ControlBar densify + form sheet', () => {
     const body = ruleBlock('.o_web_client .console-control-bar');
     expect(body, 'expected shell control-bar rule').toBeTruthy();
     expect(body).toMatch(/padding\s*:\s*8px/);
-    expect(body).toMatch(/gap\s*:\s*8px/);
+    expect(body).toMatch(/gap\s*:\s*12px/);
   });
 
   it('flattens EntityHeader chrome inside form sheet under shell', () => {
@@ -61,7 +61,7 @@ describe('console.css ControlBar densify + form sheet', () => {
     expect(summary).toBeTruthy();
     expect(summary).not.toMatch(/position\s*:\s*sticky/);
 
-    expect(css.includes('.o_web_client .console-form-sheet-bg > .console-detail-statusbar')).toBe(true);
+    expect(css.includes('.o_web_client .console-form-sheet > .console-detail-statusbar')).toBe(true);
     const mediaIdx = css.indexOf('@media (min-width: 768px)');
     expect(mediaIdx).toBeGreaterThan(-1);
     // Find the media block that targets detail-statusbar sticky

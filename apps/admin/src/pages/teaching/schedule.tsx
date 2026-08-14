@@ -7,9 +7,9 @@ import {
   FilterBar,
   KanbanBoard,
   KanbanColumn,
-  LineIcon,
   ListPage,
   PageHeader,
+  ViewSwitcher,
   SessionCard,
   Skeleton,
   StatusBadge,
@@ -288,27 +288,21 @@ export default function SchedulePage() {
         <PageHeader
           title="Lịch dạy"
           breadcrumbs={[{ label: 'Giảng dạy', href: '/teaching' }, { label: 'Lịch dạy' }]}
-          actions={
-            <div className="console-view-switcher" role="toolbar" aria-label="Chế độ xem lịch">
-              {VIEWS.map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  className={view === v ? 'is-active' : ''}
-                  aria-label={VIEW_LABELS[v]}
-                  aria-pressed={view === v}
-                  title={VIEW_LABELS[v]}
-                  data-view={v}
-                  onClick={() => setView(v)}
-                >
-                  <LineIcon name={VIEW_ICONS[v]} size={17} strokeWidth={1.85} />
-                </button>
-              ))}
-            </div>
-          }
         />
       }
       filters={<FilterBar filters={FILTERS} />}
+      views={
+        <ViewSwitcher
+          value={view}
+          onChange={setView}
+          aria-label="Chế độ xem lịch"
+          items={VIEWS.map((id) => ({
+            id,
+            label: VIEW_LABELS[id],
+            icon: VIEW_ICONS[id],
+          }))}
+        />
+      }
     >
       {needsBatchList && error?.message ? (
         <Banner status="error" title="Không tải được lịch dạy" description={error.message} />

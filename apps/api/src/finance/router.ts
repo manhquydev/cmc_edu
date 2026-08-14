@@ -1110,7 +1110,7 @@ export const financeRouter = router({
                 receiptId: receipt.id,
                 kind: 'cancelled_receipt_partial_provisioning',
                 detail: { reason: error.message, studentId: provisionedStudent.id },
-                deepLink: `/finance/receipts/${receipt.id}?flag=cancelled_receipt_partial_provisioning`,
+                deepLink: `/finance/${receipt.id}?flag=cancelled_receipt_partial_provisioning`,
               });
             });
           } catch (flagError) {

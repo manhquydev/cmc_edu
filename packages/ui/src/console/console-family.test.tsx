@@ -1,7 +1,7 @@
 /**
  * Family computed pins — three sheets (tokens → astryx-theme-cmc → console),
  * same inject order as console-precedence.test.ts. Pins FilterBar child width,
- * StatusBadge md padding, StatCard --static source, EmptyState ops class,
+ * StatusBadge solid capsules, ProgressSteps text-only chevrons, StatCard --static,
  * and LMS not loading console.css.
  */
 import { readFileSync } from 'node:fs';
@@ -11,6 +11,7 @@ import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { FilterBar } from '../components/filter-bar.js';
 import { StatusBadge } from '../components/status-badge.js';
+import { ProgressSteps } from '../components/progress-steps.js';
 import { StatCard } from '../components/stat-card.js';
 import { EmptyState } from '../components/empty-state.js';
 
@@ -44,7 +45,7 @@ describe('console family computed pins', () => {
     document.body.innerHTML = '';
   });
 
-  it('pins FilterBar select/date 160px and text 180px', () => {
+  it('pins FilterBar search chrome height 35px', () => {
     const mount = document.createElement('div');
     shell.appendChild(mount);
     render(
@@ -61,15 +62,13 @@ describe('console family computed pins', () => {
       </MemoryRouter>,
       { container: mount },
     );
-    const fields = [...mount.querySelectorAll('.console-filter-field')] as HTMLElement[];
-    expect(fields.length).toBe(3);
-    expect(getComputedStyle(fields[0]!).width).toBe('160px');
-    expect(getComputedStyle(fields[1]!).width).toBe('160px');
-    expect(getComputedStyle(fields[2]!).width).toBe('180px');
-    expect(fields[2]!.classList.contains('console-filter-field--text')).toBe(true);
+    const box = mount.querySelector('.console-search-box') as HTMLElement;
+    expect(box).toBeTruthy();
+    expect(getComputedStyle(box).height).toMatch(/35px/);
+    expect(getComputedStyle(box).borderRadius).toBe('999px');
   });
 
-  it('pins StatusBadge md padding (not sm/lg)', () => {
+  it('pins StatusBadge md as a solid capsule (not pastel chip)', () => {
     const mount = document.createElement('div');
     shell.appendChild(mount);
     render(<StatusBadge status="active" label="Đang mở" />, { container: mount });
@@ -77,8 +76,53 @@ describe('console family computed pins', () => {
     expect(badge.classList.contains('console-badge-soft--sm')).toBe(false);
     expect(badge.classList.contains('console-badge-soft--lg')).toBe(false);
     const cs = getComputedStyle(badge);
-    expect(cs.paddingLeft).toBe('9px');
-    expect(cs.paddingRight).toBe('9px');
+    expect(cs.paddingLeft).toBe('8px');
+    expect(cs.paddingRight).toBe('8px');
+    expect(cs.height).toBe('20px');
+    expect(cs.color).toBe('rgb(255, 255, 255)');
+    expect(cs.backgroundColor).toBe('rgb(40, 167, 69)');
+  });
+
+  it('paints Draft capsules gray-on-white, not pastel ink', () => {
+    const mount = document.createElement('div');
+    shell.appendChild(mount);
+    render(<StatusBadge status="draft" label="Draft" />, { container: mount });
+    const cs = getComputedStyle(mount.querySelector('.console-badge-soft') as HTMLElement);
+    expect(cs.backgroundColor).toBe('rgb(108, 117, 125)');
+    expect(cs.color).toBe('rgb(255, 255, 255)');
+  });
+
+  it('hides ProgressSteps numbers under the shell (text-only chevrons)', () => {
+    const mount = document.createElement('div');
+    shell.appendChild(mount);
+    render(
+      <ProgressSteps
+        activeIndex={0}
+        steps={[
+          { id: 'draft', label: 'Draft' },
+          { id: 'done', label: 'Done' },
+        ]}
+      />,
+      { container: mount },
+    );
+    const num = mount.querySelector('.console-steps-num') as HTMLElement;
+    expect(num).toBeTruthy();
+    // Visually hidden (sr-only clip) — stays in DOM for a11y/tests, not display:none
+    const numStyle = getComputedStyle(num);
+    expect(numStyle.position).toBe('absolute');
+    expect(numStyle.width).toBe('1px');
+    expect(numStyle.height).toBe('1px');
+    expect(numStyle.clip).toMatch(/rect\(0(px)?, 0(px)?, 0(px)?, 0(px)?\)/);
+    const current = mount.querySelector('.is-current .console-steps-btn') as HTMLElement;
+    // Prefer computed lavender; some happy-dom builds report transparent under clip-path.
+    const bg = getComputedStyle(current).backgroundColor;
+    if (bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+      expect(bg).toBe('rgb(224, 217, 241)');
+    } else {
+      expect(consoleCss).toMatch(
+        /\.o_web_client \.console-steps-item\.is-current \.console-steps-btn\s*\{[^}]*background:\s*var\(--console-statusbar-current/,
+      );
+    }
   });
 
   it('keeps StatCard --static (source) and not a link', () => {

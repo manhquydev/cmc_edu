@@ -112,6 +112,11 @@ export function Shell() {
       {me && me.roles[0] && <Badge label={formatRole(me.roles[0])} variant="neutral" />}
       <RoleSwitcher />
       {me && (
+        <span className="console-systray-avatar" title={me.userId} aria-hidden>
+          {me.userId.slice(0, 1).toUpperCase()}
+        </span>
+      )}
+      {me && (
         <button
           type="button"
           className="console-systray-badge"

@@ -3,8 +3,9 @@ import { Banner } from '@astryxdesign/core/Banner';
 import { Skeleton } from '@astryxdesign/core/Skeleton';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Text } from '@astryxdesign/core/Text';
-import type { KeyboardEvent, ReactNode } from 'react';
+import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { EmptyState } from './empty-state.js';
+import { LineIcon } from './line-icon.js';
 
 export interface TableColumn<T = Record<string, unknown>> {
   key: string;
@@ -28,6 +29,8 @@ export interface DataTableProps<T extends Record<string, unknown>> {
   onSelectionChange?: (ids: string[]) => void;
   /** Defaults to `row.id` string. */
   getRowId?: (row: T) => string;
+  /** Trailing thead gear to show/hide columns. Default on for list chrome. */
+  columnConfigurator?: boolean;
 }
 
 const SKELETON_ROWS = 5;
@@ -69,7 +72,10 @@ export function DataTable<T extends Record<string, unknown>>({
   selectedIds,
   onSelectionChange,
   getRowId,
+  columnConfigurator = false,
 }: DataTableProps<T>) {
+  const [hiddenKeys, setHiddenKeys] = useState<string[]>([]);
+  const [configOpen, setConfigOpen] = useState(false);
   const resolveId =
     getRowId ??
     ((row: T) => (row['id'] as string | undefined) ?? JSON.stringify(row));
@@ -122,6 +128,17 @@ export function DataTable<T extends Record<string, unknown>>({
     onSelectionChange(checked ? [...allIds] : []);
   }
 
+  function toggleColumn(key: string) {
+    setHiddenKeys((prev) => {
+      if (prev.includes(key)) return prev.filter((k) => k !== key);
+      if (prev.length >= columns.length - 1) return prev;
+      return [...prev, key];
+    });
+  }
+
+  const visibleColumns = columns.filter((col) => !hiddenKeys.includes(col.key));
+  const displayColumns = visibleColumns.length > 0 ? visibleColumns : columns.slice(0, 1);
+
   const mappedColumns = [
     ...(selectionEnabled
       ? [
@@ -155,7 +172,7 @@ export function DataTable<T extends Record<string, unknown>>({
           },
         ]
       : []),
-    ...columns.map((col, colIndex) => ({
+    ...displayColumns.map((col, colIndex) => ({
       key: col.key,
       header: col.label,
       width: typeof col.width === 'number' ? pixel(col.width) : proportional(1),
@@ -168,11 +185,7 @@ export function DataTable<T extends Record<string, unknown>>({
           </Text>
         );
         if (!onRowClick) return content;
-        // One keyboard entry per row (first non-checkbox cell). Other cells
-        // stay mouse-only so we do not multiply tab stops.
         const isKeyboardEntry = colIndex === 0;
-        // Row open must not steal clicks/keys from buttons/inputs in the cell
-        // (e.g. aftersale "Tiếp nhận", KPI "Xác nhận", parents "Duyệt").
         return (
           <div
             {...(isKeyboardEntry
@@ -199,17 +212,55 @@ export function DataTable<T extends Record<string, unknown>>({
         );
       },
     })),
+    ...(columnConfigurator
+      ? [
+          {
+            key: '__cols',
+            header: (
+              <button
+                type="button"
+                className="console-list-config"
+                aria-label="Cột hiển thị"
+                aria-expanded={configOpen}
+                title="Cột hiển thị"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setConfigOpen((open) => !open);
+                }}
+              >
+                <LineIcon name="layers" size={14} strokeWidth={2} />
+              </button>
+            ),
+            width: pixel(40),
+            renderCell: () => null,
+          },
+        ]
+      : []),
   ];
 
   return (
     <div className="console-list">
+      {columnConfigurator && configOpen ? (
+        <div className="console-list-config-menu" role="group" aria-label="Chọn cột">
+          {columns.map((col) => (
+            <label key={col.key}>
+              <input
+                type="checkbox"
+                checked={!hiddenKeys.includes(col.key)}
+                onChange={() => toggleColumn(col.key)}
+              />{' '}
+              {col.label}
+            </label>
+          ))}
+        </div>
+      ) : null}
       <Table<T>
         data={data}
         idKey={(row) => resolveId(row)}
         density="compact"
         dividers="rows"
-        isStriped
-        hasHover={!!onRowClick}
+        isStriped={false}
+        hasHover
         columns={mappedColumns}
       />
     </div>

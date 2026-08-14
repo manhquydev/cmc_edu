@@ -17,7 +17,7 @@ export interface CmcTabsProps {
 export function CmcTabs({ tabs, activeTab, onTabChange }: CmcTabsProps) {
   const active = tabs.find((tab) => tab.id === activeTab);
   return (
-    <div>
+    <div className="console-notebook">
       <TabList value={activeTab} onChange={onTabChange} hasDivider>
         {tabs.map((tab) => (
           <Tab key={tab.id} value={tab.id} label={tab.label} />

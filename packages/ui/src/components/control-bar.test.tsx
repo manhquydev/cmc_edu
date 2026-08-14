@@ -30,4 +30,28 @@ describe('ControlBar', () => {
     expect(container.querySelector('.console-control-bar-filters')).toBeNull();
     expect(container.querySelector('.console-control-bar-footer')).toBeNull();
   });
+
+  it('renders left/center/right aliases with dual zone classes', () => {
+    const { getByText, container } = render(
+      <ControlBar
+        left={<div>LEFT</div>}
+        center={<div>CENTER</div>}
+        right={<div>RIGHT</div>}
+      />,
+    );
+    expect(getByText('LEFT')).toBeInTheDocument();
+    expect(getByText('CENTER')).toBeInTheDocument();
+    expect(getByText('RIGHT')).toBeInTheDocument();
+    expect(container.querySelector('.console-control-bar-header.console-control-bar-left')).toBeTruthy();
+    expect(container.querySelector('.console-control-bar-filters.console-control-bar-center')).toBeTruthy();
+    expect(container.querySelector('.console-control-bar-footer.console-control-bar-right')).toBeTruthy();
+  });
+
+  it('prefers left over header when both are passed', () => {
+    const { getByText, queryByText } = render(
+      <ControlBar header={<div>HDR</div>} left={<div>LEFT</div>} />,
+    );
+    expect(getByText('LEFT')).toBeInTheDocument();
+    expect(queryByText('HDR')).toBeNull();
+  });
 });

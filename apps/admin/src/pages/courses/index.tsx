@@ -146,7 +146,12 @@ export default function CourseListPage() {
             title: 'Chưa có khoá học nào',
             description: 'Tạo khoá đầu tiên cho cơ sở trước khi gán vào lớp.',
             action: (
-              <Button label="+ Tạo khoá" size="sm" variant="primary" onClick={() => setCreateOpen(true)} />
+              <Button
+                label="Tạo khoá đầu tiên"
+                size="sm"
+                variant="primary"
+                onClick={() => setCreateOpen(true)}
+              />
             ),
           }
         : 'Không có khoá học khớp bộ lọc hiện tại';

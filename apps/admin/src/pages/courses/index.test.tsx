@@ -140,7 +140,8 @@ describe('CourseListPage — Tạo khoá', () => {
     listState.data = { items: [], total: 0, page: 1, pageSize: 20 };
     renderWithProviders(<CourseListPage />);
     expect(screen.getByText('Chưa có khoá học nào')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: '+ Tạo khoá' }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('button', { name: 'Tạo khoá đầu tiên' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: '+ Tạo khoá' })).toHaveLength(1);
   });
 
   it('under-claims with a neutral string when filters are active and total is 0', async () => {

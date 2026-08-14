@@ -318,7 +318,9 @@ describe('CrmPipelinePage', () => {
       const { container } = renderWithProviders(<CrmPipelinePage />, { route: '/crm?view=table' });
       expect(container.querySelectorAll('.console-fn-row').length).toBeGreaterThan(0);
       expect(screen.getByText('Chưa có cơ hội nào')).toBeInTheDocument();
-      expect(screen.getAllByRole('button', { name: 'Thêm cơ hội' }).length).toBeGreaterThanOrEqual(1);
+      // Distinct from the header button — journey selectors rely on unique names.
+      expect(screen.getByRole('button', { name: 'Tạo cơ hội đầu tiên' })).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: 'Thêm cơ hội' })).toHaveLength(1);
     });
 
     it('claims filtered empty when facility evidence exists under active search', () => {

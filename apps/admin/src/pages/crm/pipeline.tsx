@@ -427,8 +427,10 @@ export default function CrmPipelinePage() {
         title: 'Chưa có cơ hội nào',
         description: 'Thêm cơ hội đầu tiên để bắt đầu pipeline O1 → O5.',
         action: (
+          // Label must not contain the header "Thêm cơ hội" as a substring —
+          // Playwright journeys click by role+name (substring, strict mode).
           <Button
-            label="Thêm cơ hội"
+            label="Tạo cơ hội đầu tiên"
             size="sm"
             variant="primary"
             onClick={() => setCreateOpen(true)}

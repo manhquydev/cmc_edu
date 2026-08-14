@@ -120,7 +120,7 @@ export default function AfterSalePage() {
             description: 'Tạo case khi cần theo dõi học viên sau ghi danh.',
             action: (
               <Button
-                label="Tạo case"
+                label="Thêm case đầu tiên"
                 size="sm"
                 variant="primary"
                 endContent={<LineIcon name="plus" size={14} />}

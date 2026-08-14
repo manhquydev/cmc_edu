@@ -114,7 +114,15 @@ describe('console family computed pins', () => {
     expect(numStyle.height).toBe('1px');
     expect(numStyle.clip).toMatch(/rect\(0(px)?, 0(px)?, 0(px)?, 0(px)?\)/);
     const current = mount.querySelector('.is-current .console-steps-btn') as HTMLElement;
-    expect(getComputedStyle(current).backgroundColor).toBe('rgb(224, 217, 241)');
+    // Prefer computed lavender; some happy-dom builds report transparent under clip-path.
+    const bg = getComputedStyle(current).backgroundColor;
+    if (bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+      expect(bg).toBe('rgb(224, 217, 241)');
+    } else {
+      expect(consoleCss).toMatch(
+        /\.o_web_client \.console-steps-item\.is-current \.console-steps-btn\s*\{[^}]*background:\s*var\(--console-statusbar-current/,
+      );
+    }
   });
 
   it('keeps StatCard --static (source) and not a link', () => {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { links } from '@cmc/links';
 import {
   BulkActionBar,
@@ -7,11 +7,14 @@ import {
   DataTable,
   FilterBar,
   HStack,
+  KanbanRecordCard,
+  KanbanRecordGrid,
   ListPage,
   ListPagination,
   PageHeader,
   StatusBadge,
   Text,
+  ViewSwitcher,
   useToast,
 } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
@@ -24,13 +27,21 @@ interface StudentRow {
   [key: string]: unknown;
 }
 
+const LIFECYCLE_LABELS: Record<string, string> = {
+  active: 'Đang học',
+  blocked_lms: 'Khóa LMS',
+  withdrawn: 'Rút học',
+};
+
 const COLUMNS: TableColumn<StudentRow>[] = [
   { key: 'fullName', label: 'Họ tên' },
   {
     key: 'lifecycle',
     label: 'Trạng thái',
     width: 140,
-    render: (v) => <StatusBadge status={String(v)} />,
+    render: (v) => (
+      <StatusBadge status={String(v)} label={LIFECYCLE_LABELS[String(v)] ?? String(v)} />
+    ),
   },
 ];
 
@@ -43,13 +54,24 @@ const STUDENT_FILTERS: FilterDef[] = [
   },
 ];
 
+type StudentView = 'table' | 'kanban';
+
 export default function StudentListPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<Record<string, string>>({ q: '' });
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const pageSize = 10;
   const { success: toastSuccess } = useToast();
+  const rawView = searchParams.get('view');
+  const view: StudentView = rawView === 'kanban' ? 'kanban' : 'table';
+
+  function setView(next: StudentView) {
+    const params = new URLSearchParams(searchParams);
+    params.set('view', next);
+    setSearchParams(params, { replace: true });
+  }
 
   const submitted = (filters.q ?? '').trim();
   // Detect phone (starts with digit) vs name search.
@@ -83,9 +105,20 @@ export default function StudentListPage() {
       filters={
         <FilterBar filters={STUDENT_FILTERS} value={filters} onChange={handleFilterChange} />
       }
+      views={
+        <ViewSwitcher
+          value={view}
+          onChange={setView}
+          aria-label="Chế độ xem học viên"
+          items={[
+            { id: 'table' as const, label: 'Xem dạng danh sách', icon: 'list' },
+            { id: 'kanban' as const, label: 'Xem dạng kanban', icon: 'kanban' },
+          ]}
+        />
+      }
       controlFooter={
         submitted.length >= 2 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cmc-space-2)', width: '100%' }}>
+          <div className="console-cp-footer-cluster">
             <BulkActionBar
               selectionCount={selectedIds.length}
               onClear={() => setSelectedIds([])}
@@ -123,6 +156,19 @@ export default function StudentListPage() {
             Nhập ít nhất 2 ký tự để tìm kiếm.
           </Text>
         </HStack>
+      ) : view === 'kanban' ? (
+        <KanbanRecordGrid>
+          {rows.map((row) => (
+            <KanbanRecordCard
+              key={row.id}
+              title={row.fullName}
+              subtitle={LIFECYCLE_LABELS[row.lifecycle] ?? row.lifecycle}
+              onClick={() =>
+                void navigate(links.student(row.id), { state: { student: row } })
+              }
+            />
+          ))}
+        </KanbanRecordGrid>
       ) : (
         <DataTable<StudentRow>
           columns={COLUMNS}
@@ -135,6 +181,7 @@ export default function StudentListPage() {
           }
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
+          columnConfigurator
         />
       )}
     </ListPage>

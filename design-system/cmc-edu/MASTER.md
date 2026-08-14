@@ -35,7 +35,9 @@
 | Success / warning / danger | `--cmc-success` / `--cmc-warning` / `--cmc-danger` | TL12 |
 
 **Do not** introduce orange CTA (`#F97316`) or slate Pro-Max defaults.  
-**One interactive blue.** Status = small dot / badge, not recolored metric numbers.
+**One interactive blue** outside admin (LMS / `tokens.css`). Status = small dot / badge, not recolored metric numbers.
+
+**Admin exception:** `.o_web_client` overrides `--cmc-brand` to `#71639e` (OpenEduCat / Odoo Community) so Astryx buttons, links, and focus inherit purple. LMS and `tokens.css` stay Apple-blue. Contract: [`OPENEDUCAT-VISUAL-CONTRACT.md`](./OPENEDUCAT-VISUAL-CONTRACT.md).
 
 ### Typography
 

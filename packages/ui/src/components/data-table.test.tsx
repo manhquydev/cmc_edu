@@ -175,3 +175,22 @@ describe('DataTable empty', () => {
     expect(document.querySelector('.console-empty-ops')).not.toBeNull();
   });
 });
+
+describe('DataTable column configurator', () => {
+  it('hides a column from the menu and keeps at least one visible', () => {
+    render(
+      <DataTable
+        columns={[
+          { key: 'name', label: 'Tên' },
+          { key: 'id', label: 'Mã' },
+        ]}
+        data={ROWS}
+        columnConfigurator
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Cột hiển thị' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Mã' }));
+    expect(screen.queryByText('b')).toBeNull();
+    expect(screen.getByText('Alpha')).toBeInTheDocument();
+  });
+});

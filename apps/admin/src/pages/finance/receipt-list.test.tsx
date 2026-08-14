@@ -68,6 +68,7 @@ describe('ReceiptListPage', () => {
 
   it('selecting a status in the FilterBar Selector re-queries finance.receiptList with that status', async () => {
     renderWithProviders(<ReceiptListPage />, { route: '/finance' });
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc nâng cao' }));
     fireEvent.click(screen.getByRole('combobox', { name: 'Trạng thái' }));
     const option = await screen.findByRole('option', { name: 'Nháp' });
     fireEvent.click(option);

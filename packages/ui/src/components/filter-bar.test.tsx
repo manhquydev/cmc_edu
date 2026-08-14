@@ -20,8 +20,9 @@ function renderBar(props: Partial<ComponentProps<typeof FilterBar>> = {}) {
 }
 
 describe('FilterBar', () => {
-  it('uses DateField for type=date', () => {
+  it('uses DateField for type=date after opening the filters menu', () => {
     renderBar({ value: { status: '', from: '2026-01-15', q: '' }, onChange: () => {} });
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc nâng cao' }));
     const date = screen.getByLabelText('Từ ngày');
     expect(date).toHaveAttribute('type', 'date');
     expect(date).toHaveValue('2026-01-15');
@@ -30,6 +31,7 @@ describe('FilterBar', () => {
   it('controlled onChange for date', () => {
     const onChange = vi.fn();
     renderBar({ value: { status: '', from: '', q: '' }, onChange });
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc nâng cao' }));
     fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-08-06' } });
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ from: '2026-08-06' }),
@@ -41,22 +43,29 @@ describe('FilterBar', () => {
     expect(screen.getByRole('search', { name: 'Bộ lọc' })).toBeInTheDocument();
   });
 
-  it('sizes fields with CSS classes, not inline width', () => {
+  it('puts text search in the chrome box without inline width', () => {
     const { container } = renderBar({ value: { status: '', from: '', q: '' }, onChange: () => {} });
-    const fields = container.querySelectorAll('.console-filter-field');
-    expect(fields.length).toBe(3);
-    for (const el of fields) {
-      expect((el as HTMLElement).style.width).toBe('');
-    }
-    expect(container.querySelector('.console-filter-field--text')).not.toBeNull();
+    const input = container.querySelector('.console-search-input') as HTMLInputElement;
+    expect(input).not.toBeNull();
+    expect(input.style.width).toBe('');
+    expect(input.getAttribute('aria-label')).toBe('Tìm');
   });
 
-  it('fires onChange when a select option is chosen', () => {
+  it('fires onChange when a select option is chosen from the filters menu', () => {
     const onChange = vi.fn();
     renderBar({ value: { status: '', from: '', q: '' }, onChange });
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc nâng cao' }));
     fireEvent.click(screen.getByRole('combobox', { name: 'Trạng thái' }));
     fireEvent.click(screen.getByRole('option', { name: 'A' }));
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ status: 'a' }));
+  });
+
+  it('renders a gray facet chip for an active extra filter and clears it', () => {
+    const onChange = vi.fn();
+    renderBar({ value: { status: 'a', from: '', q: '' }, onChange });
+    expect(screen.getByText('Trạng thái: A')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa Trạng thái' }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ status: '' }));
   });
 
   it('respects hasClear: false on select filters (default-domain hygiene)', () => {
@@ -78,9 +87,9 @@ describe('FilterBar', () => {
         <FilterBar filters={filters} value={{ lost: 'exclude' }} onChange={() => {}} />
       </MemoryRouter>,
     );
-    // With hasClear false, no clear control should wipe the domain via empty string.
-    // Astryx Selector still renders combobox; absence of clear is the contract.
     expect(screen.getByRole('combobox', { name: 'Hiển thị' })).toHaveTextContent('Đang chăm sóc');
+    expect(screen.queryByRole('button', { name: 'Bộ lọc nâng cao' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /clear|xóa|×/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Hiển thị:/)).toBeNull();
   });
 });

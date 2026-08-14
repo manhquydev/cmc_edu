@@ -33,6 +33,9 @@
     "test:url-literals": "node --test scripts/check-url-literals.test.mjs",
     "verify:system": "node scripts/verify-system.mjs",
     "test:verify-system": "node --test scripts/verify-system.test.mjs",
+    "verify:local-sim": "node scripts/verify-local-sim.mjs",
+    "verify:local-sim:browser": "node scripts/live-sim-browser-audit.mjs",
+    "verify:local-sim:ops": "node scripts/live-sim-ops-lifecycle.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

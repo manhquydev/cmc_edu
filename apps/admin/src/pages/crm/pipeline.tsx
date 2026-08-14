@@ -15,6 +15,7 @@ import {
   LineIcon,
   ListPage,
   PageHeader,
+  ViewSwitcher,
   Panel,
   Skeleton,
   Stack,
@@ -455,39 +456,13 @@ export default function CrmPipelinePage() {
             title="Pipeline CRM"
             breadcrumbs={[{ label: 'Kinh doanh' }, { label: 'Pipeline CRM' }]}
             actions={
-              <HStack gap={2} align="center">
-                <div
-                  className="console-view-switcher"
-                  role="group"
-                  aria-label="Chuyển chế độ xem pipeline"
-                >
-                  <button
-                    type="button"
-                    aria-pressed={view === 'table'}
-                    aria-label="Xem dạng danh sách"
-                    className={view === 'table' ? 'is-active' : ''}
-                    onClick={() => setView('table')}
-                  >
-                    <LineIcon name="list" size={15} strokeWidth={2.25} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={view === 'kanban'}
-                    aria-label="Xem dạng kanban"
-                    className={view === 'kanban' ? 'is-active' : ''}
-                    onClick={() => setView('kanban')}
-                  >
-                    <LineIcon name="kanban" size={15} strokeWidth={2.25} />
-                  </button>
-                </div>
-                <Button
-                  label="Thêm cơ hội"
-                  size="sm"
-                  variant="primary"
-                  endContent={<LineIcon name="plus" size={14} />}
-                  onClick={() => setCreateOpen(true)}
-                />
-              </HStack>
+              <Button
+                label="Thêm cơ hội"
+                size="sm"
+                variant="primary"
+                endContent={<LineIcon name="plus" size={14} />}
+                onClick={() => setCreateOpen(true)}
+              />
             }
           />
         }
@@ -501,6 +476,17 @@ export default function CrmPipelinePage() {
                 lost: next.lost || 'exclude',
               })
             }
+          />
+        }
+        views={
+          <ViewSwitcher
+            value={view}
+            onChange={setView}
+            aria-label="Chuyển chế độ xem pipeline"
+            items={[
+              { id: 'table' as const, label: 'Xem dạng danh sách', icon: 'list' },
+              { id: 'kanban' as const, label: 'Xem dạng kanban', icon: 'kanban' },
+            ]}
           />
         }
       >

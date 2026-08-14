@@ -64,6 +64,7 @@ describe('StudentListPage', () => {
     );
     expect(screen.getByText('Nguyễn Văn A')).toBeInTheDocument();
     expect(screen.getByText('Trần Thị B')).toBeInTheDocument();
+    expect(screen.getAllByText('Đang học').length).toBeGreaterThanOrEqual(2);
   });
 
   it('queries by phone when the filter starts with a digit', () => {
@@ -100,18 +101,12 @@ describe('StudentListPage', () => {
     expect(writeText).toHaveBeenCalled();
   });
 
-  it('pins FilterBar text field width 180px on the real students ListPage', () => {
+  it('pins the Odoo search box height 35px on the real students ListPage', () => {
     const css = readFileSync(resolve(process.cwd(), '../../packages/ui/src/console.css'), 'utf8');
-    const sheet = document.createElement('style');
-    sheet.textContent = css;
-    document.head.appendChild(sheet);
-    try {
-      renderWithProviders(<StudentListPage />, { route: '/admin/students' });
-      const textField = document.querySelector('.console-filter-field--text') as HTMLElement | null;
-      expect(textField).not.toBeNull();
-      expect(getComputedStyle(textField!).width).toBe('180px');
-    } finally {
-      sheet.remove();
-    }
+    expect(css).toMatch(
+      /\.o_web_client \.console-search-box[\s\S]{0,400}height:\s*var\(--console-search-height,\s*35px\)/,
+    );
+    renderWithProviders(<StudentListPage />, { route: '/admin/students' });
+    expect(document.querySelector('.console-search-box')).not.toBeNull();
   });
 });

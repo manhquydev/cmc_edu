@@ -88,13 +88,14 @@ Scoped under `.o_web_client`:
 | Token | Value (shipped) | Role |
 |-------|-----------------|------|
 | `--console-navbar-height` | `46px` | Top bar |
-| `--console-brand-purple` | `#71639e` | Navbar decorative brand |
+| `--console-cp-height` | `58px` | Control panel one-row height |
+| `--console-brand-purple` | `#71639e` | Navbar + interactive accent (primary button, links, focus) |
 | `--console-kanban-card-width` | `320px` | Kanban card |
 | `--console-kanban-card-width-sm` | `300px` | Narrow kanban |
 | `--console-success` | `#28a745` | Status green |
 | `--console-font-size-base` | `14px` | Dense body |
 
-Interactive accent remains CMC blue (`--cmc-brand` / `#0071E3`), not purple.
+Inside `.o_web_client`, `--cmc-brand` remaps to `var(--console-brand-purple)` so Astryx Button/links/focus inherit Community purple. LMS and `tokens.css` stay Apple-blue (`#0071E3`). Navbar purple is the interactive accent, not decorative-only.
 
 ---
 

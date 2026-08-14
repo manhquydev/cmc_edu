@@ -2,29 +2,55 @@ import type { ReactNode } from 'react';
 
 /**
  * Sticky list ops chrome — Odoo ControlPanel analogue for CMC.
- * Compose: PageHeader · FilterBar · ListPagination (footer).
+ * Three zones: LEFT (New + title) | CENTER (search/filters) | RIGHT (pager).
+ * `left`/`center`/`right` win when set; otherwise `header`/`filters`/`footer`.
  * Requires @cmc/ui/console.css (.console-control-bar*).
  */
 export interface ControlBarProps {
-  /** Usually `<PageHeader>`. */
-  header: ReactNode;
-  /** Usually `<FilterBar>`. */
+  /** Usually `<PageHeader>`. Alias of `left` when `left` is omitted. */
+  header?: ReactNode;
+  /** Usually `<FilterBar>`. Alias of `center` when `center` is omitted. */
   filters?: ReactNode;
-  /** Pager, bulk tools, secondary strip under filters. */
+  /** Pager, bulk tools, view switcher. Alias of `right` when `right` is omitted. */
   footer?: ReactNode;
+  /** LEFT zone — wins over `header`. */
+  left?: ReactNode;
+  /** CENTER zone — wins over `filters`. */
+  center?: ReactNode;
+  /** RIGHT zone — wins over `footer`. */
+  right?: ReactNode;
   className?: string;
 }
 
-export function ControlBar({ header, filters, footer, className }: ControlBarProps) {
+function present(node: ReactNode): boolean {
+  return node != null && node !== false;
+}
+
+export function ControlBar({
+  header,
+  filters,
+  footer,
+  left,
+  center,
+  right,
+  className,
+}: ControlBarProps) {
+  const leftNode = left ?? header;
+  const centerNode = center ?? filters;
+  const rightNode = right ?? footer;
   const cls = className ? `console-control-bar ${className}` : 'console-control-bar';
-  const hasFilters = filters != null && filters !== false;
-  const hasFooter = footer != null && footer !== false;
 
   return (
     <div className={cls}>
-      <div className="console-control-bar-header">{header}</div>
-      {hasFilters ? <div className="console-control-bar-filters">{filters}</div> : null}
-      {hasFooter ? <div className="console-control-bar-footer">{footer}</div> : null}
+      {present(leftNode) ? (
+        <div className="console-control-bar-header console-control-bar-left">{leftNode}</div>
+      ) : null}
+      {present(centerNode) ? (
+        <div className="console-control-bar-filters console-control-bar-center">{centerNode}</div>
+      ) : null}
+      {present(rightNode) ? (
+        <div className="console-control-bar-footer console-control-bar-right">{rightNode}</div>
+      ) : null}
     </div>
   );
 }

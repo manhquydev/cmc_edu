@@ -74,6 +74,7 @@ describe('AuditLogPage', () => {
 
   it('applies actor/action/entity filters to audit.list after text debounce', async () => {
     renderWithProviders(<AuditLogPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc nâng cao' }));
     fireEvent.change(screen.getByLabelText('Người thực hiện'), { target: { value: 'staff-2' } });
     fireEvent.change(screen.getByLabelText('Loại việc'), { target: { value: 'user.updateRoles' } });
     fireEvent.change(screen.getByLabelText('Đối tượng'), { target: { value: 'AppUser' } });
@@ -97,6 +98,7 @@ describe('AuditLogPage', () => {
 
   it('maps date fields to inclusive ICT day bounds for audit.list', () => {
     renderWithProviders(<AuditLogPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc nâng cao' }));
     fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-08-06' } });
     fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2026-08-06' } });
 
@@ -113,6 +115,7 @@ describe('AuditLogPage', () => {
   it('blocks inverted date range with a warning and does not query audit.list with both bounds', () => {
     renderWithProviders(<AuditLogPage />);
     listQuerySpy.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc nâng cao' }));
     fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '2026-08-10' } });
     fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '2026-08-01' } });
 

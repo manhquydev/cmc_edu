@@ -39,6 +39,13 @@ describe('console.css scope + token surface', () => {
     expect(css.slice(numIdx, numIdx + 280)).toMatch(/clip:\s*rect\(0,\s*0,\s*0,\s*0\)/);
   });
 
+  it('remaps interactive accent to Community purple inside the admin shell', () => {
+    expect(css.includes('--cmc-brand: var(--console-brand-purple)')).toBe(true);
+    expect(css.includes('--console-cp-height: 58px')).toBe(true);
+    expect(css.includes('decorative only')).toBe(false);
+    expect(css.includes('interactive accent stays CMC blue #0071E3')).toBe(false);
+  });
+
   it('exposes remapped class names (console- prefix, not odoo-lab-)', () => {
     expect(css.includes('.console-navbar')).toBe(true);
     expect(css.includes('.console-kanban-board')).toBe(true);
@@ -65,6 +72,43 @@ describe('console.css scope + token surface', () => {
     expect(css.includes('.o_web_client h1')).toBe(true);
     expect(css.includes('.o_web_client p')).toBe(true);
     expect(css.includes('.o_web_client small')).toBe(true);
+  });
+
+  it('pins Community list density and gray view-switcher active state', () => {
+    expect(css.includes('--console-list-row-height: 40px')).toBe(true);
+    expect(css.includes('--console-row-hover: #f2f2f2')).toBe(true);
+    expect(css.includes('.o_web_client .console-list thead th')).toBe(true);
+    expect(css.includes('background: var(--console-gray-100)')).toBe(true);
+    const activeIdx = css.indexOf('.console-view-switcher button.is-active');
+    expect(activeIdx).toBeGreaterThan(-1);
+    const block = css.slice(activeIdx, activeIdx + 160);
+    expect(block.includes('#edeef1')).toBe(true);
+    expect(block.includes('--console-brand-purple')).toBe(false);
+    expect(block.includes('var(--cmc-brand)')).toBe(false);
+  });
+
+  it('pins OpenEduCat remaining chrome tokens', () => {
+    expect(css.includes('--console-facet-bg: #eaebf0')).toBe(true);
+    expect(css.includes('--console-statusbar-current: #e0d9f1')).toBe(true);
+    expect(css.includes('--console-search-height: 35px')).toBe(true);
+    expect(css.includes('--console-search-radius: 999px')).toBe(true);
+    expect(css.includes('--cmc-radius-control: var(--console-radius')).toBe(true);
+    expect(css.includes('--_button-radius: var(--console-radius')).toBe(true);
+    expect(css.includes('flex-wrap: nowrap')).toBe(true);
+    expect(css.includes('.console-kanban-record-grid')).toBe(true);
+    expect(css.includes('.console-search-caret')).toBe(true);
+    expect(css.includes('--color-accent: var(--console-brand-purple)')).toBe(true);
+    expect(css.includes('height: var(--console-cp-height, 58px)')).toBe(true);
+    expect(css.includes('flex-direction: row-reverse')).toBe(false);
+    expect(css).toMatch(
+      /\.o_web_client \.console-search-menu[\s\S]{0,120}position:\s*absolute/,
+    );
+    expect(css).toMatch(
+      /\.o_web_client \.console-search-box[\s\S]{0,900}border-radius:\s*999px\s*!important/,
+    );
+    expect(css).toMatch(
+      /\.o_web_client \.console-steps-num[\s\S]{0,80}display:\s*none/,
+    );
   });
 
   it('wires kanban narrow viewport width to --console-kanban-card-width-sm', () => {

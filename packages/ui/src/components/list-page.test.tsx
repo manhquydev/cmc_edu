@@ -66,5 +66,24 @@ describe('ListPage', () => {
     );
     expect(container.querySelector('.console-control-bar')).toBeTruthy();
     expect(getByText('PAGER')).toBeInTheDocument();
+    expect(container.querySelector('.console-control-bar-filters')).toHaveTextContent('FILTERS');
+    expect(container.querySelector('.console-control-bar-footer')).toHaveTextContent('PAGER');
+  });
+
+  it('places views in the RIGHT zone after the pager', () => {
+    const { getByText, container } = render(
+      <ListPage
+        header={<div>HEADER</div>}
+        controlFooter={<div>PAGER</div>}
+        views={<div>VIEWS</div>}
+      >
+        <div>TABLE</div>
+      </ListPage>,
+    );
+    const footer = container.querySelector('.console-control-bar-footer');
+    expect(footer).toHaveTextContent('PAGER');
+    expect(footer).toHaveTextContent('VIEWS');
+    expect(footer?.querySelector('.console-cp-footer-cluster')).toBeTruthy();
+    expect(getByText('PAGER').compareDocumentPosition(getByText('VIEWS')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

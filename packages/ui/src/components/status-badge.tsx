@@ -1,11 +1,16 @@
 type Status = string;
 
-/** Soft pastel appearance (Polaris/Primer dense tables) — the admin status chip. */
+/** OpenEduCat list capsule (solid fill + white text under `.o_web_client`). */
 type SoftTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 
 const STATUS_SOFT: Record<string, SoftTone> = {
   active: 'success',
   approved: 'success',
+  confirmed: 'success',
+  done: 'success',
+  completed: 'success',
+  enrolled: 'success',
+  published: 'success',
   sent: 'info',
   pending: 'warning',
   draft: 'neutral',

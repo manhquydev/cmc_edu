@@ -68,10 +68,13 @@
   --console-kanban-color-bar-width: 3px;
   --console-kanban-gutter: 8px;
 
-  /* Form / statusbar */
+  /* Form / statusbar — OPENEDUCAT-VISUAL-CONTRACT.md */
   --console-sheet-max-width: 1400px;
   --console-statusbar-height: 33px;
-  --console-statusbar-arrow-width: 1em;
+  --console-statusbar-arrow-width: 11px;
+  --console-statusbar-radius: 4px;
+  --console-statusbar-current: #e0d9f1;
+  --console-facet-bg: #eaebf0;
 }
 .o_web_client {
   box-sizing: border-box;
@@ -1269,88 +1272,175 @@ button.console-kanban-card {
 .o_web_client .console-list-body {
   gap: 0;
 }
-/* Chevron ProgressSteps (Odoo statusbar analogue) — horizontal arrow buttons.
-   Arrow width is pinned to a FIXED px here (the em default resolved to 14px
-   on the <li> — base 14px font — but 13px on the <button> — 13px font — so
-   the negative-margin overlap and the clip-path notch disagreed and left a
-   1px seam between every segment; live audit 2026-08-09. Same px on both
-   sides → chevrons interlock seamlessly). Taller 38px bar + 16px arrow for
-   roomier, more readable labels (layout decision 2026-08-09). */
+/* Chevron ProgressSteps — Odoo 19 StatusBarField geometry (LTR).
+   Contract: OPENEDUCAT-VISUAL-CONTRACT.md
+   Content-sized, right-aligned, text-only, 33px.
+   Outer khung: rounded 4px on the bar's left + right ends only; internal
+   joints stay sharp V. Last segment is FLAT (not pointed). Border stroke is
+   the Odoo ::before even-odd clip (white seam; purple on current). */
 .o_web_client .console-steps {
-  --console-statusbar-arrow-width: 16px;
-  --console-statusbar-height: 38px;
+  --console-statusbar-caret: 11px;
+  --console-statusbar-arrow-width: 11px;
+  --console-statusbar-height: 33px;
+  --console-statusbar-radius: 4px;
+  --console-statusbar-border-w: 1px;
+  --sb-pt-tl: 0 0;
+  --sb-pt-tr: calc(100% - var(--console-statusbar-caret)) 0;
+  --sb-pt-mr: 100% 50%;
+  --sb-pt-br: calc(100% - var(--console-statusbar-caret)) 100%;
+  --sb-pt-bl: 0 100%;
+  --sb-pt-ml: var(--console-statusbar-caret) 50%;
+  --sb-in-tl: calc(var(--console-statusbar-border-w) * 1.414) 0;
+  --sb-in-tr: calc(100% - var(--console-statusbar-caret) - var(--console-statusbar-border-w) * 1.414) 0;
+  --sb-in-mr: calc(100% - var(--console-statusbar-border-w) * 1.414) 50%;
+  --sb-in-br: calc(100% - var(--console-statusbar-caret) - var(--console-statusbar-border-w) * 1.414) 100%;
+  --sb-in-bl: calc(var(--console-statusbar-border-w) * 1.414) 100%;
+  --sb-in-ml: calc(var(--console-statusbar-caret) + var(--console-statusbar-border-w) * 1.414) 50%;
   list-style: none;
-  margin: 0 0 16px;
+  margin: 0;
   padding: 0;
   display: flex;
+  justify-content: flex-end;
   height: var(--console-statusbar-height, 33px);
   align-items: stretch;
   gap: 0;
+  width: 100%;
+  overflow: visible;
+  border: 0;
+  background: transparent;
 }
 .o_web_client .console-steps-item {
   position: relative;
   display: flex;
-  flex: 1 1 0;           /* equal segments — bar always filled, never overflows */
+  flex: 0 0 auto;
   min-width: 0;
-  margin-left: calc(var(--console-statusbar-arrow-width) * -1);
+  margin-left: calc(-1 * var(--console-statusbar-caret) - var(--console-statusbar-border-w) * 1.732);
+  filter: drop-shadow(0 1px 1px rgba(33, 37, 41, 0.08));
 }
 .o_web_client .console-steps-item:first-child { margin-left: 0; }
 .o_web_client .console-steps-bridge { display: none; }
 .o_web_client .console-steps-btn {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 0;
+  width: auto;
   height: 100%;
   min-width: 0;
-  padding: 0 calc(var(--console-statusbar-arrow-width) * 1.5);
+  padding: 0 calc(var(--console-statusbar-caret) * 1.7) 0 calc(var(--console-statusbar-caret) * 1.8);
   border: 0;
-  background: var(--console-gray-200, #e9ecef);   /* todo — neutral, not started */
-  color: var(--console-gray-900, #212529);
+  border-radius: 0; /* kill global 12px button radius — only clip-path chamfers the ends */
+  background: var(--console-gray-100, #f8f9fa);
+  color: var(--console-gray-600, #6c757d);
   font-size: var(--console-font-size-sm, 13px);
   font-family: inherit;
   cursor: default;
   clip-path: polygon(
-    0 0, calc(100% - var(--console-statusbar-arrow-width)) 0,
-    100% 50%, calc(100% - var(--console-statusbar-arrow-width)) 100%,
-    0 100%, var(--console-statusbar-arrow-width) 50%
+    var(--sb-pt-tl), var(--sb-pt-tr), var(--sb-pt-mr),
+    var(--sb-pt-br), var(--sb-pt-bl), var(--sb-pt-ml)
   );
-  transition: background-color 150ms ease, color 150ms ease, filter 150ms ease;
+  transition: background-color 150ms ease, color 150ms ease;
 }
+/* Khung: 1px stroke following the chevron (Odoo even-odd ::before) */
+.o_web_client .console-steps-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--console-gray-300, #dee2e6);
+  clip-path: polygon(evenodd,
+    var(--sb-pt-tl), var(--sb-pt-tr), var(--sb-pt-mr),
+    var(--sb-pt-br), var(--sb-pt-bl), var(--sb-pt-ml),
+    var(--sb-pt-tl),
+    var(--sb-in-tl), var(--sb-in-ml), var(--sb-in-bl),
+    var(--sb-in-br), var(--sb-in-mr), var(--sb-in-tr),
+    var(--sb-in-tl)
+  );
+}
+/* Leftmost = flat + 4px round (chamfer in clip-path so the right tip is not clipped) */
 .o_web_client .console-steps-item:first-child .console-steps-btn {
+  --sb-pt-tl: var(--console-statusbar-radius) 0;
+  --sb-pt-bl: var(--console-statusbar-radius) 100%;
+  --sb-pt-ml: 0 50%;
+  --sb-in-ml: var(--sb-in-tl);
+  --sb-in-bl: var(--console-statusbar-radius) 100%;
+  --sb-in-tl: var(--console-statusbar-radius) 0;
+  padding-left: 14px;
   clip-path: polygon(
-    0 0, calc(100% - var(--console-statusbar-arrow-width)) 0,
-    100% 50%, calc(100% - var(--console-statusbar-arrow-width)) 100%, 0 100%
+    var(--console-statusbar-radius) 0,
+    var(--sb-pt-tr), var(--sb-pt-mr), var(--sb-pt-br),
+    var(--console-statusbar-radius) 100%,
+    0 calc(100% - var(--console-statusbar-radius)),
+    0 var(--console-statusbar-radius)
   );
 }
+/* Rightmost = flat + 4px round, no arrow point */
 .o_web_client .console-steps-item:last-child .console-steps-btn {
+  --sb-pt-tr: 100% 0;
+  --sb-pt-br: 100% 100%;
+  --sb-in-tr: var(--sb-pt-tr);
+  --sb-in-mr: var(--sb-pt-mr);
+  --sb-in-br: var(--sb-pt-br);
+  padding-right: 14px;
   clip-path: polygon(
-    0 0, 100% 0, 100% 100%, 0 100%, var(--console-statusbar-arrow-width) 50%
+    var(--sb-pt-tl),
+    calc(100% - var(--console-statusbar-radius)) 0,
+    100% var(--console-statusbar-radius),
+    100% calc(100% - var(--console-statusbar-radius)),
+    calc(100% - var(--console-statusbar-radius)) 100%,
+    var(--sb-pt-bl),
+    var(--sb-pt-ml)
   );
 }
 .o_web_client .console-steps-btn:not(:disabled) { cursor: pointer; }
-.o_web_client .console-steps-btn:not(:disabled):hover { filter: brightness(0.94); }
-.o_web_client .console-steps-btn:not(:disabled):active { filter: brightness(0.86); }
+.o_web_client .console-steps-btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--console-gray-100, #f8f9fa) 70%, #cfd2d8);
+}
+.o_web_client .console-steps-btn:not(:disabled):active {
+  background: color-mix(in srgb, var(--console-gray-100, #f8f9fa) 40%, #c5c8ce);
+}
 .o_web_client .console-steps-btn:focus-visible {
   outline: 2px solid var(--console-brand-purple-dark, #5a4f7e);
-  outline-offset: -2px;
+  outline-offset: 2px;
   z-index: 2;
 }
-/* done — soft brand tint; current — brand fill; both clearly off neutral todo */
 .o_web_client .console-steps-item.is-done .console-steps-btn {
-  background: color-mix(in srgb, var(--console-brand-purple, #71639e) 16%, #fff);
-  color: var(--console-brand-purple-dark, #5a4f7e);
+  background: var(--console-gray-100, #f8f9fa);
+  color: var(--console-gray-600, #6c757d);
 }
-.o_web_client .console-steps-item.is-current .console-steps-btn {
-  background: var(--console-brand-purple, #71639e);
-  color: #fff;
+.o_web_client .console-steps-item.is-current {
   z-index: 1;
 }
-.o_web_client .console-steps-item.is-current .console-steps-label { font-weight: 600; }
+.o_web_client .console-steps-item.is-current .console-steps-btn {
+  background: var(--console-statusbar-current, #e0d9f1);
+  color: var(--console-gray-900, #212529);
+}
+.o_web_client .console-steps-item.is-current .console-steps-btn::before {
+  background: var(--console-brand-purple, #71639e);
+}
+.o_web_client .console-steps-item.is-current .console-steps-btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--console-statusbar-current, #e0d9f1) 70%, #c4b7e0);
+}
+.o_web_client .console-steps-item.is-current .console-steps-label { font-weight: 700; }
+.o_web_client .console-steps-label,
 .o_web_client .console-steps-num {
-  flex: 0 0 auto;
-  width: auto; height: auto; border: 0; background: transparent;
-  font-size: 13px; font-weight: 700; color: inherit;
+  position: relative;
+  z-index: 1;
+}
+/* Label-only chevrons — numbers/checks stay in DOM for tests, hidden visually */
+.o_web_client .console-steps-num {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  background: transparent;
   box-shadow: none;
 }
 .o_web_client .console-steps-label {
@@ -1358,7 +1448,12 @@ button.console-kanban-card {
   text-align: center;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.o_web_client .console-workflow-statusbar { padding: 0; min-width: 0; }
+.o_web_client .console-workflow-statusbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0;
+  min-width: 0;
+}
 /* Dense wrap under Odoo shell */
 .o_web_client .console-wrap {
   background: var(--console-gray-100, #f8f9fa);
@@ -1401,19 +1496,22 @@ button.console-kanban-card {
   padding: 0 0 4px;
   background: transparent;
 }
-/* Odoo `.o_form_statusbar` analogue — sticky md+ only (form_controller.scss). */
+/* Odoo `.o_form_statusbar` analogue — first row of the white sheet (pack 14). */
 .console-detail-statusbar {
   min-width: 0;
 }
-.o_web_client .console-form-sheet-bg > .console-detail-statusbar {
-  padding: 4px 0;
-  background: var(--console-gray-100, #f8f9fa);
-  border-bottom: 1px solid var(--console-gray-300, #dee2e6);
+.o_web_client .console-form-sheet > .console-detail-statusbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 12px;
+  background: transparent;
+  border-bottom: 0;
 }
-@media (min-width: 768px) {.o_web_client .console-form-sheet-bg > .console-detail-statusbar {
+@media (min-width: 768px) {.o_web_client .console-form-sheet > .console-detail-statusbar {
     position: sticky;
     top: 0;
     z-index: 4; /* below .console-control-bar (5) and .console-navbar (1000) */
+    background: #fff;
   }
 }
 /* Entity inside sheet: drop second card chrome */

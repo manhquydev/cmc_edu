@@ -312,7 +312,7 @@ export async function reconcileCancelledButProvisioned(db: PrismaClient): Promis
           receiptId: row.receiptId,
           kind: 'cancelled_receipt_active_enrollment',
           detail: { enrollmentId: row.enrollmentId },
-          deepLink: `/finance/receipts/${row.receiptId}?flag=cancelled_receipt_active_enrollment`,
+          deepLink: `/finance/${row.receiptId}?flag=cancelled_receipt_active_enrollment`,
         }),
       { bypass: true },
     );
@@ -384,7 +384,7 @@ export async function reconcileCancelledButProvisioned(db: PrismaClient): Promis
           receiptId: row.receiptId,
           kind: 'cancelled_receipt_partial_provisioning',
           detail: { studentId: row.studentId },
-          deepLink: `/finance/receipts/${row.receiptId}?flag=cancelled_receipt_partial_provisioning`,
+          deepLink: `/finance/${row.receiptId}?flag=cancelled_receipt_partial_provisioning`,
         }),
       { bypass: true },
     );

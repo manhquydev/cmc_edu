@@ -27,6 +27,10 @@
     "test:ui-ratchet": "node --test scripts/ui-ratchet.test.mjs",
     "check:doc-authority": "node scripts/check-doc-authority.mjs",
     "test:doc-authority": "node --test scripts/check-doc-authority.test.mjs",
+    "check:url-structure": "tsx scripts/check-url-structure.ts",
+    "test:url-structure": "node --test scripts/check-url-structure.test.mjs",
+    "check:url-literals": "node scripts/check-url-literals.mjs",
+    "test:url-literals": "node --test scripts/check-url-literals.test.mjs",
     "verify:system": "node scripts/verify-system.mjs",
     "test:verify-system": "node --test scripts/verify-system.test.mjs",
     "prepare": "husky"

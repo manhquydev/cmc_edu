@@ -13,10 +13,30 @@ describe('console.css scope + token surface', () => {
   it('scopes tokens under .o_web_client', () => {
     expect(css.includes('.o_web_client')).toBe(true);
     expect(css.includes('--console-brand-purple:')).toBe(true);
+    expect(css.includes('--console-statusbar-current:')).toBe(true);
     expect(css.includes('--console-font-size-base:')).toBe(true);
     expect(css.includes('--console-kanban-color-1:')).toBe(true);
     expect(css.includes('--console-kanban-color-6:')).toBe(true);
     expect(css.includes('--console-navbar-height:')).toBe(true);
+  });
+
+  it('skins the admin statusbar as text-only lavender chevrons', () => {
+    expect(css.includes('--console-statusbar-current: #e0d9f1')).toBe(true);
+    expect(css.includes('--console-statusbar-radius: 4px')).toBe(true);
+    expect(css.includes('var(--console-statusbar-current')).toBe(true);
+    expect(css.includes('justify-content: flex-end')).toBe(true);
+    expect(css.includes('flex: 0 0 auto')).toBe(true);
+    expect(css.includes('polygon(evenodd')).toBe(true);
+    expect(css.includes('.o_web_client .console-steps-item:last-child .console-steps-btn')).toBe(true);
+    const lastIdx = css.indexOf('.o_web_client .console-steps-item:last-child .console-steps-btn');
+    expect(css.slice(lastIdx, lastIdx + 380)).toMatch(/100%\s+var\(--console-statusbar-radius\)/);
+    const currentIdx = css.indexOf('.o_web_client .console-steps-item.is-current .console-steps-btn');
+    expect(currentIdx).toBeGreaterThan(-1);
+    const currentSlice = css.slice(currentIdx, currentIdx + 420);
+    expect(currentSlice).not.toMatch(/color:\s*#fff/);
+    const numIdx = css.lastIndexOf('.o_web_client .console-steps-num');
+    expect(numIdx).toBeGreaterThan(-1);
+    expect(css.slice(numIdx, numIdx + 280)).toMatch(/clip:\s*rect\(0,\s*0,\s*0,\s*0\)/);
   });
 
   it('exposes remapped class names (console- prefix, not odoo-lab-)', () => {

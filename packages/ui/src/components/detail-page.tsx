@@ -35,13 +35,13 @@ export interface DetailPageProps {
 /**
  * Canonical detail-page frame for the whole admin product.
  *
- * Odoo form analogue (design3):
+ * Odoo / OpenEduCat form analogue (pack 14/16):
  * ```
  * [ PageHeader — CP-like crumbs ]
  * [ .console-form-sheet-bg ]
  *   [ summary — HighlightStrip / metrics (scrolls) ]
- *   [ statusbar — thin WorkflowStatusbar (sticky md+) ]
  *   [ .console-form-sheet ]
+ *     [ statusbar — right-aligned chevrons, first row of the white sheet ]
  *     [ EntityHeader ]
  *     [ CmcTabs? ]
  *     [ body ]
@@ -67,15 +67,17 @@ export function DetailPage({
       {header}
       <div className="console-form-sheet-bg">
         {summary != null ? <div className="console-detail-summary">{summary}</div> : null}
-        {statusbar != null ? (
-          <div className="console-detail-statusbar">{statusbar}</div>
-        ) : null}
         {hasSheet ? (
           <div className="console-form-sheet">
+            {statusbar != null ? (
+              <div className="console-detail-statusbar">{statusbar}</div>
+            ) : null}
             {entity != null ? <div className="console-detail-entity">{entity}</div> : null}
             {tabs != null ? <div className="console-detail-tabs">{tabs}</div> : null}
             {hasBody ? <div className="console-detail-body">{children}</div> : null}
           </div>
+        ) : statusbar != null ? (
+          <div className="console-detail-statusbar">{statusbar}</div>
         ) : null}
       </div>
     </div>

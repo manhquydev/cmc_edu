@@ -1,6 +1,7 @@
 /**
  * Horizontal stepper for multi-step flows / workflow statusbars.
- * Under `.o_web_client`, console.css applies console chevron clip-path skin.
+ * Under `.o_web_client`, console.css applies the OpenEduCat chevron skin
+ * (text-only labels, lavender current, interlocking clip-path).
  * Requires @cmc/ui/console.css (.console-steps*).
  */
 export interface ProgressStep {

@@ -107,7 +107,7 @@ export async function scanFacility(
           receiptId: r.id,
           kind: 'self_approved',
           detail: { netAmount: r.netAmount.toNumber() },
-          deepLink: `/finance/receipts/${r.id}?flag=self_approved`,
+          deepLink: `/finance/${r.id}?flag=self_approved`,
         });
         if (created) flagsCreated++;
       }
@@ -131,7 +131,7 @@ export async function scanFacility(
         receiptId: r.id,
         kind: 'exceeds_threshold',
         detail: { netAmount: r.netAmount.toNumber() },
-        deepLink: `/finance/receipts/${r.id}?flag=exceeds_threshold`,
+        deepLink: `/finance/${r.id}?flag=exceeds_threshold`,
       });
       if (created) flagsCreated++;
     }
@@ -174,7 +174,7 @@ export async function scanFacility(
             receiptId: rec.id,
             kind: 'excess_refunds',
             detail: { refundCount: agg.count, refundSum: agg.sum, netAmount },
-            deepLink: `/finance/receipts/${rec.id}?flag=excess_refunds`,
+            deepLink: `/finance/${rec.id}?flag=excess_refunds`,
           });
           if (created) flagsCreated++;
         }
@@ -219,7 +219,7 @@ export async function scanFacility(
           kind: 'missing_provisioning',
           // Non-null: the query's `approvedAt: { not: null }` guard guarantees it.
           detail: { netAmount: r.netAmount.toNumber(), approvedAt: r.approvedAt!.toISOString() },
-          deepLink: `/finance/receipts/${r.id}?flag=missing_provisioning`,
+          deepLink: `/finance/${r.id}?flag=missing_provisioning`,
         });
         if (created) flagsCreated++;
       }

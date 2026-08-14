@@ -13,7 +13,7 @@ import {
   StatusBadge,
   useToast,
 } from '@cmc/ui';
-import type { FilterDef, TableColumn, TableEmptySpec, TableSort } from '@cmc/ui';
+import type { FilterDef, SoftTone, TableColumn, TableEmptySpec, TableSort } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { EnrollPicker } from '../../lib/enroll-picker.js';
 
@@ -26,6 +26,13 @@ const STATUS_LABELS: Record<ReceiptStatus, string> = {
   sent: 'Đã gửi',
   cancelled: 'Đã hủy',
 };
+
+// A draft receipt is parked in an approval queue — someone else has to act on
+// it. The global map keeps `draft` neutral (elsewhere it means "still editable"),
+// so the waiting meaning is applied here per call site, not globally.
+function receiptStatusTone(status: string): SoftTone | undefined {
+  return status === 'draft' ? 'brand' : undefined;
+}
 
 interface ReceiptRow {
   id: string;
@@ -59,6 +66,7 @@ const COLUMNS: TableColumn<ReceiptRow>[] = [
       <StatusBadge
         status={String(v)}
         label={STATUS_LABELS[String(v) as ReceiptStatus] ?? String(v)}
+        tone={receiptStatusTone(String(v))}
       />
     ),
   },
@@ -240,16 +248,6 @@ export default function ReceiptListPage() {
             <BulkActionBar
               selectionCount={selectedIds.length}
               onClear={() => setSelectedIds([])}
-              pageSize={rows.length}
-              totalMatching={data?.total ?? rows.length}
-              onSelectAllMatching={() => {
-                // Honest about the limit: only loaded rows can be selected, so
-                // this never claims to have selected records it cannot name.
-                setSelectedIds(rows.map((r) => r.id));
-                toastSuccess(
-                  `Đã chọn ${rows.length} dòng đang tải. Sang trang khác để chọn thêm.`,
-                );
-              }}
             >
               <Button
                 label="Sao chép mã phiếu"

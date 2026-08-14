@@ -19,11 +19,14 @@ import {
   Panel,
   Skeleton,
   Stack,
+  StatusBadge,
   Text,
   dueLevelClassName,
   type FilterDef,
+  type SoftTone,
   type TableColumn,
   type TableEmptySpec,
+  type TableSort,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { formatContactPhone } from '../../lib/format-contact-phone.js';
@@ -41,6 +44,7 @@ type LostVisibility = 'exclude' | 'include' | 'only';
 /** TL6: `?view=table|kanban` — default kanban preserves current ops habit. */
 type PipelineView = 'kanban' | 'table';
 type DueFilter = 'late' | 'today' | 'future';
+type OpportunitySortField = 'stage' | 'nextActionAt';
 
 const DUE_FILTERS: DueFilter[] = ['late', 'today', 'future'];
 
@@ -87,6 +91,17 @@ type AdvanceableStage = 'O2_CONTACTED' | 'O3_TEST_SCHEDULED' | 'O4_TESTED';
 const STAGE_LABEL: Record<string, string> = Object.fromEntries(
   STAGES.map((s) => [s.key, s.label]),
 );
+
+// Table-only stage tone. O3/O4 are the stages where the opportunity waits on
+// someone outside the sales desk (test scheduled, test taken but not enrolled),
+// so they read as brand; O5 is the won outcome. Kanban keeps its column colours.
+const STAGE_TONE: Record<StageKey, SoftTone> = {
+  O1_LEAD: 'neutral',
+  O2_CONTACTED: 'neutral',
+  O3_TEST_SCHEDULED: 'brand',
+  O4_TESTED: 'brand',
+  O5_ENROLLED: 'success',
+};
 
 interface OpportunityItem {
   id: string;
@@ -302,6 +317,7 @@ export default function CrmPipelinePage() {
     ? filterValues.lost
     : 'exclude') as LostVisibility;
   const [page, setPage] = useState(1);
+  const [tableSort, setTableSort] = useState<TableSort>();
 
   // Changing the search term or the lost-visibility filter narrows/widens the
   // result set — restart pagination at page 1 so the user isn't stranded on
@@ -310,13 +326,22 @@ export default function CrmPipelinePage() {
     setPage(1);
   }, [debouncedSearch, lostFilter, stageFilter, dueFilter]);
 
-  // Single source of truth for the current query input — shared by kanban and
-  // list views (Phase 4: no independent sort/page per view). Optimistic
-  // advance targets this same cache key.
+  const apiSort =
+    view === 'table' && tableSort
+      ? {
+          field: tableSort.key as OpportunitySortField,
+          direction: tableSort.direction === 'ascending' ? ('asc' as const) : ('desc' as const),
+        }
+      : undefined;
+
+  // Single source of truth for the current query input. Table sort is the only
+  // view-specific field: kanban deliberately omits it and keeps API default
+  // createdAt desc ordering. Optimistic advance targets this same cache key.
   const listInput = {
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
     ...(stageFilter ? { stage: stageFilter } : {}),
     ...(dueFilter ? { due: dueFilter } : {}),
+    ...(apiSort ? { sort: apiSort } : {}),
     lost: lostFilter,
     page,
     pageSize: PAGE_SIZE,
@@ -471,9 +496,19 @@ export default function CrmPipelinePage() {
       {
         key: 'stage',
         label: 'Giai đoạn',
+        sortable: true,
         render: (_v, row) => {
-          if (isLostOpp(row)) return 'Lost';
-          return STAGE_LABEL[row.stage] ?? row.stage;
+          if (isLostOpp(row)) {
+            return <StatusBadge status="lost" label="Lost" tone="danger" size="sm" />;
+          }
+          return (
+            <StatusBadge
+              status={row.stage}
+              label={STAGE_LABEL[row.stage] ?? row.stage}
+              tone={STAGE_TONE[row.stage as StageKey] ?? 'neutral'}
+              size="sm"
+            />
+          );
         },
       },
       {
@@ -491,6 +526,7 @@ export default function CrmPipelinePage() {
       {
         key: 'nextActionAt',
         label: 'Việc tiếp',
+        sortable: true,
         render: (_v, row) => (row.nextActionAt ? <NextActionChip at={row.nextActionAt} /> : '—'),
       },
       {
@@ -626,6 +662,11 @@ export default function CrmPipelinePage() {
               data={items as (OpportunityItem & Record<string, unknown>)[]}
               empty={listEmpty}
               onRowClick={(row) => void navigate(links.opportunity(row.id))}
+              sort={tableSort}
+              onSortChange={(nextSort) => {
+                setTableSort(nextSort);
+                setPage(1);
+              }}
             />
           )}
 

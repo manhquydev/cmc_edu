@@ -35,6 +35,8 @@ const { SCORE_ID, SCORE } = vi.hoisted(() => {
   };
 });
 
+const scoreState: { data: typeof SCORE } = { data: SCORE };
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
@@ -54,7 +56,7 @@ vi.mock('../../lib/trpc.js', async () => {
           facilityId: 'f1',
           config: { approvalSecondEyeThreshold: 20_000_000 },
         }),
-      'kpi.get.useQuery': queryResult(SCORE),
+      'kpi.get.useQuery': () => queryResult(scoreState.data),
       'kpi.confirm.useMutation': () => mutationResult({ mutate: confirmMutate }),
       'kpi.override.useMutation': () => mutationResult({ mutate: overrideMutate }),
     }),
@@ -69,6 +71,7 @@ import KpiDetailPage from './kpi-detail.js';
 describe('KpiDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    scoreState.data = SCORE;
   });
 
   it('renders form from kpi.get', () => {
@@ -109,6 +112,31 @@ describe('KpiDetailPage', () => {
         overrideReason: 'Điều chỉnh E2E',
       }),
     );
+  });
+
+  it('gives every submitted status badge the brand tone (manager is the one waiting)', () => {
+    const { container } = renderWithProviders(<KpiDetailPage />, { route: `/hr/kpi/${SCORE_ID}` });
+    const badges = Array.from(container.querySelectorAll('.console-badge-soft')).filter(
+      (el) => el.textContent === 'Chờ xác nhận',
+    );
+    // EntityHeader badge + HighlightStrip + KeyValueList all show the status.
+    expect(badges.length).toBeGreaterThanOrEqual(3);
+    for (const badge of badges) {
+      expect(badge).toHaveClass('console-badge-soft--brand');
+    }
+  });
+
+  it('leaves a draft phiếu KPI on the neutral map — the employee is still editing it', () => {
+    scoreState.data = { ...SCORE, status: 'draft' };
+    const { container } = renderWithProviders(<KpiDetailPage />, { route: `/hr/kpi/${SCORE_ID}` });
+    const badges = Array.from(container.querySelectorAll('.console-badge-soft')).filter(
+      (el) => el.textContent === 'Nháp',
+    );
+    expect(badges.length).toBeGreaterThanOrEqual(1);
+    for (const badge of badges) {
+      expect(badge).toHaveClass('console-badge-soft--neutral');
+      expect(badge).not.toHaveClass('console-badge-soft--brand');
+    }
   });
 
   it('shows Odoo-like statusbar steps and dense sheet fields (no chatter)', () => {

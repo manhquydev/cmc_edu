@@ -23,6 +23,7 @@ import {
   WorkflowStatusbar,
   useToast,
 } from '@cmc/ui';
+import type { SoftTone } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { useSession } from '../../lib/session-context.js';
@@ -97,6 +98,13 @@ const STATUS_LABELS: Record<string, string> = {
   sent: 'Đã gửi',
   cancelled: 'Đã hủy',
 };
+
+// A draft receipt is parked in an approval queue — someone else has to act on
+// it. The global map keeps `draft` neutral (elsewhere it means "still editable"),
+// so the waiting meaning is applied here per call site, not globally.
+function receiptStatusTone(status: string): SoftTone | undefined {
+  return status === 'draft' ? 'brand' : undefined;
+}
 
 export default function ReceiptDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -295,6 +303,7 @@ export default function ReceiptDetailPage() {
                   <StatusBadge
                     status={receipt.status}
                     label={STATUS_LABELS[receipt.status] ?? receipt.status}
+                    tone={receiptStatusTone(receipt.status)}
                   />
                 ),
               },
@@ -610,6 +619,7 @@ export default function ReceiptDetailPage() {
               <StatusBadge
                 status={receipt.status}
                 label={STATUS_LABELS[receipt.status] ?? receipt.status}
+                tone={receiptStatusTone(receipt.status)}
               />
             }
             meta={
@@ -676,6 +686,7 @@ export default function ReceiptDetailPage() {
                     <StatusBadge
                       status={receipt.status}
                       label={STATUS_LABELS[receipt.status] ?? receipt.status}
+                      tone={receiptStatusTone(receipt.status)}
                     />
                   ),
                 },

@@ -305,6 +305,86 @@ describe('CrmPipelinePage', () => {
     });
   });
 
+  describe('table stage badges (PR2 waiting tone)', () => {
+    const OPP_O3: OpportunityRow = {
+      id: 'opp-o3',
+      stage: 'O3_TEST_SCHEDULED',
+      closedAt: null,
+      contact: { id: 'c4', name: 'Phạm Thị D', phone: '0900000004' },
+    };
+    const OPP_O4: OpportunityRow = {
+      id: 'opp-o4',
+      stage: 'O4_TESTED',
+      closedAt: null,
+      contact: { id: 'c5', name: 'Hoàng Văn E', phone: '0900000005' },
+    };
+    const OPP_O5: OpportunityRow = {
+      id: 'opp-o5',
+      stage: 'O5_ENROLLED',
+      closedAt: '2026-07-01T00:00:00.000Z',
+      contact: { id: 'c6', name: 'Vũ Thị G', phone: '0900000006' },
+    };
+
+    function stageBadge(container: HTMLElement, label: string): Element {
+      const badge = Array.from(container.querySelectorAll('.console-badge-soft')).find(
+        (el) => el.textContent === label,
+      );
+      if (!badge) throw new Error(`missing stage badge: ${label}`);
+      return badge;
+    }
+
+    it('tones the stage cell: O3/O4 brand, O5 success, O1/O2 neutral', () => {
+      listState.data = {
+        items: [OPP_O1, OPP_O2, OPP_O3, OPP_O4, OPP_O5],
+        total: 5,
+        page: 1,
+        pageSize: 20,
+        stageCounts: STAGE_COUNTS_MOCK,
+        lostCount: 0,
+      };
+      const { container } = renderWithProviders(<CrmPipelinePage />, { route: '/crm?view=table' });
+      expect(stageBadge(container, 'Tiếp cận')).toHaveClass('console-badge-soft--neutral');
+      expect(stageBadge(container, 'Đã liên hệ')).toHaveClass('console-badge-soft--neutral');
+      expect(stageBadge(container, 'Đặt lịch kiểm tra')).toHaveClass('console-badge-soft--brand');
+      expect(stageBadge(container, 'Đã kiểm tra')).toHaveClass('console-badge-soft--brand');
+      expect(stageBadge(container, 'Đã ghi danh')).toHaveClass('console-badge-soft--success');
+    });
+
+    it('keeps the stage badges on the compact size so the column does not widen', () => {
+      listState.data = { items: [OPP_O3], total: 1, page: 1, pageSize: 20, stageCounts: STAGE_COUNTS_MOCK, lostCount: 0 };
+      const { container } = renderWithProviders(<CrmPipelinePage />, { route: '/crm?view=table' });
+      expect(stageBadge(container, 'Đặt lịch kiểm tra')).toHaveClass('console-badge-soft--sm');
+    });
+
+    it('keeps a lost opportunity on the danger tone, not a stage tone', () => {
+      const OPP_LOST: OpportunityRow = {
+        id: 'opp-lost',
+        stage: 'O3_TEST_SCHEDULED',
+        closedAt: '2026-07-01T00:00:00.000Z',
+        contact: { id: 'c8', name: 'Bùi Thị F', phone: '0900000008' },
+      };
+      listState.data = { items: [OPP_LOST], total: 1, page: 1, pageSize: 20, stageCounts: STAGE_COUNTS_MOCK, lostCount: 1 };
+      const { container } = renderWithProviders(<CrmPipelinePage />, { route: '/crm?view=table' });
+      const lost = stageBadge(container, 'Lost');
+      expect(lost).toHaveClass('console-badge-soft--danger');
+      expect(lost).not.toHaveClass('console-badge-soft--brand');
+    });
+
+    it('leaves kanban cards without stage badges (PR2 touches the table only)', () => {
+      listState.data = {
+        items: [OPP_O1, OPP_O2, OPP_O3, OPP_O4],
+        total: 4,
+        page: 1,
+        pageSize: 20,
+        stageCounts: STAGE_COUNTS_MOCK,
+        lostCount: 0,
+      };
+      const { container } = renderWithProviders(<CrmPipelinePage />);
+      expect(container.querySelector('.console-kanban-board')).toBeInTheDocument();
+      expect(container.querySelectorAll('.console-badge-soft')).toHaveLength(0);
+    });
+  });
+
   describe('table list empty grammar (Wave 4A bridge)', () => {
     it('never sets ListPage isEmpty — FunnelBar stays when table is empty', () => {
       listState.data = {
@@ -578,6 +658,62 @@ describe('CrmPipelinePage', () => {
       fireEvent.click(screen.getByLabelText('Xem dạng danh sách'));
       fireEvent.click(screen.getByLabelText('Xem dạng kanban'));
       expect(screen.getAllByRole('button', { name: 'Chuyển lên' }).length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('table server sorting (PR4)', () => {
+    it('exposes only Giai đoạn and Việc tiếp as sortable headers', () => {
+      renderWithProviders(<CrmPipelinePage />, { route: '/crm?view=table' });
+
+      expect(screen.getByRole('button', { name: 'Giai đoạn' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Việc tiếp' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Học viên' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'SĐT' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Phụ trách' })).not.toBeInTheDocument();
+    });
+
+    it('passes ascending then descending stage sort to opportunityList', () => {
+      renderWithProviders(<CrmPipelinePage />, { route: '/crm?view=table' });
+      const stageHeader = screen.getByRole('button', { name: 'Giai đoạn' });
+
+      listQuerySpy.mockClear();
+      fireEvent.click(stageHeader);
+      expect(listQuerySpy).toHaveBeenCalledWith({
+        lost: 'exclude',
+        page: 1,
+        pageSize: 20,
+        sort: { field: 'stage', direction: 'asc' },
+      });
+
+      listQuerySpy.mockClear();
+      fireEvent.click(stageHeader);
+      expect(listQuerySpy).toHaveBeenCalledWith({
+        lost: 'exclude',
+        page: 1,
+        pageSize: 20,
+        sort: { field: 'stage', direction: 'desc' },
+      });
+    });
+
+    it('passes nextActionAt sort in table and omits sort after switching to kanban', () => {
+      renderWithProviders(<CrmPipelinePage />, { route: '/crm?view=table' });
+
+      listQuerySpy.mockClear();
+      fireEvent.click(screen.getByRole('button', { name: 'Việc tiếp' }));
+      expect(listQuerySpy).toHaveBeenCalledWith({
+        lost: 'exclude',
+        page: 1,
+        pageSize: 20,
+        sort: { field: 'nextActionAt', direction: 'asc' },
+      });
+
+      listQuerySpy.mockClear();
+      fireEvent.click(screen.getByLabelText('Xem dạng kanban'));
+      expect(listQuerySpy).toHaveBeenCalledWith({
+        lost: 'exclude',
+        page: 1,
+        pageSize: 20,
+      });
     });
   });
 

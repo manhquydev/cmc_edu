@@ -79,10 +79,13 @@ test.describe('P2 journey — cơ hội đang nguội', () => {
 
     await ageOpportunityByName(leadName);
     await page.reload();
-    await expect(page.getByText(leadName, { exact: true })).toBeVisible();
-    await expect(page.getByTestId('crm-rotting-badge').first()).toBeVisible({ timeout: 15_000 });
+    const leadCard = page
+      .locator('div[role="button"]')
+      .filter({ has: page.getByText(leadName, { exact: true }) });
+    await expect(leadCard).toHaveCount(1);
+    await expect(leadCard.getByTestId('crm-rotting-badge')).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole('button', { name: 'Chuyển lên' }).first().click();
+    await leadCard.getByRole('button', { name: 'Chuyển lên' }).click();
     await page.reload();
     await expect(page.getByText(leadName, { exact: true })).toBeVisible();
 

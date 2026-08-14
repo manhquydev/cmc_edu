@@ -98,6 +98,16 @@ describe('ReceiptListPage', () => {
     expect(screen.getByText('Trần Thị B')).toBeInTheDocument();
   });
 
+  it('gives a draft receipt the brand tone (waiting on an approver) and leaves other statuses on the map', () => {
+    const { container } = renderWithProviders(<ReceiptListPage />, { route: '/finance' });
+    const badges = Array.from(container.querySelectorAll('.console-badge-soft'));
+    const draft = badges.find((el) => el.textContent === 'Nháp');
+    const approved = badges.find((el) => el.textContent === 'Đã duyệt');
+    expect(draft).toHaveClass('console-badge-soft--brand');
+    expect(approved).toHaveClass('console-badge-soft--success');
+    expect(approved).not.toHaveClass('console-badge-soft--brand');
+  });
+
   it('renders ListPagination in the list control footer', () => {
     renderWithProviders(<ReceiptListPage />, { route: '/finance' });
     expect(screen.getByRole('navigation', { name: 'Phân trang' })).toBeInTheDocument();
@@ -123,5 +133,14 @@ describe('ReceiptListPage', () => {
     expect(writeText).toHaveBeenCalled();
     const arg = String(writeText.mock.calls[0]?.[0] ?? '');
     expect(arg).toContain('SO0001');
+  });
+
+  it('does not offer dishonest “Chọn tất cả N khớp” when only the current page is selectable', () => {
+    // total in the mock equals page rows today; even if total were larger, the
+    // page must not pass onSelectAllMatching until an ID endpoint exists.
+    renderWithProviders(<ReceiptListPage />, { route: '/finance' });
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]!);
+    expect(screen.queryByRole('button', { name: /Chọn tất cả .* dòng khớp bộ lọc/ })).toBeNull();
   });
 });

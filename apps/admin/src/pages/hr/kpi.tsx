@@ -17,7 +17,7 @@ import {
   StatusBadge,
   useToast,
 } from '@cmc/ui';
-import type { FilterDef, TableColumn } from '@cmc/ui';
+import type { FilterDef, SoftTone, TableColumn } from '@cmc/ui';
 import { links } from '@cmc/links';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
@@ -37,6 +37,12 @@ const KPI_STATUS_LABELS: Record<string, string> = {
   confirmed: 'Đã xác nhận',
   approved: 'Đã duyệt',
 };
+
+// `submitted` is the only KPI state waiting on someone else (the manager).
+// `draft` stays on the default neutral map — the employee is still editing it.
+function kpiStatusTone(status: string): SoftTone | undefined {
+  return status === 'submitted' ? 'brand' : undefined;
+}
 
 const STATUS_FILTER_OPTIONS = [
   { value: 'submitted', label: 'Chờ xác nhận' },
@@ -136,7 +142,13 @@ export default function KpiPage() {
       key: 'status',
       label: 'Trạng thái',
       width: 140,
-      render: (v) => <StatusBadge status={String(v)} label={KPI_STATUS_LABELS[String(v)] ?? String(v)} />,
+      render: (v) => (
+        <StatusBadge
+          status={String(v)}
+          label={KPI_STATUS_LABELS[String(v)] ?? String(v)}
+          tone={kpiStatusTone(String(v))}
+        />
+      ),
     },
     {
       key: 'value',

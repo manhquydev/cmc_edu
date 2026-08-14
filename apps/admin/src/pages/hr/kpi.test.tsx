@@ -160,6 +160,24 @@ describe('KpiPage', () => {
     expect(screen.getByText(/Đã tất toán 3 phiếu KPI/)).toBeInTheDocument();
   });
 
+  it('gives a submitted KPI row the brand tone (manager is the one waiting)', () => {
+    const { container } = renderWithProviders(<KpiPage />);
+    const badge = Array.from(container.querySelectorAll('.console-badge-soft')).find(
+      (el) => el.textContent === 'Chờ xác nhận',
+    );
+    expect(badge).toHaveClass('console-badge-soft--brand');
+  });
+
+  it('leaves a draft KPI row on the neutral map — the employee is still editing it', () => {
+    listData = [{ ...ROW_SUBMITTED, status: 'draft' }];
+    const { container } = renderWithProviders(<KpiPage />);
+    const badge = Array.from(container.querySelectorAll('.console-badge-soft')).find(
+      (el) => el.textContent === 'Nháp',
+    );
+    expect(badge).toHaveClass('console-badge-soft--neutral');
+    expect(badge).not.toHaveClass('console-badge-soft--brand');
+  });
+
   it('shows a tierMissing badge on rows lacking a salary tier', () => {
     listData = [{ ...ROW_SUBMITTED, tierMissing: true }];
     renderWithProviders(<KpiPage />);

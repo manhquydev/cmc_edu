@@ -23,4 +23,21 @@ describe('BulkActionBar', () => {
     fireEvent.click(screen.getByText('Bỏ chọn'));
     expect(onClear).toHaveBeenCalled();
   });
+
+  it('offers selecting every matching row after the current page is selected', () => {
+    const onSelectAllMatching = vi.fn();
+    render(
+      <BulkActionBar
+        selectionCount={20}
+        pageSize={20}
+        totalMatching={312}
+        onSelectAllMatching={onSelectAllMatching}
+      >
+        <button type="button">Duyệt</button>
+      </BulkActionBar>,
+    );
+
+    fireEvent.click(screen.getByText('Chọn tất cả 312 dòng khớp bộ lọc'));
+    expect(onSelectAllMatching).toHaveBeenCalledTimes(1);
+  });
 });

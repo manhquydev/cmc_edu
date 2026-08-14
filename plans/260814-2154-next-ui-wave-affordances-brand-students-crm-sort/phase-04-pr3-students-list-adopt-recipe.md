@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "PR3 students list adopt recipe"
-status: in-progress
+status: completed
 priority: P1
 effort: "0.5d"
 dependencies: [2]

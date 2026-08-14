@@ -126,10 +126,17 @@ export { PageHeader, BreadcrumbHrefProvider } from './components/page-header.js'
 export type { PageHeaderProps, Breadcrumb, BreadcrumbHrefResolver } from './components/page-header.js';
 
 export { DataTable } from './components/data-table.js';
-export type { DataTableProps, TableColumn } from './components/data-table.js';
+export type {
+  DataTableProps,
+  SortDirection,
+  TableColumn,
+  TableDensity,
+  TableEmptySpec,
+  TableSort,
+} from './components/data-table.js';
 
 export { EmptyState } from './components/empty-state.js';
-export type { EmptyStateProps } from './components/empty-state.js';
+export type { EmptyStateKind, EmptyStateProps } from './components/empty-state.js';
 
 export { StatCard } from './components/stat-card.js';
 export type { StatCardProps } from './components/stat-card.js';

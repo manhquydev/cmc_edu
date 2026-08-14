@@ -1,25 +1,41 @@
 ---
 title: "Clone visual OpenEduCat (pack 36 PNG) vào admin CMC"
-description: "Đưa apps/admin nhìn y hệt pack OpenEduCat/Odoo 18 Community về token, control panel 1 hàng, list/kanban/form. Không port OWL."
-status: pending
-priority: P0
-effort: multi-sprint
-tags: [ui, openeducat, console, design-system, control-panel]
+description: "SUPERSEDED as full clone execution. Residual chrome debt only — see Residual section. Bridge grammar cook: plans/260814-1656-ui-bridge-crm-e2e-after-d0-d5/"
+status: cancelled
+priority: P2
+effort: residual-only
+tags: [ui, openeducat, console, design-system, control-panel, superseded]
 created: 2026-08-13
 blockedBy: []
 blocks: []
+supersededBy: 260814-1656-ui-bridge-crm-e2e-after-d0-d5
 ---
 
 # Clone visual OpenEduCat → CMC admin
 
+> **2026-08-14:** Full clone *execution* plan **superseded** by  
+> [`plans/260814-1656-ui-bridge-crm-e2e-after-d0-d5/`](../260814-1656-ui-bridge-crm-e2e-after-d0-d5/).  
+> Visual **contract** remains SoT: [`OPENEDUCAT-VISUAL-CONTRACT.md`](../../design-system/cmc-edu/OPENEDUCAT-VISUAL-CONTRACT.md).  
+> Do not resurrect mass clone work here.
+
+## Residual chrome debt (track before closing)
+
+| Gap | Notes |
+|-----|-------|
+| Control panel / StatActions placement fidelity | Screenshot acceptance vs pack |
+| Course-card / kanban person-grid chrome | Non-CRM kanban cards |
+| Form sheet / smart-button visual parity | Pack form PNGs |
+| Search facet + view-switcher edge cases | If still drifting from contract |
+
+File GitHub issues or a tiny residual plan for rows still open; do not reopen this as P0 mega-clone.
+
 **Hợp đồng visual:** [`design-system/cmc-edu/OPENEDUCAT-VISUAL-CONTRACT.md`](../../design-system/cmc-edu/OPENEDUCAT-VISUAL-CONTRACT.md)  
 **Phân tích pack:** [`plans/reports/research-260813-openeducat-ui-pack-visual.md`](../reports/research-260813-openeducat-ui-pack-visual.md)  
-**Pack:** `/home/manhquy/Downloads/openeducat-ui-pack`  
-**Quyết định liên quan:** Đ1 (thẩm mỹ) trong [`decisions-owner-260813-1607-trai-nghiem-crm.md`](../reports/decisions-owner-260813-1607-trai-nghiem-crm.md). Chatter (P2) đi theo chương trình CRM, không chặn P0 chrome.
+**Pack:** `/home/manhquy/Downloads/openeducat-ui-pack`
 
 Admin only. LMS không import `console.css`.
 
-## Overview
+## Overview (historical)
 
 CMC đã có shell Odoo-like. Pack 36 PNG chứng minh bốn lệch làm admin **không y hệt**: ControlBar xếp chồng, CTA xanh Apple, kanban SIS không phải lưới thẻ, chatter chưa có. Plan này sửa visual/layout; không đổi nghiệp vụ.
 

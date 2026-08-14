@@ -3,7 +3,9 @@
 > **Authority for admin visual clone.** Source of truth = PNG pack  
 > `/home/manhquy/Downloads/openeducat-ui-pack` (Odoo 18 Community + OpenEduCat 18).  
 > Analysis: `plans/reports/research-260813-openeducat-ui-pack-visual.md`  
-> Implementation: `plans/260813-2038-openeducat-visual-clone/`  
+> Implementation (chrome contract fidelity): residual tracker on superseded  
+> `plans/260813-2038-openeducat-visual-clone/` — full clone execution cancelled 2026-08-14.  
+> Grammar bridge cook: `plans/260814-1656-ui-bridge-crm-e2e-after-d0-d5/`.  
 > Runtime CSS: `packages/ui/src/console.css` under `.o_web_client` only. LMS stays `lms-*`.
 
 This contract **supersedes** `MASTER.md` Apple-blue lock **inside `.o_web_client`**.  

@@ -305,6 +305,60 @@ describe('CrmPipelinePage', () => {
     });
   });
 
+  describe('table list empty grammar (Wave 4A bridge)', () => {
+    it('never sets ListPage isEmpty — FunnelBar stays when table is empty', () => {
+      listState.data = {
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        stageCounts: { O1_LEAD: 0, O2_CONTACTED: 0, O3_TEST_SCHEDULED: 0, O4_TESTED: 0, O5_ENROLLED: 0 },
+        lostCount: 0,
+      };
+      const { container } = renderWithProviders(<CrmPipelinePage />, { route: '/crm?view=table' });
+      expect(container.querySelectorAll('.console-fn-row').length).toBeGreaterThan(0);
+      expect(screen.getByText('Chưa có cơ hội nào')).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: 'Thêm cơ hội' }).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('claims filtered empty when facility evidence exists under active search', () => {
+      vi.useFakeTimers();
+      listState.data = {
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        stageCounts: STAGE_COUNTS_MOCK,
+        lostCount: 2,
+      };
+      renderWithProviders(<CrmPipelinePage />, { route: '/crm?view=table' });
+      const searchInput = screen.getByPlaceholderText('Tìm theo tên hoặc SĐT…');
+      fireEvent.change(searchInput, { target: { value: 'xyz-no-match' } });
+      act(() => vi.advanceTimersByTime(300));
+      expect(screen.getByText('Không cơ hội nào khớp bộ lọc')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Bỏ tất cả bộ lọc' })).toBeInTheDocument();
+      expect(screen.queryByText('Chưa có cơ hội nào')).not.toBeInTheDocument();
+    });
+
+    it('does not treat lostCount alone as filtered evidence under lost=exclude', () => {
+      vi.useFakeTimers();
+      listState.data = {
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        stageCounts: { O1_LEAD: 0, O2_CONTACTED: 0, O3_TEST_SCHEDULED: 0, O4_TESTED: 0, O5_ENROLLED: 0 },
+        lostCount: 9,
+      };
+      renderWithProviders(<CrmPipelinePage />, { route: '/crm?view=table' });
+      const searchInput = screen.getByPlaceholderText('Tìm theo tên hoặc SĐT…');
+      fireEvent.change(searchInput, { target: { value: 'xyz-no-match' } });
+      act(() => vi.advanceTimersByTime(300));
+      expect(screen.getByText('Không có cơ hội khớp điều kiện hiện tại')).toBeInTheDocument();
+      expect(screen.queryByText('Không cơ hội nào khớp bộ lọc')).not.toBeInTheDocument();
+    });
+  });
+
   it('renders the lostCount from the server response', () => {
     listState.data = { ...listState.data!, lostCount: 4 };
     renderWithProviders(<CrmPipelinePage />);

@@ -120,7 +120,10 @@ export type { TextFieldProps, PasswordInputProps } from './components/auth-input
 
 // Primitive components (DUMB — no tRPC calls, props-driven only)
 export { StatusBadge } from './components/status-badge.js';
-export type { StatusBadgeProps } from './components/status-badge.js';
+export type { SoftTone, StatusBadgeProps } from './components/status-badge.js';
+
+export { CategoryChip } from './components/category-chip.js';
+export type { CategoryChipProps, CategoryId } from './components/category-chip.js';
 
 export { PageHeader, BreadcrumbHrefProvider } from './components/page-header.js';
 export type { PageHeaderProps, Breadcrumb, BreadcrumbHrefResolver } from './components/page-header.js';

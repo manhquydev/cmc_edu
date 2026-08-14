@@ -11,9 +11,17 @@ blockedBy: [260807-1453-cmc-console-design-system-rebrand-hardening]
 
 # Odoo UI Component Dissection → CMC Professional Parity
 
+> **2026-08-14 annotation (not cancelled):** This plan stays **active** as the
+> Odoo source-pin / layout-parity *audit process*. Console **execution** for
+> design-lab grammar after D0–D5 is owned by
+> [`plans/260814-1656-ui-bridge-crm-e2e-after-d0-d5/`](../260814-1656-ui-bridge-crm-e2e-after-d0-d5/).
+> Interactive accent inside `.o_web_client` is Community purple `#71639e` per
+> `OPENEDUCAT-VISUAL-CONTRACT.md` — ignore the historical “CMC blue `#0071E3`”
+> non-goal line below for admin chrome.
+
 ## Outcome
 
-Staff admin UI (`apps/admin`) looks and behaves like a **professional Odoo backend** at the layout/grammar level — without porting OWL, XML arch, Bootstrap, or purple brand as interactive accent.
+Staff admin UI (`apps/admin`) looks and behaves like a **professional Odoo backend** at the layout/grammar level — without porting OWL, XML arch, or Bootstrap.
 
 ## Source of truth
 

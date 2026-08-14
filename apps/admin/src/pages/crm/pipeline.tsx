@@ -23,6 +23,7 @@ import {
   dueLevelClassName,
   type FilterDef,
   type TableColumn,
+  type TableEmptySpec,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { formatContactPhone } from '../../lib/format-contact-phone.js';
@@ -391,7 +392,67 @@ export default function CrmPipelinePage() {
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // Clamp when records disappear under the operator (items=[] but total>0 on a
+  // stale page). Must run before choosing an empty story.
+  useEffect(() => {
+    if (!data) return;
+    if (page > totalPages) setPage(totalPages);
+  }, [data, page, totalPages]);
+
   const ready = !isLoading && !error;
+
+  const facilityOpenTotal = STAGES.reduce((sum, s) => sum + (stageCounts[s.key] ?? 0), 0);
+  // stageCounts are open-pipeline only. lostCount must not prove "filtered" while
+  // lost='exclude' (default) — those rows are intentionally out of domain.
+  const hasFacilityEvidence =
+    lostFilter === 'only'
+      ? lostCount > 0
+      : facilityOpenTotal > 0 || (lostFilter === 'include' && lostCount > 0);
+
+  const clearListFilters = () => {
+    setFilterValues({ q: '', lost: 'exclude' });
+    const params = new URLSearchParams(searchParams);
+    params.delete('stage');
+    params.delete('due');
+    setSearchParams(params, { replace: true });
+  };
+
+  const listEmpty: string | TableEmptySpec = (() => {
+    if (total > 0) {
+      return 'Không có dòng trên trang này';
+    }
+    if (!filtersActive) {
+      return {
+        kind: 'first-run',
+        title: 'Chưa có cơ hội nào',
+        description: 'Thêm cơ hội đầu tiên để bắt đầu pipeline O1 → O5.',
+        action: (
+          <Button
+            label="Thêm cơ hội"
+            size="sm"
+            variant="primary"
+            onClick={() => setCreateOpen(true)}
+          />
+        ),
+      };
+    }
+    if (hasFacilityEvidence) {
+      return {
+        kind: 'filtered',
+        title: 'Không cơ hội nào khớp bộ lọc',
+        description: 'Bỏ tìm kiếm hoặc reset giai đoạn / hạn / đã mất để thấy lại danh sách.',
+        action: (
+          <Button
+            label="Bỏ tất cả bộ lọc"
+            size="sm"
+            variant="secondary"
+            onClick={clearListFilters}
+          />
+        ),
+      };
+    }
+    return 'Không có cơ hội khớp điều kiện hiện tại';
+  })();
 
   const listColumns: TableColumn<OpportunityItem & Record<string, unknown>>[] = useMemo(
     () => [
@@ -561,7 +622,7 @@ export default function CrmPipelinePage() {
             <DataTable<OpportunityItem & Record<string, unknown>>
               columns={listColumns}
               data={items as (OpportunityItem & Record<string, unknown>)[]}
-              empty="Chưa có cơ hội nào"
+              empty={listEmpty}
               onRowClick={(row) => void navigate(links.opportunity(row.id))}
             />
           )}

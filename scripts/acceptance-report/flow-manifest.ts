@@ -34,6 +34,9 @@ export const flows: FlowEntry[] = [
         'crm.opportunityList',
         'crm.assignableStaff',
         'crm.opportunityAssign',
+        // Con A chatter on /crm/opportunities/:id (RecordTimeline).
+        'crm.opportunityTimeline',
+        'crm.opportunityAddNote',
       ],
       uiRoutes: ['/crm', '/crm/opportunities/:id'],
       models: ['Opportunity'],

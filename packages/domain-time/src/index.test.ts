@@ -5,9 +5,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDaysToDateOnly,
+  classifyDueLevel,
   compareDateOnly,
   creditFactor,
   ictDateOnlyOf,
+  ictDueBounds,
   ictMonthBounds,
   ictMonthOf,
   ictToUtc,
@@ -170,6 +172,40 @@ describe('addDaysToDateOnly', () => {
 // ---------------------------------------------------------------------------
 // compareDateOnly
 // ---------------------------------------------------------------------------
+
+describe('classifyDueLevel', () => {
+  // 2026-08-13 10:00 ICT = 2026-08-13T03:00:00.000Z — never `new Date()`.
+  const now = new Date('2026-08-13T03:00:00.000Z');
+
+  it('returns late when nextActionAt ICT date is before now ICT date', () => {
+    expect(classifyDueLevel(new Date('2026-08-12T03:00:00.000Z'), now)).toBe('late');
+  });
+
+  it('returns today when ICT calendar dates match', () => {
+    expect(classifyDueLevel(new Date('2026-08-13T10:00:00.000Z'), now)).toBe('today');
+  });
+
+  it('returns future when nextActionAt ICT date is after now ICT date', () => {
+    expect(classifyDueLevel(new Date('2026-08-14T03:00:00.000Z'), now)).toBe('future');
+  });
+
+  it('splits late vs today at the ICT midnight (16:59 UTC vs 17:00 UTC)', () => {
+    // 16:59 UTC = 23:59 ICT on 12 Aug; 17:00 UTC = 00:00 ICT on 13 Aug.
+    expect(classifyDueLevel(new Date('2026-08-12T16:59:00.000Z'), now)).toBe('late');
+    expect(classifyDueLevel(new Date('2026-08-12T17:00:00.000Z'), now)).toBe('today');
+  });
+
+  it('splits today vs future at the next ICT midnight (16:59 UTC vs 17:00 UTC)', () => {
+    expect(classifyDueLevel(new Date('2026-08-13T16:59:00.000Z'), now)).toBe('today');
+    expect(classifyDueLevel(new Date('2026-08-13T17:00:00.000Z'), now)).toBe('future');
+  });
+
+  it('ictDueBounds matches those ICT midnight instants', () => {
+    const { startToday, startTomorrow } = ictDueBounds(now);
+    expect(startToday.toISOString()).toBe('2026-08-12T17:00:00.000Z');
+    expect(startTomorrow.toISOString()).toBe('2026-08-13T17:00:00.000Z');
+  });
+});
 
 describe('compareDateOnly', () => {
   it('returns -1 when a < b', () => {

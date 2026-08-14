@@ -9,17 +9,19 @@ import { trpc } from '../../lib/trpc.js';
  * Scheduling and completing an entrance appointment silently advance the
  * opportunity's stage server-side (O2->O3, O3->O4 — see
  * `apps/api/src/appointment/router.ts`), so every mutation here invalidates
- * BOTH `crm.opportunityList` (bare invalidate, matching the DRY-invalidate
- * pattern in `use-opportunity-actions.ts` — pipeline.tsx's own
- * `opportunityAdvance` optimistic-update path targets its own listInput-keyed
- * cache separately and is untouched by this) and `testAppointment.forOpportunity`
- * so an open detail page's appointment list stays in sync.
+ * `crm.opportunityList`, `crm.opportunityGet` (so the open detail page's
+ * statusbar moves), and `testAppointment.forOpportunity`. noShow does not
+ * change stage but still refreshes Get so the detail view cannot go stale.
+ * pipeline.tsx's own `opportunityAdvance` optimistic-update path targets its
+ * own listInput-keyed cache separately and is untouched by this.
  */
 export function useTestAppointmentActions() {
   const utils = trpc.useUtils();
 
   const invalidateAppointmentViews = () => {
     void utils.crm.opportunityList.invalidate();
+    void utils.crm.opportunityGet.invalidate();
+    void utils.crm.opportunityTimeline.invalidate();
     void utils.testAppointment.forOpportunity.invalidate();
   };
 

@@ -1,27 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DEFAULT_ROTTING_THRESHOLD_DAYS,
-  getRottingThresholdDays,
-  isOpportunityRotting,
-} from './rotting.js';
+import { isOpportunityRotting, rottingAgeDays } from './rotting.js';
 
 const NOW = new Date('2026-08-09T12:00:00.000Z');
 const DAYS = (n: number) => n * 24 * 60 * 60 * 1000;
-
-describe('getRottingThresholdDays', () => {
-  it('defaults to 7', () => {
-    expect(getRottingThresholdDays({})).toBe(DEFAULT_ROTTING_THRESHOLD_DAYS);
-  });
-
-  it('reads ROTTING_THRESHOLD_DAYS when positive', () => {
-    expect(getRottingThresholdDays({ ROTTING_THRESHOLD_DAYS: '3' })).toBe(3);
-  });
-
-  it('falls back on invalid values', () => {
-    expect(getRottingThresholdDays({ ROTTING_THRESHOLD_DAYS: '0' })).toBe(7);
-    expect(getRottingThresholdDays({ ROTTING_THRESHOLD_DAYS: 'nope' })).toBe(7);
-  });
-});
 
 describe('isOpportunityRotting', () => {
   const base = {
@@ -31,8 +12,37 @@ describe('isOpportunityRotting', () => {
     createdAt: new Date(NOW.getTime() - DAYS(30)),
   };
 
-  it('is true when stage clock is older than threshold (age > days)', () => {
-    expect(isOpportunityRotting(base, NOW, 7)).toBe(true);
+  it('is true when stage clock is older than the per-stage threshold (O1/O2 = 7)', () => {
+    expect(isOpportunityRotting(base, NOW)).toBe(true);
+    expect(rottingAgeDays(base, NOW)).toBe(8);
+  });
+
+  it('O1 is rotting at 8 days', () => {
+    const o1 = { ...base, stage: 'O1_LEAD' };
+    expect(isOpportunityRotting(o1, NOW)).toBe(true);
+    expect(rottingAgeDays(o1, NOW)).toBe(8);
+  });
+
+  it('O3 is not rotting at 8 days (threshold 14)', () => {
+    const o3 = { ...base, stage: 'O3_TEST_SCHEDULED' };
+    expect(isOpportunityRotting(o3, NOW)).toBe(false);
+    expect(rottingAgeDays(o3, NOW)).toBeNull();
+  });
+
+  it('O3 is rotting at 15 days', () => {
+    const o3 = {
+      ...base,
+      stage: 'O3_TEST_SCHEDULED',
+      stageChangedAt: new Date(NOW.getTime() - DAYS(15)),
+    };
+    expect(isOpportunityRotting(o3, NOW)).toBe(true);
+    expect(rottingAgeDays(o3, NOW)).toBe(15);
+  });
+
+  it('O4 is rotting at 8 days (threshold 7)', () => {
+    const o4 = { ...base, stage: 'O4_TESTED' };
+    expect(isOpportunityRotting(o4, NOW)).toBe(true);
+    expect(rottingAgeDays(o4, NOW)).toBe(8);
   });
 
   it('is false when stage clock is exactly at the boundary (not strictly older)', () => {
@@ -40,8 +50,8 @@ describe('isOpportunityRotting', () => {
       ...base,
       stageChangedAt: new Date(NOW.getTime() - DAYS(7)),
     };
-    // anchor === now - threshold → NOT < → not rotting
-    expect(isOpportunityRotting(atBoundary, NOW, 7)).toBe(false);
+    expect(isOpportunityRotting(atBoundary, NOW)).toBe(false);
+    expect(rottingAgeDays(atBoundary, NOW)).toBeNull();
   });
 
   it('is false when stage clock is fresher than threshold', () => {
@@ -49,7 +59,7 @@ describe('isOpportunityRotting', () => {
       ...base,
       stageChangedAt: new Date(NOW.getTime() - DAYS(3)),
     };
-    expect(isOpportunityRotting(fresh, NOW, 7)).toBe(false);
+    expect(isOpportunityRotting(fresh, NOW)).toBe(false);
   });
 
   it('falls back to createdAt when stageChangedAt is null', () => {
@@ -58,7 +68,8 @@ describe('isOpportunityRotting', () => {
       stageChangedAt: null,
       createdAt: new Date(NOW.getTime() - DAYS(10)),
     };
-    expect(isOpportunityRotting(noClock, NOW, 7)).toBe(true);
+    expect(isOpportunityRotting(noClock, NOW)).toBe(true);
+    expect(rottingAgeDays(noClock, NOW)).toBe(10);
   });
 
   it('never flags O5_ENROLLED', () => {
@@ -66,9 +77,14 @@ describe('isOpportunityRotting', () => {
       isOpportunityRotting(
         { ...base, stage: 'O5_ENROLLED', closedAt: new Date(NOW.getTime() - DAYS(1)) },
         NOW,
-        7,
       ),
     ).toBe(false);
+    expect(
+      rottingAgeDays(
+        { ...base, stage: 'O5_ENROLLED', closedAt: new Date(NOW.getTime() - DAYS(1)) },
+        NOW,
+      ),
+    ).toBeNull();
   });
 
   it('never flags lost opportunities', () => {
@@ -76,7 +92,6 @@ describe('isOpportunityRotting', () => {
       isOpportunityRotting(
         { ...base, closedAt: new Date(NOW.getTime() - DAYS(1)) },
         NOW,
-        7,
       ),
     ).toBe(false);
   });
@@ -89,7 +104,6 @@ describe('isOpportunityRotting', () => {
           nextActionAt: new Date(NOW.getTime() + DAYS(1)),
         },
         NOW,
-        7,
       ),
     ).toBe(false);
   });
@@ -102,7 +116,6 @@ describe('isOpportunityRotting', () => {
           nextActionAt: new Date(NOW.getTime() - DAYS(1)),
         },
         NOW,
-        7,
       ),
     ).toBe(true);
   });

@@ -22,6 +22,39 @@ describe('ProgressSteps', () => {
     expect(onStepClick).toHaveBeenCalledWith(0);
   });
 
+  it('with canStepClick, only the allowed next step is enabled', () => {
+    const onStepClick = vi.fn();
+    const activeIndex = 1;
+    render(
+      <ProgressSteps
+        activeIndex={activeIndex}
+        onStepClick={onStepClick}
+        canStepClick={(i) => i === activeIndex + 1}
+        steps={[
+          { id: 'a', label: 'A' },
+          { id: 'b', label: 'B' },
+          { id: 'c', label: 'C' },
+          { id: 'd', label: 'D' },
+        ]}
+      />,
+    );
+    const past = screen.getByRole('button', { name: /A/ });
+    const current = screen.getByRole('button', { name: /B/ });
+    const next = screen.getByRole('button', { name: 'C' });
+    const far = screen.getByRole('button', { name: 'D' });
+    expect(past).toBeDisabled();
+    expect(current).toBeDisabled();
+    expect(next).not.toBeDisabled();
+    expect(far).toBeDisabled();
+
+    fireEvent.click(next);
+    expect(onStepClick).toHaveBeenCalledTimes(1);
+    expect(onStepClick).toHaveBeenCalledWith(2);
+
+    fireEvent.click(past);
+    expect(onStepClick).toHaveBeenCalledTimes(1);
+  });
+
   it('exposes full label and state to assistive technology, incl. truncated labels', () => {
     render(
       <ProgressSteps

@@ -122,6 +122,8 @@ const ACTIVE_ROLE_MATRIX: Array<{ key: string; allowed: readonly string[] }> = [
   { key: 'crm.opportunityMarkLost', allowed: ['giam_doc_kinh_doanh', 'sale'] },
   { key: 'crm.opportunityAssign', allowed: ['giam_doc_kinh_doanh', 'sale'] },
   { key: 'crm.report', allowed: ['giam_doc_kinh_doanh', 'sale'] },
+  { key: 'crm.opportunityTimeline', allowed: ['giam_doc_kinh_doanh', 'sale'] },
+  { key: 'crm.opportunityAddNote', allowed: ['giam_doc_kinh_doanh', 'sale'] },
   { key: 'finance.receiptCreate', allowed: ['giam_doc_kinh_doanh', 'sale'] },
   { key: 'finance.receiptApprove', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'finance.refundCreate', allowed: ['giam_doc_kinh_doanh'] },

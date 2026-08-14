@@ -9,6 +9,7 @@ export interface WorkflowStatusbarProps {
   /** 0-based active index. */
   activeIndex: number;
   onStepClick?: (index: number) => void;
+  canStepClick?: (index: number) => boolean;
   className?: string;
 }
 
@@ -16,12 +17,18 @@ export function WorkflowStatusbar({
   steps,
   activeIndex,
   onStepClick,
+  canStepClick,
   className,
 }: WorkflowStatusbarProps) {
   const cls = className ? `console-workflow-statusbar ${className}` : 'console-workflow-statusbar';
   return (
     <div className={cls}>
-      <ProgressSteps steps={steps} activeIndex={activeIndex} onStepClick={onStepClick} />
+      <ProgressSteps
+        steps={steps}
+        activeIndex={activeIndex}
+        onStepClick={onStepClick}
+        canStepClick={canStepClick}
+      />
     </div>
   );
 }

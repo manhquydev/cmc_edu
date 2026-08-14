@@ -14,15 +14,27 @@ export interface ProgressStepsProps {
   activeIndex: number;
   /** Click step (optional navigation back). */
   onStepClick?: (index: number) => void;
+  /**
+   * Per-step clickability. When omitted, past + current steps are clickable
+   * (`i <= activeIndex`) — the default every non-CRM caller relies on.
+   */
+  canStepClick?: (index: number) => boolean;
 }
 
-export function ProgressSteps({ steps, activeIndex, onStepClick }: ProgressStepsProps) {
+export function ProgressSteps({
+  steps,
+  activeIndex,
+  onStepClick,
+  canStepClick,
+}: ProgressStepsProps) {
   return (
     <ol className="console-steps" aria-label="Các bước">
       {steps.map((step, i) => {
         const state =
           i < activeIndex ? 'done' : i === activeIndex ? 'current' : 'todo';
-        const clickable = Boolean(onStepClick && i <= activeIndex);
+        const clickable = Boolean(
+          onStepClick && (canStepClick ? canStepClick(i) : i <= activeIndex),
+        );
         return (
           <li key={step.id} className={`console-steps-item is-${state}`}>
             {i > 0 ? <span className="console-steps-bridge" aria-hidden /> : null}
@@ -30,7 +42,10 @@ export function ProgressSteps({ steps, activeIndex, onStepClick }: ProgressSteps
               type="button"
               className="console-steps-btn"
               disabled={!clickable}
-              onClick={() => onStepClick?.(i)}
+              onClick={() => {
+                if (!clickable) return;
+                onStepClick?.(i);
+              }}
               aria-current={state === 'current' ? 'step' : undefined}
               title={step.label}
             >

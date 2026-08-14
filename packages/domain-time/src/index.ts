@@ -84,6 +84,35 @@ export function compareDateOnly(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+export type DueLevel = 'late' | 'today' | 'future';
+
+/**
+ * Inclusive ICT-today start and exclusive tomorrow start, as UTC instants.
+ * SQL due filters and `classifyDueLevel` must use this same pair so list
+ * `?due=` and client chip colors cannot drift.
+ */
+export function ictDueBounds(now: Date): { startToday: Date; startTomorrow: Date } {
+  const today = ictDateOnlyOf(now);
+  return {
+    startToday: ictToUtc(today, '00:00'),
+    startTomorrow: ictToUtc(addDaysToDateOnly(today, 1), '00:00'),
+  };
+}
+
+/**
+ * CRM next-action due bucket from ICT calendar dates (not the machine
+ * timezone, not a raw instant compare). `now` is an explicit argument so
+ * tests and a tab left open overnight never silently freeze yesterday's
+ * classification.
+ */
+export function classifyDueLevel(nextActionAt: Date, now: Date): DueLevel {
+  const { startToday, startTomorrow } = ictDueBounds(now);
+  const at = nextActionAt.getTime();
+  if (at < startToday.getTime()) return 'late';
+  if (at >= startTomorrow.getTime()) return 'future';
+  return 'today';
+}
+
 /**
  * P3-II: Resolves the shift group type from a staff member's roles.
  * Pure function — no DB access. Holding the teacher role puts someone in the

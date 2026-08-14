@@ -253,6 +253,8 @@ model Facility {
   /// HR remediation phase 1 back-relations.
   compensationPolicy CompensationPolicy?
   salaryTiers        SalaryTier[]
+  /// Con A record-page timeline (append-only, facility-scoped).
+  recordEvents       RecordEvent[]
 }
 
 model Contact {
@@ -307,6 +309,23 @@ model Opportunity {
   @@index([contactId])
   @@index([facilityId, assignedToId])
   @@index([facilityId, assignedToId, nextActionAt])
+}
+
+/// Append-only business-history row for a facility-scoped record (Con A).
+/// Notes are one kind of event; there is no update/delete procedure.
+/// GRANT for cmc_app is SELECT+INSERT only (enforced in the migration).
+model RecordEvent {
+  id         String   @id @default(uuid())
+  facilityId String
+  entity     String
+  entityId   String
+  kind       String
+  actor      String
+  payload    Json?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  facility   Facility @relation(fields: [facilityId], references: [id])
+
+  @@index([facilityId, entity, entityId, createdAt])
 }
 
 /// One row per facility; `value` is the last-issued sequence number.

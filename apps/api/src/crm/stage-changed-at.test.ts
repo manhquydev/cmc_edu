@@ -95,52 +95,40 @@ describe('Opportunity.stageChangedAt (P2 rotting clock)', () => {
   });
 
   it('list marks isRotting when stageChangedAt is older than threshold', async () => {
-    const prev = process.env.ROTTING_THRESHOLD_DAYS;
-    process.env.ROTTING_THRESHOLD_DAYS = '7';
-    try {
-      const opp = await sale.crm.opportunityCreate({
-        contactName: 'Rotting Lead',
-        phone: nextPhone(),
-      });
-      await testDbBypass((tx) =>
-        tx.opportunity.update({
-          where: { id: opp.id },
-          data: { stageChangedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
-        }),
-      );
+    const opp = await sale.crm.opportunityCreate({
+      contactName: 'Rotting Lead',
+      phone: nextPhone(),
+    });
+    await testDbBypass((tx) =>
+      tx.opportunity.update({
+        where: { id: opp.id },
+        data: { stageChangedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
+      }),
+    );
 
-      const list = await sale.crm.opportunityList({ pageSize: 100 });
-      const item = list.items.find((i) => i.id === opp.id);
-      expect(item?.isRotting).toBe(true);
-    } finally {
-      if (prev === undefined) delete process.env.ROTTING_THRESHOLD_DAYS;
-      else process.env.ROTTING_THRESHOLD_DAYS = prev;
-    }
+    const list = await sale.crm.opportunityList({ pageSize: 100 });
+    const item = list.items.find((i) => i.id === opp.id);
+    expect(item?.isRotting).toBe(true);
+    expect(item?.rottingDays).toBe(10);
   });
 
   it('list does not mark isRotting after a fresh advance', async () => {
-    const prev = process.env.ROTTING_THRESHOLD_DAYS;
-    process.env.ROTTING_THRESHOLD_DAYS = '7';
-    try {
-      const opp = await sale.crm.opportunityCreate({
-        contactName: 'Fresh After Advance',
-        phone: nextPhone(),
-      });
-      await testDbBypass((tx) =>
-        tx.opportunity.update({
-          where: { id: opp.id },
-          data: { stageChangedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
-        }),
-      );
-      await sale.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O2_CONTACTED' });
+    const opp = await sale.crm.opportunityCreate({
+      contactName: 'Fresh After Advance',
+      phone: nextPhone(),
+    });
+    await testDbBypass((tx) =>
+      tx.opportunity.update({
+        where: { id: opp.id },
+        data: { stageChangedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
+      }),
+    );
+    await sale.crm.opportunityAdvance({ opportunityId: opp.id, toStage: 'O2_CONTACTED' });
 
-      const list = await sale.crm.opportunityList({ pageSize: 100 });
-      const item = list.items.find((i) => i.id === opp.id);
-      expect(item?.isRotting).toBe(false);
-    } finally {
-      if (prev === undefined) delete process.env.ROTTING_THRESHOLD_DAYS;
-      else process.env.ROTTING_THRESHOLD_DAYS = prev;
-    }
+    const list = await sale.crm.opportunityList({ pageSize: 100 });
+    const item = list.items.find((i) => i.id === opp.id);
+    expect(item?.isRotting).toBe(false);
+    expect(item?.rottingDays).toBeNull();
   });
 
   it('O5 never isRotting even with an old stageChangedAt', async () => {

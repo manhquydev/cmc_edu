@@ -7,6 +7,7 @@
 
 import { z } from 'zod';
 import { withFacility, type Prisma } from '@cmc/db';
+import { ictDueBounds, type DueLevel } from '@cmc/domain-time';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 import { isOpportunityLost } from './opportunity-lost.js';
@@ -14,7 +15,13 @@ import { findOrCreateContact } from './find-or-create-contact.js';
 import { normalizeContactPhone, toContactPhoneSearchDigits } from './normalize-contact-phone.js';
 import { advanceOpportunityOneStep } from './advance-opportunity.js';
 import { confirmBulkImport, previewBulkImport } from './bulk-import-opportunities.js';
-import { isOpportunityRotting } from './rotting.js';
+import {
+  emitRecordEvent,
+  isRecordEventKind,
+  labelForRecordEventKind,
+  RECORD_EVENT_HISTORY_SINCE,
+} from './record-event.js';
+import { isOpportunityRotting, rottingAgeDays, type RottingShape } from './rotting.js';
 import {
   buildOpportunityReport,
   LOST_WHERE,
@@ -98,6 +105,17 @@ const opportunityClearNextActionInput = z.object({
   opportunityId: z.string().uuid(),
 });
 
+const opportunityAddNoteInput = z.object({
+  opportunityId: z.string().uuid(),
+  body: z.string().trim().min(1).max(2000),
+});
+
+const opportunityTimelineInput = z.object({
+  opportunityId: z.string().uuid(),
+  cursor: z.string().min(1).optional(),
+  take: z.number().int().positive().max(100).default(50),
+});
+
 const opportunityListInput = z.object({
   stage: z.enum(STAGE_VALUES).optional(),
   /** Free-text search over the linked contact's name (case-insensitive) OR
@@ -108,9 +126,37 @@ const opportunityListInput = z.object({
    * returns just the lost ones; `include` returns everything (used by the
    * detail page, which must be able to open a lost opp). */
   lost: z.enum(['exclude', 'include', 'only']).default('exclude'),
+  /** ICT-calendar next-action bucket. Absent = no due filter. */
+  due: z.enum(['late', 'today', 'future']).optional(),
   page: z.number().int().positive().default(1),
   pageSize: z.number().int().positive().max(100).default(20),
 });
+
+function nextActionDueWhere(due: DueLevel, now: Date): Prisma.OpportunityWhereInput {
+  const { startToday, startTomorrow } = ictDueBounds(now);
+  switch (due) {
+    case 'late':
+      return { nextActionAt: { lt: startToday } };
+    case 'today':
+      return { nextActionAt: { gte: startToday, lt: startTomorrow } };
+    case 'future':
+      return { nextActionAt: { gte: startTomorrow } };
+    default: {
+      const _exhaustive: never = due;
+      return _exhaustive;
+    }
+  }
+}
+
+function rottingProjection(opp: RottingShape, now: Date): {
+  isRotting: boolean;
+  rottingDays: number | null;
+} {
+  return {
+    isRotting: isOpportunityRotting(opp, now),
+    rottingDays: rottingAgeDays(opp, now),
+  };
+}
 
 /** Inclusive ISO datetime range for the report period (client converts ICT dates). */
 const opportunityReportInput = z
@@ -165,6 +211,14 @@ export const crmRouter = router({
             assignedToId,
             source: input.source ?? null,
           },
+        });
+
+        await emitRecordEvent(tx, {
+          facilityId,
+          entity: 'Opportunity',
+          entityId: opportunity.id,
+          kind: 'created',
+          actor: ctx.subject.userId,
         });
 
         await tx.auditLog.create({
@@ -226,6 +280,7 @@ export const crmRouter = router({
           facilityId,
           input.opportunityId,
           input.toStage,
+          ctx.subject.userId,
         );
         return opportunity;
       });
@@ -285,7 +340,7 @@ export const crmRouter = router({
             throw badRequest('Opportunity is not marked lost; nothing to reopen.');
           }
           // Reopen is a CRM stage UPDATE → reset rotting clock (P2).
-          return tx.opportunity.update({
+          const reopened = await tx.opportunity.update({
             where: { id: opportunity.id },
             data: {
               stage: 'O2_CONTACTED',
@@ -294,6 +349,14 @@ export const crmRouter = router({
               stageChangedAt: new Date(),
             },
           });
+          await emitRecordEvent(tx, {
+            facilityId,
+            entity: 'Opportunity',
+            entityId: opportunity.id,
+            kind: 'reopened',
+            actor: ctx.subject.userId,
+          });
+          return reopened;
         }
 
         // A won (enrolled) opportunity cannot be marked lost — the sanctioned
@@ -308,7 +371,7 @@ export const crmRouter = router({
           throw badRequest('lostReason is required to mark an opportunity lost.');
         }
 
-        return tx.opportunity.update({
+        const lost = await tx.opportunity.update({
           where: { id: opportunity.id },
           data: {
             lostReason: input.lostReason,
@@ -319,6 +382,15 @@ export const crmRouter = router({
             closedAt: opportunity.closedAt ?? new Date(),
           },
         });
+        await emitRecordEvent(tx, {
+          facilityId,
+          entity: 'Opportunity',
+          entityId: opportunity.id,
+          kind: 'marked_lost',
+          actor: ctx.subject.userId,
+          payload: { lostReason: input.lostReason },
+        });
+        return lost;
       });
     }),
 
@@ -365,10 +437,19 @@ export const crmRouter = router({
           }
         }
 
-        return tx.opportunity.update({
+        const assigned = await tx.opportunity.update({
           where: { id: opp.id },
           data: { assignedToId: newAssignedToId },
         });
+        await emitRecordEvent(tx, {
+          facilityId,
+          entity: 'Opportunity',
+          entityId: opp.id,
+          kind: 'assigned',
+          actor: ctx.subject.userId,
+          payload: { assigneeUserId: input.assigneeUserId },
+        });
+        return assigned;
       });
     }),
 
@@ -425,6 +506,17 @@ export const crmRouter = router({
               select: { userId: true, fullName: true },
             })
           : null;
+        const now = new Date();
+        const rotting = rottingProjection(
+          {
+            stage: opportunity.stage,
+            closedAt: opportunity.closedAt,
+            stageChangedAt: opportunity.stageChangedAt,
+            createdAt: opportunity.createdAt,
+            nextActionAt: opportunity.nextActionAt,
+          },
+          now,
+        );
         return {
           id: opportunity.id,
           stage: opportunity.stage,
@@ -435,6 +527,8 @@ export const crmRouter = router({
           nextActionNote: opportunity.nextActionNote,
           assignedTo,
           contact: opportunity.contact,
+          isRotting: rotting.isRotting,
+          rottingDays: rotting.rottingDays,
         };
       });
     }),
@@ -450,6 +544,7 @@ export const crmRouter = router({
       if (input.stage) and.push({ stage: input.stage });
       if (input.lost === 'exclude') and.push(NOT_LOST_WHERE);
       else if (input.lost === 'only') and.push(LOST_WHERE);
+      if (input.due) and.push(nextActionDueWhere(input.due, new Date()));
       if (input.search) {
         // Name is matched case-insensitively as entered; phone is matched on
         // digits only so "090 123", "090-123" and "090123" all hit the same
@@ -503,18 +598,24 @@ export const crmRouter = router({
           : [];
         const ownerById = new Map(owners.map((o) => [o.id, { userId: o.userId, fullName: o.fullName }]));
         const now = new Date();
-        const itemsWithOwner = items.map((i) => ({
-          ...i,
-          assignedTo: i.assignedToId ? ownerById.get(i.assignedToId) ?? null : null,
-          // Derived at read time (P2) — no flag table / worker.
-          isRotting: isOpportunityRotting({
-            stage: i.stage,
-            closedAt: i.closedAt,
-            stageChangedAt: i.stageChangedAt,
-            createdAt: i.createdAt,
-            nextActionAt: i.nextActionAt,
-          }, now),
-        }));
+        const itemsWithOwner = items.map((i) => {
+          const rotting = rottingProjection(
+            {
+              stage: i.stage,
+              closedAt: i.closedAt,
+              stageChangedAt: i.stageChangedAt,
+              createdAt: i.createdAt,
+              nextActionAt: i.nextActionAt,
+            },
+            now,
+          );
+          return {
+            ...i,
+            assignedTo: i.assignedToId ? ownerById.get(i.assignedToId) ?? null : null,
+            isRotting: rotting.isRotting,
+            rottingDays: rotting.rottingDays,
+          };
+        });
 
         return { items: itemsWithOwner, total, page: input.page, pageSize: input.pageSize, stageCounts, lostCount };
       });
@@ -537,7 +638,7 @@ export const crmRouter = router({
         if (opp.stage === 'O5_ENROLLED' || isOpportunityLost(opp)) {
           throw badRequest('Không đặt việc trên cơ hội đã nhập học hoặc đã mất.');
         }
-        return tx.opportunity.update({
+        const set = await tx.opportunity.update({
           where: { id: opp.id },
           data: {
             nextActionAt: at,
@@ -549,6 +650,15 @@ export const crmRouter = router({
             nextActionNote: true,
           },
         });
+        await emitRecordEvent(tx, {
+          facilityId,
+          entity: 'Opportunity',
+          entityId: opp.id,
+          kind: 'next_action_set',
+          actor: ctx.subject.userId,
+          payload: { nextActionAt: at.toISOString(), nextActionNote: input.nextActionNote },
+        });
+        return set;
       });
     }),
 
@@ -568,11 +678,19 @@ export const crmRouter = router({
         if (opp.stage === 'O5_ENROLLED' || isOpportunityLost(opp)) {
           throw badRequest('Không đặt việc trên cơ hội đã nhập học hoặc đã mất.');
         }
-        return tx.opportunity.update({
+        const cleared = await tx.opportunity.update({
           where: { id: opp.id },
           data: { nextActionAt: null, nextActionNote: null },
           select: { id: true, nextActionAt: true, nextActionNote: true },
         });
+        await emitRecordEvent(tx, {
+          facilityId,
+          entity: 'Opportunity',
+          entityId: opp.id,
+          kind: 'next_action_cleared',
+          actor: ctx.subject.userId,
+        });
+        return cleared;
       });
     }),
 
@@ -584,29 +702,47 @@ export const crmRouter = router({
     .query(async ({ ctx }) => {
       const { facilityId } = scoped(ctx);
       const now = new Date();
+      const emptyCounts = { late: 0, today: 0, future: 0 };
       return withFacility(ctx.db, facilityId, async (tx) => {
         const me = await tx.appUser.findFirst({
           where: { userId: ctx.subject.userId, facilityId },
           select: { id: true },
         });
-        if (!me) return { items: [] as const };
+        if (!me) return { items: [] as const, counts: emptyCounts };
 
-        const items = await tx.opportunity.findMany({
-          where: {
-            facilityId,
-            assignedToId: me.id,
-            nextActionAt: { lte: now },
-            closedAt: null,
-            stage: { not: 'O5_ENROLLED' },
-          },
-          include: {
-            contact: { select: { id: true, name: true, phone: true } },
-          },
-          orderBy: { nextActionAt: 'asc' },
-          take: 50,
-        });
+        const ownOpen: Prisma.OpportunityWhereInput = {
+          facilityId,
+          assignedToId: me.id,
+          closedAt: null,
+          stage: { not: 'O5_ENROLLED' },
+        };
+        const { startToday, startTomorrow } = ictDueBounds(now);
+
+        const [items, late, today, future] = await Promise.all([
+          tx.opportunity.findMany({
+            where: {
+              ...ownOpen,
+              nextActionAt: { lte: now },
+            },
+            include: {
+              contact: { select: { id: true, name: true, phone: true } },
+            },
+            orderBy: { nextActionAt: 'asc' },
+            take: 50,
+          }),
+          tx.opportunity.count({
+            where: { ...ownOpen, nextActionAt: { lt: startToday } },
+          }),
+          tx.opportunity.count({
+            where: { ...ownOpen, nextActionAt: { gte: startToday, lt: startTomorrow } },
+          }),
+          tx.opportunity.count({
+            where: { ...ownOpen, nextActionAt: { gte: startTomorrow } },
+          }),
+        ]);
 
         return {
+          counts: { late, today, future },
           items: items.map((i) => ({
             id: i.id,
             stage: i.stage,
@@ -654,6 +790,7 @@ export const crmRouter = router({
         text: input.text,
         defaultSource: input.defaultSource ?? null,
         assignedToId,
+        actor: ctx.subject.userId,
       });
     }),
 
@@ -696,4 +833,105 @@ export const crmRouter = router({
         });
       });
     }),
+
+  opportunityAddNote: requirePermission('crm', 'opportunityAddNote')
+    .input(opportunityAddNoteInput)
+    .mutation(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const opportunity = await tx.opportunity.findFirst({
+          where: { id: input.opportunityId, facilityId },
+          select: { id: true },
+        });
+        if (!opportunity) throw notFound('Opportunity not found.');
+        await emitRecordEvent(tx, {
+          facilityId,
+          entity: 'Opportunity',
+          entityId: opportunity.id,
+          kind: 'note',
+          actor: ctx.subject.userId,
+          payload: { body: input.body },
+        });
+        return { ok: true as const };
+      });
+    }),
+
+  opportunityTimeline: requirePermission('crm', 'opportunityTimeline')
+    .input(opportunityTimelineInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      const cursor = input.cursor ? parseTimelineCursor(input.cursor) : null;
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const opportunity = await tx.opportunity.findFirst({
+          where: { id: input.opportunityId, facilityId },
+          select: { id: true },
+        });
+        if (!opportunity) throw notFound('Opportunity not found.');
+
+        const eventWhere = {
+          facilityId,
+          entity: 'Opportunity' as const,
+          entityId: opportunity.id,
+        };
+        const [rows, createdEvent] = await Promise.all([
+          tx.recordEvent.findMany({
+            where: {
+              ...eventWhere,
+              ...(cursor
+                ? {
+                    OR: [
+                      { createdAt: { lt: cursor.createdAt } },
+                      { AND: [{ createdAt: cursor.createdAt }, { id: { lt: cursor.id } }] },
+                    ],
+                  }
+                : {}),
+            },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            take: input.take + 1,
+            select: { id: true, kind: true, actor: true, payload: true, createdAt: true },
+          }),
+          tx.recordEvent.findFirst({
+            where: { ...eventWhere, kind: 'created' },
+            select: { id: true },
+          }),
+        ]);
+        const hasMore = rows.length > input.take;
+        const page = hasMore ? rows.slice(0, input.take) : rows;
+        const last = page[page.length - 1];
+        return {
+          items: page.map((row) => {
+            const known = isRecordEventKind(row.kind);
+            return {
+              id: row.id,
+              kind: row.kind,
+              actor: row.actor,
+              payload: known ? row.payload : null,
+              createdAt: row.createdAt,
+              label: labelForRecordEventKind(row.kind),
+            };
+          }),
+          nextCursor: hasMore && last ? encodeTimelineCursor(last.createdAt, last.id) : null,
+          // Server-wide, not "created on this page": `created` is the oldest
+          // event and falls off a newest-first take=50.
+          historySince: createdEvent ? null : RECORD_EVENT_HISTORY_SINCE,
+        };
+      });
+    }),
 });
+
+function encodeTimelineCursor(createdAt: Date, id: string): string {
+  return `${createdAt.toISOString()}|${id}`;
+}
+
+function parseTimelineCursor(cursor: string): { createdAt: Date; id: string } {
+  const sep = cursor.indexOf('|');
+  if (sep <= 0 || sep === cursor.length - 1) {
+    throw badRequest('Invalid timeline cursor.');
+  }
+  const createdAt = new Date(cursor.slice(0, sep));
+  const id = cursor.slice(sep + 1);
+  if (!id || Number.isNaN(createdAt.getTime())) {
+    throw badRequest('Invalid timeline cursor.');
+  }
+  return { createdAt, id };
+}

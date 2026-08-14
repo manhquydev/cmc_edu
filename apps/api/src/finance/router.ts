@@ -21,6 +21,7 @@ import { provisionFromReceipt } from '../provisioning/provision-from-receipt.js'
 import { maybeCreateFlag } from '../worker/reconcile-finance-flags.js';
 import { isOpportunityLost } from '../crm/opportunity-lost.js';
 import { findOrCreateContact } from '../crm/find-or-create-contact.js';
+import { emitRecordEvent } from '../crm/record-event.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
 /**
@@ -381,6 +382,14 @@ async function runMoneyTransaction(
       });
       resolvedOpportunityId = created.id;
       autoCreatedOpportunityId = created.id;
+      await emitRecordEvent(tx, {
+        facilityId,
+        entity: 'Opportunity',
+        entityId: created.id,
+        kind: 'created',
+        actor: approverId,
+        payload: { source: 'walkin' },
+      });
     }
     await tx.receipt.update({ where: { id: approved.id }, data: { opportunityId: resolvedOpportunityId } });
     approved.opportunityId = resolvedOpportunityId;
@@ -419,14 +428,24 @@ async function runMoneyTransaction(
     // carries a lost reason (belt-and-suspenders — the lost-gate above already
     // rejects a still-lost opp; this covers a reopened-then-approved opp whose
     // lostReason was already cleared, keeping the invariant explicit).
+    const didEnroll = opportunity.stage !== 'O5_ENROLLED';
     const advanced = await tx.opportunity.update({
       where: { id: opportunity.id },
       data: {
         stage: 'O5_ENROLLED',
         lostReason: null,
-        ...(opportunity.stage !== 'O5_ENROLLED' ? { closedAt: new Date() } : {}),
+        ...(didEnroll ? { closedAt: new Date() } : {}),
       },
     });
+    if (didEnroll) {
+      await emitRecordEvent(tx, {
+        facilityId,
+        entity: 'Opportunity',
+        entityId: opportunity.id,
+        kind: 'enrolled',
+        actor: approverId,
+      });
+    }
     opportunityStage = advanced.stage;
   }
 
@@ -543,6 +562,13 @@ async function runCancelTransaction(
           data: { stage: 'O4_TESTED', closedAt: null },
         });
         opportunityReverted = true;
+        await emitRecordEvent(tx, {
+          facilityId,
+          entity: 'Opportunity',
+          entityId: opportunity.id,
+          kind: 'enrollment_reverted',
+          actor: actorId,
+        });
       }
     }
   }

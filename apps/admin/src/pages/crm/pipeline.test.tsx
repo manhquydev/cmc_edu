@@ -27,6 +27,9 @@ interface OpportunityRow {
   contact: { id: string; name: string; phone: string };
   source?: string | null;
   assignedTo?: { userId: string; fullName: string } | null;
+  nextActionAt?: string | null;
+  isRotting?: boolean;
+  rottingDays?: number | null;
 }
 
 interface OpportunityListData {
@@ -142,6 +145,42 @@ describe('CrmPipelinePage', () => {
   it('queries crm.opportunityList with {lost: "exclude", page: 1, pageSize: 20} by default (no search key)', () => {
     renderWithProviders(<CrmPipelinePage />);
     expect(listQuerySpy).toHaveBeenCalledWith({ lost: 'exclude', page: 1, pageSize: 20 });
+  });
+
+  it('passes due from the URL into crm.opportunityList', () => {
+    renderWithProviders(<CrmPipelinePage />, { route: '/crm?due=late' });
+    expect(listQuerySpy).toHaveBeenCalledWith({
+      lost: 'exclude',
+      page: 1,
+      pageSize: 20,
+      due: 'late',
+    });
+  });
+
+  it('renders rotting days on the kanban badge', () => {
+    listState.data = {
+      items: [{ ...OPP_O1, isRotting: true, rottingDays: 12 }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      stageCounts: STAGE_COUNTS_MOCK,
+      lostCount: 0,
+    };
+    renderWithProviders(<CrmPipelinePage />);
+    expect(screen.getByTestId('crm-rotting-badge')).toHaveTextContent('Nguội 12 ngày');
+  });
+
+  it('colours a next-action chip from the raw due date', () => {
+    listState.data = {
+      items: [{ ...OPP_O1, nextActionAt: '2020-01-01T00:00:00.000Z' }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      stageCounts: STAGE_COUNTS_MOCK,
+      lostCount: 0,
+    };
+    renderWithProviders(<CrmPipelinePage />);
+    expect(screen.getByTestId('crm-next-action-chip')).toHaveClass('cmc-due-late');
   });
 
   it('renders stage funnel bars in O1→O5 order using server-aggregated stageCounts (not a count over items)', () => {

@@ -141,6 +141,9 @@ export async function cleanupFacility(facilityId: string): Promise<void> {
   // this teardown-only delete now runs via the privileged migration-role
   // connection instead (see `privilegedDb()` above).
   await privilegedDb().refundRecord.deleteMany({ where: { facilityId } });
+  // RecordEvent is append-only (cmc_app has no UPDATE/DELETE grant) and FKs
+  // Facility — must run via privileged connection before opportunity/facility.
+  await privilegedDb().recordEvent.deleteMany({ where: { facilityId } });
   // T1: `cmc_app` has no DELETE grant on Attendance either (append-only-ish
   // write model, ../attendance/router.ts) — same privileged-connection
   // teardown as RefundRecord/AuditLog. Must run before the ClassSession/

@@ -19,6 +19,7 @@ import {
   testDb,
   testDbBypass,
 } from '../test/db.js';
+import { financePayloadLeaksMoney } from '../crm/record-event.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
 
@@ -101,6 +102,12 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
 
       const cancelled = await testDbBypass((tx) => tx.receipt.findUniqueOrThrow({ where: { id: receipt.id } }));
       expect(cancelled.status).toBe('cancelled');
+
+      const reverted = await testDbBypass((tx) =>
+        tx.recordEvent.findMany({ where: { entityId: opportunityId, kind: 'enrollment_reverted' } }),
+      );
+      expect(reverted).toHaveLength(1);
+      expect(financePayloadLeaksMoney(reverted[0]?.payload)).toBe(false);
     });
 
     it('does NOT revert when a second approved receipt still exists on the same opportunity — I3', async () => {
@@ -123,6 +130,11 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       );
       expect(opportunity.stage).toBe('O5_ENROLLED');
       expect(opportunity.closedAt).not.toBeNull();
+
+      const reverted = await testDbBypass((tx) =>
+        tx.recordEvent.findMany({ where: { entityId: opportunityId, kind: 'enrollment_reverted' } }),
+      );
+      expect(reverted).toHaveLength(0);
     });
 
     it('cancel of an auto-created walk-in O5 receipt reverts the opportunity O5 -> O4, no error (phase-05)', async () => {

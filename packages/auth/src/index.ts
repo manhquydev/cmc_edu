@@ -136,7 +136,7 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   'assessment.confirm': ['giao_vien'],
   'sessionEvidence.upsert': ['giao_vien'],
   'sessionEvidence.publish': ['giao_vien'],
-  'user.manage': [],
+  'user.manage': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'],
   // Fills staff dropdowns (payroll, salary tiers, teacher assignment) with a
   // handful of fields. Its own key on purpose: reusing a payroll permission
   // would make class administration depend on who may assemble payslips, so

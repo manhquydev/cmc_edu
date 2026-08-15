@@ -156,6 +156,12 @@ export const userRouter = router({
           const mgr = await tx.appUser.findFirst({ where: { id: input.managerId, facilityId } });
           if (!mgr) throw notFound('Manager not found in this facility.');
         }
+        // Escalation guard: directors hold user.manage for staff provisioning but
+        // must not mint a platform admin — only a super_admin may create another.
+        const callerIsSuperAdmin = ctx.subject.roles.includes('super_admin');
+        if (!callerIsSuperAdmin && input.roles?.includes('super_admin')) {
+          throw forbidden('Only a super admin can create a super_admin account.');
+        }
         // Atomic counter increment — Prisma's update locks the row for the
         // duration of the transaction, preventing duplicate code generation
         // under concurrent calls.
@@ -419,6 +425,11 @@ export const userRouter = router({
         if (!existing.email) {
           throw badRequest('Set a login email before enabling password login.');
         }
+        // Escalation guard: a director must not reset a super_admin's password
+        // (that would let them lock out or take over the platform admin).
+        if (!ctx.subject.roles.includes('super_admin') && (existing.roles as string[]).includes('super_admin')) {
+          throw forbidden("Only a super admin can reset another super admin's password.");
+        }
         await tx.appUser.update({
           where: { id: existing.id },
           data: {
@@ -456,6 +467,15 @@ export const userRouter = router({
           select: { id: true, userId: true, roles: true },
         });
         if (!existing) throw notFound('AppUser not found.');
+
+        // Escalation guard: directors may manage staff roles but cannot grant or
+        // revoke super_admin — that stays the platform admin's exclusive power.
+        if (
+          !ctx.subject.roles.includes('super_admin') &&
+          ((existing.roles as string[]).includes('super_admin') || input.roles.includes('super_admin'))
+        ) {
+          throw forbidden('Only a super admin can grant or revoke the super_admin role.');
+        }
 
         // Guard self-demotion: caller may not remove their own super_admin role.
         if (

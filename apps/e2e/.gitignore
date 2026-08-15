@@ -1,1 +1,9 @@
 capture-output/
+
+# Live-domain UAT suite — runtime state, NEVER commit credentials or run state.
+# .live-credentials.json holds the rotated super-admin/staff passwords; the
+# coordinator must keep it out of git (it is what reruns use to log in).
+.live-credentials.json
+.live-run-state.json
+test-results-live/
+

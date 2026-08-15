@@ -147,3 +147,41 @@ Còn lại (đã ghi nhận, chờ quyết định user):
 
 **Trạng thái cuối**: Hệ thống live (feat/back-before-design) healthy; audit capture client+server hoạt động
 end-to-end; campaign 6/6 pass 0 lỗi; fixes HIGH/MEDIUM đã deploy. **Chưa commit** (chờ user).
+
+## Bàn giao prod sạch (2026-08-15) — DONE
+
+**Commits (6, trên feat/back-before-design, gốc 0740c36):**
+`0b05392` feat(api) · `7bda293` feat(admin) · `1457eea` feat(lms) · `e85fbb7` feat(infra) ·
+`386cdac` test(e2e) · `e23da06` docs(plans)
+
+**Reset DB từ đầu (bàn giao sạch):** down -v → up --build → migrate deploy (all applied) → ALTER ROLE cmc_app
+(network-auth verify) → seed-super-admin. Xoá .live-credentials.json/.live-run-state.json (stale rotated password).
+Backup pre-reset: /tmp/cmc-pre-wipe/cmc_prod-pre-handover-260815.dump.gz.
+
+**Trạng thái bàn giao (verified):**
+- DB: AppUser=1 (super_admin), Facility=1, Student/Receipt/ParentAccount/Enrollment/AuditLog = 0 — sạch như hệ thống mới.
+- Login bootstrap hoạt động (mustChangePassword=true — đổi mật khẩu ở lần đăng nhập đầu).
+- External: erp/hoc /health 200, Admin + LMS UI đúng (pre-design + audit capture).
+- Audit chain sống: /api/track-error 200 → GlitchTip issue #9 "handover verification".
+- Tunnel VPS 127.0.0.1:8080 active; stack api/worker/postgres/nginx healthy.
+- Không còn staff test account; credentials test đã xoá.
+
+**Hướng dẫn vận hành (handover):**
+1. Đăng nhập lần đầu: admin@cmcvn.edu.vn + SUPER_ADMIN_PASSWORD (.env.prod) → buộc đổi mật khẩu.
+2. Khi user báo lỗi: lấy mã lỗi user thấy → `docker compose -p cmcv2-prod logs api | grep <mã>` (hoặc GlitchTip
+   http://127.0.0.1:8000 — issue tag clientCode) → có stack + url + userAgent đầy đủ.
+3. Chạy lại campaign test: `cd apps/e2e && PLAYWRIGHT_LIVE=1 pnpm exec playwright test --config=playwright.live.config.ts`
+   (tạo data test mới; sau đó reset lại nếu cần).
+4. Rollback code: checkout commit cũ + rebuild (quy trình deploy như docs/runbook-deploy.md).
+
+## Login upgrade + handover test (2026-08-15) — DONE
+
+- **Login redesign deploy**: working tree có sẵn bản redesign login (light theme, brand column, portal link)
+  chưa build → build lại image admin + deploy. Verify: bundle mới (index-Bz-Iqsdf.js) có đủ
+  login-page__brand/features/form/footer; login.test.tsx 10/10 pass.
+- **Đăng nhập admin thật (browser, live)**: login bootstrap → buộc đổi mật khẩu → /cockpit →
+  shell authenticated ✓ (console chỉ 401 session.me tiền-đăng nhập — dự kiến).
+- **Khôi phục bàn giao**: sau test (password bị rotate) → clear hash + re-seed → bootstrap lại
+  (mustChangePassword=true, verify login).
+- **Commit**: `effceb4` feat(admin): redesign login page (564+/161-).
+- Hệ thống: erp/hoc 200, tunnel active, stack healthy.

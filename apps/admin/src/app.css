@@ -312,3 +312,54 @@ body {
     transition: none;
   }
 }
+
+/* Error boundary fallback — app-local, consumes @cmc/ui tokens only.
+   Rendered above the providers, so it must not depend on .o_web_client
+   chrome or the toast layer (both live below the boundary). */
+.error-boundary-fallback {
+  min-height: 100vh;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  padding: var(--cmc-space-4);
+  background: var(--cmc-canvas);
+  color: var(--cmc-text);
+  font-family: var(--cmc-font-sans);
+  line-height: var(--cmc-lh-body);
+}
+
+.error-boundary-fallback__card {
+  width: min(100%, 26rem);
+  padding: var(--cmc-pad-card);
+  text-align: center;
+  background: var(--cmc-surface-raised);
+  border: 1px solid var(--cmc-border-subtle);
+  border-radius: var(--cmc-radius-card);
+  box-shadow: var(--cmc-shadow-md);
+}
+
+.error-boundary-fallback__title {
+  margin: 0 0 var(--cmc-space-2);
+  font-size: var(--cmc-fs-h3);
+  font-weight: 700;
+  line-height: var(--cmc-lh-tight);
+}
+
+.error-boundary-fallback__text {
+  margin: 0 0 var(--cmc-space-3);
+  color: var(--cmc-text-2);
+  font-size: var(--cmc-fs-body);
+}
+
+.error-boundary-fallback__code {
+  margin: 0 0 var(--cmc-space-4);
+  color: var(--cmc-text-muted);
+  font-size: var(--cmc-fs-meta);
+}
+
+.error-boundary-fallback__code-value {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--cmc-danger);
+  font-variant-numeric: tabular-nums;
+}

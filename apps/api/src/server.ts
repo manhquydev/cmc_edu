@@ -35,6 +35,7 @@ import {
   handleSsoLogout,
 } from './auth/sso-routes.js';
 import { handleStaffPasswordLogin } from './auth/password-routes.js';
+import { TRACK_ERROR_PATH, handleTrackError } from './lib/track-error-route.js';
 
 const port = Number(process.env.PORT ?? 3000);
 const log = serviceLogger('api');
@@ -193,6 +194,19 @@ const server = createServer((req, res) => {
       reportRouteError(req, 'session-photo-get', error);
       if (!res.headersSent) res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: 'Fetch failed.' }));
+    });
+    return;
+  }
+  // Same-origin client error report (admin/lms → api, plans/260815-1616-uat-live-test-audit P3).
+  // Unauthenticated by design: window.onerror / unhandledrejection / boundary
+  // catches fire before any session guarantee; nginx rate limits throttle abuse.
+  if (req.method === 'POST' && urlPath === TRACK_ERROR_PATH) {
+    handleTrackError(req, res, reqIdOf(req)).catch((error: unknown) => {
+      reportRouteError(req, 'track-error', error);
+      if (!res.headersSent) {
+        res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
+      }
+      res.end(JSON.stringify({ error: 'Error report failed.' }));
     });
     return;
   }

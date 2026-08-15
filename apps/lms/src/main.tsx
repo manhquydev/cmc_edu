@@ -20,6 +20,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { trpc, makeTrpcClient, makeQueryClient } from './lib/trpc.js';
 import { LmsSessionProvider } from './lib/session-context.js';
 import { AstryxCmcProvider } from '@cmc/ui';
+import { ErrorBoundary } from './lib/error-boundary.js';
+import { generateErrorCode, reportError } from './lib/error-report.js';
 import { router } from './routes/index.js';
 
 const queryClient = makeQueryClient();
@@ -30,16 +32,62 @@ if (!rootElement) {
   throw new Error('Root element #root not found in document');
 }
 
+// --- client-side error capture (same-origin report to /api/track-error) ---
+// Installed before render so early runtime errors are captured too. Every
+// handler reports through reportError() (deduped, fire-and-forget) and keeps
+// console.error for local debugging. React render crashes are caught by the
+// <ErrorBoundary> below; event-handler and async errors land here.
+
+window.addEventListener('error', (event) => {
+  const code = generateErrorCode();
+  const message = event.message || 'Unknown script error';
+  console.error(
+    '[window.onerror]',
+    code,
+    message,
+    event.error ?? '',
+    event.filename,
+    'line ' + event.lineno + ':' + event.colno,
+  );
+  reportError({
+    code,
+    message,
+    stack: event.error instanceof Error ? event.error.stack ?? null : null,
+    kind: 'window.onerror',
+    extra: {
+      filename: event.filename || null,
+      line: event.lineno ?? null,
+      col: event.colno ?? null,
+    },
+  });
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  const code = generateErrorCode();
+  const reason = event.reason;
+  const message = reason instanceof Error ? reason.message : String(reason);
+  console.error('[unhandledrejection]', code, reason);
+  reportError({
+    code,
+    message,
+    stack: reason instanceof Error ? reason.stack ?? null : null,
+    kind: 'unhandledrejection',
+    extra: reason instanceof Error ? null : { reason: String(reason) },
+  });
+});
+
 createRoot(rootElement).render(
   <StrictMode>
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <AstryxCmcProvider>
-          <LmsSessionProvider>
-            <RouterProvider router={router} />
-          </LmsSessionProvider>
-        </AstryxCmcProvider>
-      </QueryClientProvider>
-    </trpc.Provider>
+    <ErrorBoundary>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <AstryxCmcProvider>
+            <LmsSessionProvider>
+              <RouterProvider router={router} />
+            </LmsSessionProvider>
+          </AstryxCmcProvider>
+        </QueryClientProvider>
+      </trpc.Provider>
+    </ErrorBoundary>
   </StrictMode>,
 );

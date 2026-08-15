@@ -185,3 +185,16 @@ Backup pre-reset: /tmp/cmc-pre-wipe/cmc_prod-pre-handover-260815.dump.gz.
   (mustChangePassword=true, verify login).
 - **Commit**: `effceb4` feat(admin): redesign login page (564+/161-).
 - Hệ thống: erp/hoc 200, tunnel active, stack healthy.
+
+## Setup khởi tạo + 2 tài khoản Giám đốc (2026-08-15) — DONE
+
+- **2 GĐ đã tạo** (scripts/seed-directors.ts): gdkd@cmcvn.edu.vn (GĐ Kinh doanh, GDKD-001),
+  gddt@cmcvn.edu.vn (GĐ Đào tạo, GDDT-001) — mật khẩu đầu Cmcgdkd@2026 / Cmcgddt@2026, buộc đổi khi login lần đầu.
+- **Phân quyền**: cấp user.manage cho 2 GĐ (packages/auth/src/index.ts) + 3 guard chống leo thang
+  (apps/api/src/user/router.ts): GĐ KHÔNG thể tạo super_admin, reset password super_admin, hay cấp/revoke super_admin.
+  Verify live: GĐ tạo được sale (user.create OK), tạo super_admin bị chặn (FORBIDDEN).
+- **Commit**: e917812 feat(auth) + effceb4 login redesign + 6 commit audit/live-suite (tổng 9 commit local).
+- **Tunnel hardening (VPS)**: thêm /etc/ssh/sshd_config.d/90-cmc-tunnel-keepalive.conf
+  (ClientAliveInterval 15, CountMax 3) — dọn session reverse-tunnel chết trong ~45s, hết ôm 8080 gây flap.
+  Root cause 3 lần sập tunnel trước đó: sshd stale (từ 15:53) giữ 8080 với forward chết → autossh fail bind → flap → fail2ban ban IP.
+- **Trạng thái**: erp/hoc 200; 3 account active (admin super_admin + 2 GĐ); stack healthy.

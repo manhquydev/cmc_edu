@@ -1,5 +1,5 @@
-# CMC EDU — tools image (VPS seed runner). tsx handles TS + .js->.ts + workspace
-# resolution that bare node --experimental-strip-types cannot (plan v3 H-1/V2).
+# CMC EDU — tools image (VPS seed runner). tsx + explicit workspace symlinks
+# (pnpm --filter does not link @cmc/db / @cmc/auth into root node_modules).
 FROM node:22-alpine
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
@@ -14,6 +14,8 @@ COPY apps/api/src apps/api/src
 COPY scripts scripts
 RUN corepack enable \
     && pnpm install --frozen-lockfile --filter @cmc/db... --filter @cmc/auth... 2>&1 | tail -2 \
+    && ln -sfn /app/packages/db /app/node_modules/@cmc/db \
+    && ln -sfn /app/packages/auth /app/node_modules/@cmc/auth \
     && pnpm --filter @cmc/db build 2>&1 | tail -2 \
     && pnpm add -D tsx 2>&1 | tail -2
 CMD ["node"]

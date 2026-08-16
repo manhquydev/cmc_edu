@@ -1,0 +1,40 @@
+# CMC EDU — VPS override (152.42.167.189) — co-located with cmc-lms, zero impact.
+# Usage: docker compose -p cmcv2-prod --env-file .env.prod #   -f docker-compose.prod.yml -f infra/vps/docker-compose.override.yml up -d
+#
+# Differences vs the laptop/tunnel deployment:
+#   - nginx publishes 0.0.0.0:8080:8080 (NOT 127.0.0.1:80) — the VPS serves
+#     deverp/devlms via Cloudflare Origin Rule to :8080; the LMS owns 80/443.
+#   - nginx.conf = infra/vps/nginx.vps.conf (listen 8080 ssl, AOP, CF real_ip).
+#   - /etc/letsencrypt mounted ro for deverp/devlms self-signed (Full mode) certs.
+#   - mem limits per service (shared 2vCPU/8GB box with the LMS).
+#   - blob volume mounted into api + worker (BLOB_STORAGE_DIR local fallback).
+
+services:
+  nginx:
+    ports:
+      - "0.0.0.0:8080:8080"
+    volumes:
+      - ./infra/vps/nginx.vps.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/api-locations.conf:/etc/nginx/api-locations.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /etc/nginx/cf-origin-pull-ca.pem:/etc/nginx/cf-origin-pull-ca.pem:ro
+    mem_limit: 128m
+
+  api:
+    volumes:
+      - cmcv2-prod-blob-data:/data/blobs
+    mem_limit: 1g
+
+  worker:
+    volumes:
+      - cmcv2-prod-blob-data:/data/blobs
+    mem_limit: 1g
+
+  postgres:
+    mem_limit: 1g
+
+  admin:
+    mem_limit: 256m
+
+  lms:
+    mem_limit: 256m

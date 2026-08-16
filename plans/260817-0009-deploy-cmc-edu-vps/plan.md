@@ -1,6 +1,6 @@
 # Plan v3 (FINAL): Deploy cmc_edu (ERP+LMS) lên VPS 152.42.167.189 — song song với cmc-lms
 
-**Created:** 2026-08-17 | **v3** — sau 2 vòng red-team + validate (4 báo cáo độc lập, scope khác nhau) | **KHÔNG ĐƯỢC IMPLEMENT**
+**Created:** 2026-08-17 | **v3.1** — sau 2 vòng; domains deverp/devlms (đã xác nhận DNS tồn tại) red-team + validate (4 báo cáo độc lập, scope khác nhau) | **KHÔNG ĐƯỢC IMPLEMENT**
 **Báo cáo đã tích hợp:** plan-review-260817-{r1-redteam-infra, r1-validate-completeness, r2-redteam-data-ops, r2-validate-rollback}.md
 **Quyết định vòng lặp:** tất cả CRITICAL/HIGH của cả 2 vòng đã được giải quyết TRONG plan này (mục "Tích hợp findings" ghi từng cái) → GO-ready (vẫn chưa implement).
 
@@ -32,7 +32,7 @@
 
 ## Kiến trúc đích
 ```
-Cloudflare (erp.cmcvn.edu.vn; hoc-test.cmcvn.edu.vn [MỚI]; hoc.cmcvn.edu.vn GIỮ NGUYÊN → LMS)
+Cloudflare (deverp.cmcvn.edu.vn; devlms.cmcvn.edu.vn [MỚI]; hoc.cmcvn.edu.vn GIỮ NGUYÊN → LMS)
  ├─ hoc.cmcvn.edu.vn → VPS:443 → cmclms-web (LMS prod — bất biến)
  └─ erp.* / hoc-test.* → VPS:8080 → cmcv2-prod-nginx (cmc_edu: admin + lms SPA + /trpc)
      [Origin Rule CF exact-hostname] → api/worker/postgres/admin/lms + glitchtip (cmcv2-obs)
@@ -54,7 +54,7 @@ Cloudflare (erp.cmcvn.edu.vn; hoc-test.cmcvn.edu.vn [MỚI]; hoc.cmcvn.edu.vn GI
     **chạy infra/vps/isolation-check-vps.sh** (gate: exit 0) — kiểm: KHÔNG có cmclms-* conflict, 8080 trống,
     volume cmcv2-prod-* chưa tồn tại.
 0.5 Cert: cài certbot + certbot-dns-cloudflare (CF API token scope: erp + hoc-test); **DNS-01 --staging trước**,
-    rồi real: LE cho erp.cmcvn.edu.vn + hoc-test.cmcvn.edu.vn (**DNS record hoc-test: tạo GREY ở Phase 0, flip
+    rồi real: LE cho deverp.cmcvn.edu.vn + devlms.cmcvn.edu.vn (**DNS record hoc-test: tạo GREY ở Phase 0, flip
     ORANGE ở Phase 4** — tránh serve LMS trong khoảng gap); renewal timer + pin /etc/letsencrypt/live symlink;
     **phối hợp LMS owner: gia hạn hoc.cmcvn.edu.vn qua LE (lần đầu — certbot chưa từng cài) TRƯỚC khi flip Full-strict**.
 0.6 Xác nhận SSL mode CF (Full) — KHÔNG flip Full-strict cho tới khi hoc có LE + renewal chứng minh (H8/V2 gate).
@@ -119,8 +119,8 @@ Gate: inject lỗi → GlitchTip event; grep pino reqId; backup+drill pass; dead
 Gate: login 3 tài khoản qua https erp; GĐ tạo staff OK; GĐ không leo thang super_admin.
 
 ### Phase 6 — Verification + go-live + bàn giao
-- Live UAT suite chạy **TRONG test-runner container trên VPS host** (LIVE_ADMIN_ORIGIN=https://erp.cmcvn.edu.vn,
-  LIVE_LMS_ORIGIN=https://hoc-test.cmcvn.edu.vn; docker exec đọc EmailOutbox) — 6 spec, 6/6 pass, 0 lỗi.
+- Live UAT suite chạy **TRONG test-runner container trên VPS host** (LIVE_ADMIN_ORIGIN=https://deverp.cmcvn.edu.vn,
+  LIVE_LMS_ORIGIN=https://devlms.cmcvn.edu.vn; docker exec đọc EmailOutbox) — 6 spec, 6/6 pass, 0 lỗi.
 - Smoke toàn chuỗi + audit-log + GlitchTip; kiểm tra backup 1 đêm thật; cert renew --dry-run.
 - Bàn giao: credentials (3 tài khoản), runbook vận hành (tra cứu lỗi theo mã/reqId, backup/restore, rollback
   từng phase, gia hạn cert), ledger dữ liệu test.

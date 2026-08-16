@@ -145,3 +145,11 @@ Gate: login 3 tài khoản qua https erp; GĐ tạo staff OK; GĐ không leo tha
 - cmc-lms bất biến; cmc_edu full (audit/log/monitor/backup); setup ban đầu + 2 GĐ rõ; VPS tự chứa (không laptop).
 
 **TRẠNG THÁI: PLAN HOÀN CHỈNH — DỪNG PHIÊN, CHƯA IMPLEMENT (theo yêu cầu người dùng).**
+
+## EXECUTION LOG (2026-08-17) — cmc_edu LIVE trên VPS
+- P0 ✅ backup LMS, fail2ban, cmc-obs-bridge, self-signed certs deverp/devlms, AOP pem.
+- P1 ✅ override (0.0.0.0:8080:8080 + NGINX_PUBLISH), nginx.vps.conf (AOP + CF geo boundary + resolver), deploy/isolation scripts, tools image (tsx + symlinks).
+- P2 ✅ stack up (api/worker/postgres/admin/lms healthy), migrate + ALTER ROLE cmc_app + in-network verify.
+- P5 ✅ seeds (super-admin + gdkd + gddt) + login verified in-network.
+- P4 ✅ Cloudflare Origin Rules (user dashboard): deverp/devlms → VPS:8080. Fixes: geo CF-boundary (realip rewrites remote_addr), resolver for variable proxy_pass. External verified: deverp→Admin, devlms→LMS, hoc→LMS (regression OK), login admin end-to-end OK.
+- Còn lại: P3 observability (GlitchTip/backup/monitor), P6 ak-test (live UAT suite on VPS) + ak-code-review, bàn giao.

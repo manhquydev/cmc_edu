@@ -153,3 +153,10 @@ Gate: login 3 tài khoản qua https erp; GĐ tạo staff OK; GĐ không leo tha
 - P5 ✅ seeds (super-admin + gdkd + gddt) + login verified in-network.
 - P4 ✅ Cloudflare Origin Rules (user dashboard): deverp/devlms → VPS:8080. Fixes: geo CF-boundary (realip rewrites remote_addr), resolver for variable proxy_pass. External verified: deverp→Admin, devlms→LMS, hoc→LMS (regression OK), login admin end-to-end OK.
 - Còn lại: P3 observability (GlitchTip/backup/monitor), P6 ak-test (live UAT suite on VPS) + ak-code-review, bàn giao.
+
+## PIPELINE HOÀN TẤT (2026-08-17)
+- **ak-cook**: plan implemented — cmc_edu LIVE trên VPS (deverp/devlms), LMS hoc không đổi. Fixes runtime: geo CF-boundary (realip), resolver, NGINX_PUBLISH, BREVO format, tools image (tsx+symlinks).
+- **ak-test**: live UAT suite chạy TRÊN VPS (test-runner: node+pnpm+playwright+deps) — **6/6 PASS** (setup roles, CRM, receipt+approve+enroll, class+attendance, audit-log, parent OTP thật).
+- **ak-code-review**: REQUEST_CHANGES (scoped) — xác nhận security posture đúng (AOP, geo, isolation, no secrets). Đã fix H1/H2 (deploy-vps.sh: export NGINX_PUBLISH + verify upstreams trực tiếp thay vì qua nginx/AOP) + M2 (.env.prod.example GDKD/GDDT) + M3 (seed-directors facility derive) → commit 989c2ea.
+- **Còn lại (P3)**: backup-vps.sh / monitor-vps.sh / GlitchTip obs / dead-man-switch — đã ghi trong plan, chưa thực thi (session).
+- **Bàn giao**: deverp.cmcvn.edu.vn (ERP admin) + devlms.cmcvn.edu.vn (LMS) — login admin end-to-end OK; hoc.cmcvn.edu.vn regression OK. Credentials: super-admin + gdkd/gddt (trong .env.prod VPS, buộc đổi lần đầu). Test data từ campaign (7 AppUser, 1 student, 2 receipt, AuditLog 52) — giữ làm data UAT.

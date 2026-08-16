@@ -303,6 +303,12 @@ export const userRouter = router({
         });
         if (!existing) throw notFound('AppUser not found.');
 
+        // Escalation guard: a director must not deactivate or re-email a super
+        // admin (that would let them lock out or redirect the platform admin).
+        if (!ctx.subject.roles.includes('super_admin') && (existing.roles as string[]).includes('super_admin')) {
+          throw forbidden('Only a super admin can update another super admin account.');
+        }
+
         if (input.managerId !== undefined && input.managerId !== null) {
           if (input.managerId === input.appUserId) {
             throw badRequest('A user cannot be their own manager.');

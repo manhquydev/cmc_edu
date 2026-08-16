@@ -52,8 +52,8 @@ function gitDirty(): boolean {
   }
 }
 
-export const LIVE_ADMIN_ORIGIN = 'https://erp.clawcmc.io.vn';
-export const LIVE_LMS_ORIGIN = 'https://hoc.clawcmc.io.vn';
+export const LIVE_ADMIN_ORIGIN = process.env['LIVE_ADMIN_ORIGIN'] ?? 'https://erp.clawcmc.io.vn';
+export const LIVE_LMS_ORIGIN = process.env['LIVE_LMS_ORIGIN'] ?? 'https://hoc.clawcmc.io.vn';
 
 // The LMS-parent spec is the ONLY live spec that runs against the LMS origin.
 const LMS_PARENT_SPEC = /04-parent-otp\.spec\.ts$/;

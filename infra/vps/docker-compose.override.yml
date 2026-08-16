@@ -2,7 +2,6 @@
 # Usage: docker compose -p cmcv2-prod --env-file .env.prod #   -f docker-compose.prod.yml -f infra/vps/docker-compose.override.yml up -d
 #
 # Differences vs the laptop/tunnel deployment:
-#   - nginx publishes 0.0.0.0:8080:8080 (NOT 127.0.0.1:80) — the VPS serves
 #     deverp/devlms via Cloudflare Origin Rule to :8080; the LMS owns 80/443.
 #   - nginx.conf = infra/vps/nginx.vps.conf (listen 8080 ssl, AOP, CF real_ip).
 #   - /etc/letsencrypt mounted ro for deverp/devlms self-signed (Full mode) certs.
@@ -12,7 +11,6 @@
 services:
   nginx:
     ports:
-      - "0.0.0.0:8080:8080"
     volumes:
       - ./infra/vps/nginx.vps.conf:/etc/nginx/nginx.conf:ro
       - ./infra/nginx/api-locations.conf:/etc/nginx/api-locations.conf:ro

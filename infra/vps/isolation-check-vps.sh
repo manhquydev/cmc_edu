@@ -22,9 +22,11 @@ ss -tln | grep -q ':8080 ' && warn "port 8080 already bound"
 # 5) Pinned subnet 172.28.0.0/16 free
 ip -4 addr show | grep -q '172.28.' && warn "172.28.0.0/16 already in use on host"
 
-# 6) LMS regression baseline (hoc must still answer 200 via its own nginx)
-HOC=$(curl -s -m 8 -o /dev/null -w '%{http_code}' -H 'Host: hoc.cmcvn.edu.vn' https://127.0.0.1/ 2>/dev/null || echo 0)
-# 6) LMS regression baseline — via Cloudflare (AOP blocks direct-to-origin localhost)
+# 6) LMS regression baseline — via Cloudflare (AOP blocks direct-to-origin
+#    localhost; hoc.cmcvn.edu.vn through CF is the real user path and MUST
+#    keep answering 200 before and after this deployment).
 HOC=$(curl -s -m 10 -o /dev/null -w '%{http_code}' https://hoc.cmcvn.edu.vn/ 2>/dev/null || echo 0)
 [ "$HOC" = 200 ] || warn "hoc.cmcvn.edu.vn not 200 via Cloudflare (got $HOC)"
+
+[ $FAIL -eq 0 ] && echo "ISOLATION-OK" && exit 0
 exit 1

@@ -40,7 +40,7 @@ const DIRECTORS = [
 async function main() {
   const db = createPrivilegedPrismaClient();
   try {
-    const facility = await db.facility.findFirst({ where: { code: 'CMCDEVEL' } });
+    const facility = await db.facility.findFirst({ where: { code: (process.env['SUPER_ADMIN_FACILITY'] ?? 'CMC Development').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) } });
     if (!facility) throw new Error('Facility CMCDEVEL not found — run seed-super-admin first.');
 
     for (const d of DIRECTORS) {

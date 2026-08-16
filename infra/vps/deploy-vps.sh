@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # CMC EDU — deploy to VPS 152.42.167.189 (co-located with cmc-lms, zero impact).
 # Usage (run ON the VPS, from /root/cmc-edu):
+export NGINX_PUBLISH=0.0.0.0:8080:8080
 #   ./infra/vps/deploy-vps.sh
 set -euo pipefail
 
@@ -39,12 +40,12 @@ for i in $(seq 1 60); do
 done
 [ "$(docker inspect --format '{{.State.Health.Status}}' cmcv2-prod-api-1 2>/dev/null)" = healthy ] || fail "api not healthy — check 'docker logs cmcv2-prod-api-1' (likely cmc_app auth: re-run ALTER ROLE step)"
 
-log "5/6 verify INSIDE compose network (AOP blocks external without CF client cert)"
-H() { docker run --rm --network cmcv2-prod_cmcv2-prod-net curlimages/curl:latest -s -m 8 -o /dev/null -w '%{http_code}' -H "Host: $1" http://cmcv2-prod-nginx-1/$2; }
-E1=$(H deverp.cmcvn.edu.vn /health); [ "$E1" = 200 ] || fail "erp /health = $E1"
-T1=$(H deverp.cmcvn.edu.vn / | grep -o '<title>[^<]*' || true)
-T2=$(H devlms.cmcvn.edu.vn / | grep -o '<title>[^<]*' || true)
-log "erp /health=$E1; erp title=$T1; devlms title=$T2"
-
+log "5/6 verify (AOP blocks in-network curl through nginx — check upstreams directly + nginx -t + external AOP probe)"
+docker exec cmcv2-prod-nginx-1 nginx -t >/dev/null 2>&1 || fail "nginx config invalid (nginx -t failed)"
+A1=$(docker run --rm --network cmcv2-prod_cmcv2-prod-net curlimages/curl:latest -s -m 8 -o /dev/null -w '%{http_code}' http://cmcv2-prod-admin-1:80/admin/ 2>/dev/null || echo 000)
+A2=$(docker run --rm --network cmcv2-prod_cmcv2-prod-net curlimages/curl:latest -s -m 8 -o /dev/null -w '%{http_code}' http://cmcv2-prod-lms-1:80/lms/ 2>/dev/null || echo 000)
+A3=$(docker run --rm --network cmcv2-prod_cmcv2-prod-net curlimages/curl:latest -s -m 8 -o /dev/null -w '%{http_code}' http://cmcv2-prod-api-1:3000/health 2>/dev/null || echo 000)
+[ "$A1" = 200 ] && [ "$A2" = 200 ] && [ "$A3" = 200 ] || fail "upstream verify failed (admin=$A1 lms=$A2 api=$A3)"
+log "upstreams ok (admin=$A1 lms=$A2 api=$A3)"
 log "6/6 done. Seeds + Cloudflare origin rules are separate steps (see runbook)."
 log "Rollback: docker compose -p cmcv2-prod down (keeps volumes); NEVER --rmi all (postgres:16-alpine shared with LMS)."

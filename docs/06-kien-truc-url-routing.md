@@ -93,7 +93,7 @@ Quy tắc:
 | Đối soát theo kỳ | `/finance/reconciliation?term=` | Nơi Reconciliation agent đổ cờ |
 | Hoàn tiền | `/finance/refunds` → `/finance/refunds/{id}` | — |
 | Hộp thư gửi đi | `/finance/outbox` | (email outbox) |
-| Nhân sự | `/hr/staff` → `/hr/staff/{id}` | `/{id}/profile` · `/payslips` · `/shifts` |
+| Nhân sự | `/hr/staff` → `/hr/staff/{id}` | `/{id}/profile` · `/{id}/access` (`/activity` theo timeline Phase 4) |
 | Lương | `/hr/payroll?month=2026-07` → `/hr/payroll/{payslipId}` | — |
 | KPI | `/hr/kpi?period=` | — |
 | Bậc lương | `/hr/salary-tiers` | — |
@@ -105,7 +105,7 @@ Quy tắc:
 ### D. Định danh & Quản trị
 | Trang | URL |
 |---|---|
-| Cơ sở & Người dùng | `/admin/facilities` → `/admin/facilities/{id}` · `/admin/users` → `/admin/users/{id}` |
+| Cơ sở | `/admin/facilities` → `/admin/facilities/{id}` (Người dùng đã chuyển sang `/hr/staff` — `/admin/users` chỉ còn redirect) |
 | IP WiFi chấm công | `/admin/network-ip` |
 
 ### E. Tương tác & Gắn kết

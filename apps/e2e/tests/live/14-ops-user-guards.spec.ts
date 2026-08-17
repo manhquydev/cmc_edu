@@ -2,12 +2,13 @@
 //
 // Directors hold user.manage for staff provisioning but must NOT mint platform
 // admins (user.create guard: "Only a super admin can create a super_admin
-// account."). The users dialog shows the full ACTIVE_ROLES list to every
+// account."). The /hr/staff/new form shows the full ACTIVE_ROLES list to every
 // caller, so the guard is exercised the way a hostile director would:
-//   1. GĐKD creates a user and picks "Quản trị hệ thống" → server FORBIDDEN
-//      (banner) — no new admin row appears.
-//   2. GĐKD creates a normal sale account → succeeds (user.manage works).
-//   3. GĐKD opens the reset-password modal for that sale → sets a temp password
+//   1. GĐKD creates a user on /hr/staff/new and picks "Quản trị hệ thống" →
+//      server FORBIDDEN (banner) — no new admin row appears.
+//   2. GĐKD creates a normal sale account → succeeds (user.manage works),
+//      landing on the created profile (/hr/staff/:id/profile).
+//   3. GĐKD opens the Access section for that sale → resets the password
 //      (E13: reset flow for an EXISTING user, not just create-time).
 
 import { test, expect } from '@playwright/test';
@@ -15,7 +16,6 @@ import { test, expect } from '@playwright/test';
 import { openStaffSession, closeRoleSession } from '../../src/live/live-auth.js';
 import { liveStaffRoleClient } from '../../src/live/live-trcp.js';
 import { liveRunId } from '../../src/live/live-state.js';
-import { findInList } from '../../src/journey/find-in-list.js';
 import {
   newScratch,
   attachErrors,
@@ -36,57 +36,52 @@ test.describe('14-ops-user-guards — director không tạo được super_admin
     const gd = await openStaffSession(browser, 'giam_doc_kinh_doanh');
     attachErrors(gd.page, scratch);
     try {
-      // GĐKD holds user.manage but the 'Quản trị' nav group is super_admin-only
-      // (nav-registry.test: GĐKD must NOT see Quản trị) — access is by URL,
-      // which is itself the permission check under test.
-      await gd.page.goto('/admin/users');
-      await expect(gd.page).toHaveURL(/\/admin\/users/);
+      // GĐKD holds user.manage so the Staff leaf is visible under HR; the
+      // canonical create surface is /hr/staff/new (D1). Direct URL access is
+      // itself part of the permission contract under test.
+      await gd.page.goto('/hr/staff/new');
+      await expect(gd.page).toHaveURL(/\/hr\/staff\/new/);
 
       // 1. GĐKD cố tạo tài khoản super_admin → server FORBIDDEN.
-      await gd.page.getByRole('button', { name: 'Thêm nhân viên' }).click();
-      const dialog = gd.page.getByRole('dialog');
-      await dialog.getByLabel('User ID (auth identity)').fill('live-guard-admin-' + rid);
-      await dialog.getByLabel('Họ tên').fill('Live Guard Admin ' + rid);
-      await dialog.getByLabel('Email').fill('live-guard-admin-' + rid + '@cmcvn.edu.vn');
-      await dialog.getByLabel('Vị trí').fill('Quản trị hệ thống');
-      await dialog.getByRole('button', { name: 'Vai trò', exact: true }).click();
+      await gd.page.getByLabel('User ID (auth identity)').fill('live-guard-admin-' + rid);
+      await gd.page.getByLabel('Họ tên').fill('Live Guard Admin ' + rid);
+      await gd.page.getByLabel('Email').fill('live-guard-admin-' + rid + '@cmcvn.edu.vn');
+      await gd.page.getByLabel('Vị trí').fill('Quản trị hệ thống');
+      await gd.page.getByRole('button', { name: 'Vai trò', exact: true }).click();
       await gd.page.getByRole('option', { name: 'Quản trị hệ thống', exact: true }).click();
       await gd.page.keyboard.press('Escape');
-      await dialog.getByRole('button', { name: 'Tạo', exact: true }).click();
-      // Server rejects; the dialog stays open with an error banner.
-      await expect(dialog.getByText(/Only a super admin can create a super_admin/)).toBeVisible({
+      await gd.page.getByRole('button', { name: 'Tạo', exact: true }).click();
+      // Server rejects; the form stays with an error banner.
+      await expect(gd.page.getByText(/Only a super admin can create a super_admin/)).toBeVisible({
         timeout: 15_000,
       });
-      await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
+      await gd.page.getByRole('button', { name: 'Hủy', exact: true }).click();
       recordCreated(scratch, 'guard', 'create-super-admin-blocked', 'FORBIDDEN');
       console.log('[14-ops-user-guards] GĐKD blocked from creating super_admin');
 
-      // 2. GĐKD tạo tài khoản sale bình thường → thành công.
-      await gd.page.getByRole('button', { name: 'Thêm nhân viên' }).click();
-      const dialog2 = gd.page.getByRole('dialog');
-      await dialog2.getByLabel('User ID (auth identity)').fill(normalUserId);
-      await dialog2.getByLabel('Họ tên').fill(normalName);
-      await dialog2.getByLabel('Email').fill(normalEmail);
-      await dialog2.getByLabel('Vị trí').fill('Nhân viên kinh doanh');
-      await dialog2.getByRole('button', { name: 'Vai trò', exact: true }).click();
+      // 2. GĐKD tạo tài khoản sale bình thường → thành công, đáp xuống profile.
+      await gd.page.goto('/hr/staff/new');
+      await gd.page.getByLabel('User ID (auth identity)').fill(normalUserId);
+      await gd.page.getByLabel('Họ tên').fill(normalName);
+      await gd.page.getByLabel('Email').fill(normalEmail);
+      await gd.page.getByLabel('Vị trí').fill('Nhân viên kinh doanh');
+      await gd.page.getByRole('button', { name: 'Vai trò', exact: true }).click();
       await gd.page.getByRole('option', { name: 'Sale', exact: true }).click();
       await gd.page.keyboard.press('Escape');
-      await dialog2.getByLabel('Mật khẩu đầu tiên').fill('CmcTemp!' + rid);
-      await dialog2.getByRole('button', { name: 'Tạo', exact: true }).click();
-      await expect(gd.page.getByRole('button', { name: 'Tạo', exact: true })).toHaveCount(0, {
+      await gd.page.getByLabel('Mật khẩu đầu tiên').fill('CmcTemp!' + rid);
+      await gd.page.getByRole('button', { name: 'Tạo', exact: true }).click();
+      // Create-success navigates (replace) to the created profile.
+      await expect(gd.page).toHaveURL(/\/hr\/staff\/[0-9a-f-]{36}\/profile$/, {
         timeout: 15_000,
       });
-      // Tìm row mới.
-      const search = gd.page.getByPlaceholder(/Tên, email, mã NV/i);
-      await search.fill(normalName);
-      await gd.page.waitForTimeout(500);
-      const row = await findInList(gd.page, (text) => text.includes(normalName));
-      await expect(row).toBeVisible();
+      await expect(gd.page.getByText(normalName).first()).toBeVisible({ timeout: 15_000 });
       recordCreated(scratch, 'staff-account', 'guard normal sale', normalEmail);
       console.log('[14-ops-user-guards] GĐKD created a normal sale');
 
-      // 3. GĐKD reset mật khẩu cho user hiện hữu (E13).
-      await row.getByRole('button', { name: 'Đặt lại mật khẩu' }).click();
+      // 3. GĐKD reset mật khẩu cho user hiện hữu (E13) qua Access section.
+      await gd.page.getByRole('link', { name: 'Quyền truy cập' }).click();
+      await expect(gd.page).toHaveURL(/\/access$/);
+      await gd.page.getByRole('button', { name: 'Đặt lại mật khẩu' }).click();
       const resetDialog = gd.page.getByRole('dialog');
       await resetDialog.getByLabel('Mật khẩu tạm').fill('CmcTempReset!' + rid);
       await resetDialog.getByRole('button', { name: 'Đặt mật khẩu tạm' }).click();

@@ -13,6 +13,10 @@ import {
   shiftRegistrationNewPath,
   shiftRegistrationsPath,
   kpiScoresPath,
+  staffAccessPath,
+  staffListPath,
+  staffNewPath,
+  staffProfilePath,
 } from './index.js';
 
 const UUID = '550e8400-e29b-41d4-a716-446655440000';
@@ -31,6 +35,7 @@ describe('links builders', () => {
     expect(links.manualPunchTicket(UUID)).toBe(`/hr/checkin/${UUID}`);
     expect(links.reward(UUID)).toBe(`/admin/engagement/rewards/${UUID}`);
     expect(links.exercise(UUID)).toBe(`/teaching/exercises/${UUID}`);
+    expect(links.staff(UUID)).toBe(`/hr/staff/${UUID}`);
   });
 
   it('builds go paths', () => {
@@ -44,6 +49,23 @@ describe('links builders', () => {
     expect(goPath('manualPunchTicket', UUID)).toBe(`/go/manualPunchTicket/${UUID}`);
     expect(goPath('reward', UUID)).toBe(`/go/reward/${UUID}`);
     expect(goPath('exercise', UUID)).toBe(`/go/exercise/${UUID}`);
+    expect(goPath('staff', UUID)).toBe(`/go/staff/${UUID}`);
+  });
+});
+
+describe('staff path builders (D1 canonical surface)', () => {
+  it('builds the canonical list with q/page and omits empty keys', () => {
+    expect(staffListPath()).toBe('/hr/staff');
+    // URLSearchParams percent-encodes diacritics — the browser decodes on read.
+    expect(staffListPath({ q: 'Trần' })).toBe('/hr/staff?q=Tr%E1%BA%A7n');
+    expect(staffListPath({ page: 1 })).toBe('/hr/staff');
+    expect(staffListPath({ q: 'Trần', page: 3 })).toBe('/hr/staff?q=Tr%E1%BA%A7n&page=3');
+  });
+
+  it('builds the create page and section subpaths', () => {
+    expect(staffNewPath()).toBe('/hr/staff/new');
+    expect(staffProfilePath(UUID)).toBe(`/hr/staff/${UUID}/profile`);
+    expect(staffAccessPath(UUID)).toBe(`/hr/staff/${UUID}/access`);
   });
 });
 
@@ -73,6 +95,7 @@ describe('resolveGo', () => {
     expect(resolveGo('manualPunchTicket', UUID)).toBe(`/hr/checkin/${UUID}`);
     expect(resolveGo('reward', UUID)).toBe(`/admin/engagement/rewards/${UUID}`);
     expect(resolveGo('exercise', UUID)).toBe(`/teaching/exercises/${UUID}`);
+    expect(resolveGo('staff', UUID)).toBe(`/hr/staff/${UUID}`);
   });
 
   it('returns null for unknown entity keys', () => {

@@ -8,9 +8,11 @@
 // A future phase should move this route to /teaching/report-cards.
 
 import { lazy, Suspense } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
 import { ComingSoon } from '../pages/coming-soon.js';
 import { PermissionGate } from '../lib/permission-gate.js';
+import { staffProfilePath } from '@cmc/links';
 
 // ── Students ────────────────────────────────────────────────────────────────
 const StudentListPage = lazy(() => import('../pages/students/index.js'));
@@ -33,7 +35,6 @@ const LeaderboardPage = lazy(() => import('../pages/engagement/leaderboard.js'))
 
 // ── Admin (super_admin gated) ────────────────────────────────────────────────
 const FacilitiesPage = lazy(() => import('../pages/admin/facilities.js'));
-const UsersPage = lazy(() => import('../pages/admin/users.js'));
 const NetworkIpPage = lazy(() => import('../pages/admin/network-ip.js'));
 const ShiftConfigPage = lazy(() => import('../pages/admin/shift-config.js'));
 const AuditLogPage = lazy(() => import('../pages/admin/audit-log.js'));
@@ -47,6 +48,12 @@ function Fallback() {
 
 function S({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<Fallback />}>{children}</Suspense>;
+}
+
+// /admin/users/:staffId → canonical /hr/staff/:staffId/profile (replace).
+function UsersDetailRedirect() {
+  const { staffId = '' } = useParams<{ staffId: string }>();
+  return <Navigate to={staffProfilePath(staffId)} replace />;
 }
 
 export const adminRoutes: RouteObject[] = [
@@ -168,7 +175,14 @@ export const adminRoutes: RouteObject[] = [
 
   // Admin (gated in page component)
   { path: 'facilities', element: <S><FacilitiesPage /></S> },
-  { path: 'users', element: <S><UsersPage /></S> },
+  // /admin/users is a compatibility redirect only — the canonical staff
+  // surface is /hr/staff (D1). Both list and detail redirect with replace so
+  // no second editable screen exists and old bookmarks land on one surface.
+  { path: 'users', element: <Navigate to="/hr/staff" replace /> },
+  {
+    path: 'users/:staffId',
+    element: <UsersDetailRedirect />,
+  },
   { path: 'network-ip', element: <S><NetworkIpPage /></S> },
   { path: 'shift-config', element: <S><ShiftConfigPage /></S> },
   { path: 'audit-log', element: <S><AuditLogPage /></S> },

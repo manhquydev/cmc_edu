@@ -25,7 +25,10 @@ test('uses the first permitted child as the module landing when the declared lan
 test('keeps super_admin as an explicit mobile-audit role and resolves its admin module to a real child', () => {
   const admin = visibleNavigationForRole('super_admin').find((entry) => entry.module.id === 'admin');
 
-  assert.equal(admin?.recommendedLandingPath, '/admin/users');
+  // The Quản trị module's first permitted child is now /admin/facilities: the
+  // staff leaf moved to HR as /hr/staff (D1), so the module landing resolves
+  // to the first remaining child.
+  assert.equal(admin?.recommendedLandingPath, '/admin/facilities');
 
   const rows = buildErpMobileRouteAudit();
   assert.ok(rows.some((entry) => entry.role === 'super_admin' && entry.roleAuthorization === 'super-admin-bypass'));

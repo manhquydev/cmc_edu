@@ -8,8 +8,9 @@
 //      apps/e2e/.live-credentials.json so reruns never re-rotate.
 //   2. Creates the 4 staff accounts the campaign's roles need — sale /
 //      giam_doc_kinh_doanh / giam_doc_dao_tao / giao_vien — through the real
-//      /admin/users create dialog, each with a temp password (first login of
-//      each role then rotates it, handled by live-auth in the later specs).
+//      canonical /hr/staff/new create form, each with a temp password (first
+//      login of each role then rotates it, handled by live-auth in the later
+//      specs).
 //
 // Pacing: this is the ONLY spec that may perform the bootstrap login; later
 // specs reuse the saved cookie or the rotated password. rotateRun() at the
@@ -19,7 +20,7 @@
 import { test, expect } from '@playwright/test';
 
 import { openStaffSession, closeRoleSession } from '../../src/live/live-auth.js';
-import { openUsersPage, createStaffInDialog } from '../../src/live/live-ui.js';
+import { openStaffPage, createStaffInForm } from '../../src/live/live-ui.js';
 import { updateCredentialsFile } from '../../src/live/live-credentials.js';
 import { rotateRun, updateLiveState, liveRunId } from '../../src/live/live-state.js';
 import {
@@ -41,27 +42,24 @@ test.describe('00-setup-roles — bootstrap super admin + create the 4 staff acc
     rotateRun();
   });
 
-  test('super admin logs in (forced rotation on the very first login) and creates sale/GĐKD/GĐĐT/GV via /admin/users', async ({
+  test('super admin logs in (forced rotation on the very first login) and creates sale/GĐKD/GĐĐT/GV via the canonical /hr/staff surface', async ({
     browser,
   }) => {
     const session = await openStaffSession(browser, 'superAdmin');
     attachErrors(session.page, scratch);
     try {
-      await openUsersPage(session.page);
-      await expect(session.page).toHaveURL(/\/admin\/users/);
+      await openStaffPage(session.page);
+      await expect(session.page).toHaveURL(/\/hr\/staff/);
 
       const rid = liveRunId();
       for (const spec of STAFF_ROLES) {
         const identity = staffIdentity(spec.key);
         const fullName = staffFullName(spec.key);
 
-        // Filter the list to the account we are about to create so findInList
-        // (inside createStaffInDialog) confirms the row on page 1.
-        const search = session.page.getByPlaceholder(/Tên, email, mã NV/i);
-        await search.fill(fullName);
-        await session.page.waitForTimeout(500); // debounce matches users.tsx 300ms
-
-        await createStaffInDialog(session.page, {
+        // Create through the dedicated /hr/staff/new form; create-success
+        // navigates (replace) to the created profile URL.
+        await session.page.goto('/hr/staff/new');
+        await createStaffInForm(session.page, {
           userId: identity.userId,
           fullName,
           email: identity.email,

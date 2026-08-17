@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
-import { useRoutes } from 'react-router-dom';
+import { Outlet, useRoutes } from 'react-router-dom';
 import { renderWithProviders } from '../test/render-with-providers.js';
 
 // Locks two audit findings (audit-260726-2040-hr-payroll-kpi.md #2, #5):
@@ -53,6 +53,20 @@ vi.mock('../pages/hr/kpi.js', () => ({ default: () => <div>KPI_PAGE</div> }));
 vi.mock('../pages/hr/kpi-detail.js', () => ({ default: () => <div>KPI_DETAIL_PAGE</div> }));
 vi.mock('../pages/hr/my-hr.js', () => ({ default: () => <div>MY_PAGE</div> }));
 vi.mock('../pages/hr/salary-tiers.js', () => ({ default: () => <div>SALARY_TIERS_PAGE</div> }));
+vi.mock('../pages/hr/staff/index.js', () => ({ default: () => <div>STAFF_LIST_PAGE</div> }));
+vi.mock('../pages/hr/staff/staff-new.js', () => ({ default: () => <div>STAFF_NEW_PAGE</div> }));
+vi.mock('../pages/hr/staff/staff-detail.js', () => ({
+  // Real shell owns user.get + tabs; keep <Outlet/> so section routing is
+  // still exercised — the section mock renders below it.
+  default: () => (
+    <div>
+      STAFF_DETAIL_SHELL
+      <Outlet />
+    </div>
+  ),
+}));
+vi.mock('../pages/hr/staff/profile.js', () => ({ default: () => <div>STAFF_PROFILE_SECTION</div> }));
+vi.mock('../pages/hr/staff/access.js', () => ({ default: () => <div>STAFF_ACCESS_SECTION</div> }));
 
 const { hrRoutes } = await import('./hr.routes.js');
 
@@ -106,5 +120,40 @@ describe('hrRoutes', () => {
     sessionRoles = ['giam_doc_kinh_doanh'];
     renderHr('/hr/checkin/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
     expect(await screen.findByText('CHECKIN_TICKET_DETAIL')).toBeInTheDocument();
+  });
+
+  // ── Staff canonical surface (D1): list / new / detail sections ───────────
+
+  it('resolves the canonical /hr/staff list', async () => {
+    sessionRoles = ['giam_doc_kinh_doanh'];
+    renderHr('/hr/staff');
+    expect(await screen.findByText('STAFF_LIST_PAGE')).toBeInTheDocument();
+  });
+
+  it('resolves /hr/staff/new (static route precedes /:staffId)', async () => {
+    sessionRoles = ['giam_doc_kinh_doanh'];
+    renderHr('/hr/staff/new');
+    expect(await screen.findByText('STAFF_NEW_PAGE')).toBeInTheDocument();
+  });
+
+  it('redirects the bare /hr/staff/:staffId to the default profile section', async () => {
+    sessionRoles = ['giam_doc_kinh_doanh'];
+    renderHr('/hr/staff/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    expect(await screen.findByText('STAFF_DETAIL_SHELL')).toBeInTheDocument();
+    expect(await screen.findByText('STAFF_PROFILE_SECTION')).toBeInTheDocument();
+  });
+
+  it('resolves the /hr/staff/:staffId/profile section', async () => {
+    sessionRoles = ['giam_doc_kinh_doanh'];
+    renderHr('/hr/staff/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/profile');
+    expect(await screen.findByText('STAFF_DETAIL_SHELL')).toBeInTheDocument();
+    expect(await screen.findByText('STAFF_PROFILE_SECTION')).toBeInTheDocument();
+  });
+
+  it('resolves the /hr/staff/:staffId/access section', async () => {
+    sessionRoles = ['giam_doc_kinh_doanh'];
+    renderHr('/hr/staff/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/access');
+    expect(await screen.findByText('STAFF_DETAIL_SHELL')).toBeInTheDocument();
+    expect(await screen.findByText('STAFF_ACCESS_SECTION')).toBeInTheDocument();
   });
 });

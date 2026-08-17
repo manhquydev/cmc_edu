@@ -5,7 +5,7 @@
 // returns to the page before /new (the list or wherever the user came from).
 // The returned `AppUser.id` is the canonical detail URL, never the list.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button,
@@ -70,11 +70,14 @@ export default function StaffNewPage() {
   const { canDo } = useSession();
   const navigate = useNavigate();
   const [form, setForm] = useState<CreateForm>(EMPTY_FORM);
+  const [createdId, setCreatedId] = useState<string | null>(null);
 
-  // Leave blocker: any typed field is unsaved work (D7). The create-success
-  // navigation uses `replace`, so a committed form never trips this guard on
-  // Back — only real unsaved edits do.
-  const dirty = Object.values(form).some((v) => (Array.isArray(v) ? v.length > 0 : String(v).length > 0));
+  // Leave blocker: any typed field is unsaved work (D7). Once a create has
+  // succeeded the form is no longer "unsaved" — the redirect effect below
+  // navigates after this clears, so the blocker never intercepts it.
+  const dirty =
+    createdId === null &&
+    Object.values(form).some((v) => (Array.isArray(v) ? v.length > 0 : String(v).length > 0));
   const blocker = useUnsavedBlocker({ dirty });
 
   const utils = trpc.useUtils();
@@ -84,12 +87,26 @@ export default function StaffNewPage() {
 
   const createMut = trpc.user.create.useMutation({
     onSuccess: (created) => {
+      // Clear the form FIRST (dirty → false) and arm the redirect in state.
+      // Navigating directly here would race the leave-blocker: react-router
+      // evaluates the blocker against the last committed render, which still
+      // sees unsaved input and would swallow the success navigation behind
+      // the confirm dialog. The effect below runs after this commit, when the
+      // blocker has re-registered with dirty=false.
+      setForm(EMPTY_FORM);
+      setCreatedId(created.id);
       void utils.user.list.invalidate();
       void utils.user.managerPickList.invalidate();
-      // replace: never leave the submitted /new form in history.
-      navigate(staffProfilePath(created.id), { replace: true });
     },
   });
+
+  // Create-success redirect: `replace`, so Back never returns to a submitted
+  // /new form (D1/D7). Armed by onSuccess, executed post-commit (see above).
+  useEffect(() => {
+    if (createdId !== null) {
+      navigate(staffProfilePath(createdId), { replace: true });
+    }
+  }, [createdId, navigate]);
 
   if (!canDo('user', 'manage')) {
     return (

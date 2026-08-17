@@ -27,6 +27,10 @@ export interface CreateStaffViaLiveUiOptions {
   position: string;
   /** Initial (temp) password — the account must rotate it at first login. */
   tempPassword: string;
+  /** Optional direct manager ("Quản lý trực tiếp" Selector) — pick the row
+   *  whose DISPLAYED fullName matches. Required by kpi.confirm (scoreOwner
+   *  must have managerId === confirming director). */
+  managerFullName?: string;
 }
 
 /** Opens /admin/users through the real nav, then creates one staff account
@@ -61,6 +65,17 @@ export async function createStaffInDialog(page: Page, opts: CreateStaffViaLiveUi
   await page.getByRole('option', { name: roleLabel, exact: true }).click();
   await page.keyboard.press('Escape');
 
+  // Optional "Quản lý trực tiếp" Selector (Astryx): trigger by visible label,
+  // pick the roster row by its displayed fullName. The roster is the full
+  // user.list (users.tsx loads it when the dialog opens), so any staff role
+  // created earlier in the campaign is selectable.
+  if (opts.managerFullName) {
+    await dialog.getByRole('combobox', { name: 'Quản lý trực tiếp' }).click();
+    await page
+      .getByRole('option', { name: new RegExp(escapeRegExp(opts.managerFullName)) })
+      .click();
+  }
+
   await dialog.getByLabel('Mật khẩu đầu tiên').fill(opts.tempPassword);
 
   await dialog.getByRole('button', { name: 'Tạo', exact: true }).click();
@@ -75,6 +90,10 @@ export async function createStaffInDialog(page: Page, opts: CreateStaffViaLiveUi
     await page.waitForTimeout(500); // debounce matches users.tsx 300ms
   }
   await findInList(page, (text) => text.includes(opts.fullName));
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function roleLabelFor(role: LiveStaffRole): string {

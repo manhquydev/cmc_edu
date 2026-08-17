@@ -11,6 +11,7 @@
 
 import { type Page, type TestInfo } from '@playwright/test';
 
+import { ictMonthOf } from '@cmc/domain-time';
 import { randomVnPhone } from '../../src/random-vn-phone.js';
 import {
   attachErrorCollectors,
@@ -74,6 +75,16 @@ export function staffIdentity(roleKey: string): { userId: string; email: string;
 /** A plausible fresh parent phone for the receipt (normalized server-side). */
 export function freshParentPhone(): string {
   return randomVnPhone();
+}
+
+/** A KPI period N months before the current ICT month. kpi.submitSlip
+ *  only opens from day 3 of the FOLLOWING month (auto-score.ts), so a period
+ *  2 months back is always submittable without touching the clock — same
+ *  reasoning the local kpi journey documents for its hardcoded 2026-06. */
+export function pastPeriodIct(monthsBack = 2): string {
+  const [y, m] = ictMonthOf(new Date()).split('-').map(Number);
+  const shifted = new Date(Date.UTC(y, m - 1 - monthsBack, 1));
+  return shifted.toISOString().slice(0, 7);
 }
 
 /** The 4 staff accounts 00-setup-roles creates, with their UI labels. */

@@ -35,8 +35,8 @@ Keep global `AuditLog` restricted to compliance use.
 
 | # | Phase | Status |
 |---|-------|--------|
-| 1 | [Contract, Inventory and Decision Freeze](./phase-01-start.md) | Pending |
-| 2 | [Staff Authorization and API Contract](./phase-02-staff-authorization-and-api-contract.md) | Pending |
+| 1 | [Contract, Inventory and Decision Freeze](./phase-01-start.md) | Done |
+| 2 | [Staff Authorization and API Contract](./phase-02-staff-authorization-and-api-contract.md) | In progress |
 | 3 | [Staff Routes, Forms and Navigation](./phase-03-staff-routes-forms-and-navigation.md) | Pending |
 | 4 | [Operational Timeline and Compliance Audit Separation](./phase-04-operational-timeline-and-compliance-audit-separation.md) | Pending |
 | 5 | [Existing Detail URL and Cross-Link Normalization](./phase-05-existing-detail-url-and-cross-link-normalization.md) | Pending |

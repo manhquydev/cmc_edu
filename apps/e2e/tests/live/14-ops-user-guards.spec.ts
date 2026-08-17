@@ -13,7 +13,6 @@
 import { test, expect } from '@playwright/test';
 
 import { openStaffSession, closeRoleSession } from '../../src/live/live-auth.js';
-import { openUsersPage } from '../../src/live/live-ui.js';
 import { liveRunId } from '../../src/live/live-state.js';
 import { findInList } from '../../src/journey/find-in-list.js';
 import {
@@ -36,7 +35,10 @@ test.describe('14-ops-user-guards — director không tạo được super_admin
     const gd = await openStaffSession(browser, 'giam_doc_kinh_doanh');
     attachErrors(gd.page, scratch);
     try {
-      await openUsersPage(gd.page);
+      // GĐKD holds user.manage but the 'Quản trị' nav group is super_admin-only
+      // (nav-registry.test: GĐKD must NOT see Quản trị) — access is by URL,
+      // which is itself the permission check under test.
+      await gd.page.goto('/admin/users');
       await expect(gd.page).toHaveURL(/\/admin\/users/);
 
       // 1. GĐKD cố tạo tài khoản super_admin → server FORBIDDEN.

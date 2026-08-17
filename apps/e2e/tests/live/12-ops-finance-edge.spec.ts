@@ -66,6 +66,16 @@ test.describe('12-ops-finance-edge — second-eye >20tr + huỷ phiếu I3 rever
       await sale.page.getByRole('option', { name: new RegExp(escapeRegExp('CMCDEVEL')) }).first().click();
       await sale.page.getByRole('spinbutton', { name: /^Học phí/ }).fill('21000000');
       await sale.page.getByRole('button', { name: 'Tạo phiếu thu' }).click();
+      // Dup-phone edge (P1-02 needs_confirmation): a fresh random phone can
+      // still collide with an earlier campaign's parent phone — the server
+      // answers needs_confirmation and the form shows "Cần xác nhận học sinh"
+      // with a "Đây là bé mới" follow-up. This IS the edge under test, so the
+      // spec confirms the new-student branch, then creates.
+      const needsConfirm = sale.page.getByRole('button', { name: /Đây là bé mới/ });
+      if (await needsConfirm.count()) {
+        await needsConfirm.click();
+        recordCreated(scratch, 'receipt-create', 'needs_confirmation resolved', 'new-student');
+      }
       await expect(sale.page.getByText(/^Đã tạo phiếu thu /)).toBeVisible({ timeout: 20_000 });
       receiptUrl = sale.page.url();
       recordCreated(scratch, 'opportunity', 'edge O4 lead', edgeName);

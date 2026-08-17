@@ -21,7 +21,10 @@ import {
 } from './live-spec-utils.js';
 
 const scratch = newScratch();
-const tomorrow = addDaysToDateOnly(ictDateOnlyOf(new Date()), 1);
+// Use day +2, not tomorrow: 06-ops-hr already registered the SAME sale for
+// tomorrow (overlap guard: "already have a submitted or approved registration
+// overlapping this date range" — seen on the first live run).
+const tomorrow = addDaysToDateOnly(ictDateOnlyOf(new Date()), 2);
 
 test.describe('13-ops-shift-reject — Từ chối đăng ký ca kèm lý do (P3-07, live)', () => {
   test('sale đăng ký ca; GĐKD Từ chối kèm lý do → trạng thái Đã từ chối', async ({ browser }) => {

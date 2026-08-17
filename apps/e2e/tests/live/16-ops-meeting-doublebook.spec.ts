@@ -13,12 +13,15 @@ import { addDaysToDateOnly, ictDateOnlyOf } from '@cmc/domain-time';
 import { openStaffSession, closeRoleSession } from '../../src/live/live-auth.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
 import { readLiveState } from '../../src/live/live-state.js';
+import { liveStaffRoleClient } from '../../src/live/live-trcp.js';
 import {
   newScratch,
   attachErrors,
   finishLiveSpec,
   recordCreated,
   assertNoErrorsAll,
+  runId,
+  freshParentPhone,
 } from './live-spec-utils.js';
 
 const scratch = newScratch();
@@ -38,8 +41,34 @@ async function scheduleMeetingKeepOpen(page: Page, studentName: string, slotLoca
 test.describe('16-ops-meeting-doublebook — họp trùng giờ: warning mềm, vẫn tạo (live)', () => {
   test('đặt họp thứ 2 cùng giờ → dialog giữ mở + banner trùng giờ + Đóng', async ({ browser }) => {
     const state = readLiveState();
-    const studentName = state.contactName;
-    test.skip(!studentName, '02 did not provision a student — meeting needs a real student.');
+    const classCode = state.receiptClassCode;
+    test.skip(!classCode, '02 did not run — meeting needs a class to provision a student.');
+
+    const rid = runId();
+    const dbName = 'Live DB ' + rid;
+    const dbPhone = freshParentPhone();
+
+    // Provision a DEDICATED student for this spec via the real money chain
+    // (sale receiptCreate → GĐKD receiptApprove, tRPC with real sessions —
+    // same as 03). 10-ops-meeting already schedules the campaign student, so
+    // a private student keeps the row-count assertions unambiguous.
+    const saleClient = liveStaffRoleClient('sale');
+    const receiptRes = await saleClient.finance.receiptCreate.mutate({
+      studentName: dbName,
+      parentPhone: dbPhone,
+      parentEmail: 'live-db-' + rid + '@cmcvn.edu.vn',
+      amount: 5000001,
+      classBatchId: classCode,
+    });
+    if (receiptRes.status !== 'success') {
+      throw new Error('16: receiptCreate failed: ' + receiptRes.message);
+    }
+    const gdkdClient = liveStaffRoleClient('giam_doc_kinh_doanh');
+    const approved = await gdkdClient.finance.receiptApprove.mutate({
+      receiptId: receiptRes.receipt.id,
+    });
+    expect(approved.receipt.status).toBe('approved');
+    recordCreated(scratch, 'student', 'dedicated double-book student', dbName);
 
     const tomorrow = addDaysToDateOnly(ictDateOnlyOf(new Date()), 1);
     const slot = tomorrow + 'T10:00';
@@ -51,15 +80,15 @@ test.describe('16-ops-meeting-doublebook — họp trùng giờ: warning mềm, 
       await expect(gd.page).toHaveURL(/\/crm\/post-sale-meeting/);
 
       // 1. First meeting at the slot (clean schedule → dialog auto-closes).
-      await scheduleMeetingKeepOpen(gd.page, studentName!, slot);
+      await scheduleMeetingKeepOpen(gd.page, dbName, slot);
       await expect(gd.page.getByRole('dialog')).toHaveCount(0, { timeout: 15_000 });
-      const firstRow = gd.page.getByRole('row', { name: new RegExp(studentName!) });
+      const firstRow = gd.page.getByRole('row', { name: new RegExp(dbName) });
       await expect(firstRow).toBeVisible({ timeout: 15_000 });
       await expect(firstRow.getByText('Đã đặt lịch')).toBeVisible();
       recordCreated(scratch, 'parent-meeting', 'slot-first', slot);
 
       // 2. Second meeting at the SAME slot → warning, dialog stays open.
-      await scheduleMeetingKeepOpen(gd.page, studentName!, slot);
+      await scheduleMeetingKeepOpen(gd.page, dbName, slot);
       const warnDialog = gd.page.getByRole('dialog');
       await expect(warnDialog.getByText(/trùng giờ/i)).toBeVisible({ timeout: 15_000 });
       await expect(warnDialog.getByRole('button', { name: 'Đóng', exact: true })).toBeVisible();
@@ -67,10 +96,10 @@ test.describe('16-ops-meeting-doublebook — họp trùng giờ: warning mềm, 
       recordCreated(scratch, 'parent-meeting', 'double-book-warning', slot);
       console.log('[16-ops-meeting-doublebook] double-book warning shown, meeting created');
 
-      // 3. Close the dialog; both rows exist for the student.
+      // 3. Close the dialog; BOTH rows exist for the dedicated student.
       await warnDialog.getByRole('button', { name: 'Đóng', exact: true }).click();
       await expect(gd.page.getByRole('dialog')).toHaveCount(0, { timeout: 15_000 });
-      const rows = gd.page.getByRole('row', { name: new RegExp(studentName!) });
+      const rows = gd.page.getByRole('row', { name: new RegExp(dbName) });
       await expect(rows).toHaveCount(2, { timeout: 15_000 });
       console.log('[16-ops-meeting-doublebook] two scheduled meetings visible in the list');
     } finally {

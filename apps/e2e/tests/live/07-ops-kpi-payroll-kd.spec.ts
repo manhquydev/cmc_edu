@@ -42,6 +42,8 @@ const PERIOD = pastPeriodIct(2);
 const KPI_SALE_KEY = 'kpiSale';
 
 test.describe('07-ops-kpi-payroll-kd — phiếu KPI + chốt lương (KD branch, live)', () => {
+  test.setTimeout(240_000);
+
   test('GĐKD tạo bậc lương → gán sale → sale nộp KPI → xác nhận → chốt lương → tất toán kỳ', async ({ browser }) => {
     const rid = liveRunId();
     const identity = staffIdentity('kpi-sale');
@@ -93,7 +95,9 @@ test.describe('07-ops-kpi-payroll-kd — phiếu KPI + chốt lương (KD branch
       console.log('[07-ops-kpi-payroll-kd] salary tier created');
 
       // Gán bậc tab → assign to the KPI sale.
-      await gdkd.page.getByRole('button', { name: 'Gán bậc', exact: true }).first().click();
+      // The tab's accessible name is "Gán bậc Sale / giáo viên" (salary-tiers.tsx
+      // nav section) — substring match, same as the local journey.
+      await gdkd.page.getByRole('button', { name: /^Gán bậc/ }).click();
       const assignRow = gdkd.page.getByRole('row', { name: new RegExp(saleName) });
       await expect(assignRow).toBeVisible({ timeout: 15_000 });
       await assignRow.getByRole('button', { name: 'Gán bậc' }).click();

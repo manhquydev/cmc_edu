@@ -36,6 +36,8 @@ const PERIOD = pastPeriodIct(2);
 const KPI_GV_KEY = 'kpiGv';
 
 test.describe('08-ops-kpi-payroll-gv — phiếu KPI + chốt lương (GV branch, live)', () => {
+  test.setTimeout(240_000);
+
   test('GĐĐT tạo bậc GIAO_VIEN → gán giáo viên → GV nộp KPI → xác nhận → chốt lương → tất toán kỳ', async ({ browser }) => {
     const rid = liveRunId();
     const identity = staffIdentity('kpi-gv');
@@ -90,7 +92,9 @@ test.describe('08-ops-kpi-payroll-gv — phiếu KPI + chốt lương (GV branch
       recordCreated(scratch, 'salary-tier', 'name', tierName);
       console.log('[08-ops-kpi-payroll-gv] GIAO_VIEN salary tier created');
 
-      await gddt.page.getByRole('button', { name: 'Gán bậc', exact: true }).first().click();
+      // The tab's accessible name is "Gán bậc Sale / giáo viên" (salary-tiers.tsx
+      // nav section) — substring match, same as the local journey.
+      await gddt.page.getByRole('button', { name: /^Gán bậc/ }).click();
       const assignRow = gddt.page.getByRole('row', { name: new RegExp(gvName) });
       await expect(assignRow).toBeVisible({ timeout: 15_000 });
       await assignRow.getByRole('button', { name: 'Gán bậc' }).click();

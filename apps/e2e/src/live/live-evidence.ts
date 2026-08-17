@@ -193,9 +193,17 @@ export function attachErrorCollectors(page: Page): ErrorCollector {
         collector.pageErrors.push(String(err?.stack ?? err));
       });
       p.on('console', (msg) => {
-        if (msg.type() === 'error') {
-          collector.consoleErrors.push(msg.text());
+        if (msg.type() !== 'error') return;
+        const text = msg.text();
+        // Chrome logs "Failed to load resource: the server responded with a
+        // status of 4xx" for EVERY failed HTTP resource. That signal is already
+        // captured precisely by the response tracker below (with the same
+        // benign allow-list), so the generic message is not duplicated here —
+        // otherwise one by-design 404 would fail the spec twice.
+        if (/^Failed to load resource: the server responded with a status of \d{3}/.test(text)) {
+          return;
         }
+        collector.consoleErrors.push(text);
       });
       p.on('requestfailed', (req) => {
         const failure = req.failure()?.errorText ?? 'unknown';
@@ -203,10 +211,33 @@ export function attachErrorCollectors(page: Page): ErrorCollector {
           collector.requestFailures.push(req.method() + ' ' + req.url() + ' → ' + failure);
         }
       });
+      // HTTP response tracker: catches 4xx/5xx that the requestfailed event
+      // never sees (a 404/500 IS a completed response). Benign allow-list
+      // mirrors isBenignRequestFailure's intent: only documented by-design
+      // responses pass.
+      p.on('response', (resp) => {
+        const status = resp.status();
+        if (status >= 400 && !isBenignHttpError(resp.url(), status)) {
+          collector.requestFailures.push('HTTP ' + status + ' ' + resp.url());
+        }
+      });
     },
   };
   collector.attach(page);
   return collector;
+}
+
+/** By-design HTTP error responses that must not fail a spec (documented with
+ *  the product contract each one comes from). The browser still logs them as
+ *  console 404s, so the console filter above must stay in sync with this list. */
+function isBenignHttpError(url: string, status: number): boolean {
+  // payroll detail queries payslip.getForUser while NO payslip exists yet —
+  // the "Chưa có bảng lương" empty state IS the expected answer (router:
+  // throw AppCodeError NOT_FOUND). Only this one tRPC procedure is exempt.
+  if (status === 404 && url.includes('payslip.getForUser')) {
+    return true;
+  }
+  return false;
 }
 
 /** Asserts the page produced NO client errors since attach; on failure throws

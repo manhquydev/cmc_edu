@@ -31,7 +31,7 @@ import {
   attachErrors,
   finishLiveSpec,
   recordCreated,
-  assertNoErrors,
+  assertNoErrorsAll,
   staffIdentity,
   staffFullName,
   pastPeriodIct,
@@ -195,7 +195,7 @@ test.describe('07-ops-kpi-payroll-kd — phiếu KPI + chốt lương (KD branch
     recordCreated(scratch, 'payslip-my', 'period+totalNet', PERIOD + '=' + slip!.totalNet);
     console.log('[07-ops-kpi-payroll-kd] payslip.my finalized, totalNet=' + slip!.totalNet);
 
-    await assertNoErrors(sale.page, scratch.collectors[0]!, 'KPI + payroll KD smoke');
+    await assertNoErrorsAll(scratch, 'KPI + payroll KD smoke');
   });
 
   test.afterEach(async ({}, testInfo) => {

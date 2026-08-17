@@ -26,7 +26,7 @@ import {
   attachErrors,
   finishLiveSpec,
   recordCreated,
-  assertNoErrors,
+  assertNoErrorsAll,
 } from './live-spec-utils.js';
 
 const scratch = newScratch();
@@ -67,7 +67,7 @@ test.describe('09-ops-rewards — cấu hình quà + hàng đợi đổi thưở
       await closeRoleSession(sale);
     }
 
-    await assertNoErrors(sale.page, scratch.collectors[0]!, 'rewards surface smoke');
+    await assertNoErrorsAll(scratch, 'rewards surface smoke');
   });
 
   test.afterEach(async ({}, testInfo) => {

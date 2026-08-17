@@ -25,7 +25,7 @@ import {
   attachErrors,
   finishLiveSpec,
   recordCreated,
-  assertNoErrors,
+  assertNoErrorsAll,
   staffIdentity,
   staffFullName,
   pastPeriodIct,
@@ -187,7 +187,7 @@ test.describe('08-ops-kpi-payroll-gv — phiếu KPI + chốt lương (GV branch
     recordCreated(scratch, 'payslip-my', 'period+totalNet', PERIOD + '=' + slip!.totalNet);
     console.log('[08-ops-kpi-payroll-gv] payslip.my finalized, totalNet=' + slip!.totalNet);
 
-    await assertNoErrors(gv.page, scratch.collectors[0]!, 'KPI + payroll GV smoke');
+    await assertNoErrorsAll(scratch, 'KPI + payroll GV smoke');
   });
 
   test.afterEach(async ({}, testInfo) => {

@@ -20,7 +20,7 @@ import {
   attachErrors,
   finishLiveSpec,
   recordCreated,
-  assertNoErrors,
+  assertNoErrorsAll,
 } from './live-spec-utils.js';
 
 const scratch = newScratch();
@@ -91,7 +91,7 @@ test.describe('10-ops-meeting — họp phụ huynh: đặt lịch → hoàn th�
       await closeRoleSession(gd);
     }
 
-    await assertNoErrors(gd.page, scratch.collectors[0]!, 'parent meeting lifecycle');
+    await assertNoErrorsAll(scratch, 'parent meeting lifecycle');
   });
 
   test.afterEach(async ({}, testInfo) => {

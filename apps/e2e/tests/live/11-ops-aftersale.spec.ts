@@ -18,7 +18,7 @@ import {
   attachErrors,
   finishLiveSpec,
   recordCreated,
-  assertNoErrors,
+  assertNoErrorsAll,
 } from './live-spec-utils.js';
 
 const scratch = newScratch();
@@ -78,7 +78,7 @@ test.describe('11-ops-aftersale — chăm sóc sau bán: tạo → tiếp nhận
       await closeRoleSession(gd);
     }
 
-    await assertNoErrors(gd.page, scratch.collectors[0]!, 'after-sale case lifecycle');
+    await assertNoErrorsAll(scratch, 'after-sale case lifecycle');
   });
 
   test.afterEach(async ({}, testInfo) => {

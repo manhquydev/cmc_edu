@@ -15,7 +15,7 @@ import {
   attachErrors,
   finishLiveSpec,
   recordCreated,
-  assertNoErrors,
+  assertNoErrorsAll,
 } from './live-spec-utils.js';
 
 const scratch = newScratch();
@@ -106,7 +106,7 @@ test.describe('06-ops-hr — chấm công + đăng ký ca + duyệt ca (live)', 
       await closeRoleSession(gd);
     }
 
-    await assertNoErrors(gv.page, scratch.collectors[0]!, 'HR ops smoke');
+    await assertNoErrorsAll(scratch, 'HR ops smoke');
   });
 
   test.afterEach(async ({}, testInfo) => {

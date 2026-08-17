@@ -57,6 +57,17 @@ export function finishLiveSpec(info: TestInfo, scratch: SpecScratch): void {
 
 export { assertNoErrors };
 
+/** Asserts EVERY collector attached by this spec has zero errors — not just
+ *  the first one (a later page's console/pageerror would otherwise pass
+ *  silently: the KPI specs' evidence once showed 07/08 passing while a
+ *  GĐKD-page console 404 was only merged into evidence, never asserted). */
+export async function assertNoErrorsAll(scratch: SpecScratch, step: string): Promise<void> {
+  for (let i = 0; i < scratch.collectors.length; i += 1) {
+    // assertNoErrors ignores its page arg — pass the collector itself.
+    await assertNoErrors(scratch.collectors[i]! as unknown as Page, scratch.collectors[i]!, step + ' (page ' + (i + 1) + '/' + scratch.collectors.length + ')');
+  }
+}
+
 /** The shared run id (stable across specs of one campaign). */
 export function runId(): string {
   return readLiveState().runId;

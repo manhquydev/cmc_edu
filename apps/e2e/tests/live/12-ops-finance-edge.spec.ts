@@ -18,7 +18,6 @@ import {
   recordCreated,
   assertNoErrorsAll,
   runId,
-  freshParentPhone,
 } from './live-spec-utils.js';
 
 const scratch = newScratch();
@@ -32,7 +31,9 @@ test.describe('12-ops-finance-edge — second-eye >20tr + huỷ phiếu I3 rever
   test('phiếu 21tr: GĐKD bị chặn → GĐĐT duyệt → GĐKD huỷ (I3 revert O4)', async ({ browser }) => {
     const rid = runId();
     const edgeName = 'Live Edge ' + rid;
-    const edgePhone = freshParentPhone();
+    // SĐT tự sinh unique (84 + 9 chữ số từ runId) — không bao giờ trùng campaign
+    // trước → tránh nhánh needs_confirmation (SĐT đã có hồ sơ) làm flaky.
+    const edgePhone = '84' + rid.replace(/[^0-9]/g, '').padEnd(9, '0').slice(0, 9);
 
     // 1. sale: tạo lead mới → advance O1→O4 (same pattern as 01) → phiếu 21tr.
     const sale = await openStaffSession(browser, 'sale');
@@ -61,21 +62,11 @@ test.describe('12-ops-finance-edge — second-eye >20tr + huỷ phiếu I3 rever
       await card.getByRole('button', { name: 'Ghi danh', exact: true }).click();
       await expect(sale.page).toHaveURL(/\/finance\/new\?opportunityId=/i, { timeout: 15_000 });
 
-      await sale.page.getByLabel(/Email phụ huynh/i).fill('live-finance-edge-' + rid + '@cmcvn.edu.vn');
+      await sale.page.getByLabel('Email phụ huynh').fill('live-finance-edge-' + rid + '@cmcvn.edu.vn');
       await sale.page.getByRole('combobox', { name: /^Lớp học/ }).click();
       await sale.page.getByRole('option', { name: new RegExp(escapeRegExp('CMCDEVEL')) }).first().click();
       await sale.page.getByRole('spinbutton', { name: /^Học phí/ }).fill('21000000');
       await sale.page.getByRole('button', { name: 'Tạo phiếu thu' }).click();
-      // Dup-phone edge (P1-02 needs_confirmation): a fresh random phone can
-      // still collide with an earlier campaign's parent phone — the server
-      // answers needs_confirmation and the form shows "Cần xác nhận học sinh"
-      // with a "Đây là bé mới" follow-up. This IS the edge under test, so the
-      // spec confirms the new-student branch, then creates.
-      const needsConfirm = sale.page.getByRole('button', { name: /Đây là bé mới/ });
-      if (await needsConfirm.count()) {
-        await needsConfirm.click();
-        recordCreated(scratch, 'receipt-create', 'needs_confirmation resolved', 'new-student');
-      }
       await expect(sale.page.getByText(/^Đã tạo phiếu thu /)).toBeVisible({ timeout: 20_000 });
       receiptUrl = sale.page.url();
       recordCreated(scratch, 'opportunity', 'edge O4 lead', edgeName);

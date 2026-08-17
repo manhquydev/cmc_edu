@@ -237,6 +237,13 @@ function isBenignHttpError(url: string, status: number): boolean {
   if (status === 404 && url.includes('payslip.getForUser')) {
     return true;
   }
+  // user.create 403 is the ESCALATION GUARD under test (14-ops-user-guards):
+  // a director with user.manage tries to mint a super_admin and the server
+  // answers FORBIDDEN ("Only a super admin can create a super_admin
+  // account."). A 403 here IS the expected outcome, not a client bug.
+  if (status === 403 && url.includes('user.create')) {
+    return true;
+  }
   return false;
 }
 

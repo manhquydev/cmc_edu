@@ -12,8 +12,7 @@ import { addDaysToDateOnly, ictDateOnlyOf } from '@cmc/domain-time';
 
 import { openStaffSession, closeRoleSession } from '../../src/live/live-auth.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
-import { readLiveState } from '../../src/live/live-state.js';
-import { liveStaffRoleClient } from '../../src/live/live-trcp.js';
+import { createLiveClass, liveStaffRoleClient } from '../../src/live/live-trcp.js';
 import {
   newScratch,
   attachErrors,
@@ -40,25 +39,28 @@ async function scheduleMeetingKeepOpen(page: Page, studentName: string, slotLoca
 
 test.describe('16-ops-meeting-doublebook — họp trùng giờ: warning mềm, vẫn tạo (live)', () => {
   test('đặt họp thứ 2 cùng giờ → dialog giữ mở + banner trùng giờ + Đóng', async ({ browser }) => {
-    const state = readLiveState();
-    const classCode = state.receiptClassCode;
-    test.skip(!classCode, '02 did not run — meeting needs a class to provision a student.');
-
     const rid = runId();
     const dbName = 'Live DB ' + rid;
     const dbPhone = freshParentPhone();
 
-    // Provision a DEDICATED student for this spec via the real money chain
-    // (sale receiptCreate → GĐKD receiptApprove, tRPC with real sessions —
-    // same as 03). 10-ops-meeting already schedules the campaign student, so
-    // a private student keeps the row-count assertions unambiguous.
+    // A private ClassBatch + a DEDICATED student keep row-count assertions
+    // unambiguous vs 10-ops-meeting (which schedules the campaign student).
+    // ClassBatch has no admin UI (PO-approved seed exception) → createLiveClass
+    // via the live super-admin session (same as 02/03); the student then comes
+    // through the real money chain (sale receiptCreate → GĐKD receiptApprove).
+    const warm = await openStaffSession(browser, 'superAdmin');
+    await closeRoleSession(warm);
+    const liveClass = await createLiveClass({ courseName: 'Live DB Course ' + rid });
+    const classBatchId = liveClass.classBatch.id;
+    recordCreated(scratch, 'class-batch', 'double-book class', liveClass.classBatch.code);
+
     const saleClient = liveStaffRoleClient('sale');
     const receiptRes = await saleClient.finance.receiptCreate.mutate({
       studentName: dbName,
       parentPhone: dbPhone,
       parentEmail: 'live-db-' + rid + '@cmcvn.edu.vn',
       amount: 5000001,
-      classBatchId: classCode,
+      classBatchId,
     });
     if (receiptRes.status !== 'success') {
       throw new Error('16: receiptCreate failed: ' + receiptRes.message);

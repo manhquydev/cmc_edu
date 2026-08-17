@@ -4,21 +4,19 @@
 // by GĐKD). All sessions are REAL UI logins via live-auth (staff created by
 // 00-setup-roles with temp passwords; first login rotates them).
 
-import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
-
 import { addDaysToDateOnly, ictDateOnlyOf } from '@cmc/domain-time';
+
 import { openStaffSession, closeRoleSession } from '../../src/live/live-auth.js';
-import { menuNav } from '../journey/menu-nav.js';
+import { menuNav } from '../../src/journey/menu-nav.js';
+import { liveRunId } from '../../src/live/live-state.js';
 import {
   newScratch,
   attachErrors,
   finishLiveSpec,
   recordCreated,
   assertNoErrors,
-  liveRunId,
 } from './live-spec-utils.js';
-import { liveRunId } from '../../src/live/live-state.js';
 
 const scratch = newScratch();
 const tomorrow = addDaysToDateOnly(ictDateOnlyOf(new Date()), 1);
@@ -29,7 +27,7 @@ test.describe('06-ops-hr — chấm công + đăng ký ca + duyệt ca (live)', 
     const groupName = `Ops Ca KD ${rid}`;
     const templateName = `Ops Ca ${rid}`;
 
-    // ── 1. giao_vien: check-in punch (P3-01) ─────────────────────────────────
+    // 1. giao_vien: check-in punch (P3-01)
     const gv = await openStaffSession(browser, 'giao_vien');
     attachErrors(gv.page, scratch);
     try {
@@ -45,7 +43,7 @@ test.describe('06-ops-hr — chấm công + đăng ký ca + duyệt ca (live)', 
       await closeRoleSession(gv);
     }
 
-    // ── 2. super_admin: create Kinh doanh shift group + template ─────────────
+    // 2. super_admin: create Kinh doanh shift group + template
     const sa = await openStaffSession(browser, 'superAdmin');
     attachErrors(sa.page, scratch);
     try {
@@ -69,7 +67,7 @@ test.describe('06-ops-hr — chấm công + đăng ký ca + duyệt ca (live)', 
       await closeRoleSession(sa);
     }
 
-    // ── 3. sale: register the shift (P3-03) ───────────────────────────────────
+    // 3. sale: register the shift (P3-03)
     const sale = await openStaffSession(browser, 'sale');
     attachErrors(sale.page, scratch);
     let regUrl = '';
@@ -90,12 +88,11 @@ test.describe('06-ops-hr — chấm công + đăng ký ca + duyệt ca (live)', 
       await closeRoleSession(sale);
     }
 
-    // ── 4. GĐKD: approve the registration (P3-04) ─────────────────────────────
+    // 4. GĐKD: approve the registration (P3-04)
     const gd = await openStaffSession(browser, 'giam_doc_kinh_doanh');
     attachErrors(gd.page, scratch);
     try {
       const regId = regUrl.match(/\/hr\/shifts\/([0-9a-f-]{36})/i)?.[1]!;
-      expect(regId).toBeTruthy();
       await gd.page.goto(`/go/shiftRegistration/${regId}`);
       await expect(gd.page).toHaveURL(new RegExp(`/hr/shifts/${regId}$`), { timeout: 15_000 });
       await expect(gd.page.getByRole('button', { name: 'Duyệt', exact: true })).toBeVisible({ timeout: 15_000 });

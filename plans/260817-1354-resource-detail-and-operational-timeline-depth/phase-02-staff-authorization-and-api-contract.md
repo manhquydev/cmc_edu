@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Staff Authorization and API Contract"
-status: in_progress
+status: done
 ---
 
 # Phase 2: Staff Authorization and API Contract

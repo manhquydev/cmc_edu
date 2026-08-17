@@ -95,3 +95,16 @@ plans/reports/code-review-260817-live-suite-extended.md nếu agent ghi).
 admin/gdkd/gddt có hash, mustChangePassword=true, active; login admin qua .env.prod
 {"ok":true,"mustChangePassword":true}. Xoá .live-credentials.json + .live-run-state.json.
 Campaign data (staff live-*, tier, gift, meeting, case, KpiScore, Payslip) giữ làm UAT data.
+**P6 ✅ ak-code-review (subagent code-reviewer) → APPROVE_WITH_NOTES** — plans/reports/code-review-260817-live-suite-extended.md.
+Đã fix cả 2 finding chính + rerun:
+- **F1 (assertion defect)**: `assertNoErrors(page, collectors[0])` chỉ kiểm page ĐẦU TIÊN — console
+  error ở page sau (GĐKD trong 07/08) lọt qua (bằng chứng: evidence cũ "passed" kèm 1 console 404).
+  → helper mới `assertNoErrorsAll(scratch)` loop MỌI collector; áp dụng 06-11.
+- **F2 (by-design 404)**: `payslip.getForUser` trả NOT_FOUND khi chưa có bảng lương (trạng thái
+  "Chưa có bảng lương" — contract trong payroll/router.ts) → Chrome log console 404.
+  → response tracker ghi HTTP >=400 với benign allow-list đúng 1 procedure đó; message console
+  generic "Failed to load resource: 4xx" dedupe (response tracker sở hữu tín hiệu này).
+- **Rerun sau fix: 12/12 PASS (2.6m), MỌI spec 0 error trên MỌI collector** (console/page/reqfail=0).
+- Notes còn lại (non-blocking): 10-ops-meeting assertion hoàn thành dùng row filter (đã có), regex
+  tên chưa escape ở 10/11 (không ký tự đặc biệt trong runId — chấp nhận), doc comment live-trcp cũ,
+  eslint chưa phủ live specs (cảnh báo ignored như spec cũ).

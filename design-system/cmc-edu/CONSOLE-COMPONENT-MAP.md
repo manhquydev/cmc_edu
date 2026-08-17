@@ -135,7 +135,7 @@ Odoo CP center                          CMC ControlBar.filters (target)
 
 | Odoo | CMC |
 |------|-----|
-| `.o_form_statusbar` | DetailPage `statusbar` → `.console-detail-statusbar` + WorkflowStatusbar (**sticky md+**) |
+| `.o_form_statusbar` | DetailPage `statusbar` → `.console-detail-statusbar` + WorkflowStatusbar (**first row of the white sheet, right-aligned, sticky md+**) |
 | `.o_form_sheet_bg` + `.o_form_sheet` | **DetailPage / FormPage** emit `.console-form-sheet-bg` + `.console-form-sheet` (**SHIPPED** P1) |
 | button_box | StatActions / EntityHeader actions |
 | notebook | CmcTabs |
@@ -147,8 +147,8 @@ DetailPage
   PageHeader
   .console-form-sheet-bg
     .console-detail-summary     ← HighlightStrip / StatActions (scrolls)
-    .console-detail-statusbar   ← WorkflowStatusbar (sticky md+)
     .console-form-sheet
+      .console-detail-statusbar ← WorkflowStatusbar (right-aligned chevrons, sticky md+)
       EntityHeader
       tabs?
       body

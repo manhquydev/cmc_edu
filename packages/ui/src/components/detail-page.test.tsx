@@ -59,9 +59,9 @@ describe('DetailPage', () => {
     expect(bg).toBeTruthy();
     expect(sheet).toBeTruthy();
     expect(bg!.contains(sheet!)).toBe(true);
-    // summary + thin statusbar are siblings of sheet, not inside it
+    // summary stays on the canvas; statusbar is the first row of the white sheet (pack 14)
     expect(sheet!.contains(getByText('SUMMARY'))).toBe(false);
-    expect(sheet!.contains(getByText('STATUSBAR'))).toBe(false);
+    expect(sheet!.contains(getByText('STATUSBAR'))).toBe(true);
     expect(bg!.contains(getByText('SUMMARY'))).toBe(true);
     expect(container.querySelector('.console-detail-statusbar')).toContainElement(getByText('STATUSBAR'));
     expect(sheet!.contains(getByText('ENTITY'))).toBe(true);

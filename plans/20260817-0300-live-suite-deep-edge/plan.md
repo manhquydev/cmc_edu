@@ -85,3 +85,12 @@ Live suite: 00–16 (17 specs) PASS — happy + edge theo vai trò: KPI/lương 
 after-sale, finance second-eye/I3, shift reject, user escalation guards, student lifecycle, CRM, chấm công, audit.
 Còn lại (no-ui-path / cần quyết định): P1-06 guardian UI, P2-03/05 HS làm bài, P3-02 offsite seed, P4-04 periodic,
 P2-07 AI nhận xét, E5/E9 spec-code lệch (outbox, priority sort), blockLms UI.
+**P8 ✅ Chốt an toàn tài khoản (theo yêu cầu user, 2026-08-17)** — spec 14 mở rộng phủ nốt E12 nửa sau:
+- Bước 4: với real session GĐKD, `user.update` (đổi email admin) + `user.resetPassword` (đặt mật khẩu tạm admin)
+  đều reject FORBIDDEN ("Only a super admin can update another super admin" / "...reset another super admin's password") —
+  khép 2 guard bảo mật trống duy nhất còn lại.
+- Fix phụ: live-global-setup đọc LIVE_ADMIN_ORIGIN/LIVE_LMS_ORIGIN từ env (trước hardcode erp.clawcmc.io.vn cũ —
+  khi tunnel cũ chết HTTP 525, preflight chặn campaign dù specs nhắm deverp/devlms).
+- **Rerun: 17/17 PASS (dir 045557: 16 admin + 045905: parent OTP), 0 error mọi collector** —
+  evidence: plans/reports/uat-live-20260817-final-guards/.
+- Reset bàn giao: 3 tài khoản về .env.prod bootstrap (mustChangePassword), login verified.

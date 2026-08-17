@@ -81,3 +81,6 @@ P1-06 (guardian requestLink không UI), P2-03/05 (HS làm bài), P3-02 (offsite 
 > **2026-08-17 (bổ sung):** report chi tiết cụm P3 đã lưu tại plans/reports/explore-p3-flows-report.md —
 > xác nhận P3-01 smoke · P3-02…09 verified-correct · P3-10/11 no-ui-path; edge chưa test quan trọng nhất =
 > guard "không chạm super_admin" ở user.update/user.resetPassword (user.create đã phủ trong live 14).
+> **2026-08-17 (bổ sung):** report cụm P2 (explore-p2-flows-report.md) + P4/Admin (explore-p4-admin-workflows-260817.md)
+> đã lưu đầy đủ — P2: 9 luồng, 3 journey thật (P2-04/06/08), 2 no-ui-path (P2-03/05), ~12 edge chưa test;
+> P4/Admin: 5 WF P4 + 7 ADM, 2/5 P4 verified-correct, edge E1-E20 liệt kê (xem file).

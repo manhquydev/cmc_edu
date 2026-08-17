@@ -1,53 +1,42 @@
-// createStaffViaAdminUi — the ONLY real UI path that creates an AppUser
-// (`/admin/users`, super_admin-gated via `user.manage` — nav-registry.ts's
-// `admin` module carries `roles: ['super_admin']`). Replaces the seedAppUser
-// direct-DB write the payroll/session-assessment journeys used to justify
-// with a disproven "no UI path exists" claim:
-// apps/admin/src/pages/admin/users.tsx has a real, working `trpc.user.create`
-// form. Runs in its OWN browser context (super_admin) and closes it before
-// returning — same per-role-context pattern the rest of this journey suite
-// already uses for every other actor (see
-// session-assessment-roster.journey.ui.spec.ts's sale/GĐKD/teacher contexts).
+// createStaffViaAdminUi — drives the canonical staff create surface
+// (`/hr/staff/new`, D1) to create an AppUser through the real UI. Replaces the
+// seedAppUser direct-DB write the payroll/session-assessment journeys used to
+// justify with a disproven "no UI path exists" claim. Runs in its OWN browser
+// context (super_admin) and closes it before returning — same per-role-context
+// pattern the rest of this journey suite already uses for every other actor
+// (see session-assessment-roster.journey.ui.spec.ts's sale/GĐKD/teacher
+// contexts).
 //
-// The create dialog's "Vai trò" field is REQUIRED (users.tsx's `isFormValid`
+// The create form's "Vai trò" field is REQUIRED (staff-new.tsx's `isFormValid`
 // gates "Tạo" on `form.roles.length > 0`) and its value is sent straight
 // through in the `user.create` mutation input (`roles: form.roles`,
 // apps/api/src/user/router.ts persists it as `DbRole[]` on the new row) — so
 // picking roles at create time is both necessary (to unblock "Tạo") and
 // sufficient (no separate post-creation step needed to land them on
-// `AppUser.roles`). This replaces an earlier version of this helper that
-// created the account with NO role, then drove a second "Roles"
-// MultiSelector in a distinct post-creation modal via `user.updateRoles` —
-// dropped because the create dialog now covers the same DB column directly.
+// `AppUser.roles`).
 //
 // MultiSelector interaction pattern (first use of this @astryxdesign/core
 // primitive anywhere in the admin app or its e2e tests — no prior Playwright
 // pattern existed to reuse; this was discovered by driving the real dialog
 // and inspecting its rendered markup/ARIA tree):
-//   - Trigger: an unscoped `page.getByLabel('Vai trò')` is AMBIGUOUS (strict
-//     mode: 3 elements) — Astryx's Dialog keeps every Dialog on the page
-//     mounted even when closed (only visually hidden), so it can match
-//     controls in other dialogs on this screen too. Scope to the open dialog
-//     first (`page.getByRole('dialog')`) and query by role — the trigger has
-//     no `role="combobox"` override when `hasSearch` is set (as it is here),
-//     so it renders as a plain `<button>` named by its `<label for>`. This is
-//     the same scoping `apps/admin/src/pages/admin/users.test.tsx` already
-//     uses (`within(dialog).getByRole('button', { name: 'Vai trò' })`).
+//   - The trigger has no `role="combobox"` override when `hasSearch` is set
+//     (as it is here), so it renders as a plain `<button>` named by its
+//     `<label for>`. On the dedicated /new page there is a single "Vai trò"
+//     trigger, so an exact-name query is unambiguous.
 //   - Clicking it opens a `role="listbox"` popover
 //     (`aria-multiselectable="true"`) with `role="option"` rows, matched by
 //     their visible label (e.g. "Giáo viên").
 //   - Clicking an option TOGGLES its `aria-selected` WITHOUT closing the
 //     popover — every option meant to be picked in one call must be clicked
 //     while the popover stays open; there is no per-pick confirm step.
-//   - `Escape` dismisses the popover; picks already made stay in the
-//     Dialog's own `form.roles` React state — nothing else needs to
-//     "confirm" the popover before the create dialog's own "Tạo" submits it.
+//   - `Escape` dismisses the popover; picks already made stay in the form's
+//     `form.roles` React state — nothing else needs to "confirm" the popover
+//     before the create form's own "Tạo" submits it.
 
 import { randomUUID } from 'node:crypto';
 import { expect, type Browser } from '@playwright/test';
 import { formatRole } from '@cmc/auth';
 import { mintStaffCookie } from '../session-injection.js';
-import { findInList } from './find-in-list.js';
 import { STAFF_COOKIE_NAME } from '../../../api/src/auth/staff-session.js';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -105,11 +94,11 @@ export interface CreateStaffViaAdminUiOptions {
 }
 
 /**
- * Drives the real `/admin/users` super_admin flow end-to-end: opens the
- * create-staff dialog, fills the required fields (including the required
- * "Vai trò" role picker), submits, and confirms the new row appears by its
- * displayed `fullName` (never a smuggled id — same `findInList` contract
- * every other journey step uses).
+ * Drives the real canonical staff surface (`/hr/staff/new`, D1) end-to-end:
+ * opens the dedicated create page, fills the required fields (including the
+ * required "Vai trò" role picker), submits, and confirms the browser lands on
+ * the created profile URL (`/hr/staff/:id/profile`) — create-success navigates
+ * with `replace`, so the submitted /new form is never left in history.
  */
 export async function createStaffViaAdminUi(
   browser: Browser,
@@ -128,9 +117,7 @@ export async function createStaffViaAdminUi(
       { name: STAFF_COOKIE_NAME, value: cookie, domain: 'localhost', path: '/' },
     ]);
 
-    await page.goto('/admin/users');
-    await page.getByRole('button', { name: 'Thêm nhân viên' }).click();
-
+    await page.goto('/hr/staff/new');
     await page.getByLabel('User ID (auth identity)').fill(opts.userId);
     await page.getByLabel('Họ tên').fill(opts.fullName);
     await page.getByLabel('Email').fill(opts.email ?? `${opts.userId}@e2e.cmc`);
@@ -140,18 +127,11 @@ export async function createStaffViaAdminUi(
       opts.roleLabels && opts.roleLabels.length > 0
         ? opts.roleLabels
         : [defaultRoleLabelForPosition(opts.position)];
-    // `getByLabel('Vai trò')` is ambiguous (strict-mode violation, resolves to
-    // 3 elements) — Astryx's Dialog keeps every Dialog on the page mounted
-    // (only visually hidden when closed), so an unscoped query can also match
-    // controls belonging to other, currently-closed dialogs on this same
-    // screen (e.g. the roles-assignment/reset-password modals). Scope to the
-    // open create dialog and query by role, mirroring the already-passing
-    // `within(dialog).getByRole('button', { name: 'Vai trò' })` pattern in
-    // apps/admin/src/pages/admin/users.test.tsx — the MultiSelector's trigger
-    // renders as a plain `<button>` (no `role="combobox"` override) because
-    // `hasSearch` is set on this field.
-    const createDialog = page.getByRole('dialog');
-    await createDialog.getByRole('button', { name: 'Vai trò', exact: true }).click();
+    // Same MultiSelector contract as the old dialog: the trigger renders as a
+    // plain `<button>` (no `role="combobox"` override) because `hasSearch` is
+    // set; on the dedicated /new page there is a single "Vai trò" trigger so
+    // an exact-name scoped query is unambiguous.
+    await page.getByRole('button', { name: 'Vai trò', exact: true }).click();
     for (const label of roleLabelsToPick) {
       await page.getByRole('option', { name: label, exact: true }).click();
     }
@@ -159,22 +139,17 @@ export async function createStaffViaAdminUi(
 
     await page.getByRole('button', { name: 'Tạo' }).click();
 
-    // onSuccess closes the dialog — wait for the "Tạo" button to disappear
-    // before searching the table, or a slow mutation could race findInList's
-    // poll against a table that has not invalidated yet.
-    await expect(page.getByRole('button', { name: 'Tạo' })).toHaveCount(0, {
+    // Create-success navigates (replace) to the created profile — wait for the
+    // URL to leave /hr/staff/new so a slow mutation cannot race the assertion.
+    await expect(page).toHaveURL(/\/hr\/staff\/[0-9a-f-]{36}\/profile$/, {
       timeout: DEFAULT_TIMEOUT_MS,
     });
 
-    // Default users list pageSize is 20; CI facilities accumulate many staff.
-    // Filter by name so findInList is not stuck on the first page of older rows.
-    const search = page.getByPlaceholder(/Tên, email, mã NV/i);
-    if (await search.count()) {
-      await search.fill(opts.fullName);
-      await page.waitForTimeout(400); // debounce matches users.tsx 300ms
-    }
-
-    await findInList(page, (text) => text.includes(opts.fullName));
+    // The profile header shows the created identity; confirm it by fullName
+    // (never a smuggled id — same findInList contract spirit).
+    await expect(page.getByText(opts.fullName).first()).toBeVisible({
+      timeout: DEFAULT_TIMEOUT_MS,
+    });
   } finally {
     await context.close();
   }

@@ -34,6 +34,8 @@ export const links = {
   reward: (id: string) => `/admin/engagement/rewards/${id}`,
   /** Exercise form (teaching catalog publish/close) — UUID. */
   exercise: (id: string) => `/teaching/exercises/${id}`,
+  /** Staff record detail (canonical /hr/staff surface) — UUID. */
+  staff: (id: string) => `/hr/staff/${id}`,
 } as const;
 
 export type LinkEntity = keyof typeof links;
@@ -149,4 +151,27 @@ export function sessionEvidencePath(q: {
     params.set('sessionId', q.sessionId);
   }
   return withQuery('/teaching/session-evidence', params);
+}
+
+/** Canonical staff list — q/page are the ONLY persisted list keys (D1). */
+export function staffListPath(q?: { q?: string; page?: number }): string {
+  const params = new URLSearchParams();
+  if (q?.q) params.set('q', q.q);
+  if (q?.page && q.page > 1) params.set('page', String(q.page));
+  return withQuery('/hr/staff', params);
+}
+
+/** Canonical staff create page (static /new precedes /:staffId in routes). */
+export function staffNewPath(): string {
+  return '/hr/staff/new';
+}
+
+/** Staff detail default section (/hr/staff/:staffId redirects here). */
+export function staffProfilePath(id: string): string {
+  return `/hr/staff/${id}/profile`;
+}
+
+/** Staff access section (roles + reset password) — UUID. */
+export function staffAccessPath(id: string): string {
+  return `/hr/staff/${id}/access`;
 }

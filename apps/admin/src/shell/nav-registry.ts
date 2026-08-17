@@ -144,6 +144,12 @@ export const NAV_MODULES: NavModule[] = [
       { id: 'kpi', label: 'KPI', path: '/hr/kpi', icon: 'target' }, // shared workspace; row scope server-side
       { id: 'payroll', label: 'Chốt lương', path: '/hr/payroll', icon: 'dollar', permission: { module: 'payslip', action: 'assemble' } },
       { id: 'salary-tiers', label: 'Bậc lương', path: '/hr/salary-tiers', icon: 'layers', permission: { module: 'salaryTier', action: 'manage' } },
+      // Staff lives here rather than under Quản trị: the two directors hold
+      // user.manage (staff provisioning/manage) and must discover/manage their
+      // staff, but the whole Quản trị module is gated `roles: ['super_admin']`.
+      // Nav visibility never replaces API authorization (the router guards stay
+      // decisive).
+      { id: 'staff', label: 'Nhân viên', path: '/hr/staff', icon: 'user', permission: { module: 'user', action: 'manage' } },
       // Lives here rather than under Quản trị: configuring shift groups and
       // templates is an HR task the two directors own (`shift.manage`), and the
       // whole Quản trị module is gated `roles: ['super_admin']` — listing it
@@ -159,7 +165,6 @@ export const NAV_MODULES: NavModule[] = [
     path: '/admin',
     roles: ['super_admin'],
     children: [
-      { id: 'users', label: 'Người dùng', path: '/admin/users', icon: 'user', permission: { module: 'user', action: 'manage' } },
       { id: 'facilities', label: 'Cơ sở', path: '/admin/facilities', icon: 'building', permission: { module: 'facility', action: 'list' } },
       // Phase-03 super-admin-completion: IP range management + self-detect.
       { id: 'network-ip', label: 'IP mạng', path: '/admin/network-ip', icon: 'globe', permission: { module: 'facilityNetwork', action: 'manage' } },

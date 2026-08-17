@@ -90,15 +90,6 @@ const DOCUMENTED_GAPS: Record<string, string> = {
     'LMS foundation: archives Enrollment (not a unit range). No ops UI yet.',
   'lmsOps.unarchiveEnrollment':
     'LMS foundation: restore archived Enrollment. No ops UI yet.',
-  // Phase 2 (resource-depth plan 260817-1354): API-only contract for the
-  // canonical staff surface. `user.get` cold-starts the staff detail page and
-  // `user.managerPickList` feeds the profile form's manager dropdown — neither
-  // has a UI caller until Phase 3 ships /hr/staff routes (the ADM-02 journey is
-  // rewritten there to drive them). Keep them visible, not whitelisted.
-  'user.get':
-    'Cold-start staff detail fetch (D1/D2); Phase 3 /hr/staff/:id drives it, API + tests shipped in Phase 2',
-  'user.managerPickList':
-    'Manager dropdown eligibility (D2); Phase 3 profile form drives it, API + tests shipped in Phase 2',
 };
 
 /**

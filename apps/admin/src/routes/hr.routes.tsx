@@ -1,9 +1,10 @@
 import { lazy, Suspense } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
 import { Skeleton } from '@cmc/ui';
 import { useSession } from '../lib/session-context.js';
 import { NAV_MODULES, isNavChildVisible } from '../shell/nav-registry.js';
+import { staffProfilePath } from '@cmc/links';
 
 const CheckInOutPage = lazy(() => import('../pages/attendance/check-in-out.js'));
 const CheckInTicketDetailPage = lazy(
@@ -17,9 +18,22 @@ const KpiPage = lazy(() => import('../pages/hr/kpi.js'));
 const KpiDetailPage = lazy(() => import('../pages/hr/kpi-detail.js'));
 const MyHrPage = lazy(() => import('../pages/hr/my-hr.js'));
 const SalaryTiersPage = lazy(() => import('../pages/hr/salary-tiers.js'));
+const StaffListPage = lazy(() => import('../pages/hr/staff/index.js'));
+const StaffNewPage = lazy(() => import('../pages/hr/staff/staff-new.js'));
+const StaffDetailLayout = lazy(() => import('../pages/hr/staff/staff-detail.js'));
+const StaffProfileSection = lazy(() => import('../pages/hr/staff/profile.js'));
+const StaffAccessSection = lazy(() => import('../pages/hr/staff/access.js'));
 
 function Fallback() {
   return <Skeleton height={200} radius={0} />;
+}
+
+// Base detail path (/hr/staff/:staffId) redirects (replace) to the default
+// /profile section — the only exact-base redirect; unknown sections are
+// route-level not-found (D1/D7).
+function StaffBaseRedirect() {
+  const { staffId = '' } = useParams<{ staffId: string }>();
+  return <Navigate to={staffProfilePath(staffId)} replace />;
 }
 
 // `/hr` itself has no screen of its own — the module mixes screens open to
@@ -118,5 +132,64 @@ export const hrRoutes: RouteObject[] = [
         <SalaryTiersPage />
       </Suspense>
     ),
+  },
+  // ── Staff (canonical /hr/staff surface, D1) ──────────────────────────────
+  // Static /new precedes /:staffId (React Router match order). The bare
+  // /:staffId path redirects (replace) to the default /profile section.
+  {
+    path: 'staff',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <StaffListPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'staff/new',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <StaffNewPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'staff/:staffId',
+    element: <StaffBaseRedirect />,
+  },
+  {
+    path: 'staff/:staffId/profile',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <StaffDetailLayout />
+      </Suspense>
+    ),
+    children: [
+      {
+        index: true,
+        element: (
+          <Suspense fallback={<Fallback />}>
+            <StaffProfileSection />
+          </Suspense>
+        ),
+      },
+    ],
+  },
+  {
+    path: 'staff/:staffId/access',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <StaffDetailLayout />
+      </Suspense>
+    ),
+    children: [
+      {
+        index: true,
+        element: (
+          <Suspense fallback={<Fallback />}>
+            <StaffAccessSection />
+          </Suspense>
+        ),
+      },
+    ],
   },
 ];

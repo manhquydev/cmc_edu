@@ -175,7 +175,10 @@ test.describe('07-ops-kpi-payroll-kd — phiếu KPI + chốt lương (KD branch
         gd.page.waitForResponse((r) => r.url().includes('kpi.bulkApprove') && r.status() === 200),
         bulkDialog.getByRole('button', { name: 'Tất toán' }).click(),
       ]);
-      await expect(gd.page.getByText(/đã tất toán|đã duyệt/i).first()).toBeVisible({ timeout: 15_000 });
+      // The success banner reads "Đã tất toán N phiếu KPI." — match it
+      // exactly, NOT /đã duyệt/ which also matches the (hidden) status-filter
+      // option rendered earlier in DOM order.
+      await expect(gd.page.getByText(/Đã tất toán \d+ phiếu KPI/)).toBeVisible({ timeout: 15_000 });
       recordCreated(scratch, 'kpi-settle', 'period', PERIOD);
       console.log('[07-ops-kpi-payroll-kd] period settled (bulkApprove)');
     } finally {

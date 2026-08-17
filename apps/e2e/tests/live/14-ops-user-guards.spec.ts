@@ -13,6 +13,7 @@
 import { test, expect } from '@playwright/test';
 
 import { openStaffSession, closeRoleSession } from '../../src/live/live-auth.js';
+import { liveStaffRoleClient } from '../../src/live/live-trcp.js';
 import { liveRunId } from '../../src/live/live-state.js';
 import { findInList } from '../../src/journey/find-in-list.js';
 import {
@@ -97,7 +98,24 @@ test.describe('14-ops-user-guards — director không tạo được super_admin
       await closeRoleSession(gd);
     }
 
-    await assertNoErrorsAll(scratch, 'user guards edge');
+    // 4. E12 (nửa sau): với real session GĐKD — user.update + user.resetPassword
+    //    nhắm vào super_admin phải bị FORBIDDEN (không thể sửa email/isActive
+    //    hay đặt lại mật khẩu của tài khoản quản trị).
+    const gdClient = liveStaffRoleClient('giam_doc_kinh_doanh');
+    const adminRow = (await gdClient.user.list.query({ search: 'admin@cmcvn.edu.vn' })).items.find(
+      (u) => u.email === 'admin@cmcvn.edu.vn' && u.roles.includes('super_admin'),
+    );
+    expect(adminRow, 'admin@cmcvn.edu.vn phải tồn tại trong user.list').toBeTruthy();
+    await expect(
+      gdClient.user.update.mutate({ appUserId: adminRow!.id, email: 'evil@cmcvn.edu.vn' }),
+    ).rejects.toThrow(/Only a super admin can update another super admin/);
+    await expect(
+      gdClient.user.resetPassword.mutate({ appUserId: adminRow!.id, tempPassword: 'CmcHack!' + rid }),
+    ).rejects.toThrow(/Only a super admin can reset another super admin/);
+    recordCreated(scratch, 'guard', 'update+reset super_admin blocked', adminRow!.id);
+    console.log('[14-ops-user-guards] GĐKD blocked from update/resetPassword of super_admin');
+
+    await assertNoErrorsAll(scratch, 'user guards edge (create/update/reset escalation)');
   });
 
   test.afterEach(async ({}, testInfo) => {

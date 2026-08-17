@@ -228,7 +228,7 @@ Nguyên tắc: **FAIL khi vai CÓ quyền mà không tìm được lối vào.**
 | # | Luồng | Màn của luồng | Tiền đề (vai khác phải làm trước) | Người test | Giờ | Kết quả |
 |---|---|---|---|---|---|---|
 | ADM-01 | Quản trị cơ sở | `/admin/facilities` | | | | ☐ PASS ☐ FAIL ☐ N/A |
-| ADM-02 | Quản trị tài khoản nhân sự | `/admin/users` | | | | ☐ PASS ☐ FAIL ☐ N/A |
+| ADM-02 | Quản trị tài khoản nhân sự | `/hr/staff` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | ADM-03 | Cấu hình mạng chấm công (IP) | `/admin/network-ip` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | ADM-04 | Nhật ký hệ thống | `/admin/audit-log` | | | | ☐ PASS ☐ FAIL ☐ N/A |
 | ADM-05 | Cấu hình ca làm | `/admin/shift-config` | | | | ☐ PASS ☐ FAIL ☐ N/A |

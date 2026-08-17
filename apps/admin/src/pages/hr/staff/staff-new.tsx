@@ -23,6 +23,7 @@ import {
 import { ACTIVE_ROLES, formatRole } from '@cmc/auth';
 import { trpc } from '../../../lib/trpc.js';
 import { useSession } from '../../../lib/session-context.js';
+import { useUnsavedBlocker } from '../../../lib/use-unsaved-blocker.js';
 import { staffProfilePath } from '@cmc/links';
 
 const ROLE_OPTIONS = ACTIVE_ROLES.map((r) => ({
@@ -39,6 +40,9 @@ interface CreateForm {
   managerId: string;
   tempPassword: string;
 }
+
+// Same minimum the server enforces (user.create / user.resetPassword schemas).
+const PASSWORD_MIN_LENGTH = 8;
 
 const EMPTY_FORM: CreateForm = {
   userId: '',
@@ -66,6 +70,12 @@ export default function StaffNewPage() {
   const { canDo } = useSession();
   const navigate = useNavigate();
   const [form, setForm] = useState<CreateForm>(EMPTY_FORM);
+
+  // Leave blocker: any typed field is unsaved work (D7). The create-success
+  // navigation uses `replace`, so a committed form never trips this guard on
+  // Back — only real unsaved edits do.
+  const dirty = Object.values(form).some((v) => (Array.isArray(v) ? v.length > 0 : String(v).length > 0));
+  const blocker = useUnsavedBlocker({ dirty });
 
   const utils = trpc.useUtils();
   // Manager dropdown eligibility comes from the server (D2): directors are
@@ -102,7 +112,11 @@ export default function StaffNewPage() {
     form.fullName.trim().length > 0 &&
     form.email.trim().length > 0 &&
     form.position.trim().length > 0 &&
-    form.roles.length > 0;
+    form.roles.length > 0 &&
+    // A temp password, when provided, must meet the server minimum (8) —
+    // an empty box means "grant later", a short one is a typo that would
+    // otherwise fail server-side after submit.
+    (form.tempPassword.length === 0 || form.tempPassword.length >= PASSWORD_MIN_LENGTH);
 
   function setField(field: 'userId' | 'email' | 'fullName' | 'position' | 'tempPassword') {
     return (value: string) => setForm((f) => ({ ...f, [field]: value }));
@@ -211,6 +225,7 @@ export default function StaffNewPage() {
           </span>
         )}
       </Stack>
+      {blocker.dialog}
     </FormPage>
   );
 }

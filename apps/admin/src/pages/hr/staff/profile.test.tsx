@@ -56,7 +56,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
     ...actual,
     useParams: () => ({ staffId: STAFF_UUID }),
     useNavigate: () => vi.fn(),
-    useOutletContext: () => ({ staff: STAFF }),
+    useOutletContext: () => ({ staff: STAFF, backPath: '/hr/staff' }),
   };
 });
 

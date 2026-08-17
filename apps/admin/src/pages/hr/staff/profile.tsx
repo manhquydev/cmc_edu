@@ -16,7 +16,6 @@ import {
 } from '@cmc/ui';
 import { trpc } from '../../../lib/trpc.js';
 import { useUnsavedBlocker } from '../../../lib/use-unsaved-blocker.js';
-import { staffListPath } from '@cmc/links';
 
 interface OutletCtx {
   staff: {
@@ -28,12 +27,14 @@ interface OutletCtx {
     manager: { id: string; fullName: string; employeeCode: string } | null;
     isActive: boolean;
   };
+  /** Validated same-origin return context from the shell (D7). */
+  backPath: string;
 }
 
 const NO_MANAGER = '__none__';
 
 export default function StaffProfileSection() {
-  const { staff } = useOutletContext<OutletCtx>();
+  const { staff, backPath } = useOutletContext<OutletCtx>();
   const { staffId = '' } = useParams<{ staffId: string }>();
   const navigate = useNavigate();
   const { success: toastSuccess } = useToast();
@@ -106,7 +107,7 @@ export default function StaffProfileSection() {
             label="Về danh sách"
             variant="secondary"
             size="sm"
-            onClick={() => navigate(staffListPath())}
+            onClick={() => navigate(backPath)}
           />
           <Button
             label="Lưu hồ sơ"

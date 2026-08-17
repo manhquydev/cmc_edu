@@ -57,7 +57,11 @@ export default function StaffAccessSection() {
   });
 
   function openRoles() {
-    setSelectedRoles(staff.roles);
+    // Only ACTIVE_ROLES are assignable (server roleArraySchema rejects
+    // dormant keys like ke_toan/cskh/ctv_mkt/hr) — pre-filter so a staff
+    // holding a legacy dormant role is not stuck with an unsavable selection.
+    const activeSet = new Set<string>(ACTIVE_ROLES);
+    setSelectedRoles(staff.roles.filter((r) => activeSet.has(r)));
     setRolesOpen(true);
   }
 

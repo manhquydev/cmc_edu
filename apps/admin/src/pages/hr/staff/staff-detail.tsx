@@ -97,7 +97,8 @@ function StaffDetailLayout() {
   }
 
   if (error || !data) {
-    const isNotFound = (error as { code?: string } | null)?.code === 'NOT_FOUND';
+    const code = (error?.data as { code?: string } | null | undefined)?.code;
+    const isNotFound = code === 'NOT_FOUND';
     return (
       <DetailPage
         header={
@@ -184,7 +185,7 @@ function StaffDetailLayout() {
       tabs={tabs}
     >
       <Suspense fallback={<ResultPanel status="loading" title="Đang tải…" />}>
-        <Outlet context={{ staff: data }} />
+        <Outlet context={{ staff: data, backPath }} />
       </Suspense>
     </DetailPage>
   );

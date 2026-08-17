@@ -6,10 +6,11 @@
 // query keys, `q` and `page`, and hydrates from / writes back to them so
 // F5, share and back preserve the view (D1/D7).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Badge,
+  BulkActionBar,
   Button,
   DataTable,
   EmptyState,
@@ -119,10 +120,17 @@ export default function StaffListPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  // Reset to page 1 whenever the debounced search term changes (new result
-  // set). The debounced value is the dependency — the input keystrokes that
-  // produced it are intentionally not (they would reset on every keypress).
+  // Reset to page 1 whenever the debounced search term changes from a USER
+  // action (new result set). The debounced value is the dependency — the input
+  // keystrokes that produced it are intentionally not (they would reset on
+  // every keypress). The first render is skipped so a deep-linked / F5 / back
+  // ?page=N hydrates from the URL instead of being clobbered to page 1.
+  const isFirstRender = useRef(true);
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     setPage(1);
     setSelectedIds([]);
   }, [debouncedSearch]);
@@ -203,7 +211,10 @@ export default function StaffListPage() {
       }
       controlFooter={
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--cmc-space-2)', width: '100%' }}>
-          <HStack justify="end" gap={1} style={{ flexWrap: 'wrap' }}>
+          <BulkActionBar
+            selectionCount={selectedIds.length}
+            onClear={() => setSelectedIds([])}
+          >
             <Button
               label="Sao chép email"
               size="sm"
@@ -218,7 +229,7 @@ export default function StaffListPage() {
                 toastSuccess(`Đã sao chép ${emails.length} email`);
               }}
             />
-          </HStack>
+          </BulkActionBar>
           <ListPagination
             page={page}
             pageSize={PAGE_SIZE}

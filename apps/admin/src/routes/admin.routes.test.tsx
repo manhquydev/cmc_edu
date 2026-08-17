@@ -1,0 +1,65 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi } from 'vitest';
+import { screen } from '@testing-library/react';
+import { useRoutes } from 'react-router-dom';
+import { renderWithProviders } from '../test/render-with-providers.js';
+
+// Locks the D1 compatibility contract: /admin/users and /admin/users/:staffId
+// are replace-redirects to the canonical /hr/staff surface — no second
+// editable screen exists, old bookmarks land on one surface. The harness
+// registers the redirect target (a marker) so the redirect is observable.
+
+let sessionRoles: string[] = ['super_admin'];
+
+vi.mock('../lib/trpc.js', async () => {
+  const { buildTrpcMock, queryResult } = await import('../test/mock-trpc.js');
+  return {
+    trpc: buildTrpcMock({
+      'session.me.useQuery': () =>
+        queryResult({
+          userId: 'u1',
+          roles: sessionRoles,
+          facilityId: 'f1',
+          config: { approvalSecondEyeThreshold: 20_000_000 },
+        }),
+    }),
+    makeQueryClient: () => ({}),
+    makeTrpcClient: () => ({}),
+    getDevUserHeader: () => null,
+  };
+});
+
+vi.mock('../pages/admin/facilities.js', () => ({ default: () => <div>FACILITIES_PAGE</div> }));
+vi.mock('../pages/admin/network-ip.js', () => ({ default: () => <div>NETWORK_IP_PAGE</div> }));
+vi.mock('../pages/admin/shift-config.js', () => ({ default: () => <div>SHIFT_CONFIG_PAGE</div> }));
+vi.mock('../pages/admin/audit-log.js', () => ({ default: () => <div>AUDIT_LOG_PAGE</div> }));
+vi.mock('../pages/teaching/report-cards.js', () => ({ default: () => <div>REPORT_CARDS_PAGE</div> }));
+vi.mock('../pages/hr/staff/index.js', () => ({ default: () => <div>STAFF_LIST_PAGE</div> }));
+vi.mock('../pages/hr/staff/staff-detail.js', () => ({ default: () => <div>STAFF_DETAIL_SHELL</div> }));
+
+const { adminRoutes } = await import('./admin.routes.js');
+
+function AdminRoutesHarness() {
+  return useRoutes([
+    { path: '/admin', children: adminRoutes },
+    { path: '/hr/staff', element: <div>STAFF_LIST_PAGE</div> },
+    { path: '/hr/staff/:staffId/profile', element: <div>STAFF_PROFILE_PAGE</div> },
+  ]);
+}
+
+function renderAdmin(route: string) {
+  return renderWithProviders(<AdminRoutesHarness />, { route });
+}
+
+describe('adminRoutes — staff compatibility redirects (D1)', () => {
+  it('redirects /admin/users to the canonical /hr/staff list', async () => {
+    renderAdmin('/admin/users');
+    expect(await screen.findByText('STAFF_LIST_PAGE')).toBeInTheDocument();
+    expect(screen.queryByText(/Thêm nhân viên/i)).not.toBeInTheDocument();
+  });
+
+  it('redirects /admin/users/:staffId to the canonical profile section', async () => {
+    renderAdmin('/admin/users/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    expect(await screen.findByText('STAFF_PROFILE_PAGE')).toBeInTheDocument();
+  });
+});

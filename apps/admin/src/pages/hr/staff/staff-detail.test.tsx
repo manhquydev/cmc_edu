@@ -92,13 +92,14 @@ describe('StaffDetailLayout', () => {
   });
 
   it('renders not-found for a NOT_FOUND error', () => {
-    getError = { code: 'NOT_FOUND', message: 'AppUser not found.' };
+    // Real tRPC error shape: code lives at error.data.code (TRPCClientError).
+    getError = { data: { code: 'NOT_FOUND' }, message: 'AppUser not found.' };
     renderWithProviders(<StaffDetailLayout />);
     expect(screen.getByText('Không tìm thấy hồ sơ')).toBeInTheDocument();
   });
 
   it('renders the generic error state for other errors', () => {
-    getError = { code: 'INTERNAL_SERVER_ERROR', message: 'boom' };
+    getError = { data: { code: 'INTERNAL_SERVER_ERROR' }, message: 'boom' };
     renderWithProviders(<StaffDetailLayout />);
     expect(screen.getByText('Không mở được hồ sơ')).toBeInTheDocument();
   });

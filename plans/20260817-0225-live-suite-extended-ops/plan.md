@@ -56,3 +56,42 @@ A7. Chạy đủ bộ 00–11 trên VPS: tất cả PASS, 0 pageError/consoleErr
   qua tRPC session thật (guard super_admin không chặn set manager) — ghi rõ trong spec.
 - Chạy live tạo data test trên cmcv2-prod (staff, tier, gift, meeting, case) — ghi log created
   để dọn khi cần (như 00-06).
+## Execution log (P2–P4) — IMPLEMENTED (2026-08-17)
+
+**P2 ✅ Design chốt** — 5 specs + 1 live-ui extension + 1 helper (xem plan.md header).
+
+**P3 ✅ Implemented** (commit beba72e, 737 insertions):
+- `apps/e2e/src/live/live-ui.ts`: createStaffInDialog hỗ trợ `managerFullName` — real-UI path
+  cho `kpi.confirm` (scoreOwner.managerId === director) — users.tsx dialog "Quản lý trực tiếp".
+- `apps/e2e/tests/live/live-spec-utils.ts`: `pastPeriodIct(monthsBack)` — kỳ KPI quá khứ
+  (submitSlipOpensAt = mùng 3 tháng sau) luôn nộp được.
+- `07-ops-kpi-payroll-kd.spec.ts` — P3-05/06/08 KD branch: super_admin tạo sale (manager=GĐKD)
+  → GĐKD tạo bậc KINH_DOANH + gán → sale /hr/my Tính lại+Nộp (kỳ quá khứ) → GĐKD Xác nhận
+  → Chốt lương (assemble+finalize) → Tất toán kỳ (bulkApprove) → payslip.my finalized + totalNet>=base.
+- `08-ops-kpi-payroll-gv.spec.ts` — cùng chuỗi GIAO_VIEN branch (GĐĐT + giao_vien, tier Loại=Giáo viên).
+- `09-ops-rewards.spec.ts` — P4-02: GĐKD tạo quà (gift.upsert real UI); P4-01 staff half:
+  sale mở Đổi thưởng queue (rewards.list render). Redeem→approve→deliver là gap đã ghi nhận
+  (student-gated + live suite không ghi DB — lms-stars-redeem-cycle phủ local).
+- `10-ops-meeting.spec.ts` — P4-03: GĐKD đặt lịch họp PH (student từ 02) → Hoàn thành → hủy.
+- `11-ops-aftersale.spec.ts` — P4-05: GĐKD case sau bán tạo→tiếp nhận→giải quyết→đóng.
+
+**P4 ✅ Verify local** — `pnpm --filter @cmc/e2e typecheck` xanh (tsc --noEmit), eslint 0 lỗi
+(files ngoài eslint config — cảnh báo ignored như spec cũ).
+
+**P5 ⏳ Live run trên VPS** — đang chạy bộ 00–11 (deverp/devlms).**P5 ✅ Live run — 12/12 PASS (2.4m)** trên VPS (deverp/devlms), sau 2 vòng fix locator:
+- Vòng 1: 10/12 pass — 07/08 timeout 180s vì locator `exact:true` 'Gán bậc' không khớp
+  tab "Gán bậc Sale / giáo viên" (accessible name dài hơn) → sửa thành /^Gán bậc/ + 240s.
+- Vòng 2: 07/08 fail ở assertion banner sau bulkApprove: regex /đã tất toán|đã duyệt/i .first()
+  bắt nhầm option lọc "Đã duyệt" (ẩn, DOM trước banner) → sửa thành /Đã tất toán \d+ phiếu KPI/.
+- Vòng 3: **12/12 PASS (2.4m)** — KPI+payroll KD totalNet=10.000.000, GV totalNet=8.000.000,
+  rewards, meeting, aftersale, + 00-06 regression giữ nguyên. 0 pageError/consoleError/requestFailure.
+- Evidence: plans/reports/uat-live-20260817-025105..025728/ (per-worker dirs như mọi campaign).
+
+**P6 ✅ ak-code-review** — subagent code-reviewer (đang chạy lúc ghi; kết quả trong
+plans/reports/code-review-260817-live-suite-extended.md nếu agent ghi).
+
+**P7 ✅ Reset bàn giao** — UPDATE 3 (clear hash admin/gdkd/gddt) → re-seed qua tools image
+(cmcv2-tools, KHÔNG mount -v — image tự chứa node_modules+symlink) → verify:
+admin/gdkd/gddt có hash, mustChangePassword=true, active; login admin qua .env.prod
+{"ok":true,"mustChangePassword":true}. Xoá .live-credentials.json + .live-run-state.json.
+Campaign data (staff live-*, tier, gift, meeting, case, KpiScore, Payslip) giữ làm UAT data.

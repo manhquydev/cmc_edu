@@ -266,10 +266,10 @@ export async function seedStudent(
  *
  * `kpi.confirm` requires `scoreOwner.managerId === confirmUser.id` and only
  * `super_admin` bypasses it, so a faithful "direct manager confirms" journey has
- * to establish that link. `/admin/users` exposes no manager field (verified —
- * `user.create`/`user.update` accept `managerId`, the screen never sends it), so
- * there is no UI path to drive; the link is seeded directly, same justification
- * as `seedStudent`. Returns the manager's AppUser id. */
+ * to establish that link. The canonical profile section
+ * (`/hr/staff/:staffId/profile`) exposes the manager dropdown, but e2e journeys
+ * seed this link directly for determinism, same justification as
+ * `seedStudent`. Returns the manager's AppUser id. */
 export async function seedManagerLink(opts: {
   facilityId: string;
   /** Auth userId of the report (the person whose KPI slip gets confirmed). */
@@ -1224,7 +1224,7 @@ export async function seedPresentAttendance(opts: SeedPresentAttendanceOptions):
 }
 
 /** Read-only: `AppUser.id` for a given `userId` within a facility — recovers
- *  the id a real `/admin/users` super_admin UI action just created
+ *  the id a real `/hr/staff/new` super_admin UI action just created
  *  (`createStaffViaAdminUi`, apps/e2e/src/journey/create-staff-via-admin-ui.ts)
  *  so a caller that needs a foreign key (e.g. `seedClassBatch`'s
  *  `teacherAppUserId`) has something real to point at — the tRPC

@@ -1,21 +1,95 @@
 {
   "_comment": "Phase 8 close-out (plans/260809-2040-erp-ui-clean-sync-complete/phase-08-close-out.md): explicit, individually-justified debt for inline-style literals that have NO matching CMC token — not a silent count. Each entry is matched structurally (file + property + exact literal value) by scripts/ui-ratchet.mjs and excluded from the violation count. Do NOT add an entry for a literal that DOES have a token match — fix it instead (see the mapping tables used by Phase 7's module slices). Removing an entry requires either fixing the site or a deliberate decision to expand/add a token — the plan has repeatedly declined to expand the spacing scale to avoid forcing arbitrary values into it (see plan.md's 'Câu hỏi đã giải quyết' on 12px/32px spacing); do not silently re-add a removed entry.",
   "exemptions": [
-    { "file": "apps/admin/src/pages/change-password.tsx", "property": "margin", "value": "80px auto 0", "reason": "80px has no spacing token; 'auto' is not a length" },
-    { "file": "apps/admin/src/pages/login.tsx", "property": "margin", "value": "80px auto 0", "reason": "80px has no spacing token; 'auto' is not a length" },
-    { "file": "apps/admin/src/pages/crm/bulk-import.tsx", "property": "padding", "value": "0 22px 20px", "reason": "22px and 20px have no matching --cmc-space-* token" },
-    { "file": "apps/admin/src/pages/crm/opportunity-detail.tsx", "property": "marginTop", "value": "12", "reason": "12px has no spacing token (4/8/16/24 only)" },
-    { "file": "apps/admin/src/pages/crm/pipeline.tsx", "property": "fontSize", "value": "10", "reason": "10px has no fontSize token in either scale" },
-    { "file": "apps/admin/src/pages/crm/report.tsx", "property": "padding", "value": "0 22px 20px", "reason": "22px and 20px have no matching --cmc-space-* token" },
-    { "file": "apps/admin/src/pages/crm/report.tsx", "property": "marginBottom", "value": "12", "reason": "12px has no spacing token (4/8/16/24 only)" },
-    { "file": "apps/admin/src/pages/finance/revenue-report.tsx", "property": "padding", "value": "0 22px 20px", "reason": "22px and 20px have no matching --cmc-space-* token" },
-    { "file": "apps/admin/src/pages/hr/my-hr.tsx", "property": "margin", "value": "0 -16px", "reason": "negative bleed margin; no token represents a negated space value" },
-    { "file": "apps/admin/src/pages/hr/payroll.tsx", "property": "margin", "value": "0 -16px", "reason": "negative bleed margin; no token represents a negated space value" },
-    { "file": "apps/admin/src/pages/teaching/attendance.tsx", "property": "borderRadius", "value": "4", "reason": "4px radius belongs to the separate Odoo console.css scale, not the premium app-layer scale" },
-    { "file": "apps/admin/src/pages/teaching/attendance.tsx", "property": "marginTop", "value": "2", "reason": "2px has no spacing token" },
-    { "file": "apps/admin/src/pages/teaching/attendance.tsx", "property": "padding", "value": "32", "reason": "32px has no spacing token (4/8/16/24 only)" },
-    { "file": "apps/admin/src/pages/teaching/grading.tsx", "property": "marginBottom", "value": "2", "reason": "2px has no spacing token" },
-    { "file": "apps/admin/src/pages/teaching/panels/attendance-panel.tsx", "property": "marginTop", "value": "2", "reason": "2px has no spacing token" },
-    { "file": "apps/admin/src/pages/teaching/schedule.tsx", "property": "gap", "value": "12", "reason": "12px has no spacing token (4/8/16/24 only)" }
+    {
+      "file": "apps/admin/src/pages/login.tsx",
+      "property": "margin",
+      "value": "80px auto 0",
+      "reason": "80px has no spacing token; 'auto' is not a length"
+    },
+    {
+      "file": "apps/admin/src/pages/crm/bulk-import.tsx",
+      "property": "padding",
+      "value": "0 22px 20px",
+      "reason": "22px and 20px have no matching --cmc-space-* token"
+    },
+    {
+      "file": "apps/admin/src/pages/crm/opportunity-detail.tsx",
+      "property": "marginTop",
+      "value": "12",
+      "reason": "12px has no spacing token (4/8/16/24 only)"
+    },
+    {
+      "file": "apps/admin/src/pages/crm/pipeline.tsx",
+      "property": "fontSize",
+      "value": "10",
+      "reason": "10px has no fontSize token in either scale"
+    },
+    {
+      "file": "apps/admin/src/pages/crm/report.tsx",
+      "property": "padding",
+      "value": "0 22px 20px",
+      "reason": "22px and 20px have no matching --cmc-space-* token"
+    },
+    {
+      "file": "apps/admin/src/pages/crm/report.tsx",
+      "property": "marginBottom",
+      "value": "12",
+      "reason": "12px has no spacing token (4/8/16/24 only)"
+    },
+    {
+      "file": "apps/admin/src/pages/finance/revenue-report.tsx",
+      "property": "padding",
+      "value": "0 22px 20px",
+      "reason": "22px and 20px have no matching --cmc-space-* token"
+    },
+    {
+      "file": "apps/admin/src/pages/hr/my-hr.tsx",
+      "property": "margin",
+      "value": "0 -16px",
+      "reason": "negative bleed margin; no token represents a negated space value"
+    },
+    {
+      "file": "apps/admin/src/pages/hr/payroll.tsx",
+      "property": "margin",
+      "value": "0 -16px",
+      "reason": "negative bleed margin; no token represents a negated space value"
+    },
+    {
+      "file": "apps/admin/src/pages/teaching/attendance.tsx",
+      "property": "borderRadius",
+      "value": "4",
+      "reason": "4px radius belongs to the separate Odoo console.css scale, not the premium app-layer scale"
+    },
+    {
+      "file": "apps/admin/src/pages/teaching/attendance.tsx",
+      "property": "marginTop",
+      "value": "2",
+      "reason": "2px has no spacing token"
+    },
+    {
+      "file": "apps/admin/src/pages/teaching/attendance.tsx",
+      "property": "padding",
+      "value": "32",
+      "reason": "32px has no spacing token (4/8/16/24 only)"
+    },
+    {
+      "file": "apps/admin/src/pages/teaching/grading.tsx",
+      "property": "marginBottom",
+      "value": "2",
+      "reason": "2px has no spacing token"
+    },
+    {
+      "file": "apps/admin/src/pages/teaching/panels/attendance-panel.tsx",
+      "property": "marginTop",
+      "value": "2",
+      "reason": "2px has no spacing token"
+    },
+    {
+      "file": "apps/admin/src/pages/teaching/schedule.tsx",
+      "property": "gap",
+      "value": "12",
+      "reason": "12px has no spacing token (4/8/16/24 only)"
+    }
   ]
 }

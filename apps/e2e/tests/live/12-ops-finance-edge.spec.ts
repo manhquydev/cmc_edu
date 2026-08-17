@@ -109,15 +109,6 @@ test.describe('12-ops-finance-edge — second-eye >20tr + huỷ phiếu I3 rever
       await confirmDialog.getByRole('button', { name: 'Duyệt & Kích hoạt' }).click();
       await expect(gddt.page.getByText('Đã duyệt', { exact: false }).first()).toBeVisible({ timeout: 20_000 });
       recordCreated(scratch, 'receipt', '21tr approved by GĐĐT', receiptId);
-      // M1 (code review): khép phantom O5 — opp edgeName phải rời O4 sau approve
-      // (walk-in auto-link đưa opp lên O5_ENROLLED → card mất nút 'Ghi danh').
-      await menuNav(gddt.page, 'Tài chính & Điều hành', 'CRM', { role: 'giam_doc_dao_tao' });
-      const cardAfterApprove = gddt.page.getByRole('button', {
-        name: new RegExp('^' + escapeRegExp(edgeName)),
-      });
-      await expect(cardAfterApprove).toBeVisible({ timeout: 15_000 });
-      await expect(cardAfterApprove.getByRole('button', { name: 'Ghi danh', exact: true })).toHaveCount(0, { timeout: 15_000 });
-      recordCreated(scratch, 'opportunity', 'O5 reached via approve', edgeName);
       console.log('[12-ops-finance-edge] GĐĐT approved 21tr receipt');
     } finally {
       await closeRoleSession(gddt);
@@ -126,6 +117,17 @@ test.describe('12-ops-finance-edge — second-eye >20tr + huỷ phiếu I3 rever
     // 4. I3 revert: GĐKD huỷ phiếu đã duyệt kèm lý do → opp về O4_TESTED.
     const gdkd2 = await openStaffSession(browser, 'giam_doc_kinh_doanh');
     attachErrors(gdkd2.page, scratch);
+      // M1 (code review): O5 reached via approve — card edgeName mất nút "Ghi danh"
+      // trước khi huỷ (GĐKD có quyền CRM, GĐĐT thì không).
+      await gdkd2.page.goto('/crm');
+      await expect(gdkd2.page).toHaveURL(/\/crm$/);
+      const cardO5 = gdkd2.page.getByRole('button', {
+        name: new RegExp('^' + escapeRegExp(edgeName)),
+      });
+      await expect(cardO5).toBeVisible({ timeout: 15_000 });
+      await expect(cardO5.getByRole('button', { name: 'Ghi danh', exact: true })).toHaveCount(0, { timeout: 15_000 });
+      recordCreated(scratch, 'opportunity', 'O5 reached via approve', edgeName);
+      console.log('[12-ops-finance-edge] opportunity at O5 after approve');
     try {
       await gdkd2.page.goto('/finance/' + receiptId);
       await expect(gdkd2.page.getByRole('button', { name: 'Huỷ phiếu thu' })).toBeVisible({ timeout: 20_000 });

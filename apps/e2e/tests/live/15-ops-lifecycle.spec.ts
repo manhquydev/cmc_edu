@@ -49,7 +49,10 @@ test.describe('15-ops-lifecycle — đổi trạng thái học viên (P4-05 E8, 
       await gd.page.getByRole('option', { name: 'Khóa LMS' }).click();
       await gd.page.getByRole('button', { name: 'Áp dụng' }).click();
       const confirmDialog = gd.page.getByRole('alertdialog');
-      await confirmDialog.getByRole('button', { name: /Xác nhận|Áp dụng/ }).click();
+      await Promise.all([
+        gd.page.waitForResponse((resp) => resp.url().includes('student.setLifecycle') && resp.status() === 200),
+        confirmDialog.getByRole('button', { name: 'Xác nhận', exact: true }).click(),
+      ]);
       // M2 (code review): assert trạng thái THẬT qua tRPC readback (student.lookup trả
       // lifecycle) — text assertion có thể khớp vào Selector pending value, không phải badge.
       const afterBlock = await gdClient.student.lookup.query({ name: studentName! });
@@ -62,7 +65,10 @@ test.describe('15-ops-lifecycle — đổi trạng thái học viên (P4-05 E8, 
       await gd.page.getByRole('option', { name: 'Đang học' }).click();
       await gd.page.getByRole('button', { name: 'Áp dụng' }).click();
       const confirmDialog2 = gd.page.getByRole('alertdialog');
-      await confirmDialog2.getByRole('button', { name: /Xác nhận|Áp dụng/ }).click();
+      await Promise.all([
+        gd.page.waitForResponse((resp) => resp.url().includes('student.setLifecycle') && resp.status() === 200),
+        confirmDialog2.getByRole('button', { name: 'Xác nhận', exact: true }).click(),
+      ]);
       const afterActive = await gdClient.student.lookup.query({ name: studentName! });
       expect(afterActive.find((s) => s.fullName === studentName)?.lifecycle).toBe('active');
       recordCreated(scratch, 'student-lifecycle', 'back-to-active', studentId);

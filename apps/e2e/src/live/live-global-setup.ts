@@ -7,8 +7,11 @@
 //     domains (nginx routes /health to the API — infra/nginx/api-locations.conf);
 //   - never touches the DB, never starts a server, never tears anything down.
 
-const ADMIN_ORIGIN = 'https://erp.clawcmc.io.vn';
-const LMS_ORIGIN = 'https://hoc.clawcmc.io.vn';
+// Same env contract as playwright.live.config.ts — the preflight must check
+// the SAME origins the specs run against (the old hardcoded erp.clawcmc.io.vn
+// / hoc.clawcmc.io.vn are the laptop-tunnel system, not the VPS stack).
+const ADMIN_ORIGIN = process.env['LIVE_ADMIN_ORIGIN'] ?? 'https://erp.clawcmc.io.vn';
+const LMS_ORIGIN = process.env['LIVE_LMS_ORIGIN'] ?? 'https://hoc.clawcmc.io.vn';
 
 const HEALTH_TIMEOUT_MS = 20_000;
 

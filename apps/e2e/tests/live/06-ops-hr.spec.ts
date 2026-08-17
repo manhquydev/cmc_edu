@@ -18,6 +18,7 @@ import {
   assertNoErrors,
   liveRunId,
 } from './live-spec-utils.js';
+import { liveRunId } from '../../src/live/live-state.js';
 
 const scratch = newScratch();
 const tomorrow = addDaysToDateOnly(ictDateOnlyOf(new Date()), 1);
@@ -93,7 +94,7 @@ test.describe('06-ops-hr — chấm công + đăng ký ca + duyệt ca (live)', 
     const gd = await openStaffSession(browser, 'giam_doc_kinh_doanh');
     attachErrors(gd.page, scratch);
     try {
-      const regId = regUrl.match(/\/hr\/shifts\/([0-9a-f-]{36})/i)?.[1];
+      const regId = regUrl.match(/\/hr\/shifts\/([0-9a-f-]{36})/i)?.[1]!;
       expect(regId).toBeTruthy();
       await gd.page.goto(`/go/shiftRegistration/${regId}`);
       await expect(gd.page).toHaveURL(new RegExp(`/hr/shifts/${regId}$`), { timeout: 15_000 });

@@ -11,6 +11,10 @@
 import { test, expect, type Page } from '@playwright/test';
 
 import { addDaysToDateOnly, ictDateOnlyOf } from '@cmc/domain-time';
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 
 import { openStaffSession, closeRoleSession } from '../../src/live/live-auth.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
@@ -56,7 +60,7 @@ test.describe('10-ops-meeting — họp phụ huynh: đặt lịch → hoàn th�
 
       // --- schedule the first meeting ---
       await scheduleMeeting(gd.page, studentName!, slot1);
-      const firstRow = gd.page.getByRole('row', { name: new RegExp(studentName!) });
+      const firstRow = gd.page.getByRole('row', { name: new RegExp(escapeRegExp(studentName!)) });
       await expect(firstRow).toBeVisible({ timeout: 15_000 });
       await expect(firstRow.getByText('Đã đặt lịch')).toBeVisible();
       recordCreated(scratch, 'parent-meeting', 'slot1', slot1);
@@ -67,7 +71,7 @@ test.describe('10-ops-meeting — họp phụ huynh: đặt lịch → hoàn th�
       await completeDialog.getByLabel('Kết quả buổi họp').fill('PH đồng ý lộ trình học — live UAT');
       await completeDialog.getByRole('button', { name: 'Xác nhận' }).click();
       await expect(
-        gd.page.getByRole('row', { name: new RegExp(studentName!) }).filter({ hasText: 'Hoàn thành' }),
+        gd.page.getByRole('row', { name: new RegExp(escapeRegExp(studentName!)) }).filter({ hasText: 'Hoàn thành' }),
       ).toBeVisible({ timeout: 15_000 });
       recordCreated(scratch, 'parent-meeting', 'slot1-completed', slot1);
       console.log('[10-ops-meeting] first meeting scheduled + completed');
@@ -75,15 +79,15 @@ test.describe('10-ops-meeting — họp phụ huynh: đặt lịch → hoàn th�
       // --- schedule a second meeting and cancel it ---
       await scheduleMeeting(gd.page, studentName!, slot2);
       const scheduledRow = gd.page
-        .getByRole('row', { name: new RegExp(studentName!) })
+        .getByRole('row', { name: new RegExp(escapeRegExp(studentName!)) })
         .filter({ hasText: 'Đã đặt lịch' });
       await expect(scheduledRow).toBeVisible({ timeout: 15_000 });
       await scheduledRow.getByRole('button', { name: 'Hủy' }).click();
       await expect(
-        gd.page.getByRole('row', { name: new RegExp(studentName!) }).filter({ hasText: 'Đã đặt lịch' }),
+        gd.page.getByRole('row', { name: new RegExp(escapeRegExp(studentName!)) }).filter({ hasText: 'Đã đặt lịch' }),
       ).toHaveCount(0, { timeout: 15_000 });
       await expect(
-        gd.page.getByRole('row', { name: new RegExp(studentName!) }).filter({ hasText: 'Đã hủy' }),
+        gd.page.getByRole('row', { name: new RegExp(escapeRegExp(studentName!)) }).filter({ hasText: 'Đã hủy' }),
       ).toBeVisible({ timeout: 15_000 });
       recordCreated(scratch, 'parent-meeting', 'slot2-cancelled', slot2);
       console.log('[10-ops-meeting] second meeting cancelled');

@@ -38,8 +38,6 @@ export function liveSuperAdminClient() {
 
 /** Typed tRPC client acting as a live staff role (cookie from its real UI
  *  login). Use for student.lookup / enrollment.enroll (Xếp lớp's mutations). */
-/** Typed tRPC client acting as a live staff role (cookie from its real UI
- *  login). Use for student.lookup / enrollment.enroll (Xếp lớp's mutations). */
 export function liveStaffRoleClient(roleKey: string) {
   return createSignedStaffClient(LIVE_TRPC_URL, sessionCookieFor(roleKey));
 }

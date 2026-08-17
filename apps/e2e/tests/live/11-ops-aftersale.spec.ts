@@ -11,6 +11,10 @@
 import { test, expect } from '@playwright/test';
 
 import { openStaffSession, closeRoleSession } from '../../src/live/live-auth.js';
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 import { menuNav } from '../../src/journey/menu-nav.js';
 import { readLiveState } from '../../src/live/live-state.js';
 import {
@@ -44,7 +48,7 @@ test.describe('11-ops-aftersale — chăm sóc sau bán: tạo → tiếp nhận
       await createDialog.getByRole('button', { name: 'Tạo' }).click();
       await expect(createDialog).toHaveCount(0, { timeout: 15_000 });
 
-      const row = gd.page.getByRole('row', { name: new RegExp(studentName!) });
+      const row = gd.page.getByRole('row', { name: new RegExp(escapeRegExp(studentName!)) });
       await expect(row).toBeVisible({ timeout: 15_000 });
       await expect(row.getByText('Mở', { exact: true })).toBeVisible();
       recordCreated(scratch, 'after-sale-case', 'student', studentName!);

@@ -49,3 +49,39 @@ A6. Typecheck xanh; chạy bộ 00–16 trên VPS tất cả PASS, 0 error mọi
   nếu hiện → click → chờ banner FORBIDDEN. Xác minh từng case trước khi chạy.
 - 15: đổi lifecycle blocked_lms sẽ ẩn con khỏi LMS picker — đổi lại active sau test (rollback trong spec).
 - 16: double-book warning — sau test, họp thừa để nguyên (data UAT) hoặc cancel.
+## Execution log (P2–P7) — COMPLETE (2026-08-17)
+
+**P2 ✅ Design chốt** — 5 edge specs (12–16) theo bản đồ flow-map-by-role-260817.md (journal + 4 Explore agents: P1/P2/P3/P4 đã map 34 WF + 7 ADM + ~60 edge cases chưa test).
+
+**P3–P5 ✅ Implement + live run** (commits 72bc324 → 36de1a7, 4 vòng fix):
+- Vòng 1: 13/17 — fix: 12 needs_confirmation (SĐT trùng → "Đây là bé mới"), 13 overlap shift (ngày +2),
+  14 nav 'Quản trị' super-admin-only (goto URL), 16 student riêng qua real money chain.
+- Vòng 2: 14/17 — fix: 12 SĐT unique + email exact label, 14 user.create 403 benign (guard mong đợi),
+  16 classBatchId qua createLiveClass (không phải code string).
+- Vòng 3: 15/17 — fix: 12 tạo phiếu qua tRPC (UI email flaky), 16 strict /trùng giờ/ .first().
+- Vòng 4: **17/17 PASS (3.2m) — mọi spec 0 error trên mọi collector** (console/pageerror/reqfail=0).
+  Evidence: plans/reports/uat-live-20260817-040924/ (16 admin) + 041232/ (parent OTP).
+
+**P6 ⏳ ak-code-review** — subagent code-reviewer đang chạy; report → plans/reports/code-review-260817-live-suite-deep-edge.md.
+
+**P7 ⏳ Reset + bàn giao** — sau review xong.**P6 ✅ ak-code-review (subagent code-reviewer) → APPROVE_WITH_NOTES** — plans/reports/code-review-260817-live-suite-deep-edge.md.
+Đã fix M1/M2 + L1/L2/L3 + rerun:
+- **M1 (12)**: assert O5 sau approve dời sang session GĐKD (GĐĐT KHÔNG có crm.opportunityList — docs/14):
+  card edgeName mất nút 'Ghi danh' trước khi huỷ → khép phantom O5 (walk-in auto-link lên O5_ENROLLED).
+- **M2 (15)**: lifecycle assert qua tRPC readback (student.lookup trả lifecycle) — text có thể khớp
+  Selector pending value; + waitForResponse student.setLifecycle + exact 'Xác nhận' (rollback từng không ăn).
+- L1: escapeRegExp hoisted vào live-spec-utils (bỏ duplicate 12). L2: recordCreated receipt 16 + template 13.
+  L3: comment 16 sửa (tự tạo student riêng).
+- **Rerun cuối: 17/17 PASS (3.3m) — MỌI spec 0 error trên mọi collector** (dir 043355: 16 admin + 043705: parent OTP).
+  Evidence: plans/reports/uat-live-20260817-final-edge-admin/.
+
+**P7 ✅ Reset bàn giao** — UPDATE 3 (clear hash) → re-seed 3 tài khoản .env.prod (mustChangePassword=true);
+login admin verify {"ok":true,"mustChangePassword":true}; xoá .live-credentials.json/.live-run-state.json.
+Campaign data UAT giữ lại (opp edge, receipt 21tr cancelled, student, meeting, staff guard).
+
+## Tổng kết (goal)
+Bản đồ luồng: 34 WF + 7 ADM × 5 vai trò + ~60 edge cases (plans/reports/flow-map-by-role-260817.md).
+Live suite: 00–16 (17 specs) PASS — happy + edge theo vai trò: KPI/lương KD+GV, đổi quà, họp PH + double-book,
+after-sale, finance second-eye/I3, shift reject, user escalation guards, student lifecycle, CRM, chấm công, audit.
+Còn lại (no-ui-path / cần quyết định): P1-06 guardian UI, P2-03/05 HS làm bài, P3-02 offsite seed, P4-04 periodic,
+P2-07 AI nhận xét, E5/E9 spec-code lệch (outbox, priority sort), blockLms UI.

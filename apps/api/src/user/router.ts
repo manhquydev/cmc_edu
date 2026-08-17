@@ -71,6 +71,30 @@ export interface AppUserDto {
   isActive: boolean;
 }
 
+/** Safe manager identity for the staff form — id + display fields only, never
+ *  credential columns (D2). Rendered as "fullName (employeeCode)" in selects. */
+export interface AppUserManagerSummary {
+  id: string;
+  fullName: string;
+  employeeCode: string;
+}
+
+/** `user.get` response: the browser-safe AppUser row plus the manager summary
+ *  the profile form needs to show the current manager without a second query. */
+export interface AppUserDetailDto extends AppUserDto {
+  manager: AppUserManagerSummary | null;
+}
+
+const MANAGER_SUMMARY_SELECT = {
+  id: true,
+  fullName: true,
+  employeeCode: true,
+} as const;
+
+const getUserInput = z.object({
+  appUserId: z.string().uuid(),
+});
+
 /**
  * Every procedure that returns AppUser rows to the admin client MUST use this
  * select: AppUser now carries credential columns (passwordHash, lockout
@@ -265,6 +289,36 @@ export const userRouter = router({
       });
     }),
 
+  /** Manager dropdown for the staff profile form (D2): same-facility staff who
+   *  may be assigned as a manager. A non-super-admin caller (director) must not
+   *  be offered a `super_admin` target — the platform admin is read-only for
+   *  them, so a super_admin can never be their staff member's manager. Unlike
+   *  `pickList` (teacher/payroll dropdowns, `staff.pickList` key), this is the
+   *  manager-eligibility roster under the same `user.manage` authority as the
+   *  rest of the staff surface. */
+  managerPickList: requirePermission('user', 'manage')
+    .query(async ({ ctx }) => {
+      const { facilityId } = scoped(ctx);
+      const callerIsSuperAdmin = ctx.subject.roles.includes('super_admin');
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const items = await tx.appUser.findMany({
+          where: {
+            facilityId,
+            // Directors see every other same-facility staff (incl. peer
+            // directors) as eligible; only super_admin targets are excluded
+            // (D2: the platform admin is read-only for a director, so it can
+            // never be assigned as a staff member's manager).
+            ...(callerIsSuperAdmin
+              ? {}
+              : { NOT: { roles: { has: 'super_admin' as DbRole } } }),
+          },
+          select: { id: true, fullName: true, employeeCode: true, position: true, roles: true },
+          orderBy: { fullName: 'asc' },
+        });
+        return { items };
+      });
+    }),
+
   list: requirePermission('user', 'manage')
     .input(userListInput.default({}))
     .query(async ({ ctx, input }) => {
@@ -290,6 +344,47 @@ export const userRouter = router({
           select: APP_USER_SELECT,
         });
         return { items: items as AppUserDto[] };
+      });
+    }),
+
+  /** Cold-start fetch for one staff record (resource-depth D1/D2): the detail
+   *  page and profile form hydrate from this without a list cache. Facility-
+   *  scoped like every other procedure; a cross-facility or unknown target is
+   *  NOT_FOUND (never an existence-leaking FORBIDDEN). Same `user.manage`
+   *  roster as `list` — directors may READ a same-facility super_admin profile
+   *  (read-only); mutations stay guarded by their own escalation checks. */
+  get: requirePermission('user', 'manage')
+    .input(getUserInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const user = await tx.appUser.findFirst({
+          where: { id: input.appUserId, facilityId },
+          select: {
+            ...APP_USER_SELECT,
+            manager: { select: MANAGER_SUMMARY_SELECT },
+          },
+        });
+        if (!user) throw notFound('AppUser not found.');
+        return {
+          id: user.id,
+          facilityId: user.facilityId,
+          userId: user.userId,
+          email: user.email,
+          fullName: user.fullName,
+          position: user.position,
+          managerId: user.managerId,
+          employeeCode: user.employeeCode,
+          roles: user.roles as AuthRole[],
+          isActive: user.isActive,
+          manager: user.manager
+            ? {
+                id: user.manager.id,
+                fullName: user.manager.fullName,
+                employeeCode: user.manager.employeeCode,
+              }
+            : null,
+        } satisfies AppUserDetailDto;
       });
     }),
 

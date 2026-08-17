@@ -155,7 +155,11 @@ const ACTIVE_ROLE_MATRIX: Array<{ key: string; allowed: readonly string[] }> = [
   { key: 'assessment.confirm', allowed: ['giao_vien'] },
   { key: 'sessionEvidence.upsert', allowed: ['giao_vien'] },
   { key: 'sessionEvidence.publish', allowed: ['giao_vien'] },
-  { key: 'user.manage', allowed: [] },
+  // D2 (resource-depth plan): both directors hold user.manage — staff
+  // provisioning/manage authority — with super_admin escalation guards in the
+  // user router; the registry is the authority (commit e917812) and this
+  // matrix must mirror it.
+  { key: 'user.manage', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'staff.pickList', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] },
   { key: 'facilityNetwork.manage', allowed: [] },
   { key: 'checkIn.punch', allowed: ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale', 'giao_vien'] },

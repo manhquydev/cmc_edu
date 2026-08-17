@@ -11,6 +11,7 @@ import { test, expect } from '@playwright/test';
 
 import { openStaffSession, closeRoleSession } from '../../src/live/live-auth.js';
 import { menuNav } from '../../src/journey/menu-nav.js';
+import { createLiveClass, liveStaffRoleClient } from '../../src/live/live-trcp.js';
 import {
   newScratch,
   attachErrors,
@@ -18,6 +19,7 @@ import {
   recordCreated,
   assertNoErrorsAll,
   runId,
+  freshParentPhone,
 } from './live-spec-utils.js';
 
 const scratch = newScratch();
@@ -31,14 +33,11 @@ test.describe('12-ops-finance-edge — second-eye >20tr + huỷ phiếu I3 rever
   test('phiếu 21tr: GĐKD bị chặn → GĐĐT duyệt → GĐKD huỷ (I3 revert O4)', async ({ browser }) => {
     const rid = runId();
     const edgeName = 'Live Edge ' + rid;
-    // SĐT tự sinh unique (84 + 9 chữ số từ runId) — không bao giờ trùng campaign
-    // trước → tránh nhánh needs_confirmation (SĐT đã có hồ sơ) làm flaky.
-    const edgePhone = '84' + rid.replace(/[^0-9]/g, '').padEnd(9, '0').slice(0, 9);
+    const edgePhone = freshParentPhone();
 
     // 1. sale: tạo lead mới → advance O1→O4 (same pattern as 01) → phiếu 21tr.
     const sale = await openStaffSession(browser, 'sale');
     attachErrors(sale.page, scratch);
-    let receiptUrl = '';
     try {
       await menuNav(sale.page, 'Tài chính & Điều hành', 'CRM', { role: 'sale' });
       await expect(sale.page).toHaveURL(/\/crm$/);
@@ -62,20 +61,33 @@ test.describe('12-ops-finance-edge — second-eye >20tr + huỷ phiếu I3 rever
       await card.getByRole('button', { name: 'Ghi danh', exact: true }).click();
       await expect(sale.page).toHaveURL(/\/finance\/new\?opportunityId=/i, { timeout: 15_000 });
 
-      await sale.page.getByLabel('Email phụ huynh').fill('live-finance-edge-' + rid + '@cmcvn.edu.vn');
-      await sale.page.getByRole('combobox', { name: /^Lớp học/ }).click();
-      await sale.page.getByRole('option', { name: new RegExp(escapeRegExp('CMCDEVEL')) }).first().click();
-      await sale.page.getByRole('spinbutton', { name: /^Học phí/ }).fill('21000000');
-      await sale.page.getByRole('button', { name: 'Tạo phiếu thu' }).click();
-      await expect(sale.page.getByText(/^Đã tạo phiếu thu /)).toBeVisible({ timeout: 20_000 });
-      receiptUrl = sale.page.url();
       recordCreated(scratch, 'opportunity', 'edge O4 lead', edgeName);
-      recordCreated(scratch, 'receipt', '21tr edge receipt', receiptUrl);
-      console.log('[12-ops-finance-edge] sale created 21tr receipt for new O4 opp');
     } finally {
       await closeRoleSession(sale);
     }
-    const receiptId = receiptUrl.match(/\/finance\/([0-9a-f-]{36})/i)?.[1]!;
+
+    // 1b. ClassBatch + receipt 21tr via tRPC with the REAL sessions (the UI
+    // create-form email field is flaky on live; 02 already covers the UI path
+    // with a happy amount — here the AMOUNT edge is what matters). Same
+    // PO-approved seed exceptions as 02/03/16: no ClassBatch admin UI.
+    const warm = await openStaffSession(browser, 'superAdmin');
+    await closeRoleSession(warm);
+    const liveClass = await createLiveClass({ courseName: 'Live Edge Course ' + rid });
+    const classBatchId = liveClass.classBatch.id;
+    const saleClient = liveStaffRoleClient('sale');
+    const receiptRes = await saleClient.finance.receiptCreate.mutate({
+      studentName: edgeName,
+      parentPhone: edgePhone,
+      parentEmail: 'live-finance-edge-' + rid + '@cmcvn.edu.vn',
+      amount: 21000000,
+      classBatchId,
+    });
+    if (receiptRes.status !== 'success') {
+      throw new Error('12: receiptCreate failed: ' + receiptRes.message);
+    }
+    const receiptId = receiptRes.receipt.id;
+    recordCreated(scratch, 'receipt', '21tr edge receipt', receiptId);
+    console.log('[12-ops-finance-edge] 21tr receipt created via tRPC');
 
     // 2. GĐKD: mở phiếu — KHÔNG duyệt được (second-eye): nút "Duyệt & Kích hoạt" không render.
     const gdkd = await openStaffSession(browser, 'giam_doc_kinh_doanh');

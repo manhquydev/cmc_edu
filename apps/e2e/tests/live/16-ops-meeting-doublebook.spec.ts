@@ -92,7 +92,8 @@ test.describe('16-ops-meeting-doublebook — họp trùng giờ: warning mềm, 
       // 2. Second meeting at the SAME slot → warning, dialog stays open.
       await scheduleMeetingKeepOpen(gd.page, dbName, slot);
       const warnDialog = gd.page.getByRole('dialog');
-      await expect(warnDialog.getByText(/trùng giờ/i)).toBeVisible({ timeout: 15_000 });
+      // Title "Đã đặt lịch — trùng giờ" + description both match /trùng giờ/ — .first().
+      await expect(warnDialog.getByText(/trùng giờ/i).first()).toBeVisible({ timeout: 15_000 });
       await expect(warnDialog.getByRole('button', { name: 'Đóng', exact: true })).toBeVisible();
       // The meeting IS created despite the warning (soft double-book).
       recordCreated(scratch, 'parent-meeting', 'double-book-warning', slot);

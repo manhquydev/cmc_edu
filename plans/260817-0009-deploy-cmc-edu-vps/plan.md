@@ -160,3 +160,9 @@ Gate: login 3 tài khoản qua https erp; GĐ tạo staff OK; GĐ không leo tha
 - **ak-code-review**: REQUEST_CHANGES (scoped) — xác nhận security posture đúng (AOP, geo, isolation, no secrets). Đã fix H1/H2 (deploy-vps.sh: export NGINX_PUBLISH + verify upstreams trực tiếp thay vì qua nginx/AOP) + M2 (.env.prod.example GDKD/GDDT) + M3 (seed-directors facility derive) → commit 989c2ea.
 - **Còn lại (P3)**: backup-vps.sh / monitor-vps.sh / GlitchTip obs / dead-man-switch — đã ghi trong plan, chưa thực thi (session).
 - **Bàn giao**: deverp.cmcvn.edu.vn (ERP admin) + devlms.cmcvn.edu.vn (LMS) — login admin end-to-end OK; hoc.cmcvn.edu.vn regression OK. Credentials: super-admin + gdkd/gddt (trong .env.prod VPS, buộc đổi lần đầu). Test data từ campaign (7 AppUser, 1 student, 2 receipt, AuditLog 52) — giữ làm data UAT.
+
+## TEST VẬN HÀNH MỞ RỘNG (2026-08-17) — 7/7 PASS trên VPS
+- Thêm spec live 06-ops-hr (P3-01 chấm công punch, P3-03 đăng ký ca, P3-04 GĐKD duyệt ca) → typecheck clean → chạy trên VPS.
+- Full suite 00-06 + 04: **7/7 PASS (1.7m)** — tạo user (00), CRM O1→O4 (01), phiếu thu+duyệt+ghi danh (02), lớp+điểm danh (03), **chấm công + đăng ký ca + duyệt ca (06)**, audit-log (05), parent OTP LMS (04).
+- **Credentials đã chốt (nguồn duy nhất = /root/cmc-edu/.env.prod trên VPS)**: admin@cmcvn.edu.vn (SUPER_ADMIN_PASSWORD), gdkd@ (GDKD_PASSWORD), gddt@ (GDDT_PASSWORD) — cả 3 mustChangePassword=true. Đã reset + verify login sau mỗi lần suite rotate.
+- Commit: 471c66d (ops spec) + các fix import.

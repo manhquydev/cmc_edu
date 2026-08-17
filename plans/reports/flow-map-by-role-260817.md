@@ -78,3 +78,6 @@
 P1-06 (guardian requestLink không UI), P2-03/05 (HS làm bài), P3-02 (offsite cần seed), P3-10/11 (worker), P4-04 periodic (không UI), blockLms (không UI consumer).
 
 ## 3. Ledger hiện tại (2026-08-13, business-verification.json): 43 luồng = 17 verified-correct + 20 reachable-only + 6 not-proven.
+> **2026-08-17 (bổ sung):** report chi tiết cụm P3 đã lưu tại plans/reports/explore-p3-flows-report.md —
+> xác nhận P3-01 smoke · P3-02…09 verified-correct · P3-10/11 no-ui-path; edge chưa test quan trọng nhất =
+> guard "không chạm super_admin" ở user.update/user.resetPassword (user.create đã phủ trong live 14).

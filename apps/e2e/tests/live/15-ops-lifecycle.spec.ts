@@ -50,7 +50,10 @@ test.describe('15-ops-lifecycle — đổi trạng thái học viên (P4-05 E8, 
       await gd.page.getByRole('button', { name: 'Áp dụng' }).click();
       const confirmDialog = gd.page.getByRole('alertdialog');
       await confirmDialog.getByRole('button', { name: /Xác nhận|Áp dụng/ }).click();
-      await expect(gd.page.getByText('Khóa LMS', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
+      // M2 (code review): assert trạng thái THẬT qua tRPC readback (student.lookup trả
+      // lifecycle) — text assertion có thể khớp vào Selector pending value, không phải badge.
+      const afterBlock = await gdClient.student.lookup.query({ name: studentName! });
+      expect(afterBlock.find((s) => s.fullName === studentName)?.lifecycle).toBe('blocked_lms');
       recordCreated(scratch, 'student-lifecycle', 'blocked_lms', studentId);
       console.log('[15-ops-lifecycle] student → blocked_lms');
 
@@ -60,7 +63,8 @@ test.describe('15-ops-lifecycle — đổi trạng thái học viên (P4-05 E8, 
       await gd.page.getByRole('button', { name: 'Áp dụng' }).click();
       const confirmDialog2 = gd.page.getByRole('alertdialog');
       await confirmDialog2.getByRole('button', { name: /Xác nhận|Áp dụng/ }).click();
-      await expect(gd.page.getByText('Đang học', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
+      const afterActive = await gdClient.student.lookup.query({ name: studentName! });
+      expect(afterActive.find((s) => s.fullName === studentName)?.lifecycle).toBe('active');
       recordCreated(scratch, 'student-lifecycle', 'back-to-active', studentId);
       console.log('[15-ops-lifecycle] student → active (rollback)');
     } finally {

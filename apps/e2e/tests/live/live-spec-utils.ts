@@ -68,6 +68,12 @@ export async function assertNoErrorsAll(scratch: SpecScratch, step: string): Pro
   }
 }
 
+/** Escapes regex metacharacters before interpolating a user-visible string
+ *  (contact names, student names, emails) into a RegExp. Shared by the live
+ *  specs — keep one copy here, not per-spec. */
+export function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 /** The shared run id (stable across specs of one campaign). */
 export function runId(): string {
   return readLiveState().runId;

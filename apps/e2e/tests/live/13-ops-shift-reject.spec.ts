@@ -51,6 +51,7 @@ test.describe('13-ops-shift-reject — Từ chối đăng ký ca kèm lý do (P3
       await groupCard.getByRole('button', { name: '+ Thêm mẫu ca' }).click();
       await expect(groupCard.getByText(templateName)).toBeVisible({ timeout: 10_000 });
       recordCreated(scratch, 'shift-group', 'name', groupName);
+      recordCreated(scratch, 'shift-template', 'name', templateName);
       console.log('[13-ops-shift-reject] shift group+template created');
     } finally {
       await closeRoleSession(sa);

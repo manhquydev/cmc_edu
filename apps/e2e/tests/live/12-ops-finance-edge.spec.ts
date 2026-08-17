@@ -19,15 +19,12 @@ import {
   recordCreated,
   assertNoErrorsAll,
   runId,
+  escapeRegExp,
   freshParentPhone,
 } from './live-spec-utils.js';
 
 const scratch = newScratch();
 
-function escapeRegExp(value: string): string {
-  // eslint-disable-next-line no-useless-escape
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 test.describe('12-ops-finance-edge — second-eye >20tr + huỷ phiếu I3 revert (live)', () => {
   test('phiếu 21tr: GĐKD bị chặn → GĐĐT duyệt → GĐKD huỷ (I3 revert O4)', async ({ browser }) => {
@@ -112,6 +109,15 @@ test.describe('12-ops-finance-edge — second-eye >20tr + huỷ phiếu I3 rever
       await confirmDialog.getByRole('button', { name: 'Duyệt & Kích hoạt' }).click();
       await expect(gddt.page.getByText('Đã duyệt', { exact: false }).first()).toBeVisible({ timeout: 20_000 });
       recordCreated(scratch, 'receipt', '21tr approved by GĐĐT', receiptId);
+      // M1 (code review): khép phantom O5 — opp edgeName phải rời O4 sau approve
+      // (walk-in auto-link đưa opp lên O5_ENROLLED → card mất nút 'Ghi danh').
+      await menuNav(gddt.page, 'Tài chính & Điều hành', 'CRM', { role: 'giam_doc_dao_tao' });
+      const cardAfterApprove = gddt.page.getByRole('button', {
+        name: new RegExp('^' + escapeRegExp(edgeName)),
+      });
+      await expect(cardAfterApprove).toBeVisible({ timeout: 15_000 });
+      await expect(cardAfterApprove.getByRole('button', { name: 'Ghi danh', exact: true })).toHaveCount(0, { timeout: 15_000 });
+      recordCreated(scratch, 'opportunity', 'O5 reached via approve', edgeName);
       console.log('[12-ops-finance-edge] GĐĐT approved 21tr receipt');
     } finally {
       await closeRoleSession(gddt);

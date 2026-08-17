@@ -4,7 +4,10 @@
 // with a "Đã đặt lịch — trùng giờ" banner + single "Đóng" action. This edge
 // (warning UI) is separate from the happy path 10-ops-meeting.
 //
-// Precondition: 02 provisioned a student (state.contactName).
+// This spec provisions its OWN student + class via the real money chain
+// (createLiveClass + receiptCreate → receiptApprove) — it does NOT depend on
+// 02's student (10-ops-meeting already schedules the campaign student, so a
+// private student keeps the row-count assertions unambiguous).
 
 import { test, expect, type Page } from '@playwright/test';
 
@@ -70,6 +73,7 @@ test.describe('16-ops-meeting-doublebook — họp trùng giờ: warning mềm, 
       receiptId: receiptRes.receipt.id,
     });
     expect(approved.receipt.status).toBe('approved');
+    recordCreated(scratch, 'receipt', 'dedicated double-book receipt', receiptRes.receipt.id);
     recordCreated(scratch, 'student', 'dedicated double-book student', dbName);
 
     const tomorrow = addDaysToDateOnly(ictDateOnlyOf(new Date()), 1);

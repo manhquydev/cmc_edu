@@ -72,7 +72,7 @@ export interface AppUserDto {
 }
 
 /** Safe manager identity for the staff form — id + display fields only, never
- *  credential columns (D2). Rendered as "fullName (employeeCode)" in selects. */
+ *  credential columns. Rendered as "fullName (employeeCode)" in selects. */
 export interface AppUserManagerSummary {
   id: string;
   fullName: string;
@@ -289,7 +289,7 @@ export const userRouter = router({
       });
     }),
 
-  /** Manager dropdown for the staff profile form (D2): same-facility staff who
+  /** Manager dropdown for the staff profile form: same-facility staff who
    *  may be assigned as a manager. A non-super-admin caller (director) must not
    *  be offered a `super_admin` target — the platform admin is read-only for
    *  them, so a super_admin can never be their staff member's manager. Unlike
@@ -306,7 +306,7 @@ export const userRouter = router({
             facilityId,
             // Directors see every other same-facility staff (incl. peer
             // directors) as eligible; only super_admin targets are excluded
-            // (D2: the platform admin is read-only for a director, so it can
+            // (the platform admin is read-only for a director, so it can
             // never be assigned as a staff member's manager).
             ...(callerIsSuperAdmin
               ? {}
@@ -347,12 +347,12 @@ export const userRouter = router({
       });
     }),
 
-  /** Cold-start fetch for one staff record (resource-depth D1/D2): the detail
-   *  page and profile form hydrate from this without a list cache. Facility-
-   *  scoped like every other procedure; a cross-facility or unknown target is
-   *  NOT_FOUND (never an existence-leaking FORBIDDEN). Same `user.manage`
-   *  roster as `list` — directors may READ a same-facility super_admin profile
-   *  (read-only); mutations stay guarded by their own escalation checks. */
+  /** Cold-start fetch for one staff record: the detail page and profile form
+   *  hydrate from this without a list cache. Facility-scoped like every other
+   *  procedure; a cross-facility or unknown target is NOT_FOUND (never an
+   *  existence-leaking FORBIDDEN). Same `user.manage` roster as `list` —
+   *  directors may READ a same-facility super_admin profile (read-only);
+   *  mutations stay guarded by their own escalation checks. */
   get: requirePermission('user', 'manage')
     .input(getUserInput)
     .query(async ({ ctx, input }) => {
@@ -362,6 +362,11 @@ export const userRouter = router({
           where: { id: input.appUserId, facilityId },
           select: {
             ...APP_USER_SELECT,
+            // The manager join needs no facility filter of its own: every
+            // write path that sets managerId (create/update) validates it
+            // against the SAME facility first, so an AppUser's manager is
+            // always in the caller's facility and never leaks a cross-facility
+            // identity.
             manager: { select: MANAGER_SUMMARY_SELECT },
           },
         });

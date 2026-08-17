@@ -117,6 +117,22 @@ describe('user — AppUser CRUD (P3-I)', () => {
     expect(result.position).toBe('hr');
   });
 
+  it('user.update — director edits an ordinary same-facility staff profile', async () => {
+    const gdkdCtx = buildStaffContext({
+      facilityId,
+      userId: 'gdkd-upd-ctx',
+      roles: ['giam_doc_kinh_doanh'],
+    });
+    const user = await seedAppUser({ facilityId, userId: 'u-gdkd-update' });
+    const result = await caller(gdkdCtx).user.update({
+      appUserId: user.id,
+      fullName: 'Đổi Tên Bởi Giám Đốc',
+      position: 'sale',
+    });
+    expect(result.fullName).toBe('Đổi Tên Bởi Giám Đốc');
+    expect(result.position).toBe('sale');
+  });
+
   it('user.update — rejects self as manager', async () => {
     const user = await seedAppUser({ facilityId, userId: 'u-self' });
     await expect(
@@ -183,7 +199,7 @@ describe('user — AppUser CRUD (P3-I)', () => {
     await expect(caller(saleCtx).user.list()).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
-  // ── user.get — resource-depth D2 cold-start fetch ────────────────────────
+  // ── user.get — cold-start single-record fetch ────────────────────────────
 
   it('user.get — cold-starts one staff record with browser-safe fields', async () => {
     const user = await seedAppUser({
@@ -219,7 +235,7 @@ describe('user — AppUser CRUD (P3-I)', () => {
     expect(result.userId).toBe('u-gdkd-read');
   });
 
-  it('user.get — GĐĐT reads a peer director (same facility, D2)', async () => {
+  it('user.get — GĐĐT reads a peer director (same facility)', async () => {
     const gddtCtx = buildStaffContext({
       facilityId,
       userId: 'gddt-ctx',
@@ -245,7 +261,7 @@ describe('user — AppUser CRUD (P3-I)', () => {
       userId: 'u-super-readonly',
       roles: ['super_admin'],
     });
-    // Read is allowed (D2: "directors may see/open a super_admin profile");
+    // Read is allowed ("directors may see/open a super_admin profile");
     // mutation guards are covered by update/updateRoles/resetPassword tests.
     const result = await caller(directorCtx).user.get({ appUserId: superUser.id });
     expect(result.userId).toBe('u-super-readonly');
@@ -314,7 +330,7 @@ describe('user — AppUser CRUD (P3-I)', () => {
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
-  // ── user.managerPickList — D2 manager-picker eligibility ─────────────────
+  // ── user.managerPickList — manager dropdown eligibility ──────────────────
 
   it('user.managerPickList — excludes super_admin for a director caller', async () => {
     const directorCtx = buildStaffContext({
@@ -332,7 +348,7 @@ describe('user — AppUser CRUD (P3-I)', () => {
     const ids = result.items.map((u) => u.id);
     expect(ids).toContain(ordinary.id);
     expect(ids).not.toContain(superTarget.id);
-    // Peer directors remain eligible (D2: directors may manage peer directors).
+    // Peer directors remain eligible (directors may manage peer directors).
     const peerDirector = await seedAppUser({
       facilityId,
       userId: 'u-mgr-peer-dir',

@@ -111,6 +111,41 @@ describe('deriveEntityId', () => {
     // Update-shaped action whose input names the target via caseId: unchanged.
     expect(deriveEntityId({ caseId: 'case-9' }, { id: 'case-9' }, 'afterSale.resolve')).toBe('case-9');
   });
+
+  // Keyed unwrap: wrapped-return create mutations take the id from the
+  // named nested row, never from whichever *Id the client sent first.
+  it('keyed-unwrap actions read the nested created row under its fixed key', () => {
+    expect(
+      deriveEntityId(
+        { opportunityId: 'opp-1', studentName: 'A' },
+        { status: 'success', receipt: { id: 'receipt-1' } },
+        'finance.receiptCreate',
+      ),
+    ).toBe('receipt-1');
+    expect(
+      deriveEntityId(
+        { receiptId: 'r-1', amount: 1 },
+        { refund: { id: 'refund-1' }, remainingBalance: 0 },
+        'finance.refundCreate',
+      ),
+    ).toBe('refund-1');
+    expect(
+      deriveEntityId({ giftId: 'gift-1' }, { reward: { id: 'reward-1' }, newBalance: 0 }, 'rewards.redeem'),
+    ).toBe('reward-1');
+  });
+
+  it('keyed-unwrap actions fall back cleanly when the wrapper lacks the row', () => {
+    // needs_confirmation variant: no receipt created, no nested row.
+    expect(
+      deriveEntityId({ studentName: 'A' }, { status: 'needs_confirmation', existingStudents: [] }, 'finance.receiptCreate'),
+    ).toBe('');
+  });
+
+  it('kpi.refresh derives the KpiScore id from the returned score row', () => {
+    expect(
+      deriveEntityId({ appUserId: 'appuser-1', period: '2026-08' }, { id: 'kpiscore-1', tierMissing: false }, 'kpi.refresh'),
+    ).toBe('kpiscore-1');
+  });
 });
 
 describe('sanitizeAuditData', () => {

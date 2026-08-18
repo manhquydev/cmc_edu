@@ -124,14 +124,18 @@ One module series at a time. Each series must pass API, UI and deep-link proof b
 
 - `AUDIT_ENTITY_ID_RESULT_ACTIONS` registry: create-shaped mutations whose input names an
   unrelated record (`user.create`, `afterSale.create`, `parentMeeting.schedule`,
-  `testAppointment.schedule`, `shift.createTemplate`, `shift.submit`) derive entityId from
-  the created result row. Global input-first precedence is unchanged; new ambiguous actions
-  join the registry, guarded by the hand-audited manifest test
+  `testAppointment.schedule`, `shift.createTemplate`, `shift.submit`, `kpi.refresh`) derive
+  entityId from the created result row. Global input-first precedence is unchanged; new
+  ambiguous actions join the registry, guarded by the hand-audited manifest test
   (`apps/api/src/audit/mutation-entity-id-manifest.test.ts`).
-- Wrapped-return mutations (`finance.receiptCreate` returning `{status, receipt}` and
-  `rewards.redeem` returning `{reward, newBalance}`) stay input-first; their handlers
-  already write explicit AuditLog rows with the true id. Nested id scraping from wrappers
-  is rejected.
+- Wrapped-return mutations (`finance.receiptCreate` → `{status, receipt}`,
+  `finance.refundCreate` → `{refund, remainingBalance}`, `rewards.redeem` → `{reward,
+  newBalance}`) are classified in `AUDIT_ENTITY_ID_RESULT_KEYS`: the middleware unwraps one
+  fixed, hand-named result key and takes the created row's id. Generic nested scraping is
+  rejected — only listed actions are ever unwrapped. (Earlier draft of this decision kept
+  these input-first on the assumption their handlers wrote true-id audit rows; verified false
+  for receiptCreate/refundCreate, whose middleware row was the only record and stored a
+  client-key-order-dependent unrelated id.)
 - Link entity vocabulary: the middleware derives `entity` from the tRPC router segment
   (`user`, `afterSale`, `parentAccount`), so `SAFE_LINK_TARGETS` keys on router segments.
   Hand-written audit rows using Prisma model names (`AppUser`) simply do not link —

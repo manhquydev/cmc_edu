@@ -14,7 +14,10 @@
 // on deriveEntityId.
 
 import { describe, expect, it } from 'vitest';
-import { AUDIT_ENTITY_ID_RESULT_ACTIONS } from './audit-helpers.js';
+import { AUDIT_ENTITY_ID_RESULT_ACTIONS, AUDIT_ENTITY_ID_RESULT_KEYS } from './audit-helpers.js';
+
+const isClassified = (action: string) =>
+  AUDIT_ENTITY_ID_RESULT_ACTIONS.has(action) || action in AUDIT_ENTITY_ID_RESULT_KEYS;
 
 /** [action, inputNamesUnrelatedRecord] — hand-audited against each router. */
 const CREATE_SHAPED_MANIFEST: ReadonlyArray<readonly [string, boolean]> = [
@@ -30,10 +33,14 @@ const CREATE_SHAPED_MANIFEST: ReadonlyArray<readonly [string, boolean]> = [
   // template/registration.
   ['shift.createTemplate', true],
   ['shift.submit', true],
-  // Wrapped-return mutations — out of registry scope, documented on
-  // deriveEntityId: input-first stays, handler writes the true-id row.
-  ['finance.receiptCreate', false],
-  ['rewards.redeem', false],
+  // kpi.refresh: input appUserId (optional, self when absent) is NOT the
+  // record — the returned KpiScore row is.
+  ['kpi.refresh', true],
+  // Wrapped-return mutations — classified via the keyed unwrap registry
+  // (AUDIT_ENTITY_ID_RESULT_KEYS), not the action registry.
+  ['finance.receiptCreate', true],
+  ['finance.refundCreate', true],
+  ['rewards.redeem', true],
 ];
 
 describe('create-shaped mutation entity-id manifest (Phase 4B)', () => {
@@ -41,8 +48,8 @@ describe('create-shaped mutation entity-id manifest (Phase 4B)', () => {
     for (const [action, inputUnrelated] of CREATE_SHAPED_MANIFEST) {
       if (inputUnrelated) {
         expect(
-          AUDIT_ENTITY_ID_RESULT_ACTIONS.has(action),
-          `${action} input names an unrelated record but is missing from AUDIT_ENTITY_ID_RESULT_ACTIONS`,
+          isClassified(action),
+          `${action} input names an unrelated record but is missing from both entity-id registries`,
         ).toBe(true);
       }
     }
@@ -50,10 +57,10 @@ describe('create-shaped mutation entity-id manifest (Phase 4B)', () => {
 
   it('registry contains no unclassified manifest action', () => {
     const manifestActions = new Set(CREATE_SHAPED_MANIFEST.map(([a]) => a));
-    for (const action of AUDIT_ENTITY_ID_RESULT_ACTIONS) {
+    for (const action of [...AUDIT_ENTITY_ID_RESULT_ACTIONS, ...Object.keys(AUDIT_ENTITY_ID_RESULT_KEYS)]) {
       expect(
         manifestActions.has(action),
-        `${action} is in the registry but not in the manifest — classify it`,
+        `${action} is in a registry but not in the manifest — classify it`,
       ).toBe(true);
     }
   });

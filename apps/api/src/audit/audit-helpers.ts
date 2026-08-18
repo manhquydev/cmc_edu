@@ -56,28 +56,43 @@ export const AUDIT_ENTITY_ID_RESULT_ACTIONS: ReadonlySet<string> = new Set([
   'testAppointment.schedule',
   'shift.createTemplate',
   'shift.submit',
+  'kpi.refresh',
 ]);
+
+/** Same ambiguity as the registry above, but the created row is NESTED one
+ *  level inside the result wrapper under a fixed, hand-named key — e.g.
+ *  `finance.receiptCreate` returns `{status, receipt}` (the receipt dto) and
+ *  `rewards.redeem` returns `{reward, newBalance}`. Membership names the
+ *  wrapper key explicitly; there is still no generic scraping — an action
+ *  not listed here never has its result unwrapped. */
+export const AUDIT_ENTITY_ID_RESULT_KEYS: Readonly<Record<string, string>> = {
+  'finance.receiptCreate': 'receipt',
+  'finance.refundCreate': 'refund',
+  'rewards.redeem': 'reward',
+};
 
 /** Best-effort `entityId` — checks the mutation's input first (an `id` field,
  * else the first `*Id` field), then falls back to the resolver's own return
  * value (most `create` mutations return the created row with an `id`).
- * `AUDIT_ENTITY_ID_RESULT_ACTIONS` members invert that order per action.
- * Empty string when neither yields one (accepted — `action`/`entity` are the
- * fields guaranteed correct, per phase-04 plan).
- *
- * Wrapped-return create mutations (`finance.receiptCreate` returns
- * `{status, receipt}`, `rewards.redeem` returns `{reward, newBalance}`)
- * cannot be fixed by registry membership alone — `extractIdLike` reads the
- * wrapper, not the nested row. They keep input-first derivation; their
- * handlers already write explicit in-transaction AuditLog rows with the true
- * id where the business needs it, and the middleware row stays coarse
- * telemetry. Nested extraction is deliberately NOT added: silently scraping
- * ids out of arbitrary result wrappers re-introduces the same guesswork one
- * level down. */
+ * `AUDIT_ENTITY_ID_RESULT_ACTIONS` members invert that order per action;
+ * `AUDIT_ENTITY_ID_RESULT_KEYS` members unwrap one named result key first.
+ * Empty string when nothing yields one (accepted — `action`/`entity` are the
+ * fields guaranteed correct, per phase-04 plan). */
 export function deriveEntityId(input: unknown, resultData: unknown, action?: string): string {
-  const fromResult = extractIdLike(resultData);
+  const unwrapped =
+    action !== undefined && action in AUDIT_ENTITY_ID_RESULT_KEYS
+      ? (resultData as Record<string, unknown> | null | undefined)?.[AUDIT_ENTITY_ID_RESULT_KEYS[action]]
+      : undefined;
+  const fromResult = extractIdLike(unwrapped) ?? extractIdLike(resultData);
   if (action !== undefined && AUDIT_ENTITY_ID_RESULT_ACTIONS.has(action)) {
     return fromResult ?? '';
+  }
+  if (unwrapped !== undefined) {
+    // Keyed-unwrap actions prefer the unwrapped row's id — without this,
+    // receiptCreate stored whichever unrelated *Id the client serialized
+    // first (opportunityId/studentId/classBatchId), i.e. a nondeterministic
+    // entityId on the compliance ledger.
+    return fromResult ?? extractIdLike(input) ?? '';
   }
   return extractIdLike(input) ?? fromResult ?? '';
 }

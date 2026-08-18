@@ -90,13 +90,14 @@ describe('phase-04 mutation audit coverage', () => {
     expect((lostRow?.data as { lostReason?: string })?.lostReason).toBe('no_response');
   });
 
-  it('finance.receiptCreate is audited with opportunityId + classBatchId', async () => {
-    // The middleware derives entityId as the first *Id field of the input
-    // (opportunityId here — best-effort; `action` is the guaranteed-correct
-    // field). The full input is echoed into `data`, so both ids are present.
-    const { opp } = await draftAtO4('0902222002');
-    const row = await latestAudit('finance.receiptCreate', opp.id);
+  it('finance.receiptCreate is audited with the created receipt as entityId', async () => {
+    // Keyed unwrap: entityId is the created Receipt id (deterministic),
+    // while the full input — including opportunityId + classBatchId — is
+    // still echoed into `data`.
+    const { opp, receipt } = await draftAtO4('0902222002');
+    const row = await latestAudit('finance.receiptCreate', receipt.id);
     expect(row).not.toBeNull();
+    expect(row?.entityId).toBe(receipt.id);
     const data = row?.data as Record<string, unknown>;
     expect(data.opportunityId).toBe(opp.id);
     expect(data.classBatchId).toBe(classBatch.id);
@@ -132,13 +133,14 @@ describe('phase-04 mutation audit coverage', () => {
     expect(typeof data.enrollmentId).toBe('string');
   });
 
-  it('finance.refundCreate is audited with receiptId + amount', async () => {
+  it('finance.refundCreate is audited with the created refund as entityId', async () => {
     const { receipt } = await draftAtO4('0904444004');
     await gdkd.finance.receiptApprove({ receiptId: receipt.id });
 
-    await gdkd.finance.refundCreate({ receiptId: receipt.id, amount: 2_000_000 });
-    const row = await latestAudit('finance.refundCreate', receipt.id);
+    const refund = await gdkd.finance.refundCreate({ receiptId: receipt.id, amount: 2_000_000 });
+    const row = await latestAudit('finance.refundCreate', refund.refund.id);
     expect(row).not.toBeNull();
+    expect(row?.entityId).toBe(refund.refund.id);
     const data = row?.data as Record<string, unknown>;
     expect(data.receiptId).toBe(receipt.id);
     expect(data.amount).toBe(2_000_000);

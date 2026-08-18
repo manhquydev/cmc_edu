@@ -976,8 +976,11 @@ export const flows: FlowEntry[] = [
         // (access section reset dialog); staff rotates own password at /change-password.
         'user.resetPassword',
         'user.changeOwnPassword',
+        // Phase 4A: operational staff activity timeline on the same detail
+        // surface (/hr/staff/:id/activity tab reads it via RecordTimeline).
+        'user.timeline',
       ],
-      uiRoutes: ['/hr/staff', '/hr/staff/new', '/change-password'],
+      uiRoutes: ['/hr/staff', '/hr/staff/new', '/hr/staff/:staffId/activity', '/change-password'],
       models: ['AppUser'],
     },
     // Journey: super_admin tạo tài khoản nhân sự qua form /hr/staff/new (D1,

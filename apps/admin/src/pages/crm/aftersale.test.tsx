@@ -182,8 +182,10 @@ describe('AfterSalePage', () => {
     fireEvent.change(screen.getByLabelText(/^Mô tả/), { target: { value: 'Cần chăm sóc thêm' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo' }));
 
-    const [, callOptions] = createMutate.mock.calls[0] as [unknown, { onSuccess?: () => void }];
-    act(() => callOptions.onSuccess?.());
+    const [, callOptions] = createMutate.mock.calls[0] as [unknown, { onSuccess?: (created: { id: string }) => void }];
+    // Phase 5: create-success navigates to the created case detail — the
+    // dialog handler expects the created row from the mutation result.
+    act(() => callOptions.onSuccess?.({ id: 'case-1' }));
 
     const dialogEl = screen.getByText('Tạo case chăm sóc sau bán').closest('dialog');
     expect(dialogEl?.hasAttribute('open')).toBe(false);

@@ -51,23 +51,26 @@ vi.mock('../../lib/trpc.js', async () => {
   };
 });
 
+const locationState = vi.hoisted(() => ({
+  state: {
+    student: {
+      id: '',
+      fullName: 'Stale List Name',
+      lifecycle: 'active',
+    },
+  },
+}));
+
 // MemoryRouter path must include :id — render via a thin wrapper route.
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
     ...actual,
-    useParams: () => ({ id: STUDENT_ID }),
     useLocation: () => ({
       pathname: `/admin/students/${STUDENT_ID}`,
       search: '',
       hash: '',
-      state: {
-        student: {
-          id: STUDENT_ID,
-          fullName: 'Stale List Name',
-          lifecycle: 'active',
-        },
-      },
+      state: locationState.state,
       key: 'test',
     }),
   };
@@ -84,10 +87,16 @@ describe('StudentDetailPage — query vs location.state', () => {
     getState.isError = false;
     getState.isSuccess = true;
     getState.error = null;
+    locationState.state = {
+      student: { id: STUDENT_ID, fullName: 'Stale List Name', lifecycle: 'active' },
+    };
   });
 
   it('shows EmptyState when get settles null even if list location.state has a row', () => {
-    renderWithProviders(<StudentDetailPage />);
+    renderWithProviders(<StudentDetailPage />, {
+      route: '/admin/students/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/profile',
+      routes: [{ path: '/admin/students/:id/:section', element: <StudentDetailPage /> }],
+    });
     expect(screen.getByText('Không tìm thấy học viên')).toBeTruthy();
     expect(screen.queryByText('Stale List Name')).toBeNull();
   });
@@ -96,7 +105,10 @@ describe('StudentDetailPage — query vs location.state', () => {
     getState.isLoading = true;
     getState.isSuccess = false;
     getState.data = null;
-    renderWithProviders(<StudentDetailPage />);
+    renderWithProviders(<StudentDetailPage />, {
+      route: '/admin/students/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/profile',
+      routes: [{ path: '/admin/students/:id/:section', element: <StudentDetailPage /> }],
+    });
     // Name appears in breadcrumb + header + summary — assert title, not unique text.
     expect(screen.getByRole('heading', { name: 'Stale List Name' })).toBeTruthy();
     expect(screen.queryByText('Không tìm thấy học viên')).toBeNull();
@@ -109,7 +121,10 @@ describe('StudentDetailPage — query vs location.state', () => {
       lifecycle: 'active',
       parentPhone: null,
     };
-    renderWithProviders(<StudentDetailPage />);
+    renderWithProviders(<StudentDetailPage />, {
+      route: '/admin/students/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/profile',
+      routes: [{ path: '/admin/students/:id/:section', element: <StudentDetailPage /> }],
+    });
     expect(screen.getByRole('heading', { name: 'From Server' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Stale List Name' })).toBeNull();
   });
@@ -121,7 +136,10 @@ describe('StudentDetailPage — query vs location.state', () => {
       lifecycle: 'active',
       parentPhone: null,
     };
-    renderWithProviders(<StudentDetailPage />);
+    renderWithProviders(<StudentDetailPage />, {
+      route: '/admin/students/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/profile',
+      routes: [{ path: '/admin/students/:id/:section', element: <StudentDetailPage /> }],
+    });
     // Statusbar lifecycle + sheet (shipped page, not re-implementation)
     expect(screen.getAllByText('Đang học').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Thông tin học viên')).toBeTruthy();
@@ -138,10 +156,44 @@ describe('StudentDetailPage — query vs location.state', () => {
       lifecycle: 'active',
       parentPhone: null,
     };
-    renderWithProviders(<StudentDetailPage />);
-    const tab = screen.getAllByText('Lớp học')[0]!;
-    fireEvent.click(tab.closest('button') ?? tab);
+    renderWithProviders(<StudentDetailPage />, {
+      route: `/admin/students/${STUDENT_ID}/enrollments`,
+      routes: [{ path: '/admin/students/:id/:section', element: <StudentDetailPage /> }],
+    });
     expect(await screen.findByText('Không có quyền cấp unit')).toBeTruthy();
     expect(screen.queryByText('Cấp / cắt range')).toBeNull();
+  });
+
+  it('renders a cross-record back action when location.state.from is a valid same-origin path (Phase 5)', () => {
+    getState.data = {
+      id: STUDENT_ID,
+      fullName: 'From Server',
+      lifecycle: 'active',
+      parentPhone: null,
+    };
+    locationState.state = {
+      from: { pathname: '/admin/classes/cb-1/students', search: '' },
+    };
+    renderWithProviders(<StudentDetailPage />, {
+      route: `/admin/students/${STUDENT_ID}/profile`,
+      routes: [{ path: '/admin/students/:id/:section', element: <StudentDetailPage /> }],
+    });
+    expect(screen.getByText('Về danh sách học viên của lớp')).toBeInTheDocument();
+  });
+
+  it('falls back to the student list when no validated return state exists', () => {
+    getState.data = {
+      id: STUDENT_ID,
+      fullName: 'From Server',
+      lifecycle: 'active',
+      parentPhone: null,
+    };
+    locationState.state = { student: { id: STUDENT_ID, fullName: 'Stale', lifecycle: 'active' } };
+    renderWithProviders(<StudentDetailPage />, {
+      route: `/admin/students/${STUDENT_ID}/profile`,
+      routes: [{ path: '/admin/students/:id/:section', element: <StudentDetailPage /> }],
+    });
+    expect(screen.queryByText('Về danh sách học viên của lớp')).not.toBeInTheDocument();
+    expect(screen.getByText('Về danh sách')).toBeInTheDocument();
   });
 });

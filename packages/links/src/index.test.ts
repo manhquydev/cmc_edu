@@ -18,6 +18,9 @@ import {
   staffListPath,
   staffNewPath,
   staffProfilePath,
+  classSectionPath,
+  studentSectionPath,
+  receiptSectionPath,
 } from './index.js';
 
 const UUID = '550e8400-e29b-41d4-a716-446655440000';
@@ -68,6 +71,24 @@ describe('staff path builders (D1 canonical surface)', () => {
     expect(staffProfilePath(UUID)).toBe(`/hr/staff/${UUID}/profile`);
     expect(staffAccessPath(UUID)).toBe(`/hr/staff/${UUID}/access`);
     expect(staffActivityPath(UUID)).toBe(`/hr/staff/${UUID}/activity`);
+  });
+});
+
+describe('durable entity section builders (Phase 5)', () => {
+  it('builds class sections under /admin/classes/:id/:section', () => {
+    expect(classSectionPath(UUID, 'overview')).toBe(`/admin/classes/${UUID}/overview`);
+    expect(classSectionPath(UUID, 'students')).toBe(`/admin/classes/${UUID}/students`);
+    expect(classSectionPath(UUID, 'sessions')).toBe(`/admin/classes/${UUID}/sessions`);
+  });
+
+  it('builds student sections under /admin/students/:id/:section', () => {
+    expect(studentSectionPath(UUID, 'profile')).toBe(`/admin/students/${UUID}/profile`);
+    expect(studentSectionPath(UUID, 'enrollments')).toBe(`/admin/students/${UUID}/enrollments`);
+  });
+
+  it('builds receipt sections under /finance/:id/:section', () => {
+    expect(receiptSectionPath(UUID, 'overview')).toBe(`/finance/${UUID}/overview`);
+    expect(receiptSectionPath(UUID, 'order-lines')).toBe(`/finance/${UUID}/order-lines`);
   });
 });
 

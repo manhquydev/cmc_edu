@@ -13,36 +13,16 @@ import { formatRole } from '@cmc/auth';
 import { UUID_RE, staffListPath } from '@cmc/links';
 import { trpc } from '../../../lib/trpc.js';
 import { useSession } from '../../../lib/session-context.js';
-
-/** Validate a same-origin return context carried in router state: only
- *  `{ pathname, search }` from our own list navigation is accepted; anything
- *  else (direct entry, F5, /go) falls back to the canonical list. */
-function returnContext(state: unknown): string {
-  if (
-    state &&
-    typeof state === 'object' &&
-    'from' in state &&
-    (state as { from: unknown }).from !== null &&
-    typeof (state as { from: unknown }).from === 'object'
-  ) {
-    const from = (state as { from: { pathname?: unknown; search?: unknown } }).from;
-    const pathname = typeof from.pathname === 'string' ? from.pathname : '';
-    const search = typeof from.search === 'string' ? from.search : '';
-    // Only accept a same-origin path with a single leading slash (no scheme,
-    // no protocol-relative host) — same rule as safeReturnTo for returnTo.
-    if (/^\/(?![/\\])/.test(pathname) && !/[\u0000-\u0020\u007f]/.test(pathname)) {
-      return `${pathname}${search}`;
-    }
-  }
-  return staffListPath();
-}
+import { returnContextFromState } from '../../../lib/safe-return-to.js';
 
 function StaffDetailLayout() {
   const { staffId = '' } = useParams<{ staffId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const { canDo } = useSession();
-  const backPath = returnContext(location.state);
+  // Same validated same-origin return-context rule as Phase 5 cross-record
+  // links (class roster → student); direct/F5//go falls back to the list.
+  const backPath = returnContextFromState(location.state, staffListPath());
   const idOk = UUID_RE.test(staffId);
 
   const { data, isLoading, error } = trpc.user.get.useQuery(

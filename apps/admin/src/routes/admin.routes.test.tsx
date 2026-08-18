@@ -36,6 +36,10 @@ vi.mock('../pages/admin/audit-log.js', () => ({ default: () => <div>AUDIT_LOG_PA
 vi.mock('../pages/teaching/report-cards.js', () => ({ default: () => <div>REPORT_CARDS_PAGE</div> }));
 vi.mock('../pages/hr/staff/index.js', () => ({ default: () => <div>STAFF_LIST_PAGE</div> }));
 vi.mock('../pages/hr/staff/staff-detail.js', () => ({ default: () => <div>STAFF_DETAIL_SHELL</div> }));
+vi.mock('../pages/classes/class-detail.js', () => ({ default: () => <div>CLASS_DETAIL_PAGE</div> }));
+vi.mock('../pages/students/student-detail.js', () => ({ default: () => <div>STUDENT_DETAIL_PAGE</div> }));
+vi.mock('../pages/classes/index.js', () => ({ default: () => <div>CLASS_LIST_PAGE</div> }));
+vi.mock('../pages/students/index.js', () => ({ default: () => <div>STUDENT_LIST_PAGE</div> }));
 
 const { adminRoutes } = await import('./admin.routes.js');
 
@@ -44,6 +48,9 @@ function AdminRoutesHarness() {
     { path: '/admin', children: adminRoutes },
     { path: '/hr/staff', element: <div>STAFF_LIST_PAGE</div> },
     { path: '/hr/staff/:staffId/profile', element: <div>STAFF_PROFILE_PAGE</div> },
+    // Phase 5: unknown detail sections must fall through to route-level
+    // not-found — no generic :section catch-all may silently render a page.
+    { path: '*', element: <div>NOT_FOUND_MARKER</div> },
   ]);
 }
 
@@ -61,5 +68,33 @@ describe('adminRoutes — staff compatibility redirects (D1)', () => {
   it('redirects /admin/users/:staffId to the canonical profile section', async () => {
     renderAdmin('/admin/users/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
     expect(await screen.findByText('STAFF_PROFILE_PAGE')).toBeInTheDocument();
+  });
+});
+
+describe('adminRoutes — durable class/student sections (Phase 5)', () => {
+  it('base class detail redirects (replace) to the overview section', async () => {
+    renderAdmin('/admin/classes/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    expect(await screen.findByText('CLASS_DETAIL_PAGE')).toBeInTheDocument();
+  });
+
+  it('resolves each class section subpath to the detail page', async () => {
+    renderAdmin('/admin/classes/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/students');
+    expect(await screen.findByText('CLASS_DETAIL_PAGE')).toBeInTheDocument();
+  });
+
+  it('base student detail redirects (replace) to the profile section', async () => {
+    renderAdmin('/admin/students/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    expect(await screen.findByText('STUDENT_DETAIL_PAGE')).toBeInTheDocument();
+  });
+
+  it('resolves the student enrollments section subpath', async () => {
+    renderAdmin('/admin/students/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/enrollments');
+    expect(await screen.findByText('STUDENT_DETAIL_PAGE')).toBeInTheDocument();
+  });
+
+  it('unknown class sections fall through to route-level not-found (no silent render)', async () => {
+    renderAdmin('/admin/classes/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/nonexistent');
+    expect(await screen.findByText('NOT_FOUND_MARKER')).toBeInTheDocument();
+    expect(screen.queryByText('CLASS_DETAIL_PAGE')).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,7 @@
 import { lazy, Suspense } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
+import { receiptSectionPath } from '@cmc/links';
 import { ComingSoon } from '../pages/coming-soon.js';
 import { PermissionGate } from '../lib/permission-gate.js';
 
@@ -12,6 +14,13 @@ const RefundPage = lazy(() => import('../pages/finance/refund.js'));
 
 function Fallback() {
   return <ComingSoon />;
+}
+
+// Phase 5: base receipt path redirects (replace) to the overview section —
+// the durable URL. Unknown sections fall through to route-level not-found.
+function ReceiptDetailRedirect() {
+  const { id = '' } = useParams<{ id: string }>();
+  return <Navigate to={receiptSectionPath(id, 'overview')} replace />;
 }
 
 export const financeRoutes: RouteObject[] = [
@@ -67,6 +76,10 @@ export const financeRoutes: RouteObject[] = [
   },
   {
     path: ':id',
+    element: <ReceiptDetailRedirect />,
+  },
+  ...(['overview', 'order-lines'] as const).map((section) => ({
+    path: `:id/${section}`,
     element: (
       <Suspense fallback={<Fallback />}>
         {/* Match API: finance.receiptGet → requirePermission('finance','receiptGet'). */}
@@ -81,5 +94,5 @@ export const financeRoutes: RouteObject[] = [
         </PermissionGate>
       </Suspense>
     ),
-  },
+  })),
 ];

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   Badge,
   Banner,
   Button,
-  CmcTabs,
   ConfirmDialog,
   DetailPage,
   EntityHeader,
@@ -64,11 +64,11 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function ReceiptDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { section } = useParams<{ section: string }>();
   const navigate = useNavigate();
   const { me } = useSession();
   const { success: toastSuccess } = useToast();
 
-  const [activeTab, setActiveTab] = useState('overview');
   const [approveOpen, setApproveOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState<number | string>('');
@@ -590,7 +590,7 @@ export default function ReceiptDetailPage() {
                       label="Huỷ phiếu"
                       variant="secondary"
                       size="sm"
-                      onClick={() => setActiveTab('overview')}
+                      onClick={() => navigate(`/finance/${id}/overview`)}
                     />
                   ) : null}
                   {receipt.viewerCanRefund ? (
@@ -599,7 +599,7 @@ export default function ReceiptDetailPage() {
                       variant="primary"
                       size="sm"
                       onClick={() => {
-                        setActiveTab('overview');
+                        navigate(`/finance/${id}/overview`);
                         if (refundAmount === '' || refundAmount == null) {
                           setRefundAmount(remainingBalance);
                         }
@@ -659,15 +659,16 @@ export default function ReceiptDetailPage() {
         }
         statusbar={<WorkflowStatusbar {...workflowFor(receipt.status)} />}
         tabs={
-          <CmcTabs
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            tabs={[
-              { id: 'overview', label: 'Tổng quan', content: overviewContent },
-              { id: 'order-lines', label: 'Chi tiết thanh toán', content: orderLinesContent },
-            ]}
-          />
+          <nav className="console-section-tabs" aria-label="Phân đoạn phiếu thu">
+            <NavLink to={'/finance/' + id + '/overview'} end>
+              Tổng quan
+            </NavLink>
+            <NavLink to={'/finance/' + id + '/order-lines'} end>
+              Chi tiết thanh toán
+            </NavLink>
+          </nav>
         }
+        children={(section ?? 'overview') === 'order-lines' ? orderLinesContent : overviewContent}
       />
       <ConfirmDialog
         opened={approveOpen}

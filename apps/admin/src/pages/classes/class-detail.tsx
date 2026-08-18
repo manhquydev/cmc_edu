@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import {
   Badge,
   Banner,
   Button,
-  CmcTabs,
   ConfirmDialog,
   DataTable,
   DetailPage,
@@ -29,6 +29,7 @@ import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { exerciseSequencePath } from '../teaching/exercise-sequence-model.js';
+import { studentSectionPath } from '@cmc/links';
 
 const CLASS_STATUS_LABELS: Record<string, string> = {
   planned: 'Dự kiến',
@@ -110,6 +111,7 @@ function TeacherPicker({ classBatchId, currentTeacherId }: { classBatchId: strin
 
 interface StudentTabRow {
   enrollmentId: string;
+  studentId: string;
   fullName: string;
   status: string;
   [key: string]: unknown;
@@ -122,10 +124,17 @@ function StudentsTab({ classBatchId }: { classBatchId: string }) {
     {
       key: 'fullName',
       label: 'Họ tên',
-      render: (v) => (
-        <Text type="body" size="sm" weight="medium">
-          {String(v)}
-        </Text>
+      render: (v, row) => (
+        // Phase 5 cross-record link: canonical student profile section with
+        // validated same-origin return context back to this class roster.
+        <Link
+          to={studentSectionPath(row.studentId, 'profile')}
+          state={{ from: { pathname: `/admin/classes/${classBatchId}/students`, search: '' } }}
+        >
+          <Text type="body" size="sm" weight="medium">
+            {String(v)}
+          </Text>
+        </Link>
       ),
     },
     {
@@ -430,10 +439,10 @@ export default function ClassDetailPage() {
 
 function ClassDetailContent() {
   const { id } = useParams<{ id: string }>();
+  const { section } = useParams<{ section: string }>();
   const navigate = useNavigate();
   const { canDo } = useSession();
   const canSequence = canDo('exercise', 'manage');
-  const [activeTab, setActiveTab] = useState('overview');
 
   const { data: cls, isLoading, error } = trpc.classBatch.get.useQuery(
     { classBatchId: id! },
@@ -506,6 +515,7 @@ function ClassDetailContent() {
       content: id ? <SessionsTab classBatchId={id} program={cls?.program} /> : null,
     },
   ];
+  const activeTab = section ?? 'overview';
 
   const statusBar = cls ? classStatusSteps(cls.status) : null;
   const statusLabel = cls
@@ -562,7 +572,7 @@ function ClassDetailContent() {
                 label="Tổng quan lớp"
                 size="sm"
                 variant="secondary"
-                onClick={() => setActiveTab('overview')}
+                onClick={() => navigate(`/admin/classes/${id}/overview`)}
               />
             }
           />
@@ -595,7 +605,16 @@ function ClassDetailContent() {
           <WorkflowStatusbar steps={statusBar.steps} activeIndex={statusBar.activeIndex} />
         ) : undefined
       }
-      tabs={<CmcTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />}
+      tabs={
+        <nav className="console-section-tabs" aria-label="Phân đoạn lớp học">
+          {tabs.map((t) => (
+            <NavLink key={t.id} to={`/admin/classes/${id}/${t.id}`} end>
+              {t.label}
+            </NavLink>
+          ))}
+        </nav>
+      }
+      children={tabs.find((t) => t.id === activeTab)?.content ?? overviewContent}
     />
   );
 }

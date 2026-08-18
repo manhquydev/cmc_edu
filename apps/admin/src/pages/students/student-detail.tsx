@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   Button,
-  CmcTabs,
   ConfirmDialog,
   DetailPage,
   EmptyState,
@@ -19,6 +19,7 @@ import {
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
+import { returnContextFromState } from '../../lib/safe-return-to.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { EnrollmentRangesPanel } from './enrollment-ranges-panel.js';
 
@@ -100,7 +101,7 @@ export default function StudentDetailPage() {
 
   const [pendingLifecycle, setPendingLifecycle] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('profile');
+  const { section } = useParams<{ section: string }>();
 
   const utils = trpc.useUtils();
   const setLifecycleMut = trpc.student.setLifecycle.useMutation({
@@ -117,6 +118,10 @@ export default function StudentDetailPage() {
   const displayName = student?.fullName ?? (!querySettled ? 'Đang tải…' : 'Chi tiết học viên');
   const notFound =
     Boolean(id) && querySettled && student == null && (getQ.isError || getQ.isSuccess);
+  // Phase 5 cross-record return: class roster links carry {from} in router
+  // state; direct/F5 falls back to the student list.
+  const backPath = returnContextFromState(location.state, '/admin/students');
+  const crossRecord = backPath !== '/admin/students';
 
   function handleApply() {
     if (!id || !pendingLifecycle) return;
@@ -225,46 +230,8 @@ export default function StudentDetailPage() {
         </div>
       ),
     },
-    {
-      id: 'attendance',
-      label: 'Điểm danh',
-      content: (
-        <div className="console-detail-panel">
-          <EmptyState
-            title="Chưa có dữ liệu"
-            description="Điểm danh cá nhân học viên đang được phát triển."
-            icon={<LineIcon name="check-circle" size={28} />}
-          />
-        </div>
-      ),
-    },
-    {
-      id: 'grades',
-      label: 'Điểm số',
-      content: (
-        <div className="console-detail-panel">
-          <EmptyState
-            title="Chưa có dữ liệu"
-            description="Điểm số học viên đang được phát triển."
-            icon={<LineIcon name="clipboard" size={28} />}
-          />
-        </div>
-      ),
-    },
-    {
-      id: 'guardians',
-      label: 'Phụ huynh',
-      content: (
-        <div className="console-detail-panel">
-          <EmptyState
-            title="Chưa có dữ liệu"
-            description="Danh sách phụ huynh liên kết đang được phát triển."
-            icon={<LineIcon name="users" size={28} />}
-          />
-        </div>
-      ),
-    },
   ];
+  const activeTab = section ?? 'profile';
 
   if (notFound) {
     return (
@@ -303,12 +270,20 @@ export default function StudentDetailPage() {
           <PageHeader
             breadcrumbs={[
               { label: 'Lớp & Học sinh', href: '/admin/students' },
-              { label: 'Học viên', href: '/admin/students' },
+              { label: 'Học viên', href: backPath },
               { label: student?.fullName ?? '…' },
             ]}
             actions={
               <HStack gap={1} wrap="wrap">
                 {id ? <CopyLinkButton mode="go" entity="student" id={id} /> : null}
+                {crossRecord ? (
+                  <Button
+                    label="Về danh sách học viên của lớp"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => navigate(backPath)}
+                  />
+                ) : null}
                 <Button
                   label="Về danh sách"
                   size="sm"
@@ -347,7 +322,7 @@ export default function StudentDetailPage() {
                   label="Đổi trạng thái"
                   size="sm"
                   variant="secondary"
-                  onClick={() => setActiveTab('profile')}
+                  onClick={() => navigate(`/admin/students/${id}/profile`)}
                 />
               ) : undefined
             }
@@ -385,7 +360,16 @@ export default function StudentDetailPage() {
             />
           ) : undefined
         }
-        tabs={<CmcTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />}
+        tabs={
+          <nav className="console-section-tabs" aria-label="Phân đoạn hồ sơ học viên">
+            {tabs.map((t) => (
+              <NavLink key={t.id} to={`/admin/students/${id}/${t.id}`} end>
+                {t.label}
+              </NavLink>
+            ))}
+          </nav>
+        }
+        children={tabs.find((t) => t.id === activeTab)?.content ?? tabs[0].content}
       />
       <ConfirmDialog
         opened={confirmOpen}

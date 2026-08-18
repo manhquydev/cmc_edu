@@ -12,7 +12,7 @@ import { Navigate, useParams } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
 import { ComingSoon } from '../pages/coming-soon.js';
 import { PermissionGate } from '../lib/permission-gate.js';
-import { staffProfilePath } from '@cmc/links';
+import { staffProfilePath, classSectionPath, studentSectionPath } from '@cmc/links';
 
 // ── Students ────────────────────────────────────────────────────────────────
 const StudentListPage = lazy(() => import('../pages/students/index.js'));
@@ -56,13 +56,50 @@ function UsersDetailRedirect() {
   return <Navigate to={staffProfilePath(staffId)} replace />;
 }
 
+// Phase 5: base detail paths redirect (replace) to the default section; the
+// section itself is the durable URL. Unknown sections fall through to the
+// route-level not-found (path no longer matches) rather than a silent render.
+function ClassDetailRedirect() {
+  const { id = '' } = useParams<{ id: string }>();
+  return <Navigate to={classSectionPath(id, 'overview')} replace />;
+}
+
+function StudentDetailRedirect() {
+  const { id = '' } = useParams<{ id: string }>();
+  return <Navigate to={studentSectionPath(id, 'profile')} replace />;
+}
+
+// Section gates mirror the API contracts exactly (Phase 5): the shell and
+// overview read `class.read`; the roster reads `classRoster.read` (teachers
+// hold it while plain sale staff do not); sessions use `class.read`, the
+// contract `classSession.list` itself enforces.
+function ClassSectionGate({ section, children }: { section: string; children: React.ReactNode }) {
+  const module = section === 'students' ? 'classRoster' : 'class';
+  const requirementLabel =
+    section === 'students' ? 'xem danh sách học viên của lớp (classRoster.read)' : 'xem lớp học (class.read)';
+  return (
+    <PermissionGate
+      module={module}
+      action="read"
+      title="Chi tiết lớp"
+      breadcrumbs={[{ label: 'Lớp & Học sinh' }, { label: 'Lớp học' }, { label: 'Chi tiết' }]}
+      requirementLabel={requirementLabel}
+    >
+      {children}
+    </PermissionGate>
+  );
+}
+
 export const adminRoutes: RouteObject[] = [
   { index: true, element: <ComingSoon /> },
 
   // Students
   { path: 'students', element: <S><StudentListPage /></S> },
+  // Base detail redirects (replace) to the default section; sections are the
+  // durable URLs. Unknown sections do not match any route → route not-found.
+  { path: 'students/:id', element: <StudentDetailRedirect /> },
   {
-    path: 'students/:id',
+    path: 'students/:id/:section',
     element: (
       <S>
         {/* Match API: student.get → requirePermission('student','lookup'). */}
@@ -104,23 +141,18 @@ export const adminRoutes: RouteObject[] = [
 
   // Classes
   { path: 'classes', element: <S><ClassListPage /></S> },
-  {
-    path: 'classes/:id',
+  // Base redirects (replace) to the overview section (Phase 5).
+  { path: 'classes/:id', element: <ClassDetailRedirect /> },
+  ...(['overview', 'students', 'sessions'] as const).map((section) => ({
+    path: `classes/:id/${section}`,
     element: (
       <S>
-        {/* Match API: classBatch.get → requirePermission('class','read'). */}
-        <PermissionGate
-          module="class"
-          action="read"
-          title="Chi tiết lớp"
-          breadcrumbs={[{ label: 'Lớp & Học sinh' }, { label: 'Lớp học' }, { label: 'Chi tiết' }]}
-          requirementLabel="xem lớp học (class.read)"
-        >
+        <ClassSectionGate section={section}>
           <ClassDetailPage />
-        </PermissionGate>
+        </ClassSectionGate>
       </S>
     ),
-  },
+  })),
 
   // Courses. The menu now points here under Lớp & Học sinh, but the gate stays:
   // a hidden nav entry does not stop a typed URL, and without this check a role

@@ -136,12 +136,14 @@ test.describe('F1 journey — finance receipt (Phiếu thu)', () => {
       await menuNav(approverPage, 'Tài chính & Điều hành', 'Phiếu thu', { role: 'giam_doc_kinh_doanh' });
       const row = await findInList(approverPage, (text) => text.includes(studentName));
       await row.click();
-      await expect(approverPage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
-      // The receipt id is the last path segment — the only place Playwright can
-      // observe it (receiptCreate's response is not visible to the browser
-      // tests, and `sale` above never navigates there to read it either).
+      // Phase 5: base detail redirects (replace) to the /overview section, so
+      // wait for the durable section URL before reading the id from it. The
+      // receipt id is the path segment before the section — the only place
+      // Playwright can observe it (receiptCreate's response is not visible to
+      // the browser tests, and `sale` above never navigates there either).
+      await expect(approverPage).toHaveURL(/\/finance\/[0-9a-f-]{36}\/overview/);
       const approverUrl = approverPage.url();
-      receiptId = approverUrl.slice(approverUrl.lastIndexOf('/') + 1);
+      receiptId = approverUrl.split('/')[4];
       await expect(approverPage.getByRole('heading', { name: /^Phiếu thu /, level: 4 })).toBeVisible();
 
       await approverPage.getByRole('button', { name: 'Duyệt & Kích hoạt' }).click();

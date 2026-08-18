@@ -19,10 +19,5 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "typescript": "^6.0.0"
-  },
-  "notes": [
-    "@modelcontextprotocol/sdk is NOT yet installed in this monorepo.",
-    "Add it via: pnpm --filter @cmc/mcp-server add @modelcontextprotocol/sdk",
-    "Then remove this 'notes' field and wire the real tRPC client in src/tools.ts."
-  ]
+  }
 }

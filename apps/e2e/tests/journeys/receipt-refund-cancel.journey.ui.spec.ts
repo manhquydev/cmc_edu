@@ -92,9 +92,11 @@ test.describe('P1-08 journey — huỷ phiếu / hoàn tiền', () => {
     });
     const draftRow = await findInList(gdkdPage, (text) => text.includes(studentName));
     await draftRow.click();
-    await expect(gdkdPage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
+    // Base detail redirects (replace) to the /overview section — wait for the
+    // durable section URL, then read the id from the segment before it.
+    await expect(gdkdPage).toHaveURL(/\/finance\/[0-9a-f-]{36}\/overview/);
     const receiptUrl = gdkdPage.url();
-    const receiptId = receiptUrl.slice(receiptUrl.lastIndexOf('/') + 1);
+    const receiptId = receiptUrl.split('/')[4];
 
     await gdkdPage.getByRole('button', { name: 'Duyệt & Kích hoạt' }).click();
     const approveDialog = gdkdPage.getByRole('alertdialog');
@@ -112,7 +114,7 @@ test.describe('P1-08 journey — huỷ phiếu / hoàn tiền', () => {
     await expect(gdkdPage).toHaveURL(/\/finance\/refund/);
     const approvedRow = await findInList(gdkdPage, (text) => text.includes(studentName));
     await approvedRow.getByRole('button', { name: 'Mở phiếu' }).click();
-    await expect(gdkdPage).toHaveURL(new RegExp(`/finance/${receiptId}$`));
+    await expect(gdkdPage).toHaveURL(new RegExp(`/finance/${receiptId}/overview`));
 
     // Overview section "Hoàn tiền" — partial amount then ConfirmDialog.
     await gdkdPage.getByLabel(/Số tiền hoàn/).fill(String(refundAmount));

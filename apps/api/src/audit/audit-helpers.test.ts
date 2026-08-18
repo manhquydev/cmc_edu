@@ -90,6 +90,16 @@ describe('deriveEntityId', () => {
     expect(
       deriveEntityId({ opportunityId: 'opp-1' }, { id: 'appt-1' }, 'testAppointment.schedule'),
     ).toBe('appt-1');
+    // user.create's auth `userId` is an *Id-suffixed input but NOT the record id.
+    expect(
+      deriveEntityId({ userId: 'auth-1', email: 'a@b.c' }, { id: 'appuser-1' }, 'user.create'),
+    ).toBe('appuser-1');
+    expect(
+      deriveEntityId({ shiftGroupId: 'group-1', name: 'Sáng' }, { id: 'template-1' }, 'shift.createTemplate'),
+    ).toBe('template-1');
+    expect(
+      deriveEntityId({ shiftGroupId: 'group-1', entries: [] }, { id: 'registration-1' }, 'shift.submit'),
+    ).toBe('registration-1');
   });
 
   it('registry actions still fall back to empty string when the result carries no id', () => {

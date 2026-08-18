@@ -119,3 +119,20 @@ One module series at a time. Each series must pass API, UI and deep-link proof b
 - `super_admin` callers may see the raw stored actor userId for cross-checking against the
   compliance log — they already hold `user.manage` platform authority. This exception is
   deliberate and bounded to `user.timeline`.
+
+## D12 — Audit entityId derivation and link vocabulary (Phase 4B)
+
+- `AUDIT_ENTITY_ID_RESULT_ACTIONS` registry: create-shaped mutations whose input names an
+  unrelated record (`user.create`, `afterSale.create`, `parentMeeting.schedule`,
+  `testAppointment.schedule`, `shift.createTemplate`, `shift.submit`) derive entityId from
+  the created result row. Global input-first precedence is unchanged; new ambiguous actions
+  join the registry, guarded by the hand-audited manifest test
+  (`apps/api/src/audit/mutation-entity-id-manifest.test.ts`).
+- Wrapped-return mutations (`finance.receiptCreate` returning `{status, receipt}` and
+  `rewards.redeem` returning `{reward, newBalance}`) stay input-first; their handlers
+  already write explicit AuditLog rows with the true id. Nested id scraping from wrappers
+  is rejected.
+- Link entity vocabulary: the middleware derives `entity` from the tRPC router segment
+  (`user`, `afterSale`, `parentAccount`), so `SAFE_LINK_TARGETS` keys on router segments.
+  Hand-written audit rows using Prisma model names (`AppUser`) simply do not link —
+  accepted; the `entityId` filter still finds them.

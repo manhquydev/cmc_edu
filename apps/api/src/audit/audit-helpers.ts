@@ -40,25 +40,40 @@ function extractIdLike(value: unknown): string | undefined {
 }
 
 /** Actions whose mutation INPUT carries a different record's id — e.g.
- *  `afterSale.create` takes `studentId`, `parentMeeting.schedule` and
- *  `testAppointment.schedule` take `studentId`/`opportunityId` — so the
- *  default input-first precedence would store the WRONG record id. For these
- *  actions only, entityId comes from the created result row. The global
- *  input→result precedence is deliberately NOT reversed: for update-shaped
- *  mutations the input id is the right answer, and a blanket flip would break
- *  every one of them. New ambiguous actions join this registry, never a
- *  precedence change. */
+ *  `user.create` takes the auth `userId`, `afterSale.create` takes
+ *  `studentId`, `parentMeeting.schedule`/`testAppointment.schedule` take
+ *  `studentId`/`opportunityId`, `shift.createTemplate`/`shift.submit` take
+ *  `shiftGroupId` — so the default input-first precedence would store the
+ *  WRONG record id. For these actions only, entityId comes from the created
+ *  result row. The global input→result precedence is deliberately NOT
+ *  reversed: for update-shaped mutations the input id is the right answer,
+ *  and a blanket flip would break every one of them. New ambiguous actions
+ *  join this registry, never a precedence change. */
 export const AUDIT_ENTITY_ID_RESULT_ACTIONS: ReadonlySet<string> = new Set([
+  'user.create',
   'afterSale.create',
   'parentMeeting.schedule',
   'testAppointment.schedule',
+  'shift.createTemplate',
+  'shift.submit',
 ]);
 
 /** Best-effort `entityId` — checks the mutation's input first (an `id` field,
  * else the first `*Id` field), then falls back to the resolver's own return
  * value (most `create` mutations return the created row with an `id`).
+ * `AUDIT_ENTITY_ID_RESULT_ACTIONS` members invert that order per action.
  * Empty string when neither yields one (accepted — `action`/`entity` are the
- * fields guaranteed correct, per phase-04 plan). */
+ * fields guaranteed correct, per phase-04 plan).
+ *
+ * Wrapped-return create mutations (`finance.receiptCreate` returns
+ * `{status, receipt}`, `rewards.redeem` returns `{reward, newBalance}`)
+ * cannot be fixed by registry membership alone — `extractIdLike` reads the
+ * wrapper, not the nested row. They keep input-first derivation; their
+ * handlers already write explicit in-transaction AuditLog rows with the true
+ * id where the business needs it, and the middleware row stays coarse
+ * telemetry. Nested extraction is deliberately NOT added: silently scraping
+ * ids out of arbitrary result wrappers re-introduces the same guesswork one
+ * level down. */
 export function deriveEntityId(input: unknown, resultData: unknown, action?: string): string {
   const fromResult = extractIdLike(resultData);
   if (action !== undefined && AUDIT_ENTITY_ID_RESULT_ACTIONS.has(action)) {

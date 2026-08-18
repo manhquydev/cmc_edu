@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
 import { receiptSectionPath } from '@cmc/links';
 import { ComingSoon } from '../pages/coming-soon.js';
@@ -20,7 +20,8 @@ function Fallback() {
 // the durable URL. Unknown sections fall through to route-level not-found.
 function ReceiptDetailRedirect() {
   const { id = '' } = useParams<{ id: string }>();
-  return <Navigate to={receiptSectionPath(id, 'overview')} replace />;
+  const location = useLocation();
+  return <Navigate to={{ pathname: receiptSectionPath(id, 'overview'), search: location.search }} replace />;
 }
 
 export const financeRoutes: RouteObject[] = [

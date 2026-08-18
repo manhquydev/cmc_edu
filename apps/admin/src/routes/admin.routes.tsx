@@ -8,7 +8,7 @@
 // A future phase should move this route to /teaching/report-cards.
 
 import { lazy, Suspense } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
 import { ComingSoon } from '../pages/coming-soon.js';
 import { PermissionGate } from '../lib/permission-gate.js';
@@ -61,12 +61,14 @@ function UsersDetailRedirect() {
 // route-level not-found (path no longer matches) rather than a silent render.
 function ClassDetailRedirect() {
   const { id = '' } = useParams<{ id: string }>();
-  return <Navigate to={classSectionPath(id, 'overview')} replace />;
+  const location = useLocation();
+  return <Navigate to={{ pathname: classSectionPath(id, 'overview'), search: location.search }} replace />;
 }
 
 function StudentDetailRedirect() {
   const { id = '' } = useParams<{ id: string }>();
-  return <Navigate to={studentSectionPath(id, 'profile')} replace />;
+  const location = useLocation();
+  return <Navigate to={{ pathname: studentSectionPath(id, 'profile'), search: location.search }} replace />;
 }
 
 // Section gates mirror the API contracts exactly (Phase 5): the shell and

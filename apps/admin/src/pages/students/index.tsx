@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { links } from '@cmc/links';
 import {
   BulkActionBar,
@@ -44,9 +44,13 @@ const STUDENT_FILTERS: FilterDef[] = [
 ];
 
 export default function StudentListPage() {
+  const location = useLocation();
   const navigate = useNavigate();
-  const [filters, setFilters] = useState<Record<string, string>>({ q: '' });
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const querySearch = searchParams.get('q') ?? '';
+  const queryPage = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
+  const [filters, setFilters] = useState<Record<string, string>>({ q: querySearch });
+  const [page, setPage] = useState(queryPage);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const pageSize = 10;
   const { success: toastSuccess } = useToast();
@@ -61,13 +65,33 @@ export default function StudentListPage() {
     enabled: submitted.length >= 2,
   });
 
+  useEffect(() => {
+    if (filters.q !== querySearch) setFilters({ q: querySearch });
+    if (page !== queryPage) setPage(queryPage);
+  }, [queryPage, querySearch]);
+
   const allRows = (data as StudentRow[] | undefined) ?? [];
   const rows = allRows.slice((page - 1) * pageSize, page * pageSize);
 
   function handleFilterChange(next: Record<string, string>) {
-    setFilters({ q: next.q ?? '' });
+    const q = next.q ?? '';
+    setFilters({ q });
     setPage(1);
     setSelectedIds([]);
+    const nextParams = new URLSearchParams(searchParams);
+    if (q) nextParams.set('q', q);
+    else nextParams.delete('q');
+    nextParams.delete('page');
+    setSearchParams(nextParams, { replace: true });
+  }
+
+  function changePage(nextPage: number) {
+    setPage(nextPage);
+    setSelectedIds([]);
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextPage > 1) nextParams.set('page', String(nextPage));
+    else nextParams.delete('page');
+    setSearchParams(nextParams, { replace: true });
   }
 
   return (
@@ -108,10 +132,7 @@ export default function StudentListPage() {
               page={page}
               pageSize={pageSize}
               total={allRows.length}
-              onPageChange={(p) => {
-                setPage(p);
-                setSelectedIds([]);
-              }}
+              onPageChange={changePage}
             />
           </div>
         ) : undefined
@@ -131,7 +152,10 @@ export default function StudentListPage() {
           error={error?.message}
           empty="Không tìm thấy học viên"
           onRowClick={(row) =>
-            void navigate(links.student(row.id), { state: { student: row } })
+            void navigate(
+              { pathname: links.student(row.id), search: location.search },
+              { state: { student: row } },
+            )
           }
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}

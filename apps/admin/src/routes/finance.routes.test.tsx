@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
-import { useRoutes } from 'react-router-dom';
+import { useLocation, useRoutes } from 'react-router-dom';
 import { renderWithProviders } from '../test/render-with-providers.js';
 
 // Phase 5: receipt detail sections are durable URLs under /finance/:id.
@@ -31,10 +31,17 @@ vi.mock('../pages/finance/receipt-detail.js', () => ({ default: () => <div>RECEI
 const { financeRoutes } = await import('./finance.routes.js');
 
 function FinanceRoutesHarness() {
-  return useRoutes([
+  const location = useLocation();
+  const routed = useRoutes([
     { path: '/finance', children: financeRoutes },
     { path: '*', element: <div>NOT_FOUND_MARKER</div> },
   ]);
+  return (
+    <>
+      <div data-testid="location-marker">{location.pathname}{location.search}</div>
+      {routed}
+    </>
+  );
 }
 
 function renderFinance(route: string) {
@@ -43,8 +50,19 @@ function renderFinance(route: string) {
 
 describe('financeRoutes — durable receipt sections (Phase 5)', () => {
   it('base receipt detail redirects (replace) to the overview section', async () => {
-    renderFinance('/finance/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    renderFinance('/finance/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa?page=2&status=approved');
     expect(await screen.findByText('RECEIPT_DETAIL_PAGE')).toBeInTheDocument();
+    expect(screen.getByTestId('location-marker')).toHaveTextContent(
+      '/finance/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/overview?page=2&status=approved',
+    );
+  });
+
+  it('base receipt redirect replaces the history entry', async () => {
+    const { router } = renderFinance('/before');
+    await router.navigate('/finance/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa?status=approved');
+    expect(await screen.findByText('RECEIPT_DETAIL_PAGE')).toBeInTheDocument();
+    await router.navigate(-1);
+    expect(router.state.location.pathname).toBe('/before');
   });
 
   it('resolves the order-lines section subpath', async () => {

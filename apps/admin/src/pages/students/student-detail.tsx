@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { NavLink } from 'react-router-dom';
 import {
@@ -17,6 +18,7 @@ import {
   StatusBadge,
   WorkflowStatusbar,
 } from '@cmc/ui';
+import { studentSectionPath, UUID_RE } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 import { returnContextFromState } from '../../lib/safe-return-to.js';
@@ -82,9 +84,10 @@ export default function StudentDetailPage() {
   // flight — once settled, the query is the sole source so a deleted/other-
   // facility id shows EmptyState even when list state still holds a row.
   const stateStudent = (location.state as { student?: StudentState } | null)?.student;
+  const idOk = UUID_RE.test(id ?? '');
   const getQ = trpc.student.get.useQuery(
     { id: id ?? '' },
-    { enabled: Boolean(id && id.length > 0), refetchOnWindowFocus: false },
+    { enabled: idOk, refetchOnWindowFocus: false },
   );
   const mapStudent = (row: { id: string; fullName: string; lifecycle: string }): StudentState => ({
     id: row.id,
@@ -136,7 +139,11 @@ export default function StudentDetailPage() {
     });
   }
 
-  const tabs = [
+  const tabs: Array<{
+    id: 'profile' | 'enrollments';
+    label: string;
+    content: ReactNode;
+  }> = [
     {
       id: 'profile',
       label: 'Hồ sơ',
@@ -255,6 +262,24 @@ export default function StudentDetailPage() {
     );
   }
 
+  if (!idOk) {
+    return (
+      <DetailPage
+        header={
+          <PageHeader
+            breadcrumbs={[
+              { label: 'Lớp & Học sinh', href: '/admin/students' },
+              { label: 'Học viên', href: backPath },
+              { label: 'ID không hợp lệ' },
+            ]}
+          />
+        }
+      >
+        <EmptyState title="ID không hợp lệ" description="URL cần UUID học viên." />
+      </DetailPage>
+    );
+  }
+
   const lifecycleBar = student
     ? lifecycleSteps(student.lifecycle)
     : { steps: lifecycleSteps('active').steps, activeIndex: 0 };
@@ -288,7 +313,7 @@ export default function StudentDetailPage() {
                   label="Về danh sách"
                   size="sm"
                   variant="ghost"
-                  onClick={() => navigate('/admin/students')}
+                  onClick={() => navigate({ pathname: '/admin/students', search: location.search })}
                 />
               </HStack>
             }
@@ -363,7 +388,12 @@ export default function StudentDetailPage() {
         tabs={
           <nav className="console-section-tabs" aria-label="Phân đoạn hồ sơ học viên">
             {tabs.map((t) => (
-              <NavLink key={t.id} to={`/admin/students/${id}/${t.id}`} end>
+              <NavLink
+                key={t.id}
+                to={{ pathname: studentSectionPath(id!, t.id), search: location.search }}
+                state={location.state}
+                end
+              >
                 {t.label}
               </NavLink>
             ))}

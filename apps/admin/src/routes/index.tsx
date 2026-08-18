@@ -7,7 +7,7 @@ import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
 import { Skeleton } from '@cmc/ui';
 import { Shell } from '../shell/shell.js';
 import { LoginPage } from '../pages/login.js';
-import { ComingSoon } from '../pages/coming-soon.js';
+import RouteNotFoundPage from '../pages/route-not-found.js';
 import { financeRoutes } from './finance.routes.js';
 import { crmRoutes } from './crm.routes.js';
 import { teachingRoutes } from './teaching.routes.js';
@@ -78,14 +78,14 @@ export const router = createBrowserRouter(
       { path: 'hr', children: hrRoutes },
       { path: 'ops', children: opsRoutes },
       { path: 'admin', children: adminRoutes },
-      // Canonical deep-link resolver — before wildcard so /go/* is never ComingSoon.
+      // Canonical deep-link resolver — before wildcard so /go/* is never 404.
       ...goRoutes,
       // Design-system showcase lab (observation page; deletable after review).
       ...designRoutes,
       // Footgun: bare /classes is not registered (list lives at /admin/classes).
-      // Redirect before the catch-all ComingSoon so typed/bookmarked URLs work.
+      // Redirect before the route-level not-found so typed/bookmarked URLs work.
       { path: 'classes', element: <Navigate to="/admin/classes" replace /> },
-      { path: '*', element: <ComingSoon /> },
+      { path: '*', element: <RouteNotFoundPage /> },
     ],
   },
   ],

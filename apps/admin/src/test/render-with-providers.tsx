@@ -20,7 +20,7 @@ export function renderWithProviders(
     opts.routes ?? [{ path: '*', element: ui }],
     { initialEntries: [opts.route ?? '/'] },
   );
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <SessionProvider>
@@ -29,4 +29,5 @@ export function renderWithProviders(
       </ToastProvider>
     </QueryClientProvider>,
   );
+  return Object.assign(view, { router });
 }

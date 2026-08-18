@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
-import { useRoutes } from 'react-router-dom';
+import { useLocation, useRoutes } from 'react-router-dom';
 import { renderWithProviders } from '../test/render-with-providers.js';
 
 // Locks the D1 compatibility contract: /admin/users and /admin/users/:staffId
@@ -44,7 +44,8 @@ vi.mock('../pages/students/index.js', () => ({ default: () => <div>STUDENT_LIST_
 const { adminRoutes } = await import('./admin.routes.js');
 
 function AdminRoutesHarness() {
-  return useRoutes([
+  const location = useLocation();
+  const routed = useRoutes([
     { path: '/admin', children: adminRoutes },
     { path: '/hr/staff', element: <div>STAFF_LIST_PAGE</div> },
     { path: '/hr/staff/:staffId/profile', element: <div>STAFF_PROFILE_PAGE</div> },
@@ -52,6 +53,12 @@ function AdminRoutesHarness() {
     // not-found — no generic :section catch-all may silently render a page.
     { path: '*', element: <div>NOT_FOUND_MARKER</div> },
   ]);
+  return (
+    <>
+      <div data-testid="location-marker">{location.pathname}{location.search}</div>
+      {routed}
+    </>
+  );
 }
 
 function renderAdmin(route: string) {
@@ -73,8 +80,19 @@ describe('adminRoutes — staff compatibility redirects (D1)', () => {
 
 describe('adminRoutes — durable class/student sections (Phase 5)', () => {
   it('base class detail redirects (replace) to the overview section', async () => {
-    renderAdmin('/admin/classes/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    renderAdmin('/admin/classes/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa?tab=students&view=active');
     expect(await screen.findByText('CLASS_DETAIL_PAGE')).toBeInTheDocument();
+    expect(screen.getByTestId('location-marker')).toHaveTextContent(
+      '/admin/classes/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/overview?tab=students&view=active',
+    );
+  });
+
+  it('base class redirect replaces the history entry', async () => {
+    const { router } = renderAdmin('/before');
+    await router.navigate('/admin/classes/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa?tab=students');
+    expect(await screen.findByText('CLASS_DETAIL_PAGE')).toBeInTheDocument();
+    await router.navigate(-1);
+    expect(router.state.location.pathname).toBe('/before');
   });
 
   it('resolves each class section subpath to the detail page', async () => {
@@ -83,8 +101,19 @@ describe('adminRoutes — durable class/student sections (Phase 5)', () => {
   });
 
   it('base student detail redirects (replace) to the profile section', async () => {
-    renderAdmin('/admin/students/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    renderAdmin('/admin/students/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa?returnTo=%2Fadmin%2Fclasses%2Fclass-1%2Fstudents');
     expect(await screen.findByText('STUDENT_DETAIL_PAGE')).toBeInTheDocument();
+    expect(screen.getByTestId('location-marker')).toHaveTextContent(
+      '/admin/students/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/profile?returnTo=%2Fadmin%2Fclasses%2Fclass-1%2Fstudents',
+    );
+  });
+
+  it('base student redirect replaces the history entry', async () => {
+    const { router } = renderAdmin('/before');
+    await router.navigate('/admin/students/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa?view=compact');
+    expect(await screen.findByText('STUDENT_DETAIL_PAGE')).toBeInTheDocument();
+    await router.navigate(-1);
+    expect(router.state.location.pathname).toBe('/before');
   });
 
   it('resolves the student enrollments section subpath', async () => {

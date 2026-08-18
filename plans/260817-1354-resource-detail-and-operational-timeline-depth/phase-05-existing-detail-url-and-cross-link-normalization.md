@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: Existing Detail URL and Cross Link Normalization"
-status: done
+status: in_review
 ---
 
 # Phase 5: Existing Detail URL and Cross Link Normalization
@@ -97,3 +97,15 @@ hard-coded strings.
 
 Nested routes reuse the same parent permission and API gates. A new URL must not expose a panel whose
 API permission is narrower than the parent; add a nested gate where needed.
+
+## Current validation
+
+- Local Admin suite: 75 files / 704 tests passed.
+- Focused route suite: 11 tests passed, including canonical base-detail redirects
+  preserving pathname and query.
+- `@cmc/links` tests: 42 tests passed.
+- Admin typecheck and build passed; workspace typecheck passed (34/34 tasks).
+- Remaining review gates: executable browser history/back-forward proof and required CI
+  `typecheck-and-test` + `ui-e2e`.
+- Review: prior redirect finding addressed locally; fresh formal review and required CI
+  evidence remain.

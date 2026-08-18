@@ -8,8 +8,9 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // `onError` used to only close the ConfirmDialog with no error rendered
 // anywhere — a SoD/threshold/conflict rejection from the API disappeared
 // silently. `approveMutation.error` must now render as a Banner.
+const RECEIPT_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const RECEIPT = {
-  id: 'r1',
+  id: RECEIPT_ID,
   code: 'SO0001',
   status: 'draft',
   kind: 'new',
@@ -109,7 +110,7 @@ vi.mock('../../lib/trpc.js', async () => {
 
 import ReceiptDetailPage from './receipt-detail.js';
 
-function renderDetail(id = 'r1') {
+function renderDetail(id = RECEIPT_ID) {
   return renderWithProviders(
     <Routes>
       <Route path="/finance/:id" element={<ReceiptDetailPage />} />
@@ -158,11 +159,11 @@ describe('ReceiptDetailPage', () => {
   });
 
   it('calls finance.receiptApprove.mutate({receiptId}) only after the ConfirmDialog confirm click', () => {
-    renderDetail('r1');
+    renderDetail(RECEIPT_ID);
     fireEvent.click(screen.getByRole('button', { name: 'Duyệt & Kích hoạt' }));
     const dialog = screen.getByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Duyệt & Kích hoạt' }));
-    expect(approveMutate).toHaveBeenCalledWith({ receiptId: 'r1' });
+    expect(approveMutate).toHaveBeenCalledWith({ receiptId: RECEIPT_ID });
   });
 
   it('renders a "Duyệt phiếu thất bại" banner with the mutation error message', () => {
@@ -254,7 +255,7 @@ describe('ReceiptDetailPage', () => {
       refunds: [
         {
           id: 'rf1',
-          receiptId: 'r1',
+          receiptId: RECEIPT_ID,
           amount: 1_000_000,
           createdAt: '2026-07-02T00:00:00.000Z',
         },
@@ -270,7 +271,7 @@ describe('ReceiptDetailPage', () => {
     expect(refundMutate).not.toHaveBeenCalled();
     const dialog = screen.getByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Ghi hoàn tiền' }));
-    expect(refundMutate).toHaveBeenCalledWith({ receiptId: 'r1', amount: 500_000 });
+    expect(refundMutate).toHaveBeenCalledWith({ receiptId: RECEIPT_ID, amount: 500_000 });
   });
 
   it('hides refund form when viewerCanRefund is false', () => {
@@ -300,7 +301,7 @@ describe('ReceiptDetailPage', () => {
     expect(refundOnSuccess).toBeDefined();
     act(() =>
       refundOnSuccess?.({
-        refund: { id: 'rf2', receiptId: 'r1', amount: 100_000, createdAt: new Date() },
+        refund: { id: 'rf2', receiptId: RECEIPT_ID, amount: 100_000, createdAt: new Date() },
         remainingBalance: 4_900_000,
       }),
     );
@@ -329,7 +330,7 @@ describe('ReceiptDetailPage', () => {
     const dialog = screen.getByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Huỷ phiếu thu' }));
     expect(cancelMutate).toHaveBeenCalledWith({
-      receiptId: 'r1',
+      receiptId: RECEIPT_ID,
       reason: 'Nhập nhầm lớp',
       void: false,
     });

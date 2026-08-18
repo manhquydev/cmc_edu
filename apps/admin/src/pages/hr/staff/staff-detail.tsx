@@ -110,13 +110,13 @@ function StaffDetailLayout() {
 
   const tabs = (
     <nav className="console-section-tabs" aria-label="Phân đoạn hồ sơ">
-      <NavLink to={profileUrl} end>
+      <NavLink to={{ pathname: profileUrl, search: location.search }} state={location.state} end>
         Hồ sơ
       </NavLink>
-      <NavLink to={accessUrl} end>
+      <NavLink to={{ pathname: accessUrl, search: location.search }} state={location.state} end>
         Quyền truy cập
       </NavLink>
-      <NavLink to={activityUrl} end>
+      <NavLink to={{ pathname: activityUrl, search: location.search }} state={location.state} end>
         Lịch sử hoạt động
       </NavLink>
     </nav>

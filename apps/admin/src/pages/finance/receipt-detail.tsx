@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { NavLink } from 'react-router-dom';
 import {
   Badge,
@@ -23,6 +23,7 @@ import {
   WorkflowStatusbar,
   useToast,
 } from '@cmc/ui';
+import { UUID_RE, receiptSectionPath } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { useSession } from '../../lib/session-context.js';
@@ -65,9 +66,11 @@ const STATUS_LABELS: Record<string, string> = {
 export default function ReceiptDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { section } = useParams<{ section: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const { me } = useSession();
   const { success: toastSuccess } = useToast();
+  const idOk = UUID_RE.test(id ?? '');
 
   const [approveOpen, setApproveOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
@@ -90,7 +93,7 @@ export default function ReceiptDetailPage() {
     refetch,
   } = trpc.finance.receiptGet.useQuery(
     { receiptId: id ?? '' },
-    { enabled: Boolean(id) },
+    { enabled: idOk },
   );
 
   const approveMutation = trpc.finance.receiptApprove.useMutation({
@@ -139,6 +142,28 @@ export default function ReceiptDetailPage() {
   // approveMutation.error is rendered below (overviewContent) — onError here
   // only owns dialog lifecycle, not error display, so an SoD/threshold/
   // conflict rejection from the API no longer disappears silently.
+
+  if (!idOk) {
+    return (
+      <DetailPage
+        header={
+          <PageHeader
+            breadcrumbs={[
+              { label: 'Tài chính & Điều hành', href: '/finance' },
+              { label: 'Phiếu thu', href: '/finance' },
+              { label: 'ID không hợp lệ' },
+            ]}
+          />
+        }
+      >
+        <Banner
+          status="error"
+          title="ID không hợp lệ"
+          description="URL cần UUID phiếu thu."
+        />
+      </DetailPage>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -549,7 +574,7 @@ export default function ReceiptDetailPage() {
                   label="← Danh sách"
                   variant="secondary"
                   size="sm"
-                  onClick={() => void navigate('/finance')}
+                  onClick={() => void navigate({ pathname: '/finance', search: location.search })}
                 />
               </>
             }
@@ -660,10 +685,16 @@ export default function ReceiptDetailPage() {
         statusbar={<WorkflowStatusbar {...workflowFor(receipt.status)} />}
         tabs={
           <nav className="console-section-tabs" aria-label="Phân đoạn phiếu thu">
-            <NavLink to={'/finance/' + id + '/overview'} end>
+            <NavLink
+              to={{ pathname: receiptSectionPath(id!, 'overview'), search: location.search }}
+              end
+            >
               Tổng quan
             </NavLink>
-            <NavLink to={'/finance/' + id + '/order-lines'} end>
+            <NavLink
+              to={{ pathname: receiptSectionPath(id!, 'order-lines'), search: location.search }}
+              end
+            >
               Chi tiết thanh toán
             </NavLink>
           </nav>

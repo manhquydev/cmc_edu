@@ -39,7 +39,7 @@ Keep global `AuditLog` restricted to compliance use.
 | 2 | [Staff Authorization and API Contract](./phase-02-staff-authorization-and-api-contract.md) | Done |
 | 3 | [Staff Routes, Forms and Navigation](./phase-03-staff-routes-forms-and-navigation.md) | Done (PR #153, CI green) |
 | 4 | [Operational Timeline and Compliance Audit Separation](./phase-04-operational-timeline-and-compliance-audit-separation.md) | Done (PR #155, CI green) |
-| 5 | [Existing Detail URL and Cross-Link Normalization](./phase-05-existing-detail-url-and-cross-link-normalization.md) | Pending |
+| 5 | [Existing Detail URL and Cross-Link Normalization](./phase-05-existing-detail-url-and-cross-link-normalization.md) | Done (local, pending CI) |
 | 6 | [Remaining First-Class Record Rollout](./phase-06-remaining-first-class-record-rollout.md) | Pending |
 | 7 | [Coverage Gates, E2E and Documentation](./phase-07-coverage-gates-e2e-and-documentation.md) | Pending |
 

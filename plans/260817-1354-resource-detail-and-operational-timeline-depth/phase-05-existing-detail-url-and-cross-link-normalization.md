@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: Existing Detail URL and Cross Link Normalization"
-status: todo
+status: done
 ---
 
 # Phase 5: Existing Detail URL and Cross Link Normalization

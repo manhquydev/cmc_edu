@@ -96,10 +96,11 @@ export const adminRoutes: RouteObject[] = [
   // Students
   { path: 'students', element: <S><StudentListPage /></S> },
   // Base detail redirects (replace) to the default section; sections are the
-  // durable URLs. Unknown sections do not match any route → route not-found.
+  // durable URLs. Section routes are EXPLICIT (no generic :section catch-all)
+  // so unknown sections fall through to route-level not-found.
   { path: 'students/:id', element: <StudentDetailRedirect /> },
-  {
-    path: 'students/:id/:section',
+  ...(['profile', 'enrollments'] as const).map((section) => ({
+    path: `students/:id/${section}`,
     element: (
       <S>
         {/* Match API: student.get → requirePermission('student','lookup'). */}
@@ -114,7 +115,7 @@ export const adminRoutes: RouteObject[] = [
         </PermissionGate>
       </S>
     ),
-  },
+  })),
 
   // Parents (directory + guardian link queue)
   { path: 'parents', element: <S><ParentListPage /></S> },

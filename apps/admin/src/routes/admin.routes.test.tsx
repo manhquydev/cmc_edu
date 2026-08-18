@@ -97,4 +97,10 @@ describe('adminRoutes — durable class/student sections (Phase 5)', () => {
     expect(await screen.findByText('NOT_FOUND_MARKER')).toBeInTheDocument();
     expect(screen.queryByText('CLASS_DETAIL_PAGE')).not.toBeInTheDocument();
   });
+
+  it('unknown student sections fall through to route-level not-found (no generic :section)', async () => {
+    renderAdmin('/admin/students/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/attendance');
+    expect(await screen.findByText('NOT_FOUND_MARKER')).toBeInTheDocument();
+    expect(screen.queryByText('STUDENT_DETAIL_PAGE')).not.toBeInTheDocument();
+  });
 });

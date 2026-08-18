@@ -21,6 +21,7 @@ import {
   labelForRecordEventKind,
   RECORD_EVENT_HISTORY_SINCE,
 } from './record-event.js';
+import { listRecordEventPage } from '../record-event/store.js';
 import { isOpportunityRotting, rottingAgeDays, type RottingShape } from './rotting.js';
 import {
   buildOpportunityReport,
@@ -860,7 +861,6 @@ export const crmRouter = router({
     .input(opportunityTimelineInput)
     .query(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
-      const cursor = input.cursor ? parseTimelineCursor(input.cursor) : null;
       return withFacility(ctx.db, facilityId, async (tx) => {
         const opportunity = await tx.opportunity.findFirst({
           where: { id: input.opportunityId, facilityId },
@@ -873,33 +873,15 @@ export const crmRouter = router({
           entity: 'Opportunity' as const,
           entityId: opportunity.id,
         };
-        const [rows, createdEvent] = await Promise.all([
-          tx.recordEvent.findMany({
-            where: {
-              ...eventWhere,
-              ...(cursor
-                ? {
-                    OR: [
-                      { createdAt: { lt: cursor.createdAt } },
-                      { AND: [{ createdAt: cursor.createdAt }, { id: { lt: cursor.id } }] },
-                    ],
-                  }
-                : {}),
-            },
-            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-            take: input.take + 1,
-            select: { id: true, kind: true, actor: true, payload: true, createdAt: true },
-          }),
+        const [{ rows, nextCursor }, createdEvent] = await Promise.all([
+          listRecordEventPage(tx, eventWhere, input.cursor ?? null, input.take),
           tx.recordEvent.findFirst({
             where: { ...eventWhere, kind: 'created' },
             select: { id: true },
           }),
         ]);
-        const hasMore = rows.length > input.take;
-        const page = hasMore ? rows.slice(0, input.take) : rows;
-        const last = page[page.length - 1];
         return {
-          items: page.map((row) => {
+          items: rows.map((row) => {
             const known = isRecordEventKind(row.kind);
             return {
               id: row.id,
@@ -910,7 +892,7 @@ export const crmRouter = router({
               label: labelForRecordEventKind(row.kind),
             };
           }),
-          nextCursor: hasMore && last ? encodeTimelineCursor(last.createdAt, last.id) : null,
+          nextCursor,
           // Server-wide, not "created on this page": `created` is the oldest
           // event and falls off a newest-first take=50.
           historySince: createdEvent ? null : RECORD_EVENT_HISTORY_SINCE,
@@ -918,20 +900,3 @@ export const crmRouter = router({
       });
     }),
 });
-
-function encodeTimelineCursor(createdAt: Date, id: string): string {
-  return `${createdAt.toISOString()}|${id}`;
-}
-
-function parseTimelineCursor(cursor: string): { createdAt: Date; id: string } {
-  const sep = cursor.indexOf('|');
-  if (sep <= 0 || sep === cursor.length - 1) {
-    throw badRequest('Invalid timeline cursor.');
-  }
-  const createdAt = new Date(cursor.slice(0, sep));
-  const id = cursor.slice(sep + 1);
-  if (!id || Number.isNaN(createdAt.getTime())) {
-    throw badRequest('Invalid timeline cursor.');
-  }
-  return { createdAt, id };
-}

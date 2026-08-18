@@ -126,6 +126,7 @@ function StaffDetailLayout() {
 
   const profileUrl = `/hr/staff/${staffId}/profile`;
   const accessUrl = `/hr/staff/${staffId}/access`;
+  const activityUrl = `/hr/staff/${staffId}/activity`;
 
   const tabs = (
     <nav className="console-section-tabs" aria-label="Phân đoạn hồ sơ">
@@ -134,6 +135,9 @@ function StaffDetailLayout() {
       </NavLink>
       <NavLink to={accessUrl} end>
         Quyền truy cập
+      </NavLink>
+      <NavLink to={activityUrl} end>
+        Lịch sử hoạt động
       </NavLink>
     </nav>
   );

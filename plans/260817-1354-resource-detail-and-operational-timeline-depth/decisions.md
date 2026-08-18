@@ -111,3 +111,11 @@ One module series at a time. Each series must pass API, UI and deep-link proof b
   gain a link unless entity mapping and UUID both validate.
 - Because `AuditLog` has no facility context, the viewer links only targets proven resolvable in
   the current facility. Other-facility, deleted and unknown targets remain plain text.
+
+## D11 — Staff timeline actor projection (Phase 4A)
+
+- Non-super-admin callers see a server-projected safe label: display name, else employee code,
+  else a neutral system label; `super_admin` actors render as `Quản trị hệ thống`.
+- `super_admin` callers may see the raw stored actor userId for cross-checking against the
+  compliance log — they already hold `user.manage` platform authority. This exception is
+  deliberate and bounded to `user.timeline`.

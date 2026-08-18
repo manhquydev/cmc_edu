@@ -67,6 +67,7 @@ vi.mock('../pages/hr/staff/staff-detail.js', () => ({
 }));
 vi.mock('../pages/hr/staff/profile.js', () => ({ default: () => <div>STAFF_PROFILE_SECTION</div> }));
 vi.mock('../pages/hr/staff/access.js', () => ({ default: () => <div>STAFF_ACCESS_SECTION</div> }));
+vi.mock('../pages/hr/staff/activity.js', () => ({ default: () => <div>STAFF_ACTIVITY_SECTION</div> }));
 
 const { hrRoutes } = await import('./hr.routes.js');
 
@@ -155,5 +156,12 @@ describe('hrRoutes', () => {
     renderHr('/hr/staff/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/access');
     expect(await screen.findByText('STAFF_DETAIL_SHELL')).toBeInTheDocument();
     expect(await screen.findByText('STAFF_ACCESS_SECTION')).toBeInTheDocument();
+  });
+
+  it('resolves the /hr/staff/:staffId/activity section', async () => {
+    sessionRoles = ['giam_doc_kinh_doanh'];
+    renderHr('/hr/staff/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/activity');
+    expect(await screen.findByText('STAFF_DETAIL_SHELL')).toBeInTheDocument();
+    expect(await screen.findByText('STAFF_ACTIVITY_SECTION')).toBeInTheDocument();
   });
 });

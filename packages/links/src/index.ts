@@ -175,3 +175,7 @@ export function staffProfilePath(id: string): string {
 export function staffAccessPath(id: string): string {
   return `/hr/staff/${id}/access`;
 }
+/** Staff activity timeline section — UUID (Phase 4A). */
+export function staffActivityPath(id: string): string {
+  return `/hr/staff/${id}/activity`;
+}

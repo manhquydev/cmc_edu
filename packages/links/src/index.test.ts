@@ -14,6 +14,7 @@ import {
   shiftRegistrationsPath,
   kpiScoresPath,
   staffAccessPath,
+  staffActivityPath,
   staffListPath,
   staffNewPath,
   staffProfilePath,
@@ -66,6 +67,7 @@ describe('staff path builders (D1 canonical surface)', () => {
     expect(staffNewPath()).toBe('/hr/staff/new');
     expect(staffProfilePath(UUID)).toBe(`/hr/staff/${UUID}/profile`);
     expect(staffAccessPath(UUID)).toBe(`/hr/staff/${UUID}/access`);
+    expect(staffActivityPath(UUID)).toBe(`/hr/staff/${UUID}/activity`);
   });
 });
 

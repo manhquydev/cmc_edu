@@ -76,6 +76,31 @@ describe('deriveEntityId', () => {
     expect(deriveEntityId(undefined, undefined)).toBe('');
     expect(deriveEntityId({ reason: 'no id' }, { ok: true })).toBe('');
   });
+
+  // Phase 4B: action-aware exception registry. These actions' inputs carry a
+  // DIFFERENT record's id (studentId/opportunityId), so the created result
+  // row is the only truthful entityId source.
+  it('registry actions take the id from the result even when input has an *Id field', () => {
+    expect(
+      deriveEntityId({ studentId: 'student-1', description: 'x' }, { id: 'case-1' }, 'afterSale.create'),
+    ).toBe('case-1');
+    expect(
+      deriveEntityId({ studentId: 'student-1' }, { id: 'meeting-1' }, 'parentMeeting.schedule'),
+    ).toBe('meeting-1');
+    expect(
+      deriveEntityId({ opportunityId: 'opp-1' }, { id: 'appt-1' }, 'testAppointment.schedule'),
+    ).toBe('appt-1');
+  });
+
+  it('registry actions still fall back to empty string when the result carries no id', () => {
+    expect(deriveEntityId({ studentId: 's' }, { ok: true }, 'afterSale.create')).toBe('');
+  });
+
+  it('non-registry actions keep input-first precedence even with an action argument', () => {
+    expect(deriveEntityId({ studentId: 's' }, { id: 'other-1' }, 'afterSale.advance')).toBe('s');
+    // Update-shaped action whose input names the target via caseId: unchanged.
+    expect(deriveEntityId({ caseId: 'case-9' }, { id: 'case-9' }, 'afterSale.resolve')).toBe('case-9');
+  });
 });
 
 describe('sanitizeAuditData', () => {

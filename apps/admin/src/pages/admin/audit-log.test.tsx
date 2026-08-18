@@ -12,6 +12,7 @@ interface AuditRow {
   entity: string;
   entityId: string;
   createdAt: string;
+  linkEntity?: string | null;
 }
 
 const ROW_A: AuditRow = {
@@ -21,6 +22,28 @@ const ROW_A: AuditRow = {
   entity: 'Facility',
   entityId: 'f1',
   createdAt: '2026-07-16T00:00:00.000Z',
+};
+
+// Phase 4B: server-proven link rows. Resolvable staff → link; unresolvable
+// (other-facility/deleted/unknown) → plain text, never a broken link.
+const STAFF_UUID = '01234567-89ab-4cde-8f01-234567890abc';
+const ROW_LINKED: AuditRow = {
+  id: 'audit-2',
+  actor: 'staff-1',
+  action: 'user.update',
+  entity: 'user',
+  entityId: STAFF_UUID,
+  createdAt: '2026-08-01T00:00:00.000Z',
+  linkEntity: 'staff',
+};
+const ROW_PLAIN: AuditRow = {
+  id: 'audit-3',
+  actor: 'staff-1',
+  action: 'user.update',
+  entity: 'user',
+  entityId: '99999999-8888-4777-8666-555555555555',
+  createdAt: '2026-08-02T00:00:00.000Z',
+  linkEntity: null,
 };
 
 const auditListState: { data: { items: AuditRow[]; total: number; page: number; pageSize: number } } = {
@@ -139,5 +162,37 @@ describe('AuditLogPage', () => {
     renderWithProviders(<AuditLogPage />);
     expect(screen.getByText('Không có quyền truy cập')).toBeInTheDocument();
     expect(screen.queryByText('facility.update')).not.toBeInTheDocument();
+  });
+
+  it('links entityId only for server-proven resolvable targets', () => {
+    auditListState.data = {
+      items: [ROW_LINKED, ROW_PLAIN],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+    };
+    renderWithProviders(<AuditLogPage />);
+
+    const linked = screen.getByText(STAFF_UUID).closest('a');
+    expect(linked).not.toBeNull();
+    expect(linked).toHaveAttribute('href', `/hr/staff/${STAFF_UUID}`);
+
+    // Unresolvable target renders as plain text — no anchor at all.
+    const plain = screen.getByText(ROW_PLAIN.entityId);
+    expect(plain.closest('a')).toBeNull();
+  });
+
+  it('applies the entityId filter to audit.list after text debounce', async () => {
+    renderWithProviders(<AuditLogPage />);
+    fireEvent.change(screen.getByLabelText('ID đối tượng'), {
+      target: { value: STAFF_UUID },
+    });
+
+    await vi.advanceTimersByTimeAsync(350);
+
+    await waitFor(() => {
+      const lastCallArgs = listQuerySpy.mock.calls.at(-1)?.[0];
+      expect(lastCallArgs).toMatchObject({ entityId: STAFF_UUID, page: 1 });
+    });
   });
 });

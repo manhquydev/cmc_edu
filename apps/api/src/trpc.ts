@@ -174,7 +174,7 @@ const auditLogMiddleware = t.middleware(async ({ ctx, next, path, type, getRawIn
         actor: resolveAuditActor(ctx),
         action: path,
         entity: deriveEntity(path),
-        entityId: deriveEntityId(rawInput, resultData),
+        entityId: deriveEntityId(rawInput, resultData, path),
         data: sanitizeAuditData(rawInput) as Prisma.InputJsonValue | undefined,
       },
     });

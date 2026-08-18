@@ -675,10 +675,11 @@ export const flows: FlowEntry[] = [
     // (compensation.assignTier) → assemble that sale's payslip into a draft
     // (payslip.assemble, which requires the tier) → finalize it
     // (payslip.finalize, badge "Nháp" → "Đã chốt"). The sale is created via the
-    // real /admin/users super_admin UI, so clicking its row on /hr/payroll also
-    // exercises the non-empty `user.pickList` roster that the F4 regression
-    // (plan 260723-1422) guards. payroll-roster.journey.ui.spec.ts is kept as
-    // the focused standalone guard for that specific regression.
+    // canonical /hr/staff/new super_admin UI (createStaffViaAdminUi), so
+    // clicking its row on /hr/payroll also exercises the non-empty
+    // `user.pickList` roster that the F4 regression (plan 260723-1422) guards.
+    // payroll-roster.journey.ui.spec.ts is kept as the focused standalone guard
+    // for that specific regression.
     journey: 'apps/e2e/tests/journeys/payroll-assemble-finalize.journey.ui.spec.ts',
   },
   {
@@ -967,22 +968,27 @@ export const flows: FlowEntry[] = [
       trpc: [
         'user.create',
         'user.list',
+        'user.get',
+        'user.managerPickList',
         'user.update',
         'user.updateRoles',
         // Password lifecycle on the same staff surface: admin provisions temp
-        // (users.tsx reset dialog); staff rotates own password at /change-password.
+        // (access section reset dialog); staff rotates own password at /change-password.
         'user.resetPassword',
         'user.changeOwnPassword',
+        // Phase 4A: operational staff activity timeline on the same detail
+        // surface (/hr/staff/:id/activity tab reads it via RecordTimeline).
+        'user.timeline',
       ],
-      uiRoutes: ['/admin/users', '/change-password'],
+      uiRoutes: ['/hr/staff', '/hr/staff/new', '/hr/staff/:staffId/activity', '/change-password'],
       models: ['AppUser'],
     },
-    // Journey: super_admin tạo tài khoản nhân sự (form Thêm nhân viên) → gán vai
-    // trò qua modal Roles (MultiSelector). Drive 3/4 procedure: user.create,
-    // user.list, user.updateRoles. `user.update` (setter managerId) KHÔNG có UI
-    // — drift THẬT của ADM-02: rg "user\.update\b" apps/admin/src → 0 matches
-    // (khác user.updateRoles có UI). Không journey nào drive được; ghi sổ bàn
-    // giao. Chuyển badge vai trò từ vắng→hiện là bằng chứng sống.
+    // Journey: super_admin tạo tài khoản nhân sự qua form /hr/staff/new (D1,
+    // create-success → /hr/staff/:id/profile) → gán vai trò qua Access section
+    // (user.updateRoles) → chỉnh hồ sơ (user.update) → đặt lại mật khẩu
+    // (user.resetPassword). List hydrates /hr/staff; user.get cold-starts the
+    // detail; user.managerPickList feeds the manager dropdown. Legacy
+    // /admin/users redirects (replace) to /hr/staff.
     journey: 'apps/e2e/tests/journeys/user-admin-roles.journey.ui.spec.ts',
   },
   {

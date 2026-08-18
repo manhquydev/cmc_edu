@@ -4,6 +4,7 @@
 // receipt id/code, or approver (sale is SoD-blocked from receipt reads).
 
 import type { Prisma } from '@cmc/db';
+import { appendRecordEvent } from '../record-event/store.js';
 
 export const RECORD_EVENT_KINDS = [
   'created',
@@ -143,14 +144,12 @@ export async function emitRecordEvent(
   args: EmitRecordEventArgs,
 ): Promise<void> {
   const payload = payloadJson(args);
-  await tx.recordEvent.create({
-    data: {
-      facilityId: args.facilityId,
-      entity: args.entity,
-      entityId: args.entityId,
-      kind: args.kind,
-      actor: args.actor,
-      ...(payload !== undefined ? { payload } : {}),
-    },
+  await appendRecordEvent(tx, {
+    facilityId: args.facilityId,
+    entity: args.entity,
+    entityId: args.entityId,
+    kind: args.kind,
+    actor: args.actor,
+    ...(payload !== undefined ? { payload } : {}),
   });
 }

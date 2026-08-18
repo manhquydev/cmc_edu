@@ -111,6 +111,7 @@ export default defineConfig({
     {
       name: 'api',
       testMatch: /(?<!\.ui)\.spec\.ts$/,
+      testIgnore: /\/live\//,
     },
     // ui-chromium registers only under PLAYWRIGHT_UI=1 (same gate as uiServers
     // above) so the default API-only CI run never picks up browser specs.

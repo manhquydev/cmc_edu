@@ -117,6 +117,22 @@ describe('user — AppUser CRUD (P3-I)', () => {
     expect(result.position).toBe('hr');
   });
 
+  it('user.update — director edits an ordinary same-facility staff profile', async () => {
+    const gdkdCtx = buildStaffContext({
+      facilityId,
+      userId: 'gdkd-upd-ctx',
+      roles: ['giam_doc_kinh_doanh'],
+    });
+    const user = await seedAppUser({ facilityId, userId: 'u-gdkd-update' });
+    const result = await caller(gdkdCtx).user.update({
+      appUserId: user.id,
+      fullName: 'Đổi Tên Bởi Giám Đốc',
+      position: 'sale',
+    });
+    expect(result.fullName).toBe('Đổi Tên Bởi Giám Đốc');
+    expect(result.position).toBe('sale');
+  });
+
   it('user.update — rejects self as manager', async () => {
     const user = await seedAppUser({ facilityId, userId: 'u-self' });
     await expect(
@@ -181,6 +197,181 @@ describe('user — AppUser CRUD (P3-I)', () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
 
     await expect(caller(saleCtx).user.list()).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  // ── user.get — cold-start single-record fetch ────────────────────────────
+
+  it('user.get — cold-starts one staff record with browser-safe fields', async () => {
+    const user = await seedAppUser({
+      facilityId,
+      userId: 'u-get-safe',
+      fullName: 'Safe Serialization',
+      position: 'sale',
+      passwordHash: 'pbkdf2:should-never-leak:deadbeef',
+      mustChangePassword: true,
+      loginAttempts: 3,
+      loginLockedUntil: new Date(Date.now() + 60_000),
+    });
+    const result = await caller(superAdminCtx).user.get({ appUserId: user.id });
+    expect(result.id).toBe(user.id);
+    expect(result.fullName).toBe('Safe Serialization');
+    expect(result.facilityId).toBe(facilityId);
+    // Credential/lockout internals must never serialize (APP_USER_SELECT).
+    expect(result).not.toHaveProperty('passwordHash');
+    expect(result).not.toHaveProperty('mustChangePassword');
+    expect(result).not.toHaveProperty('loginAttempts');
+    expect(result).not.toHaveProperty('loginLockedUntil');
+    expect(JSON.stringify(result)).not.toContain('pbkdf2');
+  });
+
+  it('user.get — GĐKD reads an ordinary same-facility staff member', async () => {
+    const gdkdCtx = buildStaffContext({
+      facilityId,
+      userId: 'gdkd-ctx',
+      roles: ['giam_doc_kinh_doanh'],
+    });
+    const user = await seedAppUser({ facilityId, userId: 'u-gdkd-read' });
+    const result = await caller(gdkdCtx).user.get({ appUserId: user.id });
+    expect(result.userId).toBe('u-gdkd-read');
+  });
+
+  it('user.get — GĐĐT reads a peer director (same facility)', async () => {
+    const gddtCtx = buildStaffContext({
+      facilityId,
+      userId: 'gddt-ctx',
+      roles: ['giam_doc_dao_tao'],
+    });
+    const peerDirector = await seedAppUser({
+      facilityId,
+      userId: 'u-peer-dir',
+      roles: ['giam_doc_dao_tao'],
+    });
+    const result = await caller(gddtCtx).user.get({ appUserId: peerDirector.id });
+    expect(result.userId).toBe('u-peer-dir');
+  });
+
+  it('user.get — director reads a same-facility super_admin profile (read-only)', async () => {
+    const directorCtx = buildStaffContext({
+      facilityId,
+      userId: 'director-ctx',
+      roles: ['giam_doc_kinh_doanh'],
+    });
+    const superUser = await seedAppUser({
+      facilityId,
+      userId: 'u-super-readonly',
+      roles: ['super_admin'],
+    });
+    // Read is allowed ("directors may see/open a super_admin profile");
+    // mutation guards are covered by update/updateRoles/resetPassword tests.
+    const result = await caller(directorCtx).user.get({ appUserId: superUser.id });
+    expect(result.userId).toBe('u-super-readonly');
+    expect(result.roles).toContain('super_admin');
+  });
+
+  it('user.get — includes safe manager summary for the form', async () => {
+    const manager = await seedAppUser({
+      facilityId,
+      userId: 'u-mgr-summary',
+      fullName: 'Quản Lý Mẫu',
+    });
+    const report = await seedAppUser({
+      facilityId,
+      userId: 'u-reporter',
+      managerId: manager.id,
+    });
+    const result = await caller(superAdminCtx).user.get({ appUserId: report.id });
+    expect(result.manager).toEqual({
+      id: manager.id,
+      fullName: 'Quản Lý Mẫu',
+      employeeCode: manager.employeeCode,
+    });
+    expect(JSON.stringify(result.manager)).not.toContain('passwordHash');
+  });
+
+  it('user.get — returns manager: null when no manager is set', async () => {
+    const user = await seedAppUser({ facilityId, userId: 'u-no-mgr' });
+    const result = await caller(superAdminCtx).user.get({ appUserId: user.id });
+    expect(result.manager).toBeNull();
+  });
+
+  it('user.get — cross-facility target is NOT_FOUND (no existence leak)', async () => {
+    const otherFacility = await createTestFacility('Other Facility for get');
+    try {
+      const otherUser = await seedAppUser({
+        facilityId: otherFacility.id,
+        userId: 'u-other-facility',
+      });
+      await expect(
+        caller(superAdminCtx).user.get({ appUserId: otherUser.id }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    } finally {
+      await cleanupFacility(otherFacility.id);
+    }
+  });
+
+  it('user.get — unknown appUserId is NOT_FOUND', async () => {
+    await expect(
+      caller(superAdminCtx).user.get({
+        appUserId: '00000000-0000-4000-8000-000000000000',
+      }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('user.get — forbidden for ordinary staff role', async () => {
+    const user = await seedAppUser({ facilityId, userId: 'u-get-sale-target' });
+    await expect(caller(saleCtx).user.get({ appUserId: user.id })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
+
+  it('user.get — rejects malformed appUserId', async () => {
+    await expect(
+      caller(superAdminCtx).user.get({ appUserId: 'not-a-uuid' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  // ── user.managerPickList — manager dropdown eligibility ──────────────────
+
+  it('user.managerPickList — excludes super_admin for a director caller', async () => {
+    const directorCtx = buildStaffContext({
+      facilityId,
+      userId: 'mgr-dir-ctx',
+      roles: ['giam_doc_kinh_doanh'],
+    });
+    const ordinary = await seedAppUser({ facilityId, userId: 'u-mgr-ordinary' });
+    const superTarget = await seedAppUser({
+      facilityId,
+      userId: 'u-mgr-super',
+      roles: ['super_admin'],
+    });
+    const result = await caller(directorCtx).user.managerPickList();
+    const ids = result.items.map((u) => u.id);
+    expect(ids).toContain(ordinary.id);
+    expect(ids).not.toContain(superTarget.id);
+    // Peer directors remain eligible (directors may manage peer directors).
+    const peerDirector = await seedAppUser({
+      facilityId,
+      userId: 'u-mgr-peer-dir',
+      roles: ['giam_doc_dao_tao'],
+    });
+    const result2 = await caller(directorCtx).user.managerPickList();
+    expect(result2.items.some((u) => u.id === peerDirector.id)).toBe(true);
+  });
+
+  it('user.managerPickList — super_admin caller sees super_admin targets', async () => {
+    const superTarget = await seedAppUser({
+      facilityId,
+      userId: 'u-mgr-super-visible',
+      roles: ['super_admin'],
+    });
+    const result = await caller(superAdminCtx).user.managerPickList();
+    expect(result.items.some((u) => u.id === superTarget.id)).toBe(true);
+  });
+
+  it('user.managerPickList — forbidden for ordinary staff role', async () => {
+    await expect(caller(saleCtx).user.managerPickList()).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('user.updateRoles — assigns roles and returns updated user', async () => {

@@ -90,6 +90,12 @@
       "property": "gap",
       "value": "12",
       "reason": "12px has no spacing token (4/8/16/24 only)"
+    },
+    {
+      "file": "apps/lms/src/lib/error-boundary.tsx",
+      "property": "margin",
+      "value": "0",
+      "reason": "zero-reset margin has no spacing token (scale starts at 4px)"
     }
   ]
 }

@@ -76,6 +76,76 @@ describe('deriveEntityId', () => {
     expect(deriveEntityId(undefined, undefined)).toBe('');
     expect(deriveEntityId({ reason: 'no id' }, { ok: true })).toBe('');
   });
+
+  // Phase 4B: action-aware exception registry. These actions' inputs carry a
+  // DIFFERENT record's id (studentId/opportunityId), so the created result
+  // row is the only truthful entityId source.
+  it('registry actions take the id from the result even when input has an *Id field', () => {
+    expect(
+      deriveEntityId({ studentId: 'student-1', description: 'x' }, { id: 'case-1' }, 'afterSale.create'),
+    ).toBe('case-1');
+    expect(
+      deriveEntityId({ studentId: 'student-1' }, { id: 'meeting-1' }, 'parentMeeting.schedule'),
+    ).toBe('meeting-1');
+    expect(
+      deriveEntityId({ opportunityId: 'opp-1' }, { id: 'appt-1' }, 'testAppointment.schedule'),
+    ).toBe('appt-1');
+    // user.create's auth `userId` is an *Id-suffixed input but NOT the record id.
+    expect(
+      deriveEntityId({ userId: 'auth-1', email: 'a@b.c' }, { id: 'appuser-1' }, 'user.create'),
+    ).toBe('appuser-1');
+    expect(
+      deriveEntityId({ shiftGroupId: 'group-1', name: 'Sáng' }, { id: 'template-1' }, 'shift.createTemplate'),
+    ).toBe('template-1');
+    expect(
+      deriveEntityId({ shiftGroupId: 'group-1', entries: [] }, { id: 'registration-1' }, 'shift.submit'),
+    ).toBe('registration-1');
+  });
+
+  it('registry actions still fall back to empty string when the result carries no id', () => {
+    expect(deriveEntityId({ studentId: 's' }, { ok: true }, 'afterSale.create')).toBe('');
+  });
+
+  it('non-registry actions keep input-first precedence even with an action argument', () => {
+    expect(deriveEntityId({ studentId: 's' }, { id: 'other-1' }, 'afterSale.advance')).toBe('s');
+    // Update-shaped action whose input names the target via caseId: unchanged.
+    expect(deriveEntityId({ caseId: 'case-9' }, { id: 'case-9' }, 'afterSale.resolve')).toBe('case-9');
+  });
+
+  // Keyed unwrap: wrapped-return create mutations take the id from the
+  // named nested row, never from whichever *Id the client sent first.
+  it('keyed-unwrap actions read the nested created row under its fixed key', () => {
+    expect(
+      deriveEntityId(
+        { opportunityId: 'opp-1', studentName: 'A' },
+        { status: 'success', receipt: { id: 'receipt-1' } },
+        'finance.receiptCreate',
+      ),
+    ).toBe('receipt-1');
+    expect(
+      deriveEntityId(
+        { receiptId: 'r-1', amount: 1 },
+        { refund: { id: 'refund-1' }, remainingBalance: 0 },
+        'finance.refundCreate',
+      ),
+    ).toBe('refund-1');
+    expect(
+      deriveEntityId({ giftId: 'gift-1' }, { reward: { id: 'reward-1' }, newBalance: 0 }, 'rewards.redeem'),
+    ).toBe('reward-1');
+  });
+
+  it('keyed-unwrap actions fall back cleanly when the wrapper lacks the row', () => {
+    // needs_confirmation variant: no receipt created, no nested row.
+    expect(
+      deriveEntityId({ studentName: 'A' }, { status: 'needs_confirmation', existingStudents: [] }, 'finance.receiptCreate'),
+    ).toBe('');
+  });
+
+  it('kpi.refresh derives the KpiScore id from the returned score row', () => {
+    expect(
+      deriveEntityId({ appUserId: 'appuser-1', period: '2026-08' }, { id: 'kpiscore-1', tierMissing: false }, 'kpi.refresh'),
+    ).toBe('kpiscore-1');
+  });
 });
 
 describe('sanitizeAuditData', () => {

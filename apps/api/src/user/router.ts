@@ -21,6 +21,14 @@ import {
 } from '../auth/password-routes.js';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { protectedProcedure, requirePermission, router, scoped } from '../trpc.js';
+import { listRecordEventPage } from '../record-event/store.js';
+import {
+  emitStaffRecordEvent,
+  isStaffRecordEventKind,
+  labelForStaffRecordEventKind,
+  STAFF_RECORD_EVENT_ENTITY,
+  STAFF_RECORD_EVENT_HISTORY_SINCE,
+} from './record-event.js';
 
 const pickListInput = z.object({
   /** Narrows the list to one staff role — a teacher picker must not offer
@@ -28,6 +36,14 @@ const pickListInput = z.object({
   role: z.enum(ACTIVE_ROLES).optional(),
   /** Payroll / pickers: fullName, employeeCode, position (case-insensitive). */
   search: z.string().trim().min(1).max(100).optional(),
+});
+
+/** Operational timeline read — parent AppUser is authorized in the handler
+ *  before any event row is touched; entity is fixed server-side. */
+const userTimelineInput = z.object({
+  appUserId: z.string().uuid(),
+  cursor: z.string().min(1).optional(),
+  take: z.number().int().min(1).max(50).default(20),
 });
 
 /** Staff directory search — G1 FilterBar on admin users list. */
@@ -70,6 +86,30 @@ export interface AppUserDto {
   roles: AuthRole[];
   isActive: boolean;
 }
+
+/** Safe manager identity for the staff form — id + display fields only, never
+ *  credential columns. Rendered as "fullName (employeeCode)" in selects. */
+export interface AppUserManagerSummary {
+  id: string;
+  fullName: string;
+  employeeCode: string;
+}
+
+/** `user.get` response: the browser-safe AppUser row plus the manager summary
+ *  the profile form needs to show the current manager without a second query. */
+export interface AppUserDetailDto extends AppUserDto {
+  manager: AppUserManagerSummary | null;
+}
+
+const MANAGER_SUMMARY_SELECT = {
+  id: true,
+  fullName: true,
+  employeeCode: true,
+} as const;
+
+const getUserInput = z.object({
+  appUserId: z.string().uuid(),
+});
 
 /**
  * Every procedure that returns AppUser rows to the admin client MUST use this
@@ -200,11 +240,26 @@ export const userRouter = router({
           }
           throw err;
         }
+        // Emit operational staff timeline events in the same transaction
+        await emitStaffRecordEvent(tx, {
+          facilityId,
+          appUserId: user.id,
+          actor: ctx.subject.userId,
+          kind: 'created',
+        });
+
         // Roles and password granted at creation are the same privileged
         // changes updateRoles/resetPassword audit, so they leave the same
         // trail — an auditor reading only `user.create` would otherwise never
         // see who handed out a role.
         if (input.roles?.length) {
+          await emitStaffRecordEvent(tx, {
+            facilityId,
+            appUserId: user.id,
+            actor: ctx.subject.userId,
+            kind: 'roles_updated',
+            roles: input.roles,
+          });
           await tx.auditLog.create({
             data: {
               actor: ctx.subject.userId,
@@ -216,6 +271,12 @@ export const userRouter = router({
           });
         }
         if (input.tempPassword) {
+          await emitStaffRecordEvent(tx, {
+            facilityId,
+            appUserId: user.id,
+            actor: ctx.subject.userId,
+            kind: 'password_reset',
+          });
           await tx.auditLog.create({
             data: {
               actor: ctx.subject.userId,
@@ -265,6 +326,36 @@ export const userRouter = router({
       });
     }),
 
+  /** Manager dropdown for the staff profile form: same-facility staff who
+   *  may be assigned as a manager. A non-super-admin caller (director) must not
+   *  be offered a `super_admin` target — the platform admin is read-only for
+   *  them, so a super_admin can never be their staff member's manager. Unlike
+   *  `pickList` (teacher/payroll dropdowns, `staff.pickList` key), this is the
+   *  manager-eligibility roster under the same `user.manage` authority as the
+   *  rest of the staff surface. */
+  managerPickList: requirePermission('user', 'manage')
+    .query(async ({ ctx }) => {
+      const { facilityId } = scoped(ctx);
+      const callerIsSuperAdmin = ctx.subject.roles.includes('super_admin');
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const items = await tx.appUser.findMany({
+          where: {
+            facilityId,
+            // Directors see every other same-facility staff (incl. peer
+            // directors) as eligible; only super_admin targets are excluded
+            // (the platform admin is read-only for a director, so it can
+            // never be assigned as a staff member's manager).
+            ...(callerIsSuperAdmin
+              ? {}
+              : { NOT: { roles: { has: 'super_admin' as DbRole } } }),
+          },
+          select: { id: true, fullName: true, employeeCode: true, position: true, roles: true },
+          orderBy: { fullName: 'asc' },
+        });
+        return { items };
+      });
+    }),
+
   list: requirePermission('user', 'manage')
     .input(userListInput.default({}))
     .query(async ({ ctx, input }) => {
@@ -290,6 +381,136 @@ export const userRouter = router({
           select: APP_USER_SELECT,
         });
         return { items: items as AppUserDto[] };
+      });
+    }),
+
+  /** Cold-start fetch for one staff record: the detail page and profile form
+   *  hydrate from this without a list cache. Facility-scoped like every other
+   *  procedure; a cross-facility or unknown target is NOT_FOUND (never an
+   *  existence-leaking FORBIDDEN). Same `user.manage` roster as `list` —
+   *  directors may READ a same-facility super_admin profile (read-only);
+   *  mutations stay guarded by their own escalation checks. */
+  get: requirePermission('user', 'manage')
+    .input(getUserInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const user = await tx.appUser.findFirst({
+          where: { id: input.appUserId, facilityId },
+          select: {
+            ...APP_USER_SELECT,
+            // The manager join needs no facility filter of its own: every
+            // write path that sets managerId (create/update) validates it
+            // against the SAME facility first, so an AppUser's manager is
+            // always in the caller's facility and never leaks a cross-facility
+            // identity.
+            manager: { select: MANAGER_SUMMARY_SELECT },
+          },
+        });
+        if (!user) throw notFound('AppUser not found.');
+        return {
+          id: user.id,
+          facilityId: user.facilityId,
+          userId: user.userId,
+          email: user.email,
+          fullName: user.fullName,
+          position: user.position,
+          managerId: user.managerId,
+          employeeCode: user.employeeCode,
+          roles: user.roles as AuthRole[],
+          isActive: user.isActive,
+          manager: user.manager
+            ? {
+                id: user.manager.id,
+                fullName: user.manager.fullName,
+                employeeCode: user.manager.employeeCode,
+              }
+            : null,
+        } satisfies AppUserDetailDto;
+      });
+    }),
+
+  /** Operational activity timeline for a staff record (Phase 4A).
+   *  Parent record authorized before reading events; entity fixed server-side;
+   *  actor identity safely projected for non-super-admin callers. */
+  timeline: requirePermission('user', 'manage')
+    .input(userTimelineInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      const callerIsSuperAdmin = ctx.subject.roles.includes('super_admin');
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const staff = await tx.appUser.findFirst({
+          where: { id: input.appUserId, facilityId },
+          select: { id: true },
+        });
+        if (!staff) throw notFound('AppUser not found.');
+
+        const eventWhere = {
+          facilityId,
+          entity: STAFF_RECORD_EVENT_ENTITY,
+          entityId: staff.id,
+        };
+
+        const [{ rows, nextCursor }, createdEvent] = await Promise.all([
+          listRecordEventPage(tx, eventWhere, input.cursor ?? null, input.take),
+          tx.recordEvent.findFirst({
+            where: { ...eventWhere, kind: 'created' },
+            select: { id: true },
+          }),
+        ]);
+
+        // Resolve actors safely
+        const actorUserIds = [...new Set(rows.map((r) => r.actor).filter(Boolean))];
+        const actorStaffRows = actorUserIds.length > 0
+          ? await tx.appUser.findMany({
+              where: {
+                facilityId,
+                userId: { in: actorUserIds },
+              },
+              select: {
+                userId: true,
+                fullName: true,
+                employeeCode: true,
+                roles: true,
+              },
+            })
+          : [];
+
+        const actorMap = new Map(
+          actorStaffRows.map((s) => [s.userId, s]),
+        );
+
+        return {
+          items: rows.map((row) => {
+            const known = isStaffRecordEventKind(row.kind);
+            let actorLabel: string;
+            const staffRecord = actorMap.get(row.actor);
+
+            if (staffRecord) {
+              const isTargetSuperAdmin = staffRecord.roles.includes('super_admin' as DbRole);
+              if (isTargetSuperAdmin && !callerIsSuperAdmin) {
+                actorLabel = 'Quản trị hệ thống';
+              } else {
+                actorLabel = staffRecord.fullName || staffRecord.employeeCode || staffRecord.userId;
+              }
+            } else if (row.actor === 'anonymous') {
+              actorLabel = 'Hệ thống';
+            } else {
+              actorLabel = callerIsSuperAdmin ? row.actor : 'Hệ thống';
+            }
+
+            return {
+              id: row.id,
+              kind: row.kind,
+              actor: actorLabel,
+              payload: known ? row.payload : null,
+              createdAt: row.createdAt,
+              label: labelForStaffRecordEventKind(row.kind),
+            };
+          }),
+          nextCursor,
+          historySince: createdEvent ? null : STAFF_RECORD_EVENT_HISTORY_SINCE,
+        };
       });
     }),
 
@@ -341,6 +562,41 @@ export const userRouter = router({
           }
           throw err;
         }
+        // Compute field diffs for operational events
+        const profileFields: Array<'email' | 'fullName' | 'position'> = [];
+        if (input.email !== undefined && input.email !== existing.email) profileFields.push('email');
+        if (input.fullName !== undefined && input.fullName !== existing.fullName) profileFields.push('fullName');
+        if (input.position !== undefined && input.position !== existing.position) profileFields.push('position');
+
+        if (profileFields.length > 0) {
+          await emitStaffRecordEvent(tx, {
+            facilityId,
+            appUserId: existing.id,
+            actor: ctx.subject.userId,
+            kind: 'profile_updated',
+            fields: profileFields,
+          });
+        }
+
+        if (input.managerId !== undefined && input.managerId !== existing.managerId) {
+          await emitStaffRecordEvent(tx, {
+            facilityId,
+            appUserId: existing.id,
+            actor: ctx.subject.userId,
+            kind: 'manager_changed',
+            managerId: input.managerId,
+          });
+        }
+
+        if (input.isActive !== undefined && input.isActive !== existing.isActive) {
+          await emitStaffRecordEvent(tx, {
+            facilityId,
+            appUserId: existing.id,
+            actor: ctx.subject.userId,
+            kind: input.isActive ? 'activated' : 'deactivated',
+          });
+        }
+
         return updated as AppUserDto;
       });
     }),
@@ -445,6 +701,12 @@ export const userRouter = router({
             loginLockedUntil: null,
           },
         });
+        await emitStaffRecordEvent(tx, {
+          facilityId,
+          appUserId: existing.id,
+          actor: ctx.subject.userId,
+          kind: 'password_reset',
+        });
         await tx.auditLog.create({
           data: {
             actor: ctx.subject.userId,
@@ -523,6 +785,14 @@ export const userRouter = router({
             select: APP_USER_SELECT,
           })) as AppUserDto;
         }
+
+        await emitStaffRecordEvent(tx, {
+          facilityId,
+          appUserId: input.appUserId,
+          actor: ctx.subject.userId,
+          kind: 'roles_updated',
+          roles: input.roles,
+        });
 
         const updated = await tx.appUser.update({
           where: { id: input.appUserId },

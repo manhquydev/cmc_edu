@@ -841,6 +841,28 @@ button.console-kanban-card {
   min-width: 0;
   /* tabs sit in raised shell when page provides CmcTabs bare */
 }
+/* Route-owned detail section tabs (resource-depth): a row of same-origin
+   links with an active underline. `.active` is added by react-router NavLink. */
+.console-section-tabs {
+  display: flex;
+  gap: var(--cmc-space-2);
+  border-bottom: 1px solid var(--console-border, #e5e7eb);
+}
+.console-section-tabs a {
+  padding: 8px 12px;
+  font-weight: 400;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+.console-section-tabs a:hover {
+  color: var(--cmc-brand, #0071e3);
+}
+.console-section-tabs a.active {
+  font-weight: 600;
+  color: var(--cmc-brand, #0071e3);
+  border-bottom-color: var(--cmc-brand, #0071e3);
+}
 .console-detail-body {
   display: flex;
   flex-direction: column;

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Banner,
   DataTable,
@@ -10,6 +11,7 @@ import {
   PageHeader,
 } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
+import { resolveGo } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -21,6 +23,9 @@ interface AuditRow {
   entityId: string;
   data: unknown;
   createdAt: Date;
+  /** Server-proven @cmc/links entity key — set only when the target still
+   *  exists in the caller's current facility; null renders plain text. */
+  linkEntity: string | null;
   [key: string]: unknown;
 }
 
@@ -32,6 +37,7 @@ const AUDIT_FILTERS: FilterDef[] = [
   { key: 'actor', label: 'Người thực hiện', type: 'text', placeholder: 'User id…' },
   { key: 'action', label: 'Loại việc', type: 'text', placeholder: 'VD: facility.update' },
   { key: 'entity', label: 'Đối tượng', type: 'text', placeholder: 'VD: Facility' },
+  { key: 'entityId', label: 'ID đối tượng', type: 'text', placeholder: 'UUID…' },
   { key: 'createdFrom', label: 'Từ ngày', type: 'date' },
   { key: 'createdTo', label: 'Đến ngày', type: 'date' },
 ];
@@ -40,6 +46,7 @@ const EMPTY_FILTERS: Record<string, string> = {
   actor: '',
   action: '',
   entity: '',
+  entityId: '',
   createdFrom: '',
   createdTo: '',
 };
@@ -54,7 +61,14 @@ const COLUMNS: TableColumn<AuditRow>[] = [
   { key: 'actor', label: 'Người thực hiện', width: 180 },
   { key: 'action', label: 'Loại việc', width: 220 },
   { key: 'entity', label: 'Đối tượng', width: 140 },
-  { key: 'entityId', label: 'ID đối tượng', width: 220 },
+  { key: 'entityId', label: 'ID đối tượng', width: 220, render: (v, row) => {
+    // Server already proved current-facility resolvability before setting
+    // linkEntity; resolveGo re-validates entity+UUID shape on this side.
+    const id = v as string;
+    if (!row.linkEntity) return id;
+    const target = resolveGo(row.linkEntity, id);
+    return target ? <Link to={target}>{id}</Link> : id;
+  } },
 ];
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -87,6 +101,7 @@ function AuditLogContent() {
     actor: '',
     action: '',
     entity: '',
+    entityId: '',
   });
   const [page, setPage] = useState(1);
 
@@ -96,10 +111,11 @@ function AuditLogContent() {
         actor: filters.actor,
         action: filters.action,
         entity: filters.entity,
+        entityId: filters.entityId,
       });
     }, TEXT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [filters.actor, filters.action, filters.entity]);
+  }, [filters.actor, filters.action, filters.entity, filters.entityId]);
 
   const dateRangeInvalid = isInvertedDateRange(filters.createdFrom, filters.createdTo);
   const createdFromIso = dateRangeInvalid ? undefined : toCreatedFromIso(filters.createdFrom);
@@ -112,6 +128,7 @@ function AuditLogContent() {
     debouncedText.actor,
     debouncedText.action,
     debouncedText.entity,
+    debouncedText.entityId,
     createdFromIso,
     createdToIso,
     dateRangeInvalid,
@@ -122,6 +139,7 @@ function AuditLogContent() {
       ...(debouncedText.actor ? { actor: debouncedText.actor } : {}),
       ...(debouncedText.action ? { action: debouncedText.action } : {}),
       ...(debouncedText.entity ? { entity: debouncedText.entity } : {}),
+      ...(debouncedText.entityId ? { entityId: debouncedText.entityId } : {}),
       ...(createdFromIso ? { createdFrom: createdFromIso } : {}),
       ...(createdToIso ? { createdTo: createdToIso } : {}),
       page,

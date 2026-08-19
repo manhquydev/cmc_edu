@@ -68,12 +68,11 @@ Quy tắc:
 | Báo cáo điểm danh | `/teaching/attendance/report?scope=class&term=` | — |
 | Chấm bài | `/teaching/grading?class={classId}` | — |
 | Học bạ | `/teaching/report-cards` → `/teaching/report-cards/{studentId}` | — |
-| Lớp học | `/classes?view=table` → `/classes/{classId}` | `/{classId}/overview` · `/students` · `/sessions` · `/enroll` |
-| Khóa học | `/courses` → `/courses/{courseId}` | — |
-| Chương trình | `/curriculum` → `/curriculum/{unitId}` | — |
-| **Học sinh** | `/students?q=` → `/students/{studentId}` | `/{id}/profile` · `/enrollments` · `/attendance` · `/grades` · `/guardians` |
-| Phụ huynh | `/parents` → `/parents/{parentId}` | `/{id}/children` · `/receipts` |
-| Họp phụ huynh | `/parent-meetings` → `/parent-meetings/{id}` | — |
+| Lớp học | `/admin/classes` → `/admin/classes/{classId}` | `/{classId}/overview` · `/students` · `/sessions` |
+| Khóa học | `/admin/courses` | Catalog cấu hình tối thiểu |
+| **Học sinh** | `/admin/students` → `/admin/students/{studentId}` | `/{id}/profile` · `/enrollments` |
+| Phụ huynh | `/admin/parents` → `/admin/parents/{parentId}` | Chi tiết + lịch sử vận hành |
+| Họp phụ huynh | `/crm/post-sale-meeting` → `/crm/post-sale-meeting/{meetingId}` | `/{id}/overview` · `/{id}/activity` |
 | Duyệt cấp độ | `/level-progress?status=pending` | — |
 | Chứng chỉ | `/certificates` → `/certificates/{id}` | — |
 
@@ -87,8 +86,8 @@ Quy tắc:
 ### C. Tài chính & Nhân sự–Lương
 | Trang | URL | Ghi chú |
 |---|---|---|
-| Tài chính (phiếu thu) | `/finance/receipts?status=pending` → `/finance/receipts/{id}` | — |
-| **Tạo phiếu thu từ cơ hội** | `/finance/receipts/new?opportunityId={oppId}` | Điền sẵn tên HS/SĐT/lớp (QĐ 0037) |
+| Tài chính (phiếu thu) | `/finance` → `/finance/{id}` | `/{id}/overview` · `/order-lines` · `/activity` |
+| **Tạo phiếu thu từ cơ hội** | `/finance/new?opportunityId={oppId}` | Tạo xong điều hướng về chi tiết phiếu |
 | Báo cáo doanh thu | `/finance/revenue-report?range=` | — |
 | Đối soát theo kỳ | `/finance/reconciliation?term=` | Nơi Reconciliation agent đổ cờ |
 | Hoàn tiền | `/finance/refunds` → `/finance/refunds/{id}` | — |

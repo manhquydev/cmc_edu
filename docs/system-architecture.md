@@ -648,7 +648,14 @@ This implementation strictly follows the frozen design:
 3. ~~un-skip lms-auth-two-tier~~ — satisfied 2026-07-10 (suite deleted, coverage moved to e2e)
 4. ~~ctv_mkt manualPunch.create~~ — moot, key deleted by ADR 0043 (2026-07-13)
 
+## Resource-depth rollout status (2026-08-19)
+
+- `RecordEvent` is the facility-scoped, append-only user-facing operational timeline; `AuditLog` remains the global compliance ledger and is not a director timeline.
+- Merged resource-depth module series: Class (#159), Student (#161), ParentAccount (#162), Receipt (#163), and ParentMeeting (#164). Each merged PR passed the required `typecheck-and-test` and `ui-e2e` checks on its final head.
+- Canonical staff surface remains `/hr/staff`; `/admin/users` is a compatibility redirect. Parent, Receipt and ParentMeeting detail URLs are path-based and their activity sections are shareable.
+- Remaining gap-only detail exceptions are recorded in `plans/reports/phase-06-module-6-gap-only-audit.md`; Phase 7 source-derived coverage and URL/history gates remain open.
+
 ---
 
-**Last Updated:** 2026-08-12 (truth sync: CI dual required checks, LMS SPA shipped, acceptance snapshot 36/42 note, ADR banners via docs/truth-sync-adr-index)  
-**Aligns with:** main branch commit c9af5f1
+**Last Updated:** 2026-08-19 (Phase 6 resource-depth rollout sync; runtime acceptance remains CI-artifact-owned)
+**Aligns with:** main branch after PR #164; Phase 7 coverage gate remains open

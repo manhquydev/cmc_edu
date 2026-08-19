@@ -14,7 +14,7 @@
     "dev": "turbo run dev",
     "lint": "eslint apps/admin apps/lms scripts",
     "acceptance:report": "tsx scripts/acceptance-report/verify.ts",
-    "business:verify": "tsx scripts/business-verify/verify.ts",
+    "resource-depth:audit": "node scripts/resource-depth-audit.mjs",
     "deck:build": "tsx scripts/presentation/build.ts",
     "deck:check": "tsx scripts/presentation/check-copy.ts",
     "test:deck": "vitest run --config scripts/presentation/vitest.config.ts",

@@ -93,3 +93,12 @@ List = **index** (navigate to form). Form = **work surface**. Status = **filter*
 - Reverse only with new product evidence + explicit owner override.  
 - Module plans must cite this file in Authority.  
 - TL06 remains URL authority; this file remains **UX structure / anti-bloat** authority.
+
+## 8. Resource-depth audit exceptions
+
+The source-derived depth audit classifies every production route. A route that
+is not a durable record must declare an explicit exception with a category,
+reason and owner (for example: workspace, config catalog, resolver,
+compatibility redirect, or a documented timeline gap). New record routes must
+provide the canonical detail contract (`get`, authorized actions and timeline)
+or fail the audit.

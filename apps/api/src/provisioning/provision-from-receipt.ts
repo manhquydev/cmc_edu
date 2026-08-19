@@ -38,6 +38,7 @@ import {
 import { hashPassword } from '../lms-auth/password-hash.js';
 import { emitStudentRecordEvent } from '../student/record-event.js';
 import { emitParentRecordEvent } from '../parentAccount/record-event.js';
+import { emitReceiptRecordEvent } from '../finance/record-event.js';
 
 /**
  * C1 per-step guard (phase-01 cancel-provisioning race): re-reads the Receipt's
@@ -524,6 +525,27 @@ export async function provisionFromReceipt(
       },
     });
   }
+
+  await withFacility(db, receipt.facilityId, async (tx) => {
+    const existingEvent = await tx.recordEvent.findFirst({
+      where: {
+        facilityId: receipt.facilityId,
+        entity: 'Receipt',
+        entityId: receipt.id,
+        kind: 'provisioned',
+      },
+      select: { id: true },
+    });
+    if (!existingEvent) {
+      await emitReceiptRecordEvent(tx, {
+        facilityId: receipt.facilityId,
+        receiptId: receipt.id,
+        actor: 'system',
+        kind: 'provisioned',
+        status: 'ok',
+      });
+    }
+  });
 
   return {
     parentAccountId: parentAccount.id,

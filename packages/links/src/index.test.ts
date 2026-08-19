@@ -89,6 +89,7 @@ describe('durable entity section builders (Phase 5)', () => {
   it('builds receipt sections under /finance/:id/:section', () => {
     expect(receiptSectionPath(UUID, 'overview')).toBe(`/finance/${UUID}/overview`);
     expect(receiptSectionPath(UUID, 'order-lines')).toBe(`/finance/${UUID}/order-lines`);
+    expect(receiptSectionPath(UUID, 'activity')).toBe(`/finance/${UUID}/activity`);
   });
 });
 

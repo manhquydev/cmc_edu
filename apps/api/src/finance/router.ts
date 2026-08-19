@@ -16,6 +16,7 @@ import { withFacility, type Prisma, type PrismaClient } from '@cmc/db';
 import { can } from '@cmc/auth';
 import type { AuthSubject, Role } from '@cmc/auth';
 import { badRequest, conflict, forbidden, notFound } from '../errors.js';
+import { listRecordEventPage } from '../record-event/store.js';
 import { ReceiptNoLongerApprovedError } from '../enrollment/activate-enrollment.js';
 import { provisionFromReceipt } from '../provisioning/provision-from-receipt.js';
 import { maybeCreateFlag } from '../worker/reconcile-finance-flags.js';
@@ -23,6 +24,13 @@ import { isOpportunityLost } from '../crm/opportunity-lost.js';
 import { findOrCreateContact } from '../crm/find-or-create-contact.js';
 import { emitRecordEvent } from '../crm/record-event.js';
 import { emitStudentRecordEvent } from '../student/record-event.js';
+import {
+  emitReceiptRecordEvent,
+  isReceiptRecordEventKind,
+  labelForReceiptRecordEventKind,
+  RECEIPT_RECORD_EVENT_ENTITY,
+  RECEIPT_RECORD_EVENT_HISTORY_SINCE,
+} from './record-event.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
 /**
@@ -337,11 +345,20 @@ async function runMoneyTransaction(
     // receiptCancel, would shift).
     data: { status: 'approved', approvedById: approverId, kind, approvedAt: new Date() },
   });
+
   if (claim.count !== 1) {
     throw conflict('Receipt was already approved by a concurrent request.');
   }
   const approved = await tx.receipt.findFirstOrThrow({
     where: { id: receipt.id, facilityId },
+  });
+
+  await emitReceiptRecordEvent(tx, {
+    facilityId,
+    receiptId: approved.id,
+    actor: approverId,
+    kind: 'approved',
+    receiptKind: approved.kind === 'renewal' ? 'renewal' : 'new',
   });
 
   // phase-05 (F4, PO decision #1): a receipt approved with no opportunity is
@@ -663,6 +680,14 @@ async function runCancelTransaction(
     auditAction: 'enrollment.revokeOnCancel',
   });
 
+  await emitReceiptRecordEvent(tx, {
+    facilityId,
+    receiptId: cancelled.id,
+    actor: actorId,
+    kind: 'cancelled',
+    void: voidFlag,
+    opportunityReverted,
+  });
   await tx.auditLog.create({
     data: {
       actor: actorId,
@@ -698,6 +723,7 @@ export interface RefundCreateResult {
   remainingBalance: number;
 }
 
+
 /** Row shape from the raw `SELECT ... FOR UPDATE` lock query below. */
 interface LockedReceiptRow {
   id: string;
@@ -716,6 +742,7 @@ interface LockedReceiptRow {
 async function runRefundTransaction(
   tx: Prisma.TransactionClient,
   facilityId: string,
+  actorId: string,
   receiptId: string,
   amount: number,
   idempotencyKey?: string,
@@ -794,6 +821,12 @@ async function runRefundTransaction(
     });
   }
 
+  await emitReceiptRecordEvent(tx, {
+    facilityId,
+    receiptId: locked.id,
+    actor: actorId,
+    kind: 'refunded',
+  });
   return {
     refund: {
       id: refund.id,
@@ -882,6 +915,60 @@ export const financeRouter = router({
           remainingBalance,
           viewerCanRefund,
           viewerCanCancel,
+        };
+      });
+    }),
+
+  receiptTimeline: requirePermission('finance', 'receiptGet')
+    .input(z.object({
+      receiptId: z.string().uuid(),
+      cursor: z.string().min(1).optional(),
+      take: z.number().int().min(1).max(50).default(20),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const receipt = await tx.receipt.findFirst({
+          where: { id: input.receiptId, facilityId },
+          select: { id: true },
+        });
+        if (!receipt) throw notFound('Receipt not found.');
+
+        const eventWhere = {
+          facilityId,
+          entity: RECEIPT_RECORD_EVENT_ENTITY,
+          entityId: receipt.id,
+        };
+        const [{ rows, nextCursor }, createdEvent] = await Promise.all([
+          listRecordEventPage(tx, eventWhere, input.cursor ?? null, input.take),
+          tx.recordEvent.findFirst({
+            where: { ...eventWhere, kind: 'created' },
+            select: { id: true },
+          }),
+        ]);
+        const actorUserIds = [...new Set(rows.map((row) => row.actor).filter(Boolean))];
+        const actorStaffRows = actorUserIds.length
+          ? await tx.appUser.findMany({
+              where: { facilityId, userId: { in: actorUserIds } },
+              select: { userId: true, fullName: true, employeeCode: true },
+            })
+          : [];
+        const actorMap = new Map(actorStaffRows.map((staff) => [staff.userId, staff]));
+
+        return {
+          items: rows.map((row) => {
+            const staff = actorMap.get(row.actor);
+            return {
+              id: row.id,
+              kind: row.kind,
+              actor: staff ? staff.fullName || staff.employeeCode || staff.userId : 'Hệ thống',
+              payload: isReceiptRecordEventKind(row.kind) ? row.payload : null,
+              label: labelForReceiptRecordEventKind(row.kind),
+              createdAt: row.createdAt,
+            };
+          }),
+          nextCursor,
+          historySince: createdEvent ? null : RECEIPT_RECORD_EVENT_HISTORY_SINCE,
         };
       });
     }),
@@ -1046,6 +1133,13 @@ export const financeRouter = router({
               createdById: ctx.subject.userId,
               createdByAppUserId: callerAppUser?.id ?? null,
             },
+          });
+
+          await emitReceiptRecordEvent(tx, {
+            facilityId,
+            receiptId: created.id,
+            actor: ctx.subject.userId,
+            kind: 'created',
           });
 
           return { needsConfirmation: false as const, created, dupWarning, opportunityNotAtO4Warning };
@@ -1216,7 +1310,7 @@ export const financeRouter = router({
       const { facilityId } = scoped(ctx);
 
       return withFacility(ctx.db, facilityId, (tx) =>
-        runRefundTransaction(tx, facilityId, input.receiptId, input.amount, input.idempotencyKey),
+        runRefundTransaction(tx, facilityId, ctx.subject.userId, input.receiptId, input.amount, input.idempotencyKey),
       );
     }),
 });

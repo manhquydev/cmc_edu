@@ -77,7 +77,7 @@ export const flows: FlowEntry[] = [
     expected: {
       // TL25 đã sync 2026-07-18: route /finance/receipts/:id → /finance/:id.
       // receiptGet/List = hàng đợi duyệt của người phê (E1).
-      trpc: ['finance.receiptApprove', 'finance.receiptGet', 'finance.receiptList'],
+      trpc: ['finance.receiptApprove', 'finance.receiptGet', 'finance.receiptList', 'finance.receiptTimeline'],
       uiRoutes: ['/finance', '/finance/:id'],
       models: ['Receipt'],
     },

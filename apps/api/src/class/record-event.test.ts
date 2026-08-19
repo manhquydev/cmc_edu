@@ -184,6 +184,47 @@ describe('ClassBatch record events & timeline (Phase 6 module 1)', () => {
     expect(page.items[0]?.actor).toBe('Hệ thống');
   });
 
+  it('timeline — keyset pagination returns newest-first pages and a usable cursor', async () => {
+    // Three events on the class, inserted in order.
+    const teacher2 = await seedAppUser({
+      facilityId: facilityA.id,
+      userId: 'class-timeline-gv-002',
+      fullName: 'GV Hai',
+      roles: ['giao_vien'],
+    });
+    await gddt.classBatch.assignTeacher({ classBatchId: classBatch.id, teacherAppUserId });
+    await gddt.classBatch.assignTeacher({ classBatchId: classBatch.id, teacherAppUserId: teacher2.id });
+    await testDbBypass((tx) =>
+      tx.recordEvent.create({
+        data: {
+          facilityId: facilityA.id,
+          entity: 'ClassBatch',
+          entityId: classBatch.id,
+          kind: 'slot_archived',
+          actor: 'class-timeline-gddt',
+        },
+      }),
+    );
+
+    // Page one: newest two, cursor for the last one.
+    const page1 = await teacher.classBatch.timeline({ classBatchId: classBatch.id, take: 2 });
+    expect(page1.items.map((i) => i.kind)).toEqual(['slot_archived', 'teacher_changed']);
+    expect(page1.nextCursor).toBeTruthy();
+
+    // Page two: exactly the oldest event, end of list.
+    const page2 = await teacher.classBatch.timeline({
+      classBatchId: classBatch.id,
+      take: 2,
+      cursor: page1.nextCursor!,
+    });
+    expect(page2.items.map((i) => i.kind)).toEqual(['teacher_changed']);
+    expect(page2.nextCursor).toBe(null);
+
+    // No overlap, no loss.
+    const all = [...page1.items, ...page2.items].map((i) => i.id);
+    expect(new Set(all).size).toBe(3);
+  });
+
   it('emitted payloads never carry secret-shaped or PII keys', async () => {
     await gddt.classBatch.assignTeacher({ classBatchId: classBatch.id, teacherAppUserId });
     const events = await eventsOf(facilityA.id, classBatch.id);

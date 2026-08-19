@@ -323,6 +323,9 @@ export const flows: FlowEntry[] = [
         'classBatch.list',
         'classBatch.assignTeacher',
         'classBatch.listStudents',
+        // Operational class timeline on the same class detail surface
+        // (overview section renders it via RecordTimeline).
+        'classBatch.timeline',
         'schedule.generateSessions',
         'classSession.list',
         'classSession.assignUnit',

@@ -21,6 +21,37 @@ const getState = vi.hoisted(() => ({
   error: null as { message: string } | null,
 }));
 
+const timelineState = vi.hoisted(() => ({
+  data: {
+    items: [
+      {
+        id: 'ev-1',
+        kind: 'lifecycle_changed',
+        actor: 'GĐĐT Timeline',
+        payload: { from: 'active', to: 'blocked_lms' },
+        label: 'Đã đổi trạng thái học viên',
+        createdAt: new Date('2026-08-19T02:00:00.000Z'),
+      },
+    ],
+    nextCursor: null as string | null,
+    historySince: null as Date | null,
+  } as {
+    items: Array<{
+      id: string;
+      kind: string;
+      actor: string;
+      payload: unknown;
+      label: string;
+      createdAt: Date;
+    }>;
+    nextCursor: string | null;
+    historySince: Date | null;
+  } | undefined,
+  isFetching: false,
+  isError: false,
+  error: null as { message: string } | null,
+}));
+
 vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, mutationResult } = await import('../../test/mock-trpc.js');
   return {
@@ -44,6 +75,13 @@ vi.mock('../../lib/trpc.js', async () => {
         error: getState.error,
       }),
       'student.setLifecycle.useMutation': () => mutationResult({ mutate: vi.fn() }),
+      'student.timeline.useQuery': () => ({
+        data: timelineState.data,
+        isLoading: false,
+        isFetching: timelineState.isFetching,
+        isError: timelineState.isError,
+        error: timelineState.error,
+      }),
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -87,6 +125,23 @@ describe('StudentDetailPage — query vs location.state', () => {
     getState.isError = false;
     getState.isSuccess = true;
     getState.error = null;
+    timelineState.data = {
+      items: [
+        {
+          id: 'ev-1',
+          kind: 'lifecycle_changed',
+          actor: 'GĐĐT Timeline',
+          payload: { from: 'active', to: 'blocked_lms' },
+          label: 'Đã đổi trạng thái học viên',
+          createdAt: new Date('2026-08-19T02:00:00.000Z'),
+        },
+      ],
+      nextCursor: null,
+      historySince: null,
+    };
+    timelineState.isFetching = false;
+    timelineState.isError = false;
+    timelineState.error = null;
     locationState.state = {
       student: { id: STUDENT_ID, fullName: 'Stale List Name', lifecycle: 'active' },
     };
@@ -195,5 +250,40 @@ describe('StudentDetailPage — query vs location.state', () => {
     });
     expect(screen.queryByText('Về danh sách học viên của lớp')).not.toBeInTheDocument();
     expect(screen.getByText('Về danh sách')).toBeInTheDocument();
+  });
+
+  it('shows a timeline query error instead of an empty-history state', () => {
+    getState.data = {
+      id: STUDENT_ID,
+      fullName: 'From Server',
+      lifecycle: 'active',
+      parentPhone: null,
+    };
+    timelineState.data = undefined;
+    timelineState.isError = true;
+    timelineState.error = { message: 'timeline unavailable' };
+    locationState.state = {};
+    renderWithProviders(<StudentDetailPage />, {
+      route: `/admin/students/${STUDENT_ID}/profile`,
+      routes: [{ path: '/admin/students/:id/:section', element: <StudentDetailPage /> }],
+    });
+    expect(screen.getByRole('alert').textContent).toContain('timeline unavailable');
+    expect(screen.queryByText('Chưa có sự kiện trên bản ghi này.')).toBeNull();
+  });
+
+  it('renders the operational timeline on the profile section (Phase 6 module 2)', async () => {
+    getState.data = {
+      id: STUDENT_ID,
+      fullName: 'From Server',
+      lifecycle: 'active',
+      parentPhone: null,
+    };
+    locationState.state = {};
+    renderWithProviders(<StudentDetailPage />, {
+      route: `/admin/students/${STUDENT_ID}/profile`,
+      routes: [{ path: '/admin/students/:id/:section', element: <StudentDetailPage />}],
+    });
+    expect(await screen.findByText('Đã đổi trạng thái học viên')).toBeInTheDocument();
+    expect(screen.getByText('Lịch sử hoạt động')).toBeInTheDocument();
   });
 });

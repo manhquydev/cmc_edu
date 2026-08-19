@@ -23,6 +23,7 @@ import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 import { returnContextFromState } from '../../lib/safe-return-to.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { StudentActivitySection } from './student-activity.js';
 import { EnrollmentRangesPanel } from './enrollment-ranges-panel.js';
 
 interface StudentState {
@@ -112,7 +113,10 @@ export default function StudentDetailPage() {
       setConfirmOpen(false);
       setPendingLifecycle(null);
       void utils.student.lookup.invalidate();
-      if (id) void utils.student.get.invalidate({ id });
+      if (id) {
+        void utils.student.get.invalidate({ id });
+        void utils.student.timeline.invalidate({ studentId: id });
+      }
     },
   });
 
@@ -216,6 +220,7 @@ export default function StudentDetailPage() {
                 ) : null}
               </SectionBlock>
             ) : null}
+            {id ? <StudentActivitySection studentId={id} /> : null}
           </div>
         </div>
       ),

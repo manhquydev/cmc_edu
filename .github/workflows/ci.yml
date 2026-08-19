@@ -133,6 +133,11 @@ jobs:
       - name: System verify helpers
         run: pnpm test:verify-system
 
+      # Source-derived route/detail registry: unknown routes, duplicate canonical
+      # paths and missing required depth must fail before the full test suite.
+      - name: Resource-depth audit
+        run: pnpm resource-depth:audit
+
       - name: Test
         run: pnpm test
 

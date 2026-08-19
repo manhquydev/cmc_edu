@@ -2,8 +2,10 @@
 
 ## Status
 
-Implemented locally on `feat/resource-depth-phase-6-student`; PR/required CI pending.
-Phase 6 remains pending because modules 3–6 are not implemented.
+Implemented and pushed in PR #161 (`https://github.com/manhquydev/cmc_edu/pull/161`),
+head `fe8edd5`. Required `typecheck-and-test` and `ui-e2e` checks are green;
+PR remains open and unmerged. Phase 6 remains pending because modules 3–6 are
+not implemented.
 
 ## Delivered
 

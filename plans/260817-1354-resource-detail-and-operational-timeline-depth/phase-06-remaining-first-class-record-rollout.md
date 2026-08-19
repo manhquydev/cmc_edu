@@ -25,7 +25,7 @@ per module. Never run these module series concurrently against shared route/link
 | Module | Status |
 |---|---|
 | 1 Class | Done (PR #159, CI green on 808d89d, merged 2026-08-19). Follow-ups: load-more dedup in class-activity.tsx; denied-role timeline test. |
-| 2 Student | Implemented; final local gates green (API 1308/1308, Admin 712/712, typecheck 34/34, acceptance manifest 0 unclassified). PR/CI pending. |
+| 2 Student | Done (PR #161, required CI green on `fe8edd5`; merged pending). |
 
 ## Rollout matrix
 

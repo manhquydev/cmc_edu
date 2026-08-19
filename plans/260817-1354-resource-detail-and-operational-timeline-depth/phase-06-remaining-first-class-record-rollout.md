@@ -25,7 +25,7 @@ per module. Never run these module series concurrently against shared route/link
 | Module | Status |
 |---|---|
 | 1 Class | Done (PR #159, CI green on 808d89d, merged 2026-08-19). Follow-ups: load-more dedup in class-activity.tsx; denied-role timeline test. |
-| 2 Student | Next — freeze enrollment dual-view producer map (Class PR already emits `student_enrolled` on the ClassBatch timeline) and PII ceiling before edits. |
+| 2 Student | Implemented; final local gates green (API 1308/1308, Admin 712/712, typecheck 34/34, acceptance manifest 0 unclassified). PR/CI pending. |
 
 ## Rollout matrix
 

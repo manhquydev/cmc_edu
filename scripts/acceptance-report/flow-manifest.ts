@@ -131,6 +131,9 @@ export const flows: FlowEntry[] = [
         'student.lookup',
         'student.getManyByIds',
         'student.resetPassword',
+        // Operational student timeline on the same detail surface (the
+        // profile section renders it via RecordTimeline — Phase 6 module 2).
+        'student.timeline',
         'lmsOps.listEnrollmentsForStudent',
         'lmsOps.addWithUnits',
         'lmsOps.grantPast',

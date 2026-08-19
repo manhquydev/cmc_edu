@@ -44,6 +44,25 @@ vi.mock('../../lib/trpc.js', async () => {
         error: getState.error,
       }),
       'student.setLifecycle.useMutation': () => mutationResult({ mutate: vi.fn() }),
+      'student.timeline.useQuery': () => ({
+        data: {
+          items: [
+            {
+              id: 'ev-1',
+              kind: 'lifecycle_changed',
+              actor: 'GĐĐT Timeline',
+              payload: { from: 'active', to: 'blocked_lms' },
+              label: 'Đã đổi trạng thái học viên',
+              createdAt: new Date('2026-08-19T02:00:00.000Z'),
+            },
+          ],
+          nextCursor: null,
+          historySince: null,
+        },
+        isLoading: false,
+        isFetching: false,
+        error: null,
+      }),
     }),
     makeQueryClient: () => ({}),
     makeTrpcClient: () => ({}),
@@ -195,5 +214,21 @@ describe('StudentDetailPage — query vs location.state', () => {
     });
     expect(screen.queryByText('Về danh sách học viên của lớp')).not.toBeInTheDocument();
     expect(screen.getByText('Về danh sách')).toBeInTheDocument();
+  });
+
+  it('renders the operational timeline on the profile section (Phase 6 module 2)', async () => {
+    getState.data = {
+      id: STUDENT_ID,
+      fullName: 'From Server',
+      lifecycle: 'active',
+      parentPhone: null,
+    };
+    locationState.state = {};
+    renderWithProviders(<StudentDetailPage />, {
+      route: `/admin/students/${STUDENT_ID}/profile`,
+      routes: [{ path: '/admin/students/:id/:section', element: <StudentDetailPage />}],
+    });
+    expect(await screen.findByText('Đã đổi trạng thái học viên')).toBeInTheDocument();
+    expect(screen.getByText('Lịch sử hoạt động')).toBeInTheDocument();
   });
 });

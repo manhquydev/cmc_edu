@@ -22,6 +22,7 @@ import { maybeCreateFlag } from '../worker/reconcile-finance-flags.js';
 import { isOpportunityLost } from '../crm/opportunity-lost.js';
 import { findOrCreateContact } from '../crm/find-or-create-contact.js';
 import { emitRecordEvent } from '../crm/record-event.js';
+import { emitStudentRecordEvent } from '../student/record-event.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 
 /**
@@ -599,10 +600,21 @@ async function runCancelTransaction(
         select: { id: true },
       });
       if (!otherApprovedReceiptForClass) {
-        await tx.enrollment.updateMany({
+        const withdrawn = await tx.enrollment.updateMany({
           where: { facilityId, studentId: student.id, classBatchId: cancelled.classBatchId },
           data: { status: 'withdrawn' },
         });
+        // Student operational history: only record a withdrawal when an
+        // enrollment row actually changed (terminal/missing rows are no-ops).
+        if (withdrawn.count > 0) {
+          await emitStudentRecordEvent(tx, {
+            facilityId,
+            studentId: student.id,
+            actor: actorId,
+            kind: 'enrollment_withdrawn',
+            classBatchId: cancelled.classBatchId,
+          });
+        }
       }
     }
     if (voidFlag) {
@@ -611,6 +623,16 @@ async function runCancelTransaction(
         data: { lifecycle: 'withdrawn' },
       });
       studentLifecycle = archived.lifecycle;
+      if (student.lifecycle !== 'withdrawn') {
+        await emitStudentRecordEvent(tx, {
+          facilityId,
+          studentId: student.id,
+          actor: actorId,
+          kind: 'lifecycle_changed',
+          from: student.lifecycle,
+          to: 'withdrawn',
+        });
+      }
     } else {
       studentLifecycle = student.lifecycle;
     }

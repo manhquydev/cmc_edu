@@ -36,6 +36,7 @@ import {
   ReceiptNoLongerApprovedError,
 } from '../enrollment/activate-enrollment.js';
 import { hashPassword } from '../lms-auth/password-hash.js';
+import { emitStudentRecordEvent } from '../student/record-event.js';
 
 /**
  * C1 per-step guard (phase-01 cancel-provisioning race): re-reads the Receipt's
@@ -249,13 +250,21 @@ async function findOrCreateStudent(
           return reusable;
         }
       }
-
       const created = await tx.student.create({
         data: {
           facilityId: receipt.facilityId,
           fullName: receipt.studentName,
           createdByReceiptId: receipt.id,
         },
+      });
+      // Provisioning is system-driven (receipt approval / outbox replay) —
+      // the student's own history starts here (module-2 freeze: reuse and
+      // race-refetch branches above emit nothing).
+      await emitStudentRecordEvent(tx, {
+        facilityId: receipt.facilityId,
+        studentId: created.id,
+        actor: 'system',
+        kind: 'created',
       });
       await findOrCreateGuardian(tx, receipt.facilityId, parentAccountId, created.id);
       return created;
@@ -347,16 +356,33 @@ async function findOrCreateGuardian(
   facilityId: string,
   parentAccountId: string,
   studentId: string,
+  recoverUnique = true,
 ) {
+  await db.$executeRaw`
+    SELECT pg_advisory_xact_lock(
+      hashtext(${facilityId} || ':' || ${parentAccountId} || ':' || ${studentId})
+    )
+  `;
   const existing = await db.guardian.findUnique({
     where: { parentAccountId_studentId: { parentAccountId, studentId } },
   });
   if (existing) return existing;
 
   try {
-    return await db.guardian.create({
+    const guardian = await db.guardian.create({
       data: { facilityId, parentAccountId, studentId, relation: 'guardian' },
     });
+    // Same freeze: only the create branch is history; the P2002 refetch below
+    // means a concurrent caller already recorded it.
+    await emitStudentRecordEvent(db, {
+      facilityId,
+      studentId,
+      actor: 'system',
+      kind: 'guardian_linked',
+      parentAccountId,
+      relation: 'guardian',
+    });
+    return guardian;
   } catch (error) {
     /* v8 ignore start -- same timing-fragile P2002 race category as the
      * other find-or-create catches in this file (vitest.config.ts's
@@ -365,6 +391,7 @@ async function findOrCreateGuardian(
      * the race actually lands on THIS catch (vs. both calls' existence-check
      * seeing the already-committed row) is non-deterministic run to run. */
     if (!isUniqueConstraintViolation(error)) throw error;
+    if (!recoverUnique) throw error;
     const refetched = await db.guardian.findUnique({
       where: { parentAccountId_studentId: { parentAccountId, studentId } },
     });
@@ -399,21 +426,29 @@ export async function provisionFromReceipt(
   );
   const parentAccount = await findOrCreateParentAccount(db, receipt.parentPhone, receipt.parentEmail);
   const student = await findOrCreateStudent(db, receipt, parentAccount.id);
-
-  // C1 per-step guard for the standalone Guardian step. `findOrCreateStudent`
-  // already created this Guardian inside its own guarded transaction on the
-  // new-student path (so this call hits the existence early-return); only the
-  // renewal path reaches the create here. The guard runs in its own short
-  // transaction, then `findOrCreateGuardian` is called on the BASE client so
-  // its own P2002 recovery refetch runs on a live (non-aborted) connection —
-  // wrapping the create in the guard's transaction would leave that refetch
-  // running on an already-aborted tx (25P02). The tiny guard→create window is
-  // the same benign class as the ParentAccount step above (a Guardian carries
-  // no RLS policy and is find-or-create-idempotent).
+  // Student RecordEvent must share the facility-scoped transaction because
+  // RecordEvent is RLS-protected. A unique race aborts this transaction; the
+  // recovery refetch therefore runs on the base client, not the aborted tx.
   await withFacility(db, receipt.facilityId, (tx) =>
     assertReceiptStillApproved(tx, receipt.id, receipt.facilityId),
   );
-  const guardian = await findOrCreateGuardian(db, receipt.facilityId, parentAccount.id, student.id);
+  let guardian;
+  try {
+    guardian = await withFacility(db, receipt.facilityId, (tx) =>
+      findOrCreateGuardian(tx, receipt.facilityId, parentAccount.id, student.id, false),
+    );
+  } catch (error) {
+    if (!isUniqueConstraintViolation(error)) throw error;
+    guardian = await db.guardian.findUnique({
+      where: {
+        parentAccountId_studentId: {
+          parentAccountId: parentAccount.id,
+          studentId: student.id,
+        },
+      },
+    });
+    if (!guardian) throw error;
+  }
 
   if (!receipt.classBatchId) {
     throw new Error(

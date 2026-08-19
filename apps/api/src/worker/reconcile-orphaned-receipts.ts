@@ -34,6 +34,7 @@
 // not worth the complexity here, see the audit marker this records instead).
 
 import { withFacility, type PrismaClient } from '@cmc/db';
+import { emitStudentRecordEvent } from '../student/record-event.js';
 import { provisionFromReceipt, type ProvisionResult } from '../provisioning/provision-from-receipt.js';
 import { maybeCreateFlag } from './reconcile-finance-flags.js';
 
@@ -209,10 +210,11 @@ export async function reconcileOrphanedReceipts(db: PrismaClient): Promise<Recon
   }
   return outcomes;
 }
-
 interface CancelledButProvisionedRow {
   receiptId: string;
   facilityId: string;
+  studentId: string;
+  classBatchId: string;
   enrollmentId: string;
 }
 
@@ -271,7 +273,12 @@ export async function reconcileCancelledButProvisioned(db: PrismaClient): Promis
           LEFT JOIN "Student" s_renewal ON s_renewal."id" = r."studentId"
           WHERE r."status" = 'cancelled'
         )
-        SELECT resolved."receiptId" AS "receiptId", resolved."facilityId", e."id" AS "enrollmentId"
+        SELECT
+          resolved."receiptId" AS "receiptId",
+          resolved."facilityId",
+          resolved."resolvedStudentId" AS "studentId",
+          resolved."classBatchId",
+          e."id" AS "enrollmentId"
         FROM resolved
         JOIN "Enrollment" e
           ON e."studentId" = resolved."resolvedStudentId"
@@ -299,8 +306,24 @@ export async function reconcileCancelledButProvisioned(db: PrismaClient): Promis
 
   const outcomes: ReconcileCancelledOutcome[] = [];
   for (const row of rows) {
-    await withFacility(db, null, (tx) =>
-      tx.enrollment.update({ where: { id: row.enrollmentId }, data: { status: 'withdrawn' } }),
+    await withFacility(
+      db,
+      null,
+      async (tx) => {
+        const withdrawn = await tx.enrollment.updateMany({
+          where: { id: row.enrollmentId, status: 'active' },
+          data: { status: 'withdrawn' },
+        });
+        if (withdrawn.count > 0) {
+          await emitStudentRecordEvent(tx, {
+            facilityId: row.facilityId,
+            studentId: row.studentId,
+            actor: 'system',
+            kind: 'enrollment_withdrawn',
+            classBatchId: row.classBatchId,
+          });
+        }
+      },
       { bypass: true },
     );
     const flagCreated = await withFacility(

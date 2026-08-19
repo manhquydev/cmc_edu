@@ -24,7 +24,15 @@ import { withFacility } from '@cmc/db';
 import { InvalidPhoneError, normalizeLoginPhone } from '@cmc/domain-identity';
 import { badRequest, notFound } from '../errors.js';
 import { hashPassword } from '../lms-auth/password-hash.js';
+import { listRecordEventPage } from '../record-event/store.js';
 import { requirePermission, router, scoped } from '../trpc.js';
+import {
+  emitStudentRecordEvent,
+  isStudentRecordEventKind,
+  labelForStudentRecordEventKind,
+  STUDENT_RECORD_EVENT_ENTITY,
+  STUDENT_RECORD_EVENT_HISTORY_SINCE,
+} from './record-event.js';
 
 const studentLookupInput = z
   .object({
@@ -43,6 +51,11 @@ export interface StudentLookupResultDto {
 
 /** Caps result size — this is a narrow operator lookup, not a browse/list surface. */
 const LOOKUP_LIMIT = 20;
+const studentTimelineInput = z.object({
+  studentId: z.string().uuid(),
+  cursor: z.string().min(1).optional(),
+  take: z.number().int().min(1).max(50).default(20),
+});
 
 /** Same BAD_REQUEST-not-500 handling as lms-auth/router.ts's `normalizeOrReject`. */
 function normalizeOrReject(rawPhone: string): string {
@@ -88,14 +101,26 @@ export const studentRouter = router({
       });
       if (!studentAccount) throw notFound('No student account found for this student.');
 
-      await ctx.db.studentAccount.update({
-        where: { id: studentAccount.id },
-        data: {
-          passwordHash: hashPassword('Cmc2026@'),
-          mustChangePassword: true,
-          loginAttempts: 0,
-          loginLockedUntil: null,
-        },
+      // The write and its timeline event commit together (module-2 freeze:
+      // password_reset is emitted at the producer's transaction boundary).
+      // withFacility (not a bare $transaction): RecordEvent is RLS-scoped, so
+      // the event write needs the facility GUC.
+      await withFacility(ctx.db, facilityId, async (tx) => {
+        await tx.studentAccount.update({
+          where: { id: studentAccount.id },
+          data: {
+            passwordHash: hashPassword('Cmc2026@'),
+            mustChangePassword: true,
+            loginAttempts: 0,
+            loginLockedUntil: null,
+          },
+        });
+        await emitStudentRecordEvent(tx, {
+          facilityId,
+          studentId: input.studentId,
+          actor: ctx.subject!.userId,
+          kind: 'password_reset',
+        });
       });
 
       await ctx.db.auditLog.create({
@@ -128,6 +153,13 @@ export const studentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
       return withFacility(ctx.db, facilityId, async (tx) => {
+        // Serialize lifecycle transitions so concurrent identical calls see
+        // the committed state before deciding whether the write is a no-op.
+        await tx.$queryRaw`
+          SELECT "id" FROM "Student"
+          WHERE "id" = ${input.studentId} AND "facilityId" = ${facilityId}
+          FOR UPDATE
+        `;
         const student = await tx.student.findFirst({
           where: { id: input.studentId, facilityId },
           select: { id: true, lifecycle: true },
@@ -139,6 +171,19 @@ export const studentRouter = router({
           data: { lifecycle: input.lifecycle },
           select: { id: true, lifecycle: true },
         });
+
+        // Operational history: record the transition on the student timeline,
+        // skipping no-op writes (same rule as classBatch.assignTeacher).
+        if (student.lifecycle !== input.lifecycle) {
+          await emitStudentRecordEvent(tx, {
+            facilityId,
+            studentId: student.id,
+            actor: ctx.subject.userId,
+            kind: 'lifecycle_changed',
+            from: student.lifecycle,
+            to: input.lifecycle,
+          });
+        }
 
         // Audit the security-relevant `blocked_lms` transition; mirrors the
         // pattern in enrollment.blockLms (enrollment/router.ts).
@@ -306,4 +351,66 @@ export const studentRouter = router({
 
       return results.map((s) => ({ id: s.id, fullName: s.fullName, lifecycle: s.lifecycle }));
     }),
-});
+
+  /** Operational history timeline for a student record (Phase 6 module 2).
+   * Same read roster as student.get — timeline visibility follows authorized
+   * record visibility; parent record authorized before reading events; entity
+   * fixed server-side; actor identity projected to a display label at read
+   * time. Payloads carry no child PII, so no extra docs/08 §7 audit row:
+   * the identity disclosure (and its audit) already happens in student.get. */
+  timeline: requirePermission('student', 'lookup')
+    .input(studentTimelineInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const student = await tx.student.findFirst({
+          where: { id: input.studentId, facilityId },
+          select: { id: true },
+        });
+        if (!student) throw notFound('Student not found.');
+
+        const eventWhere = {
+          facilityId,
+          entity: STUDENT_RECORD_EVENT_ENTITY,
+          entityId: student.id,
+        };
+
+        const [{ rows, nextCursor }, createdEvent] = await Promise.all([
+          listRecordEventPage(tx, eventWhere, input.cursor ?? null, input.take),
+          tx.recordEvent.findFirst({
+            where: { ...eventWhere, kind: 'created' },
+            select: { id: true },
+          }),
+        ]);
+
+        const actorUserIds = [...new Set(rows.map((r) => r.actor).filter(Boolean))];
+        const actorStaffRows = actorUserIds.length > 0
+          ? await tx.appUser.findMany({
+              where: { facilityId, userId: { in: actorUserIds } },
+              select: { userId: true, fullName: true, employeeCode: true },
+            })
+          : [];
+        const actorMap = new Map(actorStaffRows.map((s) => [s.userId, s]));
+
+        return {
+          items: rows.map((row) => {
+            const known = isStudentRecordEventKind(row.kind);
+            const staff = actorMap.get(row.actor);
+            const actorLabel = staff
+              ? staff.fullName || staff.employeeCode || staff.userId
+              : 'Hệ thống';
+            return {
+              id: row.id,
+              kind: row.kind,
+              actor: actorLabel,
+              payload: known ? row.payload : null,
+              label: labelForStudentRecordEventKind(row.kind),
+              createdAt: row.createdAt,
+            };
+          }),
+          nextCursor,
+          historySince: createdEvent ? null : STUDENT_RECORD_EVENT_HISTORY_SINCE,
+        };
+      });
+    }),
+ });

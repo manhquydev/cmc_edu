@@ -3,8 +3,8 @@
 // docs/24 WF-P1-05). This is NOT exported as a tRPC procedure — there is no
 // client-facing mutation that sets `active` directly; `active` only ever
 // results from an approved Receipt.
-
 import { withFacility, type Prisma, type PrismaClient } from '@cmc/db';
+import { emitStudentRecordEvent } from '../student/record-event.js';
 
 /**
  * C1 remediation (scenario audit, 2026-07-15): thrown when `Receipt.status`
@@ -110,15 +110,32 @@ export async function activateEnrollmentForReceipt(
 
       if (openRow) {
         if (openRow.status === 'reserved') {
-          return tx.enrollment.update({
-            where: { id: openRow.id },
+          // Conditional transition: concurrent approved receipts may observe
+          // the same reserved row, but only the transaction that changes it
+          // from reserved to active owns the timeline event.
+          const transition = await tx.enrollment.updateMany({
+            where: { id: openRow.id, status: 'reserved' },
             data: { status: 'active' },
           });
+          const activated = await findOpenRow(tx);
+          if (!activated) throw new Error('Enrollment disappeared during activation.');
+          if (transition.count === 1) {
+            await emitStudentRecordEvent(tx, {
+              facilityId: params.facilityId,
+              studentId: params.studentId,
+              actor: 'system',
+              kind: 'enrollment_activated',
+              enrollmentId: activated.id,
+              classBatchId: params.classBatchId,
+            });
+          }
+          return activated;
         }
+        // Already active — idempotent replay records nothing (module-2 freeze).
         return openRow;
       }
 
-      return tx.enrollment.create({
+      const created = await tx.enrollment.create({
         data: {
           facilityId: params.facilityId,
           studentId: params.studentId,
@@ -126,6 +143,15 @@ export async function activateEnrollmentForReceipt(
           status: 'active',
         },
       });
+      await emitStudentRecordEvent(tx, {
+        facilityId: params.facilityId,
+        studentId: params.studentId,
+        actor: 'system',
+        kind: 'enrollment_activated',
+        enrollmentId: created.id,
+        classBatchId: params.classBatchId,
+      });
+      return created;
     });
   } catch (error) {
     if (!isUniqueConstraintViolation(error)) throw error;

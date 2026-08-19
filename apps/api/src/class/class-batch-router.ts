@@ -12,6 +12,14 @@ import { PROGRAM_VALUES } from './program.js';
 import { resolveTeacher } from './resolve-teacher.js';
 import { assertNoRoomConflict } from './room-conflict.js';
 import { compareDateOnly, ictToUtc, isValidDateOnly, isValidTimeOfDay } from '@cmc/domain-time';
+import { listRecordEventPage } from '../record-event/store.js';
+import {
+  CLASS_RECORD_EVENT_ENTITY,
+  CLASS_RECORD_EVENT_HISTORY_SINCE,
+  emitClassRecordEvent,
+  isClassRecordEventKind,
+  labelForClassRecordEventKind,
+} from './record-event.js';
 
 const dateOnlySchema = z.string().refine(isValidDateOnly, { message: 'Expected YYYY-MM-DD.' });
 const timeOfDaySchema = z.string().refine(isValidTimeOfDay, { message: 'Expected HH:mm (24h).' });
@@ -52,6 +60,12 @@ const classBatchListInput = z.object({
 
 const classBatchGetInput = z.object({
   classBatchId: z.string().uuid(),
+});
+
+const classBatchTimelineInput = z.object({
+  classBatchId: z.string().uuid(),
+  cursor: z.string().min(1).optional(),
+  take: z.number().int().min(1).max(50).default(20),
 });
 
 // HR remediation phase 1 (R2 #C5): `teacherAppUserId` has had zero writers
@@ -214,6 +228,15 @@ export const classBatchRouter = router({
           planned,
         });
 
+        await emitClassRecordEvent(tx, {
+          facilityId,
+          classBatchId: classBatch.id,
+          actor: ctx.subject.userId,
+          kind: 'created',
+          program: course.program,
+          sessionsCreated: inserted.created,
+        });
+
         return {
           classBatch: toClassBatchDto(classBatch),
           slotsCreated: slots.length,
@@ -335,7 +358,76 @@ export const classBatchRouter = router({
           where: { id: classBatch.id },
           data: { teacherAppUserId: teacher.id, teacherId: teacher.id, updatedAt: new Date() },
         });
+
+        if (classBatch.teacherAppUserId !== teacher.id) {
+          await emitClassRecordEvent(tx, {
+            facilityId,
+            classBatchId: classBatch.id,
+            actor: ctx.subject.userId,
+            kind: 'teacher_changed',
+            teacherAppUserId: teacher.id,
+          });
+        }
         return toClassBatchDto(updated);
+      });
+    }),
+
+  /** Operational activity timeline for a class record. Parent record
+   *  authorized before reading events; entity fixed server-side; actor
+   *  identity projected to a display label at read time. */
+  timeline: requirePermission('class', 'read')
+    .input(classBatchTimelineInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const classBatch = await tx.classBatch.findFirst({
+          where: { id: input.classBatchId, facilityId },
+          select: { id: true },
+        });
+        if (!classBatch) throw notFound('ClassBatch not found.');
+
+        const eventWhere = {
+          facilityId,
+          entity: CLASS_RECORD_EVENT_ENTITY,
+          entityId: classBatch.id,
+        };
+
+        const [{ rows, nextCursor }, createdEvent] = await Promise.all([
+          listRecordEventPage(tx, eventWhere, input.cursor ?? null, input.take),
+          tx.recordEvent.findFirst({
+            where: { ...eventWhere, kind: 'created' },
+            select: { id: true },
+          }),
+        ]);
+
+        const actorUserIds = [...new Set(rows.map((r) => r.actor).filter(Boolean))];
+        const actorStaffRows = actorUserIds.length > 0
+          ? await tx.appUser.findMany({
+              where: { facilityId, userId: { in: actorUserIds } },
+              select: { userId: true, fullName: true, employeeCode: true },
+            })
+          : [];
+        const actorMap = new Map(actorStaffRows.map((s) => [s.userId, s]));
+
+        return {
+          items: rows.map((row) => {
+            const known = isClassRecordEventKind(row.kind);
+            const staff = actorMap.get(row.actor);
+            const actorLabel = staff
+              ? staff.fullName || staff.employeeCode || staff.userId
+              : 'Hệ thống';
+            return {
+              id: row.id,
+              kind: row.kind,
+              actor: actorLabel,
+              payload: known ? row.payload : null,
+              createdAt: row.createdAt,
+              label: labelForClassRecordEventKind(row.kind),
+            };
+          }),
+          nextCursor,
+          historySince: createdEvent ? null : CLASS_RECORD_EVENT_HISTORY_SINCE,
+        };
       });
     }),
 });

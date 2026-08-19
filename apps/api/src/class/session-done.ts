@@ -22,6 +22,7 @@
 // closes the gap where confirming ahead of time could game done/credit.
 
 import type { Prisma } from '@cmc/db';
+import { emitClassRecordEvent } from './record-event.js';
 
 export interface AttendanceForEvaluation {
   studentId: string;
@@ -169,7 +170,7 @@ export async function markSessionDoneIfEligible(
 ): Promise<SessionDoneResult | null> {
   const session = await tx.classSession.findUnique({
     where: { id: sessionId },
-    select: { endTime: true, status: true },
+    select: { endTime: true, status: true, facilityId: true, classBatchId: true },
   });
   if (!session || (session.status !== 'planned' && session.status !== 'confirmed')) {
     return null;
@@ -208,6 +209,16 @@ export async function markSessionDoneIfEligible(
     data: { status: 'done', doneAt: result.doneAt },
   });
   if (updated.count === 0) return null;
+
+  // Automated transition (worker sweep / KPI backfill) — the class timeline
+  // records it with the system actor, inside the same transaction.
+  await emitClassRecordEvent(tx, {
+    facilityId: session.facilityId,
+    classBatchId: session.classBatchId,
+    actor: 'system',
+    kind: 'session_completed',
+    sessionId,
+  });
 
   return result;
 }

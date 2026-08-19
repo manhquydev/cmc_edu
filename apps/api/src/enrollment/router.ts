@@ -12,6 +12,7 @@ import { withFacility } from '@cmc/db';
 import { notFound } from '../errors.js';
 import { auditChildDataAccess, getApprovedChildren } from '../guardian/approved-children.js';
 import { lmsProcedure, requireLmsParent, requirePermission, router, scoped } from '../trpc.js';
+import { emitClassRecordEvent } from '../class/record-event.js';
 
 const enrollInput = z.object({
   studentId: z.string().uuid(),
@@ -62,7 +63,7 @@ export const enrollmentRouter = router({
           throw notFound('ClassBatch not found.');
         }
 
-        return tx.enrollment.create({
+        const enrollment = await tx.enrollment.create({
           data: {
             facilityId,
             studentId: input.studentId,
@@ -70,6 +71,15 @@ export const enrollmentRouter = router({
             status: 'reserved',
           },
         });
+        await emitClassRecordEvent(tx, {
+          facilityId,
+          classBatchId: input.classBatchId,
+          actor: ctx.subject.userId,
+          kind: 'student_enrolled',
+          studentId: input.studentId,
+          enrollmentId: enrollment.id,
+        });
+        return enrollment;
       });
     }),
 

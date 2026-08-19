@@ -580,10 +580,19 @@ async function runCancelTransaction(
   // Student) otherwise — a renewal receipt never carries its own
   // `createdByReceiptId` link, since it reused an existing Student.
   let studentLifecycle: string | null = null;
-  const student = cancelled.studentId
+  let student = cancelled.studentId
     ? await tx.student.findFirst({ where: { id: cancelled.studentId, facilityId } })
     : await tx.student.findFirst({ where: { createdByReceiptId: cancelled.id, facilityId } });
   if (student) {
+    // Serialize against student.setLifecycle/enrollment.blockLms and re-read
+    // after the lock so lifecycle_changed.from reflects the actual transition.
+    await tx.$queryRaw`
+      SELECT "id" FROM "Student" WHERE "id" = ${student.id} AND "facilityId" = ${facilityId}
+      FOR UPDATE
+    `;
+    const lockedStudent = await tx.student.findUnique({ where: { id: student.id } });
+    if (!lockedStudent) throw notFound('Student not found.');
+    student = lockedStudent;
     // M9: only withdraw the enrollment when NO OTHER approved receipt still
     // covers this exact student+class (e.g. a duplicate/renewal receipt paid
     // into the same class) — cancelling one receipt must not strand a seat
@@ -601,7 +610,12 @@ async function runCancelTransaction(
       });
       if (!otherApprovedReceiptForClass) {
         const withdrawn = await tx.enrollment.updateMany({
-          where: { facilityId, studentId: student.id, classBatchId: cancelled.classBatchId },
+          where: {
+            facilityId,
+            studentId: student.id,
+            classBatchId: cancelled.classBatchId,
+            status: 'active',
+          },
           data: { status: 'withdrawn' },
         });
         // Student operational history: only record a withdrawal when an

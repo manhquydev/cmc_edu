@@ -3,7 +3,7 @@
 // since the Student rollout epoch. Uses the shared `RecordTimeline` component
 // and `trpc.student.timeline`.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { RecordTimeline, SectionBlock } from '@cmc/ui';
 import type { RecordTimelineItem } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
@@ -20,20 +20,24 @@ function toItems(page: TimelinePage): RecordTimelineItem[] {
 
 export function StudentActivitySection({ studentId }: { studentId: string }) {
   const [moreItems, setMoreItems] = useState<RecordTimelineItem[]>([]);
-  const [moreNextCursor, setMoreNextCursor] = useState<string | null>(null);
+  const [moreNextCursor, setMoreNextCursor] = useState<string | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const requestGeneration = useRef(0);
   // Reset paginated state synchronously when the student changes, so a
   // different student's first page never renders appended to stale pages.
   const [renderedStudentId, setRenderedStudentId] = useState(studentId);
   if (renderedStudentId !== studentId) {
     setRenderedStudentId(studentId);
     setMoreItems([]);
-    setMoreNextCursor(null);
+    setMoreNextCursor(undefined);
     setLoadError(null);
+    requestGeneration.current += 1;
   }
 
   const {
     data: timeline,
+    error: timelineError,
+    isError: timelineIsError,
     isFetching: timelineFetching,
   } = trpc.student.timeline.useQuery(
     { studentId },
@@ -43,21 +47,25 @@ export function StudentActivitySection({ studentId }: { studentId: string }) {
   const utils = trpc.useUtils();
 
   const loadMore = async () => {
-    const cursor = moreNextCursor ?? timeline?.nextCursor;
+    const cursor = moreNextCursor === undefined ? timeline?.nextCursor : moreNextCursor;
     if (!cursor || timelineFetching) return;
+    const generation = requestGeneration.current;
     setLoadError(null);
     try {
       const next = await utils.student.timeline.fetch({ studentId, cursor });
+      if (generation !== requestGeneration.current) return;
       const page = toItems(next);
       setMoreItems((prev) => [...prev, ...page]);
       setMoreNextCursor(next.nextCursor);
     } catch {
+      if (generation !== requestGeneration.current) return;
       setLoadError('Không tải được trang tiếp theo. Vui lòng thử lại.');
     }
   };
 
   const allItems = [...toItems(timeline ?? { items: [] }), ...moreItems];
-  const effectiveNextCursor = moreNextCursor ?? timeline?.nextCursor ?? null;
+  const effectiveNextCursor =
+    moreNextCursor === undefined ? timeline?.nextCursor ?? null : moreNextCursor;
 
   return (
     <SectionBlock
@@ -65,13 +73,17 @@ export function StudentActivitySection({ studentId }: { studentId: string }) {
       description="Ghi nhận tạo hồ sơ, liên kết phụ huynh, xếp lớp, đổi trạng thái và đặt lại mật khẩu."
     >
       {loadError && <p role="alert">{loadError}</p>}
-      <RecordTimeline
-        items={allItems}
-        nextCursor={effectiveNextCursor}
-        onLoadMore={loadMore}
-        pending={timelineFetching}
-        historySince={timeline?.historySince ? new Date(timeline.historySince) : null}
-      />
+      {timelineIsError ? (
+        <p role="alert">{timelineError?.message ?? 'Không tải được lịch sử hoạt động.'}</p>
+      ) : (
+        <RecordTimeline
+          items={allItems}
+          nextCursor={effectiveNextCursor}
+          onLoadMore={loadMore}
+          pending={timelineFetching}
+          historySince={timeline?.historySince ? new Date(timeline.historySince) : null}
+        />
+      )}
     </SectionBlock>
   );
 }

@@ -113,7 +113,10 @@ export default function StudentDetailPage() {
       setConfirmOpen(false);
       setPendingLifecycle(null);
       void utils.student.lookup.invalidate();
-      if (id) void utils.student.get.invalidate({ id });
+      if (id) {
+        void utils.student.get.invalidate({ id });
+        void utils.student.timeline.invalidate({ studentId: id });
+      }
     },
   });
 

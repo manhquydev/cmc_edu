@@ -2,10 +2,10 @@
 
 ## Status
 
-Implemented and pushed in PR #161 (`https://github.com/manhquydev/cmc_edu/pull/161`),
-head `fe8edd5`. Required `typecheck-and-test` and `ui-e2e` checks are green;
-PR remains open and unmerged. Phase 6 remains pending because modules 3–6 are
-not implemented.
+Implemented in PR #161 (`https://github.com/manhquydev/cmc_edu/pull/161`).
+CodeRabbit’s seven actionable findings were verified against current source and
+fixed locally; follow-up commit/CI is pending. Phase 6 remains pending because
+modules 3–6 are not implemented.
 
 ## Delivered
 
@@ -25,19 +25,24 @@ not implemented.
 ## Evidence
 
 - API: 136 test files, 1308 tests passed.
-- Admin: 75 test files, 712 tests passed.
+- Admin: 75 test files, 713 tests passed.
 - Workspace typecheck: 34/34 Turbo tasks passed.
 - Acceptance report: 43 built, 0 partial, 0 missing, 9 documented gaps, 0 unclassified.
 - GitNexus detect_changes: 26 changed symbols, 5 affected processes, medium risk.
-- Targeted QA: Student 17/17; changed producer suites 86/86; Admin detail 8/8.
+- Targeted QA: Student 17/17; changed producer suites 86/86; Admin detail 9/9.
 
 ## Review
 
-- Kongming identified and drove fixes for Guardian/provisioning races, activation
-  races, lifecycle races, and false withdrawal events.
-- Fallback reviewer findings were fixed and reverified.
-- The dedicated code-reviewer adapter failed twice before inspection due an external
-  Cloud Code Assist schema error; fallback reviewer completed the equivalent review.
+- CodeRabbit produced seven actionable comments. All seven were confirmed:
+  pagination sentinel, stale pagination responses, query errors, lifecycle
+  invalidation, active-only withdrawal, receipt/Guardian transaction scope,
+  and GitNexus evidence accuracy.
+- Fixes add a pagination generation guard, query-error rendering, timeline
+  invalidation, active-only finance updates, a locked Student reread, an
+  atomic receipt guard + Guardian create, and expanded impact evidence.
+- The dedicated code-reviewer adapter failed twice before inspection due an
+  external Cloud Code Assist schema error; fallback reviewer and Kongming
+  completed the equivalent review cycle.
 
 ## Residual risk
 

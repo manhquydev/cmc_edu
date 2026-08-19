@@ -1,8 +1,27 @@
 # Phase 6 · Module 2 (Student) — frozen event map and PII ceiling
 
-Frozen 2026-08-19, before edits. GitNexus impact on `studentRouter`,
-`enrollmentRouter`, `activateEnrollmentForReceipt`, `StudentDetailPage`: all
-LOW (0 upstream callers broken; detail page has 1 route consumer).
+Frozen 2026-08-19, before edits. Pre-edit GitNexus impact evidence for the
+runtime symbols was:
+
+| Symbol | Direct upstream | Affected processes | Risk |
+|---|---:|---:|---|
+| `studentRouter` | 0 | 0 | LOW |
+| `enrollmentRouter` | 0 | 0 | LOW |
+| `activateEnrollmentForReceipt` | 0 | 0 | LOW |
+| `StudentDetailPage` page function | 0 | 0 | LOW |
+| `runCancelTransaction` | 1 (`finance/router.ts`) | 0 | LOW |
+| `provisionFromReceipt` | 1 (`finance/router.ts`) | 0 | LOW |
+| `guardianRouter` | 0 | 0 | LOW |
+| `reconcileCancelledButProvisioned` | 0 | 0 | LOW |
+
+The impact queries were exact symbol matches. Test helpers, test-only symbols,
+the manifest constant, and plan/report sections were not treated as runtime
+callers. Post-edit `gitnexus/detect_changes(scope=all)` is the broader
+evidence: 26 changed symbols across 12 files, 5 affected processes, aggregate
+risk MEDIUM. Affected processes were `DrainOnce → ReceiptNoLongerApprovedError`,
+`DrainOnce → IsUniqueConstraintViolation`, `StudentDetailPage → PathHasUnsafeChars`,
+`StudentDetailPage → RunGrant`, and `DrainOnce → MaybeCreateFlag`. The aggregate
+result is intentionally not substituted for per-symbol impact evidence.
 
 ## Entity and read contract
 

@@ -274,10 +274,15 @@ describe('Student record events & timeline (Phase 6 module 2)', () => {
     expect(events[4]?.payload).toEqual({ from: 'active', to: 'withdrawn' });
   });
 
-  it('finance.receiptCancel(void) — does not emit enrollment_withdrawn for a missing enrollment', async () => {
-    const receipt = await seedApprovedReceipt(PHONE_A, 'No Enrollment Student');
+  it('finance.receiptCancel(void) — does not emit enrollment_withdrawn for a terminal enrollment', async () => {
+    const receipt = await seedApprovedReceipt(PHONE_A, 'Terminal Enrollment Student');
     await testDbBypass((tx) =>
       tx.receipt.update({ where: { id: receipt.id }, data: { studentId } }),
+    );
+    await testDbBypass((tx) =>
+      tx.enrollment.create({
+        data: { facilityId: facilityA.id, studentId, classBatchId: classBatch.id, status: 'withdrawn' },
+      }),
     );
     const gdkd = appRouter.createCaller(
       buildStaffContext({ facilityId: facilityA.id, userId: 'student-timeline-gdkd', roles: ['giam_doc_kinh_doanh'] }),

@@ -427,16 +427,15 @@ export async function provisionFromReceipt(
   const parentAccount = await findOrCreateParentAccount(db, receipt.parentPhone, receipt.parentEmail);
   const student = await findOrCreateStudent(db, receipt, parentAccount.id);
   // Student RecordEvent must share the facility-scoped transaction because
-  // RecordEvent is RLS-protected. A unique race aborts this transaction; the
-  // recovery refetch therefore runs on the base client, not the aborted tx.
-  await withFacility(db, receipt.facilityId, (tx) =>
-    assertReceiptStillApproved(tx, receipt.id, receipt.facilityId),
-  );
+  // RecordEvent is RLS-protected. The receipt guard and Guardian create share
+  // this transaction so cancellation cannot pass between them. A unique race
+  // aborts the transaction; recovery refetches on the base client.
   let guardian;
   try {
-    guardian = await withFacility(db, receipt.facilityId, (tx) =>
-      findOrCreateGuardian(tx, receipt.facilityId, parentAccount.id, student.id, false),
-    );
+    guardian = await withFacility(db, receipt.facilityId, async (tx) => {
+      await assertReceiptStillApproved(tx, receipt.id, receipt.facilityId);
+      return findOrCreateGuardian(tx, receipt.facilityId, parentAccount.id, student.id, false);
+    });
   } catch (error) {
     if (!isUniqueConstraintViolation(error)) throw error;
     guardian = await db.guardian.findUnique({

@@ -63,6 +63,21 @@ describe('parentMeeting lifecycle (P4)', () => {
     expect(scheduledOnly.items.some((x) => x.id === done.id)).toBe(false);
   });
 
+  it('get and timeline expose the facility-scoped detail contract', async () => {
+    const meeting = await manager.parentMeeting.schedule({ studentId, scheduledAt: FUTURE });
+    await manager.parentMeeting.complete({ meetingId: meeting.id, result: 'Completed.' });
+
+    const detail = await manager.parentMeeting.get({ meetingId: meeting.id });
+    expect(detail.studentName).toBe('Meeting Student');
+    expect(detail.status).toBe('done');
+
+    const page = await manager.parentMeeting.timeline({ meetingId: meeting.id, take: 1 });
+    expect(page.items).toHaveLength(1);
+    expect(page.nextCursor).not.toBeNull();
+    expect(page.historySince).toBeNull();
+    expect(page.items[0]?.label).toBe('Đã hoàn thành cuộc họp');
+  });
+
   it('list forbids a role without parentMeeting.manage', async () => {
     const teacher = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'teacher-meeting-1', roles: ['giao_vien'] }),

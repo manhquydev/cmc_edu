@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ComponentProps } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Badge,
   Button,
@@ -12,6 +13,7 @@ import {
   PageHeader,
 } from '@cmc/ui';
 import type { FilterDef, TableColumn } from '@cmc/ui';
+import { parentMeetingPath } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { useParentMeetingActions } from './use-parent-meeting-actions.js';
 import { ScheduleParentMeetingDialog } from './schedule-parent-meeting-dialog.js';
@@ -81,6 +83,7 @@ interface MeetingRow {
 }
 
 export default function PostSaleMeetingPage() {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<Record<string, string>>({ status: '' });
   const [page, setPage] = useState(1);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -187,6 +190,7 @@ export default function PostSaleMeetingPage() {
           loading={isLoading}
           error={error?.message}
           empty="Chưa có lịch họp phụ huynh nào"
+          onRowClick={(row) => void navigate(parentMeetingPath(row.id))}
         />
       </ListPage>
 

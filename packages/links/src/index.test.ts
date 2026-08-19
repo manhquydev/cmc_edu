@@ -21,6 +21,8 @@ import {
   classSectionPath,
   studentSectionPath,
   receiptSectionPath,
+  parentMeetingPath,
+  parentMeetingSectionPath,
 } from './index.js';
 
 const UUID = '550e8400-e29b-41d4-a716-446655440000';
@@ -90,6 +92,12 @@ describe('durable entity section builders (Phase 5)', () => {
     expect(receiptSectionPath(UUID, 'overview')).toBe(`/finance/${UUID}/overview`);
     expect(receiptSectionPath(UUID, 'order-lines')).toBe(`/finance/${UUID}/order-lines`);
     expect(receiptSectionPath(UUID, 'activity')).toBe(`/finance/${UUID}/activity`);
+  });
+
+  it('builds ParentMeeting detail sections under CRM', () => {
+    expect(parentMeetingPath(UUID)).toBe(`/crm/post-sale-meeting/${UUID}`);
+    expect(parentMeetingSectionPath(UUID, 'overview')).toBe(`/crm/post-sale-meeting/${UUID}/overview`);
+    expect(parentMeetingSectionPath(UUID, 'activity')).toBe(`/crm/post-sale-meeting/${UUID}/activity`);
   });
 });
 

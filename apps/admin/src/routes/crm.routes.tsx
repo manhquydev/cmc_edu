@@ -11,6 +11,7 @@ const CrmReportPage = lazy(() => import('../pages/crm/report.js'));
 // phase-06 (HR remediation phase 5, 2026-07-12) — no backend yet, see the
 // page files' own header comments.
 const PostSaleMeetingPage = lazy(() => import('../pages/crm/post-sale-meeting.js'));
+const ParentMeetingDetailPage = lazy(() => import('../pages/crm/parent-meeting-detail.js'));
 const AfterSalePage = lazy(() => import('../pages/crm/aftersale.js'));
 const AfterSaleDetailPage = lazy(() => import('../pages/crm/aftersale-detail.js'));
 
@@ -89,6 +90,22 @@ export const crmRoutes: RouteObject[] = [
     element: (
       <Suspense fallback={<Fallback />}>
         <PostSaleMeetingPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'post-sale-meeting/:meetingId/:section?',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <PermissionGate
+          module="parentMeeting"
+          action="manage"
+          title="Chi tiết cuộc họp phụ huynh"
+          breadcrumbs={[{ label: 'CRM' }, { label: 'Họp sau bán' }, { label: 'Chi tiết' }]}
+          requirementLabel="quản lý họp phụ huynh (parentMeeting.manage)"
+        >
+          <ParentMeetingDetailPage />
+        </PermissionGate>
       </Suspense>
     ),
   },

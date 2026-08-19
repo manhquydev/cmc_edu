@@ -197,3 +197,12 @@ export function studentSectionPath(id: string, section: 'profile' | 'enrollments
 export function receiptSectionPath(id: string, section: 'overview' | 'order-lines' | 'activity'): string {
   return `/finance/${id}/${section}`;
 }
+
+/** ParentMeeting detail default section. */
+export function parentMeetingPath(id: string): string {
+  return `/crm/post-sale-meeting/${id}`;
+}
+
+export function parentMeetingSectionPath(id: string, section: 'overview' | 'activity'): string {
+  return `/crm/post-sale-meeting/${id}/${section}`;
+}

@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = process.cwd();
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ROUTE_FILES = {
   'finance.routes.tsx': '/finance',
   'crm.routes.tsx': '/crm',

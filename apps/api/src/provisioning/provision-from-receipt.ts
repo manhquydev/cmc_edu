@@ -37,6 +37,7 @@ import {
 } from '../enrollment/activate-enrollment.js';
 import { hashPassword } from '../lms-auth/password-hash.js';
 import { emitStudentRecordEvent } from '../student/record-event.js';
+import { emitParentRecordEvent } from '../parentAccount/record-event.js';
 
 /**
  * C1 per-step guard (phase-01 cancel-provisioning race): re-reads the Receipt's
@@ -380,6 +381,14 @@ async function findOrCreateGuardian(
       actor: 'system',
       kind: 'guardian_linked',
       parentAccountId,
+      relation: 'guardian',
+    });
+    await emitParentRecordEvent(db, {
+      facilityId,
+      parentAccountId,
+      actor: 'system',
+      kind: 'child_linked',
+      studentId,
       relation: 'guardian',
     });
     return guardian;

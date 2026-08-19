@@ -63,7 +63,10 @@ describe('parentAccount.setActive + LMS session invalidation', () => {
     });
     expect(deactivated.isActive).toBe(false);
     expect(deactivated.tokenVersion).toBe(1);
-
+    const event = await testDb().recordEvent.findFirst({
+      where: { entity: 'ParentAccount', entityId: parent.id, kind: 'active_changed' },
+    });
+    expect(event?.payload).toEqual({ isActive: false });
     await expect(
       lms.sessionEvidence.listForChild({ studentId: enrollment.studentId }),
     ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });

@@ -127,6 +127,8 @@ export const PERMISSIONS: Record<string, readonly ActiveRole[]> = {
   'attendance.mark': ['giao_vien', 'giam_doc_dao_tao'],
   'exercise.manage': ['giam_doc_dao_tao'],
   'exercise.view': ['giao_vien', 'giam_doc_dao_tao'],
+  // Parent directory/detail read access; writes keep narrower rosters.
+  'parentAccount.read': ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'],
   // Staff email backfill — GĐKD + sale (the roles that capture email at enrollment).
   'parentAccount.updateEmail': ['giam_doc_kinh_doanh', 'sale'],
   /** Soft-disable parent LMS login + bump tokenVersion (teaching spine P4). */

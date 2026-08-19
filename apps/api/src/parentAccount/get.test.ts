@@ -15,6 +15,7 @@ describe('parentAccount.get', () => {
   let facility: { id: string };
   let otherFacility: { id: string };
   let sale: ReturnType<(typeof appRouter)['createCaller']>;
+  let director: ReturnType<(typeof appRouter)['createCaller']>;
   let teacher: ReturnType<(typeof appRouter)['createCaller']>;
   const phonesToClean: string[] = [];
 
@@ -23,6 +24,13 @@ describe('parentAccount.get', () => {
     otherFacility = await createTestFacility('ParentAccount Get Other');
     sale = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'sale-pa-get-1', roles: ['sale'] }),
+    );
+    director = appRouter.createCaller(
+      buildStaffContext({
+        facilityId: facility.id,
+        userId: 'director-pa-get-1',
+        roles: ['giam_doc_dao_tao'],
+      }),
     );
     teacher = appRouter.createCaller(
       buildStaffContext({
@@ -69,6 +77,46 @@ describe('parentAccount.get', () => {
     expect(row.linkedChildrenCount).toBe(1);
     expect(row.children).toHaveLength(1);
     expect(row.children[0]!.studentName).toBe('Get Test Student');
+    const directorRow = await director.parentAccount.get({ parentAccountId: parent.id });
+    expect(directorRow.id).toBe(parent.id);
+  });
+
+  it('returns facility-scoped operational timeline with cursor metadata', async () => {
+    const phone = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
+    const parent = await seedParent(facility.id, phone);
+    const student = await testDbBypass((tx) =>
+      tx.student.findFirstOrThrow({ where: { facilityId: facility.id, fullName: 'Get Test Student' } }),
+    );
+    await testDbBypass((tx) =>
+      tx.recordEvent.createMany({
+        data: [
+          {
+            facilityId: facility.id,
+            entity: 'ParentAccount',
+            entityId: parent.id,
+            kind: 'child_linked',
+            actor: 'system',
+            payload: { studentId: student.id, relation: 'guardian' },
+            createdAt: new Date('2026-08-19T00:00:00.000Z'),
+          },
+          {
+            facilityId: facility.id,
+            entity: 'ParentAccount',
+            entityId: parent.id,
+            kind: 'active_changed',
+            actor: 'system',
+            payload: { isActive: false },
+            createdAt: new Date('2026-08-20T00:00:00.000Z'),
+          },
+        ],
+      }),
+    );
+
+    const page = await sale.parentAccount.timeline({ parentAccountId: parent.id, take: 1 });
+    expect(page.items).toHaveLength(1);
+    expect(page.nextCursor).not.toBeNull();
+    expect(page.historySince).toBeNull();
+    expect(['Đã liên kết con', 'Đã đổi trạng thái LMS']).toContain(page.items[0]!.label);
   });
 
   it('unknown / other-facility parent → NOT_FOUND', async () => {

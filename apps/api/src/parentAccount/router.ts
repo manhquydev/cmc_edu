@@ -13,7 +13,15 @@ import { z } from 'zod';
 import type { Prisma } from '@cmc/db';
 import { withFacility } from '@cmc/db';
 import { conflict, notFound } from '../errors.js';
+import { listRecordEventPage } from '../record-event/store.js';
 import { requirePermission, router, scoped } from '../trpc.js';
+import {
+  emitParentRecordEvent,
+  isParentRecordEventKind,
+  labelForParentRecordEventKind,
+  PARENT_RECORD_EVENT_ENTITY,
+  PARENT_RECORD_EVENT_HISTORY_SINCE,
+} from './record-event.js';
 
 const getInput = z.object({
   parentAccountId: z.string().uuid(),
@@ -46,7 +54,7 @@ export const parentAccountRouter = router({
   /**
    * Cold-start form /admin/parents/:id — facility-scoped via Guardian link.
    */
-  get: requirePermission('parentAccount', 'updateEmail')
+  get: requirePermission('parentAccount', 'read')
     .input(getInput)
     .query(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
@@ -113,7 +121,7 @@ export const parentAccountRouter = router({
    * call with an explicit facilityId filter, same as `updateEmail` below —
    * never an unscoped `ctx.db.parentAccount.findMany()`.
    */
-  list: requirePermission('parentAccount', 'updateEmail')
+  list: requirePermission('parentAccount', 'read')
     .input(listInput)
     .query(async ({ ctx, input }): Promise<{
       items: ParentAccountListItemDto[];
@@ -164,6 +172,61 @@ export const parentAccountRouter = router({
       return { items, total, page: input.page, pageSize: input.pageSize };
     }),
 
+  timeline: requirePermission('parentAccount', 'read')
+    .input(z.object({
+      parentAccountId: z.string().uuid(),
+      cursor: z.string().min(1).optional(),
+      take: z.number().int().min(1).max(50).default(20),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const guardian = await tx.guardian.findFirst({
+          where: { parentAccountId: input.parentAccountId, facilityId },
+          select: { id: true },
+        });
+        if (!guardian) throw notFound('ParentAccount not found in this facility.');
+
+        const eventWhere = {
+          facilityId,
+          entity: PARENT_RECORD_EVENT_ENTITY,
+          entityId: input.parentAccountId,
+        };
+        const [{ rows, nextCursor }, childLinkedEvent] = await Promise.all([
+          listRecordEventPage(tx, eventWhere, input.cursor ?? null, input.take),
+          tx.recordEvent.findFirst({
+            where: { ...eventWhere, kind: 'child_linked' },
+            select: { id: true },
+          }),
+        ]);
+
+        const actorUserIds = [...new Set(rows.map((row) => row.actor).filter(Boolean))];
+        const actorStaffRows = actorUserIds.length
+          ? await tx.appUser.findMany({
+              where: { facilityId, userId: { in: actorUserIds } },
+              select: { userId: true, fullName: true, employeeCode: true },
+            })
+          : [];
+        const actorMap = new Map(actorStaffRows.map((staff) => [staff.userId, staff]));
+
+        return {
+          items: rows.map((row) => {
+            const staff = actorMap.get(row.actor);
+            return {
+              id: row.id,
+              kind: row.kind,
+              actor: staff ? staff.fullName || staff.employeeCode || staff.userId : 'Hệ thống',
+              payload: isParentRecordEventKind(row.kind) ? row.payload : null,
+              label: labelForParentRecordEventKind(row.kind),
+              createdAt: row.createdAt,
+            };
+          }),
+          nextCursor,
+          historySince: childLinkedEvent ? null : PARENT_RECORD_EVENT_HISTORY_SINCE,
+        };
+      });
+    }),
+
   /**
    * Staff updates (or sets for the first time) the email on a ParentAccount.
    * Facility-scoped via the Guardian link: the parent must have at least one
@@ -179,40 +242,55 @@ export const parentAccountRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const guardian = await tx.guardian.findFirst({
+          where: { parentAccountId: input.parentAccountId, facilityId },
+          select: { id: true },
+        });
+        if (!guardian) throw notFound('ParentAccount not found in this facility.');
 
-      // Facility scope: caller must have at least one Guardian link to this parent.
-      const guardian = await ctx.db.guardian.findFirst({
-        where: { parentAccountId: input.parentAccountId, facilityId },
-        select: { id: true },
-      });
-      if (!guardian) throw notFound('ParentAccount not found in this facility.');
+        const parent = await tx.parentAccount.findUnique({
+          where: { id: input.parentAccountId },
+          select: { email: true },
+        });
+        if (!parent) throw notFound('ParentAccount not found.');
+        if (parent.email === input.email) {
+          return tx.parentAccount.findUniqueOrThrow({
+            where: { id: input.parentAccountId },
+            select: { id: true, phone: true, email: true },
+          });
+        }
 
-      // Check for email uniqueness before writing (Prisma @unique on ParentAccount.email).
-      const existing = await ctx.db.parentAccount.findUnique({
-        where: { email: input.email },
-        select: { id: true },
-      });
-      if (existing && existing.id !== input.parentAccountId) {
-        throw conflict('Email already used by another parent account.');
-      }
+        const existing = await tx.parentAccount.findUnique({
+          where: { email: input.email },
+          select: { id: true },
+        });
+        if (existing && existing.id !== input.parentAccountId) {
+          throw conflict('Email already used by another parent account.');
+        }
 
-      const updated = await ctx.db.parentAccount.update({
-        where: { id: input.parentAccountId },
-        data: { email: input.email },
-        select: { id: true, phone: true, email: true },
-      });
-
-      await ctx.db.auditLog.create({
-        data: {
+        const updated = await tx.parentAccount.update({
+          where: { id: input.parentAccountId },
+          data: { email: input.email },
+          select: { id: true, phone: true, email: true },
+        });
+        await emitParentRecordEvent(tx, {
+          facilityId,
+          parentAccountId: input.parentAccountId,
           actor: ctx.subject!.userId,
-          action: 'parentAccount.updateEmail',
-          entity: 'ParentAccount',
-          entityId: input.parentAccountId,
-          data: { facilityId },
-        },
+          kind: 'email_updated',
+        });
+        await tx.auditLog.create({
+          data: {
+            actor: ctx.subject!.userId,
+            action: 'parentAccount.updateEmail',
+            entity: 'ParentAccount',
+            entityId: input.parentAccountId,
+            data: { facilityId },
+          },
+        });
+        return updated;
       });
-
-      return updated;
     }),
 
   /**
@@ -224,35 +302,53 @@ export const parentAccountRouter = router({
     .input(setActiveInput)
     .mutation(async ({ ctx, input }) => {
       const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const guardian = await tx.guardian.findFirst({
+          where: { parentAccountId: input.parentAccountId, facilityId },
+          select: { id: true },
+        });
+        if (!guardian) throw notFound('ParentAccount not found in this facility.');
 
-      const guardian = await ctx.db.guardian.findFirst({
-        where: { parentAccountId: input.parentAccountId, facilityId },
-        select: { id: true },
-      });
-      if (!guardian) throw notFound('ParentAccount not found in this facility.');
+        const parent = await tx.parentAccount.findUnique({
+          where: { id: input.parentAccountId },
+          select: { isActive: true },
+        });
+        if (!parent) throw notFound('ParentAccount not found.');
+        if (parent.isActive === input.isActive) {
+          return tx.parentAccount.findUniqueOrThrow({
+            where: { id: input.parentAccountId },
+            select: { id: true, isActive: true, tokenVersion: true },
+          });
+        }
 
-      const updated = await ctx.db.parentAccount.update({
-        where: { id: input.parentAccountId },
-        data: input.isActive
-          ? { isActive: true }
-          : { isActive: false, tokenVersion: { increment: 1 } },
-        select: { id: true, isActive: true, tokenVersion: true },
-      });
-
-      await ctx.db.auditLog.create({
-        data: {
+        const updated = await tx.parentAccount.update({
+          where: { id: input.parentAccountId },
+          data: input.isActive
+            ? { isActive: true }
+            : { isActive: false, tokenVersion: { increment: 1 } },
+          select: { id: true, isActive: true, tokenVersion: true },
+        });
+        await emitParentRecordEvent(tx, {
+          facilityId,
+          parentAccountId: input.parentAccountId,
           actor: ctx.subject!.userId,
-          action: 'parentAccount.setActive',
-          entity: 'ParentAccount',
-          entityId: input.parentAccountId,
+          kind: 'active_changed',
+          isActive: updated.isActive,
+        });
+        await tx.auditLog.create({
           data: {
-            facilityId,
-            isActive: updated.isActive,
-            tokenVersion: updated.tokenVersion,
+            actor: ctx.subject!.userId,
+            action: 'parentAccount.setActive',
+            entity: 'ParentAccount',
+            entityId: input.parentAccountId,
+            data: {
+              facilityId,
+              isActive: updated.isActive,
+              tokenVersion: updated.tokenVersion,
+            },
           },
-        },
+        });
+        return updated;
       });
-
-      return updated;
     }),
 });

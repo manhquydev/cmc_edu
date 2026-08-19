@@ -71,9 +71,11 @@ describe('parentAccount.updateEmail (test backfill)', () => {
     });
     expect(audit).not.toBeNull();
 
-    const event = await testDb().recordEvent.findFirst({
-      where: { entity: 'ParentAccount', entityId: parent.id, kind: 'email_updated' },
-    });
+    const event = await testDbBypass((tx) =>
+      tx.recordEvent.findFirst({
+        where: { entity: 'ParentAccount', entityId: parent.id, kind: 'email_updated' },
+      }),
+    );
     expect(event).not.toBeNull();
     expect(event?.payload).toBeNull();
   });

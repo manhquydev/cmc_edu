@@ -874,8 +874,8 @@ export const flows: FlowEntry[] = [
       // ~~GAP: page là EmptyState chưa gọi API~~ — SAI TỪ 2026-07-23: màn đã được
       // wire (commit 5408ad2), post-sale-meeting.tsx gọi parentMeeting.list ở :65 và
       // dùng đủ schedule/complete/cancel. Chú thích cũ mô tả trạng thái đã hết hạn.
-      trpc: ['parentMeeting.list', 'parentMeeting.schedule', 'parentMeeting.complete', 'parentMeeting.cancel'],
-      uiRoutes: ['/crm/post-sale-meeting'],
+      trpc: ['parentMeeting.list', 'parentMeeting.get', 'parentMeeting.timeline', 'parentMeeting.schedule', 'parentMeeting.complete', 'parentMeeting.cancel'],
+      uiRoutes: ['/crm/post-sale-meeting', '/crm/post-sale-meeting/:meetingId', '/crm/post-sale-meeting/:meetingId/:section'],
       models: ['ParentMeeting'],
     },
     // Journey drives the whole lifecycle on a GĐKD: schedule a meeting for a

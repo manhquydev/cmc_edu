@@ -14,7 +14,7 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // fire after the ConfirmDialog confirm click).
 const { CLASS, TEACHERS, SESSIONS, UNITS } = vi.hoisted(() => ({
   CLASS: {
-    id: 'cb-1',
+    id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
     code: 'CB001',
     program: 'IELTS',
     startDate: '2026-01-01T00:00:00.000Z',
@@ -42,6 +42,7 @@ const { CLASS, TEACHERS, SESSIONS, UNITS } = vi.hoisted(() => ({
     ],
   },
 }));
+const currentRoles = vi.hoisted(() => ({ value: ['giam_doc_dao_tao'] as string[] }));
 
 const assignTeacherMutate = vi.fn();
 const assignUnitMutate = vi.fn();
@@ -49,11 +50,15 @@ const cancelMutate = vi.fn();
 const pickListSpy = vi.fn();
 const navigateMock = vi.fn();
 
+// Roster rows come from the server contract (Phase 5 cross-record link test).
+const rosterState = vi.hoisted(() => ({
+  rows: [] as Array<{ enrollmentId: string; studentId: string; fullName: string; status: string }>,
+}));
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
     ...actual,
-    useParams: () => ({ id: 'cb-1' }),
     useNavigate: () => navigateMock,
   };
 });
@@ -62,14 +67,15 @@ vi.mock('../../lib/trpc.js', async () => {
   const { buildTrpcMock, queryResult, mutationResult } = await import('../../test/mock-trpc.js');
   return {
     trpc: buildTrpcMock({
-      'session.me.useQuery': queryResult({
-        userId: 'u1',
-        roles: ['giam_doc_dao_tao'],
-        facilityId: 'f1',
-        config: { approvalSecondEyeThreshold: 20_000_000 },
-      }),
+      'session.me.useQuery': () =>
+        queryResult({
+          userId: 'u1',
+          roles: currentRoles.value,
+          facilityId: 'f1',
+          config: { approvalSecondEyeThreshold: 20_000_000 },
+        }),
       'classBatch.get.useQuery': queryResult(CLASS),
-      'classBatch.listStudents.useQuery': queryResult([]),
+      'classBatch.listStudents.useQuery': queryResult(rosterState.rows),
       'classSession.list.useQuery': queryResult(SESSIONS),
       'curriculumUnit.list.useQuery': queryResult(UNITS),
       'user.pickList.useQuery': (input: unknown) => {
@@ -92,32 +98,40 @@ vi.mock('../../lib/trpc.js', async () => {
 
 import ClassDetailPage from './class-detail.js';
 
+function renderAt(route: string) {
+  return renderWithProviders(<ClassDetailPage />, {
+    route,
+    routes: [{ path: '/admin/classes/:id/:section', element: <ClassDetailPage /> }],
+  });
+}
+
 describe('ClassDetailPage', () => {
   beforeEach(() => {
     assignTeacherMutate.mockClear();
     assignUnitMutate.mockClear();
     cancelMutate.mockClear();
     navigateMock.mockClear();
+    currentRoles.value = ['giam_doc_dao_tao'];
   });
 
   it('links Giám đốc đào tạo to the class exercise-sequence work surface', () => {
-    renderWithProviders(<ClassDetailPage />);
+    renderAt('/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/overview');
     fireEvent.click(screen.getByRole('button', { name: 'Xếp dãy bài' }));
-    expect(navigateMock).toHaveBeenCalledWith('/teaching/classes/cb-1/exercise-sequence');
+    expect(navigateMock).toHaveBeenCalledWith('/teaching/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/exercise-sequence');
   });
 
   // The teacher-only rule now lives on the server (`user.pickList({role})`,
   // matched by the same assertion inside `classBatch.assignTeacher`), so this
   // asserts the picker asks for teachers rather than re-filtering the answer.
   it('asks for teachers only when populating the picker', async () => {
-    renderWithProviders(<ClassDetailPage />);
+    renderAt('/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/overview');
     expect(pickListSpy).toHaveBeenCalledWith({ role: 'giao_vien' });
     fireEvent.click(screen.getByRole('combobox', { name: 'Giáo viên' }));
     expect(await screen.findByRole('option', { name: 'Trần Thị B' })).toBeInTheDocument();
   });
 
   it('renders Console form chrome without changing assignTeacher contract', () => {
-    renderWithProviders(<ClassDetailPage />);
+    renderAt('/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/overview');
     expect(screen.getByText('Thông tin lớp')).toBeInTheDocument();
     expect(screen.getByText('Phân công giáo viên')).toBeInTheDocument();
     // Statusbar labels for active batch
@@ -125,23 +139,21 @@ describe('ClassDetailPage', () => {
   });
 
   it('calls classBatch.assignTeacher.mutate({classBatchId, teacherAppUserId}) when a teacher is picked', async () => {
-    renderWithProviders(<ClassDetailPage />);
+    renderAt('/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/overview');
     fireEvent.click(screen.getByRole('combobox', { name: 'Giáo viên' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Trần Thị B' }));
-    expect(assignTeacherMutate).toHaveBeenCalledWith({ classBatchId: 'cb-1', teacherAppUserId: 't-1' });
+    expect(assignTeacherMutate).toHaveBeenCalledWith({ classBatchId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', teacherAppUserId: 't-1' });
   });
 
   it('shows a done badge and hides the Huỷ button for a done session', () => {
-    renderWithProviders(<ClassDetailPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
+    renderAt('/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/sessions');
     const doneRow = screen.getByText(/5\/1\/2026/).closest('tr')!;
     expect(within(doneRow).getByText('done')).toBeInTheDocument();
     expect(within(doneRow).queryByRole('button', { name: 'Huỷ' })).toBeNull();
   });
 
   it('still shows the Huỷ button for a non-done, non-cancelled session', () => {
-    renderWithProviders(<ClassDetailPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
+    renderAt('/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/sessions');
     const plannedRow = screen.getByText(/6\/1\/2026/).closest('tr')!;
     expect(within(plannedRow).getByRole('button', { name: 'Huỷ' })).toBeInTheDocument();
   });
@@ -151,8 +163,7 @@ describe('ClassDetailPage', () => {
   // exercise/open-tier.ts's `curriculumUnitId not null` filter is always
   // empty and students can never open an exercise.
   it('calls classSession.assignUnit.mutate({sessionId, curriculumUnitId}) when a unit is picked for a session', async () => {
-    renderWithProviders(<ClassDetailPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
+    renderAt('/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/sessions');
     const plannedRow = screen.getByText(/6\/1\/2026/).closest('tr')!;
     // The Selector trigger is a "button" (not "combobox") — `hasSearch` moves
     // the combobox role onto the search input that only exists once opened.
@@ -162,8 +173,7 @@ describe('ClassDetailPage', () => {
   });
 
   it('does not offer a unit picker for a done session (curriculumUnitId is locked server-side)', () => {
-    renderWithProviders(<ClassDetailPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
+    renderAt('/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/sessions');
     const doneRow = screen.getByText(/5\/1\/2026/).closest('tr')!;
     // A disabled Selector trigger drops the "combobox" role (it can no
     // longer act as one), so the accessible query targets "button" here.
@@ -174,8 +184,7 @@ describe('ClassDetailPage', () => {
   // from the FinalGrade denominator) — the mutate call must only fire after
   // the ConfirmDialog's own confirm click, never straight from the row button.
   it('asks for confirmation before cancelling a session, and only calls classSession.cancel.mutate after confirming', () => {
-    renderWithProviders(<ClassDetailPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
+    renderAt('/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/sessions');
     const plannedRow = screen.getByText(/6\/1\/2026/).closest('tr')!;
     fireEvent.click(within(plannedRow).getByRole('button', { name: 'Huỷ' }));
     expect(cancelMutate).not.toHaveBeenCalled();
@@ -186,12 +195,46 @@ describe('ClassDetailPage', () => {
   });
 
   it('cancelling the ConfirmDialog does not call classSession.cancel.mutate', () => {
-    renderWithProviders(<ClassDetailPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Buổi học' }));
+    renderAt('/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/sessions');
     const plannedRow = screen.getByText(/6\/1\/2026/).closest('tr')!;
     fireEvent.click(within(plannedRow).getByRole('button', { name: 'Huỷ' }));
     const dialog = screen.getByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
     expect(cancelMutate).not.toHaveBeenCalled();
+  });
+
+  it('hides class write controls for a class.read-only role', () => {
+    currentRoles.value = ['sale'];
+    renderAt('/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/overview');
+
+    expect(screen.queryByText('Phân công giáo viên')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Xếp dãy bài' })).not.toBeInTheDocument();
+  });
+
+  it('hides schedule mutations and disables unit assignment without schedule.generate', () => {
+    currentRoles.value = ['sale'];
+    renderAt('/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/sessions');
+
+    const plannedRow = screen.getByText(/6\/1\/2026/).closest('tr')!;
+    expect(within(plannedRow).getByRole('button', { name: 'Đơn vị học' })).toBeDisabled();
+    expect(within(plannedRow).queryByRole('button', { name: 'Xác nhận' })).toBeNull();
+    expect(within(plannedRow).queryByRole('button', { name: 'Huỷ' })).toBeNull();
+  });
+
+  it('links roster students to the canonical profile section with return context', () => {
+    rosterState.rows.push({
+      enrollmentId: 'e-1',
+      studentId: '11111111-2222-4333-8444-555555555555',
+      fullName: 'Roster Kid',
+      status: 'active',
+    });
+    renderWithProviders(<ClassDetailPage />, {
+      route: '/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/students',
+      routes: [{ path: '/admin/classes/:id/:section', element: <ClassDetailPage /> }],
+    });
+
+    const link = screen.getByText('Roster Kid').closest('a');
+    expect(link).not.toBeNull();
+    expect(link).toHaveAttribute('href', '/admin/students/11111111-2222-4333-8444-555555555555/profile');
   });
 });

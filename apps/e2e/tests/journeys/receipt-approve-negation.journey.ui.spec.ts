@@ -108,13 +108,16 @@ test.describe('P1-03 journey — duyệt phiếu kích hoạt học viên, sale 
     await menuNav(approverPage, 'Tài chính & Điều hành', 'Phiếu thu', { role: 'giam_doc_kinh_doanh' });
     const row = await findInList(approverPage, (text) => text.includes(studentName));
     await row.click();
-    await expect(approverPage).toHaveURL(/\/finance\/[0-9a-f-]{36}$/);
-    await expect(approverPage.getByRole('heading', { name: /^Phiếu thu /, level: 4 })).toBeVisible();
-    // The receipt id is the last path segment — the approver's role holds
-    // `finance.receiptGet`, so this is the first (and only) place either role
-    // in this test observes the real UUID.
+    // Base detail redirects (replace) to the /overview section — wait for the
+    // durable section URL; the id is the path segment before the section.
+    await expect(approverPage).toHaveURL(/\/finance\/[0-9a-f-]{36}\/overview/);
+    // Detail identity is the EntityHeader h1 (receipt code) — the list's
+    // "Phiếu thu học phí" h4 is gone here.
+    await expect(approverPage.getByRole('heading', { level: 1 })).toBeVisible();
+    // The approver's role holds `finance.receiptGet`, so this is the first
+    // (and only) place either role in this test observes the real UUID.
     const approverUrl = approverPage.url();
-    const receiptId = approverUrl.slice(approverUrl.lastIndexOf('/') + 1);
+    const receiptId = approverUrl.split('/')[4];
 
     // The negation this journey exists to prove: `sale` cannot view/approve
     // the very receipt it just created. `finance.receiptGet` excludes `sale`

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { links } from '@cmc/links';
 import {
   AsyncEntityCombobox,
@@ -187,28 +187,58 @@ export default function ClassListPage() {
 }
 
 function ClassListContent() {
+  const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const utils = trpc.useUtils();
   // Ref-like counter (not React state) so slot `key`s stay stable/unique across
   // add/remove — same pattern as attendance/shifts.tsx's `keyCounter`.
   const keyCounter = useState(() => ({ current: 0 }))[0];
 
-  const [page, setPage] = useState(1);
+  const initialPage = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
+  const initialSearch = searchParams.get('q') ?? '';
+  const [page, setPage] = useState(initialPage);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [searchInput, setSearchInput] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchInput, setSearchInput] = useState(initialSearch);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
   const pageSize = 20;
   const { success: toastSuccess } = useToast();
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
+    const t = setTimeout(() => {
+      const nextSearch = searchInput.trim();
+      setDebouncedSearch(nextSearch);
+      const currentSearch = (searchParamsRef.current.get('q') ?? '').trim();
+      if (nextSearch === currentSearch) return;
+
+      setPage(1);
+      setSelectedIds([]);
+      const nextParams = new URLSearchParams(searchParamsRef.current);
+      if (nextSearch) nextParams.set('q', nextSearch);
+      else nextParams.delete('q');
+      nextParams.delete('page');
+      setSearchParams(nextParams, { replace: true });
+    }, 300);
     return () => clearTimeout(t);
-  }, [searchInput]);
+  }, [searchInput, setSearchParams]);
 
+  const querySearch = searchParams.get('q') ?? '';
+  const queryPage = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
   useEffect(() => {
-    setPage(1);
+    if (querySearch !== searchInput) setSearchInput(querySearch);
+    if (queryPage !== page) setPage(queryPage);
+  }, [queryPage, querySearch]);
+
+  function changePage(nextPage: number) {
+    setPage(nextPage);
     setSelectedIds([]);
-  }, [debouncedSearch]);
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextPage > 1) nextParams.set('page', String(nextPage));
+    else nextParams.delete('page');
+    setSearchParams(nextParams, { replace: true });
+  }
 
   const { data, isLoading, error } = trpc.classBatch.list.useQuery({
     page,
@@ -432,10 +462,7 @@ function ClassListContent() {
               page={page}
               pageSize={pageSize}
               total={data?.total ?? data?.items?.length ?? 0}
-              onPageChange={(p) => {
-                setPage(p);
-                setSelectedIds([]);
-              }}
+              onPageChange={changePage}
             />
           </div>
         }
@@ -446,7 +473,12 @@ function ClassListContent() {
           loading={isLoading}
           error={error?.message}
           empty="Chưa có lớp học nào"
-          onRowClick={(row) => void navigate(links.classBatch(row.id))}
+          onRowClick={(row) =>
+            void navigate({
+              pathname: links.classBatch(row.id),
+              search: location.search,
+            })
+          }
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
         />

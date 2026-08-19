@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent, act } from '@testing-library/react';
+import { links } from '@cmc/links';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // Locks the after-sale case screen wired to the real `afterSale` router
@@ -109,7 +110,7 @@ describe('AfterSalePage', () => {
   });
 
   it('does not render the stale "no backend" EmptyState stub', () => {
-    renderWithProviders(<AfterSalePage />);
+    const { router } = renderWithProviders(<AfterSalePage />, { route: '/crm/aftersale' });
     expect(screen.queryByText('Tính năng chưa áp dụng')).not.toBeInTheDocument();
   });
 
@@ -174,7 +175,7 @@ describe('AfterSalePage', () => {
 
   it('closes the create-case dialog after a successful create', () => {
     vi.useFakeTimers();
-    renderWithProviders(<AfterSalePage />);
+    const { router } = renderWithProviders(<AfterSalePage />, { route: '/crm/aftersale' });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo case' }));
     fireEvent.change(screen.getByLabelText(/^Học viên/), { target: { value: 'Lê Thị' } });
     act(() => vi.advanceTimersByTime(300));
@@ -182,11 +183,14 @@ describe('AfterSalePage', () => {
     fireEvent.change(screen.getByLabelText(/^Mô tả/), { target: { value: 'Cần chăm sóc thêm' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo' }));
 
-    const [, callOptions] = createMutate.mock.calls[0] as [unknown, { onSuccess?: () => void }];
-    act(() => callOptions.onSuccess?.());
+    const [, callOptions] = createMutate.mock.calls[0] as [unknown, { onSuccess?: (created: { id: string }) => void }];
+    // Phase 5: create-success navigates to the created case detail — the
+    // dialog handler expects the created row from the mutation result.
+    act(() => callOptions.onSuccess?.({ id: 'case-1' }));
 
     const dialogEl = screen.getByText('Tạo case chăm sóc sau bán').closest('dialog');
     expect(dialogEl?.hasAttribute('open')).toBe(false);
+    expect(router.state.location.pathname).toBe(links.afterSaleCase('case-1'));
   });
 
   it('does not render pictographic emoji anywhere on the screen', () => {

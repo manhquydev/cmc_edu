@@ -2,8 +2,9 @@
 // a student (afterSale.create → "Mở"), takes it up (afterSale.advance → "Đang
 // xử lý"), resolves it with an outcome (afterSale.resolve → "Đã giải quyết"),
 // then closes it (afterSale.close → "Đã đóng"). Each server-guarded transition
-// only fires from the correct prior status, so the linear walk is real. The list
-// (afterSale.list) is the evidence surface throughout.
+// only fires from the correct prior status, so the linear walk is real. Since the
+// Phase 5 URL contract, create-success lands on the canonical case form
+// (links.afterSaleCase(id)); that form is the evidence surface throughout.
 //
 // The student is a seeded precondition (there is no student.create UI; the create
 // dialog's picker only searches student.lookup by name), not the behavior under
@@ -55,13 +56,12 @@ test.describe('P4-05 journey — chăm sóc sau bán: tạo → tiếp nhận �
     await createDialog.getByRole('button', { name: 'Tạo' }).click();
     await expect(createDialog).toHaveCount(0);
 
-    const row = page.getByRole('row', { name: new RegExp(studentName) });
-    await expect(row).toBeVisible();
-    await expect(row.getByText('Mở', { exact: true })).toBeVisible();
-
-    // List is index-only — open form for lifecycle HITL (resource-centric).
-    await row.getByRole('button', { name: 'Mở phiếu' }).click();
+    // Phase 5 contract: create-success navigates to the canonical case form
+    // (links.afterSaleCase(created.id)) — the case opens there as "Mở".
     await expect(page).toHaveURL(/\/crm\/aftersale\/[0-9a-f-]{36}/i);
+    await expect(page.getByText('Mở', { exact: true }).first()).toBeVisible({
+      timeout: 15_000,
+    });
 
     // --- take it up (advance → "Đang xử lý") on form ---
     // exact:true — WorkflowStatusbar step labels also include these substrings.
@@ -85,6 +85,13 @@ test.describe('P4-05 journey — chăm sóc sau bán: tạo → tiếp nhận �
     await expect(page.getByRole('button', { name: 'Đóng', exact: true })).toHaveCount(0, {
       timeout: 15_000,
     });
+
+    // --- back to the list: the closed case row is the durable evidence ---
+    await page.getByRole('button', { name: 'Về danh sách' }).click();
+    await expect(page).toHaveURL(/\/crm\/aftersale$/);
+    const row = page.getByRole('row', { name: new RegExp(studentName) });
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    await expect(row.getByText('Đã đóng', { exact: true })).toBeVisible();
 
     await context.close();
   });

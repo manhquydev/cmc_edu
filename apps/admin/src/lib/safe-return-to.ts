@@ -91,3 +91,30 @@ export function safeReturnTo(raw: string | null | undefined): string {
   // Drop hash (plan: out of scope). Keep search as parsed by URL.
   return `${url.pathname}${url.search}`;
 }
+
+/**
+ * Cross-record explicit return context (Phase 5): a validated same-origin
+ * back path captured in `location.state.from` by the emitting link
+ * (e.g. class roster → student). Same open-redirect policy as safeReturnTo —
+ * only a same-origin path with a single leading slash, no control/whitespace,
+ * no scheme/host, and not in RETURN_TO_EXCLUDED. Any other state shape falls
+ * back to `fallback`, never to an arbitrary string.
+ */
+export function returnContextFromState(state: unknown, fallback: string): string {
+  if (
+    state &&
+    typeof state === 'object' &&
+    'from' in state &&
+    (state as { from: unknown }).from !== null &&
+    typeof (state as { from: unknown }).from === 'object'
+  ) {
+    const from = (state as { from: { pathname?: unknown; search?: unknown } }).from;
+    const pathname = typeof from.pathname === 'string' ? from.pathname : '';
+    const search = typeof from.search === 'string' ? from.search : '';
+    if (/^\/(?![/\\])/.test(pathname) && !CONTROL_OR_WS.test(pathname)) {
+      const resolved = safeReturnTo(`${pathname}${search}`);
+      if (resolved !== '/') return resolved;
+    }
+  }
+  return fallback;
+}

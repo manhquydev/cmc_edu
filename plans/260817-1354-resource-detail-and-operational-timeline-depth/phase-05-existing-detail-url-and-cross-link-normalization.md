@@ -1,6 +1,6 @@
 ---
 title: "Phase 5: Existing Detail URL and Cross Link Normalization"
-status: todo
+status: done (PR #157, CI green on dd3d14d; merge pending)
 ---
 
 # Phase 5: Existing Detail URL and Cross Link Normalization
@@ -97,3 +97,20 @@ hard-coded strings.
 
 Nested routes reuse the same parent permission and API gates. A new URL must not expose a panel whose
 API permission is narrower than the parent; add a nested gate where needed.
+
+## Current validation
+
+- Local Admin suite: 75 files / 710 tests passed.
+- Focused route suite: 11 tests passed, including canonical base-detail redirects
+  preserving pathname and query.
+- `@cmc/links` tests: 42 tests passed.
+- Admin typecheck and build passed; workspace typecheck passed (34/34 tasks).
+- Required CI on head dd3d14d: `typecheck-and-test`, `ui-e2e`, `e2e`,
+  `security-scan`, CodeQL all terminal green (PR #157).
+- Review: formal review report
+  `../reports/code-reviewer-260818-2100-resource-depth-phase-5-head69c5aa0.md` —
+  its sole blocker (stale e2e base-URL assertions) fixed in 221a04b, bdeb1ac,
+  dd3d14d; Low findings logged as follow-ups for Phase 6/7.
+- Follow-ups (low severity, non-blocking): use section builders instead of
+  hard-coded strings in class/receipt detail tabs; drop phase markers from code
+  comments/test names; sale-denied route test for the classRoster.read gate.

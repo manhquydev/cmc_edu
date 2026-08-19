@@ -157,7 +157,8 @@ test.describe('P1-05 journey — kích hoạt ghi danh, rồi xếp thêm lớp 
 
     const studentRow = await findInList(salePage2, (text) => text.includes(studentName));
     await studentRow.click();
-    await expect(salePage2).toHaveURL(/\/admin\/students\/[0-9a-f-]{36}$/);
+    // Phase 5: base detail redirects (replace) to the default /profile section.
+    await expect(salePage2).toHaveURL(/\/admin\/students\/[0-9a-f-]{36}\/profile/);
     await expect(salePage2.getByRole('heading', { name: studentName })).toBeVisible();
 
     await saleContext2.close();

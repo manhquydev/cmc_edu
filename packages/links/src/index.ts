@@ -179,3 +179,21 @@ export function staffAccessPath(id: string): string {
 export function staffActivityPath(id: string): string {
   return `/hr/staff/${id}/activity`;
 }
+
+// ── Durable entity sections (Phase 5): subpath builders so emitters and
+// routes never hard-code section strings independently. ──
+
+/** Class detail sections — base redirects to overview; UUID. */
+export function classSectionPath(id: string, section: 'overview' | 'students' | 'sessions'): string {
+  return `/admin/classes/${id}/${section}`;
+}
+
+/** Student detail sections — base redirects to profile; UUID. */
+export function studentSectionPath(id: string, section: 'profile' | 'enrollments'): string {
+  return `/admin/students/${id}/${section}`;
+}
+
+/** Receipt detail sections — base redirects to overview; UUID. */
+export function receiptSectionPath(id: string, section: 'overview' | 'order-lines'): string {
+  return `/finance/${id}/${section}`;
+}

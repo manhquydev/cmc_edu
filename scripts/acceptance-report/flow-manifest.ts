@@ -177,6 +177,8 @@ export const flows: FlowEntry[] = [
         'parentAccount.list',
         'parentAccount.get',
         'parentAccount.setActive',
+        // Operational record history on the canonical parent detail surface.
+        'parentAccount.timeline',
       ],
       uiRoutes: ['/admin/parents', '/admin/parents/:parentId'],
       models: ['GuardianLinkRequest', 'Guardian', 'ParentAccount'],

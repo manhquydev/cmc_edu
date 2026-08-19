@@ -20,6 +20,13 @@ per module. Never run these module series concurrently against shared route/link
 - [ ] Course and Gift remain source-backed config catalogs; no detail/update is invented here.
 - [ ] Every module series passes its own API/UI/deep-link gate before the next starts.
 
+## Module status
+
+| Module | Status |
+|---|---|
+| 1 Class | Done (PR #159, CI green on 808d89d, merged 2026-08-19). Follow-ups: load-more dedup in class-activity.tsx; denied-role timeline test. |
+| 2 Student | Next — freeze enrollment dual-view producer map (Class PR already emits `student_enrolled` on the ClassBatch timeline) and PII ceiling before edits. |
+
 ## Rollout matrix
 
 | Order | Module | Required delta |

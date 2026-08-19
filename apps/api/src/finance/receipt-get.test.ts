@@ -8,19 +8,22 @@ import {
   createTestFacility,
   seedClassBatch,
   testDb,
+  testDbBypass,
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
 
 describe('finance.receiptGet — classBatchCode', () => {
   let facility: { id: string };
+  let otherFacility: { id: string };
   let sale: Caller;
   let director: Caller;
   let classBatch: { id: string; code: string };
+  let otherDirector: Caller;
   const phonesToClean: string[] = [];
-
   beforeEach(async () => {
     facility = await createTestFacility('ReceiptGet Facility');
+    otherFacility = await createTestFacility('ReceiptGet Other Facility');
     classBatch = await seedClassBatch({ facilityId: facility.id });
     sale = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'sale-rg-1', roles: ['sale'] }),
@@ -32,10 +35,17 @@ describe('finance.receiptGet — classBatchCode', () => {
         roles: ['giam_doc_kinh_doanh'],
       }),
     );
+    otherDirector = appRouter.createCaller(
+      buildStaffContext({
+        facilityId: otherFacility.id,
+        userId: 'dir-rg-other-1',
+        roles: ['giam_doc_kinh_doanh'],
+      }),
+    );
   });
-
   afterEach(async () => {
     await cleanupFacility(facility.id);
+    await cleanupFacility(otherFacility.id);
     await cleanupParentAccountsByPhone(...phonesToClean);
     phonesToClean.length = 0;
   });
@@ -206,5 +216,50 @@ describe('finance.receiptGet — classBatchCode', () => {
     const got = await gddt.finance.receiptGet({ receiptId: created.receipt.id });
     expect(got.viewerCanRefund).toBe(false);
     expect(got.remainingBalance).toBe(3_000_000);
+  });
+
+  it('receiptTimeline is facility-scoped and paginates allowlisted lifecycle events', async () => {
+    const phone = '0933000007';
+    phonesToClean.push(phone);
+    const created = await sale.finance.receiptCreate({
+      studentName: 'Timeline Receipt Student',
+      parentPhone: phone,
+      amount: 3_000_000,
+      classBatchId: classBatch.id,
+    });
+    if (created.status === 'needs_confirmation') throw new Error('unexpected receipt result');
+
+    const createdEvents = await testDbBypass((tx) =>
+      tx.recordEvent.findMany({
+        where: { facilityId: facility.id, entity: 'Receipt', entityId: created.receipt.id, kind: 'created' },
+      }),
+    );
+    expect(createdEvents).toHaveLength(1);
+
+    await testDbBypass((tx) =>
+      tx.recordEvent.createMany({
+        data: [
+          {
+            facilityId: facility.id,
+            entity: 'Receipt',
+            entityId: created.receipt.id,
+            kind: 'approved',
+            actor: 'dir-rg-1',
+            payload: { kind: 'new' },
+            createdAt: new Date('2026-08-20T00:00:00.000Z'),
+          },
+        ],
+      }),
+    );
+
+    const page = await director.finance.receiptTimeline({ receiptId: created.receipt.id, take: 1 });
+    expect(page.items).toHaveLength(1);
+    expect(page.nextCursor).not.toBeNull();
+    expect(page.historySince).toBeNull();
+    expect(page.items[0]?.payload).toEqual({ kind: 'new' });
+
+    await expect(
+      otherDirector.finance.receiptTimeline({ receiptId: created.receipt.id }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });

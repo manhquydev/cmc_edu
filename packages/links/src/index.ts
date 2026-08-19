@@ -194,6 +194,6 @@ export function studentSectionPath(id: string, section: 'profile' | 'enrollments
 }
 
 /** Receipt detail sections — base redirects to overview; UUID. */
-export function receiptSectionPath(id: string, section: 'overview' | 'order-lines'): string {
+export function receiptSectionPath(id: string, section: 'overview' | 'order-lines' | 'activity'): string {
   return `/finance/${id}/${section}`;
 }

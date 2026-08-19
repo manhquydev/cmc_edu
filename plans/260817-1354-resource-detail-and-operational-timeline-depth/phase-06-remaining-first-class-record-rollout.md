@@ -26,7 +26,8 @@ per module. Never run these module series concurrently against shared route/link
 |---|---|
 | 1 Class | Done (PR #159, CI green on 808d89d, merged 2026-08-19). Follow-ups: load-more dedup in class-activity.tsx; denied-role timeline test. |
 | 2 Student | Done (PR #161, required CI green on `7a4add4`; merged 2026-08-19 into main `37ff37b`). |
-| 3 Parent | In progress (branch `feat/resource-depth-phase-6-parent`). ParentAccount email/active/child-link events + timeline. |
+| 3 Parent | Done (PR #162, required CI green on `aa9431c`; merged 2026-08-19 into main `581e2d7`). |
+| 4 Receipt | In progress (branch `feat/resource-depth-phase-6-receipt`). Receipt lifecycle events + timeline. |
 
 ## Rollout matrix
 

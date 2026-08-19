@@ -127,14 +127,14 @@ export const adminRoutes: RouteObject[] = [
       <S>
         <PermissionGate
           module="parentAccount"
-          action="updateEmail"
+          action="read"
           title="Chi tiết phụ huynh"
           breadcrumbs={[
             { label: 'Lớp & Học sinh' },
             { label: 'Phụ huynh' },
             { label: 'Chi tiết' },
           ]}
-          requirementLabel="quản lý email phụ huynh (parentAccount.updateEmail)"
+          requirementLabel="tra cứu phụ huynh (parentAccount.read)"
         >
           <ParentDetailPage />
         </PermissionGate>

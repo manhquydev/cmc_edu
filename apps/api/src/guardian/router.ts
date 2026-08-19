@@ -23,6 +23,7 @@ import { withFacility } from '@cmc/db';
 import { badRequest, conflict, notFound } from '../errors.js';
 import { lmsProcedure, requirePermission, router, scoped } from '../trpc.js';
 import { emitStudentRecordEvent } from '../student/record-event.js';
+import { emitParentRecordEvent } from '../parentAccount/record-event.js';
 import { assertStudentActive } from '../student/assert-student-active.js';
 
 const requestLinkInput = z.object({
@@ -213,6 +214,14 @@ export const guardianRouter = router({
             actor: ctx.subject.userId,
             kind: 'guardian_linked',
             parentAccountId: request.parentAccountId,
+            relation: input.relation,
+          });
+          await emitParentRecordEvent(tx, {
+            facilityId,
+            parentAccountId: request.parentAccountId,
+            actor: ctx.subject.userId,
+            kind: 'child_linked',
+            studentId: request.studentRef,
             relation: input.relation,
           });
         }

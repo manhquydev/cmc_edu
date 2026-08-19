@@ -312,6 +312,19 @@ describe('Student record events & timeline (Phase 6 module 2)', () => {
     expect(events.map((e) => e.kind)).toEqual(['guardian_linked']);
     expect(events[0]?.payload).toEqual({ parentAccountId: parent.id, relation: 'mother' });
     expect(events[0]?.actor).toBe('student-timeline-gddt');
+
+    const parentEvents = await testDbBypass((tx) =>
+      tx.recordEvent.findMany({
+        where: {
+          facilityId: facilityA.id,
+          entity: 'ParentAccount',
+          entityId: parent.id,
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+    );
+    expect(parentEvents.map((event) => event.kind)).toEqual(['child_linked']);
+    expect(parentEvents[0]?.payload).toEqual({ studentId, relation: 'mother' });
   });
 
   it('guardian.approveLink — concurrent same-pair approvals append one event', async () => {

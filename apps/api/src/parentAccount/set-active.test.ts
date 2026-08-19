@@ -13,6 +13,7 @@ import {
   seedEnrolledStudentWithGuardian,
   seedParentAccount,
   testDb,
+  testDbBypass,
 } from '../test/db.js';
 import { signLmsToken, LMS_SESSION_SECRET_DEV_DEFAULT } from '../lms-auth/session-token.js';
 
@@ -63,7 +64,12 @@ describe('parentAccount.setActive + LMS session invalidation', () => {
     });
     expect(deactivated.isActive).toBe(false);
     expect(deactivated.tokenVersion).toBe(1);
-
+    const event = await testDbBypass((tx) =>
+      tx.recordEvent.findFirst({
+        where: { entity: 'ParentAccount', entityId: parent.id, kind: 'active_changed' },
+      }),
+    );
+    expect(event?.payload).toEqual({ isActive: false });
     await expect(
       lms.sessionEvidence.listForChild({ studentId: enrollment.studentId }),
     ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });

@@ -25,6 +25,7 @@ import {
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { ClassActivitySection } from './class-activity.js';
 import { useSession } from '../../lib/session-context.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { exerciseSequencePath } from '../teaching/exercise-sequence-model.js';
@@ -516,6 +517,7 @@ function ClassDetailContent() {
               <TeacherPicker classBatchId={cls.id} currentTeacherId={cls.teacherAppUserId} />
             </SectionBlock>
           ) : null}
+          {id ? <ClassActivitySection classBatchId={id} /> : null}
         </div>
       </div>
     );

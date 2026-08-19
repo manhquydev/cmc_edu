@@ -12,7 +12,7 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 // gates whether a student can ever open an exercise, class-session-router.ts),
 // and the cancel-session confirmation step (`classSession.cancel` must only
 // fire after the ConfirmDialog confirm click).
-const { CLASS, TEACHERS, SESSIONS, UNITS } = vi.hoisted(() => ({
+const { CLASS, TEACHERS, SESSIONS, UNITS, TIMELINE } = vi.hoisted(() => ({
   CLASS: {
     id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
     code: 'CB001',
@@ -40,6 +40,20 @@ const { CLASS, TEACHERS, SESSIONS, UNITS } = vi.hoisted(() => ({
       { id: 'unit-1', program: 'IELTS', level: 'U2', monthIndex: 1, unitType: 'lesson', title: 'Đơn vị 1' },
       { id: 'unit-2', program: 'IELTS', level: 'U2', monthIndex: 2, unitType: 'lesson', title: 'Đơn vị 2' },
     ],
+  },
+  TIMELINE: {
+    items: [
+      {
+        id: 'evt-1',
+        kind: 'teacher_changed',
+        actor: 'GĐĐT Timeline',
+        payload: { teacherAppUserId: 't-1' },
+        createdAt: '2026-08-19T02:00:00.000Z',
+        label: 'Đã đổi giáo viên phụ trách',
+      },
+    ],
+    nextCursor: null,
+    historySince: null,
   },
 }));
 const currentRoles = vi.hoisted(() => ({ value: ['giam_doc_dao_tao'] as string[] }));
@@ -75,6 +89,7 @@ vi.mock('../../lib/trpc.js', async () => {
           config: { approvalSecondEyeThreshold: 20_000_000 },
         }),
       'classBatch.get.useQuery': queryResult(CLASS),
+      'classBatch.timeline.useQuery': queryResult(TIMELINE),
       'classBatch.listStudents.useQuery': queryResult(rosterState.rows),
       'classSession.list.useQuery': queryResult(SESSIONS),
       'curriculumUnit.list.useQuery': queryResult(UNITS),
@@ -112,6 +127,13 @@ describe('ClassDetailPage', () => {
     cancelMutate.mockClear();
     navigateMock.mockClear();
     currentRoles.value = ['giam_doc_dao_tao'];
+  });
+
+  it('renders the operational timeline on the overview section', async () => {
+    renderAt('/admin/classes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/overview');
+    expect(await screen.findByText('Đã đổi giáo viên phụ trách')).toBeInTheDocument();
+    expect(screen.getByText('Lịch sử hoạt động')).toBeInTheDocument();
+    expect(screen.getByText(/GĐĐT Timeline/)).toBeInTheDocument();
   });
 
   it('links Giám đốc đào tạo to the class exercise-sequence work surface', () => {

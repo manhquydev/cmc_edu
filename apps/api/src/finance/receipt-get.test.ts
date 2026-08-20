@@ -246,7 +246,11 @@ describe('finance.receiptGet — classBatchCode', () => {
             kind: 'approved',
             actor: 'dir-rg-1',
             payload: { kind: 'new' },
-            createdAt: new Date('2026-08-20T00:00:00.000Z'),
+            // Must sort newer than the real-time 'created' event so take:1 (DESC)
+            // returns this one. A fixed calendar date silently flips ordering
+            // once wall-clock time passes it (it did on 2026-08-20); anchor it
+            // to run time instead.
+            createdAt: new Date(Date.now() + 60_000),
           },
         ],
       }),

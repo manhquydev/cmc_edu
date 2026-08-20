@@ -41,6 +41,8 @@ const DETAIL_DEPTH = new Map([
   ['/hr/staff/:staffId/profile', ['get']],
   ['/hr/staff/:staffId/access', ['get']],
   ['/hr/staff/:staffId/activity', ['get', 'timeline']],
+  ['/crm/aftersale/:caseId', ['get', 'timeline']],
+  ['/hr/shifts/:registrationId', ['get', 'timeline']],
 ]);
 
 const EXCEPTIONS = new Map([
@@ -50,12 +52,10 @@ const EXCEPTIONS = new Map([
   ['/hr/staff/:staffId', { category: 'compatibility', reason: 'Base Staff detail redirects to profile.', owner: 'hr.routes.tsx' }],
   ['/admin/students/:id', { category: 'compatibility', reason: 'Base Student detail redirects to profile.', owner: 'admin.routes.tsx' }],
   ['/admin/classes/:id', { category: 'compatibility', reason: 'Base Class detail redirects to overview.', owner: 'admin.routes.tsx' }],
-  ['/crm/aftersale/:caseId', { category: 'timeline-gap', reason: 'Existing detail retained; domain timeline is a documented follow-up gap.', owner: 'Phase 6 Module 6' }],
-  ['/teaching/exercises/:exerciseId', { category: 'timeline-gap', reason: 'Existing detail retained; domain timeline is a documented follow-up gap.', owner: 'Phase 6 Module 6' }],
-  ['/hr/checkin/:ticketId', { category: 'timeline-gap', reason: 'Existing detail retained; domain timeline is a documented follow-up gap.', owner: 'Phase 6 Module 6' }],
-  ['/hr/shifts/:registrationId', { category: 'timeline-gap', reason: 'Existing detail retained; domain timeline is a documented follow-up gap.', owner: 'Phase 6 Module 6' }],
-  ['/hr/kpi/:scoreId', { category: 'timeline-gap', reason: 'Existing detail retained; domain timeline is a documented follow-up gap.', owner: 'Phase 6 Module 6' }],
-  ['/admin/engagement/rewards/:rewardId', { category: 'timeline-gap', reason: 'Existing detail retained; domain timeline is a documented follow-up gap.', owner: 'Phase 6 Module 6' }],
+  ['/teaching/exercises/:exerciseId', { category: 'timeline-gap', reason: 'Exercise is a global catalog with no facilityId; RecordEvent is facility-scoped. Documented in timeline-gap-closure.md.', owner: 'RL6' }],
+  ['/hr/checkin/:ticketId', { category: 'timeline-gap', reason: 'ManualAttendanceTicket stays AuditLog-only by decision (RL6).', owner: 'RL6' }],
+  ['/hr/kpi/:scoreId', { category: 'timeline-gap', reason: 'KpiScore stays AuditLog-only by decision (RL6).', owner: 'RL6' }],
+  ['/admin/engagement/rewards/:rewardId', { category: 'timeline-gap', reason: 'Reward stays AuditLog-only by decision (RL6).', owner: 'RL6' }],
   ['/admin/users/:staffId', { category: 'compatibility', reason: 'Legacy Staff URL redirects to canonical /hr/staff/:staffId.', owner: 'admin.routes.tsx' }],
 ]);
 

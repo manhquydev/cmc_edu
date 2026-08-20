@@ -29,7 +29,15 @@ import { z } from 'zod';
 import { withFacility, type Prisma } from '@cmc/db';
 import { ictToUtc, resolveShiftGroup } from '@cmc/domain-time';
 import { badRequest, conflict, forbidden, notFound } from '../errors.js';
+import { listRecordEventPage } from '../record-event/store.js';
 import { protectedProcedure, requirePermission, router, scoped, type Context } from '../trpc.js';
+import {
+  SHIFT_RECORD_EVENT_ENTITY,
+  SHIFT_RECORD_EVENT_HISTORY_SINCE,
+  emitShiftRecordEvent,
+  isShiftRecordEventKind,
+  labelForShiftRecordEventKind,
+} from './record-event.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -286,7 +294,6 @@ export const shiftRouter = router({
           }
         }
 
-        // Create the registration
         const registration = await tx.shiftRegistration.create({
           data: {
             facilityId,
@@ -299,7 +306,6 @@ export const shiftRouter = router({
           },
         });
 
-        // Create entries
         await tx.shiftRegistrationEntry.createMany({
           data: input.entries.map((e) => ({
             facilityId,
@@ -307,6 +313,16 @@ export const shiftRouter = router({
             date: ictToUtc(e.date, '00:00'),
             shiftTemplateId: e.shiftTemplateId,
           })),
+        });
+
+        await emitShiftRecordEvent(tx, {
+          facilityId,
+          registrationId: registration.id,
+          actor: ctx.subject!.userId,
+          kind: 'submitted',
+          shiftGroupId: registration.shiftGroupId,
+          fromDate: input.fromDate,
+          toDate: input.toDate,
         });
 
         return registration;
@@ -338,10 +354,17 @@ export const shiftRouter = router({
 
         await assertCanReview(tx, ctx, facilityId, registration, 'approve');
 
-        return tx.shiftRegistration.update({
+        const updated = await tx.shiftRegistration.update({
           where: { id: registration.id },
           data: { status: 'approved', updatedAt: new Date() },
         });
+        await emitShiftRecordEvent(tx, {
+          facilityId,
+          registrationId: updated.id,
+          actor: ctx.subject!.userId,
+          kind: 'approved',
+        });
+        return updated;
       });
     }),
 
@@ -364,10 +387,18 @@ export const shiftRouter = router({
 
         await assertCanReview(tx, ctx, facilityId, registration, 'reject');
 
-        return tx.shiftRegistration.update({
+        const updated = await tx.shiftRegistration.update({
           where: { id: registration.id },
           data: { status: 'rejected', rejectReason: input.reason, updatedAt: new Date() },
         });
+        await emitShiftRecordEvent(tx, {
+          facilityId,
+          registrationId: updated.id,
+          actor: ctx.subject!.userId,
+          kind: 'rejected',
+          reason: input.reason,
+        });
+        return updated;
       });
     }),
 
@@ -492,10 +523,82 @@ export const shiftRouter = router({
           throw forbidden('Only the registration owner or a director can cancel.');
         }
 
-        return tx.shiftRegistration.update({
+        const updated = await tx.shiftRegistration.update({
           where: { id: registration.id },
           data: { status: 'cancelled', updatedAt: new Date() },
         });
+        await emitShiftRecordEvent(tx, {
+          facilityId,
+          registrationId: updated.id,
+          actor: ctx.subject!.userId,
+          kind: 'cancelled',
+        });
+        return updated;
+      });
+    }),
+
+  timeline: protectedProcedure
+    .input(z.object({
+      registrationId: z.string().uuid(),
+      cursor: z.string().min(1).optional(),
+      take: z.number().int().min(1).max(50).default(20),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const registration = await tx.shiftRegistration.findFirst({
+          where: { id: input.registrationId, facilityId },
+          include: { shiftGroup: true },
+        });
+        if (!registration) throw notFound('ShiftRegistration not found.');
+
+        const callerAppUser = await tx.appUser.findFirst({
+          where: { userId: ctx.subject!.userId, facilityId },
+        });
+        const isOwner = Boolean(callerAppUser && callerAppUser.id === registration.appUserId);
+        const roles = ctx.subject!.roles;
+        const isSuper = roles.includes('super_admin');
+        const groupType = registration.shiftGroup.type;
+        const isMatchingDirector =
+          isSuper ||
+          (groupType === 'GIAO_VIEN' && roles.includes('giam_doc_dao_tao')) ||
+          (groupType === 'KINH_DOANH' && roles.includes('giam_doc_kinh_doanh'));
+        if (!isOwner && !isMatchingDirector) {
+          throw forbidden('You cannot view this shift registration.');
+        }
+
+        const eventWhere = {
+          facilityId,
+          entity: SHIFT_RECORD_EVENT_ENTITY,
+          entityId: registration.id,
+        };
+        const [{ rows, nextCursor }, submittedEvent] = await Promise.all([
+          listRecordEventPage(tx, eventWhere, input.cursor ?? null, input.take),
+          tx.recordEvent.findFirst({ where: { ...eventWhere, kind: 'submitted' }, select: { id: true } }),
+        ]);
+        const actorUserIds = [...new Set(rows.map((row) => row.actor).filter(Boolean))];
+        const actorStaffRows = actorUserIds.length
+          ? await tx.appUser.findMany({
+              where: { facilityId, userId: { in: actorUserIds } },
+              select: { userId: true, fullName: true, employeeCode: true },
+            })
+          : [];
+        const actorMap = new Map(actorStaffRows.map((staff) => [staff.userId, staff]));
+        return {
+          items: rows.map((row) => {
+            const staff = actorMap.get(row.actor);
+            return {
+              id: row.id,
+              kind: row.kind,
+              actor: staff ? staff.fullName || staff.employeeCode || staff.userId : 'Hệ thống',
+              payload: isShiftRecordEventKind(row.kind) ? row.payload : null,
+              label: labelForShiftRecordEventKind(row.kind),
+              createdAt: row.createdAt,
+            };
+          }),
+          nextCursor,
+          historySince: submittedEvent ? null : SHIFT_RECORD_EVENT_HISTORY_SINCE,
+        };
       });
     }),
 });

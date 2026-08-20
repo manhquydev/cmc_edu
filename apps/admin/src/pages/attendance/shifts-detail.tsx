@@ -28,6 +28,7 @@ import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { RecordLink } from '../../lib/record-link.js';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
+import { ShiftActivitySection } from './shift-activity.js';
 
 const REG_STATUS_LABELS: Record<string, string> = {
   draft: 'Soạn',
@@ -449,6 +450,9 @@ export default function ShiftsDetailPage() {
               <span>Tổng giờ: {totalHours.toFixed(2)}</span>
             </div>
           </SectionBlock>
+          {UUID_RE.test(registrationId) ? (
+            <ShiftActivitySection registrationId={registrationId} />
+          ) : null}
         </Stack>
       </div>
 

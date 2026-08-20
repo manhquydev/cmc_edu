@@ -8,7 +8,15 @@
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { badRequest, notFound } from '../errors.js';
+import { listRecordEventPage } from '../record-event/store.js';
 import { requirePermission, router, scoped } from '../trpc.js';
+import {
+  AFTER_SALE_RECORD_EVENT_ENTITY,
+  AFTER_SALE_RECORD_EVENT_HISTORY_SINCE,
+  emitAfterSaleRecordEvent,
+  isAfterSaleRecordEventKind,
+  labelForAfterSaleRecordEventKind,
+} from './record-event.js';
 
 const createInput = z.object({
   studentId: z.string().uuid(),
@@ -100,7 +108,7 @@ export const afterSaleRouter = router({
         });
         if (!student) throw notFound('Student not found in this facility.');
 
-        return tx.afterSaleCase.create({
+        const created = await tx.afterSaleCase.create({
           data: {
             facilityId,
             studentId: input.studentId,
@@ -110,6 +118,15 @@ export const afterSaleRouter = router({
             createdById: ctx.subject!.userId,
           },
         });
+        await emitAfterSaleRecordEvent(tx, {
+          facilityId,
+          caseId: created.id,
+          actor: ctx.subject!.userId,
+          kind: 'created',
+          studentId: created.studentId,
+          priority: created.priority,
+        });
+        return created;
       });
     }),
 
@@ -130,10 +147,19 @@ export const afterSaleRouter = router({
         if (kase.status !== 'open') {
           throw badRequest(`Case is ${kase.status}; can only advance open cases.`);
         }
-        return tx.afterSaleCase.update({
+        const updated = await tx.afterSaleCase.update({
           where: { id: input.caseId },
           data: { status: 'in_progress' },
         });
+        await emitAfterSaleRecordEvent(tx, {
+          facilityId,
+          caseId: updated.id,
+          actor: ctx.subject!.userId,
+          kind: 'status_changed',
+          from: kase.status,
+          to: 'in_progress',
+        });
+        return updated;
       });
     }),
 
@@ -150,7 +176,7 @@ export const afterSaleRouter = router({
         if (kase.status !== 'open' && kase.status !== 'in_progress') {
           throw badRequest(`Case is ${kase.status}; can only resolve open or in-progress cases.`);
         }
-        return tx.afterSaleCase.update({
+        const updated = await tx.afterSaleCase.update({
           where: { id: input.caseId },
           data: {
             status: 'resolved',
@@ -158,6 +184,15 @@ export const afterSaleRouter = router({
             resolvedAt: new Date(),
           },
         });
+        await emitAfterSaleRecordEvent(tx, {
+          facilityId,
+          caseId: updated.id,
+          actor: ctx.subject!.userId,
+          kind: 'status_changed',
+          from: kase.status,
+          to: 'resolved',
+        });
+        return updated;
       });
     }),
 
@@ -174,10 +209,68 @@ export const afterSaleRouter = router({
         if (kase.status !== 'resolved') {
           throw badRequest(`Case is ${kase.status}; can only close resolved cases.`);
         }
-        return tx.afterSaleCase.update({
+        const updated = await tx.afterSaleCase.update({
           where: { id: input.caseId },
           data: { status: 'closed' },
         });
+        await emitAfterSaleRecordEvent(tx, {
+          facilityId,
+          caseId: updated.id,
+          actor: ctx.subject!.userId,
+          kind: 'status_changed',
+          from: kase.status,
+          to: 'closed',
+        });
+        return updated;
+      });
+    }),
+
+  timeline: requirePermission('afterSale', 'manage')
+    .input(z.object({
+      caseId: z.string().uuid(),
+      cursor: z.string().min(1).optional(),
+      take: z.number().int().min(1).max(50).default(20),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const kase = await tx.afterSaleCase.findFirst({
+          where: { id: input.caseId, facilityId },
+          select: { id: true },
+        });
+        if (!kase) throw notFound('After-sale case not found.');
+        const eventWhere = {
+          facilityId,
+          entity: AFTER_SALE_RECORD_EVENT_ENTITY,
+          entityId: kase.id,
+        };
+        const [{ rows, nextCursor }, createdEvent] = await Promise.all([
+          listRecordEventPage(tx, eventWhere, input.cursor ?? null, input.take),
+          tx.recordEvent.findFirst({ where: { ...eventWhere, kind: 'created' }, select: { id: true } }),
+        ]);
+        const actorUserIds = [...new Set(rows.map((row) => row.actor).filter(Boolean))];
+        const actorStaffRows = actorUserIds.length
+          ? await tx.appUser.findMany({
+              where: { facilityId, userId: { in: actorUserIds } },
+              select: { userId: true, fullName: true, employeeCode: true },
+            })
+          : [];
+        const actorMap = new Map(actorStaffRows.map((staff) => [staff.userId, staff]));
+        return {
+          items: rows.map((row) => {
+            const staff = actorMap.get(row.actor);
+            return {
+              id: row.id,
+              kind: row.kind,
+              actor: staff ? staff.fullName || staff.employeeCode || staff.userId : 'Hệ thống',
+              payload: isAfterSaleRecordEventKind(row.kind) ? row.payload : null,
+              label: labelForAfterSaleRecordEventKind(row.kind),
+              createdAt: row.createdAt,
+            };
+          }),
+          nextCursor,
+          historySince: createdEvent ? null : AFTER_SALE_RECORD_EVENT_HISTORY_SINCE,
+        };
       });
     }),
 });

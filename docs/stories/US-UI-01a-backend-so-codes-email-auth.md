@@ -12,8 +12,8 @@ high-risk
 
 Change receipt code format from `PT-000001` to `SO00001` (`packages/domain-finance/src/receipt-code.ts`).
 Add LMS email OTP auth substrate: `ParentAccount.email` field + `lmsAuth.requestOtpEmail` /
-`lmsAuth.verifyOtpEmail` tRPC procedures. Transport is stub (ConsoleEmailTransport) —
-BLOCKED-ON-COMMS until Brevo/Graph creds are provisioned.
+`lmsAuth.verifyOtpEmail` tRPC procedures. Prod worker uses `BrevoEmailTransport`;
+`ConsoleEmailTransport` is dev/test only. Current prod failure is an invalid `BREVO_API_KEY` (HTTP 401), not "never sent".
 
 ## Relevant Product Docs
 
@@ -26,14 +26,14 @@ BLOCKED-ON-COMMS until Brevo/Graph creds are provisioned.
 
 - Public contracts (receipt code format change affects existing receipts)
 - Auth (new OTP flow, session token issuance)
-- External systems (email transport — BLOCKED-ON-COMMS)
+- External systems (email transport — Brevo in prod; console forbidden in prod)
 
 ## Acceptance Criteria
 
 - `SO`-prefixed codes generate correctly (`SO00001`, `SO00002`, …).
 - `requestOtpEmail` returns `{ ok: true }` for a valid parent email.
 - `verifyOtpEmail` with test-seam OTP returns `{ sessionToken }` with `kind = 'parent'`.
-- ConsoleEmailTransport logs OTP to stdout; no real email sent until transport swap.
+- Dev/test: ConsoleEmailTransport logs OTP to stdout. Prod: BrevoEmailTransport sends; current prod key is invalid (HTTP 401).
 
 ## Design Notes
 
@@ -60,7 +60,7 @@ When updating durable proof status, use numeric booleans:
 ## Harness Delta
 
 Adds `lmsAuth` router to `apps/api`. Adds `ParentAccount.email` field migration.
-BLOCKED-ON-COMMS label tracks email transport swap as a follow-up task.
+Email transport swap landed: `BrevoEmailTransport` in prod; remaining ops issue is a valid `BREVO_API_KEY`.
 
 ## Evidence
 

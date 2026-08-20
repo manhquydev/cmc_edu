@@ -132,7 +132,7 @@ Hai sổ không trộn: `/{id}/activity` và `/{id}/timeline` là timeline per-r
 > - `/login/change-password` — màn đổi mật khẩu bắt buộc khi `mustChangePassword=true` (học sinh).
 > - `/select-child` — profile picker sau khi phụ huynh đăng nhập (≥2 con).
 >
-> Không còn route phone-OTP (`/login/otp-phone` hoặc tương đương) — đã loại bỏ. Nếu codebase cũ còn route này, cần xoá. **BLOCKED-ON-COMMS**: Tab phụ huynh (email OTP) chưa functional production — xem TL18/TL24.
+> Không còn route phone-OTP (`/login/otp-phone` hoặc tương đương) — đã loại bỏ. Nếu codebase cũ còn route này, cần xoá. Tab phụ huynh (email OTP) **đã wired** trên worker prod qua `BrevoEmailTransport` (`ConsoleEmailTransport` chỉ dev/test, cấm ở prod). Lỗi hiện tại là `BREVO_API_KEY` prod invalid (HTTP 401), không phải "chưa gửi / chưa functional".
 
 ---
 

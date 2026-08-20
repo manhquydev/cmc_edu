@@ -98,7 +98,7 @@ erDiagram
 - `Student.createdByReceiptId` bắt buộc có khi student sinh qua provisioning — **không student mồ côi**.
 - `Receipt.netAmount` bất biến sau duyệt; `SUM(RefundRecord.amount) ≤ netAmount` (khoá `FOR UPDATE`).
 - `ParentAccount.phone` unique toàn hệ (find-or-create; xử `unique_violation` bằng SAVEPOINT/ON CONFLICT).
-- `StudentAccount` chứa: `passwordHash` (PBKDF2-SHA256, không plain-text), `mustChangePassword` (true khi dùng default), `loginAttempts`, `loginLockedUntil`. Các trường này **KHÔNG** nằm trên `ParentAccount`.
+- `StudentAccount` chứa các trường login HS: `passwordHash` (PBKDF2-SHA256, không plain-text), `mustChangePassword` (true khi dùng default), `loginAttempts`, `loginLockedUntil`. `ParentAccount.passwordHash` tồn tại trên schema nhưng **không** được dùng cho đăng nhập (PH vẫn email+OTP).
 - `ParentAccount.email` bắt buộc khi tài khoản dùng cho auth email+OTP.
 - `Opportunity.stage=O5` ⇔ có phiếu đã duyệt auto-advance; cancel ⇒ revert O4 + clear `closedAt`.
 - `Opportunity.assignedToId` (→ `AppUser.id`, nullable) = chủ cơ hội (sale sở hữu lead mình tạo; GĐKD giao qua `crm.opportunityAssign`). `Opportunity.source` (`referral|walkin|fanpage|hotline|event|other`, enforce ở API bằng zod — không enum DB); lead auto-tạo lúc duyệt phiếu vãng lai = `source='walkin'`. **KPI attribution** (không đổi code payroll): doanh thu quy về sale = join `Opportunity.assignedToId` → `AppUser.id`, lọc `Receipt.status='approved'` qua `Receipt.opportunityId`; `assignedToId IS NULL` = chưa quy chủ.

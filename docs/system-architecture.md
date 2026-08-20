@@ -118,7 +118,7 @@ tRPC root router (appRouter)
 ├── enrollment         [3 procedures]
 ├── guardian           [4 procedures]
 ├── student            [1 procedure stub]
-├── lmsAuth            [2 procedures]
+├── lmsAuth            [6 procedures: requestOtp, verifyOtp, requestOtpEmail, verifyOtpEmail, loginStudent, resetChildPassword]
 └── facility           [1 procedure stub]
 ```
 

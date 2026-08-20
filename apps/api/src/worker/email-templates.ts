@@ -2,8 +2,9 @@
 //
 // EmailOutbox.payload carries DOMAIN data (e.g. {receiptId, studentName, kind}),
 // not rendered content — so every transport (Brevo/Graph) renders here rather
-// than duplicating templating. Currently one email type is enqueued (receipt
-// approval notification, finance/router.ts enqueueReceiptEmail); unknown shapes
+// than duplicating templating. Two email types are rendered: parent login OTP
+// (`kind: 'otp'`, lmsAuth.requestOtpEmail) and receipt approval notification
+// (finance/router.ts enqueueReceiptEmail); unknown shapes
 // fall back to a safe generic message so a transport never sends an empty body.
 
 export interface RenderedEmail {

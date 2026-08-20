@@ -1,9 +1,9 @@
 // Login page — two tabs: parent email-OTP | student phone+password.
 //
 // Security invariants enforced here:
-//   - Parent email-OTP is BLOCKED-ON-COMMS (ConsoleEmailTransport stub).
-//     A visible "[DEV ONLY - blocked-on-comms]" label is always shown.
-//     Do NOT claim it works end-to-end.
+//   - Parent email-OTP uses BrevoEmailTransport in prod (console is
+//     dev/test only). A "[DEV ONLY]" banner is shown only when
+//     `import.meta.env.DEV` is true — not in production builds.
 //   - Generic error messages only — never expose whether a phone/email/account
 //     exists (mirrors the backend no-leak contract).
 //   - On successful student login with mustChangePassword=true, the session is

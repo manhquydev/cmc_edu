@@ -1,9 +1,9 @@
 // K6 remediation: pluggable email transport port. `EmailOutbox` already
-// records `transport: 'graph' | 'brevo'` per row (schema.prisma), but no
-// concrete Graph/Brevo integration exists yet — that lands with a later
-// comms phase. This interface is the seam: `relayEmailOutbox` depends on it,
-// not on a concrete provider, so swapping in the real Graph/Brevo client
-// later is a one-file change with no call-site edits.
+// records `transport: 'graph' | 'brevo'` per row (schema.prisma). Concrete
+// implementations live in this file: ConsoleEmailTransport (dev/test only;
+// forbidden in prod), BrevoEmailTransport, GraphEmailTransport.
+// `relayEmailOutbox` depends on the EmailTransport interface, not a
+// provider, so swapping transports is a one-file change with no call-site edits.
 
 import { renderOutboxEmail } from './email-templates.js';
 

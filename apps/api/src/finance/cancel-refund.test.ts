@@ -348,19 +348,26 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
   });
 
   describe('refundCreate', () => {
-    it('appends a RefundRecord within cap and returns the remaining balance — I5', async () => {
+    it('appends a RefundRecord within cap and returns remaining = netAmount − SUM(refund) — I5', async () => {
+      // 10_000_000 / 4_000_000 are fixtures — docs/19, docs/20, docs/22 publish
+      // no tuition catalog. TODO(golden: needs operator): course tuition prices.
+      const net = 10_000_000;
+      const refunded = 4_000_000;
       const { receipt } = await draftAndApprove({
         contactPhone: '0970000007',
         parentPhone: '0980000007',
-        amount: 10_000_000,
+        amount: net,
       });
 
-      const result = await gdkd.finance.refundCreate({ receiptId: receipt.id, amount: 4_000_000 });
+      const result = await gdkd.finance.refundCreate({ receiptId: receipt.id, amount: refunded });
 
-      expect(result.refund.amount).toBe(4_000_000);
-      expect(result.remainingBalance).toBe(6_000_000);
+      expect(result.refund.amount).toBe(refunded);
+      expect(result.remainingBalance).toBe(net - refunded);
+      expect(result.remainingBalance).toBeGreaterThanOrEqual(0);
       const records = await testDbBypass((tx) => tx.refundRecord.findMany({ where: { receiptId: receipt.id } }));
       expect(records).toHaveLength(1);
+      const ledgerSum = records.reduce((total, r) => total + r.amount.toNumber(), 0);
+      expect(ledgerSum).toBeLessThanOrEqual(net);
     });
 
     it('rejects a refund that would exceed the remaining cap — I5', async () => {
@@ -387,15 +394,19 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
     });
 
-    it('is append-only: two valid refunds create two rows, neither mutated', async () => {
+    it('is append-only: two valid refunds create two rows; remaining = net − SUM; SUM ≤ net', async () => {
+      const net = 10_000_000;
       const { receipt } = await draftAndApprove({
         contactPhone: '0970000010',
         parentPhone: '0980000010',
-        amount: 10_000_000,
+        amount: net,
       });
 
       await gdkd.finance.refundCreate({ receiptId: receipt.id, amount: 2_000_000 });
-      await gdkd.finance.refundCreate({ receiptId: receipt.id, amount: 3_000_000 });
+      const second = await gdkd.finance.refundCreate({ receiptId: receipt.id, amount: 3_000_000 });
+
+      expect(second.remainingBalance).toBe(net - 2_000_000 - 3_000_000);
+      expect(second.remainingBalance).toBeGreaterThanOrEqual(0);
 
       const records = await testDbBypass((tx) =>
         tx.refundRecord.findMany({
@@ -405,6 +416,23 @@ describe('finance.receiptCancel / finance.refundCreate (WF-P1-08)', () => {
       );
       expect(records).toHaveLength(2);
       expect(records.map((r) => r.amount.toNumber())).toEqual([2_000_000, 3_000_000]);
+      const ledgerSum = records.reduce((total, r) => total + r.amount.toNumber(), 0);
+      expect(ledgerSum).toBeLessThanOrEqual(net);
+    });
+
+    it('rejects non-positive refund amounts (ledger never goes negative)', async () => {
+      const { receipt } = await draftAndApprove({
+        contactPhone: '0970000013',
+        parentPhone: '0980000013',
+        amount: 5_000_000,
+      });
+
+      await expect(
+        gdkd.finance.refundCreate({ receiptId: receipt.id, amount: 0 }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+      await expect(
+        gdkd.finance.refundCreate({ receiptId: receipt.id, amount: -1 }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
     });
 
     it('is idempotent: a repeat refundCreate with the same idempotencyKey returns the same RefundRecord — M4', async () => {

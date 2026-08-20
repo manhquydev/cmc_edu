@@ -261,6 +261,8 @@ describe('kpi.override', () => {
     // Branch-scope (R2-6, post-audit fix): the employee is giao_vien, so the
     // in-branch director is the GĐĐT (managerCaller), not the unrelated GĐKD
     // (directorCaller) — see the dedicated branch-scope tests below.
+    // 3_500_000 is a director-set fixture. docs/20 §4: override writes `value`
+    // directly. TODO(golden: needs operator): override floor/cap if any.
     const result = await managerCaller().kpi.override({
       kpiScoreId,
       value: 3_500_000,

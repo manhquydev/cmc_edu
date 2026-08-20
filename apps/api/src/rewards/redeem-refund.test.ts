@@ -117,7 +117,8 @@ describe('gift catalog + rewards lifecycle (P4)', () => {
 
     expect(reward.status).toBe('pending');
     expect(reward.studentId).toBe(student.id);
-    expect(newBalance).toBe(10);
+    expect(newBalance).toBe(20 - 10); // docs/20 §5: deduct starsRequired
+    expect(newBalance).toBeGreaterThanOrEqual(0);
 
     const txns = await testDbBypass((tx) =>
       tx.starTransaction.findMany({ where: { studentId: student.id, type: 'gift_redeemed' } }),
@@ -243,7 +244,13 @@ describe('gift catalog + rewards lifecycle (P4)', () => {
       tx.starTransaction.findMany({ where: { studentId: student.id, type: 'gift_rejected_refund' } }),
     );
     expect(refundTxns).toHaveLength(1);
-    expect(refundTxns[0]?.amount).toBe(10);
+    expect(refundTxns[0]?.amount).toBe(10); // docs/20 §5 gift_rejected_refund restores starsRequired
+
+    const agg = await testDbBypass((tx) =>
+      tx.starTransaction.aggregate({ where: { studentId: student.id }, _sum: { amount: true } }),
+    );
+    expect(agg._sum.amount).toBe(20); // 20 − 10 + 10
+    expect(agg._sum.amount).toBeGreaterThanOrEqual(0);
   });
 
   it('Low-Severity Hygiene remediation (scenario audit): refund uses the price PAID at redeem time, not the CURRENT gift price', async () => {

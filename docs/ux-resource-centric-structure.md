@@ -86,6 +86,8 @@ List = **index** (navigate to form). Form = **work surface**. Status = **filter*
 
 **KPI (target of plan shared-workspace):** `/hr/kpi` board · `/hr/kpi/:scoreId` form · `kpi.get` · nav label “KPI” (not “Duyệt KPI”)
 
+**Staff:** `/hr/staff` is the canonical surface; `/admin/users` is a compatibility redirect.
+
 ---
 
 ## 7. Change control

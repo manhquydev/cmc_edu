@@ -101,6 +101,8 @@ Quy tắc:
 | Đăng ký ca | `/hr/shifts?scope=mine\|inbox` → `/hr/shifts/new` → `/hr/shifts/{registrationId}` | Form chi tiết phiếu (record-centric; plan 260811-1408). Không dùng `/attendance/shifts` (stale). |
 | Danh mục ca | `/admin/shift-config` | — |
 
+Hai sổ không trộn: `/{id}/activity` và `/{id}/timeline` là timeline per-record từ `RecordEvent` — sổ vận hành người dùng (facility-scoped, append-only). `AuditLog` là sổ tuân thủ toàn cục, **không** phải timeline giám đốc.
+
 ### D. Định danh & Quản trị
 | Trang | URL |
 |---|---|

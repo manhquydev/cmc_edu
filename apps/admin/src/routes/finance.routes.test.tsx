@@ -70,6 +70,11 @@ describe('financeRoutes — durable receipt sections (Phase 5)', () => {
     expect(await screen.findByText('RECEIPT_DETAIL_PAGE')).toBeInTheDocument();
   });
 
+  it('resolves the activity section subpath', async () => {
+    renderFinance('/finance/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/activity');
+    expect(await screen.findByText('RECEIPT_DETAIL_PAGE')).toBeInTheDocument();
+  });
+
   it('unknown receipt sections fall through to route-level not-found', async () => {
     renderFinance('/finance/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/bogus');
     expect(await screen.findByText('NOT_FOUND_MARKER')).toBeInTheDocument();

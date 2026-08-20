@@ -25,6 +25,7 @@ import {
 } from '@cmc/ui';
 import { shiftRegistrationsPath, UUID_RE } from '@cmc/links';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { RecordLink } from '../../lib/record-link.js';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
 
@@ -379,7 +380,15 @@ export default function ShiftsDetailPage() {
           >
             <KeyValueList
               items={[
-                { key: 'person', label: 'Nhân viên', value: data.appUser.fullName },
+                {
+                  key: 'person',
+                  label: 'Nhân viên',
+                  value: (
+                    <RecordLink entity="staff" id={data.appUser.id}>
+                      {data.appUser.fullName}
+                    </RecordLink>
+                  ),
+                },
                 {
                   key: 'group',
                   label: 'Nhóm ca',

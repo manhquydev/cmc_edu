@@ -24,6 +24,7 @@ import {
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { RecordLink } from '../../lib/record-link.js';
 import { AttendancePanel } from './panels/attendance-panel.js';
 import { AssessmentPanel } from './panels/assessment-panel.js';
 import { EvidencePanel } from './panels/evidence-panel.js';
@@ -58,6 +59,7 @@ export default function SessionDetailPage() {
   const { canDo } = useSession();
   const canCancelRestamp = canDo('schedule', 'generate');
   const canDeliver = canDo('exercise', 'manage');
+  const canViewStaff = canDo('user', 'manage') || canDo('staff', 'pickList');
 
   const rawTab = searchParams.get('tab');
   const activeTab: TabId = isTab(rawTab) ? rawTab : 'attendance';
@@ -214,8 +216,29 @@ export default function SessionDetailPage() {
         >
           <KeyValueList
             items={[
-              { key: 'class', label: 'Lớp', value: title },
+              {
+                key: 'class',
+                label: 'Lớp',
+                value: (
+                  <RecordLink entity="classBatch" id={session.classBatchId}>
+                    {title}
+                  </RecordLink>
+                ),
+              },
               { key: 'program', label: 'Chương trình', value: session.program ?? '—' },
+              {
+                key: 'teacher',
+                label: 'Giáo viên',
+                value: (
+                  <RecordLink
+                    entity="staff"
+                    id={session.teacherAppUserId}
+                    canView={canViewStaff}
+                  >
+                    {session.teacherFullName ?? '—'}
+                  </RecordLink>
+                ),
+              },
               { key: 'time', label: 'Thời gian', value: timeRange },
               { key: 'status', label: 'Trạng thái', value: statusLabel },
               { key: 'progress', label: 'Tiến độ session-done', value: progressLabel },

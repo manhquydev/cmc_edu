@@ -28,6 +28,7 @@ import { trpc } from '../../lib/trpc.js';
 import { ClassActivitySection } from './class-activity.js';
 import { useSession } from '../../lib/session-context.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { RecordLink } from '../../lib/record-link.js';
 import { exerciseSequencePath } from '../teaching/exercise-sequence-model.js';
 import { classSectionPath, UUID_RE, studentSectionPath } from '@cmc/links';
 
@@ -74,6 +75,7 @@ function TeacherPicker({ classBatchId, currentTeacherId }: { classBatchId: strin
   // the dropdown cannot offer a choice the mutation would reject.
   const { data, isLoading } = trpc.user.pickList.useQuery({ role: 'giao_vien' });
   const teachers = (data?.items ?? []) as Array<{ id: string; fullName: string }>;
+  const currentTeacher = teachers.find((t) => t.id === currentTeacherId);
   const options = teachers.map((t) => ({ value: t.id, label: t.fullName }));
 
   const assignMut = trpc.classBatch.assignTeacher.useMutation({
@@ -96,6 +98,13 @@ function TeacherPicker({ classBatchId, currentTeacherId }: { classBatchId: strin
           hasClear={false}
         />
       </div>
+      {currentTeacher ? (
+        <Text type="supporting" size="sm">
+          <RecordLink entity="staff" id={currentTeacher.id}>
+            {currentTeacher.fullName}
+          </RecordLink>
+        </Text>
+      ) : null}
       {assignMut.error && (
         <Text type="supporting" size="2xs" style={{ color: 'var(--cmc-danger)' }}>
           {assignMut.error.message}

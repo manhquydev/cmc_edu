@@ -122,24 +122,25 @@ describe('visibleModulesFor', () => {
     expect(classModule!.children?.some((c) => c.id === 'students')).toBe(true);
   });
 
-  // Gap-closure: nav entry for the parent directory (parentAccount.list).
+  // Gap-closure: nav entry for the parent directory (parentAccount.read).
   // Deliberately placed under Lớp & Học sinh, NOT Quản trị — the roster for
-  // parentAccount.updateEmail is giam_doc_kinh_doanh/sale, and Quản trị is
-  // `roles: ['super_admin']`, which would hide the entry from exactly the
-  // roles the permission grants it to (same class of bug as shift-config).
-  it('gates the parents entry with parentAccount.updateEmail under Lớp & Học sinh, not Quản trị', () => {
+  // parentAccount.read is giam_doc_kinh_doanh/giam_doc_dao_tao/sale, and
+  // Quản trị is `roles: ['super_admin']`, which would hide the entry from
+  // exactly the roles the permission grants it to (same class of bug as
+  // shift-config).
+  it('gates the parents entry with parentAccount.read under Lớp & Học sinh, not Quản trị', () => {
     const classModule = NAV_MODULES.find((m) => m.id === 'classes-students');
     const parentsChild = classModule?.children?.find((c) => c.id === 'parents');
     expect(parentsChild).toBeDefined();
     expect(parentsChild?.path).toBe('/admin/parents');
-    expect(parentsChild?.permission).toEqual({ module: 'parentAccount', action: 'updateEmail' });
+    expect(parentsChild?.permission).toEqual({ module: 'parentAccount', action: 'read' });
 
     const admin = NAV_MODULES.find((m) => m.id === 'admin');
     expect(admin?.children?.find((c) => c.id === 'parents')).toBeUndefined();
   });
 
-  it('shows the parents entry to sale and giam_doc_kinh_doanh (the parentAccount.updateEmail roster)', () => {
-    for (const role of ['sale', 'giam_doc_kinh_doanh'] as Role[]) {
+  it('shows the parents entry to every role that holds parentAccount.read', () => {
+    for (const role of ['sale', 'giam_doc_kinh_doanh', 'giam_doc_dao_tao'] as Role[]) {
       const paths = visibleNavPathsFor([role], (mod, act) =>
         can({ userId: 'u', roles: [role] }, mod, act),
       );
@@ -221,16 +222,17 @@ describe('nav entries a role really sees (module gate + child gate, real permiss
     }
   });
 
-  // The gift catalogue is a configuration screen whose only mutation is
-  // `gift.upsert`, so the entry follows that key rather than `gift.list` — a
-  // sale opening it would meet a 403 on every action. Sale keeps its way into
-  // the loyalty flow through Đổi thưởng, which it can actually operate.
-  it('shows the gift catalogue only to the two directors who can edit it', () => {
+  // Quà tặng is the gift-catalogue MANAGEMENT screen: nav + route both gate on
+  // `gift.upsert` (giam_doc_kinh_doanh / giam_doc_dao_tao). Sale holds only
+  // `gift.list` (redemption naming) and must NOT see the management entry —
+  // flow-manifest P4-02 + gift-config-nav.journey pin this negation.
+  it('shows the gift catalogue only to roles that can manage gifts (gift.upsert)', () => {
     for (const role of ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] as Role[]) {
       expect(pathsFor(role), `${role} should see /admin/engagement/gifts`)
         .toContain('/admin/engagement/gifts');
     }
-    expect(pathsFor('sale')).not.toContain('/admin/engagement/gifts');
+    expect(pathsFor('sale'), 'sale must not see /admin/engagement/gifts')
+      .not.toContain('/admin/engagement/gifts');
   });
 
   it('hides the engagement screens from giao_vien, who holds neither key', () => {

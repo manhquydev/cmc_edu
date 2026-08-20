@@ -171,15 +171,16 @@ export const adminRoutes: RouteObject[] = [
     ),
   },
 
-  // Engagement — same: the Gắn kết menu group now reaches both screens, and the
-  // gift/reward rosters deliberately exclude giao_vien (ADR-D). The gift menu
-  // entry is narrower than this gate on purpose — it follows `gift.upsert`, the
-  // screen's only mutation, so sale is not invited into a read-only dead end.
+  // Engagement — the Gắn kết menu group reaches both screens; gift/reward
+  // rosters deliberately exclude giao_vien (ADR-D). The gift CATALOGUE is a
+  // management screen: nav and route both gate on `gift.upsert` (managers only).
+  // Sale holds `gift.list` for the redemption flow but does not manage gifts
+  // (flow-manifest P4-02 + gift-config-nav.journey).
   {
     path: 'engagement/gifts',
     element: (
       <S>
-        <PermissionGate module="gift" action="list" title="Quà tặng" breadcrumbs={[{ label: 'Gắn kết' }, { label: 'Quà tặng' }]} requirementLabel="xem danh mục quà tặng (gift.list)">
+        <PermissionGate module="gift" action="upsert" title="Quà tặng" breadcrumbs={[{ label: 'Gắn kết' }, { label: 'Quà tặng' }]} requirementLabel="quản lý danh mục quà tặng (gift.upsert)">
           <GiftsPage />
         </PermissionGate>
       </S>

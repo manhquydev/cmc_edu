@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { Badge, Banner, Button, HStack, Skeleton, Stack, Text, TextArea } from '@cmc/ui';
 import { trpc } from '../../../lib/trpc.js';
+import { RecordLink } from '../../../lib/record-link.js';
 
 interface RosterEntry {
   studentId: string;
@@ -185,7 +186,9 @@ export function AssessmentPanel({
             >
               <HStack justify="between" align="center">
                 <Text type="body" size="sm" weight="medium">
-                  {entry.fullName}
+                  <RecordLink entity="student" id={entry.studentId}>
+                    {entry.fullName}
+                  </RecordLink>
                 </Text>
                 {isConfirmed ? (
                   <Badge label="Đã xác nhận" variant="success" />

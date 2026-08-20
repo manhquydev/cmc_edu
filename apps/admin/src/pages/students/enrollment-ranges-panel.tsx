@@ -13,6 +13,7 @@ import {
   Stack,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { RecordLink } from '../../lib/record-link.js';
 
 export function EnrollmentRangesPanel({ studentId }: { studentId: string }) {
   const utils = trpc.useUtils();
@@ -77,7 +78,15 @@ export function EnrollmentRangesPanel({ studentId }: { studentId: string }) {
             <KeyValueList
               key={e.enrollmentId}
               items={[
-                { key: 'code', label: 'Lớp', value: e.batchCode },
+                {
+                  key: 'code',
+                  label: 'Lớp',
+                  value: (
+                    <RecordLink entity="classBatch" id={e.classBatchId}>
+                      {e.batchCode}
+                    </RecordLink>
+                  ),
+                },
                 { key: 'status', label: 'Enrollment', value: e.status },
                 { key: 'current', label: 'Unit hiện tại', value: String(e.currentOrderGlobal) },
                 {

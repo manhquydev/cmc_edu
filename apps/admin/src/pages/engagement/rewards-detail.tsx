@@ -24,6 +24,7 @@ import {
 } from '@cmc/ui';
 import { UUID_RE } from '@cmc/links';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { RecordLink } from '../../lib/record-link.js';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
 
@@ -313,7 +314,15 @@ export default function RewardsDetailPage() {
           >
             <KeyValueList
               items={[
-                { key: 'student', label: 'Học viên', value: studentShort },
+                {
+                  key: 'student',
+                  label: 'Học viên',
+                  value: (
+                    <RecordLink entity="student" id={data.studentId}>
+                      {studentShort}
+                    </RecordLink>
+                  ),
+                },
                 { key: 'gift', label: 'Quà tặng', value: giftName },
                 {
                   key: 'stars',

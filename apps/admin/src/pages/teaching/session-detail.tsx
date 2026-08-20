@@ -24,6 +24,7 @@ import {
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { RecordLink } from '../../lib/record-link.js';
 import { AttendancePanel } from './panels/attendance-panel.js';
 import { AssessmentPanel } from './panels/assessment-panel.js';
 import { EvidencePanel } from './panels/evidence-panel.js';
@@ -214,7 +215,15 @@ export default function SessionDetailPage() {
         >
           <KeyValueList
             items={[
-              { key: 'class', label: 'Lớp', value: title },
+              {
+                key: 'class',
+                label: 'Lớp',
+                value: (
+                  <RecordLink entity="classBatch" id={session.classBatchId}>
+                    {title}
+                  </RecordLink>
+                ),
+              },
               { key: 'program', label: 'Chương trình', value: session.program ?? '—' },
               { key: 'time', label: 'Thời gian', value: timeRange },
               { key: 'status', label: 'Trạng thái', value: statusLabel },

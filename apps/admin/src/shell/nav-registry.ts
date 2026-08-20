@@ -149,6 +149,9 @@ export const NAV_MODULES: NavModule[] = [
       // Nav visibility never replaces API authorization (the router guards stay
       // decisive).
       { id: 'staff', label: 'Nhân viên', path: '/hr/staff', icon: 'user', permission: { module: 'user', action: 'manage' } },
+      // Same gate as the route: user.manage. Lives under Nhân sự because Quản trị
+      // is super_admin-only and would hide it from the directors who hold the key.
+      { id: 'permissions', label: 'Ma trận quyền', path: '/admin/permissions', icon: 'shield', permission: { module: 'user', action: 'manage' } },
       // Lives here rather than under Quản trị: configuring shift groups and
       // templates is an HR task the two directors own (`shift.manage`), and the
       // whole Quản trị module is gated `roles: ['super_admin']` — listing it

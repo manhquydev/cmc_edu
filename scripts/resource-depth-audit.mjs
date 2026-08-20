@@ -27,7 +27,7 @@ const STATIC_ROUTE_CATEGORIES = new Map([
   ['/admin/classes', 'index'], ['/admin/courses', 'config'], ['/admin/engagement/gifts', 'config'],
   ['/admin/engagement/rewards', 'index'], ['/admin/engagement/leaderboard', 'dashboard'], ['/admin/facilities', 'config'],
   ['/admin/users', 'compatibility'], ['/admin/network-ip', 'config'], ['/admin/shift-config', 'config'],
-  ['/admin/audit-log', 'compliance'], ['/admin/report-cards', 'workspace'],
+  ['/admin/audit-log', 'compliance'], ['/admin/report-cards', 'workspace'], ['/admin/permissions', 'config'],
 ]);
 
 const DETAIL_DEPTH = new Map([

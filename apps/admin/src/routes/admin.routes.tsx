@@ -38,6 +38,7 @@ const FacilitiesPage = lazy(() => import('../pages/admin/facilities.js'));
 const NetworkIpPage = lazy(() => import('../pages/admin/network-ip.js'));
 const ShiftConfigPage = lazy(() => import('../pages/admin/shift-config.js'));
 const AuditLogPage = lazy(() => import('../pages/admin/audit-log.js'));
+const PermissionMatrixPage = lazy(() => import('../pages/admin/permission-matrix.js'));
 
 // ── Report cards / AI assessment ─────────────────────────────────────────────
 const ReportCardsPage = lazy(() => import('../pages/teaching/report-cards.js'));
@@ -222,6 +223,22 @@ export const adminRoutes: RouteObject[] = [
   { path: 'network-ip', element: <S><NetworkIpPage /></S> },
   { path: 'shift-config', element: <S><ShiftConfigPage /></S> },
   { path: 'audit-log', element: <S><AuditLogPage /></S> },
+  {
+    path: 'permissions',
+    element: (
+      <S>
+        <PermissionGate
+          module="user"
+          action="manage"
+          title="Ma trận quyền"
+          breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Ma trận quyền' }]}
+          requirementLabel="quản lý nhân sự (user.manage)"
+        >
+          <PermissionMatrixPage />
+        </PermissionGate>
+      </S>
+    ),
+  },
 
   // Report cards / AI assessment
   // TODO(phase-07): move to /teaching/report-cards once teaching.routes.tsx ownership allows.

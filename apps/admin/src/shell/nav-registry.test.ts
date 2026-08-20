@@ -215,6 +215,14 @@ describe('nav entries a role really sees (module gate + child gate, real permiss
     expect(pathsFor('sale')).not.toContain('/finance/refund');
   });
 
+  it('shows the permission matrix to roles that hold user.manage', () => {
+    for (const role of ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'super_admin'] as Role[]) {
+      expect(pathsFor(role), `${role} should see /admin/permissions`).toContain('/admin/permissions');
+    }
+    expect(pathsFor('sale')).not.toContain('/admin/permissions');
+    expect(pathsFor('giao_vien')).not.toContain('/admin/permissions');
+  });
+
   it('shows the reward queue to the three roles that can manage rewards', () => {
     for (const role of ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'] as Role[]) {
       expect(pathsFor(role), `${role} should see /admin/engagement/rewards`)

@@ -1,11 +1,12 @@
 // K6 remediation: pluggable email transport port. `EmailOutbox` already
 // records `transport: 'graph' | 'brevo'` per row (schema.prisma). Concrete
 // implementations live in this file: ConsoleEmailTransport (dev/test only;
-// forbidden in prod), BrevoEmailTransport, GraphEmailTransport.
+// forbidden in prod), BrevoEmailTransport, SmtpEmailTransport, GraphEmailTransport.
 // `relayEmailOutbox` depends on the EmailTransport interface, not a
 // provider, so swapping transports is a one-file change with no call-site edits.
 
 import { renderOutboxEmail } from './email-templates.js';
+import nodemailer from 'nodemailer';
 
 export interface OutboxEmail {
   id: string;
@@ -171,5 +172,37 @@ export class GraphEmailTransport implements EmailTransport {
       const detail = await res.text().catch(() => '<no body>');
       throw new Error(`GraphEmailTransport: sendMail HTTP ${res.status} — ${detail}`);
     }
+  }
+}
+
+/**
+ * SMTP relay transport (Brevo SMTP or any RFC-5321 relay).
+ * Reads SMTP_URL from env at construction time — throws immediately if
+ * absent so the worker fails fast rather than enqueueing rows that can
+ * never be delivered.
+ *
+ * Security: only `email.id` and `email.to` are logged. Payload content (which
+ * may include OTPs or PII) is never written to stdout/stderr.
+ */
+export class SmtpEmailTransport implements EmailTransport {
+  private readonly smtpUrl: string;
+
+  constructor() {
+    const smtpUrl = process.env.SMTP_URL;
+    if (!smtpUrl) {
+      throw new Error('SmtpEmailTransport: SMTP_URL env var is required');
+    }
+    this.smtpUrl = smtpUrl;
+  }
+
+  async send(email: OutboxEmail): Promise<void> {
+    // Log only non-sensitive identifiers — never the payload.
+    // eslint-disable-next-line no-console
+    console.log(`[smtp] sending id=${email.id} to=${email.to}`);
+
+    const { subject, html } = renderOutboxEmail(email.payload);
+    const from = process.env.SMTP_FROM ?? process.env.BREVO_SENDER_EMAIL;
+    const transporter = nodemailer.createTransport(this.smtpUrl);
+    await transporter.sendMail({ from, to: email.to, subject, html });
   }
 }

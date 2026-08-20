@@ -57,6 +57,7 @@ vi.mock('../../lib/trpc.js', async () => {
           config: { approvalSecondEyeThreshold: 20_000_000 },
         }),
       'afterSale.get.useQuery': () => queryResult(getData),
+      'afterSale.timeline.useQuery': () => queryResult({ items: [], nextCursor: null, historySince: null }),
       'afterSale.advance.useMutation': () => mutationResult({ mutate: advanceMutate }),
       'afterSale.close.useMutation': () => mutationResult({ mutate: closeMutate }),
       'afterSale.resolve.useMutation': () => mutationResult({ mutate: resolveMutate }),

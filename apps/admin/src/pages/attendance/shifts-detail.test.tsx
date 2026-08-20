@@ -53,6 +53,7 @@ vi.mock('../../lib/trpc.js', async () => {
           config: { approvalSecondEyeThreshold: 20_000_000 },
         }),
       'shift.get.useQuery': queryResult(REG),
+      'shift.timeline.useQuery': queryResult({ items: [], nextCursor: null, historySince: null }),
       'shift.approve.useMutation': () => mutationResult({ mutate: approveMutate }),
       'shift.reject.useMutation': () => mutationResult({ mutate: rejectMutate }),
       'shift.cancel.useMutation': () => mutationResult({ mutate: vi.fn() }),

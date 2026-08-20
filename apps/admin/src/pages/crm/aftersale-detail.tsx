@@ -24,6 +24,7 @@ import { RecordLink } from '../../lib/record-link.js';
 import { trpc } from '../../lib/trpc.js';
 import { useAfterSaleActions } from './use-after-sale-actions.js';
 import { ResolveAfterSaleCaseDialog } from './resolve-after-sale-case-dialog.js';
+import { AfterSaleActivitySection } from './aftersale-activity.js';
 
 const STATUS_LABELS: Record<string, string> = {
   open: 'Mở',
@@ -291,6 +292,7 @@ export default function AfterSaleDetailPage() {
               </Text>
             ) : null}
           </SectionBlock>
+          {UUID_RE.test(caseId) ? <AfterSaleActivitySection caseId={caseId} /> : null}
         </Stack>
       </div>
 

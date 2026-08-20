@@ -62,6 +62,17 @@ describe('PermissionMatrixPage', () => {
     }
   });
 
+  const KNOWN_PROCEDURE_CONSTRAINED_KEYS = [
+    'crm.opportunityAssign',
+    'crm.report',
+    'finance.receiptList',
+    'finance.receiptGet',
+    'finance.receiptApprove',
+    'user.manage',
+    'shift.approve',
+    'manualPunch.approve',
+  ] as const;
+
   it('annotates SoD/row-rule keys separately from registry doors', () => {
     renderWithProviders(<PermissionMatrixPage />);
     const table = screen.getByTestId('permission-matrix');
@@ -70,6 +81,9 @@ describe('PermissionMatrixPage', () => {
     expect(
       [...table.querySelectorAll('td[data-permission-rule]')].filter((el) => el.textContent === REGISTRY_DOOR),
     ).toHaveLength(doorOnly);
+    for (const key of KNOWN_PROCEDURE_CONSTRAINED_KEYS) {
+      expect(MATRIX_RULE_ANNOTATIONS[key], key).toBeTruthy();
+    }
     for (const [key, note] of Object.entries(MATRIX_RULE_ANNOTATIONS)) {
       expect(PERMISSIONS[key], key).toBeDefined();
       expect(table.querySelector(`[data-permission-rule="${key}"]`)?.textContent).toContain(note);

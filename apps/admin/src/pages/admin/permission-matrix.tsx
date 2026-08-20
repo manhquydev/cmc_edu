@@ -14,9 +14,13 @@ import { DetailPage, PageHeader, Stack, StatusBadge, Text } from '@cmc/ui';
 /** Procedure-level rules the registry map cannot express. */
 export const MATRIX_RULE_ANNOTATIONS: Record<string, string> = {
   'crm.opportunityAssign': 'Sale chỉ nhận lead của mình; GĐKD được gán lại.',
+  'crm.report': 'Sale chỉ thấy báo cáo của chính mình (byAssignee).',
   'finance.receiptList': 'Sale soạn phiếu (receiptCreate) nhưng không xem hàng đợi.',
   'finance.receiptGet': 'Sale soạn phiếu (receiptCreate) nhưng không mở phiếu.',
+  'finance.receiptApprove': 'Không tự duyệt phiếu của mình; phiếu vượt ngưỡng cần second-eye.',
   'kpi.confirm': 'Chỉ xác nhận khi managerId trùng người gọi.',
+  'shift.approve': 'Không tự duyệt; GV do GĐĐT duyệt, KD do GĐKD duyệt.',
+  'manualPunch.approve': 'Không tự duyệt; người duyệt phải là quản lý trực tiếp của chủ phiếu.',
   'user.manage': 'Giám đốc không được cấp hoặc thu hồi super_admin.',
 };
 

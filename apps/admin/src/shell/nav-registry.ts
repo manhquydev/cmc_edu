@@ -114,10 +114,12 @@ export const NAV_MODULES: NavModule[] = [
     icon: 'star',
     path: '/admin/engagement/rewards',
     children: [
-      // Catalogue GET is `gift.list` — same key as the route PermissionGate.
-      // Sale holds list (not upsert); mutations stay behind gift.upsert on
-      // the server. Nav must not hide a screen the API already lets them read.
-      { id: 'gifts', label: 'Quà tặng', path: '/admin/engagement/gifts', icon: 'gift', permission: { module: 'gift', action: 'list' } },
+      // Quà tặng is the gift-catalogue MANAGEMENT screen, gated on `gift.upsert`
+      // (giam_doc_kinh_doanh / giam_doc_dao_tao). Sale holds only `gift.list`
+      // (to name gifts in the redemption flow) and deliberately does not manage
+      // the catalogue — flow-manifest P4-02 + gift-config-nav.journey pin this.
+      // The route PermissionGate matches (`gift.upsert`).
+      { id: 'gifts', label: 'Quà tặng', path: '/admin/engagement/gifts', icon: 'gift', permission: { module: 'gift', action: 'upsert' } },
       { id: 'rewards', label: 'Đổi thưởng', path: '/admin/engagement/rewards', icon: 'trophy', permission: { module: 'rewards', action: 'manage' } },
       // Bảng xếp hạng (`/admin/engagement/leaderboard`) is deliberately absent:
       // it is still an EmptyState placeholder, and a menu entry pointing at one

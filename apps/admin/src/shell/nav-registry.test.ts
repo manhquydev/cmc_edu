@@ -222,14 +222,17 @@ describe('nav entries a role really sees (module gate + child gate, real permiss
     }
   });
 
-  // Catalogue GET is gift.list — same key as the route PermissionGate.
-  // Sale holds list (not upsert); the leaf must not hide a screen the API
-  // already lets them read.
-  it('shows the gift catalogue to every role that can list gifts', () => {
-    for (const role of ['giam_doc_kinh_doanh', 'giam_doc_dao_tao', 'sale'] as Role[]) {
+  // Quà tặng is the gift-catalogue MANAGEMENT screen: nav + route both gate on
+  // `gift.upsert` (giam_doc_kinh_doanh / giam_doc_dao_tao). Sale holds only
+  // `gift.list` (redemption naming) and must NOT see the management entry —
+  // flow-manifest P4-02 + gift-config-nav.journey pin this negation.
+  it('shows the gift catalogue only to roles that can manage gifts (gift.upsert)', () => {
+    for (const role of ['giam_doc_kinh_doanh', 'giam_doc_dao_tao'] as Role[]) {
       expect(pathsFor(role), `${role} should see /admin/engagement/gifts`)
         .toContain('/admin/engagement/gifts');
     }
+    expect(pathsFor('sale'), 'sale must not see /admin/engagement/gifts')
+      .not.toContain('/admin/engagement/gifts');
   });
 
   it('hides the engagement screens from giao_vien, who holds neither key', () => {

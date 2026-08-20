@@ -1,6 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BrevoEmailTransport, GraphEmailTransport } from './email-transport.js';
+import { BrevoEmailTransport, GraphEmailTransport, SmtpEmailTransport } from './email-transport.js';
 import { renderOutboxEmail } from './email-templates.js';
+
+const { mockSendMail, mockCreateTransport } = vi.hoisted(() => {
+  const mockSendMail = vi.fn();
+  const mockCreateTransport = vi.fn(() => ({ sendMail: mockSendMail }));
+  return { mockSendMail, mockCreateTransport };
+});
+
+vi.mock('nodemailer', () => ({
+  default: { createTransport: mockCreateTransport },
+  createTransport: mockCreateTransport,
+}));
 
 const RECEIPT_PAYLOAD = { receiptId: 'r-1', studentName: 'Nguyễn An', kind: 'new' };
 
@@ -87,5 +98,38 @@ describe('GraphEmailTransport', () => {
     delete process.env.GRAPH_CLIENT_SECRET;
     delete process.env.GRAPH_SENDER_EMAIL;
     expect(() => new GraphEmailTransport()).toThrow(/missing required env vars/);
+  });
+});
+
+describe('SmtpEmailTransport', () => {
+  afterEach(() => {
+    mockSendMail.mockReset();
+    mockCreateTransport.mockClear();
+  });
+
+  it('sends rendered subject+html via nodemailer', async () => {
+    process.env.SMTP_URL = 'smtp://user:pass@localhost:587';
+    process.env.SMTP_FROM = 'noreply@cmc.edu';
+    mockSendMail.mockResolvedValue({});
+
+    await new SmtpEmailTransport().send({ id: 'e1', to: 'p@x.com', payload: RECEIPT_PAYLOAD });
+
+    const rendered = renderOutboxEmail(RECEIPT_PAYLOAD);
+    expect(mockSendMail).toHaveBeenCalledWith({
+      from: 'noreply@cmc.edu',
+      to: 'p@x.com',
+      subject: rendered.subject,
+      html: rendered.html,
+    });
+  });
+
+  it('throws when sendMail rejects', async () => {
+    process.env.SMTP_URL = 'smtp://user:pass@localhost:587';
+    process.env.SMTP_FROM = 'noreply@cmc.edu';
+    mockSendMail.mockRejectedValue(new Error('smtp down'));
+
+    await expect(
+      new SmtpEmailTransport().send({ id: 'e1', to: 'p@x.com', payload: RECEIPT_PAYLOAD }),
+    ).rejects.toThrow(/smtp down/);
   });
 });

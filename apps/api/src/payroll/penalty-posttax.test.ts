@@ -52,12 +52,13 @@ const SHIFT_END_TIME = '17:00';
 const LATE_CLOCKIN_UTC = ictToUtc(TEST_DATE, '09:30'); // 30 min late
 const EARLY_CLOCKOUT_UTC = ictToUtc(TEST_DATE, '16:30'); // 30 min early
 
-// Expected penalty: 30×500 + 30×1000 = 15000 + 30000 = 45000
+// docs/20 §3: fallback 500đ/phút muộn, 1000đ/phút sớm when no CompensationPolicy.
 const EXPECTED_LATE_MINUTES = 30;
 const EXPECTED_EARLY_MINUTES = 30;
 const EXPECTED_PENALTY = 30 * 500 + 30 * 1000; // 45000
+// Fixture tier amount — docs/19, docs/20, docs/22 do not publish a SalaryTier catalog.
+// TODO(golden: needs operator): GV/KD baseSalary, unitRate, requiredShifts, requiredMetric.
 const TIER_BASE_SALARY = 10_000_000;
-
 let gvGroupId: string;
 
 beforeEach(async () => {
@@ -372,15 +373,15 @@ describe('payslip.assemble', () => {
     expect(payslip.status).toBe('draft');
     expect(payslip.lateMinutes).toBe(EXPECTED_LATE_MINUTES);
     expect(payslip.earlyMinutes).toBe(EXPECTED_EARLY_MINUTES);
-    // Penalty is an INDEPENDENT line: lateMinutes×500 + earlyMinutes×1000
+    // Penalty is an INDEPENDENT line: lateMinutes×500 + earlyMinutes×1000 (docs/20 §3)
     expect(Number(payslip.penaltyAmount)).toBe(EXPECTED_PENALTY);
     // baseSalary comes from the assigned SalaryTier
     expect(Number(payslip.baseSalary)).toBe(TIER_BASE_SALARY);
-    // variablePay is ALWAYS 0 — deprecated column (R3-2)
+    // variablePay is ALWAYS 0 — deprecated column (docs/22 ADR 0044)
     expect(Number(payslip.variablePay)).toBe(0);
   });
 
-  it('totalNet = baseSalary + kpiBonus − penaltyAmount (new formula, no variablePay)', async () => {
+  it('totalNet = baseSalary + kpiBonus − penaltyAmount (docs/20 §3); clamp ≥ 0; penalty ≤ earnings', async () => {
     const payslip = await directorCaller().payslip.assemble({
       appUserId: employeeAppUserId,
       period: TEST_PERIOD,
@@ -392,6 +393,35 @@ describe('payslip.assemble', () => {
 
     expect(penaltyAmount).toBeGreaterThan(0);
     expect(Number(payslip.totalNet)).toBe(baseSalary + kpiBonus - penaltyAmount);
+    expect(Number(payslip.totalNet)).toBeGreaterThanOrEqual(0); // docs/20 §3 clamp
+    expect(penaltyAmount).toBeLessThanOrEqual(baseSalary + kpiBonus); // docs/20 §3 cap
+  });
+
+  it('docs/20 §3: penaltyAmount is capped at baseSalary+kpiBonus; totalNet never negative', async () => {
+    // Tiny fixture base (not a catalog rate) so the live 45_000 raw penalty exceeds earnings.
+    const tiny = await superAdminCaller().salaryTier.create({
+      name: 'Bậc GV Trần cap',
+      type: 'GIAO_VIEN',
+      baseSalary: 20_000,
+      unitRate: 100_000,
+      requiredShifts: 20,
+      requiredMetric: 120,
+    });
+    await superAdminCaller().compensation.assignTier({
+      appUserId: employeeAppUserId,
+      tierId: tiny.id,
+    });
+
+    const payslip = await directorCaller().payslip.assemble({
+      appUserId: employeeAppUserId,
+      period: TEST_PERIOD,
+    });
+
+    expect(EXPECTED_PENALTY).toBeGreaterThan(20_000);
+    expect(Number(payslip.baseSalary)).toBe(20_000);
+    expect(Number(payslip.kpiBonus)).toBe(0);
+    expect(Number(payslip.penaltyAmount)).toBe(20_000);
+    expect(Number(payslip.totalNet)).toBe(0);
   });
 
   it('updates an existing draft Payslip on re-assemble (e.g. after re-assigning a bigger tier)', async () => {
@@ -652,6 +682,11 @@ describe('payslip.assemble — KpiScore status gate', () => {
       period: TEST_PERIOD,
     });
     expect(Number(payslip.kpiBonus)).toBe(1_200_000);
+    expect(Number(payslip.baseSalary)).toBe(TIER_BASE_SALARY);
+    expect(Number(payslip.penaltyAmount)).toBe(EXPECTED_PENALTY);
+    // docs/20 §3 + docs/22 ADR 0044: kpiBonus is the "Phần KPI" (confirmed KpiScore.value)
+    expect(Number(payslip.totalNet)).toBe(TIER_BASE_SALARY + 1_200_000 - EXPECTED_PENALTY);
+    expect(Number(payslip.totalNet)).toBeGreaterThanOrEqual(0);
   });
 
   it('approved KpiScore.value is included as kpiBonus', async () => {

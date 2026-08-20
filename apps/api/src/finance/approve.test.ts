@@ -110,17 +110,21 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     });
   });
 
-  it('approves a draft: freezes status, advances opp to O5 + closedAt, keeps netAmount unchanged — I2/I4', async () => {
+  it('approves a draft: freezes status, advances opp to O5 + closedAt, keeps netAmount unchanged, activates enrollment — I2/I4', async () => {
+    // 7_500_000 is a fixture — docs/19, docs/20, docs/22 publish no tuition catalog.
+    // TODO(golden: needs operator): course tuition prices.
+    const net = 7_500_000;
     const { opportunityId, receipt } = await draftReceipt(sale, {
       contactPhone: '0930000002',
       parentPhone: '0940000002',
-      amount: 7_500_000,
+      amount: net,
     });
 
     const result = await gdkd.finance.receiptApprove({ receiptId: receipt.id });
 
     expect(result.receipt.status).toBe('approved');
-    expect(result.receipt.netAmount).toBe(7_500_000); // I4: unchanged from draft
+    expect(result.receipt.netAmount).toBe(net); // I4: unchanged from draft
+    expect(result.receipt.netAmount).toBe(receipt.netAmount);
     expect(result.opportunityStage).toBe('O5_ENROLLED');
     expect(result.provisioning).toBe('ok');
 
@@ -136,6 +140,14 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
     expect(enrolled).toHaveLength(1);
     expect(financePayloadLeaksMoney(enrolled[0]?.payload)).toBe(false);
     expect(JSON.stringify(enrolled[0]?.payload ?? {})).not.toMatch(/amount|receiptId|approver/i);
+
+    const student = await testDbBypass((tx) =>
+      tx.student.findUniqueOrThrow({ where: { createdByReceiptId: result.receipt.id } }),
+    );
+    const enrollment = await testDbBypass((tx) =>
+      tx.enrollment.findFirstOrThrow({ where: { studentId: student.id } }),
+    );
+    expect(enrollment.status).toBe('active');
   });
 
   it('Metric & Data Integrity remediation (scenario audit): a SECOND approval on the same opportunity does NOT overwrite closedAt', async () => {
@@ -403,6 +415,8 @@ describe('finance.receiptApprove (WF-P1-03 money gate)', () => {
   });
 
   it('forbids self-approval above the threshold — requires an independent second approver (ADR-B)', async () => {
+    // TODO(golden: needs operator): docs/19 §2b records 20_000_000 VND as a
+    // default and says the figure is not operator-locked.
     const soloGdkd = appRouter.createCaller(
       buildStaffContext({ facilityId: facility.id, userId: 'gdkd-solo-2', roles: ['giam_doc_kinh_doanh'] }),
     );

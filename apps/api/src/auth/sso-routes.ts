@@ -20,7 +20,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomBytes, createHmac, timingSafeEqual } from 'node:crypto';
 import { ConfidentialClientApplication, LogLevel } from '@azure/msal-node';
 import type { AuthorizationCodeRequest, AuthorizationUrlRequest } from '@azure/msal-node';
-import { createPrismaClient, type PrismaClient } from '@cmc/db';
+import { createPrismaClient, withFacility, type PrismaClient } from '@cmc/db';
 import type { Role as AuthRole } from '@cmc/auth';
 import {
   buildStaffCookieHeader,
@@ -67,6 +67,22 @@ let _ssoDb: PrismaClient | undefined;
 function getSsoDb(): PrismaClient {
   _ssoDb ??= createPrismaClient();
   return _ssoDb;
+}
+
+/**
+ * AppUser is RLS'd by facility and the facility is unknown until the row
+ * is found, so the lookup runs under the audited `bypass_rls` escape
+ * hatch (ADR 0042) — same pattern as staff password login. Access is
+ * still gated by the Entra identity plus the pre-provisioned allow-list
+ * (no auto-provision).
+ */
+export async function lookupSsoAppUser(db: PrismaClient, email: string) {
+  return withFacility(
+    db,
+    null,
+    async (tx) => tx.appUser.findFirst({ where: { email } }),
+    { bypass: true },
+  );
 }
 
 function getStaffEmailDomain(): string | null {
@@ -217,7 +233,7 @@ export async function handleSsoCallback(
     }
 
     // Look up AppUser by email (must exist and be active — no auto-provision).
-    const appUser = await getSsoDb().appUser.findFirst({ where: { email } });
+    const appUser = await lookupSsoAppUser(getSsoDb(), email);
 
     if (!appUser || !appUser.isActive) {
       sendRedirect(res, `${getAdminOrigin()}/login?error=not_authorized`);

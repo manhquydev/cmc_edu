@@ -181,7 +181,7 @@ nhân viên `/admin/parents` (hàng đợi duyệt trong modal Dialog).
 
 > **product-decision 2026-07-07**: WF-P1-07 đảo từ phone+OTP (QĐ0033) sang 2-tier auth. Hành vi cũ: phụ huynh đăng nhập bằng SĐT + OTP. Hành vi mới: 2 luồng song song phân biệt bằng `LmsSubject.kind`. Tham chiếu: UI implementation plan phase 01a/01b.
 >
-> **BLOCKED-ON-COMMS (stop-condition)**: Luồng phụ huynh (email OTP) dùng `ConsoleEmailTransport` — OTP chỉ ghi vào server log, không gửi ra ngoài. **Luồng PH không hoạt động production** cho đến khi Brevo API key hoặc MS Graph mail credentials được cấp và cấu hình. Luồng học sinh (SĐT+password) không phụ thuộc email transport và có thể kiểm tra độc lập.
+> Worker prod gửi OTP PH qua `BrevoEmailTransport` (console cấm ở prod). OTP **được enqueue**; lỗi hiện tại trên prod là `BREVO_API_KEY` invalid (HTTP 401), không phải stop-condition "chỉ ghi log". Luồng học sinh (SĐT+password) không phụ thuộc email transport và có thể kiểm tra độc lập.
 
 **Meta:** P1 · P0 · auto. **Actors:** phụ huynh (`kind='parent'`), học sinh (`kind='student'`). **Trigger:** người dùng truy cập LMS `/login`. **Precondition:** ParentAccount + StudentAccount tồn tại (từ provisioning).
 
@@ -189,7 +189,7 @@ nhân viên `/admin/parents` (hàng đợi duyệt trong modal Dialog).
 ```mermaid
 flowchart LR
     subgraph PH["Tab Phụ huynh (kind=parent)"]
-        A1["Nhập email"] --> B1["Yêu cầu OTP → gửi email\n[BLOCKED-ON-COMMS]"]
+        A1["Nhập email"] --> B1["Yêu cầu OTP → gửi email (Brevo prod)"]
         B1 --> C1["Nhập OTP 6 số"] --> D1{"Số con?"}
         D1 -->|1 con| E1["Vào thẳng dashboard con"]
         D1 -->|≥2 con| F1["Profile picker"] --> E1
@@ -212,8 +212,8 @@ flowchart LR
 
 **Rules/ADR:** product-decision 2026-07-07 (2-tier auth) · TL19 §2 · TL10 §4 (StudentAccount fields). **API:** `lmsAuth.requestOtpEmail` / `lmsAuth.verifyOtpEmail` (PH) · `lmsAuth.loginStudent` (HS) · `enrollment.mine`. **UI/URL:** LMS `/login` (2 tab) · `/parent/home` (PH child-picker inline) · `/student/home` (HS).
 
-**Traceability:** `PH/HS → WF-P1-07 → "Đăng nhập LMS" → lmsAuth.verifyEmailOtp|studentLogin + enrollment.mine → /select-child → test/lms-auth/login.spec → product-decision-2026-07-07`.
-**Acceptance:** 2 tab login rõ ràng; picker khi PH có ≥2 con; mustChangePassword buộc đổi; lifecycle bị chặn không vào được; OTP expired xử đúng; loginAttempts lock đúng; email OTP là BLOCKED-ON-COMMS.
+**Traceability:** `PH/HS → WF-P1-07 → "Đăng nhập LMS" → lmsAuth.verifyOtpEmail|loginStudent + enrollment.mine → /select-child → test/lms-auth/login.spec → product-decision-2026-07-07`.
+**Acceptance:** 2 tab login rõ ràng; picker khi PH có ≥2 con; mustChangePassword buộc đổi; lifecycle bị chặn không vào được; OTP expired xử đúng; loginAttempts lock đúng; parent OTP enqueue EmailOutbox; worker prod dùng BrevoEmailTransport (console chỉ dev/test).
 
 ---
 

@@ -157,16 +157,16 @@ The following 5 domain decisions were confirmed on 2026-07-07 and are recorded h
 **Lane:** High-risk  
 **Risk flags:** Auth, Data model, Public contracts, External systems  
 **Decision:** LMS auth is 2-tier: (a) Parent = email + OTP via email (`kind='parent'`); (b) Student = parent phone + password (`kind='student'`). Previous phone+OTP single-account model is removed.  
-**BLOCKED-ON-COMMS:** Parent email OTP is non-functional in production until Brevo/Graph credentials provided. `ConsoleEmailTransport` stub only.  
-**Docs updated:** TL11, TL15, TL18, TL19, TL24, TL12, TL06  
-**Story:** Implement 2-tab LMS login screen; wire `lmsAuth.requestEmailOtp`/`verifyEmailOtp` for parent; `lmsAuth.studentLogin` for student; add BLOCKED-ON-COMMS warning to UI.
+**Email:** Parent email OTP is the live login path. Prod worker uses `BrevoEmailTransport` (`ConsoleEmailTransport` is dev/test only and forbidden in prod). Current prod failure is an invalid `BREVO_API_KEY` (HTTP 401), not "never sent".
+**Docs updated:** TL11, TL15, TL18, TL19, TL24, TL12, TL06
+**Story:** Implement 2-tab LMS login screen; wire `lmsAuth.requestOtpEmail`/`verifyOtpEmail` for parent; `lmsAuth.loginStudent` for student. DEV-only comms banner; do not document Console as the prod transport.
 
 ### DD-003 — StudentAccount.passwordHash + LmsSubject.kind
 
 **Type:** Change request  
 **Lane:** High-risk  
 **Risk flags:** Auth, Data model, Audit/security  
-**Decision:** `passwordHash` (PBKDF2-SHA256), `mustChangePassword`, `loginAttempts`, `loginLockedUntil` are on `StudentAccount`, not `ParentAccount`. `LmsSubject` has `kind: 'parent' | 'student'` discriminator.  
+**Decision:** Student login fields `passwordHash` (PBKDF2-SHA256), `mustChangePassword`, `loginAttempts`, `loginLockedUntil` live on `StudentAccount`. `ParentAccount.passwordHash` exists in schema but is unused for login (parent login remains email+OTP). `LmsSubject` has `kind: 'parent' | 'student'` discriminator.
 **Docs updated:** TL10, TL15  
 **Story:** Verify schema has these fields on `StudentAccount`; `mustChangePassword=true` on provisioning; enforce password change on first login; test lockout logic.
 

@@ -625,12 +625,14 @@ export const flows: FlowEntry[] = [
     expected: {
       // shift.cancel = huỷ đăng ký ca của chính mình (E1).
       // shift.get = form-depth cold-start for /hr/shifts/:registrationId (owner view).
+      // shift.timeline = operational RecordEvent timeline on that same detail surface (Phase 3).
       trpc: [
         'shift.submit',
         'shift.listGroups',
         'shift.myRegistrations',
         'shift.cancel',
         'shift.get',
+        'shift.timeline',
       ],
       uiRoutes: ['/hr/shifts', '/hr/shifts/new', '/hr/shifts/:registrationId'],
       models: ['ShiftRegistration', 'ShiftRegistrationEntry'],
@@ -933,6 +935,8 @@ export const flows: FlowEntry[] = [
         'afterSale.close',
         // Form-depth cold-start for /crm/aftersale/:id.
         'afterSale.get',
+        // Operational RecordEvent timeline on the same after-sale detail surface (Phase 3).
+        'afterSale.timeline',
         'student.setLifecycle',
       ],
       uiRoutes: ['/crm/aftersale', '/crm/aftersale/:caseId'],

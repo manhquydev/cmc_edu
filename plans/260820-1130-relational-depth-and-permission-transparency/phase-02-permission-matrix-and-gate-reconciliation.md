@@ -1,6 +1,6 @@
 ---
 title: "Phase 2: Permission Matrix and Gate Reconciliation"
-status: pending
+status: done
 ---
 
 # Phase 2: Permission Matrix and Gate Reconciliation

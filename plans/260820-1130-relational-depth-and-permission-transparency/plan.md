@@ -1,7 +1,7 @@
 ---
 title: "Relational Depth and Permission Transparency"
 description: "Make first-class records navigable to each other (click a class/student/teacher/parent → its detail), surface a truthful per-role permission reference, and close the residual operational-timeline gaps — reusing the resource-depth chrome without building an Odoo-style generic framework."
-status: pending
+status: completed
 priority: P1
 effort: "12-20 engineer days, delivered as sequential protected PRs"
 issue:
@@ -42,9 +42,9 @@ governance surface** on top of that chrome:
 
 | # | Phase | Status |
 |---|-------|--------|
-| 1 | [Relational Cross-Linking](./phase-01-relational-cross-linking.md) | Pending |
-| 2 | [Permission Matrix and Gate Reconciliation](./phase-02-permission-matrix-and-gate-reconciliation.md) | Pending |
-| 3 | [Selective Timeline Fills](./phase-03-selective-timeline-fills.md) | Pending |
+| 1 | [Relational Cross-Linking](./phase-01-relational-cross-linking.md) | Done (PR #169, `85ddad5`) |
+| 2 | [Permission Matrix and Gate Reconciliation](./phase-02-permission-matrix-and-gate-reconciliation.md) | Done (PR #170, `7481d7d`) |
+| 3 | [Selective Timeline Fills](./phase-03-selective-timeline-fills.md) | Done (PR #171, `f7a2d9e`) |
 
 ## Dependencies
 

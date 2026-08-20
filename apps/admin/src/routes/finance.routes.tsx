@@ -79,7 +79,7 @@ export const financeRoutes: RouteObject[] = [
     path: ':id',
     element: <ReceiptDetailRedirect />,
   },
-  ...(['overview', 'order-lines'] as const).map((section) => ({
+  ...(['overview', 'order-lines', 'activity'] as const).map((section) => ({
     path: `:id/${section}`,
     element: (
       <Suspense fallback={<Fallback />}>

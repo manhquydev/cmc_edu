@@ -172,9 +172,8 @@ export const adminRoutes: RouteObject[] = [
   },
 
   // Engagement — same: the Gắn kết menu group now reaches both screens, and the
-  // gift/reward rosters deliberately exclude giao_vien (ADR-D). The gift menu
-  // entry is narrower than this gate on purpose — it follows `gift.upsert`, the
-  // screen's only mutation, so sale is not invited into a read-only dead end.
+  // gift/reward rosters deliberately exclude giao_vien (ADR-D). Nav and route
+  // both follow `gift.list` (the catalogue GET). Mutations stay `gift.upsert`.
   {
     path: 'engagement/gifts',
     element: (

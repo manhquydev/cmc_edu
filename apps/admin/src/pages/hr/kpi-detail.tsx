@@ -27,6 +27,7 @@ import {
 } from '@cmc/ui';
 import { kpiScoresPath, UUID_RE } from '@cmc/links';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { RecordLink } from '../../lib/record-link.js';
 import { useSession } from '../../lib/session-context.js';
 import { trpc } from '../../lib/trpc.js';
 
@@ -275,7 +276,15 @@ export default function KpiDetailPage() {
           >
             <KeyValueList
               items={[
-                { key: 'person', label: 'Nhân viên', value: personName },
+                {
+                  key: 'person',
+                  label: 'Nhân viên',
+                  value: (
+                    <RecordLink entity="staff" id={data.appUserId}>
+                      {personName}
+                    </RecordLink>
+                  ),
+                },
                 { key: 'period', label: 'Kỳ', value: data.period },
                 { key: 'position', label: 'Vị trí', value: data.position ?? '—' },
                 {

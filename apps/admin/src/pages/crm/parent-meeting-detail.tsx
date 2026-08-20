@@ -18,6 +18,7 @@ import {
 } from '@cmc/ui';
 import { UUID_RE, parentMeetingSectionPath } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
+import { RecordLink } from '../../lib/record-link.js';
 import { CompleteParentMeetingDialog } from './complete-parent-meeting-dialog.js';
 import { ParentMeetingActivitySection } from './parent-meeting-activity.js';
 
@@ -124,7 +125,23 @@ export default function ParentMeetingDetailPage() {
           />
         }
         entity={<EntityHeader title={data.studentName ?? 'Cuộc họp phụ huynh'} subtitle={fmtDateTime(data.scheduledAt)} initials="HH" badges={<StatusBadge status={data.status} label={STATUS_LABELS[data.status] ?? data.status} />} />}
-        summary={<HighlightStrip items={[{ key: 'student', label: 'Học viên', value: data.studentName ?? '—' }, { key: 'time', label: 'Thời gian', value: fmtDateTime(data.scheduledAt) }, { key: 'status', label: 'Trạng thái', value: STATUS_LABELS[data.status] ?? data.status }]} />}
+        summary={
+          <HighlightStrip
+            items={[
+              {
+                key: 'student',
+                label: 'Học viên',
+                value: (
+                  <RecordLink entity="student" id={data.studentId}>
+                    {data.studentName ?? '—'}
+                  </RecordLink>
+                ),
+              },
+              { key: 'time', label: 'Thời gian', value: fmtDateTime(data.scheduledAt) },
+              { key: 'status', label: 'Trạng thái', value: STATUS_LABELS[data.status] ?? data.status },
+            ]}
+          />
+        }
         tabs={<nav className="console-section-tabs" aria-label="Phân đoạn cuộc họp"><NavLink to={{ pathname: parentMeetingSectionPath(meetingId, 'overview'), search: location.search }} end>Tổng quan</NavLink><NavLink to={{ pathname: parentMeetingSectionPath(meetingId, 'activity'), search: location.search }} end>Lịch sử vận hành</NavLink></nav>}
         children={content}
       />

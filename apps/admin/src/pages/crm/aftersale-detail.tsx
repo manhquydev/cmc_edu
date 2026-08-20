@@ -20,6 +20,7 @@ import {
 } from '@cmc/ui';
 import { UUID_RE } from '@cmc/links';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { RecordLink } from '../../lib/record-link.js';
 import { trpc } from '../../lib/trpc.js';
 import { useAfterSaleActions } from './use-after-sale-actions.js';
 import { ResolveAfterSaleCaseDialog } from './resolve-after-sale-case-dialog.js';
@@ -248,7 +249,15 @@ export default function AfterSaleDetailPage() {
               ),
             },
             { key: 'priority', label: 'Ưu tiên', value: priorityLabel },
-            { key: 'student', label: 'Học viên', value: studentLabel },
+            {
+              key: 'student',
+              label: 'Học viên',
+              value: (
+                <RecordLink entity="student" id={data.studentId}>
+                  {studentLabel}
+                </RecordLink>
+              ),
+            },
           ]}
         />
       }

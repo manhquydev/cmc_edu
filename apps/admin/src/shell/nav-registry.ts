@@ -48,11 +48,10 @@ export const NAV_MODULES: NavModule[] = [
       // requests), so this was the only way for staff to ever find one to
       // backfill their email. Lives here rather than under Quản trị — same
       // reason shift-config was moved out of it (comment above, `hr` group):
-      // permission roster for `parentAccount.updateEmail` is
-      // giam_doc_kinh_doanh/sale, but the whole Quản trị module is
-      // `roles: ['super_admin']`, which would hide this entry from the very
-      // roles the permission grants it to.
-      { id: 'parents', label: 'Phụ huynh', path: '/admin/parents', icon: 'users', permission: { module: 'parentAccount', action: 'updateEmail' } },
+      // `parentAccount.read` is GĐKD / GĐĐT / sale, but the whole Quản trị
+      // module is `roles: ['super_admin']`, which would hide this entry from
+      // the roles the permission grants it to.
+      { id: 'parents', label: 'Phụ huynh', path: '/admin/parents', icon: 'users', permission: { module: 'parentAccount', action: 'read' } },
     ],
   },
   {
@@ -106,21 +105,19 @@ export const NAV_MODULES: NavModule[] = [
     // row can operate. The row is a button that navigates there, and children
     // only unfold once the module is active, so the landing screen is forced on
     // whoever opens the group. Đổi thưởng is the only correct choice: everyone
-    // holding `gift.upsert` also holds `rewards.manage`, but not the reverse —
-    // landing on Quà tặng would walk sale into a catalogue it may read and may
-    // not change, which is the dead end the gift entry below is narrowed to
-    // avoid. (`/admin/engagement` itself has no route and would render
-    // ComingSoon.)
+    // holding `gift.list` also holds `rewards.manage`, but not the reverse —
+    // landing on Quà tặng would walk a role that cannot list gifts into a
+    // catalogue it cannot open. (`/admin/engagement` itself has no route and
+    // would render ComingSoon.)
     id: 'engagement',
     label: 'Gắn kết',
     icon: 'star',
     path: '/admin/engagement/rewards',
     children: [
-      // Configuration screen whose only mutation is `gift.upsert`, so the entry
-      // follows that key rather than the wider `gift.list` — a sale led in here
-      // would meet a 403 on every action. Sale's way into the loyalty flow is
-      // Đổi thưởng below, which it can actually operate.
-      { id: 'gifts', label: 'Quà tặng', path: '/admin/engagement/gifts', icon: 'gift', permission: { module: 'gift', action: 'upsert' } },
+      // Catalogue GET is `gift.list` — same key as the route PermissionGate.
+      // Sale holds list (not upsert); mutations stay behind gift.upsert on
+      // the server. Nav must not hide a screen the API already lets them read.
+      { id: 'gifts', label: 'Quà tặng', path: '/admin/engagement/gifts', icon: 'gift', permission: { module: 'gift', action: 'list' } },
       { id: 'rewards', label: 'Đổi thưởng', path: '/admin/engagement/rewards', icon: 'trophy', permission: { module: 'rewards', action: 'manage' } },
       // Bảng xếp hạng (`/admin/engagement/leaderboard`) is deliberately absent:
       // it is still an EmptyState placeholder, and a menu entry pointing at one

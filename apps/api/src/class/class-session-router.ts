@@ -137,6 +137,9 @@ export interface ClassSessionGetDto extends ClassSessionDto {
   batchCode: string;
   program: string;
   teacherId: string | null;
+  /** Resolved AppUser.id for the session/class teacher hop. */
+  teacherAppUserId: string | null;
+  teacherFullName: string | null;
   courseId: string;
   batchStatus: string;
 }
@@ -174,6 +177,7 @@ export const classSessionRouter = router({
                 code: true,
                 program: true,
                 teacherId: true,
+                teacherAppUserId: true,
                 courseId: true,
                 status: true,
               },
@@ -183,10 +187,20 @@ export const classSessionRouter = router({
         if (!row) {
           throw notFound('ClassSession not found.');
         }
+        const teacherAppUserId =
+          row.teacherId ?? row.classBatch.teacherAppUserId ?? row.classBatch.teacherId;
+        const teacher = teacherAppUserId
+          ? await tx.appUser.findFirst({
+              where: { id: teacherAppUserId, facilityId },
+              select: { id: true, fullName: true },
+            })
+          : null;
         return {
           ...toClassSessionDto(row, row.classBatch.teacherId),
           batchCode: row.classBatch.code,
           program: row.classBatch.program,
+          teacherAppUserId: teacher?.id ?? null,
+          teacherFullName: teacher?.fullName ?? null,
           courseId: row.classBatch.courseId,
           batchStatus: row.classBatch.status,
         };

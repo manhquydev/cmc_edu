@@ -59,6 +59,7 @@ export default function SessionDetailPage() {
   const { canDo } = useSession();
   const canCancelRestamp = canDo('schedule', 'generate');
   const canDeliver = canDo('exercise', 'manage');
+  const canViewStaff = canDo('user', 'manage') || canDo('staff', 'pickList');
 
   const rawTab = searchParams.get('tab');
   const activeTab: TabId = isTab(rawTab) ? rawTab : 'attendance';
@@ -225,6 +226,19 @@ export default function SessionDetailPage() {
                 ),
               },
               { key: 'program', label: 'Chương trình', value: session.program ?? '—' },
+              {
+                key: 'teacher',
+                label: 'Giáo viên',
+                value: (
+                  <RecordLink
+                    entity="staff"
+                    id={session.teacherAppUserId}
+                    canView={canViewStaff}
+                  >
+                    {session.teacherFullName ?? '—'}
+                  </RecordLink>
+                ),
+              },
               { key: 'time', label: 'Thời gian', value: timeRange },
               { key: 'status', label: 'Trạng thái', value: statusLabel },
               { key: 'progress', label: 'Tiến độ session-done', value: progressLabel },

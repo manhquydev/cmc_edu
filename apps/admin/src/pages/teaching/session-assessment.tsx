@@ -47,7 +47,6 @@ interface RosterEntry {
 export default function SessionAssessmentPage() {
   const [classBatchId, setClassBatchId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [edited, setEdited] = useState<Record<string, string>>({});
   const [rubricDrafts, setRubricDrafts] = useState<Record<string, RubricDraft>>({});
   const [confirmAllError, setConfirmAllError] = useState<string | null>(null);
   const [confirmAllBusy, setConfirmAllBusy] = useState(false);
@@ -123,13 +122,8 @@ export default function SessionAssessmentPage() {
 
   function resetSession() {
     setSessionId(null);
-    setEdited({});
     setRubricDrafts({});
     setConfirmAllError(null);
-  }
-
-  function contentFor(studentId: string, assessment: AssessmentDto | undefined): string {
-    return edited[studentId] ?? assessment?.content ?? '';
   }
 
   async function handleConfirmAll() {
@@ -146,7 +140,6 @@ export default function SessionAssessmentPage() {
         }
         await confirmMut.mutateAsync({
           assessmentId: a.id,
-          content: contentFor(entry.studentId, a),
           rubric: draft ? toRubricPayload(draft) : undefined,
         });
       }
@@ -212,7 +205,7 @@ export default function SessionAssessmentPage() {
                 placeholder="Chọn buổi"
                 options={sessionOptions}
                 value={sessionId ?? undefined}
-                onChange={(v) => { setSessionId(v ?? null); setEdited({}); setRubricDrafts({}); setConfirmAllError(null); }}
+                onChange={(v) => { setSessionId(v ?? null); setRubricDrafts({}); setConfirmAllError(null); }}
                 hasClear={false}
               />
             )}

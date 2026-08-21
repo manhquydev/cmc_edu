@@ -31,7 +31,6 @@ export function AssessmentPanel({
   classBatchId,
   hideDoneBadges = false,
 }: AssessmentPanelProps) {
-  const [edited, setEdited] = useState<Record<string, string>>({});
   const [rubricDrafts, setRubricDrafts] = useState<Record<string, RubricDraft>>({});
   const [confirmAllError, setConfirmAllError] = useState<string | null>(null);
   const [confirmAllBusy, setConfirmAllBusy] = useState(false);
@@ -117,10 +116,6 @@ export function AssessmentPanel({
     evidenceData?.status === 'published' && (evidenceData.photos?.length ?? 0) >= 1;
   const allDoneConditionsMet = hasPresentAttendance && allCommentsConfirmed && evidencePublished;
 
-  function contentFor(studentId: string, assessment: AssessmentDto | undefined): string {
-    return edited[studentId] ?? assessment?.content ?? '';
-  }
-
   async function handleConfirmAll() {
     setConfirmAllBusy(true);
     setConfirmAllError(null);
@@ -135,7 +130,6 @@ export function AssessmentPanel({
         }
         await confirmMut.mutateAsync({
           assessmentId: a.id,
-          content: contentFor(entry.studentId, a),
           rubric: draft ? toRubricPayload(draft) : undefined,
         });
       }

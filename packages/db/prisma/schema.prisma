@@ -1159,6 +1159,8 @@ model QualitativeAssessment {
   /// ICT calendar month `YYYY-MM` for monthly report-card assessments.
   period         String?
   content        String    @default("")
+  /// Session-scoped v2 rubric `{ version: 2, scores, narratives }`. Null = legacy content-only.
+  rubric         Json?
   /// draft | confirmed | discarded
   status         String    @default("draft")
   /// ai | teacher

@@ -61,6 +61,9 @@ importers:
       '@cmc/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@cmc/domain-lms':
+        specifier: workspace:*
+        version: link:../../packages/domain-lms
       '@cmc/domain-time':
         specifier: workspace:*
         version: link:../../packages/domain-time
@@ -265,6 +268,9 @@ importers:
       '@cmc/api':
         specifier: workspace:*
         version: link:../api
+      '@cmc/domain-lms':
+        specifier: workspace:*
+        version: link:../../packages/domain-lms
       '@cmc/ui':
         specifier: workspace:*
         version: link:../../packages/ui

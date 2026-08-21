@@ -21,6 +21,18 @@ import { withFacility } from '@cmc/db';
 import type { Prisma } from '@cmc/db';
 import { createLLMClient } from '@cmc/llm';
 import { ictMonthBounds } from '@cmc/domain-time';
+import {
+  NARRATIVE_MAX_CHARS,
+  criterionKeys,
+  isCompleteScores,
+  isRubricProgram,
+  rubricFor,
+  safeParseRubric,
+  synthesizeRubricContent,
+  type RubricPayload,
+  type RubricProgram,
+  type RubricProgramId,
+} from '@cmc/domain-lms';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { lmsProcedure, requirePermission, router, scoped } from '../trpc.js';
 import {
@@ -55,6 +67,7 @@ export interface AssessmentDto {
   classSessionId: string | null;
   period: string | null;
   content: string;
+  rubric: RubricPayload | null;
   status: string;
   draftedBy: string;
   confidence: number | null;
@@ -72,6 +85,8 @@ export interface ConfirmedAssessmentDto {
   classSessionId: string | null;
   period: string | null;
   content: string;
+  rubric: RubricPayload | null;
+  program: RubricProgramId | null;
   confirmedAt: Date | null;
 }
 
@@ -97,6 +112,7 @@ function toAssessmentDto(row: {
   classSessionId: string | null;
   period: string | null;
   content: string;
+  rubric?: unknown;
   status: string;
   draftedBy: string;
   confidence: number | null;
@@ -112,6 +128,7 @@ function toAssessmentDto(row: {
     classSessionId: row.classSessionId,
     period: row.period,
     content: row.content,
+    rubric: safeParseRubric(row.rubric ?? null),
     status: row.status,
     draftedBy: row.draftedBy,
     confidence: row.confidence,
@@ -128,6 +145,8 @@ function toConfirmedDto(row: {
   classSessionId: string | null;
   period: string | null;
   content: string;
+  rubric?: unknown;
+  program?: string | null;
   confirmedAt: Date | null;
 }): ConfirmedAssessmentDto {
   return {
@@ -136,6 +155,8 @@ function toConfirmedDto(row: {
     classSessionId: row.classSessionId,
     period: row.period,
     content: row.content,
+    rubric: safeParseRubric(row.rubric ?? null),
+    program: isRubricProgram(row.program) ? row.program : null,
     confirmedAt: row.confirmedAt,
   };
 }
@@ -154,10 +175,45 @@ const draftCommentInput = z
     message: 'One of classSessionId or period is required.',
   });
 
+const rubricScoreSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]);
+const rubricInput = z.object({
+  version: z.literal(2),
+  scores: z.record(z.string(), rubricScoreSchema),
+  narratives: z
+    .object({
+      strength: z.string().trim().max(NARRATIVE_MAX_CHARS).optional(),
+      weakness: z.string().trim().max(NARRATIVE_MAX_CHARS).optional(),
+      recommendation: z.string().trim().max(NARRATIVE_MAX_CHARS).optional(),
+    })
+    .optional(),
+});
+
 const confirmInput = z.object({
   assessmentId: z.string().uuid(),
-  content: z.string().min(1).max(10_000),
+  content: z.string().max(10_000).optional(),
+  rubric: rubricInput.optional(),
 });
+
+function requireSessionRubric(
+  program: RubricProgramId,
+  rubric: z.infer<typeof rubricInput> | undefined,
+): RubricPayload {
+  if (!rubric) {
+    throw badRequest('Session comments require a complete program rubric.');
+  }
+  const extra = Object.keys(rubric.scores).filter((key) => !criterionKeys(program).includes(key));
+  if (extra.length > 0) {
+    throw badRequest('Rubric contains unknown criterion keys.');
+  }
+  if (!isCompleteScores(program, rubric.scores)) {
+    throw badRequest('Rubric is missing required criterion scores for this program.');
+  }
+  return {
+    version: 2,
+    scores: rubric.scores,
+    narratives: rubric.narratives,
+  };
+}
 
 const discardInput = z.object({
   assessmentId: z.string().uuid(),
@@ -302,7 +358,12 @@ export const assessmentRouter = router({
       return withFacility(ctx.db, facilityId, async (tx) => {
         const existing = await tx.qualitativeAssessment.findFirst({
           where: { id: input.assessmentId, facilityId },
-          select: { id: true, status: true, classSessionId: true },
+          select: {
+            id: true,
+            status: true,
+            classSessionId: true,
+            classSession: { select: { classBatch: { select: { program: true } } } },
+          },
         });
         if (!existing) {
           throw notFound('Assessment not found.');
@@ -312,13 +373,28 @@ export const assessmentRouter = router({
         }
         await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, existing.classSessionId);
 
+        let content = input.content?.trim() ?? '';
+        let rubricJson: Prisma.InputJsonValue | undefined;
+        if (existing.classSessionId) {
+          const program = existing.classSession?.classBatch.program;
+          if (!isRubricProgram(program)) {
+            throw badRequest('Class program does not have a post-session rubric.');
+          }
+          const payload = requireSessionRubric(program, input.rubric);
+          rubricJson = payload as Prisma.InputJsonValue;
+          if (!content) content = synthesizeRubricContent(program, payload);
+        } else if (!content) {
+          throw badRequest('Period comments require written content.');
+        }
+
         // Atomic write — the WHERE status:'draft' means a concurrent confirm/discard
         // that already committed will produce count=0 here.
         const result = await tx.qualitativeAssessment.updateMany({
           where: { id: input.assessmentId, facilityId, status: 'draft' },
           data: {
             status: 'confirmed',
-            content: input.content,
+            content,
+            ...(rubricJson !== undefined ? { rubric: rubricJson } : {}),
             confirmedById: ctx.subject!.userId,
             confirmedAt: new Date(),
           },
@@ -377,7 +453,10 @@ export const assessmentRouter = router({
   // -------------------------------------------------------------------------
   listBySession: requirePermission('assessment', 'draft')
     .input(listBySessionInput)
-    .query(async ({ ctx, input }): Promise<{ items: AssessmentDto[] }> => {
+    .query(async ({
+      ctx,
+      input,
+    }): Promise<{ items: AssessmentDto[]; program: RubricProgramId | null; catalog: RubricProgram | null }> => {
       const { facilityId } = scoped(ctx);
       return withFacility(ctx.db, facilityId, async (tx) => {
         // Post-implementation hardening (M1): this read had no ownership
@@ -386,11 +465,18 @@ export const assessmentRouter = router({
         // already calls this same guard.
         await assertTeacherOwnsSessionClass(tx, facilityId, ctx.subject, input.classSessionId);
 
+        const session = await tx.classSession.findFirst({
+          where: { id: input.classSessionId, facilityId },
+          select: { classBatch: { select: { program: true } } },
+        });
+        const program = session?.classBatch.program ?? null;
+        const catalog = isRubricProgram(program) ? rubricFor(program) : null;
+
         const rows = await tx.qualitativeAssessment.findMany({
           where: { facilityId, classSessionId: input.classSessionId, status: { in: ['draft', 'confirmed'] } },
           orderBy: { createdAt: 'asc' },
         });
-        return { items: rows.map(toAssessmentDto) };
+        return { items: rows.map(toAssessmentDto), program: isRubricProgram(program) ? program : null, catalog };
       });
     }),
 
@@ -450,10 +536,19 @@ export const assessmentRouter = router({
             classSessionId: true,
             period: true,
             content: true,
+            rubric: true,
             confirmedAt: true,
+            classSession: { select: { classBatch: { select: { program: true } } } },
           },
         });
-        return { items: items.map(toConfirmedDto) };
+        return {
+          items: items.map((row) =>
+            toConfirmedDto({
+              ...row,
+              program: row.classSession?.classBatch.program ?? null,
+            }),
+          ),
+        };
       });
     }),
 });
@@ -561,6 +656,7 @@ export const reportCardRouter = router({
             classSessionId: true,
             period: true,
             content: true,
+            rubric: true,
             confirmedAt: true,
           },
         });

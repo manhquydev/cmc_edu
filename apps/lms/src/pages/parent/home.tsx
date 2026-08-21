@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Banner, Button, Divider, Heading, Spinner, Stack, Text } from '@cmc/ui';
+import { AssessmentRubricRead } from '../../components/assessment-rubric-read.js';
 import { isParentDoorKind } from '../../lib/lms-kind.js';
 import { getActiveStudentId, setActiveStudentId, trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
@@ -108,7 +109,11 @@ function RecentAssessments({ studentId }: { studentId: string }) {
               ? new Date(item.confirmedAt).toLocaleDateString('vi-VN')
               : item.period ?? '—'}
           </Text>
-          <Text type="body" size="sm">{item.content}</Text>
+          <AssessmentRubricRead
+            program={item.program}
+            rubric={item.rubric}
+            fallbackContent={item.content}
+          />
         </div>
       ))}
     </Stack>

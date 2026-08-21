@@ -33,6 +33,17 @@ describe('renderOutboxEmail', () => {
     expect(result.text).not.toContain('123456');
   });
 
+  it('renders a family-reset payload with the reset URL', () => {
+    const result = renderOutboxEmail({
+      kind: 'family-reset',
+      resetUrl: 'http://localhost:5174/dat-lai-mat-khau-gia-dinh#token=abc',
+      ttlMinutes: 60,
+    });
+    expect(result.subject).toContain('Đặt lại mật khẩu gia đình');
+    expect(result.text).toContain('#token=abc');
+    expect(result.html).toContain('Đặt lại mật khẩu');
+  });
+
   it('falls back to a safe generic message for an unknown payload shape', () => {
     const result = renderOutboxEmail({ somethingElse: true });
     expect(result.subject).toBe('CMC EDU — Thông báo');

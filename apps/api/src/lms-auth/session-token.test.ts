@@ -18,6 +18,25 @@ describe('signLmsToken / verifyLmsToken (RT-1)', () => {
     });
   });
 
+  it('round-trips a family token without studentId', () => {
+    const token = signLmsToken(
+      { parentAccountId: 'pa-1', kind: 'family', studentId: 'st-ignored', tokenVersion: 2 },
+      SECRET,
+    );
+    const claims = verifyLmsToken(token, SECRET);
+    expect(claims).toEqual({
+      parentAccountId: 'pa-1',
+      kind: 'family',
+      studentId: undefined,
+      tokenVersion: 2,
+    });
+  });
+
+  it('still verifies a parent token after family kind is allowed', () => {
+    const token = signLmsToken({ parentAccountId: 'pa-1', kind: 'parent' }, SECRET);
+    expect(verifyLmsToken(token, SECRET)?.kind).toBe('parent');
+  });
+
   it('round-trips a student token with studentId', () => {
     const token = signLmsToken(
       { parentAccountId: 'pa-1', studentId: 'st-1', kind: 'student', tokenVersion: 3 },

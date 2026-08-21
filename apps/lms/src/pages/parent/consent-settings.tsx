@@ -20,7 +20,7 @@ export default function ConsentSettingsPage() {
   const { session } = useSession();
 
   // Runtime kind gate (defence in depth — ParentLayout already redirects).
-  if (!session || session.kind !== 'parent') return null;
+  if (!session || (session.kind !== 'parent' && session.kind !== 'family')) return null;
 
   return <ConsentForm studentId={studentId!} onBack={() => navigate('/parent/home')} />;
 }

@@ -45,4 +45,19 @@ describe('parseLmsToken', () => {
       studentId: 'st-legacy',
     });
   });
+
+  it('accepts kind family without requiring studentId', () => {
+    const payload = b64urlJson({
+      parentAccountId: 'pa-fam',
+      kind: 'family',
+      iat: 1,
+      exp: 2,
+    });
+    const token = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkNNQy1MTVMtMSJ9.${payload}.sig`;
+    expect(parseLmsToken(token)).toEqual({
+      parentAccountId: 'pa-fam',
+      kind: 'family',
+      studentId: undefined,
+    });
+  });
 });

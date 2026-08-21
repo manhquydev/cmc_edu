@@ -15,11 +15,15 @@
 // The boot-check ensures the default NEVER runs in NODE_ENV=production.
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import type { LmsSessionKind } from './lms-kind.js';
+
+export type { LmsSessionKind } from './lms-kind.js';
+export { isParentDoorKind } from './lms-kind.js';
 
 export interface LmsTokenClaims {
   parentAccountId: string;
   studentId?: string;
-  kind: 'parent' | 'student';
+  kind: LmsSessionKind;
   /** ParentAccount.tokenVersion at issue time; rejected if account bumps. */
   tokenVersion?: number;
 }
@@ -58,7 +62,8 @@ export function signLmsToken(
   const payload = Buffer.from(
     JSON.stringify({
       parentAccountId: claims.parentAccountId,
-      ...(claims.studentId !== undefined && { studentId: claims.studentId }),
+      ...(claims.kind !== 'family' &&
+        claims.studentId !== undefined && { studentId: claims.studentId }),
       kind: claims.kind,
       tv: claims.tokenVersion ?? 0,
       iat: now,
@@ -103,11 +108,11 @@ export function verifyLmsToken(token: string, secret: string): LmsTokenClaims | 
   const { parentAccountId, studentId, kind, tv } = raw;
   const tokenVersion = typeof tv === 'number' && Number.isInteger(tv) ? tv : 0;
   if (typeof parentAccountId !== 'string') return null;
-  if (kind !== 'parent' && kind !== 'student') return null;
+  if (kind !== 'parent' && kind !== 'student' && kind !== 'family') return null;
 
   return {
     parentAccountId,
-    studentId: typeof studentId === 'string' ? studentId : undefined,
+    studentId: kind === 'family' ? undefined : typeof studentId === 'string' ? studentId : undefined,
     kind,
     tokenVersion,
   };

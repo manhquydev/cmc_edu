@@ -48,7 +48,7 @@ export default function ReportCardPage() {
   const [period, setPeriod] = useState(currentPeriod());
 
   // Defense-in-depth: route-level ParentOnly guard is the primary gate.
-  if (!session || session.kind !== 'parent') return null;
+  if (!session || (session.kind !== 'parent' && session.kind !== 'family')) return null;
 
   const { data, isLoading, error } = trpc.reportCard.getForChild.useQuery(
     { studentId: studentId!, period },

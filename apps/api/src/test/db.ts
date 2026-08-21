@@ -331,7 +331,7 @@ export interface TestLmsContextOptions {
   studentId?: string;
   /** C1/phase-01b: session kind. Defaults to 'parent' so existing tests that
    * don't pass kind continue to work as parent sessions. */
-  kind?: 'parent' | 'student';
+  kind?: 'parent' | 'student' | 'family';
 }
 
 /** Hand-builds an LMS (parent/student) `Context` against the real DB. */

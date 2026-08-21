@@ -10,11 +10,12 @@
 
 import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
+import { isParentDoorKind } from '../lib/lms-kind.js';
 import { useLmsSession } from '../lib/lms-session.js';
 
 export function ParentOnly({ children }: { children: ReactNode }) {
   const { session } = useLmsSession();
-  if (!session || session.kind !== 'parent') return <Navigate to="/login" replace />;
+  if (!session || !isParentDoorKind(session.kind)) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 

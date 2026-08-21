@@ -150,7 +150,13 @@ async function findOrCreateParentAccount(
 
   if (!account) {
     try {
-      account = await db.parentAccount.create({ data: { phone } });
+      account = await db.parentAccount.create({
+        data: {
+          phone,
+          ...(email ? { email } : {}),
+          passwordHash: hashPassword('Cmc2026@'),
+        },
+      });
     } catch (error) {
       if (!isUniqueConstraintViolation(error)) throw error;
 

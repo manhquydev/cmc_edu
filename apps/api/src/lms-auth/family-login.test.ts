@@ -173,8 +173,12 @@ describe('lmsAuth.familyLogin / forgot / reset (Wave 1 additive)', () => {
     });
     expect(reset).toEqual({ ok: true });
 
-    const updated = await testDb().parentAccount.findUniqueOrThrow({ where: { id: parent.id } });
-    expect(updated.tokenVersion).toBe(parent.tokenVersion + 1);
+    const updated = await testDb().parentAccount.findUniqueOrThrow({
+      where: { id: parent.id },
+      select: { tokenVersion: true, passwordHash: true },
+    });
+    // seedParentAccount only types { id, phone }; default tokenVersion is 0.
+    expect(updated.tokenVersion).toBe(1);
     expect(verifyPassword('BrandNewFamily1', updated.passwordHash ?? '')).toBe(true);
 
     const login = await anon.lmsAuth.familyLogin({ phone, password: 'BrandNewFamily1' });

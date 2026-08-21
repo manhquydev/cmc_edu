@@ -22,6 +22,7 @@
 // closes the gap where confirming ahead of time could game done/credit.
 
 import type { Prisma } from '@cmc/db';
+import { isRubricProgram, isSessionCommentSatisfied } from '@cmc/domain-lms';
 import { emitClassRecordEvent } from './record-event.js';
 
 export interface AttendanceForEvaluation {
@@ -34,6 +35,8 @@ export interface AssessmentForEvaluation {
   studentId: string;
   status: string;
   confirmedAt: Date | null;
+  /** When false, a confirmed row does not count (incomplete new rubric). Omitted = treat as satisfied. */
+  sessionCommentOk?: boolean;
 }
 
 export interface EvidenceForEvaluation {
@@ -85,7 +88,7 @@ export function evaluateSessionDoneProgress(
 
   const confirmedAtByStudent = new Map<string, Date>();
   for (const assessment of input.assessments) {
-    if (assessment.status === 'confirmed' && assessment.confirmedAt) {
+    if (assessment.status === 'confirmed' && assessment.confirmedAt && assessment.sessionCommentOk !== false) {
       confirmedAtByStudent.set(assessment.studentId, assessment.confirmedAt);
     }
   }
@@ -138,7 +141,7 @@ export function evaluateSessionDone(
   const present = input.attendances.filter((a) => a.status === 'present');
   const confirmedAtByStudent = new Map<string, Date>();
   for (const assessment of input.assessments) {
-    if (assessment.status === 'confirmed' && assessment.confirmedAt) {
+    if (assessment.status === 'confirmed' && assessment.confirmedAt && assessment.sessionCommentOk !== false) {
       confirmedAtByStudent.set(assessment.studentId, assessment.confirmedAt);
     }
   }
@@ -170,7 +173,13 @@ export async function markSessionDoneIfEligible(
 ): Promise<SessionDoneResult | null> {
   const session = await tx.classSession.findUnique({
     where: { id: sessionId },
-    select: { endTime: true, status: true, facilityId: true, classBatchId: true },
+    select: {
+      endTime: true,
+      status: true,
+      facilityId: true,
+      classBatchId: true,
+      classBatch: { select: { program: true } },
+    },
   });
   if (!session || (session.status !== 'planned' && session.status !== 'confirmed')) {
     return null;
@@ -183,7 +192,7 @@ export async function markSessionDoneIfEligible(
     }),
     tx.qualitativeAssessment.findMany({
       where: { classSessionId: sessionId },
-      select: { studentId: true, status: true, confirmedAt: true },
+      select: { studentId: true, status: true, confirmedAt: true, content: true, rubric: true },
     }),
     tx.sessionEvidence.findUnique({
       where: { classSessionId: sessionId },
@@ -191,11 +200,19 @@ export async function markSessionDoneIfEligible(
     }),
   ]);
 
+  const program = session.classBatch.program;
   const result = evaluateSessionDone(
     {
       endTime: session.endTime,
       attendances,
-      assessments,
+      assessments: assessments.map((row) => ({
+        studentId: row.studentId,
+        status: row.status,
+        confirmedAt: row.confirmedAt,
+        sessionCommentOk: isRubricProgram(program)
+          ? isSessionCommentSatisfied(program, row.content, row.rubric)
+          : row.content.trim().length > 0,
+      })),
       evidence: evidence
         ? { status: evidence.status, publishedAt: evidence.publishedAt, photoCount: evidence.photos.length }
         : null,

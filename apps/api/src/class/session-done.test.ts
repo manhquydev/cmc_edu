@@ -67,6 +67,25 @@ describe('evaluateSessionDoneProgress', () => {
     expect(p.assessmentOk).toBe(false);
     expect(p.eligible).toBe(false);
   });
+
+  it('does not count confirmed assessments marked sessionCommentOk false', () => {
+    const p = evaluateSessionDoneProgress(
+      baseInput({
+        assessments: [
+          {
+            studentId: 's1',
+            status: 'confirmed',
+            confirmedAt: new Date(),
+            sessionCommentOk: false,
+          },
+        ],
+      }),
+      now,
+    );
+    expect(p.assessmentsConfirmed).toBe(0);
+    expect(p.assessmentOk).toBe(false);
+    expect(p.eligible).toBe(false);
+  });
 });
 
 describe('evaluateSessionDone', () => {

@@ -72,10 +72,13 @@ test.describe('deeplink returnTo (staff form login)', () => {
     context,
   }) => {
     const staff = await seedStaffMustChangePassword({ roles: ['sale'] });
+    // Fixture actor must already have rotated — the same user cannot call
+    // crm.opportunityCreate while mustChangePassword is still true (#58).
+    const fixture = await seedStaffWithPassword({ roles: ['sale'] });
     const runId = randomUUID().slice(0, 8);
     const saleClient = createE2eStaffClient(baseUrl, {
-      userId: staff.userId,
-      roles: staff.roles,
+      userId: fixture.userId,
+      roles: fixture.roles,
       facilityId,
     });
     const opp = await saleClient.crm.opportunityCreate.mutate({

@@ -123,8 +123,8 @@ export function LoginPage() {
       const dest = safeReturnTo(searchParams.get('returnTo'));
       if (body.mustChangePassword) {
         // Carry returnTo through forced rotation so the user still lands on
-        // the original deep link after change-password (client UX only —
-        // mustChangePassword is still a client hint today).
+        // the original deep link after change-password. RequireAuth also
+        // enforces this from session.me.mustChangePassword.
         void navigate(`/change-password?returnTo=${encodeURIComponent(dest)}`, { replace: true });
       } else {
         void navigate(dest, { replace: true });

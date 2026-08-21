@@ -9,6 +9,7 @@ export interface SessionMe {
   roles: readonly Role[];
   facilityId: string;
   config: { approvalSecondEyeThreshold: number };
+  mustChangePassword: boolean;
 }
 
 interface SessionCtx {

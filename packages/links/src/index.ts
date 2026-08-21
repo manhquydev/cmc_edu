@@ -24,6 +24,8 @@ export const links = {
   kpiScore: (id: string) => `/hr/kpi/${id}`,
   /** AfterSaleCase form — UUID. */
   afterSaleCase: (id: string) => `/crm/aftersale/${id}`,
+  /** ParentMeeting form (post-sale meeting) — UUID. */
+  parentMeeting: (id: string) => `/crm/post-sale-meeting/${id}`,
   /** ParentAccount form — UUID. */
   parentAccount: (id: string) => `/admin/parents/${id}`,
   /** ClassSession form — UUID. */

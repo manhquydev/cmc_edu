@@ -24,7 +24,7 @@ const CockpitPage = lazy(() => import('../pages/cockpit.js'));
 // (no navbar/app-switcher/⌘K) so the user cannot navigate away mid-rotation.
 const ChangePasswordPage = lazy(() => import('../pages/change-password.js'));
 
-function RequireAuth({ children }: { children: ReactNode }) {
+export function RequireAuth({ children }: { children: ReactNode }) {
   const { me, isLoading } = useSession();
   const location = useLocation();
   if (isLoading) return <Skeleton height="100vh" radius={0} />;
@@ -38,6 +38,13 @@ function RequireAuth({ children }: { children: ReactNode }) {
       return <Navigate to={`/login?returnTo=${encodeURIComponent(dest)}`} replace />;
     }
     return <Navigate to="/login" replace />;
+  }
+  if (me.mustChangePassword && location.pathname !== '/change-password') {
+    if (shouldCaptureReturnTo(location.pathname)) {
+      const dest = `${location.pathname}${location.search}`;
+      return <Navigate to={`/change-password?returnTo=${encodeURIComponent(dest)}`} replace />;
+    }
+    return <Navigate to="/change-password" replace />;
   }
   return <>{children}</>;
 }

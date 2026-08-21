@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { appRouter } from '../router.js';
 import { APPROVAL_SECOND_EYE_THRESHOLD } from '../finance/router.js';
-import { buildStaffContext, cleanupFacility, createTestFacility, testDb } from '../test/db.js';
+import { buildStaffContext, cleanupFacility, createTestFacility, seedAppUser, testDb } from '../test/db.js';
 import type { Context } from '../trpc.js';
 
 describe('session.me (phase-01a M5)', () => {
@@ -27,6 +27,7 @@ describe('session.me (phase-01a M5)', () => {
     expect(me.roles).toContain('giam_doc_kinh_doanh');
     expect(me.facilityId).toBe(facility.id);
     expect(me.config.approvalSecondEyeThreshold).toBe(APPROVAL_SECOND_EYE_THRESHOLD);
+    expect(me.mustChangePassword).toBe(false);
   });
 
   it('reflects different roles for a different caller', async () => {
@@ -60,5 +61,29 @@ describe('session.me (phase-01a M5)', () => {
     };
     const caller = appRouter.createCaller(noFacilityContext);
     await expect(caller.session.me()).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+  });
+
+  it('returns mustChangePassword from the AppUser row', async () => {
+    await seedAppUser({
+      facilityId: facility.id,
+      userId: 'mcp-true-1',
+      roles: ['sale'],
+      mustChangePassword: true,
+    });
+    const forced = appRouter.createCaller(
+      buildStaffContext({ facilityId: facility.id, userId: 'mcp-true-1', roles: ['sale'] }),
+    );
+    expect((await forced.session.me()).mustChangePassword).toBe(true);
+
+    await seedAppUser({
+      facilityId: facility.id,
+      userId: 'mcp-false-1',
+      roles: ['sale'],
+      mustChangePassword: false,
+    });
+    const current = appRouter.createCaller(
+      buildStaffContext({ facilityId: facility.id, userId: 'mcp-false-1', roles: ['sale'] }),
+    );
+    expect((await current.session.me()).mustChangePassword).toBe(false);
   });
 });

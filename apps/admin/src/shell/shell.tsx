@@ -27,7 +27,8 @@ const API_URL = ((import.meta.env['VITE_API_URL'] as string | undefined) ?? '').
  *
  * Chrome-suppressed mode: on /change-password (forced password rotation) the
  * navbar, app-switcher, ⌘K, and systray are hidden so the user cannot navigate
- * away before rotating. Server still does not enforce staff mCP today.
+ * away before rotating. Path-only chrome suppress; RequireAuth + the staff
+ * protectedProcedure gate are the real enforcement.
  */
 export function Shell() {
   const { me, canDo } = useSession();
@@ -41,9 +42,8 @@ export function Shell() {
   const canCreateReceipt = canDo('finance', 'receiptCreate');
   const activeId = activeModuleId(location.pathname, modules);
 
-  // Path-only chrome suppress: session.me does not yet return mustChangePassword
-  // for staff (client login hint only). Forced rotation always lands on this
-  // route from login.tsx; deep-link escape remains a known server non-enforce.
+  // Path-only chrome suppress. Redirect is RequireAuth; APIs refuse while
+  // session.me.mustChangePassword is true.
   const suppressChrome =
     location.pathname === '/change-password' ||
     location.pathname.startsWith('/change-password/');

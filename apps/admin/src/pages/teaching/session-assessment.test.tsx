@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { criterionKeys, rubricFor } from '@cmc/domain-lms';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
 // Locks the per-session assessment screen (HR remediation phase 5, R2 #C4):
@@ -46,7 +47,9 @@ vi.mock('../../lib/trpc.js', async () => {
       'attendance.listBySession.useQuery': (_input: unknown, opts: { enabled?: boolean } | undefined) =>
         opts?.enabled ? queryResult({ items: rosterItems, total: rosterItems.length }) : queryResult(undefined),
       'assessment.listBySession.useQuery': (_input: unknown, opts: { enabled?: boolean } | undefined) =>
-        opts?.enabled ? queryResult({ items: assessmentItems }) : queryResult(undefined),
+        opts?.enabled
+          ? queryResult({ items: assessmentItems, program: 'UCREA', catalog: rubricFor('UCREA') })
+          : queryResult(undefined),
       'sessionEvidence.getBySession.useQuery': (_input: unknown, opts: { enabled?: boolean } | undefined) =>
         opts?.enabled ? queryResult(evidenceResult) : queryResult(undefined),
       'assessment.draftComment.useMutation': (opts: { onSuccess?: () => void }) =>
@@ -70,6 +73,23 @@ async function pickClassAndSession() {
   fireEvent.click(await screen.findByRole('option', { name: /CB001/ }));
   fireEvent.click(await screen.findByRole('combobox', { name: 'Chọn buổi học' }));
   fireEvent.click(await screen.findByRole('option', { name: /confirmed/ }));
+}
+
+async function fillUcreaScores(score: 1 | 2 | 3 | 4 = 3) {
+  for (const criterion of rubricFor('UCREA').criteria) {
+    fireEvent.click(screen.getByRole('combobox', { name: criterion.labelVi }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: `${score} — ${criterion.bands[score]}` }),
+    );
+  }
+}
+
+function completeUcreaRubric(score: 1 | 2 | 3 | 4 = 3) {
+  return {
+    version: 2 as const,
+    scores: Object.fromEntries(criterionKeys('UCREA').map((key) => [key, score])),
+    narratives: { strength: undefined, weakness: undefined, recommendation: undefined },
+  };
 }
 
 describe('SessionAssessmentPage', () => {
@@ -105,21 +125,25 @@ describe('SessionAssessmentPage', () => {
     expect(draftMutate).toHaveBeenCalledWith({ studentId: 'st-1', classSessionId: 'sess-1' });
   });
 
-  it('shows the editable content + Xác nhận button for a draft assessment', async () => {
+  it('shows rubric selectors and a disabled Xác nhận until every criterion is scored', async () => {
     assessmentItems = [{ id: 'a-1', studentId: 'st-1', status: 'draft', content: 'Học sinh tích cực.' }];
     renderWithProviders(<SessionAssessmentPage />);
     await pickClassAndSession();
-    expect(await screen.findByDisplayValue('Học sinh tích cực.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeInTheDocument();
+    expect(await screen.findByRole('combobox', { name: 'Thái độ đi học' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeDisabled();
   });
 
-  it('calls assessment.confirm.mutate({assessmentId, content}) when confirming a single student', async () => {
+  it('calls assessment.confirm.mutate({assessmentId, rubric}) when confirming a single student', async () => {
     assessmentItems = [{ id: 'a-1', studentId: 'st-1', status: 'draft', content: 'Học sinh tích cực.' }];
     renderWithProviders(<SessionAssessmentPage />);
     await pickClassAndSession();
-    fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận' }));
+    await fillUcreaScores(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
     await waitFor(() =>
-      expect(confirmMutateAsync).toHaveBeenCalledWith({ assessmentId: 'a-1', content: 'Học sinh tích cực.' }),
+      expect(confirmMutateAsync).toHaveBeenCalledWith({
+        assessmentId: 'a-1',
+        rubric: completeUcreaRubric(3),
+      }),
     );
   });
 
@@ -144,9 +168,13 @@ describe('SessionAssessmentPage', () => {
     assessmentItems = [{ id: 'a-1', studentId: 'st-1', status: 'draft', content: 'Học sinh tích cực.' }];
     renderWithProviders(<SessionAssessmentPage />);
     await pickClassAndSession();
-    fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận tất cả' }));
+    await fillUcreaScores(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận tất cả' }));
     await waitFor(() =>
-      expect(confirmMutateAsync).toHaveBeenCalledWith({ assessmentId: 'a-1', content: 'Học sinh tích cực.' }),
+      expect(confirmMutateAsync).toHaveBeenCalledWith({
+        assessmentId: 'a-1',
+        rubric: completeUcreaRubric(3),
+      }),
     );
   });
 

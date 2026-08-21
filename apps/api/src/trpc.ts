@@ -9,6 +9,7 @@ import { initTRPC } from '@trpc/server';
 import { can, type AuthSubject } from '@cmc/auth';
 import { withFacility, type Prisma, type PrismaClient } from '@cmc/db';
 import { AppCodeError, badRequest, forbidden, unauthorized } from './errors.js';
+import { isParentDoorKind, type LmsSessionKind } from './lms-auth/lms-kind.js';
 import {
   deriveEntity,
   deriveEntityId,
@@ -28,7 +29,7 @@ import {
 export interface LmsSubject {
   parentAccountId: string;
   studentId?: string;
-  kind: 'parent' | 'student';
+  kind: LmsSessionKind;
   /** From token `tv` claim; validated against ParentAccount.tokenVersion. */
   tokenVersion?: number;
 }
@@ -109,6 +110,9 @@ const AUDIT_EXCLUDED_PATHS = new Set<string>([
   'lmsAuth.requestOtp',
   'lmsAuth.requestOtpEmail',
   'lmsAuth.loginStudent',
+  'lmsAuth.familyLogin',
+  'lmsAuth.familyForgotPassword',
+  'lmsAuth.familyResetPasswordWithToken',
   'lmsAuth.resetChildPassword',
   'parentAccount.setActive',
   // Post-review fix: these two already audit via a SHARED helper
@@ -351,7 +355,7 @@ export function requireLmsParent(ctx: Context): { parentAccountId: string } {
   if (!ctx.lmsSubject) {
     throw unauthorized('LMS session required.');
   }
-  if (ctx.lmsSubject.kind !== 'parent') {
+  if (!isParentDoorKind(ctx.lmsSubject.kind)) {
     throw forbidden('Parent session required.');
   }
   return { parentAccountId: ctx.lmsSubject.parentAccountId };

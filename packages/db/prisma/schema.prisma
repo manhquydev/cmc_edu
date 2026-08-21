@@ -480,6 +480,10 @@ model ParentAccount {
   isActive             Boolean               @default(true)
   /// Bumped on deactivation / forced re-login; must match LMS token `tv` claim.
   tokenVersion         Int                   @default(0)
+  /// Consecutive failed familyLogin attempts. Reset to 0 on success.
+  loginAttempts        Int                   @default(0)
+  /// When set and in the future, familyLogin is locked until this timestamp.
+  loginLockedUntil     DateTime?             @db.Timestamptz(3)
   createdAt            DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime              @updatedAt @db.Timestamptz(3)
   studentAccounts      StudentAccount[]

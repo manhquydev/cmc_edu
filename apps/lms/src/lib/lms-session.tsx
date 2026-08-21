@@ -7,6 +7,7 @@
 // context tree uses the one created inside session-context.tsx.
 
 import { createContext, useContext } from 'react';
+import { isParentDoorKind, type LmsSessionKind } from './lms-kind.js';
 import { useSession } from './session-context.js';
 
 // ---------------------------------------------------------------------------
@@ -15,7 +16,7 @@ import { useSession } from './session-context.js';
 
 export interface LmsSession {
   parentAccountId: string;
-  kind: 'parent' | 'student';
+  kind: LmsSessionKind;
   studentId?: string;
 }
 
@@ -58,7 +59,7 @@ export function parseLmsToken(token: string): LmsSession | null {
     const kind = p['kind'];
     const studentId = p['studentId'];
     if (typeof parentAccountId !== 'string' || !parentAccountId) return null;
-    if (kind !== 'parent' && kind !== 'student') return null;
+    if (kind !== 'parent' && kind !== 'student' && kind !== 'family') return null;
     return {
       parentAccountId,
       kind,
@@ -116,7 +117,7 @@ export function useLmsSession(): LmsSessionCtxSpec {
     session,
     setToken,
     clearSession: logout,
-    isParent: stored?.kind === 'parent',
+    isParent: isParentDoorKind(stored?.kind),
     isStudent: stored?.kind === 'student',
   };
 }

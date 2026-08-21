@@ -65,7 +65,7 @@ export interface AuditChildDataAccessOptions {
   via: string;
   /** Whether the data was accessed by a parent session or a student session
    * (C1/phase-01b). Defaults to 'parent' when omitted (legacy call sites). */
-  actorKind?: 'parent' | 'student';
+  actorKind?: 'parent' | 'student' | 'family';
 }
 
 /**

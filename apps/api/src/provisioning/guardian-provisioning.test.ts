@@ -66,6 +66,7 @@ describe('provisionFromReceipt creates a Guardian link (K1)', () => {
     const parentAccount = await testDb().parentAccount.findUniqueOrThrow({
       where: { phone: normalizeLoginPhone(parentPhone) },
     });
+    expect(parentAccount.passwordHash).toMatch(/^pbkdf2:/);
     const student = await testDbBypass((tx) =>
       tx.student.findUniqueOrThrow({ where: { createdByReceiptId: draft.receipt.id } }),
     );

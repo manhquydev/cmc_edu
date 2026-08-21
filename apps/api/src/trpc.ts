@@ -7,7 +7,7 @@
 
 import { initTRPC } from '@trpc/server';
 import { can, type AuthSubject } from '@cmc/auth';
-import type { Prisma, PrismaClient } from '@cmc/db';
+import { withFacility, type Prisma, type PrismaClient } from '@cmc/db';
 import { AppCodeError, badRequest, forbidden, unauthorized } from './errors.js';
 import {
   deriveEntity,
@@ -242,8 +242,41 @@ const requireValidFacility = t.middleware(async ({ ctx, next }) => {
   return next();
 });
 
+const STAFF_PASSWORD_CHANGE_EXEMPT_PATHS: Record<string, true> = {
+  'session.me': true,
+  'user.changeOwnPassword': true,
+};
+
+/**
+ * Staff `mustChangePassword` lives on AppUser, not the session cookie.
+ * No AppUser row (x-dev-user fake ids in tests) is treated as false.
+ */
+export async function staffMustChangePassword(ctx: Context): Promise<boolean> {
+  if (!ctx.subject?.userId || !ctx.facilityId) return false;
+  const row = await withFacility(ctx.db, ctx.facilityId, (tx) =>
+    tx.appUser.findFirst({
+      where: { userId: ctx.subject!.userId, facilityId: ctx.facilityId! },
+      select: { mustChangePassword: true },
+    }),
+  );
+  return row?.mustChangePassword === true;
+}
+
+const requireStaffPasswordCurrent = t.middleware(async ({ ctx, next, path }) => {
+  if (STAFF_PASSWORD_CHANGE_EXEMPT_PATHS[path]) {
+    return next();
+  }
+  if (await staffMustChangePassword(ctx)) {
+    throw forbidden('Password change required before proceeding.');
+  }
+  return next();
+});
+
 /** Requires a valid staff session AND a facilityId that resolves to a real Facility. */
-export const protectedProcedure = basedProcedure.use(requireSession).use(requireValidFacility);
+export const protectedProcedure = basedProcedure
+  .use(requireSession)
+  .use(requireValidFacility)
+  .use(requireStaffPasswordCurrent);
 
 const requireLmsSession = t.middleware(async ({ ctx, next }) => {
   const { assertLiveLmsSession } = await import('./lms-auth/assert-live-session.js');

@@ -45,14 +45,16 @@ function KeyIcon() {
 export default function ChangePasswordPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const utils = trpc.useUtils();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
   const changeMut = trpc.user.changeOwnPassword.useMutation({
-    onSuccess: () => {
-      // Restore the deep link that login carried through ?returnTo=.
+    onSuccess: async () => {
+      // 5-min staleTime on session.me would bounce back to this screen.
+      await utils.session.me.invalidate();
       void navigate(safeReturnTo(searchParams.get('returnTo')), { replace: true });
     },
   });

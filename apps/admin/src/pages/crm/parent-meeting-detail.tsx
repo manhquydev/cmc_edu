@@ -19,6 +19,7 @@ import {
 import { UUID_RE, parentMeetingSectionPath } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { RecordLink } from '../../lib/record-link.js';
+import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { CompleteParentMeetingDialog } from './complete-parent-meeting-dialog.js';
 import { ParentMeetingActivitySection } from './parent-meeting-activity.js';
 
@@ -115,12 +116,15 @@ export default function ParentMeetingDetailPage() {
               { label: meetingId.slice(0, 8) },
             ]}
             actions={
-              <Button
-                label="← Danh sách"
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/crm/post-sale-meeting')}
-              />
+              <HStack gap={1} wrap="wrap">
+                <CopyLinkButton mode="go" entity="parentMeeting" id={meetingId} />
+                <Button
+                  label="← Danh sách"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/crm/post-sale-meeting')}
+                />
+              </HStack>
             }
           />
         }

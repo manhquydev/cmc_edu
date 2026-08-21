@@ -8,7 +8,7 @@
 // display, not a trust boundary. (M5 remediation, phase-01a plan.)
 
 import { APPROVAL_SECOND_EYE_THRESHOLD } from '../finance/router.js';
-import { protectedProcedure, router, scoped } from '../trpc.js';
+import { protectedProcedure, router, scoped, staffMustChangePassword } from '../trpc.js';
 
 export const sessionRouter = router({
   /** Returns the calling staff subject's identity and config values that the
@@ -21,7 +21,7 @@ export const sessionRouter = router({
    *
    * Security note: `can()` + RLS on every domain procedure are the real gates.
    * Do not treat this response as proof of permissions. */
-  me: protectedProcedure.query(({ ctx }) => {
+  me: protectedProcedure.query(async ({ ctx }) => {
     const { facilityId } = scoped(ctx);
     return {
       userId: ctx.subject.userId,
@@ -30,6 +30,7 @@ export const sessionRouter = router({
       config: {
         approvalSecondEyeThreshold: APPROVAL_SECOND_EYE_THRESHOLD,
       },
+      mustChangePassword: await staffMustChangePassword(ctx),
     };
   }),
 });

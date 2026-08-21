@@ -36,6 +36,7 @@ describe('links builders', () => {
     expect(links.shiftRegistration(UUID)).toBe(`/hr/shifts/${UUID}`);
     expect(links.kpiScore(UUID)).toBe(`/hr/kpi/${UUID}`);
     expect(links.afterSaleCase(UUID)).toBe(`/crm/aftersale/${UUID}`);
+    expect(links.parentMeeting(UUID)).toBe(`/crm/post-sale-meeting/${UUID}`);
     expect(links.parentAccount(UUID)).toBe(`/admin/parents/${UUID}`);
     expect(links.classSession(UUID)).toBe(`/teaching/sessions/${UUID}`);
     expect(links.manualPunchTicket(UUID)).toBe(`/hr/checkin/${UUID}`);
@@ -55,6 +56,7 @@ describe('links builders', () => {
     expect(goPath('manualPunchTicket', UUID)).toBe(`/go/manualPunchTicket/${UUID}`);
     expect(goPath('reward', UUID)).toBe(`/go/reward/${UUID}`);
     expect(goPath('exercise', UUID)).toBe(`/go/exercise/${UUID}`);
+    expect(goPath('parentMeeting', UUID)).toBe(`/go/parentMeeting/${UUID}`);
     expect(goPath('staff', UUID)).toBe(`/go/staff/${UUID}`);
   });
 });
@@ -122,6 +124,7 @@ describe('resolveGo', () => {
     expect(resolveGo('shiftRegistration', UUID)).toBe(`/hr/shifts/${UUID}`);
     expect(resolveGo('kpiScore', UUID)).toBe(`/hr/kpi/${UUID}`);
     expect(resolveGo('afterSaleCase', UUID)).toBe(`/crm/aftersale/${UUID}`);
+    expect(resolveGo('parentMeeting', UUID)).toBe(`/crm/post-sale-meeting/${UUID}`);
     expect(resolveGo('parentAccount', UUID)).toBe(`/admin/parents/${UUID}`);
     expect(resolveGo('classSession', UUID)).toBe(`/teaching/sessions/${UUID}`);
     expect(resolveGo('manualPunchTicket', UUID)).toBe(`/hr/checkin/${UUID}`);
@@ -145,6 +148,7 @@ describe('resolveGo', () => {
     expect(resolveGo('opportunity', '..%2F..%2Fadmin%2Fusers')).toBeNull();
     expect(resolveGo('opportunity', '')).toBeNull();
     expect(resolveGo('student', 'not-a-uuid')).toBeNull();
+    expect(resolveGo('parentMeeting', 'not-a-uuid')).toBeNull();
   });
 });
 

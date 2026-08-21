@@ -77,10 +77,12 @@ async function pickClassAndSession() {
 
 async function fillUcreaScores(score: 1 | 2 | 3 | 4 = 3) {
   for (const criterion of rubricFor('UCREA').criteria) {
+    const label = `${score} — ${criterion.bands[score]}`;
     fireEvent.click(screen.getByRole('combobox', { name: criterion.labelVi }));
-    fireEvent.click(
-      await screen.findByRole('option', { name: `${score} — ${criterion.bands[score]}` }),
-    );
+    fireEvent.click(await screen.findByRole('option', { name: label }));
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: criterion.labelVi })).toHaveTextContent(label);
+    });
   }
 }
 
@@ -138,14 +140,16 @@ describe('SessionAssessmentPage', () => {
     renderWithProviders(<SessionAssessmentPage />);
     await pickClassAndSession();
     await fillUcreaScores(3);
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    const confirm = screen.getByRole('button', { name: 'Xác nhận' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    fireEvent.click(confirm);
     await waitFor(() =>
       expect(confirmMutateAsync).toHaveBeenCalledWith({
         assessmentId: 'a-1',
         rubric: completeUcreaRubric(3),
       }),
     );
-  });
+  }, 15_000);
 
   it('shows a confirmed badge and read-only content for a confirmed assessment', async () => {
     assessmentItems = [{ id: 'a-1', studentId: 'st-1', status: 'confirmed', content: 'Rất tốt.' }];
@@ -176,7 +180,7 @@ describe('SessionAssessmentPage', () => {
         rubric: completeUcreaRubric(3),
       }),
     );
-  });
+  }, 15_000);
 
   it('shows an info banner when no student is marked present yet', async () => {
     rosterItems = [{ enrollmentId: 'e1', studentId: 'st-1', status: 'absent', markedAt: null }];

@@ -22,39 +22,21 @@ export default function SelectProfilePage() {
   }
 
   return (
-    <div className="lms-shell" style={{ padding: '2rem 1rem' }}>
+    <div className="lms-shell lms-page">
       <Stack gap={4} hAlign="center">
-        <Heading level={2} style={{ color: 'var(--cmc-brand)' }}>
+        <Heading level={2} className="lms-page__title">
           Ai đang học hôm nay?
         </Heading>
         <Text type="supporting">Chọn hồ sơ — không cần đăng nhập lại.</Text>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 16,
-            justifyContent: 'center',
-            maxWidth: 720,
-          }}
-        >
+        <div className="lms-profile-grid">
           {children.map((child) => (
             <button
               key={child.studentId}
               type="button"
+              className="lms-profile-card"
               onClick={() => {
                 setActiveStudentId(child.studentId);
                 navigate('/parent/home', { replace: true });
-              }}
-              style={{
-                width: 160,
-                minHeight: 160,
-                borderRadius: 16,
-                border: '1px solid var(--cmc-border)',
-                background: 'var(--cmc-surface-2)',
-                color: 'var(--cmc-text)',
-                cursor: 'pointer',
-                fontSize: 16,
-                fontWeight: 600,
               }}
             >
               {child.fullName}

@@ -6,8 +6,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Banner, Button, Heading, PasswordInput, Stack, Text, TextField } from '@cmc/ui';
 import { trpc } from '../lib/trpc.js';
 
-const fullWidth = { width: '100%' } as const;
-
 export default function FamilyPasswordResetPage() {
   const navigate = useNavigate();
   const [token, setToken] = useState('');
@@ -46,9 +44,9 @@ export default function FamilyPasswordResetPage() {
   });
 
   return (
-    <div className="lms-shell" style={{ padding: '1.5rem 1rem' }}>
+    <div className="lms-shell lms-page">
       <Stack gap={3}>
-        <Heading level={2} style={{ color: 'var(--cmc-brand)' }}>
+        <Heading level={2} className="lms-page__title">
           Đặt lại mật khẩu gia đình
         </Heading>
         <Text type="supporting">
@@ -70,7 +68,7 @@ export default function FamilyPasswordResetPage() {
               autoComplete="new-password"
             />
             <Button
-              style={fullWidth}
+              className="lms-btn-full"
               label="Đặt lại mật khẩu"
               isLoading={resetMut.isPending}
               isDisabled={password.length < 12}
@@ -92,7 +90,7 @@ export default function FamilyPasswordResetPage() {
         />
         <Button
           variant="secondary"
-          style={fullWidth}
+          className="lms-btn-full"
           label="Gửi lại liên kết"
           isLoading={forgotMut.isPending}
           isDisabled={!phone}

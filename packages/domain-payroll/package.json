@@ -22,8 +22,8 @@
     "test:coverage": "vitest run --coverage --coverage.thresholds.lines=90 --coverage.thresholds.functions=90"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "typescript": "^6.0.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }

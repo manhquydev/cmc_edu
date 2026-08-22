@@ -12,9 +12,9 @@
     "@cmc/db": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
+    "@types/node": "^22.20.1",
     "ts-morph": "^24.0.0",
     "typescript": "^6.0.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }

@@ -12,6 +12,7 @@ import { ParentOnly, StudentOnly } from '../components/kind-guard.js';
 // --- lazy page imports ---
 const LoginPage = lazy(() => import('../pages/login.js'));
 const FamilyPasswordResetPage = lazy(() => import('../pages/family-password-reset.js'));
+const ChangeFamilyPasswordPage = lazy(() => import('../pages/change-family-password.js'));
 const SelectProfilePage = lazy(() => import('../pages/select-profile.js'));
 
 // Parent pages
@@ -50,6 +51,14 @@ export const router = createBrowserRouter([
     element: (
       <Suspense fallback={<PageLoader />}>
         <FamilyPasswordResetPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: '/doi-mat-khau-gia-dinh',
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <ChangeFamilyPasswordPage />
       </Suspense>
     ),
   },

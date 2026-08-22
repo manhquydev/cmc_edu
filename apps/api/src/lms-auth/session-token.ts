@@ -40,7 +40,8 @@ const HEADER_B64 = Buffer.from(
   'utf8',
 ).toString('base64url');
 
-const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days (parent / student)
+export const FAMILY_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours (family door, D4)
 
 function hmacB64(data: string, secret: string): string {
   return createHmac('sha256', secret).update(data).digest('base64url');
@@ -50,13 +51,18 @@ function hmacB64(data: string, secret: string): string {
  * Signs a new LMS session token.
  *
  * @param ttlMs  Token lifetime in milliseconds. Defaults to `LMS_TOKEN_TTL_MS`
- *               env var (for test overrides) or 7 days. Pass explicitly in
- *               tests to produce expired tokens without env manipulation.
+ *               (parent/student) or min(that, 12h) for family. Pass explicitly
+ *               in tests to produce expired tokens without env manipulation.
  */
+export function resolveLmsTokenTtlMs(kind: LmsSessionKind): number {
+  const configured = Number(process.env['LMS_TOKEN_TTL_MS'] ?? DEFAULT_TTL_MS);
+  return kind === 'family' ? Math.min(configured, FAMILY_TTL_MS) : configured;
+}
+
 export function signLmsToken(
   claims: LmsTokenClaims,
   secret: string,
-  ttlMs: number = Number(process.env['LMS_TOKEN_TTL_MS'] ?? DEFAULT_TTL_MS),
+  ttlMs: number = resolveLmsTokenTtlMs(claims.kind),
 ): string {
   const now = Math.floor(Date.now() / 1000);
   const payload = Buffer.from(

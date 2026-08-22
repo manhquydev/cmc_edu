@@ -35,7 +35,7 @@ export interface StoredLmsSession {
   /** Returned by verifyOtp / verifyOtpEmail — stored so parent/home can list children. */
   children?: Array<{ studentId: string; fullName: string }>;
   sessionToken: string;
-  /** Student must change default password before proceeding. */
+  /** Student default password, or family insert-default hash, must rotate. */
   mustChangePassword?: boolean;
 }
 

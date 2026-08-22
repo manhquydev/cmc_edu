@@ -2,7 +2,7 @@
 // All tests run offline — no DB, no external services.
 
 import { describe, expect, it } from 'vitest';
-import { signLmsToken, verifyLmsToken } from './session-token.js';
+import { FAMILY_TTL_MS, resolveLmsTokenTtlMs, signLmsToken, verifyLmsToken } from './session-token.js';
 
 const SECRET = 'test-hmac-secret-32-bytes-minimum!';
 
@@ -113,5 +113,14 @@ describe('signLmsToken / verifyLmsToken (RT-1)', () => {
     );
     const claims = verifyLmsToken(token, SECRET);
     expect(claims?.kind).toBe('student');
+  });
+
+  it('caps family TTL at 12 hours even when LMS_TOKEN_TTL_MS is longer', () => {
+    const prev = process.env['LMS_TOKEN_TTL_MS'];
+    process.env['LMS_TOKEN_TTL_MS'] = String(7 * 24 * 60 * 60 * 1000);
+    expect(resolveLmsTokenTtlMs('family')).toBe(FAMILY_TTL_MS);
+    expect(resolveLmsTokenTtlMs('parent')).toBe(7 * 24 * 60 * 60 * 1000);
+    if (prev === undefined) delete process.env['LMS_TOKEN_TTL_MS'];
+    else process.env['LMS_TOKEN_TTL_MS'] = prev;
   });
 });

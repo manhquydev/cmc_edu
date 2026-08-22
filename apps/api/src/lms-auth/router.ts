@@ -20,7 +20,7 @@
 import { randomInt } from 'node:crypto';
 import { z } from 'zod';
 import { InvalidPhoneError, normalizeLoginPhone } from '@cmc/domain-identity';
-import { badRequest, forbidden } from '../errors.js';
+import { badRequest, forbidden, unauthorized } from '../errors.js';
 import {
   auditChildDataAccess,
   getApprovedChildren,
@@ -202,6 +202,11 @@ const familyResetPasswordInput = z.object({
   newPassword: z.string().min(12),
 });
 
+const setFamilyPasswordInput = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(12),
+});
+
 // ---------------------------------------------------------------------------
 // Result types
 // ---------------------------------------------------------------------------
@@ -211,6 +216,8 @@ export interface VerifyOtpResult {
   children: ApprovedChild[];
   /** docs/19 §2 profile picker: 1 child → auto-select client-side; ≥2 → picker. */
   needsPicker: boolean;
+  /** Family door only — OTP parent results omit this (undefined). */
+  mustChangePassword?: boolean;
 }
 
 export interface LoginStudentResult {
@@ -717,6 +724,7 @@ export const lmsAuthRouter = router({
         sessionToken: encodeSessionToken(parentAccount.id, 'family', parentAccount.tokenVersion),
         children,
         needsPicker: children.length >= 2,
+        mustChangePassword: parentAccount.mustChangePassword,
       };
     }),
 
@@ -825,6 +833,7 @@ export const lmsAuthRouter = router({
           tokenVersion: { increment: 1 },
           loginAttempts: 0,
           loginLockedUntil: null,
+          mustChangePassword: false,
         },
       });
 
@@ -839,6 +848,57 @@ export const lmsAuthRouter = router({
       });
 
       return { ok: true };
+    }),
+
+  // -------------------------------------------------------------------------
+  // lmsAuth.setFamilyPassword — logged-in family (or parent door) changes
+  // password. Requires current password. Bumps tokenVersion (revokes old bearer).
+  // -------------------------------------------------------------------------
+  setFamilyPassword: lmsProcedure
+    .input(setFamilyPasswordInput)
+    .mutation(async ({ ctx, input }): Promise<{ ok: true; sessionToken: string }> => {
+      const { parentAccountId } = requireLmsParent(ctx);
+      const parentAccount = await ctx.db.parentAccount.findUnique({
+        where: { id: parentAccountId },
+        select: { id: true, passwordHash: true, tokenVersion: true, isActive: true },
+      });
+      if (!parentAccount?.isActive || !parentAccount.passwordHash) {
+        throw forbidden('Password change required before proceeding.');
+      }
+      if (!verifyPassword(input.currentPassword, parentAccount.passwordHash)) {
+        throw unauthorized('Mật khẩu hiện tại không đúng');
+      }
+      if (verifyPassword(input.newPassword, parentAccount.passwordHash)) {
+        throw badRequest('New password must be different.');
+      }
+
+      const updated = await ctx.db.parentAccount.update({
+        where: { id: parentAccount.id },
+        data: {
+          passwordHash: hashPassword(input.newPassword),
+          tokenVersion: { increment: 1 },
+          mustChangePassword: false,
+          loginAttempts: 0,
+          loginLockedUntil: null,
+        },
+        select: { tokenVersion: true },
+      });
+
+      await ctx.db.auditLog.create({
+        data: {
+          actor: parentAccount.id,
+          action: 'lmsAuth.setFamilyPassword',
+          entity: 'ParentAccount',
+          entityId: parentAccount.id,
+          data: { changed: true },
+        },
+      });
+
+      const kind = ctx.lmsSubject!.kind === 'family' ? 'family' : 'parent';
+      return {
+        ok: true,
+        sessionToken: encodeSessionToken(parentAccount.id, kind, updated.tokenVersion),
+      };
     }),
 
   // -------------------------------------------------------------------------

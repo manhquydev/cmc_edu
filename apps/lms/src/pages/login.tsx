@@ -1,4 +1,4 @@
-// Login page — two tabs: parent email-OTP | student phone+password.
+// Login page — three tabs: student password | parent email-OTP | family password.
 //
 // Security invariants enforced here:
 //   - Parent email-OTP uses BrevoEmailTransport in prod (console is
@@ -167,8 +167,11 @@ function FamilyLoginTab() {
         parentAccountId: parsed?.parentAccountId ?? '',
         sessionToken: data.sessionToken,
         children: data.children,
+        mustChangePassword: data.mustChangePassword,
       });
-      if (data.needsPicker) {
+      if (data.mustChangePassword) {
+        navigate('/doi-mat-khau-gia-dinh', { replace: true });
+      } else if (data.needsPicker) {
         navigate('/select-profile', { replace: true });
       } else {
         if (data.children[0]) setActiveStudentId(data.children[0].studentId);
@@ -365,9 +368,11 @@ export default function LoginPage() {
   // mustChangePassword so this guard agrees with the login handler.
   if (session) {
     const dest = isParentDoorKind(session.kind)
-      ? session.kind === 'family' && (session.children?.length ?? 0) >= 2
-        ? '/select-profile'
-        : '/parent/home'
+      ? session.kind === 'family' && session.mustChangePassword === true
+        ? '/doi-mat-khau-gia-dinh'
+        : session.kind === 'family' && (session.children?.length ?? 0) >= 2
+          ? '/select-profile'
+          : '/parent/home'
       : session.mustChangePassword
         ? '/student/change-password'
         : '/student/home';

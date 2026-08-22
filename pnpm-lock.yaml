@@ -32,8 +32,8 @@ importers:
         specifier: ^17.3.0
         version: 17.3.0
       reveal.js:
-        specifier: 5.2.1
-        version: 5.2.1
+        specifier: 6.0.1
+        version: 6.0.1
       ts-morph:
         specifier: ^24.0.0
         version: 24.0.0
@@ -3266,9 +3266,8 @@ packages:
     resolution: {integrity: sha512-9LkiTwjUh6rT555DtE9rTX+BKByPfrMzEAtnlEtdEwr3Nkffwiihqe2bWADg+OQRjt9gl6ICdmB/ZFDCGAtSow==}
     engines: {node: '>= 4'}
 
-  reveal.js@5.2.1:
-    resolution: {integrity: sha512-r7//6mIM5p34hFiDMvYfXgyjXqGRta+/psd9YtytsgRlrpRzFv4RbH76TXd2qD+7ZPZEbpBDhdRhJaFgfQ7zNQ==}
-    engines: {node: '>=18.0.0'}
+  reveal.js@6.0.1:
+    resolution: {integrity: sha512-9eacArNIgqO2HGWOK+93gJNn+gvdGDVbSq+i2u3Ja9kjiHps0XNLpgYTZTYjKRH91uXy3clGimeGiw4umHG/tg==}
 
   robust-predicates@3.0.3:
     resolution: {integrity: sha512-NS3levdsRIUOmiJ8FZWCP7LG3QpJyrs/TE0Zpf1yvZu8cAJJ6QMW92H1c7kWpdIHo8RvmLxN/o2JXTKHp74lUA==}
@@ -6493,7 +6492,7 @@ snapshots:
 
   retry@0.12.0: {}
 
-  reveal.js@5.2.1: {}
+  reveal.js@6.0.1: {}
 
   robust-predicates@3.0.3: {}
 

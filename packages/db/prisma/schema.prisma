@@ -484,6 +484,9 @@ model ParentAccount {
   loginAttempts        Int                   @default(0)
   /// When set and in the future, familyLogin is locked until this timestamp.
   loginLockedUntil     DateTime?             @db.Timestamptz(3)
+  /// True only when this row was created with the insert-only default hash.
+  /// Existing NULL-hash parents stay false. Cleared by setFamilyPassword / reset token.
+  mustChangePassword   Boolean               @default(false)
   createdAt            DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime              @updatedAt @db.Timestamptz(3)
   studentAccounts      StudentAccount[]

@@ -155,6 +155,7 @@ async function findOrCreateParentAccount(
           phone,
           ...(email ? { email } : {}),
           passwordHash: hashPassword('Cmc2026@'),
+          mustChangePassword: true,
         },
       });
     } catch (error) {

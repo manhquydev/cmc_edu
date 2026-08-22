@@ -12,7 +12,11 @@ import {
   testDbBypass,
 } from '../test/db.js';
 import { hashPassword, verifyPassword } from './password-hash.js';
-import { verifyLmsToken, LMS_SESSION_SECRET_DEV_DEFAULT } from './session-token.js';
+import {
+  verifyLmsToken,
+  LMS_SESSION_SECRET_DEV_DEFAULT,
+  FAMILY_TTL_MS,
+} from './session-token.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
 
@@ -210,5 +214,93 @@ describe('lmsAuth.familyLogin / forgot / reset (Wave 1 additive)', () => {
     await expect(
       anon.lmsAuth.familyResetPasswordWithToken({ token, newPassword: 'FamilyPass1234' }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('family token TTL is capped at 12 hours', async () => {
+    const { phone } = await seedFamilyReady('0998100008');
+    const family = await anon.lmsAuth.familyLogin({ phone, password: 'FamilyPass1234' });
+    const payload = JSON.parse(
+      Buffer.from(family.sessionToken.split('.')[1]!, 'base64url').toString(),
+    ) as { exp: number; iat: number };
+    const configured = Number(process.env['LMS_TOKEN_TTL_MS'] ?? 7 * 24 * 60 * 60 * 1000);
+    expect(payload.exp - payload.iat).toBe(Math.floor(Math.min(configured, FAMILY_TTL_MS) / 1000));
+  });
+
+  it('mustChangePassword family cannot listForChild until setFamilyPassword', async () => {
+    const { parent, student, phone } = await seedFamilyReady('0998100009');
+    await testDb().parentAccount.update({
+      where: { id: parent.id },
+      data: { mustChangePassword: true },
+    });
+    const login = await anon.lmsAuth.familyLogin({ phone, password: 'FamilyPass1234' });
+    expect(login.mustChangePassword).toBe(true);
+
+    const family = appRouter.createCaller(
+      buildLmsContext({ parentAccountId: parent.id, kind: 'family' }),
+    );
+    await expect(family.assessment.listForChild({ studentId: student.id })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+
+    const changed = await family.lmsAuth.setFamilyPassword({
+      currentPassword: 'FamilyPass1234',
+      newPassword: 'BrandNewFamily1',
+    });
+    expect(changed.ok).toBe(true);
+    const row = await testDb().parentAccount.findUniqueOrThrow({ where: { id: parent.id } });
+    expect(row.mustChangePassword).toBe(false);
+    expect(verifyPassword('BrandNewFamily1', row.passwordHash!)).toBe(true);
+
+    const rotated = appRouter.createCaller(
+      buildLmsContext({
+        parentAccountId: parent.id,
+        kind: 'family',
+        tokenVersion: row.tokenVersion,
+      }),
+    );
+    await expect(rotated.assessment.listForChild({ studentId: student.id })).resolves.toMatchObject({
+      items: [],
+    });
+  });
+
+  it('setFamilyPassword rejects wrong current and same new password', async () => {
+    const { parent } = await seedFamilyReady('0998100010');
+    const family = appRouter.createCaller(
+      buildLmsContext({ parentAccountId: parent.id, kind: 'family' }),
+    );
+    await expect(
+      family.lmsAuth.setFamilyPassword({
+        currentPassword: 'WrongPass!!!!',
+        newPassword: 'BrandNewFamily1',
+      }),
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    await expect(
+      family.lmsAuth.setFamilyPassword({
+        currentPassword: 'FamilyPass1234',
+        newPassword: 'FamilyPass1234',
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('OTP parent kind is not blocked by family mustChangePassword', async () => {
+    const { parent, student } = await seedFamilyReady('0998100011');
+    await testDb().parentAccount.update({
+      where: { id: parent.id },
+      data: { mustChangePassword: true },
+    });
+    const otpParent = appRouter.createCaller(
+      buildLmsContext({ parentAccountId: parent.id, kind: 'parent' }),
+    );
+    await expect(otpParent.assessment.listForChild({ studentId: student.id })).resolves.toMatchObject({
+      items: [],
+    });
+  });
+
+  it('OTP and loginStudent procedures still exist after rotate procedures', () => {
+    expect(anon.lmsAuth.requestOtpEmail).toEqual(expect.any(Function));
+    expect(anon.lmsAuth.verifyOtpEmail).toEqual(expect.any(Function));
+    expect(anon.lmsAuth.requestOtp).toEqual(expect.any(Function));
+    expect(anon.lmsAuth.loginStudent).toEqual(expect.any(Function));
+    expect(anon.lmsAuth.setFamilyPassword).toEqual(expect.any(Function));
   });
 });

@@ -296,7 +296,30 @@ const requireLmsSession = t.middleware(async ({ ctx, next }) => {
  * staff roles — there is no SYSTEM/super_admin bypass into LMS surfaces
  * (TL11 §1); a staff session alone never satisfies this procedure.
  */
-export const lmsProcedure = basedProcedure.use(requireLmsSession);
+const FAMILY_PASSWORD_CHANGE_EXEMPT_PATHS: Record<string, true> = {
+  'lmsAuth.setFamilyPassword': true,
+};
+
+export async function familyMustChangePassword(ctx: Context): Promise<boolean> {
+  if (ctx.lmsSubject?.kind !== 'family' || !ctx.lmsSubject.parentAccountId) return false;
+  const row = await ctx.db.parentAccount.findUnique({
+    where: { id: ctx.lmsSubject.parentAccountId },
+    select: { mustChangePassword: true },
+  });
+  return row?.mustChangePassword === true;
+}
+
+const requireFamilyPasswordCurrent = t.middleware(async ({ ctx, next, path }) => {
+  if (FAMILY_PASSWORD_CHANGE_EXEMPT_PATHS[path]) {
+    return next();
+  }
+  if (await familyMustChangePassword(ctx)) {
+    throw forbidden('Password change required before proceeding.');
+  }
+  return next();
+});
+
+export const lmsProcedure = basedProcedure.use(requireLmsSession).use(requireFamilyPasswordCurrent);
 
 /**
  * RBAC gate. Business procedures use `requirePermission('module','action')`,

@@ -332,6 +332,7 @@ export interface TestLmsContextOptions {
   /** C1/phase-01b: session kind. Defaults to 'parent' so existing tests that
    * don't pass kind continue to work as parent sessions. */
   kind?: 'parent' | 'student' | 'family';
+  tokenVersion?: number;
 }
 
 /** Hand-builds an LMS (parent/student) `Context` against the real DB. */
@@ -343,6 +344,7 @@ export function buildLmsContext(opts: TestLmsContextOptions): Context {
       parentAccountId: opts.parentAccountId,
       studentId: opts.studentId,
       kind: opts.kind ?? 'parent',
+      tokenVersion: opts.tokenVersion,
     },
     db: testDb(),
     ip: null,

@@ -18,6 +18,7 @@ import {
   Stack,
   Text,
 } from '@cmc/ui';
+import { AssessmentRubricRead } from '../../components/assessment-rubric-read.js';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -48,7 +49,7 @@ export default function ReportCardPage() {
   const [period, setPeriod] = useState(currentPeriod());
 
   // Defense-in-depth: route-level ParentOnly guard is the primary gate.
-  if (!session || session.kind !== 'parent') return null;
+  if (!session || (session.kind !== 'parent' && session.kind !== 'family')) return null;
 
   const { data, isLoading, error } = trpc.reportCard.getForChild.useQuery(
     { studentId: studentId!, period },
@@ -137,7 +138,11 @@ export default function ReportCardPage() {
                           ? new Date(a.confirmedAt).toLocaleDateString('vi-VN')
                           : '—'}
                       </Text>
-                      <Text type="body" size="sm">{a.content}</Text>
+                      <AssessmentRubricRead
+                        program={a.program}
+                        rubric={a.rubric}
+                        fallbackContent={a.content}
+                      />
                     </div>
                   ))}
                 </Stack>

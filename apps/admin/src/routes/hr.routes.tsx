@@ -23,6 +23,7 @@ const StaffNewPage = lazy(() => import('../pages/hr/staff/staff-new.js'));
 const StaffDetailLayout = lazy(() => import('../pages/hr/staff/staff-detail.js'));
 const StaffProfileSection = lazy(() => import('../pages/hr/staff/profile.js'));
 const StaffAccessSection = lazy(() => import('../pages/hr/staff/access.js'));
+const StaffActivitySection = lazy(() => import('../pages/hr/staff/activity.js'));
 
 function Fallback() {
   return <Skeleton height={200} radius={0} />;
@@ -187,6 +188,24 @@ export const hrRoutes: RouteObject[] = [
         element: (
           <Suspense fallback={<Fallback />}>
             <StaffAccessSection />
+          </Suspense>
+        ),
+      },
+    ],
+  },
+  {
+    path: 'staff/:staffId/activity',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <StaffDetailLayout />
+      </Suspense>
+    ),
+    children: [
+      {
+        index: true,
+        element: (
+          <Suspense fallback={<Fallback />}>
+            <StaffActivitySection />
           </Suspense>
         ),
       },

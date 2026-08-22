@@ -17,7 +17,22 @@ import { renderWithProviders } from '../../test/render-with-providers.js';
 const { COURSES, TEACHERS, CLASSES, UNITS, navigateSpy } = vi.hoisted(() => ({
   COURSES: { items: [{ id: 'course-1', program: 'UCREA', name: 'UCREA Cấp 1' }] },
   TEACHERS: { items: [{ id: 't-1', fullName: 'Trần Thị B' }] },
-  CLASSES: { items: [], total: 0, page: 1, pageSize: 50 },
+  CLASSES: {
+    items: [
+      {
+        id: 'class-1',
+        code: 'HN-UCREA',
+        program: 'UCREA',
+        status: 'active',
+        startDate: '2026-08-01T00:00:00.000Z',
+        endDate: '2026-12-01T00:00:00.000Z',
+        teacherId: null,
+      },
+    ],
+    total: 1,
+    page: 1,
+    pageSize: 20,
+  },
   UNITS: {
     items: [
       {
@@ -149,6 +164,22 @@ describe('ClassListPage — Tạo lớp', () => {
       expect(classBatchListSpy).toHaveBeenCalledWith(
         expect.objectContaining({ search: 'HN-UCREA', page: 1, pageSize: 20 }),
       );
+    });
+  });
+
+  it('hydrates initial q/page deep links and preserves the query on row navigation', async () => {
+    renderListPage('/admin/classes?q=HN-UCREA&page=2');
+    await vi.advanceTimersByTimeAsync(350);
+
+    expect(classBatchListSpy).toHaveBeenCalledWith({
+      page: 2,
+      pageSize: 20,
+      search: 'HN-UCREA',
+    });
+    fireEvent.click(screen.getByText('HN-UCREA'));
+    expect(navigateSpy).toHaveBeenCalledWith({
+      pathname: '/admin/classes/class-1',
+      search: '?q=HN-UCREA&page=2',
     });
   });
 

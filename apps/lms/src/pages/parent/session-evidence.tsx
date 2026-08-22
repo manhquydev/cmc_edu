@@ -41,7 +41,7 @@ export default function SessionEvidencePage() {
   // photoConsent=false or photoConsentRevokedAt IS NOT NULL). Client renders
   // only what the backend returns; no bypass path exists.
   // TODO: add photoConsentEnabled field to listForChild response for dual-layer gate.
-  if (!session || session.kind !== 'parent') return null;
+  if (!session || (session.kind !== 'parent' && session.kind !== 'family')) return null;
 
   const { data, isLoading, error } = trpc.sessionEvidence.listForChild.useQuery(
     { studentId: studentId! },

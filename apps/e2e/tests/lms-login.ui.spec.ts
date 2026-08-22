@@ -111,6 +111,10 @@ test.describe('lms login (UI safety net)', () => {
 
     await page.getByRole('button', { name: /học sinh/i }).click();
     await expect(page.getByLabel('Số điện thoại phụ huynh')).toBeVisible();
+
+    await page.getByRole('button', { name: /gia đình/i }).click();
+    await expect(page.getByLabel('Số điện thoại gia đình')).toBeVisible();
+    await expect(page.getByRole('link', { name: /quên mật khẩu/i })).toBeVisible();
   });
 
   test('auth-field hardening attrs survive the Astryx migration (TL12 §9, red-team F11 / AC#5)', async ({ page }) => {

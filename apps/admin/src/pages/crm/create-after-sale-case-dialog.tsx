@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button, Dialog, DialogHeader, HStack, Selector, Stack, TextArea } from '@cmc/ui';
+import { links } from '@cmc/links';
 import { StudentPicker } from '../../lib/student-picker.js';
 import type { PickedStudent } from '../../lib/student-picker.js';
 import { useAfterSaleActions } from './use-after-sale-actions.js';
@@ -19,6 +21,7 @@ export function CreateAfterSaleCaseDialog({ opened, onClose }: { opened: boolean
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>('normal');
   const { createMutation } = useAfterSaleActions();
+  const navigate = useNavigate();
 
   function close() {
     setStudent(null);
@@ -32,7 +35,14 @@ export function CreateAfterSaleCaseDialog({ opened, onClose }: { opened: boolean
     if (!student || !description.trim()) return;
     createMutation.mutate(
       { studentId: student.id, description: description.trim(), priority },
-      { onSuccess: close },
+      {
+        onSuccess: (created) => {
+          close();
+          // Phase 5: create-success lands on the created case detail — the
+          // canonical /crm/aftersale/:caseId form (links.afterSaleCase).
+          navigate(links.afterSaleCase(created.id));
+        },
+      },
     );
   }
 

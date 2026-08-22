@@ -14,9 +14,15 @@ import {
   shiftRegistrationsPath,
   kpiScoresPath,
   staffAccessPath,
+  staffActivityPath,
   staffListPath,
   staffNewPath,
   staffProfilePath,
+  classSectionPath,
+  studentSectionPath,
+  receiptSectionPath,
+  parentMeetingPath,
+  parentMeetingSectionPath,
 } from './index.js';
 
 const UUID = '550e8400-e29b-41d4-a716-446655440000';
@@ -30,6 +36,7 @@ describe('links builders', () => {
     expect(links.shiftRegistration(UUID)).toBe(`/hr/shifts/${UUID}`);
     expect(links.kpiScore(UUID)).toBe(`/hr/kpi/${UUID}`);
     expect(links.afterSaleCase(UUID)).toBe(`/crm/aftersale/${UUID}`);
+    expect(links.parentMeeting(UUID)).toBe(`/crm/post-sale-meeting/${UUID}`);
     expect(links.parentAccount(UUID)).toBe(`/admin/parents/${UUID}`);
     expect(links.classSession(UUID)).toBe(`/teaching/sessions/${UUID}`);
     expect(links.manualPunchTicket(UUID)).toBe(`/hr/checkin/${UUID}`);
@@ -49,6 +56,7 @@ describe('links builders', () => {
     expect(goPath('manualPunchTicket', UUID)).toBe(`/go/manualPunchTicket/${UUID}`);
     expect(goPath('reward', UUID)).toBe(`/go/reward/${UUID}`);
     expect(goPath('exercise', UUID)).toBe(`/go/exercise/${UUID}`);
+    expect(goPath('parentMeeting', UUID)).toBe(`/go/parentMeeting/${UUID}`);
     expect(goPath('staff', UUID)).toBe(`/go/staff/${UUID}`);
   });
 });
@@ -66,6 +74,32 @@ describe('staff path builders (D1 canonical surface)', () => {
     expect(staffNewPath()).toBe('/hr/staff/new');
     expect(staffProfilePath(UUID)).toBe(`/hr/staff/${UUID}/profile`);
     expect(staffAccessPath(UUID)).toBe(`/hr/staff/${UUID}/access`);
+    expect(staffActivityPath(UUID)).toBe(`/hr/staff/${UUID}/activity`);
+  });
+});
+
+describe('durable entity section builders (Phase 5)', () => {
+  it('builds class sections under /admin/classes/:id/:section', () => {
+    expect(classSectionPath(UUID, 'overview')).toBe(`/admin/classes/${UUID}/overview`);
+    expect(classSectionPath(UUID, 'students')).toBe(`/admin/classes/${UUID}/students`);
+    expect(classSectionPath(UUID, 'sessions')).toBe(`/admin/classes/${UUID}/sessions`);
+  });
+
+  it('builds student sections under /admin/students/:id/:section', () => {
+    expect(studentSectionPath(UUID, 'profile')).toBe(`/admin/students/${UUID}/profile`);
+    expect(studentSectionPath(UUID, 'enrollments')).toBe(`/admin/students/${UUID}/enrollments`);
+  });
+
+  it('builds receipt sections under /finance/:id/:section', () => {
+    expect(receiptSectionPath(UUID, 'overview')).toBe(`/finance/${UUID}/overview`);
+    expect(receiptSectionPath(UUID, 'order-lines')).toBe(`/finance/${UUID}/order-lines`);
+    expect(receiptSectionPath(UUID, 'activity')).toBe(`/finance/${UUID}/activity`);
+  });
+
+  it('builds ParentMeeting detail sections under CRM', () => {
+    expect(parentMeetingPath(UUID)).toBe(`/crm/post-sale-meeting/${UUID}`);
+    expect(parentMeetingSectionPath(UUID, 'overview')).toBe(`/crm/post-sale-meeting/${UUID}/overview`);
+    expect(parentMeetingSectionPath(UUID, 'activity')).toBe(`/crm/post-sale-meeting/${UUID}/activity`);
   });
 });
 
@@ -90,6 +124,7 @@ describe('resolveGo', () => {
     expect(resolveGo('shiftRegistration', UUID)).toBe(`/hr/shifts/${UUID}`);
     expect(resolveGo('kpiScore', UUID)).toBe(`/hr/kpi/${UUID}`);
     expect(resolveGo('afterSaleCase', UUID)).toBe(`/crm/aftersale/${UUID}`);
+    expect(resolveGo('parentMeeting', UUID)).toBe(`/crm/post-sale-meeting/${UUID}`);
     expect(resolveGo('parentAccount', UUID)).toBe(`/admin/parents/${UUID}`);
     expect(resolveGo('classSession', UUID)).toBe(`/teaching/sessions/${UUID}`);
     expect(resolveGo('manualPunchTicket', UUID)).toBe(`/hr/checkin/${UUID}`);
@@ -113,6 +148,7 @@ describe('resolveGo', () => {
     expect(resolveGo('opportunity', '..%2F..%2Fadmin%2Fusers')).toBeNull();
     expect(resolveGo('opportunity', '')).toBeNull();
     expect(resolveGo('student', 'not-a-uuid')).toBeNull();
+    expect(resolveGo('parentMeeting', 'not-a-uuid')).toBeNull();
   });
 });
 

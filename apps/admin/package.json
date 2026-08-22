@@ -13,6 +13,7 @@
   "dependencies": {
     "@cmc/api": "workspace:*",
     "@cmc/auth": "workspace:*",
+    "@cmc/domain-lms": "workspace:*",
     "@cmc/domain-time": "workspace:*",
     "@cmc/links": "workspace:*",
     "@cmc/ui": "workspace:*",
@@ -35,7 +36,7 @@
     "@astryxdesign/core": "0.2.0",
     "@astryxdesign/theme-neutral": "0.2.0",
     "@stylexjs/stylex": "0.19.0",
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

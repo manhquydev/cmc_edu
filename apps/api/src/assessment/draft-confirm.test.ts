@@ -7,7 +7,16 @@
 //   - Parent without an approved Guardian link → FORBIDDEN on all LMS reads.
 
 import { createHash, randomUUID } from 'node:crypto';
+import { criterionKeys } from '@cmc/domain-lms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+function ucreaRubric() {
+  return {
+    version: 2 as const,
+    scores: Object.fromEntries(criterionKeys('UCREA').map((key) => [key, 3 as const])),
+    narratives: { strength: 'Chăm chỉ', weakness: 'Cần ôn', recommendation: 'Làm thêm BT' },
+  };
+}
 import { appRouter } from '../router.js';
 import {
   buildLmsContext,
@@ -403,7 +412,7 @@ describe('assessment (T3 US-018)', () => {
       studentId: other.studentId,
       classSessionId: session.id,
     });
-    await teacher.assessment.confirm({ assessmentId: toConfirm.id, content: 'Rất tốt.' });
+    await teacher.assessment.confirm({ assessmentId: toConfirm.id, rubric: ucreaRubric() });
 
     const toDiscard = await teacher.assessment.draftComment({
       studentId: enrollment.studentId,
@@ -572,5 +581,40 @@ describe('assessment (T3 US-018)', () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
 
     await testDb().parentAccount.deleteMany({ where: { phone: otherPhone } });
+  });
+
+  it('session confirm requires complete rubric; 2001-char narrative is rejected', async () => {
+    const session = await seedClassSession({ facilityId: facility.id, classBatchId: classBatch.id });
+    const draft = await teacher.assessment.draftComment({
+      studentId: enrollment.studentId,
+      classSessionId: session.id,
+    });
+    await expect(
+      teacher.assessment.confirm({ assessmentId: draft.id, content: 'Chỉ chữ, không điểm.' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    await expect(
+      teacher.assessment.confirm({
+        assessmentId: draft.id,
+        rubric: {
+          ...ucreaRubric(),
+          narratives: { strength: 'x'.repeat(2001) },
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    const confirmed = await teacher.assessment.confirm({
+      assessmentId: draft.id,
+      rubric: ucreaRubric(),
+    });
+    expect(confirmed.status).toBe('confirmed');
+    expect(confirmed.rubric?.version).toBe(2);
+    expect(confirmed.content).toContain('Thái độ đi học');
+
+    const lmsParent = appRouter.createCaller(buildLmsContext({ parentAccountId: parent.id }));
+    const { items } = await lmsParent.assessment.listForChild({ studentId: enrollment.studentId });
+    const row = items.find((i) => i.id === confirmed.id);
+    expect(row?.rubric?.narratives?.strength).toBe('Chăm chỉ');
+    expect(row?.program).toBe('UCREA');
   });
 });

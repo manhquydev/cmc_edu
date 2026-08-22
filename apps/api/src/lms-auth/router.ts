@@ -20,16 +20,18 @@
 import { randomInt } from 'node:crypto';
 import { z } from 'zod';
 import { InvalidPhoneError, normalizeLoginPhone } from '@cmc/domain-identity';
-import { badRequest, forbidden } from '../errors.js';
+import { badRequest, forbidden, unauthorized } from '../errors.js';
 import {
   auditChildDataAccess,
   getApprovedChildren,
   type ApprovedChild,
 } from '../guardian/approved-children.js';
 import { lmsProcedure, publicProcedure, requireLmsParent, router } from '../trpc.js';
+import { signFamilyResetToken, verifyFamilyResetToken } from './family-reset-token.js';
 import { hashOtpCode, verifyOtpCode } from './otp-hash.js';
 import { hashPassword, verifyPassword } from './password-hash.js';
 import { LMS_SESSION_SECRET_DEV_DEFAULT, signLmsToken } from './session-token.js';
+import type { LmsSessionKind } from './lms-kind.js';
 
 /**
  * Non-prod test seam: when TEST_OTP_SEAM=1 and not production, OTP procedures
@@ -89,6 +91,16 @@ const STUDENT_LOCKOUT_MINUTES = 15;
 /** Generic error for all student login failures (wrong phone/password, no account). */
 const GENERIC_STUDENT_LOGIN_FAILURE = 'Invalid credentials.';
 
+/** Same generic string for familyLogin (no-leak). */
+const GENERIC_FAMILY_LOGIN_FAILURE = 'Invalid credentials.';
+
+const MAX_FAMILY_LOGIN_ATTEMPTS = 5;
+const FAMILY_LOCKOUT_MINUTES = 15;
+const FAMILY_RESET_TTL_MINUTES = 60;
+const FAMILY_FORGOT_MAX_PER_WINDOW = 5;
+const FAMILY_FORGOT_WINDOW_MINUTES = 15;
+const GLOBAL_FAMILY_RESET_ENQUEUE_CAP_PER_HOUR = 200;
+
 /**
  * Module-level dummy hash to equalise timing when no ParentAccount exists.
  * Without this, the no-account path skips pbkdf2Sync entirely, creating a
@@ -113,10 +125,14 @@ function getLmsSecret(): string {
 /** Signs a parent LMS session token (embeds ParentAccount.tokenVersion). */
 function encodeSessionToken(
   parentAccountId: string,
-  kind: 'parent' | 'student' = 'parent',
+  kind: LmsSessionKind = 'parent',
   tokenVersion = 0,
 ): string {
   return signLmsToken({ parentAccountId, kind, tokenVersion }, getLmsSecret());
+}
+
+function familyResetAppOrigin(): string {
+  return (process.env['LMS_APP_ORIGIN'] ?? 'http://localhost:5174').replace(/\/$/, '');
 }
 
 /** Signs a student LMS session token. */
@@ -172,6 +188,25 @@ const resetChildPasswordInput = z.object({
   newPassword: z.string().min(8),
 });
 
+const familyLoginInput = z.object({
+  phone: z.string().min(1),
+  password: z.string().min(1),
+});
+
+const familyForgotPasswordInput = z.object({
+  phone: z.string().min(1),
+});
+
+const familyResetPasswordInput = z.object({
+  token: z.string().min(1),
+  newPassword: z.string().min(12),
+});
+
+const setFamilyPasswordInput = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(12),
+});
+
 // ---------------------------------------------------------------------------
 // Result types
 // ---------------------------------------------------------------------------
@@ -181,6 +216,8 @@ export interface VerifyOtpResult {
   children: ApprovedChild[];
   /** docs/19 §2 profile picker: 1 child → auto-select client-side; ≥2 → picker. */
   needsPicker: boolean;
+  /** Family door only — OTP parent results omit this (undefined). */
+  mustChangePassword?: boolean;
 }
 
 export interface LoginStudentResult {
@@ -621,8 +658,252 @@ export const lmsAuthRouter = router({
     }),
 
   // -------------------------------------------------------------------------
+  // lmsAuth.familyLogin — additive family door (Wave 1). OTP / loginStudent stay.
+  // -------------------------------------------------------------------------
+  familyLogin: publicProcedure
+    .input(familyLoginInput)
+    .mutation(async ({ ctx, input }): Promise<VerifyOtpResult> => {
+      const phone = normalizeOrReject(input.phone);
+      const parentAccount = await ctx.db.parentAccount.findUnique({ where: { phone } });
+      const now = new Date();
+
+      if (
+        !parentAccount ||
+        !parentAccount.isActive ||
+        !parentAccount.passwordHash ||
+        (parentAccount.loginLockedUntil && parentAccount.loginLockedUntil > now)
+      ) {
+        await ctx.db.$executeRaw`SELECT 1`;
+        verifyPassword(input.password, DUMMY_PASSWORD_HASH);
+        throw badRequest(GENERIC_FAMILY_LOGIN_FAILURE);
+      }
+
+      if (!verifyPassword(input.password, parentAccount.passwordHash)) {
+        const newAttempts = parentAccount.loginAttempts + 1;
+        const shouldLock = newAttempts >= MAX_FAMILY_LOGIN_ATTEMPTS;
+        await ctx.db.parentAccount.update({
+          where: { id: parentAccount.id },
+          data: {
+            loginAttempts: newAttempts,
+            loginLockedUntil: shouldLock
+              ? new Date(now.getTime() + FAMILY_LOCKOUT_MINUTES * 60_000)
+              : null,
+          },
+        });
+        throw badRequest(GENERIC_FAMILY_LOGIN_FAILURE);
+      }
+
+      await ctx.db.parentAccount.update({
+        where: { id: parentAccount.id },
+        data: { loginAttempts: 0, loginLockedUntil: null },
+      });
+
+      const children = await getApprovedChildren(ctx.db, parentAccount.id);
+      if (children.length === 0) {
+        throw badRequest(GENERIC_FAMILY_LOGIN_FAILURE);
+      }
+
+      await auditChildDataAccess(ctx.db, {
+        parentAccountId: parentAccount.id,
+        studentIds: children.map((c) => c.studentId),
+        via: 'lmsAuth.familyLogin',
+        actorKind: 'parent',
+      });
+
+      await ctx.db.auditLog.create({
+        data: {
+          actor: parentAccount.id,
+          action: 'lmsAuth.familyLogin',
+          entity: 'ParentAccount',
+          entityId: parentAccount.id,
+          data: { childCount: children.length },
+        },
+      });
+
+      return {
+        sessionToken: encodeSessionToken(parentAccount.id, 'family', parentAccount.tokenVersion),
+        children,
+        needsPicker: children.length >= 2,
+        mustChangePassword: parentAccount.mustChangePassword,
+      };
+    }),
+
+  // -------------------------------------------------------------------------
+  // lmsAuth.familyForgotPassword — public, no-leak, no session.
+  // -------------------------------------------------------------------------
+  familyForgotPassword: publicProcedure
+    .input(familyForgotPasswordInput)
+    .mutation(async ({ ctx, input }): Promise<{ ok: true; _testSeamToken?: string }> => {
+      const phone = normalizeOrReject(input.phone);
+
+      const hourAgo = new Date(Date.now() - 60 * 60_000);
+      const recentResetEnqueueCount = await ctx.db.emailOutbox.count({
+        where: {
+          transport: 'brevo',
+          payload: { path: ['kind'], equals: 'family-reset' },
+          createdAt: { gte: hourAgo },
+        },
+      });
+      // Cooldown must not throw: outbox rows only exist for phones that have
+      // email, so BAD_REQUEST here would enumerate those accounts. Skip send.
+      const overGlobalCap = recentResetEnqueueCount >= GLOBAL_FAMILY_RESET_ENQUEUE_CAP_PER_HOUR;
+
+      const windowStart = new Date(Date.now() - FAMILY_FORGOT_WINDOW_MINUTES * 60_000);
+      const recentForPhone = await ctx.db.emailOutbox.count({
+        where: {
+          payload: { path: ['kind'], equals: 'family-reset' },
+          createdAt: { gte: windowStart },
+          AND: [{ payload: { path: ['phone'], equals: phone } }],
+        },
+      });
+      const overPhoneCap = recentForPhone >= FAMILY_FORGOT_MAX_PER_WINDOW;
+
+      const parentAccount = await ctx.db.parentAccount.findUnique({ where: { phone } });
+      let testSeamToken: string | undefined;
+
+      if (parentAccount?.isActive && parentAccount.email && !overGlobalCap && !overPhoneCap) {
+        const token = signFamilyResetToken(
+          parentAccount.id,
+          parentAccount.tokenVersion,
+          getLmsSecret(),
+          FAMILY_RESET_TTL_MINUTES * 60_000,
+        );
+        const resetUrl = `${familyResetAppOrigin()}/dat-lai-mat-khau-gia-dinh#token=${token}`;
+        await ctx.db.emailOutbox.create({
+          data: {
+            to: parentAccount.email,
+            transport: 'brevo',
+            status: 'pending',
+            payload: {
+              kind: 'family-reset',
+              resetUrl,
+              ttlMinutes: FAMILY_RESET_TTL_MINUTES,
+              phone,
+            },
+          },
+        });
+        if (TEST_OTP_SEAM_ENABLED) testSeamToken = token;
+      }
+
+      await ctx.db.auditLog.create({
+        data: {
+          actor: 'system',
+          action: 'lmsAuth.familyForgotPassword',
+          entity: 'ParentAccount',
+          entityId: phone,
+          data: { requested: true },
+        },
+      });
+
+      return TEST_OTP_SEAM_ENABLED && testSeamToken
+        ? { ok: true, _testSeamToken: testSeamToken }
+        : { ok: true };
+    }),
+
+  // -------------------------------------------------------------------------
+  // lmsAuth.familyResetPasswordWithToken — public; no auto-session.
+  // -------------------------------------------------------------------------
+  familyResetPasswordWithToken: publicProcedure
+    .input(familyResetPasswordInput)
+    .mutation(async ({ ctx, input }): Promise<{ ok: true }> => {
+      const claims = verifyFamilyResetToken(input.token, getLmsSecret());
+      if (!claims) {
+        throw badRequest('Invalid or expired reset link.');
+      }
+
+      const parentAccount = await ctx.db.parentAccount.findUnique({
+        where: { id: claims.parentAccountId },
+      });
+      if (
+        !parentAccount ||
+        !parentAccount.isActive ||
+        parentAccount.tokenVersion !== claims.tokenVersion
+      ) {
+        throw badRequest('Invalid or expired reset link.');
+      }
+
+      if (parentAccount.passwordHash && verifyPassword(input.newPassword, parentAccount.passwordHash)) {
+        throw badRequest('New password must be different.');
+      }
+
+      await ctx.db.parentAccount.update({
+        where: { id: parentAccount.id },
+        data: {
+          passwordHash: hashPassword(input.newPassword),
+          tokenVersion: { increment: 1 },
+          loginAttempts: 0,
+          loginLockedUntil: null,
+          mustChangePassword: false,
+        },
+      });
+
+      await ctx.db.auditLog.create({
+        data: {
+          actor: parentAccount.id,
+          action: 'lmsAuth.familyResetPasswordWithToken',
+          entity: 'ParentAccount',
+          entityId: parentAccount.id,
+          data: { reset: true },
+        },
+      });
+
+      return { ok: true };
+    }),
+
+  // -------------------------------------------------------------------------
+  // lmsAuth.setFamilyPassword — logged-in family (or parent door) changes
+  // password. Requires current password. Bumps tokenVersion (revokes old bearer).
+  // -------------------------------------------------------------------------
+  setFamilyPassword: lmsProcedure
+    .input(setFamilyPasswordInput)
+    .mutation(async ({ ctx, input }): Promise<{ ok: true; sessionToken: string }> => {
+      const { parentAccountId } = requireLmsParent(ctx);
+      const parentAccount = await ctx.db.parentAccount.findUnique({
+        where: { id: parentAccountId },
+        select: { id: true, passwordHash: true, tokenVersion: true, isActive: true },
+      });
+      if (!parentAccount?.isActive || !parentAccount.passwordHash) {
+        throw forbidden('Password change required before proceeding.');
+      }
+      if (!verifyPassword(input.currentPassword, parentAccount.passwordHash)) {
+        throw unauthorized('Mật khẩu hiện tại không đúng');
+      }
+      if (verifyPassword(input.newPassword, parentAccount.passwordHash)) {
+        throw badRequest('New password must be different.');
+      }
+
+      const updated = await ctx.db.parentAccount.update({
+        where: { id: parentAccount.id },
+        data: {
+          passwordHash: hashPassword(input.newPassword),
+          tokenVersion: { increment: 1 },
+          mustChangePassword: false,
+          loginAttempts: 0,
+          loginLockedUntil: null,
+        },
+        select: { tokenVersion: true },
+      });
+
+      await ctx.db.auditLog.create({
+        data: {
+          actor: parentAccount.id,
+          action: 'lmsAuth.setFamilyPassword',
+          entity: 'ParentAccount',
+          entityId: parentAccount.id,
+          data: { changed: true },
+        },
+      });
+
+      const kind = ctx.lmsSubject!.kind === 'family' ? 'family' : 'parent';
+      return {
+        ok: true,
+        sessionToken: encodeSessionToken(parentAccount.id, kind, updated.tokenVersion),
+      };
+    }),
+
+  // -------------------------------------------------------------------------
   // lmsAuth.resetChildPassword — parent resets one child's password (lmsProcedure)
-  // Parent-only gate: kind must be 'parent'.
+  // Parent-only gate: kind must be 'parent' or 'family'.
   // -------------------------------------------------------------------------
   resetChildPassword: lmsProcedure
     .input(resetChildPasswordInput)

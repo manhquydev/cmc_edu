@@ -18,6 +18,7 @@ import {
 } from '@cmc/domain-time';
 import { spanDaysInclusive } from './generate-sessions.js';
 import { resolveTeacher } from './resolve-teacher.js';
+import { emitClassRecordEvent } from './record-event.js';
 import { cancelSessionWithRestamp } from '../lms-ops/cancel-session.js';
 import {
   evaluateSessionDoneProgress,
@@ -136,6 +137,9 @@ export interface ClassSessionGetDto extends ClassSessionDto {
   batchCode: string;
   program: string;
   teacherId: string | null;
+  /** Resolved AppUser.id for the session/class teacher hop. */
+  teacherAppUserId: string | null;
+  teacherFullName: string | null;
   courseId: string;
   batchStatus: string;
 }
@@ -173,6 +177,7 @@ export const classSessionRouter = router({
                 code: true,
                 program: true,
                 teacherId: true,
+                teacherAppUserId: true,
                 courseId: true,
                 status: true,
               },
@@ -182,10 +187,20 @@ export const classSessionRouter = router({
         if (!row) {
           throw notFound('ClassSession not found.');
         }
+        const teacherAppUserId =
+          row.teacherId ?? row.classBatch.teacherAppUserId ?? row.classBatch.teacherId;
+        const teacher = teacherAppUserId
+          ? await tx.appUser.findFirst({
+              where: { id: teacherAppUserId, facilityId },
+              select: { id: true, fullName: true },
+            })
+          : null;
         return {
           ...toClassSessionDto(row, row.classBatch.teacherId),
           batchCode: row.classBatch.code,
           program: row.classBatch.program,
+          teacherAppUserId: teacher?.id ?? null,
+          teacherFullName: teacher?.fullName ?? null,
           courseId: row.classBatch.courseId,
           batchStatus: row.classBatch.status,
         };
@@ -313,6 +328,13 @@ export const classSessionRouter = router({
           actorUserId: ctx.subject.userId,
           auditAction: 'classSession.cancel',
         });
+        await emitClassRecordEvent(tx, {
+          facilityId,
+          classBatchId: session.classBatchId,
+          actor: ctx.subject.userId,
+          kind: 'session_cancelled',
+          sessionId: session.id,
+        });
         const batch = await tx.classBatch.findFirst({
           where: { id: session.classBatchId, facilityId },
           select: { teacherId: true },
@@ -342,6 +364,13 @@ export const classSessionRouter = router({
         const updated = await tx.classSession.update({
           where: { id: session.id },
           data: { status: 'confirmed' },
+        });
+        await emitClassRecordEvent(tx, {
+          facilityId,
+          classBatchId: updated.classBatchId,
+          actor: ctx.subject.userId,
+          kind: 'session_confirmed',
+          sessionId: updated.id,
         });
         const batch = await tx.classBatch.findFirst({
           where: { id: updated.classBatchId, facilityId },
@@ -380,6 +409,16 @@ export const classSessionRouter = router({
           where: { id: session.id },
           data: { curriculumUnitId: input.curriculumUnitId },
         });
+        if (session.curriculumUnitId !== input.curriculumUnitId) {
+          await emitClassRecordEvent(tx, {
+            facilityId,
+            classBatchId: updated.classBatchId,
+            actor: ctx.subject.userId,
+            kind: 'session_unit_assigned',
+            sessionId: updated.id,
+            curriculumUnitId: input.curriculumUnitId,
+          });
+        }
         const batch = await tx.classBatch.findFirst({
           where: { id: updated.classBatchId, facilityId },
           select: { teacherId: true },
@@ -414,6 +453,16 @@ export const classSessionRouter = router({
           where: { id: session.id },
           data: { teacherId: teacher.id },
         });
+        if (session.teacherId !== teacher.id) {
+          await emitClassRecordEvent(tx, {
+            facilityId,
+            classBatchId: updated.classBatchId,
+            actor: ctx.subject.userId,
+            kind: 'session_teacher_changed',
+            sessionId: updated.id,
+            teacherAppUserId: teacher.id,
+          });
+        }
         const batch = await tx.classBatch.findFirst({
           where: { id: updated.classBatchId, facilityId },
           select: { teacherId: true },

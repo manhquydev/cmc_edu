@@ -47,7 +47,7 @@ describe('computeKpiValue', () => {
     ).toBe(0);
   });
 
-  it('50% shift × 50% metric × unitRate = 25% of unitRate', () => {
+  it('50% shift × 50% metric × unitRate = 25% of unitRate (docs/20 §3 %côngca × %chỉ-số × đơnGiá)', () => {
     const value = computeKpiValue({
       shiftActual: 10,
       shiftRequired: 20,
@@ -90,7 +90,8 @@ describe('computeKpiValue', () => {
   });
 
   it('rounds half-up to whole VND (R3-13 precision contract)', () => {
-    // 1/3 × 100% × 100_000 = 33_333.33... -> 33_333
+    // TODO(golden: needs operator): docs/19, docs/20, docs/22 do not specify
+    // VND rounding (half-up vs banker's vs truncate). R3-13 lives in code comments.
     const value = computeKpiValue({
       shiftActual: 1,
       shiftRequired: 3,
@@ -223,8 +224,8 @@ describe('auto-score collectors', () => {
       status: 'draft' | 'approved';
       createdByAppUserId: string | null;
       approvedAt: Date | null;
-    }): Promise<void> {
-      await testDbBypass((tx) =>
+    }): Promise<{ id: string }> {
+      return testDbBypass((tx) =>
         tx.receipt.create({
           data: {
             facilityId,
@@ -256,7 +257,24 @@ describe('auto-score collectors', () => {
       });
 
       const revenue = await testDbBypass((tx) => collectSaleRevenue(tx, facilityId, saleAppUserId, PERIOD));
-      expect(revenue).toBe(6_500_000);
+      expect(revenue).toBe(6_500_000); // 4_000_000 + 2_500_000 fixtures; identity is the SUM
+    });
+
+    it('sale KPI revenue is GROSS — RefundRecord does not reduce SUM(netAmount) (docs/20 §4)', async () => {
+      const receipt = await seedReceipt({
+        netAmount: 4_000_000,
+        status: 'approved',
+        createdByAppUserId: saleAppUserId,
+        approvedAt: ictToUtc('2099-07-15', '10:00'),
+      });
+      await testDbBypass((tx) =>
+        tx.refundRecord.create({
+          data: { receiptId: receipt.id, facilityId, amount: 4_000_000 },
+        }),
+      );
+
+      const revenue = await testDbBypass((tx) => collectSaleRevenue(tx, facilityId, saleAppUserId, PERIOD));
+      expect(revenue).toBe(4_000_000);
     });
 
     it('excludes receipts outside the ICT period and non-approved receipts', async () => {
@@ -361,7 +379,7 @@ describe('auto-score collectors', () => {
       expect(hours).toBe(2);
     });
 
-    it('applies creditFactor decay: <=24h full, <=48h half, >48h zero', async () => {
+    it('applies creditFactor decay: <=24h full, <=48h half, >48h zero (docs/20 §4b, docs/22 ADR 0044)', async () => {
       const batch = await seedClassBatch({ facilityId, startDate: '2099-10-01', endDate: '2099-10-31' });
       await testDbBypass((tx) =>
         tx.classBatch.update({ where: { id: batch.id }, data: { teacherAppUserId } }),
@@ -395,7 +413,7 @@ describe('auto-score collectors', () => {
       });
 
       const hours = await testDbBypass((tx) => collectTeacherHours(tx, facilityId, teacherAppUserId, '2099-10'));
-      expect(hours).toBe(3); // 2 + 1 + 0
+      expect(hours).toBe(2 * 1.0 + 2 * 0.5 + 2 * 0); // 3
     });
 
     it('pre-activation sessions (endTime before SESSION_DONE_ACTIVATED_AT) get full credit regardless of doneAt lateness', async () => {

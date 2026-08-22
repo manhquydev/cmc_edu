@@ -77,7 +77,7 @@ export const flows: FlowEntry[] = [
     expected: {
       // TL25 đã sync 2026-07-18: route /finance/receipts/:id → /finance/:id.
       // receiptGet/List = hàng đợi duyệt của người phê (E1).
-      trpc: ['finance.receiptApprove', 'finance.receiptGet', 'finance.receiptList'],
+      trpc: ['finance.receiptApprove', 'finance.receiptGet', 'finance.receiptList', 'finance.receiptTimeline'],
       uiRoutes: ['/finance', '/finance/:id'],
       models: ['Receipt'],
     },
@@ -131,6 +131,9 @@ export const flows: FlowEntry[] = [
         'student.lookup',
         'student.getManyByIds',
         'student.resetPassword',
+        // Operational student timeline on the same detail surface (the
+        // profile section renders it via RecordTimeline — Phase 6 module 2).
+        'student.timeline',
         'lmsOps.listEnrollmentsForStudent',
         'lmsOps.addWithUnits',
         'lmsOps.grantPast',
@@ -174,6 +177,8 @@ export const flows: FlowEntry[] = [
         'parentAccount.list',
         'parentAccount.get',
         'parentAccount.setActive',
+        // Operational record history on the canonical parent detail surface.
+        'parentAccount.timeline',
       ],
       uiRoutes: ['/admin/parents', '/admin/parents/:parentId'],
       models: ['GuardianLinkRequest', 'Guardian', 'ParentAccount'],
@@ -323,6 +328,9 @@ export const flows: FlowEntry[] = [
         'classBatch.list',
         'classBatch.assignTeacher',
         'classBatch.listStudents',
+        // Operational class timeline on the same class detail surface
+        // (overview section renders it via RecordTimeline).
+        'classBatch.timeline',
         'schedule.generateSessions',
         'classSession.list',
         'classSession.assignUnit',
@@ -617,12 +625,14 @@ export const flows: FlowEntry[] = [
     expected: {
       // shift.cancel = huỷ đăng ký ca của chính mình (E1).
       // shift.get = form-depth cold-start for /hr/shifts/:registrationId (owner view).
+      // shift.timeline = operational RecordEvent timeline on that same detail surface (Phase 3).
       trpc: [
         'shift.submit',
         'shift.listGroups',
         'shift.myRegistrations',
         'shift.cancel',
         'shift.get',
+        'shift.timeline',
       ],
       uiRoutes: ['/hr/shifts', '/hr/shifts/new', '/hr/shifts/:registrationId'],
       models: ['ShiftRegistration', 'ShiftRegistrationEntry'],
@@ -866,8 +876,8 @@ export const flows: FlowEntry[] = [
       // ~~GAP: page là EmptyState chưa gọi API~~ — SAI TỪ 2026-07-23: màn đã được
       // wire (commit 5408ad2), post-sale-meeting.tsx gọi parentMeeting.list ở :65 và
       // dùng đủ schedule/complete/cancel. Chú thích cũ mô tả trạng thái đã hết hạn.
-      trpc: ['parentMeeting.list', 'parentMeeting.schedule', 'parentMeeting.complete', 'parentMeeting.cancel'],
-      uiRoutes: ['/crm/post-sale-meeting'],
+      trpc: ['parentMeeting.list', 'parentMeeting.get', 'parentMeeting.timeline', 'parentMeeting.schedule', 'parentMeeting.complete', 'parentMeeting.cancel'],
+      uiRoutes: ['/crm/post-sale-meeting', '/crm/post-sale-meeting/:meetingId', '/crm/post-sale-meeting/:meetingId/:section'],
       models: ['ParentMeeting'],
     },
     // Journey drives the whole lifecycle on a GĐKD: schedule a meeting for a
@@ -925,6 +935,8 @@ export const flows: FlowEntry[] = [
         'afterSale.close',
         // Form-depth cold-start for /crm/aftersale/:id.
         'afterSale.get',
+        // Operational RecordEvent timeline on the same after-sale detail surface (Phase 3).
+        'afterSale.timeline',
         'student.setLifecycle',
       ],
       uiRoutes: ['/crm/aftersale', '/crm/aftersale/:caseId'],
@@ -976,8 +988,11 @@ export const flows: FlowEntry[] = [
         // (access section reset dialog); staff rotates own password at /change-password.
         'user.resetPassword',
         'user.changeOwnPassword',
+        // Phase 4A: operational staff activity timeline on the same detail
+        // surface (/hr/staff/:id/activity tab reads it via RecordTimeline).
+        'user.timeline',
       ],
-      uiRoutes: ['/hr/staff', '/hr/staff/new', '/change-password'],
+      uiRoutes: ['/hr/staff', '/hr/staff/new', '/hr/staff/:staffId/activity', '/change-password'],
       models: ['AppUser'],
     },
     // Journey: super_admin tạo tài khoản nhân sự qua form /hr/staff/new (D1,

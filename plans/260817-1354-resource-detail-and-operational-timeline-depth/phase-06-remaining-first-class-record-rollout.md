@@ -20,6 +20,17 @@ per module. Never run these module series concurrently against shared route/link
 - [ ] Course and Gift remain source-backed config catalogs; no detail/update is invented here.
 - [ ] Every module series passes its own API/UI/deep-link gate before the next starts.
 
+## Module status
+
+| Module | Status |
+|---|---|
+| 1 Class | Done (PR #159, CI green on 808d89d, merged 2026-08-19). Follow-ups: load-more dedup in class-activity.tsx; denied-role timeline test. |
+| 2 Student | Done (PR #161, required CI green on `7a4add4`; merged 2026-08-19 into main `37ff37b`). |
+| 3 Parent | Done (PR #162, required CI green on `aa9431c`; merged 2026-08-19 into main `581e2d7`). |
+| 4 Receipt | Done (PR #163, required CI green on `31d860d`; merged 2026-08-19 into main `9b321c5`). |
+| 5 ParentMeeting | Done (PR #164, required CI green on `d5398fe`; merged 2026-08-19 into main `6d13248`). |
+| 6 Gap-only sweep | Audited (report: `plans/reports/phase-06-module-6-gap-only-audit.md`); no existing detail surfaces rebuilt. |
+
 ## Rollout matrix
 
 | Order | Module | Required delta |

@@ -480,6 +480,13 @@ model ParentAccount {
   isActive             Boolean               @default(true)
   /// Bumped on deactivation / forced re-login; must match LMS token `tv` claim.
   tokenVersion         Int                   @default(0)
+  /// Consecutive failed familyLogin attempts. Reset to 0 on success.
+  loginAttempts        Int                   @default(0)
+  /// When set and in the future, familyLogin is locked until this timestamp.
+  loginLockedUntil     DateTime?             @db.Timestamptz(3)
+  /// True only when this row was created with the insert-only default hash.
+  /// Existing NULL-hash parents stay false. Cleared by setFamilyPassword / reset token.
+  mustChangePassword   Boolean               @default(false)
   createdAt            DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime              @updatedAt @db.Timestamptz(3)
   studentAccounts      StudentAccount[]
@@ -1155,6 +1162,8 @@ model QualitativeAssessment {
   /// ICT calendar month `YYYY-MM` for monthly report-card assessments.
   period         String?
   content        String    @default("")
+  /// Session-scoped v2 rubric `{ version: 2, scores, narratives }`. Null = legacy content-only.
+  rubric         Json?
   /// draft | confirmed | discarded
   status         String    @default("draft")
   /// ai | teacher

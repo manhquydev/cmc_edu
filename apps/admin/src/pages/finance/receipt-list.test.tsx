@@ -86,6 +86,20 @@ describe('ReceiptListPage', () => {
     expect(screen.queryByText('Nguyễn Văn A')).not.toBeInTheDocument();
   });
 
+  it('hydrates an initial page deep link and preserves the query on row navigation', () => {
+    const { router } = renderWithProviders(<ReceiptListPage />, {
+      route: '/finance?q=Tr%E1%BA%A7n&page=2',
+    });
+    expect(receiptListSpy).toHaveBeenCalledWith({
+      status: undefined,
+      page: 2,
+      pageSize: 50,
+    });
+    fireEvent.click(screen.getByText('Trần Thị B'));
+    expect(router.state.location.pathname).toBe('/finance/r2');
+    expect(router.state.location.search).toBe('?q=Tr%E1%BA%A7n&page=2');
+  });
+
   it('typing a search term filters the rendered rows client-side', () => {
     renderWithProviders(<ReceiptListPage />, { route: '/finance' });
     expect(screen.getByText('Nguyễn Văn A')).toBeInTheDocument();

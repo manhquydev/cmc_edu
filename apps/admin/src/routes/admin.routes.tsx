@@ -8,11 +8,11 @@
 // A future phase should move this route to /teaching/report-cards.
 
 import { lazy, Suspense } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
 import type { RouteObject } from 'react-router-dom';
 import { ComingSoon } from '../pages/coming-soon.js';
 import { PermissionGate } from '../lib/permission-gate.js';
-import { staffProfilePath } from '@cmc/links';
+import { staffProfilePath, classSectionPath, studentSectionPath } from '@cmc/links';
 
 // ── Students ────────────────────────────────────────────────────────────────
 const StudentListPage = lazy(() => import('../pages/students/index.js'));
@@ -38,6 +38,7 @@ const FacilitiesPage = lazy(() => import('../pages/admin/facilities.js'));
 const NetworkIpPage = lazy(() => import('../pages/admin/network-ip.js'));
 const ShiftConfigPage = lazy(() => import('../pages/admin/shift-config.js'));
 const AuditLogPage = lazy(() => import('../pages/admin/audit-log.js'));
+const PermissionMatrixPage = lazy(() => import('../pages/admin/permission-matrix.js'));
 
 // ── Report cards / AI assessment ─────────────────────────────────────────────
 const ReportCardsPage = lazy(() => import('../pages/teaching/report-cards.js'));
@@ -56,13 +57,53 @@ function UsersDetailRedirect() {
   return <Navigate to={staffProfilePath(staffId)} replace />;
 }
 
+// Phase 5: base detail paths redirect (replace) to the default section; the
+// section itself is the durable URL. Unknown sections fall through to the
+// route-level not-found (path no longer matches) rather than a silent render.
+function ClassDetailRedirect() {
+  const { id = '' } = useParams<{ id: string }>();
+  const location = useLocation();
+  return <Navigate to={{ pathname: classSectionPath(id, 'overview'), search: location.search }} replace />;
+}
+
+function StudentDetailRedirect() {
+  const { id = '' } = useParams<{ id: string }>();
+  const location = useLocation();
+  return <Navigate to={{ pathname: studentSectionPath(id, 'profile'), search: location.search }} replace />;
+}
+
+// Section gates mirror the API contracts exactly (Phase 5): the shell and
+// overview read `class.read`; the roster reads `classRoster.read` (teachers
+// hold it while plain sale staff do not); sessions use `class.read`, the
+// contract `classSession.list` itself enforces.
+function ClassSectionGate({ section, children }: { section: string; children: React.ReactNode }) {
+  const module = section === 'students' ? 'classRoster' : 'class';
+  const requirementLabel =
+    section === 'students' ? 'xem danh sách học viên của lớp (classRoster.read)' : 'xem lớp học (class.read)';
+  return (
+    <PermissionGate
+      module={module}
+      action="read"
+      title="Chi tiết lớp"
+      breadcrumbs={[{ label: 'Lớp & Học sinh' }, { label: 'Lớp học' }, { label: 'Chi tiết' }]}
+      requirementLabel={requirementLabel}
+    >
+      {children}
+    </PermissionGate>
+  );
+}
+
 export const adminRoutes: RouteObject[] = [
   { index: true, element: <ComingSoon /> },
 
   // Students
   { path: 'students', element: <S><StudentListPage /></S> },
-  {
-    path: 'students/:id',
+  // Base detail redirects (replace) to the default section; sections are the
+  // durable URLs. Section routes are EXPLICIT (no generic :section catch-all)
+  // so unknown sections fall through to route-level not-found.
+  { path: 'students/:id', element: <StudentDetailRedirect /> },
+  ...(['profile', 'enrollments'] as const).map((section) => ({
+    path: `students/:id/${section}`,
     element: (
       <S>
         {/* Match API: student.get → requirePermission('student','lookup'). */}
@@ -77,7 +118,7 @@ export const adminRoutes: RouteObject[] = [
         </PermissionGate>
       </S>
     ),
-  },
+  })),
 
   // Parents (directory + guardian link queue)
   { path: 'parents', element: <S><ParentListPage /></S> },
@@ -87,14 +128,14 @@ export const adminRoutes: RouteObject[] = [
       <S>
         <PermissionGate
           module="parentAccount"
-          action="updateEmail"
+          action="read"
           title="Chi tiết phụ huynh"
           breadcrumbs={[
             { label: 'Lớp & Học sinh' },
             { label: 'Phụ huynh' },
             { label: 'Chi tiết' },
           ]}
-          requirementLabel="quản lý email phụ huynh (parentAccount.updateEmail)"
+          requirementLabel="tra cứu phụ huynh (parentAccount.read)"
         >
           <ParentDetailPage />
         </PermissionGate>
@@ -104,23 +145,18 @@ export const adminRoutes: RouteObject[] = [
 
   // Classes
   { path: 'classes', element: <S><ClassListPage /></S> },
-  {
-    path: 'classes/:id',
+  // Base redirects (replace) to the overview section (Phase 5).
+  { path: 'classes/:id', element: <ClassDetailRedirect /> },
+  ...(['overview', 'students', 'sessions'] as const).map((section) => ({
+    path: `classes/:id/${section}`,
     element: (
       <S>
-        {/* Match API: classBatch.get → requirePermission('class','read'). */}
-        <PermissionGate
-          module="class"
-          action="read"
-          title="Chi tiết lớp"
-          breadcrumbs={[{ label: 'Lớp & Học sinh' }, { label: 'Lớp học' }, { label: 'Chi tiết' }]}
-          requirementLabel="xem lớp học (class.read)"
-        >
+        <ClassSectionGate section={section}>
           <ClassDetailPage />
-        </PermissionGate>
+        </ClassSectionGate>
       </S>
     ),
-  },
+  })),
 
   // Courses. The menu now points here under Lớp & Học sinh, but the gate stays:
   // a hidden nav entry does not stop a typed URL, and without this check a role
@@ -136,15 +172,16 @@ export const adminRoutes: RouteObject[] = [
     ),
   },
 
-  // Engagement — same: the Gắn kết menu group now reaches both screens, and the
-  // gift/reward rosters deliberately exclude giao_vien (ADR-D). The gift menu
-  // entry is narrower than this gate on purpose — it follows `gift.upsert`, the
-  // screen's only mutation, so sale is not invited into a read-only dead end.
+  // Engagement — the Gắn kết menu group reaches both screens; gift/reward
+  // rosters deliberately exclude giao_vien (ADR-D). The gift CATALOGUE is a
+  // management screen: nav and route both gate on `gift.upsert` (managers only).
+  // Sale holds `gift.list` for the redemption flow but does not manage gifts
+  // (flow-manifest P4-02 + gift-config-nav.journey).
   {
     path: 'engagement/gifts',
     element: (
       <S>
-        <PermissionGate module="gift" action="list" title="Quà tặng" breadcrumbs={[{ label: 'Gắn kết' }, { label: 'Quà tặng' }]} requirementLabel="xem danh mục quà tặng (gift.list)">
+        <PermissionGate module="gift" action="upsert" title="Quà tặng" breadcrumbs={[{ label: 'Gắn kết' }, { label: 'Quà tặng' }]} requirementLabel="quản lý danh mục quà tặng (gift.upsert)">
           <GiftsPage />
         </PermissionGate>
       </S>
@@ -186,6 +223,22 @@ export const adminRoutes: RouteObject[] = [
   { path: 'network-ip', element: <S><NetworkIpPage /></S> },
   { path: 'shift-config', element: <S><ShiftConfigPage /></S> },
   { path: 'audit-log', element: <S><AuditLogPage /></S> },
+  {
+    path: 'permissions',
+    element: (
+      <S>
+        <PermissionGate
+          module="user"
+          action="manage"
+          title="Ma trận quyền"
+          breadcrumbs={[{ label: 'Nhân sự' }, { label: 'Ma trận quyền' }]}
+          requirementLabel="quản lý nhân sự (user.manage)"
+        >
+          <PermissionMatrixPage />
+        </PermissionGate>
+      </S>
+    ),
+  },
 
   // Report cards / AI assessment
   // TODO(phase-07): move to /teaching/report-cards once teaching.routes.tsx ownership allows.

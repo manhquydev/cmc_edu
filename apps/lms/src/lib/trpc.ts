@@ -8,6 +8,7 @@ import { createTRPCReact } from '@trpc/react-query';
 import { httpBatchLink } from '@trpc/client';
 import { QueryClient } from '@tanstack/react-query';
 import type { AppRouter } from '@cmc/api';
+import type { LmsSessionKind } from './lms-kind.js';
 
 export const trpc = createTRPCReact<AppRouter>();
 
@@ -24,15 +25,17 @@ const API_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? 'http
 export const LMS_SESSION_KEY = 'cmc_lms_session';
 
 /** Stored in localStorage after a successful login. */
+export const ACTIVE_STUDENT_KEY = 'cmc_lms_activeStudentId';
+
 export interface StoredLmsSession {
-  kind: 'parent' | 'student';
+  kind: LmsSessionKind;
   parentAccountId: string;
   /** Set for student sessions. Undefined for parent sessions (no profile selected yet). */
   studentId?: string;
   /** Returned by verifyOtp / verifyOtpEmail — stored so parent/home can list children. */
   children?: Array<{ studentId: string; fullName: string }>;
   sessionToken: string;
-  /** Student must change default password before proceeding. */
+  /** Student default password, or family insert-default hash, must rotate. */
   mustChangePassword?: boolean;
 }
 
@@ -52,6 +55,19 @@ export function storeSession(session: StoredLmsSession): void {
 
 export function clearSession(): void {
   localStorage.removeItem(LMS_SESSION_KEY);
+  localStorage.removeItem(ACTIVE_STUDENT_KEY);
+}
+
+export function getActiveStudentId(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_STUDENT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setActiveStudentId(studentId: string): void {
+  localStorage.setItem(ACTIVE_STUDENT_KEY, studentId);
 }
 
 export function makeTrpcClient() {

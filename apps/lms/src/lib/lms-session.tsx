@@ -7,6 +7,7 @@
 // context tree uses the one created inside session-context.tsx.
 
 import { createContext, useContext } from 'react';
+import { isParentDoorKind, type LmsSessionKind } from './lms-kind.js';
 import { useSession } from './session-context.js';
 
 // ---------------------------------------------------------------------------
@@ -15,7 +16,7 @@ import { useSession } from './session-context.js';
 
 export interface LmsSession {
   parentAccountId: string;
-  kind: 'parent' | 'student';
+  kind: LmsSessionKind;
   studentId?: string;
 }
 
@@ -33,13 +34,24 @@ interface LmsSessionCtxSpec {
 // ---------------------------------------------------------------------------
 
 /**
- * Decodes a base64url-encoded session token into an LmsSession.
- * Uses browser atob() — no Node Buffer dependency.
+ * Decodes an LMS session token into an LmsSession.
+ *
+ * Signed tokens are `base64url(header).base64url(payload).base64url(sig)`.
+ * Only the payload segment is decoded — HMAC is NOT verified in the
+ * browser; server `assertLiveLmsSession` remains the trust boundary.
+ *
+ * Legacy unsigned tokens are a single base64url(JSON) blob (old tests /
+ * old localStorage). Uses browser atob() — no Node Buffer dependency.
  */
 export function parseLmsToken(token: string): LmsSession | null {
   try {
-    const base64 = token.replace(/-/g, '+').replace(/_/g, '/');
-    const json = atob(base64);
+    const parts = token.split('.');
+    const encoded =
+      parts.length === 3 ? parts[1] : parts.length === 1 ? parts[0] : undefined;
+    if (!encoded) return null;
+    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = (4 - (base64.length % 4)) % 4;
+    const json = atob(base64 + '='.repeat(pad));
     const payload = JSON.parse(json) as unknown;
     if (!payload || typeof payload !== 'object') return null;
     const p = payload as Record<string, unknown>;
@@ -47,7 +59,7 @@ export function parseLmsToken(token: string): LmsSession | null {
     const kind = p['kind'];
     const studentId = p['studentId'];
     if (typeof parentAccountId !== 'string' || !parentAccountId) return null;
-    if (kind !== 'parent' && kind !== 'student') return null;
+    if (kind !== 'parent' && kind !== 'student' && kind !== 'family') return null;
     return {
       parentAccountId,
       kind,
@@ -105,7 +117,7 @@ export function useLmsSession(): LmsSessionCtxSpec {
     session,
     setToken,
     clearSession: logout,
-    isParent: stored?.kind === 'parent',
+    isParent: isParentDoorKind(stored?.kind),
     isStudent: stored?.kind === 'student',
   };
 }

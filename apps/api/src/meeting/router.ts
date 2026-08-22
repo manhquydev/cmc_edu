@@ -7,8 +7,16 @@
 import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { badRequest, notFound } from '../errors.js';
+import { listRecordEventPage } from '../record-event/store.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 import { assertStudentActive } from '../student/assert-student-active.js';
+import {
+  emitParentMeetingRecordEvent,
+  isParentMeetingRecordEventKind,
+  labelForParentMeetingRecordEventKind,
+  PARENT_MEETING_RECORD_EVENT_ENTITY,
+  PARENT_MEETING_RECORD_EVENT_HISTORY_SINCE,
+} from './record-event.js';
 
 const scheduleInput = z.object({
   studentId: z.string().uuid(),
@@ -31,6 +39,10 @@ const listInput = z.object({
   to: z.string().datetime().optional(),
   page: z.number().int().positive().default(1),
   pageSize: z.number().int().positive().max(100).default(20),
+});
+
+const getInput = z.object({
+  meetingId: z.string().uuid(),
 });
 
 export const parentMeetingRouter = router({
@@ -71,6 +83,80 @@ export const parentMeetingRouter = router({
       });
     }),
 
+  get: requirePermission('parentMeeting', 'manage')
+    .input(getInput)
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const meeting = await tx.parentMeeting.findFirst({
+          where: { id: input.meetingId, facilityId },
+          select: {
+            id: true,
+            studentId: true,
+            scheduledAt: true,
+            status: true,
+            result: true,
+            createdAt: true,
+          },
+        });
+        if (!meeting) throw notFound('Meeting not found.');
+        const student = await tx.student.findFirst({
+          where: { id: meeting.studentId, facilityId },
+          select: { fullName: true },
+        });
+        return { ...meeting, studentName: student?.fullName ?? null };
+      });
+    }),
+
+  timeline: requirePermission('parentMeeting', 'manage')
+    .input(z.object({
+      meetingId: z.string().uuid(),
+      cursor: z.string().min(1).optional(),
+      take: z.number().int().min(1).max(50).default(20),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { facilityId } = scoped(ctx);
+      return withFacility(ctx.db, facilityId, async (tx) => {
+        const meeting = await tx.parentMeeting.findFirst({
+          where: { id: input.meetingId, facilityId },
+          select: { id: true },
+        });
+        if (!meeting) throw notFound('Meeting not found.');
+        const eventWhere = {
+          facilityId,
+          entity: PARENT_MEETING_RECORD_EVENT_ENTITY,
+          entityId: meeting.id,
+        };
+        const [{ rows, nextCursor }, createdEvent] = await Promise.all([
+          listRecordEventPage(tx, eventWhere, input.cursor ?? null, input.take),
+          tx.recordEvent.findFirst({ where: { ...eventWhere, kind: 'created' }, select: { id: true } }),
+        ]);
+        const actorUserIds = [...new Set(rows.map((row) => row.actor).filter(Boolean))];
+        const actorStaffRows = actorUserIds.length
+          ? await tx.appUser.findMany({
+              where: { facilityId, userId: { in: actorUserIds } },
+              select: { userId: true, fullName: true, employeeCode: true },
+            })
+          : [];
+        const actorMap = new Map(actorStaffRows.map((staff) => [staff.userId, staff]));
+        return {
+          items: rows.map((row) => {
+            const staff = actorMap.get(row.actor);
+            return {
+              id: row.id,
+              kind: row.kind,
+              actor: staff ? staff.fullName || staff.employeeCode || staff.userId : 'Hệ thống',
+              payload: isParentMeetingRecordEventKind(row.kind) ? row.payload : null,
+              label: labelForParentMeetingRecordEventKind(row.kind),
+              createdAt: row.createdAt,
+            };
+          }),
+          nextCursor,
+          historySince: createdEvent ? null : PARENT_MEETING_RECORD_EVENT_HISTORY_SINCE,
+        };
+      });
+    }),
+
   /** Schedule a new parent meeting. */
   schedule: requirePermission('parentMeeting', 'manage')
     .input(scheduleInput)
@@ -103,6 +189,14 @@ export const parentMeetingRouter = router({
           },
         });
 
+        await emitParentMeetingRecordEvent(tx, {
+          facilityId,
+          meetingId: created.id,
+          actor: ctx.subject.userId,
+          kind: 'created',
+          studentId: created.studentId,
+        });
+
         return {
           ...created,
           warning: doubleBooked ? 'Học sinh này đã có 1 lịch họp trùng giờ — vui lòng xác nhận.' : undefined,
@@ -123,10 +217,17 @@ export const parentMeetingRouter = router({
         if (meeting.status !== 'scheduled') {
           throw badRequest(`Meeting is already ${meeting.status}; can only complete scheduled meetings.`);
         }
-        return tx.parentMeeting.update({
+        const updated = await tx.parentMeeting.update({
           where: { id: input.meetingId },
           data: { status: 'done', result: input.result },
         });
+        await emitParentMeetingRecordEvent(tx, {
+          facilityId,
+          meetingId: updated.id,
+          actor: ctx.subject.userId,
+          kind: 'completed',
+        });
+        return updated;
       });
     }),
 
@@ -143,10 +244,17 @@ export const parentMeetingRouter = router({
         if (meeting.status !== 'scheduled') {
           throw badRequest(`Meeting is already ${meeting.status}; can only cancel scheduled meetings.`);
         }
-        return tx.parentMeeting.update({
+        const updated = await tx.parentMeeting.update({
           where: { id: input.meetingId },
           data: { status: 'cancelled' },
         });
+        await emitParentMeetingRecordEvent(tx, {
+          facilityId,
+          meetingId: updated.id,
+          actor: ctx.subject.userId,
+          kind: 'cancelled',
+        });
+        return updated;
       });
     }),
 });

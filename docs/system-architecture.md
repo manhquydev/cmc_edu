@@ -101,7 +101,9 @@ CMC EDU v2 is a **monorepo, facility-scoped ERP/LMS** with phase-driven buildout
 - Staff (2026-07-26, M365 tenant access lost): **email/password là đường đăng nhập production** — `POST /auth/staff-login` (mount vô điều kiện, `apps/api/src/auth/password-routes.ts`): PBKDF2-SHA256 (tái dùng `lms-auth/password-hash.ts`), lockout 5 lần/15′, thông điệp lỗi generic + dummy-hash chống enumeration, phát cùng cookie `cmc_staff_session` như đường SSO. Cấp mật khẩu: `SUPER_ADMIN_PASSWORD` (seed) hoặc `user.resetPassword` (trang Users, super_admin) → `mustChangePassword` ép đổi ở lần đăng nhập đầu (`/change-password`, enforce phía client — cùng pattern LMS). Schema: partial unique index `lower(email) WHERE email <> ''` trên AppUser.
 - Staff (tạm tắt): Entra SSO sau flag `SSO_ENABLED=false` + `VITE_SSO_ENABLED=false` — code giữ nguyên, bật lại chỉ bằng env. **Known issue khi bật lại:** `sso-routes.ts:220` lookup AppUser bằng client thuần (không `withFacility` bypass) — RLS trả 0 dòng ⇒ SSO sẽ từ chối mọi user; phải sửa lookup này (wrap `withFacility(..., {bypass:true})` như password-routes) trước khi bật SSO thật.
 - Staff (dev): `x-dev-user` header — không đổi.
-- LMS Parent: `lmsAuth.requestOtpEmail` / `verifyOtpEmail` — **BLOCKED-ON-COMMS** (ConsoleEmailTransport stub; OTP visible in server log only until Brevo creds configured; Graph tạm tắt cùng M365)
+- LMS Parent OTP: `lmsAuth.requestOtp` / `verifyOtp` / `requestOtpEmail` / `verifyOtpEmail` remain live dual-run. Hash-null parents cannot `familyLogin` (generic fail). Do not delete OTP because the family tab exists.
+- LMS Family: `lmsAuth.familyLogin` + forgot/reset + `setFamilyPassword`. New `parentAccount.create` with the insert-only default hash sets `mustChangePassword`. Family `lmsProcedure` is blocked until rotate (except `setFamilyPassword`). Family token TTL is `min(LMS_TOKEN_TTL_MS, 12h)`.
+- LMS mail: `EmailOutbox.transport` stays `'brevo'`; worker sends SMTP when `SMTP_URL` is set. `BrevoEmailTransport` / `GraphEmailTransport` are fallbacks, not dead code.
 - LMS Student: `lmsAuth.loginStudent` (PBKDF2-SHA256, mustChangePassword, 5-attempt lockout)
 
 ---
@@ -118,7 +120,7 @@ tRPC root router (appRouter)
 ├── enrollment         [3 procedures]
 ├── guardian           [4 procedures]
 ├── student            [1 procedure stub]
-├── lmsAuth            [2 procedures]
+├── lmsAuth            [requestOtp, verifyOtp, requestOtpEmail, verifyOtpEmail, loginStudent, resetChildPassword, familyLogin, familyForgotPassword, familyResetPasswordWithToken, setFamilyPassword]
 └── facility           [1 procedure stub]
 ```
 
@@ -648,7 +650,14 @@ This implementation strictly follows the frozen design:
 3. ~~un-skip lms-auth-two-tier~~ — satisfied 2026-07-10 (suite deleted, coverage moved to e2e)
 4. ~~ctv_mkt manualPunch.create~~ — moot, key deleted by ADR 0043 (2026-07-13)
 
+## Resource-depth rollout status (2026-08-19)
+
+- `RecordEvent` is the facility-scoped, append-only user-facing operational timeline; `AuditLog` remains the global compliance ledger and is not a director timeline.
+- Merged resource-depth module series: Class (#159), Student (#161), ParentAccount (#162), Receipt (#163), and ParentMeeting (#164). Each merged PR passed the required `typecheck-and-test` and `ui-e2e` checks on its final head.
+- Canonical staff surface remains `/hr/staff`; `/admin/users` is a compatibility redirect. Parent, Receipt and ParentMeeting detail URLs are path-based and their activity sections are shareable.
+- Remaining gap-only detail exceptions are recorded in `plans/reports/phase-06-module-6-gap-only-audit.md`; Phase 7 source-derived coverage and URL/history gates remain open.
+
 ---
 
-**Last Updated:** 2026-08-12 (truth sync: CI dual required checks, LMS SPA shipped, acceptance snapshot 36/42 note, ADR banners via docs/truth-sync-adr-index)  
-**Aligns with:** main branch commit c9af5f1
+**Last Updated:** 2026-08-19 (Phase 6 resource-depth rollout sync; runtime acceptance remains CI-artifact-owned)
+**Aligns with:** main branch after PR #164; Phase 7 coverage gate remains open

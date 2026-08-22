@@ -156,7 +156,7 @@ Nút hành động rõ nghĩa ("Duyệt & Kích hoạt"). Sau khi chạy → **R
 > **product-decision 2026-07-07**: Màn đăng nhập LMS cần 2 tab song song, không phải một form đơn.
 
 **Yêu cầu UI:**
-- **Tab 1 — Phụ huynh**: nhập email → nút "Gửi mã OTP" → nhập OTP 6 số → đăng nhập. Nút "Gửi mã OTP" cần trạng thái loading + cooldown (60s). **Phải hiển thị thông báo BLOCKED-ON-COMMS** khi chạy không có email transport: "Hệ thống email đang trong quá trình cấu hình. Vui lòng liên hệ nhân viên để nhận hỗ trợ đăng nhập."
+- **Tab 1 — Phụ huynh**: nhập email → nút "Gửi mã OTP" → nhập OTP 6 số → đăng nhập. Nút "Gửi mã OTP" cần trạng thái loading + cooldown (60s). Banner comms chỉ hiện ở DEV (`import.meta.env.DEV`) khi ConsoleEmailTransport đang dùng; production dùng BrevoEmailTransport — không bắt buộc banner BLOCKED-ON-COMMS trên UI prod.
 - **Tab 2 — Học sinh**: nhập SĐT phụ huynh (`84xxx`) + mật khẩu → đăng nhập. Nếu `mustChangePassword=true` → chuyển ngay sang màn đổi mật khẩu (không vào dashboard).
 - Tab mặc định: Tab 1 (Phụ huynh). Deep-link `?tab=student` vào thẳng Tab 2.
 - Sau đăng nhập PH: nếu 1 con → thẳng dashboard; nếu ≥2 con → `ProfilePicker` (xem WF-P1-07).

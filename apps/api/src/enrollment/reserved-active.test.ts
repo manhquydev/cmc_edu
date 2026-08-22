@@ -3,6 +3,9 @@
 // Receipt-driven (performed by `finance.receiptApprove` provisioning via
 // `activateEnrollmentForReceipt`, exercised directly here plus end-to-end in
 // ../provisioning/idempotent.test.ts) — never settable by a direct mutation.
+//
+// TODO(golden: needs operator): docs/19, docs/20, docs/22 publish no course
+// tuition catalog. Enrollment carries status, not a price — money lives on Receipt.
 
 import { randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -95,6 +98,8 @@ describe('enrollment reserved -> active (WF-P1-05, ADR-A)', () => {
       tx.enrollment.findUniqueOrThrow({ where: { id: enrollment.id } }),
     );
     expect(persisted.status).toBe('active');
+    // Paid-access invariant: reserved (unpaid hold) → active only through the
+    // receipt path. No tuition amount is stored on Enrollment.
   });
 
   it('creates a fresh active enrollment when none exists yet (provisioning for a brand-new class, no prior reserved row)', async () => {

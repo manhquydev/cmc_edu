@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   Badge,
   Banner,
   Button,
-  CmcTabs,
   ConfirmDialog,
   DetailPage,
   EntityHeader,
@@ -23,9 +23,11 @@ import {
   WorkflowStatusbar,
   useToast,
 } from '@cmc/ui';
+import { UUID_RE, receiptSectionPath } from '@cmc/links';
 import { trpc } from '../../lib/trpc.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
 import { useSession } from '../../lib/session-context.js';
+import { ReceiptActivitySection } from './receipt-activity.js';
 
 // Receipt lifecycle stages shown in the workflow statusbar.
 const PIPELINE_STAGES = [
@@ -64,11 +66,13 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function ReceiptDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { section } = useParams<{ section: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const { me } = useSession();
   const { success: toastSuccess } = useToast();
+  const idOk = UUID_RE.test(id ?? '');
 
-  const [activeTab, setActiveTab] = useState('overview');
   const [approveOpen, setApproveOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState<number | string>('');
@@ -90,7 +94,7 @@ export default function ReceiptDetailPage() {
     refetch,
   } = trpc.finance.receiptGet.useQuery(
     { receiptId: id ?? '' },
-    { enabled: Boolean(id) },
+    { enabled: idOk },
   );
 
   const approveMutation = trpc.finance.receiptApprove.useMutation({
@@ -139,6 +143,28 @@ export default function ReceiptDetailPage() {
   // approveMutation.error is rendered below (overviewContent) — onError here
   // only owns dialog lifecycle, not error display, so an SoD/threshold/
   // conflict rejection from the API no longer disappears silently.
+
+  if (!idOk) {
+    return (
+      <DetailPage
+        header={
+          <PageHeader
+            breadcrumbs={[
+              { label: 'Tài chính & Điều hành', href: '/finance' },
+              { label: 'Phiếu thu', href: '/finance' },
+              { label: 'ID không hợp lệ' },
+            ]}
+          />
+        }
+      >
+        <Banner
+          status="error"
+          title="ID không hợp lệ"
+          description="URL cần UUID phiếu thu."
+        />
+      </DetailPage>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -531,6 +557,12 @@ export default function ReceiptDetailPage() {
     </div>
   );
 
+  const activityContent = (
+    <div className="console-detail-panel">
+      <ReceiptActivitySection receiptId={id!} />
+    </div>
+  );
+
   return (
     <>
       <DetailPage
@@ -549,7 +581,7 @@ export default function ReceiptDetailPage() {
                   label="← Danh sách"
                   variant="secondary"
                   size="sm"
-                  onClick={() => void navigate('/finance')}
+                  onClick={() => void navigate({ pathname: '/finance', search: location.search })}
                 />
               </>
             }
@@ -590,7 +622,7 @@ export default function ReceiptDetailPage() {
                       label="Huỷ phiếu"
                       variant="secondary"
                       size="sm"
-                      onClick={() => setActiveTab('overview')}
+                      onClick={() => navigate(`/finance/${id}/overview`)}
                     />
                   ) : null}
                   {receipt.viewerCanRefund ? (
@@ -599,7 +631,7 @@ export default function ReceiptDetailPage() {
                       variant="primary"
                       size="sm"
                       onClick={() => {
-                        setActiveTab('overview');
+                        navigate(`/finance/${id}/overview`);
                         if (refundAmount === '' || refundAmount == null) {
                           setRefundAmount(remainingBalance);
                         }
@@ -659,14 +691,33 @@ export default function ReceiptDetailPage() {
         }
         statusbar={<WorkflowStatusbar {...workflowFor(receipt.status)} />}
         tabs={
-          <CmcTabs
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            tabs={[
-              { id: 'overview', label: 'Tổng quan', content: overviewContent },
-              { id: 'order-lines', label: 'Chi tiết thanh toán', content: orderLinesContent },
-            ]}
-          />
+          <nav className="console-section-tabs" aria-label="Phân đoạn phiếu thu">
+            <NavLink
+              to={{ pathname: receiptSectionPath(id!, 'overview'), search: location.search }}
+              end
+            >
+              Tổng quan
+            </NavLink>
+            <NavLink
+              to={{ pathname: receiptSectionPath(id!, 'order-lines'), search: location.search }}
+              end
+            >
+              Chi tiết thanh toán
+            </NavLink>
+            <NavLink
+              to={{ pathname: receiptSectionPath(id!, 'activity'), search: location.search }}
+              end
+            >
+              Lịch sử vận hành
+            </NavLink>
+          </nav>
+        }
+        children={
+          (section ?? 'overview') === 'order-lines'
+            ? orderLinesContent
+            : (section ?? 'overview') === 'activity'
+              ? activityContent
+              : overviewContent
         }
       />
       <ConfirmDialog

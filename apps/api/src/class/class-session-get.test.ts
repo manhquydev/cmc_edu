@@ -6,6 +6,7 @@ import {
   buildStaffContext,
   cleanupFacility,
   createTestFacility,
+  seedAppUser,
 } from '../test/db.js';
 
 type Caller = ReturnType<(typeof appRouter)['createCaller']>;
@@ -58,6 +59,23 @@ describe('classSession.get + doneProgress', () => {
     expect(row.batchCode).toBeTruthy();
     expect(row.program).toBe('UCREA');
     expect(row.courseId).toBeTruthy();
+  });
+
+  it('get returns teacherAppUserId and fullName after assignTeacher', async () => {
+    const teacher = await seedAppUser({
+      facilityId: facility.id,
+      userId: 'session-get-teacher',
+      fullName: 'Cô Lan',
+      roles: ['giao_vien'],
+    });
+    await gddt.classBatch.assignTeacher({
+      classBatchId,
+      teacherAppUserId: teacher.id,
+    });
+    const row = await giaoVien.classSession.get({ sessionId });
+    expect(row.teacherAppUserId).toBe(teacher.id);
+    expect(row.teacherFullName).toBe('Cô Lan');
+    expect(row.teacherId).toBe(teacher.id);
   });
 
   it('get throws NOT_FOUND for unknown session', async () => {

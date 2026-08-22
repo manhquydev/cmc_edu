@@ -24,6 +24,7 @@ import {
 } from '@cmc/ui';
 import { links, UUID_RE } from '@cmc/links';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { ParentActivitySection } from './parent-activity.js';
 import { trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
@@ -267,6 +268,8 @@ export default function ParentDetailPage() {
               </Stack>
             )}
           </SectionBlock>
+
+          <ParentActivitySection parentAccountId={parentId} />
         </Stack>
       </div>
 

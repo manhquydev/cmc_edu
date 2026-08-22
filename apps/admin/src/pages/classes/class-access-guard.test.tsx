@@ -3,14 +3,14 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render-with-providers.js';
 
-// Hiding the menu entry is not access control — the URL still works. These
-// cover the page-level guard on the class-administration screens for the roles
-// that gained `class.read` (so they can pick a class elsewhere) but must not
-// administer classes, and must not reach the roster tab this way.
+// Hiding the menu entry is not access control — the URL still works. The list
+// remains page-gated; detail authorization is owned by the route's
+// section-specific PermissionGate so overview/roster can use different API
+// contracts.
 
 const { CLASS, currentRoles } = vi.hoisted(() => ({
   CLASS: {
-    id: 'cb-1',
+    id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
     code: 'CB001',
     program: 'IELTS',
     startDate: '2026-01-01T00:00:00.000Z',
@@ -26,7 +26,7 @@ const { CLASS, currentRoles } = vi.hoisted(() => ({
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-  return { ...actual, useParams: () => ({ id: 'cb-1' }) };
+  return { ...actual, useParams: () => ({ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }) };
 });
 
 vi.mock('../../lib/trpc.js', async () => {
@@ -52,7 +52,6 @@ vi.mock('../../lib/trpc.js', async () => {
 });
 
 const { default: ClassListPage } = await import('./index.js');
-const { default: ClassDetailPage } = await import('./class-detail.js');
 
 describe('class administration screens are guarded at the page, not just the menu', () => {
   for (const role of ['sale', 'giao_vien']) {
@@ -62,11 +61,6 @@ describe('class administration screens are guarded at the page, not just the men
       expect(screen.getByText('Không có quyền truy cập')).toBeTruthy();
     });
 
-    it(`blocks ${role} from the class detail screen (the roster tab lives here)`, () => {
-      currentRoles.value = [role];
-      renderWithProviders(<ClassDetailPage />);
-      expect(screen.getByText('Không có quyền truy cập')).toBeTruthy();
-    });
   }
 
   it('still lets giam_doc_dao_tao administer classes', () => {

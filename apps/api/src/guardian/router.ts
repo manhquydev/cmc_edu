@@ -22,6 +22,8 @@ import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { badRequest, conflict, notFound } from '../errors.js';
 import { lmsProcedure, requirePermission, router, scoped } from '../trpc.js';
+import { emitStudentRecordEvent } from '../student/record-event.js';
+import { emitParentRecordEvent } from '../parentAccount/record-event.js';
 import { assertStudentActive } from '../student/assert-student-active.js';
 
 const requestLinkInput = z.object({
@@ -168,6 +170,27 @@ export const guardianRouter = router({
           select: { id: true },
         });
 
+        // Serialize approvals for the same parent/student pair. Without this
+        // lock, two distinct pending requests can both observe no Guardian
+        // row and both append guardian_linked before either transaction commits.
+        await tx.$executeRaw`
+          SELECT pg_advisory_xact_lock(
+            hashtext(${facilityId} || ':' || ${request.parentAccountId} || ':' || ${request.studentRef})
+          )
+        `;
+
+        // Module-2 freeze: only a NEW Guardian row is operational history —
+        // the upsert's update branch is a no-op replay and records nothing.
+        const existingLink = await tx.guardian.findUnique({
+          where: {
+            parentAccountId_studentId: {
+              parentAccountId: request.parentAccountId,
+              studentId: request.studentRef,
+            },
+          },
+          select: { id: true },
+        });
+
         const guardian = await tx.guardian.upsert({
           where: {
             parentAccountId_studentId: {
@@ -183,6 +206,25 @@ export const guardianRouter = router({
           },
           update: {},
         });
+
+        if (!existingLink) {
+          await emitStudentRecordEvent(tx, {
+            facilityId,
+            studentId: request.studentRef,
+            actor: ctx.subject.userId,
+            kind: 'guardian_linked',
+            parentAccountId: request.parentAccountId,
+            relation: input.relation,
+          });
+          await emitParentRecordEvent(tx, {
+            facilityId,
+            parentAccountId: request.parentAccountId,
+            actor: ctx.subject.userId,
+            kind: 'child_linked',
+            studentId: request.studentRef,
+            relation: input.relation,
+          });
+        }
 
         return {
           requestId: request.id,

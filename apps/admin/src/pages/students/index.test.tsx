@@ -81,6 +81,15 @@ describe('StudentListPage', () => {
     expect(screen.getByRole('navigation', { name: 'Phân trang' })).toBeInTheDocument();
   });
 
+  it('hydrates an initial q deep link and preserves the query on row navigation', () => {
+    const { router } = renderWithProviders(<StudentListPage />, {
+      route: '/admin/students?q=Nguyễn&page=1',
+    });
+    fireEvent.click(screen.getByText('Nguyễn Văn A'));
+    expect(router.state.location.pathname).toBe('/admin/students/st-1');
+    expect(router.state.location.search).toBe('?q=Nguyễn&page=1');
+  });
+
   it('enables bulk copy of selected student names', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {

@@ -21,7 +21,7 @@ export default function ResetChildPasswordPage() {
 
   // Runtime kind gate (defence in depth — ParentLayout already redirects).
   // Return null entirely so the action is not rendered for student sessions.
-  if (!session || session.kind !== 'parent') return null;
+  if (!session || (session.kind !== 'parent' && session.kind !== 'family')) return null;
 
   return <ResetForm studentId={studentId!} onBack={() => navigate('/parent/home')} />;
 }

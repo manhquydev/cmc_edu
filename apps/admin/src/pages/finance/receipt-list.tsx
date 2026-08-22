@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { links } from '@cmc/links';
 import {
   BulkActionBar,
@@ -93,10 +93,12 @@ function readFiltersFromParams(params: URLSearchParams): Record<string, string> 
 }
 
 export default function ReceiptListPage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [enrollPickerOpen, setEnrollPickerOpen] = useState(false);
-  const [page, setPage] = useState(1);
+  const initialPage = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
+  const [page, setPage] = useState(initialPage);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const { success: toastSuccess } = useToast();
 
@@ -107,12 +109,17 @@ export default function ReceiptListPage() {
   // External URL changes (back/forward, initial deep-link remount) → re-sync.
   const statusParam = searchParams.get('status') ?? '';
   const qParam = searchParams.get('q') ?? '';
+  const pageParam = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
   useEffect(() => {
     setFilters((prev) => {
       if (prev.status === statusParam && prev.q === qParam) return prev;
       return { status: statusParam, q: qParam };
     });
   }, [statusParam, qParam]);
+
+  useEffect(() => {
+    if (page !== pageParam) setPage(pageParam);
+  }, [page, pageParam]);
 
   const status: ReceiptStatus | undefined =
     filters.status && (RECEIPT_STATUS_VALUES as readonly string[]).includes(filters.status)
@@ -154,6 +161,15 @@ export default function ReceiptListPage() {
     if (process.env.VITEST !== 'true') {
       setSearchParams(params, { replace: true });
     }
+  }
+
+  function changePage(nextPage: number) {
+    setPage(nextPage);
+    setSelectedIds([]);
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextPage > 1) nextParams.set('page', String(nextPage));
+    else nextParams.delete('page');
+    setSearchParams(nextParams, { replace: true });
   }
 
   return (
@@ -210,10 +226,7 @@ export default function ReceiptListPage() {
               page={page}
               pageSize={50}
               total={data?.total ?? rows.length}
-              onPageChange={(p) => {
-                setPage(p);
-                setSelectedIds([]);
-              }}
+              onPageChange={changePage}
             />
           </div>
         }
@@ -224,7 +237,12 @@ export default function ReceiptListPage() {
           loading={isLoading}
           error={error?.message}
           empty="Chưa có phiếu thu nào"
-          onRowClick={(row) => void navigate(links.receipt(row.id))}
+          onRowClick={(row) =>
+            void navigate({
+              pathname: links.receipt(row.id),
+              search: location.search,
+            })
+          }
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
         />

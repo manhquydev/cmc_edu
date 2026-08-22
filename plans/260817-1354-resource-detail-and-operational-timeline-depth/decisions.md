@@ -111,3 +111,32 @@ One module series at a time. Each series must pass API, UI and deep-link proof b
   gain a link unless entity mapping and UUID both validate.
 - Because `AuditLog` has no facility context, the viewer links only targets proven resolvable in
   the current facility. Other-facility, deleted and unknown targets remain plain text.
+
+## D11 — Staff timeline actor projection (Phase 4A)
+
+- Non-super-admin callers see a server-projected safe label: display name, else employee code,
+  else a neutral system label; `super_admin` actors render as `Quản trị hệ thống`.
+- `super_admin` callers may see the raw stored actor userId for cross-checking against the
+  compliance log — they already hold `user.manage` platform authority. This exception is
+  deliberate and bounded to `user.timeline`.
+
+## D12 — Audit entityId derivation and link vocabulary (Phase 4B)
+
+- `AUDIT_ENTITY_ID_RESULT_ACTIONS` registry: create-shaped mutations whose input names an
+  unrelated record (`user.create`, `afterSale.create`, `parentMeeting.schedule`,
+  `testAppointment.schedule`, `shift.createTemplate`, `shift.submit`, `kpi.refresh`) derive
+  entityId from the created result row. Global input-first precedence is unchanged; new
+  ambiguous actions join the registry, guarded by the hand-audited manifest test
+  (`apps/api/src/audit/mutation-entity-id-manifest.test.ts`).
+- Wrapped-return mutations (`finance.receiptCreate` → `{status, receipt}`,
+  `finance.refundCreate` → `{refund, remainingBalance}`, `rewards.redeem` → `{reward,
+  newBalance}`) are classified in `AUDIT_ENTITY_ID_RESULT_KEYS`: the middleware unwraps one
+  fixed, hand-named result key and takes the created row's id. Generic nested scraping is
+  rejected — only listed actions are ever unwrapped. (Earlier draft of this decision kept
+  these input-first on the assumption their handlers wrote true-id audit rows; verified false
+  for receiptCreate/refundCreate, whose middleware row was the only record and stored a
+  client-key-order-dependent unrelated id.)
+- Link entity vocabulary: the middleware derives `entity` from the tRPC router segment
+  (`user`, `afterSale`, `parentAccount`), so `SAFE_LINK_TARGETS` keys on router segments.
+  Hand-written audit rows using Prisma model names (`AppUser`) simply do not link —
+  accepted; the `entityId` filter still finds them.

@@ -2,7 +2,7 @@
 // All tests run offline — no DB, no external services.
 
 import { describe, expect, it } from 'vitest';
-import { signLmsToken, verifyLmsToken } from './session-token.js';
+import { FAMILY_TTL_MS, resolveLmsTokenTtlMs, signLmsToken, verifyLmsToken } from './session-token.js';
 
 const SECRET = 'test-hmac-secret-32-bytes-minimum!';
 
@@ -16,6 +16,25 @@ describe('signLmsToken / verifyLmsToken (RT-1)', () => {
       studentId: undefined,
       tokenVersion: 0,
     });
+  });
+
+  it('round-trips a family token without studentId', () => {
+    const token = signLmsToken(
+      { parentAccountId: 'pa-1', kind: 'family', studentId: 'st-ignored', tokenVersion: 2 },
+      SECRET,
+    );
+    const claims = verifyLmsToken(token, SECRET);
+    expect(claims).toEqual({
+      parentAccountId: 'pa-1',
+      kind: 'family',
+      studentId: undefined,
+      tokenVersion: 2,
+    });
+  });
+
+  it('still verifies a parent token after family kind is allowed', () => {
+    const token = signLmsToken({ parentAccountId: 'pa-1', kind: 'parent' }, SECRET);
+    expect(verifyLmsToken(token, SECRET)?.kind).toBe('parent');
   });
 
   it('round-trips a student token with studentId', () => {
@@ -94,5 +113,14 @@ describe('signLmsToken / verifyLmsToken (RT-1)', () => {
     );
     const claims = verifyLmsToken(token, SECRET);
     expect(claims?.kind).toBe('student');
+  });
+
+  it('caps family TTL at 12 hours even when LMS_TOKEN_TTL_MS is longer', () => {
+    const prev = process.env['LMS_TOKEN_TTL_MS'];
+    process.env['LMS_TOKEN_TTL_MS'] = String(7 * 24 * 60 * 60 * 1000);
+    expect(resolveLmsTokenTtlMs('family')).toBe(FAMILY_TTL_MS);
+    expect(resolveLmsTokenTtlMs('parent')).toBe(7 * 24 * 60 * 60 * 1000);
+    if (prev === undefined) delete process.env['LMS_TOKEN_TTL_MS'];
+    else process.env['LMS_TOKEN_TTL_MS'] = prev;
   });
 });

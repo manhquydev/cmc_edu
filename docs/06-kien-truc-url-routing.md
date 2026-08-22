@@ -68,12 +68,11 @@ Quy tắc:
 | Báo cáo điểm danh | `/teaching/attendance/report?scope=class&term=` | — |
 | Chấm bài | `/teaching/grading?class={classId}` | — |
 | Học bạ | `/teaching/report-cards` → `/teaching/report-cards/{studentId}` | — |
-| Lớp học | `/classes?view=table` → `/classes/{classId}` | `/{classId}/overview` · `/students` · `/sessions` · `/enroll` |
-| Khóa học | `/courses` → `/courses/{courseId}` | — |
-| Chương trình | `/curriculum` → `/curriculum/{unitId}` | — |
-| **Học sinh** | `/students?q=` → `/students/{studentId}` | `/{id}/profile` · `/enrollments` · `/attendance` · `/grades` · `/guardians` |
-| Phụ huynh | `/parents` → `/parents/{parentId}` | `/{id}/children` · `/receipts` |
-| Họp phụ huynh | `/parent-meetings` → `/parent-meetings/{id}` | — |
+| Lớp học | `/admin/classes` → `/admin/classes/{classId}` | `/{classId}/overview` · `/students` · `/sessions` |
+| Khóa học | `/admin/courses` | Catalog cấu hình tối thiểu |
+| **Học sinh** | `/admin/students` → `/admin/students/{studentId}` | `/{id}/profile` · `/enrollments` |
+| Phụ huynh | `/admin/parents` → `/admin/parents/{parentId}` | Chi tiết + lịch sử vận hành |
+| Họp phụ huynh | `/crm/post-sale-meeting` → `/crm/post-sale-meeting/{meetingId}` | `/{id}/overview` · `/{id}/activity` |
 | Duyệt cấp độ | `/level-progress?status=pending` | — |
 | Chứng chỉ | `/certificates` → `/certificates/{id}` | — |
 
@@ -87,8 +86,8 @@ Quy tắc:
 ### C. Tài chính & Nhân sự–Lương
 | Trang | URL | Ghi chú |
 |---|---|---|
-| Tài chính (phiếu thu) | `/finance/receipts?status=pending` → `/finance/receipts/{id}` | — |
-| **Tạo phiếu thu từ cơ hội** | `/finance/receipts/new?opportunityId={oppId}` | Điền sẵn tên HS/SĐT/lớp (QĐ 0037) |
+| Tài chính (phiếu thu) | `/finance` → `/finance/{id}` | `/{id}/overview` · `/order-lines` · `/activity` |
+| **Tạo phiếu thu từ cơ hội** | `/finance/new?opportunityId={oppId}` | Tạo xong điều hướng về chi tiết phiếu |
 | Báo cáo doanh thu | `/finance/revenue-report?range=` | — |
 | Đối soát theo kỳ | `/finance/reconciliation?term=` | Nơi Reconciliation agent đổ cờ |
 | Hoàn tiền | `/finance/refunds` → `/finance/refunds/{id}` | — |
@@ -101,6 +100,8 @@ Quy tắc:
 | Chấm công | `/attendance/check-in-out` | — |
 | Đăng ký ca | `/hr/shifts?scope=mine\|inbox` → `/hr/shifts/new` → `/hr/shifts/{registrationId}` | Form chi tiết phiếu (record-centric; plan 260811-1408). Không dùng `/attendance/shifts` (stale). |
 | Danh mục ca | `/admin/shift-config` | — |
+
+Hai sổ không trộn: `/{id}/activity` và `/{id}/timeline` là timeline per-record từ `RecordEvent` — sổ vận hành người dùng (facility-scoped, append-only). `AuditLog` là sổ tuân thủ toàn cục, **không** phải timeline giám đốc.
 
 ### D. Định danh & Quản trị
 | Trang | URL |
@@ -131,7 +132,7 @@ Quy tắc:
 > - `/login/change-password` — màn đổi mật khẩu bắt buộc khi `mustChangePassword=true` (học sinh).
 > - `/select-child` — profile picker sau khi phụ huynh đăng nhập (≥2 con).
 >
-> Không còn route phone-OTP (`/login/otp-phone` hoặc tương đương) — đã loại bỏ. Nếu codebase cũ còn route này, cần xoá. **BLOCKED-ON-COMMS**: Tab phụ huynh (email OTP) chưa functional production — xem TL18/TL24.
+> Không còn route phone-OTP (`/login/otp-phone` hoặc tương đương) — đã loại bỏ. Nếu codebase cũ còn route này, cần xoá. Tab phụ huynh (email OTP) **đã wired** trên worker prod qua `BrevoEmailTransport` (`ConsoleEmailTransport` chỉ dev/test, cấm ở prod). Lỗi hiện tại là `BREVO_API_KEY` prod invalid (HTTP 401), không phải "chưa gửi / chưa functional".
 
 ---
 

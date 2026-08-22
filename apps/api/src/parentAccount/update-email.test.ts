@@ -70,8 +70,15 @@ describe('parentAccount.updateEmail (test backfill)', () => {
       where: { entity: 'ParentAccount', entityId: parent.id, action: 'parentAccount.updateEmail' },
     });
     expect(audit).not.toBeNull();
-  });
 
+    const event = await testDbBypass((tx) =>
+      tx.recordEvent.findFirst({
+        where: { entity: 'ParentAccount', entityId: parent.id, kind: 'email_updated' },
+      }),
+    );
+    expect(event).not.toBeNull();
+    expect(event?.payload).toBeNull();
+  });
   it('rejects a duplicate email already used by another ParentAccount (CONFLICT)', async () => {
     const phoneA = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;
     const phoneB = `84${randomUUID().replace(/-/g, '').slice(0, 9)}`;

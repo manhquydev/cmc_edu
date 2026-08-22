@@ -8,9 +8,11 @@
 // No student-only actions are rendered here.
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Banner, Button, Divider, Heading, Spinner, Stack, Text } from '@cmc/ui';
-import { trpc } from '../../lib/trpc.js';
+import { AssessmentRubricRead } from '../../components/assessment-rubric-read.js';
+import { isParentDoorKind } from '../../lib/lms-kind.js';
+import { getActiveStudentId, setActiveStudentId, trpc } from '../../lib/trpc.js';
 import { useSession } from '../../lib/session-context.js';
 
 // ---------------------------------------------------------------------------
@@ -107,7 +109,11 @@ function RecentAssessments({ studentId }: { studentId: string }) {
               ? new Date(item.confirmedAt).toLocaleDateString('vi-VN')
               : item.period ?? '—'}
           </Text>
-          <Text type="body" size="sm">{item.content}</Text>
+          <AssessmentRubricRead
+            program={item.program}
+            rubric={item.rubric}
+            fallbackContent={item.content}
+          />
         </div>
       ))}
     </Stack>
@@ -122,11 +128,18 @@ export default function ParentHomePage() {
   const { session, logout } = useSession();
   const navigate = useNavigate();
   const children = session?.children ?? [];
-  const [selectedId, setSelectedId] = useState<string | null>(
-    children.length === 1 ? children[0]!.studentId : null,
-  );
+  const storedActive = getActiveStudentId();
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    if (children.length === 1) return children[0]!.studentId;
+    if (storedActive && children.some((c) => c.studentId === storedActive)) return storedActive;
+    return null;
+  });
 
-  if (!session || session.kind !== 'parent') return null;
+  if (!session || !isParentDoorKind(session.kind)) return null;
+
+  if (session.kind === 'family' && children.length >= 2 && !selectedId) {
+    return <Navigate to="/select-profile" replace />;
+  }
 
   return (
     <div className="lms-shell">
@@ -154,7 +167,10 @@ export default function ParentHomePage() {
               <button
                 key={child.studentId}
                 className={`lms-child-chip${selectedId === child.studentId ? ' lms-child-chip--active' : ''}`}
-                onClick={() => setSelectedId(child.studentId)}
+                onClick={() => {
+                  setSelectedId(child.studentId);
+                  if (session.kind === 'family') setActiveStudentId(child.studentId);
+                }}
                 type="button"
               >
                 {child.fullName}

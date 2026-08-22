@@ -1,7 +1,7 @@
 ---
 title: "Resource Detail and Operational Timeline Depth"
 description: "Complete staff record management, safe per-record operational timelines, and source-current detail depth across CMC EDU without forcing workspaces or configuration grids into record pages."
-status: pending
+status: completed
 priority: P1
 effort: "30-45 engineer days, delivered as sequential protected PRs"
 issue:
@@ -38,10 +38,10 @@ Keep global `AuditLog` restricted to compliance use.
 | 1 | [Contract, Inventory and Decision Freeze](./phase-01-start.md) | Done |
 | 2 | [Staff Authorization and API Contract](./phase-02-staff-authorization-and-api-contract.md) | Done |
 | 3 | [Staff Routes, Forms and Navigation](./phase-03-staff-routes-forms-and-navigation.md) | Done (PR #153, CI green) |
-| 4 | [Operational Timeline and Compliance Audit Separation](./phase-04-operational-timeline-and-compliance-audit-separation.md) | Pending |
-| 5 | [Existing Detail URL and Cross-Link Normalization](./phase-05-existing-detail-url-and-cross-link-normalization.md) | Pending |
-| 6 | [Remaining First-Class Record Rollout](./phase-06-remaining-first-class-record-rollout.md) | Pending |
-| 7 | [Coverage Gates, E2E and Documentation](./phase-07-coverage-gates-e2e-and-documentation.md) | Pending |
+| 4 | [Operational Timeline and Compliance Audit Separation](./phase-04-operational-timeline-and-compliance-audit-separation.md) | Done (PR #155, CI green) |
+| 5 | [Existing Detail URL and Cross-Link Normalization](./phase-05-existing-detail-url-and-cross-link-normalization.md) | Done (PR #157, merged as d7203e2) |
+| 6 | [Remaining First-Class Record Rollout](./phase-06-remaining-first-class-record-rollout.md) | Done (PRs #159, #161, #162, #163, #164; required CI green) |
+| 7 | [Coverage Gates, E2E and Documentation](./phase-07-coverage-gates-e2e-and-documentation.md) | Done (audit CI-enforced; Staff E2E archetypes added; docs synced; main `42d05c7` both required checks green — [final ledger](./reports/final-resource-depth-ledger.md)) |
 
 ## Dependencies
 

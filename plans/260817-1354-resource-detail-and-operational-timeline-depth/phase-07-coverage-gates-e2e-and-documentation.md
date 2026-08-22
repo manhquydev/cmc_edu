@@ -1,6 +1,6 @@
 ---
 title: "Phase 7: Coverage Gates E2E and Documentation"
-status: todo
+status: done
 ---
 
 # Phase 7: Coverage Gates E2E and Documentation
@@ -14,15 +14,15 @@ Run browser proof and synchronize durable architecture docs.
 
 ## Requirements
 
-- [ ] Add a source-derived resource-depth audit with an explicit exception registry.
-- [ ] Fail on unclassified production route, record without required depth, duplicate canonical path or unsafe nav landing.
-- [ ] URL/history audit covers list-query hydration, validated return context, tab push,
-  redirect/create replace, unknown section and malformed ID behavior.
-- [ ] E2E covers director staff management, cold links, compatibility redirect and cross-role denial.
-- [ ] E2E samples every rollout archetype; unit/integration tests carry exhaustive module cases.
-- [ ] `pnpm acceptance:report` is measured before/after; no copied snapshot claims.
-- [ ] `typecheck-and-test` and `ui-e2e` green on CI before done.
-- [ ] Docs state dual-ledger semantics and canonical staff URLs.
+- [x] Add a source-derived resource-depth audit with an explicit exception registry. (`scripts/resource-depth-audit.mjs`; 13 registered exceptions)
+- [x] Fail on unclassified production route, record without required depth, duplicate canonical path or unsafe nav landing. (audit: 0 unknown / 0 duplicate / 0 unclassified; wired into `typecheck-and-test`)
+- [x] URL/history audit covers list-query hydration, validated return context, tab push,
+  redirect/create replace, unknown section and malformed ID behavior. (deeplink/return-to/workspace UI specs)
+- [x] E2E covers director staff management, cold links, compatibility redirect and cross-role denial. (`staff-director-management.journey.ui.spec.ts` + `user-admin-roles`/`deeplink-detail-gates`)
+- [x] E2E samples every rollout archetype; unit/integration tests carry exhaustive module cases.
+- [x] `pnpm acceptance:report` is measured before/after; no copied snapshot claims. (see [final ledger](./reports/final-resource-depth-ledger.md))
+- [x] `typecheck-and-test` and `ui-e2e` green on CI before done. (main `42d05c7`: both success; ui-e2e re-run confirmed flake→green)
+- [x] Docs state dual-ledger semantics and canonical staff URLs. (`system-architecture.md`; dual-ledger added to `06-kien-truc-url-routing.md`, `/hr/staff` added to `ux-resource-centric-structure.md`)
 
 ## Architecture
 

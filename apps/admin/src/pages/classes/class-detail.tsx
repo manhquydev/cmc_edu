@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import {
   Badge,
   Banner,
   Button,
-  CmcTabs,
   ConfirmDialog,
   DataTable,
   DetailPage,
@@ -14,7 +14,6 @@ import {
   HighlightStrip,
   HStack,
   KeyValueList,
-  LineIcon,
   PageHeader,
   SectionBlock,
   Selector,
@@ -26,9 +25,12 @@ import {
 } from '@cmc/ui';
 import type { TableColumn } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
+import { ClassActivitySection } from './class-activity.js';
 import { useSession } from '../../lib/session-context.js';
 import { CopyLinkButton } from '../../lib/copy-link-button.js';
+import { RecordLink } from '../../lib/record-link.js';
 import { exerciseSequencePath } from '../teaching/exercise-sequence-model.js';
+import { classSectionPath, UUID_RE, studentSectionPath } from '@cmc/links';
 
 const CLASS_STATUS_LABELS: Record<string, string> = {
   planned: 'Dự kiến',
@@ -73,6 +75,7 @@ function TeacherPicker({ classBatchId, currentTeacherId }: { classBatchId: strin
   // the dropdown cannot offer a choice the mutation would reject.
   const { data, isLoading } = trpc.user.pickList.useQuery({ role: 'giao_vien' });
   const teachers = (data?.items ?? []) as Array<{ id: string; fullName: string }>;
+  const currentTeacher = teachers.find((t) => t.id === currentTeacherId);
   const options = teachers.map((t) => ({ value: t.id, label: t.fullName }));
 
   const assignMut = trpc.classBatch.assignTeacher.useMutation({
@@ -95,6 +98,13 @@ function TeacherPicker({ classBatchId, currentTeacherId }: { classBatchId: strin
           hasClear={false}
         />
       </div>
+      {currentTeacher ? (
+        <Text type="supporting" size="sm">
+          <RecordLink entity="staff" id={currentTeacher.id}>
+            {currentTeacher.fullName}
+          </RecordLink>
+        </Text>
+      ) : null}
       {assignMut.error && (
         <Text type="supporting" size="2xs" style={{ color: 'var(--cmc-danger)' }}>
           {assignMut.error.message}
@@ -110,22 +120,36 @@ function TeacherPicker({ classBatchId, currentTeacherId }: { classBatchId: strin
 
 interface StudentTabRow {
   enrollmentId: string;
+  studentId: string;
   fullName: string;
   status: string;
   [key: string]: unknown;
 }
 
 function StudentsTab({ classBatchId }: { classBatchId: string }) {
+  const location = useLocation();
   const { data, isLoading, error } = trpc.classBatch.listStudents.useQuery({ classBatchId });
 
   const columns: TableColumn<StudentTabRow>[] = [
     {
       key: 'fullName',
       label: 'Họ tên',
-      render: (v) => (
-        <Text type="body" size="sm" weight="medium">
-          {String(v)}
-        </Text>
+      render: (v, row) => (
+        // Phase 5 cross-record link: canonical student profile section with
+        // validated same-origin return context back to this class roster.
+        <Link
+          to={studentSectionPath(row.studentId, 'profile')}
+          state={{
+            from: {
+              pathname: `/admin/classes/${classBatchId}/students`,
+              search: location.search,
+            },
+          }}
+        >
+          <Text type="body" size="sm" weight="medium">
+            {String(v)}
+          </Text>
+        </Link>
       ),
     },
     {
@@ -233,7 +257,15 @@ function SessionUnitPicker({
   );
 }
 
-function SessionsTab({ classBatchId, program }: { classBatchId: string; program?: string }) {
+function SessionsTab({
+  classBatchId,
+  program,
+  canGenerateSchedule,
+}: {
+  classBatchId: string;
+  program?: string;
+  canGenerateSchedule: boolean;
+}) {
   const navigate = useNavigate();
   const utils = trpc.useUtils();
   const { data, isLoading, error } = trpc.classSession.list.useQuery({ classBatchId });
@@ -317,7 +349,11 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
           currentUnitId={v as string | null}
           options={unitOptions}
           isLoading={unitsLoading}
-          isDisabled={row.status === 'cancelled' || row.status === 'done'}
+          isDisabled={
+            row.status === 'cancelled' ||
+            row.status === 'done' ||
+            !canGenerateSchedule
+          }
         />
       ),
     },
@@ -335,7 +371,7 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
               void navigate(`/teaching/sessions/${row.id}?tab=attendance`);
             }}
           />
-          {row.status === 'planned' && (
+          {row.status === 'planned' && canGenerateSchedule && (
             <Button
               label="Xác nhận"
               size="sm"
@@ -344,7 +380,7 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
               onClick={() => confirmMut.mutate({ sessionId: row.id })}
             />
           )}
-          {row.status !== 'cancelled' && row.status !== 'done' && (
+          {canGenerateSchedule && row.status !== 'cancelled' && row.status !== 'done' && (
             <Button
               label="Huỷ"
               size="sm"
@@ -399,11 +435,26 @@ function SessionsTab({ classBatchId, program }: { classBatchId: string; program?
 // ---------------------------------------------------------------------------
 
 export default function ClassDetailPage() {
-  const { canDo } = useSession();
+  return <ClassDetailContent />;
+}
 
-  // Same guard as the list screen it is reached from — otherwise the URL is a
-  // way around the list guard straight to the roster tab.
-  if (!canDo('class', 'create')) {
+function ClassDetailContent() {
+  const { id } = useParams<{ id: string }>();
+  const { section } = useParams<{ section: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { canDo } = useSession();
+  const canEditClass = canDo('class', 'create');
+  const canGenerateSchedule = canDo('schedule', 'generate');
+  const canSequence = canDo('exercise', 'manage');
+  const idOk = UUID_RE.test(id ?? '');
+
+  const { data: cls, isLoading, error } = trpc.classBatch.get.useQuery(
+    { classBatchId: id ?? '' },
+    { enabled: idOk },
+  );
+
+  if (!idOk) {
     return (
       <DetailPage
         header={
@@ -411,34 +462,15 @@ export default function ClassDetailPage() {
             breadcrumbs={[
               { label: 'Lớp & Học sinh', href: '/admin/students' },
               { label: 'Lớp học', href: '/admin/classes' },
-              { label: 'Chi tiết' },
+              { label: 'ID không hợp lệ' },
             ]}
           />
         }
       >
-        <EmptyState
-          title="Không có quyền truy cập"
-          description="Trang này yêu cầu quyền quản lý lớp học (class.create)."
-          icon={<LineIcon name="shield" size={28} />}
-        />
+        <EmptyState title="ID không hợp lệ" description="URL cần UUID lớp học." />
       </DetailPage>
     );
   }
-
-  return <ClassDetailContent />;
-}
-
-function ClassDetailContent() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { canDo } = useSession();
-  const canSequence = canDo('exercise', 'manage');
-  const [activeTab, setActiveTab] = useState('overview');
-
-  const { data: cls, isLoading, error } = trpc.classBatch.get.useQuery(
-    { classBatchId: id! },
-    { enabled: Boolean(id) },
-  );
 
   const overviewContent = (() => {
     if (isLoading) {
@@ -486,26 +518,40 @@ function ClassDetailContent() {
               ]}
             />
           </SectionBlock>
-          <SectionBlock
-            title="Phân công giáo viên"
-            description="classBatch.assignTeacher — chỉ giáo viên (server filter), quyền không đổi."
-          >
-            <TeacherPicker classBatchId={cls.id} currentTeacherId={cls.teacherAppUserId} />
-          </SectionBlock>
+          {canEditClass ? (
+            <SectionBlock
+              title="Phân công giáo viên"
+              description="classBatch.assignTeacher — chỉ giáo viên (server filter), quyền không đổi."
+            >
+              <TeacherPicker classBatchId={cls.id} currentTeacherId={cls.teacherAppUserId} />
+            </SectionBlock>
+          ) : null}
+          {id ? <ClassActivitySection classBatchId={id} /> : null}
         </div>
       </div>
     );
   })();
 
-  const tabs = [
+  const tabs: Array<{
+    id: 'overview' | 'students' | 'sessions';
+    label: string;
+    content: ReactNode;
+  }> = [
     { id: 'overview', label: 'Tổng quan', content: overviewContent },
     { id: 'students', label: 'Học viên', content: id ? <StudentsTab classBatchId={id} /> : null },
     {
       id: 'sessions',
       label: 'Buổi học',
-      content: id ? <SessionsTab classBatchId={id} program={cls?.program} /> : null,
+      content: id ? (
+        <SessionsTab
+          classBatchId={id}
+          program={cls?.program}
+          canGenerateSchedule={canGenerateSchedule}
+        />
+      ) : null,
     },
   ];
+  const activeTab = section ?? 'overview';
 
   const statusBar = cls ? classStatusSteps(cls.status) : null;
   const statusLabel = cls
@@ -537,7 +583,7 @@ function ClassDetailContent() {
                 label="Về danh sách"
                 size="sm"
                 variant="ghost"
-                onClick={() => navigate('/admin/classes')}
+                onClick={() => navigate({ pathname: '/admin/classes', search: location.search })}
               />
             </HStack>
           }
@@ -562,7 +608,7 @@ function ClassDetailContent() {
                 label="Tổng quan lớp"
                 size="sm"
                 variant="secondary"
-                onClick={() => setActiveTab('overview')}
+                onClick={() => navigate(`/admin/classes/${id}/overview`)}
               />
             }
           />
@@ -595,7 +641,20 @@ function ClassDetailContent() {
           <WorkflowStatusbar steps={statusBar.steps} activeIndex={statusBar.activeIndex} />
         ) : undefined
       }
-      tabs={<CmcTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />}
+      tabs={
+        <nav className="console-section-tabs" aria-label="Phân đoạn lớp học">
+          {tabs.map((t) => (
+            <NavLink
+              key={t.id}
+              to={{ pathname: classSectionPath(id!, t.id), search: location.search }}
+              end
+            >
+              {t.label}
+            </NavLink>
+          ))}
+        </nav>
+      }
+      children={tabs.find((t) => t.id === activeTab)?.content ?? overviewContent}
     />
   );
 }

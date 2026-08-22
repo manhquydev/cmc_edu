@@ -9,6 +9,7 @@ import { notFound } from '../errors.js';
 import { requirePermission, router, scoped } from '../trpc.js';
 import { MAX_CLASS_SPAN_DAYS, planClassSessions, spanDaysInclusive } from './generate-sessions.js';
 import { insertMissingPlannedSessions } from './insert-planned-sessions.js';
+import { emitClassRecordEvent } from './record-event.js';
 import { assertNoRoomConflict } from './room-conflict.js';
 import { badRequest } from '../errors.js';
 import {
@@ -143,6 +144,16 @@ export const scheduleRouter = router({
           planned,
         });
 
+        if (inserted.created > 0) {
+          await emitClassRecordEvent(tx, {
+            facilityId,
+            classBatchId: classBatch.id,
+            actor: ctx.subject.userId,
+            kind: 'sessions_generated',
+            created: inserted.created,
+          });
+        }
+
         return {
           classBatchId: classBatch.id,
           sessionsCreated: inserted.created,
@@ -177,6 +188,21 @@ export const scheduleRouter = router({
             endTime: input.endTime,
           },
         });
+        if (
+          slot.weekday !== input.weekday ||
+          slot.startTime !== input.startTime ||
+          slot.endTime !== input.endTime
+        ) {
+          await emitClassRecordEvent(tx, {
+            facilityId,
+            classBatchId: slot.classBatchId,
+            actor: ctx.subject.userId,
+            kind: 'slot_updated',
+            weekday: input.weekday,
+            startTime: input.startTime,
+            endTime: input.endTime,
+          });
+        }
         return toScheduleSlotDto(updated);
       });
     }),
@@ -200,6 +226,12 @@ export const scheduleRouter = router({
         const archived = await tx.scheduleSlot.update({
           where: { id: slot.id },
           data: { archivedAt: new Date() },
+        });
+        await emitClassRecordEvent(tx, {
+          facilityId,
+          classBatchId: slot.classBatchId,
+          actor: ctx.subject.userId,
+          kind: 'slot_archived',
         });
         return toScheduleSlotDto(archived);
       });
@@ -226,6 +258,15 @@ export const scheduleRouter = router({
             startTime: input.startTime,
             endTime: input.endTime,
           },
+        });
+        await emitClassRecordEvent(tx, {
+          facilityId,
+          classBatchId: classBatch.id,
+          actor: ctx.subject.userId,
+          kind: 'slot_added',
+          weekday: input.weekday,
+          startTime: input.startTime,
+          endTime: input.endTime,
         });
         return toScheduleSlotDto(created);
       });

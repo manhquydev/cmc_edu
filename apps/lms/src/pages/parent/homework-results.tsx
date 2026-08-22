@@ -15,7 +15,7 @@ export default function HomeworkResultsPage() {
   const { session } = useSession();
 
   // Defense-in-depth: route-level ParentOnly guard is the primary gate.
-  if (!session || session.kind !== 'parent') return null;
+  if (!session || (session.kind !== 'parent' && session.kind !== 'family')) return null;
 
   const { data, isLoading, error } = trpc.submission.listForChild.useQuery(
     { studentId: studentId! },

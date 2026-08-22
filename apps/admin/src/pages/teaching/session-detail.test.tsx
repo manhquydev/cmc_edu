@@ -18,6 +18,7 @@ const deliverState = vi.hoisted(() => ({
   sequenceLength: 1,
   nextPositionExists: true,
 }));
+const TEACHER_ID = '11111111-1111-4111-8111-111111111111';
 const SESSION = {
   id: 'sess-1',
   classBatchId: 'batch-1',
@@ -29,7 +30,9 @@ const SESSION = {
   curriculumUnitId: null,
   batchCode: 'CMC-UCREA-001',
   program: 'UCREA',
-  teacherId: 't1',
+  teacherId: TEACHER_ID,
+  teacherAppUserId: TEACHER_ID,
+  teacherFullName: 'Cô Lan',
   courseId: 'c1',
   batchStatus: 'active',
 };
@@ -127,6 +130,19 @@ describe('SessionDetailPage', () => {
     expect(screen.getAllByText('Nhật ký').length).toBeGreaterThan(0);
     // Console form grammar on overview
     expect(screen.getByText('Thông tin buổi học')).toBeInTheDocument();
+  });
+
+  it('shows the teacher name as text for giao_vien', async () => {
+    renderSession('/teaching/sessions/sess-1?tab=overview');
+    expect(await screen.findByText('Cô Lan')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Cô Lan' })).toBeNull();
+  });
+
+  it('links the teacher name to staff for a director', async () => {
+    meState.roles = ['giam_doc_dao_tao'];
+    renderSession('/teaching/sessions/sess-1?tab=overview');
+    const link = await screen.findByRole('link', { name: 'Cô Lan' });
+    expect(link.getAttribute('href')).toBe(`/hr/staff/${TEACHER_ID}`);
   });
 
   it('default tab is attendance when tab query omitted', async () => {

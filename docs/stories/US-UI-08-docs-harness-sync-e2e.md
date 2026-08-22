@@ -15,7 +15,7 @@ Three deliverables:
 1. **Docs sync** — update `docs/06`, `docs/10`, `docs/11`, `docs/12`, `docs/15`, `docs/18`,
    `docs/19`, `docs/24` to reflect product decisions made during the UI build phases.
    Add decision note for QĐ0033 reversal (receipt code format change PT → SO).
-   Use `BLOCKED-ON-COMMS` framing in `docs/15` and `docs/19` wherever email transport is a stub.
+   Do not describe email transport as a stub. Prod uses `BrevoEmailTransport`; console is dev/test only. Current prod failure is HTTP 401 (invalid key).
 
 2. **Harness story packets** — story files `US-UI-01a` through `US-UI-08` (this file) in
    `docs/stories/` following the US-001 template.
@@ -42,7 +42,7 @@ Three deliverables:
 ## Acceptance Criteria
 
 - All docs reflect actual code (no stale procedure names, outdated table schemas, or wrong defaults).
-- `BLOCKED-ON-COMMS` label present wherever email transport is a stub (docs/15, docs/19).
+- Docs must not claim `ConsoleEmailTransport` is the prod path; record Brevo + 401 key failure instead.
 - Story files exist for `US-UI-01a` through `US-UI-08`.
 - `playwright.config.ts` defines `projects`: `api` (matches `*.spec.ts`) and `ui-chromium`
   (matches `*.ui.spec.ts`, uses `Desktop Chrome`, `baseURL: http://localhost:4174`).

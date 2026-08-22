@@ -7,7 +7,7 @@ import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
 import { Skeleton } from '@cmc/ui';
 import { Shell } from '../shell/shell.js';
 import { LoginPage } from '../pages/login.js';
-import { ComingSoon } from '../pages/coming-soon.js';
+import RouteNotFoundPage from '../pages/route-not-found.js';
 import { financeRoutes } from './finance.routes.js';
 import { crmRoutes } from './crm.routes.js';
 import { teachingRoutes } from './teaching.routes.js';
@@ -24,7 +24,7 @@ const CockpitPage = lazy(() => import('../pages/cockpit.js'));
 // (no navbar/app-switcher/⌘K) so the user cannot navigate away mid-rotation.
 const ChangePasswordPage = lazy(() => import('../pages/change-password.js'));
 
-function RequireAuth({ children }: { children: ReactNode }) {
+export function RequireAuth({ children }: { children: ReactNode }) {
   const { me, isLoading } = useSession();
   const location = useLocation();
   if (isLoading) return <Skeleton height="100vh" radius={0} />;
@@ -38,6 +38,13 @@ function RequireAuth({ children }: { children: ReactNode }) {
       return <Navigate to={`/login?returnTo=${encodeURIComponent(dest)}`} replace />;
     }
     return <Navigate to="/login" replace />;
+  }
+  if (me.mustChangePassword && location.pathname !== '/change-password') {
+    if (shouldCaptureReturnTo(location.pathname)) {
+      const dest = `${location.pathname}${location.search}`;
+      return <Navigate to={`/change-password?returnTo=${encodeURIComponent(dest)}`} replace />;
+    }
+    return <Navigate to="/change-password" replace />;
   }
   return <>{children}</>;
 }
@@ -78,14 +85,14 @@ export const router = createBrowserRouter(
       { path: 'hr', children: hrRoutes },
       { path: 'ops', children: opsRoutes },
       { path: 'admin', children: adminRoutes },
-      // Canonical deep-link resolver — before wildcard so /go/* is never ComingSoon.
+      // Canonical deep-link resolver — before wildcard so /go/* is never 404.
       ...goRoutes,
       // Design-system showcase lab (observation page; deletable after review).
       ...designRoutes,
       // Footgun: bare /classes is not registered (list lives at /admin/classes).
-      // Redirect before the catch-all ComingSoon so typed/bookmarked URLs work.
+      // Redirect before the route-level not-found so typed/bookmarked URLs work.
       { path: 'classes', element: <Navigate to="/admin/classes" replace /> },
-      { path: '*', element: <ComingSoon /> },
+      { path: '*', element: <RouteNotFoundPage /> },
     ],
   },
   ],

@@ -8,6 +8,14 @@
 
 import { randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { criterionKeys } from '@cmc/domain-lms';
+
+function ucreaRubric() {
+  return {
+    version: 2 as const,
+    scores: Object.fromEntries(criterionKeys('UCREA').map((key) => [key, 3 as const])),
+  };
+}
 import { appRouter } from '../router.js';
 import {
   buildStaffContext,
@@ -215,7 +223,7 @@ describe('teacher class-scoping — cross-router FORBIDDEN proof (H1+H2)', () =>
 
       // Teacher A (the real owner) can still confirm it.
       await expect(
-        teacherA.assessment.confirm({ assessmentId: draft.id, content: 'Nhận xét chốt' }),
+        teacherA.assessment.confirm({ assessmentId: draft.id, rubric: ucreaRubric() }),
       ).resolves.toMatchObject({ status: 'confirmed' });
     });
 

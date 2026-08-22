@@ -27,10 +27,17 @@ import {
   Skeleton,
   Stack,
   Text,
-  TextArea,
 } from '@cmc/ui';
 import { trpc } from '../../lib/trpc.js';
 import { useClassBatchOptions } from '../../lib/use-class-batch-options.js';
+import {
+  SessionRubricFields,
+  draftFromPayload,
+  emptyRubricDraft,
+  isDraftComplete,
+  toRubricPayload,
+  type RubricDraft,
+} from './panels/session-rubric-fields.js';
 
 interface RosterEntry {
   studentId: string;
@@ -40,7 +47,7 @@ interface RosterEntry {
 export default function SessionAssessmentPage() {
   const [classBatchId, setClassBatchId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [edited, setEdited] = useState<Record<string, string>>({});
+  const [rubricDrafts, setRubricDrafts] = useState<Record<string, RubricDraft>>({});
   const [confirmAllError, setConfirmAllError] = useState<string | null>(null);
   const [confirmAllBusy, setConfirmAllBusy] = useState(false);
 
@@ -93,11 +100,14 @@ export default function SessionAssessmentPage() {
     .filter((r) => r.status === 'present')
     .map((r) => ({ studentId: r.studentId, fullName: nameByStudentId.get(r.studentId) ?? r.studentId.slice(0, 8) }));
 
+  const catalog = assessData?.catalog ?? null;
+
   interface AssessmentDto {
     id: string;
     studentId: string;
     status: string;
     content: string;
+    rubric?: { version: 2; scores: Record<string, 1 | 2 | 3 | 4>; narratives?: { strength?: string; weakness?: string; recommendation?: string } } | null;
   }
   const assessmentByStudentId = new Map(
     ((assessData?.items ?? []) as AssessmentDto[]).map((a) => [a.studentId, a]),
@@ -112,12 +122,8 @@ export default function SessionAssessmentPage() {
 
   function resetSession() {
     setSessionId(null);
-    setEdited({});
+    setRubricDrafts({});
     setConfirmAllError(null);
-  }
-
-  function contentFor(studentId: string, assessment: AssessmentDto | undefined): string {
-    return edited[studentId] ?? assessment?.content ?? '';
   }
 
   async function handleConfirmAll() {
@@ -126,7 +132,16 @@ export default function SessionAssessmentPage() {
     try {
       for (const entry of draftPending) {
         const a = assessmentByStudentId.get(entry.studentId)!;
-        await confirmMut.mutateAsync({ assessmentId: a.id, content: contentFor(entry.studentId, a) });
+        const draft = catalog
+          ? (rubricDrafts[entry.studentId] ?? emptyRubricDraft(catalog))
+          : undefined;
+        if (catalog && draft && !isDraftComplete(catalog, draft)) {
+          throw new Error('Chấm đủ tiêu chí trước khi xác nhận tất cả.');
+        }
+        await confirmMut.mutateAsync({
+          assessmentId: a.id,
+          rubric: draft ? toRubricPayload(draft) : undefined,
+        });
       }
     } catch (err) {
       setConfirmAllError(err instanceof Error ? err.message : 'Lỗi xác nhận hàng loạt.');
@@ -190,7 +205,7 @@ export default function SessionAssessmentPage() {
                 placeholder="Chọn buổi"
                 options={sessionOptions}
                 value={sessionId ?? undefined}
-                onChange={(v) => { setSessionId(v ?? null); setEdited({}); setConfirmAllError(null); }}
+                onChange={(v) => { setSessionId(v ?? null); setRubricDrafts({}); setConfirmAllError(null); }}
                 hasClear={false}
               />
             )}
@@ -262,14 +277,14 @@ export default function SessionAssessmentPage() {
                       />
                     )}
 
-                    {assessment && !isConfirmed && (
+                    {assessment && !isConfirmed && catalog && (
                       <>
-                        <TextArea
-                          label={`Nhận xét — ${entry.fullName}`}
-                          isLabelHidden
-                          value={contentFor(entry.studentId, assessment)}
-                          onChange={(v) => setEdited((prev) => ({ ...prev, [entry.studentId]: v }))}
-                          rows={2}
+                        <SessionRubricFields
+                          catalog={catalog}
+                          value={rubricDrafts[entry.studentId] ?? emptyRubricDraft(catalog)}
+                          onChange={(next) =>
+                            setRubricDrafts((prev) => ({ ...prev, [entry.studentId]: next }))
+                          }
                         />
                         <Button
                           label="Xác nhận"
@@ -277,19 +292,28 @@ export default function SessionAssessmentPage() {
                           variant="primary"
                           style={{ alignSelf: 'flex-start' }}
                           isLoading={confirmMut.isPending}
+                          isDisabled={!isDraftComplete(catalog, rubricDrafts[entry.studentId] ?? emptyRubricDraft(catalog))}
                           onClick={() =>
                             confirmMut.mutate({
                               assessmentId: assessment.id,
-                              content: contentFor(entry.studentId, assessment),
+                              rubric: toRubricPayload(
+                                rubricDrafts[entry.studentId] ?? emptyRubricDraft(catalog),
+                              ),
                             })
                           }
                         />
                       </>
                     )}
 
-                    {isConfirmed && (
+                    {isConfirmed && catalog && assessment.rubric ? (
+                      <SessionRubricFields
+                        catalog={catalog}
+                        value={draftFromPayload(catalog, assessment.rubric)}
+                        readOnly
+                      />
+                    ) : isConfirmed ? (
                       <Text type="body" size="sm">{assessment.content}</Text>
-                    )}
+                    ) : null}
                   </Stack>
                 );
               })}

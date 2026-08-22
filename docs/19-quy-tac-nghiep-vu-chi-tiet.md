@@ -42,7 +42,7 @@
 >
 > **Không có `studentCode`**: HS được định danh bằng `fullName + SĐT PH`; không có cột mã học sinh.
 >
-> **BLOCKED-ON-COMMS**: Email OTP phụ huynh dùng `ConsoleEmailTransport` stub — chưa giao được email thật ra ngoài. Luồng này **không hoạt động production** cho đến khi Brevo/Graph credentials được cấu hình (xem TL18). Dev/staging: xem OTP trong server log.
+> Email OTP phụ huynh enqueue `EmailOutbox`; worker prod gửi qua `BrevoEmailTransport` (`ConsoleEmailTransport` chỉ dev/test, cấm ở prod). Delivery hiện fail HTTP 401 khi `BREVO_API_KEY` prod invalid — không phải stub "chưa gửi" (xem TL18). Dev/staging: xem OTP trong server log.
 
 ## 2b. Quy tắc phê duyệt phiếu thu (Over-threshold role-elevation)
 

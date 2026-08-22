@@ -15,11 +15,15 @@
 // The boot-check ensures the default NEVER runs in NODE_ENV=production.
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import type { LmsSessionKind } from './lms-kind.js';
+
+export type { LmsSessionKind } from './lms-kind.js';
+export { isParentDoorKind } from './lms-kind.js';
 
 export interface LmsTokenClaims {
   parentAccountId: string;
   studentId?: string;
-  kind: 'parent' | 'student';
+  kind: LmsSessionKind;
   /** ParentAccount.tokenVersion at issue time; rejected if account bumps. */
   tokenVersion?: number;
 }
@@ -36,7 +40,8 @@ const HEADER_B64 = Buffer.from(
   'utf8',
 ).toString('base64url');
 
-const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days (parent / student)
+export const FAMILY_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours (family door, D4)
 
 function hmacB64(data: string, secret: string): string {
   return createHmac('sha256', secret).update(data).digest('base64url');
@@ -46,19 +51,25 @@ function hmacB64(data: string, secret: string): string {
  * Signs a new LMS session token.
  *
  * @param ttlMs  Token lifetime in milliseconds. Defaults to `LMS_TOKEN_TTL_MS`
- *               env var (for test overrides) or 7 days. Pass explicitly in
- *               tests to produce expired tokens without env manipulation.
+ *               (parent/student) or min(that, 12h) for family. Pass explicitly
+ *               in tests to produce expired tokens without env manipulation.
  */
+export function resolveLmsTokenTtlMs(kind: LmsSessionKind): number {
+  const configured = Number(process.env['LMS_TOKEN_TTL_MS'] ?? DEFAULT_TTL_MS);
+  return kind === 'family' ? Math.min(configured, FAMILY_TTL_MS) : configured;
+}
+
 export function signLmsToken(
   claims: LmsTokenClaims,
   secret: string,
-  ttlMs: number = Number(process.env['LMS_TOKEN_TTL_MS'] ?? DEFAULT_TTL_MS),
+  ttlMs: number = resolveLmsTokenTtlMs(claims.kind),
 ): string {
   const now = Math.floor(Date.now() / 1000);
   const payload = Buffer.from(
     JSON.stringify({
       parentAccountId: claims.parentAccountId,
-      ...(claims.studentId !== undefined && { studentId: claims.studentId }),
+      ...(claims.kind !== 'family' &&
+        claims.studentId !== undefined && { studentId: claims.studentId }),
       kind: claims.kind,
       tv: claims.tokenVersion ?? 0,
       iat: now,
@@ -103,11 +114,11 @@ export function verifyLmsToken(token: string, secret: string): LmsTokenClaims | 
   const { parentAccountId, studentId, kind, tv } = raw;
   const tokenVersion = typeof tv === 'number' && Number.isInteger(tv) ? tv : 0;
   if (typeof parentAccountId !== 'string') return null;
-  if (kind !== 'parent' && kind !== 'student') return null;
+  if (kind !== 'parent' && kind !== 'student' && kind !== 'family') return null;
 
   return {
     parentAccountId,
-    studentId: typeof studentId === 'string' ? studentId : undefined,
+    studentId: kind === 'family' ? undefined : typeof studentId === 'string' ? studentId : undefined,
     kind,
     tokenVersion,
   };

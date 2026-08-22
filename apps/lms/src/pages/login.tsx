@@ -1,9 +1,9 @@
-// Login page — two tabs: parent email-OTP | student phone+password.
+// Login page — three tabs: student password | parent email-OTP | family password.
 //
 // Security invariants enforced here:
-//   - Parent email-OTP is BLOCKED-ON-COMMS (ConsoleEmailTransport stub).
-//     A visible "[DEV ONLY - blocked-on-comms]" label is always shown.
-//     Do NOT claim it works end-to-end.
+//   - Parent email-OTP uses BrevoEmailTransport in prod (console is
+//     dev/test only). A "[DEV ONLY]" banner is shown only when
+//     `import.meta.env.DEV` is true — not in production builds.
 //   - Generic error messages only — never expose whether a phone/email/account
 //     exists (mirrors the backend no-leak contract).
 //   - On successful student login with mustChangePassword=true, the session is
@@ -16,7 +16,7 @@
 //     omits them).
 
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
   Badge,
   Banner,
@@ -30,9 +30,10 @@ import {
   TextField,
   Heading,
 } from '@cmc/ui';
-import { trpc } from '../lib/trpc.js';
+import { setActiveStudentId, trpc } from '../lib/trpc.js';
 import { useSession } from '../lib/session-context.js';
 import { parseLmsToken } from '../lib/lms-session.js';
+import { isParentDoorKind } from '../lib/lms-kind.js';
 
 const fullWidth = { width: '100%' } as const;
 
@@ -148,6 +149,76 @@ function ParentEmailOtpTab() {
 }
 
 // ---------------------------------------------------------------------------
+// Family phone+password tab (additive — OTP / student tabs stay)
+// ---------------------------------------------------------------------------
+
+function FamilyLoginTab() {
+  const { setSession } = useSession();
+  const navigate = useNavigate();
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const loginMut = trpc.lmsAuth.familyLogin.useMutation({
+    onSuccess(data) {
+      const parsed = parseLmsToken(data.sessionToken);
+      setSession({
+        kind: 'family',
+        parentAccountId: parsed?.parentAccountId ?? '',
+        sessionToken: data.sessionToken,
+        children: data.children,
+        mustChangePassword: data.mustChangePassword,
+      });
+      if (data.mustChangePassword) {
+        navigate('/doi-mat-khau-gia-dinh', { replace: true });
+      } else if (data.needsPicker) {
+        navigate('/select-profile', { replace: true });
+      } else {
+        if (data.children[0]) setActiveStudentId(data.children[0].studentId);
+        navigate('/parent/home', { replace: true });
+      }
+    },
+    onError() {
+      setError('Thông tin đăng nhập không đúng.');
+    },
+  });
+
+  return (
+    <Stack gap={2}>
+      <TextField
+        label="Số điện thoại gia đình"
+        placeholder="0912345678"
+        value={phone}
+        onChange={setPhone}
+        inputMode="tel"
+        autoComplete="tel"
+      />
+      <PasswordInput
+        label="Mật khẩu gia đình"
+        placeholder="••••••••"
+        value={password}
+        onChange={setPassword}
+        autoComplete="current-password"
+      />
+      {error && <Banner status="error" title={error} />}
+      <Button
+        style={fullWidth}
+        label="Đăng nhập gia đình"
+        isLoading={loginMut.isPending}
+        isDisabled={!phone || !password}
+        onClick={() => {
+          setError('');
+          loginMut.mutate({ phone, password });
+        }}
+      />
+      <Text type="supporting" size="2xs" justify="center" display="block">
+        <Link to="/dat-lai-mat-khau-gia-dinh">Quên mật khẩu?</Link>
+      </Text>
+    </Stack>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Student phone+password tab
 // ---------------------------------------------------------------------------
 
@@ -234,8 +305,8 @@ function DevHeaderWriter() {
         setErr('Cần parentAccountId (string).');
         return;
       }
-      if (kind !== 'parent' && kind !== 'student') {
-        setErr('kind phải là "parent" hoặc "student".');
+      if (kind !== 'parent' && kind !== 'student' && kind !== 'family') {
+        setErr('kind phải là "parent", "student" hoặc "family".');
         return;
       }
       setSession({
@@ -244,7 +315,7 @@ function DevHeaderWriter() {
         studentId: typeof studentId === 'string' ? studentId : undefined,
         sessionToken: btoa(raw),
       });
-      navigate(kind === 'parent' ? '/parent/home' : '/student/home', { replace: true });
+      navigate(kind === 'student' ? '/student/home' : '/parent/home', { replace: true });
     } catch {
       setErr('JSON không hợp lệ.');
     }
@@ -285,7 +356,7 @@ function DevHeaderWriter() {
 
 export default function LoginPage() {
   const { session } = useSession();
-  const [tab, setTab] = useState<'student' | 'parent'>('student');
+  const [tab, setTab] = useState<'student' | 'parent' | 'family'>('student');
 
   // Already logged in — redirect away. A `<Navigate>` element (NOT a
   // navigate() call in the render body) is the correct React Router pattern:
@@ -296,12 +367,15 @@ export default function LoginPage() {
   // change-password screen (P1-07). The dest must therefore also honor
   // mustChangePassword so this guard agrees with the login handler.
   if (session) {
-    const dest =
-      session.kind === 'parent'
-        ? '/parent/home'
-        : session.mustChangePassword
-          ? '/student/change-password'
-          : '/student/home';
+    const dest = isParentDoorKind(session.kind)
+      ? session.kind === 'family' && session.mustChangePassword === true
+        ? '/doi-mat-khau-gia-dinh'
+        : session.kind === 'family' && (session.children?.length ?? 0) >= 2
+          ? '/select-profile'
+          : '/parent/home'
+      : session.mustChangePassword
+        ? '/student/change-password'
+        : '/student/home';
     return <Navigate to={dest} replace />;
   }
 
@@ -315,13 +389,25 @@ export default function LoginPage() {
           <Badge label="LMS" variant="neutral" />
         </Stack>
 
-        <TabList value={tab} onChange={(v) => setTab(v as 'student' | 'parent')} layout="fill" hasDivider>
+        <TabList
+          value={tab}
+          onChange={(v) => setTab(v as 'student' | 'parent' | 'family')}
+          layout="fill"
+          hasDivider
+        >
           <Tab value="student" label="Học sinh" />
           <Tab value="parent" label="Phụ huynh" endContent={<Badge label="DEV" variant="warning" />} />
+          <Tab value="family" label="Gia đình" />
         </TabList>
 
         <div style={{ paddingTop: 16 }}>
-          {tab === 'student' ? <StudentLoginTab /> : <ParentEmailOtpTab />}
+          {tab === 'student' ? (
+            <StudentLoginTab />
+          ) : tab === 'parent' ? (
+            <ParentEmailOtpTab />
+          ) : (
+            <FamilyLoginTab />
+          )}
         </div>
 
         {/* Dev-only shortcut for e2e tests — gated to non-production builds */}

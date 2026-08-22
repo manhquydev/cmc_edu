@@ -2,8 +2,9 @@
 //
 // EmailOutbox.payload carries DOMAIN data (e.g. {receiptId, studentName, kind}),
 // not rendered content — so every transport (Brevo/Graph) renders here rather
-// than duplicating templating. Currently one email type is enqueued (receipt
-// approval notification, finance/router.ts enqueueReceiptEmail); unknown shapes
+// than duplicating templating. Two email types are rendered: parent login OTP
+// (`kind: 'otp'`, lmsAuth.requestOtpEmail) and receipt approval notification
+// (finance/router.ts enqueueReceiptEmail); unknown shapes
 // fall back to a safe generic message so a transport never sends an empty body.
 
 export interface RenderedEmail {
@@ -40,6 +41,22 @@ interface OtpPayload {
   ttlMinutes: number;
 }
 
+interface FamilyResetPayload {
+  kind: 'family-reset';
+  resetUrl: string;
+  ttlMinutes: number;
+}
+
+function isFamilyResetPayload(p: unknown): p is FamilyResetPayload {
+  return (
+    typeof p === 'object' &&
+    p !== null &&
+    (p as Record<string, unknown>)['kind'] === 'family-reset' &&
+    typeof (p as Record<string, unknown>)['resetUrl'] === 'string' &&
+    typeof (p as Record<string, unknown>)['ttlMinutes'] === 'number'
+  );
+}
+
 function isOtpPayload(p: unknown): p is OtpPayload {
   return (
     typeof p === 'object' &&
@@ -73,6 +90,25 @@ export function renderOutboxEmail(payload: unknown): RenderedEmail {
       `<p>Phiếu thu học phí cho học viên <strong>${escapeHtml(name)}</strong> ` +
       `đã được duyệt và ghi nhận.</p>` +
       `<p>Quý phụ huynh vui lòng đăng nhập cổng CMC EDU để xem chi tiết.</p>` +
+      `<p>Trân trọng,<br/>CMC EDU</p>`;
+    return { subject, html, text };
+  }
+
+  if (isFamilyResetPayload(payload)) {
+    const url = escapeHtml(payload.resetUrl);
+    const ttl = payload.ttlMinutes;
+    const subject = 'CMC EDU — Đặt lại mật khẩu gia đình';
+    const text =
+      `Kính gửi Quý phụ huynh,\n\n` +
+      `Quý phụ huynh yêu cầu đặt lại mật khẩu tài khoản gia đình.\n` +
+      `Mở liên kết sau (hết hạn sau ${ttl} phút):\n${payload.resetUrl}\n\n` +
+      `Nếu không phải Quý phụ huynh yêu cầu, hãy bỏ qua thư này.\n\n` +
+      `Trân trọng,\nCMC EDU`;
+    const html =
+      `<p>Kính gửi Quý phụ huynh,</p>` +
+      `<p>Quý phụ huynh yêu cầu đặt lại mật khẩu tài khoản gia đình.</p>` +
+      `<p><a href="${url}">Đặt lại mật khẩu</a> — liên kết hết hạn sau ${ttl} phút.</p>` +
+      `<p>Nếu không phải Quý phụ huynh yêu cầu, hãy bỏ qua thư này.</p>` +
       `<p>Trân trọng,<br/>CMC EDU</p>`;
     return { subject, html, text };
   }

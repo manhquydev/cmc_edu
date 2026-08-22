@@ -27,6 +27,7 @@ import {
   BrevoEmailTransport,
   ConsoleEmailTransport,
   GraphEmailTransport,
+  SmtpEmailTransport,
   type EmailTransport,
 } from './email-transport.js';
 import {
@@ -95,7 +96,9 @@ function buildTransportMap(): Record<string, EmailTransport> {
     if (!CONSOLE_TRANSPORT_PROD_FORBIDDEN) {
       throw new Error('[worker] internal error: CONSOLE_TRANSPORT_PROD_FORBIDDEN must be true');
     }
-    const map: Record<string, EmailTransport> = { brevo: new BrevoEmailTransport() };
+    const map: Record<string, EmailTransport> = {
+      brevo: process.env.SMTP_URL ? new SmtpEmailTransport() : new BrevoEmailTransport(),
+    };
     // Graph is included only when its env vars are configured — its constructor
     // throws on missing vars (fail-fast), so gating here keeps the worker
     // bootable in Brevo-only deployments. A 'graph' outbox row without Graph

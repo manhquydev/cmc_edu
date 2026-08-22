@@ -11,6 +11,8 @@ import { z } from 'zod';
 import { withFacility } from '@cmc/db';
 import { notFound } from '../errors.js';
 import { auditChildDataAccess, getApprovedChildren } from '../guardian/approved-children.js';
+import { emitClassRecordEvent } from '../class/record-event.js';
+import { emitStudentRecordEvent } from '../student/record-event.js';
 import { lmsProcedure, requireLmsParent, requirePermission, router, scoped } from '../trpc.js';
 
 const enrollInput = z.object({
@@ -62,7 +64,7 @@ export const enrollmentRouter = router({
           throw notFound('ClassBatch not found.');
         }
 
-        return tx.enrollment.create({
+        const enrollment = await tx.enrollment.create({
           data: {
             facilityId,
             studentId: input.studentId,
@@ -70,6 +72,25 @@ export const enrollmentRouter = router({
             status: 'reserved',
           },
         });
+        await emitClassRecordEvent(tx, {
+          facilityId,
+          classBatchId: input.classBatchId,
+          actor: ctx.subject.userId,
+          kind: 'student_enrolled',
+          studentId: input.studentId,
+          enrollmentId: enrollment.id,
+        });
+        // Dual view (module-2 freeze): the same reserved seat is also the
+        // student's own operational history, on the Student timeline.
+        await emitStudentRecordEvent(tx, {
+          facilityId,
+          studentId: input.studentId,
+          actor: ctx.subject.userId,
+          kind: 'enrolled',
+          enrollmentId: enrollment.id,
+          classBatchId: input.classBatchId,
+        });
+        return enrollment;
       });
     }),
 
@@ -86,6 +107,13 @@ export const enrollmentRouter = router({
       const { facilityId } = scoped(ctx);
 
       return withFacility(ctx.db, facilityId, async (tx) => {
+        // Serialize lifecycle transitions so concurrent identical calls see
+        // the committed state before deciding whether the write is a no-op.
+        await tx.$queryRaw`
+          SELECT "id" FROM "Student"
+          WHERE "id" = ${input.studentId} AND "facilityId" = ${facilityId}
+          FOR UPDATE
+        `;
         const student = await tx.student.findFirst({
           where: { id: input.studentId, facilityId },
         });
@@ -97,6 +125,19 @@ export const enrollmentRouter = router({
           where: { id: student.id },
           data: { lifecycle: 'blocked_lms' },
         });
+
+        // Operational history on the student timeline; a no-op re-block (already
+        // blocked_lms) records nothing (module-2 freeze).
+        if (student.lifecycle !== 'blocked_lms') {
+          await emitStudentRecordEvent(tx, {
+            facilityId,
+            studentId: student.id,
+            actor: ctx.subject.userId,
+            kind: 'lifecycle_changed',
+            from: student.lifecycle,
+            to: 'blocked_lms',
+          });
+        }
 
         await tx.auditLog.create({
           data: {

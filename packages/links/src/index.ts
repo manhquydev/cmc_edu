@@ -24,6 +24,8 @@ export const links = {
   kpiScore: (id: string) => `/hr/kpi/${id}`,
   /** AfterSaleCase form — UUID. */
   afterSaleCase: (id: string) => `/crm/aftersale/${id}`,
+  /** ParentMeeting form (post-sale meeting) — UUID. */
+  parentMeeting: (id: string) => `/crm/post-sale-meeting/${id}`,
   /** ParentAccount form — UUID. */
   parentAccount: (id: string) => `/admin/parents/${id}`,
   /** ClassSession form — UUID. */
@@ -174,4 +176,35 @@ export function staffProfilePath(id: string): string {
 /** Staff access section (roles + reset password) — UUID. */
 export function staffAccessPath(id: string): string {
   return `/hr/staff/${id}/access`;
+}
+/** Staff activity timeline section — UUID (Phase 4A). */
+export function staffActivityPath(id: string): string {
+  return `/hr/staff/${id}/activity`;
+}
+
+// ── Durable entity sections (Phase 5): subpath builders so emitters and
+// routes never hard-code section strings independently. ──
+
+/** Class detail sections — base redirects to overview; UUID. */
+export function classSectionPath(id: string, section: 'overview' | 'students' | 'sessions'): string {
+  return `/admin/classes/${id}/${section}`;
+}
+
+/** Student detail sections — base redirects to profile; UUID. */
+export function studentSectionPath(id: string, section: 'profile' | 'enrollments'): string {
+  return `/admin/students/${id}/${section}`;
+}
+
+/** Receipt detail sections — base redirects to overview; UUID. */
+export function receiptSectionPath(id: string, section: 'overview' | 'order-lines' | 'activity'): string {
+  return `/finance/${id}/${section}`;
+}
+
+/** ParentMeeting detail default section. */
+export function parentMeetingPath(id: string): string {
+  return `/crm/post-sale-meeting/${id}`;
+}
+
+export function parentMeetingSectionPath(id: string, section: 'overview' | 'activity'): string {
+  return `/crm/post-sale-meeting/${id}/${section}`;
 }

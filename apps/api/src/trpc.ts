@@ -7,8 +7,9 @@
 
 import { initTRPC } from '@trpc/server';
 import { can, type AuthSubject } from '@cmc/auth';
-import type { Prisma, PrismaClient } from '@cmc/db';
+import { withFacility, type Prisma, type PrismaClient } from '@cmc/db';
 import { AppCodeError, badRequest, forbidden, unauthorized } from './errors.js';
+import { isParentDoorKind, type LmsSessionKind } from './lms-auth/lms-kind.js';
 import {
   deriveEntity,
   deriveEntityId,
@@ -28,7 +29,7 @@ import {
 export interface LmsSubject {
   parentAccountId: string;
   studentId?: string;
-  kind: 'parent' | 'student';
+  kind: LmsSessionKind;
   /** From token `tv` claim; validated against ParentAccount.tokenVersion. */
   tokenVersion?: number;
 }
@@ -109,6 +110,9 @@ const AUDIT_EXCLUDED_PATHS = new Set<string>([
   'lmsAuth.requestOtp',
   'lmsAuth.requestOtpEmail',
   'lmsAuth.loginStudent',
+  'lmsAuth.familyLogin',
+  'lmsAuth.familyForgotPassword',
+  'lmsAuth.familyResetPasswordWithToken',
   'lmsAuth.resetChildPassword',
   'parentAccount.setActive',
   // Post-review fix: these two already audit via a SHARED helper
@@ -174,7 +178,7 @@ const auditLogMiddleware = t.middleware(async ({ ctx, next, path, type, getRawIn
         actor: resolveAuditActor(ctx),
         action: path,
         entity: deriveEntity(path),
-        entityId: deriveEntityId(rawInput, resultData),
+        entityId: deriveEntityId(rawInput, resultData, path),
         data: sanitizeAuditData(rawInput) as Prisma.InputJsonValue | undefined,
       },
     });
@@ -242,8 +246,41 @@ const requireValidFacility = t.middleware(async ({ ctx, next }) => {
   return next();
 });
 
+const STAFF_PASSWORD_CHANGE_EXEMPT_PATHS: Record<string, true> = {
+  'session.me': true,
+  'user.changeOwnPassword': true,
+};
+
+/**
+ * Staff `mustChangePassword` lives on AppUser, not the session cookie.
+ * No AppUser row (x-dev-user fake ids in tests) is treated as false.
+ */
+export async function staffMustChangePassword(ctx: Context): Promise<boolean> {
+  if (!ctx.subject?.userId || !ctx.facilityId) return false;
+  const row = await withFacility(ctx.db, ctx.facilityId, (tx) =>
+    tx.appUser.findFirst({
+      where: { userId: ctx.subject!.userId, facilityId: ctx.facilityId! },
+      select: { mustChangePassword: true },
+    }),
+  );
+  return row?.mustChangePassword === true;
+}
+
+const requireStaffPasswordCurrent = t.middleware(async ({ ctx, next, path }) => {
+  if (STAFF_PASSWORD_CHANGE_EXEMPT_PATHS[path]) {
+    return next();
+  }
+  if (await staffMustChangePassword(ctx)) {
+    throw forbidden('Password change required before proceeding.');
+  }
+  return next();
+});
+
 /** Requires a valid staff session AND a facilityId that resolves to a real Facility. */
-export const protectedProcedure = basedProcedure.use(requireSession).use(requireValidFacility);
+export const protectedProcedure = basedProcedure
+  .use(requireSession)
+  .use(requireValidFacility)
+  .use(requireStaffPasswordCurrent);
 
 const requireLmsSession = t.middleware(async ({ ctx, next }) => {
   const { assertLiveLmsSession } = await import('./lms-auth/assert-live-session.js');
@@ -259,7 +296,30 @@ const requireLmsSession = t.middleware(async ({ ctx, next }) => {
  * staff roles — there is no SYSTEM/super_admin bypass into LMS surfaces
  * (TL11 §1); a staff session alone never satisfies this procedure.
  */
-export const lmsProcedure = basedProcedure.use(requireLmsSession);
+const FAMILY_PASSWORD_CHANGE_EXEMPT_PATHS: Record<string, true> = {
+  'lmsAuth.setFamilyPassword': true,
+};
+
+export async function familyMustChangePassword(ctx: Context): Promise<boolean> {
+  if (ctx.lmsSubject?.kind !== 'family' || !ctx.lmsSubject.parentAccountId) return false;
+  const row = await ctx.db.parentAccount.findUnique({
+    where: { id: ctx.lmsSubject.parentAccountId },
+    select: { mustChangePassword: true },
+  });
+  return row?.mustChangePassword === true;
+}
+
+const requireFamilyPasswordCurrent = t.middleware(async ({ ctx, next, path }) => {
+  if (FAMILY_PASSWORD_CHANGE_EXEMPT_PATHS[path]) {
+    return next();
+  }
+  if (await familyMustChangePassword(ctx)) {
+    throw forbidden('Password change required before proceeding.');
+  }
+  return next();
+});
+
+export const lmsProcedure = basedProcedure.use(requireLmsSession).use(requireFamilyPasswordCurrent);
 
 /**
  * RBAC gate. Business procedures use `requirePermission('module','action')`,
@@ -318,7 +378,7 @@ export function requireLmsParent(ctx: Context): { parentAccountId: string } {
   if (!ctx.lmsSubject) {
     throw unauthorized('LMS session required.');
   }
-  if (ctx.lmsSubject.kind !== 'parent') {
+  if (!isParentDoorKind(ctx.lmsSubject.kind)) {
     throw forbidden('Parent session required.');
   }
   return { parentAccountId: ctx.lmsSubject.parentAccountId };

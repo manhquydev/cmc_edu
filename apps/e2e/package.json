@@ -19,7 +19,7 @@
     "@trpc/client": "^11.0.0",
     "@trpc/server": "^11.0.0",
     "@types/node": "^22.10.0",
-    "ts-morph": "^24.0.0",
+    "ts-morph": "^28.0.0",
     "tsx": "^4.23.5",
     "typescript": "^6.0.0"
   }

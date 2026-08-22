@@ -38,7 +38,7 @@
     "eslint-formatter-compact": "^9.0.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
-    "reveal.js": "5.2.1",
+    "reveal.js": "6.0.1",
     "ts-morph": "^24.0.0",
     "tsx": "^4.23.5",
     "turbo": "^2.10.8",
